@@ -36,6 +36,14 @@ disabled on a client, and incoming values update the active profile and race.
 client resolves them through the original track catalog before reloading the
 world.
 
+`RaceMenu2::RaceMainFrame` now uses the original five network player images
+and two-column source layout. Remote human cards render their gamer photo,
+name, car, Host/Ready label and ready-state icon. A client Start click sends
+`NetPlayer::RaceReady` and locks the other six menu icons while ready. A host
+requires at least one ready opponent, shows the source warning otherwise,
+uses `NetGame::DisconnectPlayer` for the kick button, and preserves the
+`NetRace::GetLeaverList` confirmation before a repeated race.
+
 ## Verification
 
 The non-rendering regressions `rrr3d_original_network_session_smoke`,
@@ -43,7 +51,8 @@ The non-rendering regressions `rrr3d_original_network_session_smoke`,
 `rrr3d_original_user_chat_smoke` verify
 initialization, adapter enumeration, LAN search/cancel, source-port hosting,
 close/finalization, all eight host-option RPCs and their client gate, model
-RPC, Cyrillic chat wire format and the source chat history/fade model. The
+RPC, host-side peer removal, Cyrillic chat wire format and the source chat
+history/fade model. The
 Metal regressions exercise all five source LAN menu frames and the chat
 overlay in a live race:
 

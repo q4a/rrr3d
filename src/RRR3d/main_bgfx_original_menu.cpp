@@ -218,6 +218,16 @@ struct UserChatVisual
     std::uint64_t revision = std::numeric_limits<std::uint64_t>::max();
 };
 
+#ifdef RRR3D_NETWORK
+struct NetworkRacePlayerVisual
+{
+    r3d::game::originalnetwork::NetworkPlayerState player;
+    TextVisual name;
+    TextVisual readyLabel;
+    std::optional<std::size_t> photoIndex;
+};
+#endif
+
 struct WorkshopWeaponDialogVisual
 {
     TextVisual name;
@@ -362,7 +372,7 @@ std::optional<Options> parseOptions(int argc, char** argv)
         {
             options.networkMenuSmokeTest = true;
             if (options.smokeFrames == 0)
-                options.smokeFrames = 180;
+                options.smokeFrames = 270;
             continue;
         }
 #endif
@@ -1583,6 +1593,18 @@ int main(int argc, char** argv)
         *resources, "Data/GUI/chargeBar1.png");
     const auto raceStatBarImage = menu::loadOriginalImage(
         *resources, "Data/GUI/statBar.png");
+#ifdef RRR3D_NETWORK
+    const auto networkPlayerFrameImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/netPlayerFrame.png");
+    const auto networkPlayerKickImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/netPlayerKick.png");
+    const auto networkPlayerKickSelectedImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/netPlayerKickSel.png");
+    const auto networkPlayerReadyImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/netPlayerReadyState.png");
+    const auto networkPlayerReadySelectedImage = menu::loadOriginalImage(
+        *resources, "Data/GUI/netPlayerReadyStateSel.png");
+#endif
     const std::array<menu::Image, 7> raceMenuIconImages{
         menu::loadOriginalImage(*resources, "Data/GUI/icoStart.png"),
         menu::loadOriginalImage(*resources, "Data/GUI/icoWorkshop.png"),
@@ -1614,6 +1636,18 @@ int main(int argc, char** argv)
         createImageTexture(*device, raceChargeBarImage);
     const Texture raceStatBar =
         createImageTexture(*device, raceStatBarImage);
+#ifdef RRR3D_NETWORK
+    const Texture networkPlayerFrame =
+        createImageTexture(*device, networkPlayerFrameImage);
+    const Texture networkPlayerKick =
+        createImageTexture(*device, networkPlayerKickImage);
+    const Texture networkPlayerKickSelected =
+        createImageTexture(*device, networkPlayerKickSelectedImage);
+    const Texture networkPlayerReady =
+        createImageTexture(*device, networkPlayerReadyImage);
+    const Texture networkPlayerReadySelected =
+        createImageTexture(*device, networkPlayerReadySelectedImage);
+#endif
     std::array<Texture, 7> raceMenuIcons{};
     for (std::size_t index = 0U; index < raceMenuIcons.size(); ++index)
         raceMenuIcons[index] =
@@ -1993,6 +2027,9 @@ int main(int argc, char** argv)
     MenuPageVisual startOptionsValuePage;
     MenuPageVisual startOptionsActionPage;
     std::vector<TextVisual> startOptionsInfoLines;
+#ifdef RRR3D_NETWORK
+    std::vector<NetworkRacePlayerVisual> networkRacePlayerVisuals;
+#endif
 #endif
     std::string resolvedFont;
     auto createPage = [&](std::vector<std::string> pageLabels) {
@@ -2872,6 +2909,12 @@ int main(int argc, char** argv)
         valid(raceMoney) && valid(raceStats) &&
         valid(raceImageFrame) && valid(raceChargeBar) &&
         valid(raceStatBar) &&
+#ifdef RRR3D_NETWORK
+        valid(networkPlayerFrame) && valid(networkPlayerKick) &&
+        valid(networkPlayerKickSelected) &&
+        valid(networkPlayerReady) &&
+        valid(networkPlayerReadySelected) &&
+#endif
         std::all_of(
             raceMenuIcons.begin(), raceMenuIcons.end(),
             [](Texture texture) { return valid(texture); }) &&
@@ -2959,6 +3002,14 @@ int main(int argc, char** argv)
 #endif
 #ifdef RRR3D_PHYSICS
         clearFinishRows();
+#ifdef RRR3D_NETWORK
+        for (const auto& player : networkRacePlayerVisuals)
+        {
+            device->destroy(player.readyLabel.texture);
+            device->destroy(player.name.texture);
+        }
+        networkRacePlayerVisuals.clear();
+#endif
         for (const auto& line : startOptionsInfoLines)
             device->destroy(line.texture);
         destroyPage(startOptionsActionPage);
@@ -3083,6 +3134,13 @@ int main(int argc, char** argv)
             device->destroy(texture);
         for (const auto texture : raceMenuIcons)
             device->destroy(texture);
+#ifdef RRR3D_NETWORK
+        device->destroy(networkPlayerReadySelected);
+        device->destroy(networkPlayerReady);
+        device->destroy(networkPlayerKickSelected);
+        device->destroy(networkPlayerKick);
+        device->destroy(networkPlayerFrame);
+#endif
         device->destroy(raceStatBar);
         device->destroy(raceChargeBar);
         device->destroy(raceImageFrame);
@@ -3917,6 +3975,7 @@ int main(int argc, char** argv)
     bool networkLocalCarSelected = true;
     float networkHostRaceGoSeconds = -1.0F;
     std::int32_t networkAppliedRaceGoStage = -1;
+    bool networkLocalReadyPublished = false;
     bool networkLocalGoWaitPublished = false;
     bool networkLocalFinishPublished = false;
     bool networkHostFinishTimerStarted = false;
@@ -3938,12 +3997,16 @@ int main(int argc, char** argv)
 #ifdef RRR3D_PHYSICS
     std::optional<r3d::game::originalrace::Weather>
         networkWeatherOverride;
+    bool networkLeaverStartDialogVisible = false;
+    bool networkLeaverStartYesFocused = true;
+    std::optional<std::uint32_t> networkKickHoverOwner;
 #endif
     bool networkFrameObserved = !options->networkMenuSmokeTest;
     bool networkServerTypeObserved = !options->networkMenuSmokeTest;
     bool networkClientTypeObserved = !options->networkMenuSmokeTest;
     bool networkBrowserObserved = !options->networkMenuSmokeTest;
     bool networkIpObserved = !options->networkMenuSmokeTest;
+    bool networkHostReadyGateObserved = !options->networkMenuSmokeTest;
     std::uint32_t networkSmokeStep = 0U;
     std::uint32_t networkSmokeNextFrame = 1U;
 
@@ -3952,6 +4015,11 @@ int main(int argc, char** argv)
                                      float pointSize) {
         if (lines.empty())
             lines.emplace_back(" ");
+        for (auto& line : lines)
+        {
+            if (line.empty())
+                line = " ";
+        }
         auto replacement = createStyledPage(
             std::move(lines), pointSize,
             menu::Rgba8{214, 214, 214, 255},
@@ -4392,6 +4460,7 @@ int main(int argc, char** argv)
             networkLocalCarSelected = true;
             networkHostRaceGoSeconds = -1.0F;
             networkAppliedRaceGoStage = -1;
+            networkLocalReadyPublished = false;
             networkLocalGoWaitPublished = false;
             networkLocalFinishPublished = false;
             networkHostFinishTimerStarted = false;
@@ -4783,6 +4852,9 @@ int main(int argc, char** argv)
     std::size_t angarTravelTarget = 0U;
     auto acceptDialogVisible = [&]() {
         return exitRaceDialogVisible ||
+#ifdef RRR3D_NETWORK
+               networkLeaverStartDialogVisible ||
+#endif
                profileDeleteDialogVisible ||
                garagePurchaseDialogVisible ||
                workshopConfirmation !=
@@ -4794,6 +4866,10 @@ int main(int argc, char** argv)
     auto acceptDialogYesFocused = [&]() {
         if (exitRaceDialogVisible)
             return exitRaceYesFocused;
+#ifdef RRR3D_NETWORK
+        if (networkLeaverStartDialogVisible)
+            return networkLeaverStartYesFocused;
+#endif
         if (profileDeleteDialogVisible)
             return profileDeleteYesFocused;
         if (garagePurchaseDialogVisible)
@@ -4810,6 +4886,10 @@ int main(int argc, char** argv)
         acceptDialog.hoveredChoice = yes;
         if (exitRaceDialogVisible)
             exitRaceYesFocused = yes;
+#ifdef RRR3D_NETWORK
+        else if (networkLeaverStartDialogVisible)
+            networkLeaverStartYesFocused = yes;
+#endif
         else if (profileDeleteDialogVisible)
             profileDeleteYesFocused = yes;
         else if (garagePurchaseDialogVisible)
@@ -4884,6 +4964,131 @@ int main(int argc, char** argv)
                    ? std::string{}
                    : localized(gamer->bossName);
     };
+#ifdef RRR3D_NETWORK
+    auto networkRacePlayerCenter = [&](std::size_t index) {
+        const float frameWidth = static_cast<float>(
+            networkPlayerFrameImage.width);
+        const float frameHeight = static_cast<float>(
+            networkPlayerFrameImage.height);
+        const float leftSpace =
+            menu::virtualHeight -
+            static_cast<float>(raceTopPanelImage.height) -
+            static_cast<float>(raceBottomPanelImage.height) -
+            static_cast<float>(raceStatsImage.height);
+        const auto leftCount = std::max<std::size_t>(
+            1U, static_cast<std::size_t>(std::floor(
+                    leftSpace / (frameHeight + 12.5F))));
+        const auto column = std::min<std::size_t>(
+            index / leftCount, 1U);
+        const auto row = index - leftCount * column;
+        return std::array<float, 3>{
+            frameWidth * 0.5F + 8.0F +
+                static_cast<float>(column) *
+                    (menu::virtualWidth - frameWidth - 16.0F),
+            static_cast<float>(raceTopPanelImage.height) + 30.0F +
+                frameHeight * 0.5F +
+                static_cast<float>(row) * (frameHeight + 25.0F),
+            column > 0U ? -1.0F : 1.0F};
+    };
+    auto clearNetworkRacePlayerVisuals = [&]() {
+        for (const auto& player : networkRacePlayerVisuals)
+        {
+            device->destroy(player.readyLabel.texture);
+            device->destroy(player.name.texture);
+        }
+        networkRacePlayerVisuals.clear();
+        networkKickHoverOwner.reset();
+    };
+    auto refreshNetworkRacePlayerVisuals = [&]() {
+        const bool clientReady =
+            networkMatchStarted && !networkHostRequested &&
+            networkLocalReadyPublished;
+        std::fill(
+            raceMenuPage.enabled.begin(), raceMenuPage.enabled.end(), true);
+        if (clientReady && raceMenuPage.enabled.size() > 1U)
+        {
+            std::fill(
+                raceMenuPage.enabled.begin() + 1,
+                raceMenuPage.enabled.end(), false);
+            if (!menuStack.empty() &&
+                menuStack.back() == MenuScreen::RaceMenu)
+            {
+                menuSelection = 0U;
+            }
+        }
+
+        std::vector<r3d::game::originalnetwork::NetworkPlayerState>
+            opponents;
+        if (networkMatchStarted &&
+            networkSnapshot.models.matchActive)
+        {
+            for (const auto& player : networkSnapshot.models.players)
+            {
+                // NetGame::netOpponents contains remote human Player
+                // models, not the locally owned human or host-owned AI.
+                if (!player.owner && player.playerId == 0U)
+                    opponents.push_back(player);
+            }
+        }
+        const bool unchanged =
+            opponents.size() == networkRacePlayerVisuals.size() &&
+            std::equal(
+                opponents.begin(), opponents.end(),
+                networkRacePlayerVisuals.begin(),
+                [](const auto& player, const auto& visual) {
+                    return player.modelId == visual.player.modelId &&
+                           player.ownerId == visual.player.ownerId &&
+                           player.netSlot == visual.player.netSlot &&
+                           player.gamerId == visual.player.gamerId &&
+                           player.car == visual.player.car &&
+                           player.raceReady ==
+                               visual.player.raceReady;
+                });
+        if (unchanged)
+            return;
+
+        clearNetworkRacePlayerVisuals();
+        networkRacePlayerVisuals.reserve(opponents.size());
+        for (const auto& player : opponents)
+        {
+            NetworkRacePlayerVisual visual;
+            visual.player = player;
+            auto name = sourceGamerName(player.gamerId);
+            if (name.empty())
+            {
+                name = localized("svPlayer");
+                if (name == "svPlayer")
+                    name = "Player";
+                name += " " + std::to_string(player.netSlot);
+            }
+            visual.name = createText(
+                *device, name, 18.0F, false,
+                menu::Rgba8{255, 255, 255, 255}, resolvedFont);
+            const auto readyLabel =
+                player.ownerId ==
+                        r3d::game::originalnetwork::serverOwnerId
+                    ? localized("svHostLabel")
+                    : localized(
+                          player.raceReady ? "svReadyRace"
+                                           : "svCancelReadyRace");
+            visual.readyLabel = createText(
+                *device, readyLabel, 18.0F, false,
+                menu::Rgba8{255, 255, 255, 255}, resolvedFont);
+            const auto gamer = std::find_if(
+                originalGarage->gamers.begin(),
+                originalGarage->gamers.end(), [&](const auto& value) {
+                    return value.bossId ==
+                           static_cast<std::uint32_t>(player.gamerId);
+                });
+            if (gamer != originalGarage->gamers.end())
+            {
+                visual.photoIndex = static_cast<std::size_t>(
+                    std::distance(originalGarage->gamers.begin(), gamer));
+            }
+            networkRacePlayerVisuals.push_back(std::move(visual));
+        }
+    };
+#endif
     auto sourceLocalChatName = [&]() {
         auto name = sourceGamerName(static_cast<std::int32_t>(
             profileState.player.gamerId));
@@ -5572,6 +5777,7 @@ int main(int argc, char** argv)
                 profileState.player.money,
                 static_cast<std::uint32_t>(
                     std::numeric_limits<std::int32_t>::max())));
+        state.raceReady = networkLocalReadyPublished;
         state.raceGoWait = networkLocalGoWaitPublished;
         state.raceFinish = networkLocalFinishPublished;
         for (std::size_t index = 0U;
@@ -5674,6 +5880,7 @@ int main(int argc, char** argv)
             return false;
         }
         networkMatchStarted = true;
+        networkLocalReadyPublished = false;
         networkPublishedPlayer = makeLocalNetworkPlayer();
         renderedNetworkRevision =
             std::numeric_limits<std::uint64_t>::max();
@@ -5830,6 +6037,7 @@ int main(int argc, char** argv)
                 running = false;
                 return;
             }
+            networkLocalReadyPublished = false;
             networkLocalGoWaitPublished = false;
             networkLocalFinishPublished = false;
             networkHostFinishTimerStarted = false;
@@ -6108,6 +6316,87 @@ int main(int argc, char** argv)
                 rrr3d::audio::OriginalMenuSound::Warning);
 #endif
         };
+    auto activateRaceMenuStart = [&]() {
+#ifdef RRR3D_NETWORK
+        if (networkMatchStarted)
+        {
+            if (!networkHostRequested)
+            {
+                const bool ready = !networkLocalReadyPublished;
+                std::string error;
+                if (!networkSession.setLocalPlayerReady(ready, error))
+                {
+                    std::cerr
+                        << "Original NetPlayer::RaceReady failed: "
+                        << error << '\n';
+                    return;
+                }
+                networkLocalReadyPublished = ready;
+                networkPublishedPlayer = makeLocalNetworkPlayer();
+                renderedNetworkRevision =
+                    std::numeric_limits<std::uint64_t>::max();
+                refreshNetworkRuntimePages();
+                refreshNetworkRacePlayerVisuals();
+                std::cout << "Original NetPlayer::RaceReady("
+                          << ready << ")\n";
+                return;
+            }
+
+            std::vector<const r3d::game::originalnetwork::
+                            NetworkPlayerState*>
+                opponents;
+            for (const auto& player : networkSnapshot.models.players)
+            {
+                if (!player.owner && player.playerId == 0U)
+                    opponents.push_back(&player);
+            }
+            const bool allReady =
+                !opponents.empty() &&
+                std::all_of(
+                    opponents.begin(), opponents.end(),
+                    [](const auto* player) {
+                        return player->raceReady;
+                    });
+            if (!allReady)
+            {
+                showInfoDialog(
+                    localized("svWarning"),
+                    localized("svHintPlayersIsNotReady"),
+                    localized("svOk"),
+                    menu::virtualWidth * 0.5F,
+                    menu::virtualHeight * 0.5F);
+                return;
+            }
+
+            const bool hasLeavers = std::any_of(
+                networkRaceModelOrder.begin(),
+                networkRaceModelOrder.end(),
+                [&](std::uint32_t modelId) {
+                    return std::none_of(
+                        networkSnapshot.models.players.begin(),
+                        networkSnapshot.models.players.end(),
+                        [&](const auto& player) {
+                            return player.modelId == modelId;
+                        });
+                });
+            if (hasLeavers)
+            {
+                networkLeaverStartDialogVisible = true;
+                networkLeaverStartYesFocused = true;
+                auto message = localized(
+                    "svHintLeaversWillBeRemoved");
+                if (message == "svHintLeaversWillBeRemoved")
+                    message = "Players who left will be removed";
+                showAcceptDialog(
+                    message, localized("svYes"), localized("svNo"),
+                    menu::virtualWidth * 0.5F,
+                    menu::virtualHeight * 0.5F);
+                return;
+            }
+        }
+#endif
+        startCurrentRace();
+    };
     auto wrapGarageInfo = [](std::string_view value) {
         constexpr std::size_t maximumCharacters = 78U;
         std::vector<std::string> lines;
@@ -7393,6 +7682,9 @@ int main(int argc, char** argv)
         refreshRaceMainPages();
         menuStack.push_back(MenuScreen::RaceMenu);
         menuSelection = 0;
+#ifdef RRR3D_NETWORK
+        refreshNetworkRacePlayerVisuals();
+#endif
     };
 #ifdef RRR3D_NETWORK
     auto enterConnectedNetworkMatch = [&]() {
@@ -7512,6 +7804,7 @@ int main(int argc, char** argv)
         networkAppliedWeather = match.weather;
         networkMatchStarted = true;
         networkClientMatchEntered = true;
+        networkLocalReadyPublished = owner->raceReady;
         networkLocalCarSelected = !owner->car.empty();
         networkPublishedPlayer = *owner;
         menuStack = {MenuScreen::Main};
@@ -8699,6 +8992,7 @@ int main(int argc, char** argv)
                 !raceLoadingActive)
             {
                 networkRaceStarted = true;
+                networkLocalReadyPublished = false;
                 networkLocalGoWaitPublished = false;
                 networkLocalFinishPublished = false;
                 networkHostFinishTimerStarted = false;
@@ -8712,11 +9006,12 @@ int main(int argc, char** argv)
                 runtimeSmokeFailed = true;
                 running = false;
             }
+            refreshNetworkRacePlayerVisuals();
 #endif
         }
         if (options->networkMenuSmokeTest &&
             renderedFrames >= networkSmokeNextFrame &&
-            networkSmokeStep < 5U)
+            networkSmokeStep < 8U)
         {
             std::string error;
             switch (networkSmokeStep)
@@ -8755,6 +9050,49 @@ int main(int argc, char** argv)
                 backMenu();
                 backMenu();
                 backMenu();
+                break;
+            case 5U:
+#ifdef RRR3D_PHYSICS
+                if (!initializeNetwork())
+                {
+                    runtimeSmokeFailed = true;
+                    break;
+                }
+                networkHostRequested = true;
+                championshipMode = false;
+                menuStack = {MenuScreen::Main};
+                showOriginalRaceMenu();
+#endif
+                break;
+            case 6U:
+#ifdef RRR3D_PHYSICS
+                activateRaceMenuStart();
+                break;
+#else
+                break;
+#endif
+            case 7U:
+#ifdef RRR3D_PHYSICS
+                networkHostReadyGateObserved =
+                    infoDialog.visible && networkMatchStarted &&
+                    networkRacePlayerVisuals.empty();
+                hideInfoDialog();
+                clearNetworkRacePlayerVisuals();
+                networkSession.close();
+                networkSession.finalize();
+                networkHostRequested = false;
+                networkMatchStarted = false;
+                networkRaceStarted = false;
+                networkLocalReadyPublished = false;
+                networkPublishedPlayer.reset();
+                networkSnapshot = {};
+                renderedNetworkRevision =
+                    std::numeric_limits<std::uint64_t>::max();
+                menuStack = {MenuScreen::Main};
+                menuSelection = 0U;
+#else
+                networkHostReadyGateObserved = true;
+#endif
                 break;
             default:
                 break;
@@ -10498,6 +10836,7 @@ int main(int argc, char** argv)
                         ? event.motion.y
                         : event.button.y;
                 std::optional<std::size_t> hoveredRaceMenuItem;
+                bool pointerHandledNetworkKick = false;
                 if (SDL_GetWindowSize(
                         window, &windowWidth, &windowHeight) &&
                     windowWidth > 0 && windowHeight > 0)
@@ -10508,6 +10847,54 @@ int main(int argc, char** argv)
                     const float virtualY =
                         pointerY * menu::virtualHeight /
                         static_cast<float>(windowHeight);
+#ifdef RRR3D_NETWORK
+                    networkKickHoverOwner.reset();
+                    if (networkHostRequested)
+                    {
+                        for (std::size_t index = 0U;
+                             index < networkRacePlayerVisuals.size(); ++index)
+                        {
+                            const auto layout =
+                                networkRacePlayerCenter(index);
+                            const float kickX =
+                                layout[0] + 128.0F * layout[2];
+                            const float kickY = layout[1] - 68.0F;
+                            if (std::abs(virtualX - kickX) > 20.0F ||
+                                std::abs(virtualY - kickY) > 20.0F)
+                            {
+                                continue;
+                            }
+                            const auto ownerId =
+                                networkRacePlayerVisuals[index]
+                                    .player.ownerId;
+                            networkKickHoverOwner = ownerId;
+                            pointerHandledNetworkKick = true;
+                            if (event.type ==
+                                    SDL_EVENT_MOUSE_BUTTON_DOWN &&
+                                event.button.button == SDL_BUTTON_LEFT)
+                            {
+#ifdef RRR3D_AUDIO
+                                playMainButtonClick();
+#endif
+                                std::string error;
+                                if (!networkSession.disconnectPlayer(
+                                        ownerId, error))
+                                {
+                                    std::cerr
+                                        << "Original NetGame::"
+                                           "DisconnectPlayer failed: "
+                                        << error << '\n';
+                                }
+                                renderedNetworkRevision =
+                                    std::numeric_limits<
+                                        std::uint64_t>::max();
+                                refreshNetworkRuntimePages();
+                                refreshNetworkRacePlayerVisuals();
+                            }
+                            break;
+                        }
+                    }
+#endif
                     constexpr float itemWidth = 110.0F;
                     constexpr float itemSpacing = 50.0F;
                     const float firstX =
@@ -10523,6 +10910,7 @@ int main(int argc, char** argv)
                             0.5F -
                         72.0F;
                     for (std::size_t index = 0U;
+                         !pointerHandledNetworkKick &&
                          index < raceMenuIcons.size(); ++index)
                     {
                         const float itemX =
@@ -10537,7 +10925,8 @@ int main(int argc, char** argv)
                         }
                     }
                 }
-                if (hoveredRaceMenuItem)
+                if (hoveredRaceMenuItem &&
+                    raceMenuPage.enabled[*hoveredRaceMenuItem])
                 {
 #ifdef RRR3D_AUDIO
                     if (event.type == SDL_EVENT_MOUSE_MOTION &&
@@ -10550,10 +10939,15 @@ int main(int argc, char** argv)
 #endif
                     menuSelection = *hoveredRaceMenuItem;
                 }
+                else if (hoveredRaceMenuItem)
+                {
+                    hoveredRaceMenuItem.reset();
+                }
                 pointerTargetsItem =
-                    hoveredRaceMenuItem.has_value() ||
-                    event.type == SDL_EVENT_MOUSE_MOTION ||
-                    event.button.button != SDL_BUTTON_LEFT;
+                    !pointerHandledNetworkKick &&
+                    (hoveredRaceMenuItem.has_value() ||
+                     event.type == SDL_EVENT_MOUSE_MOTION ||
+                     event.button.button != SDL_BUTTON_LEFT);
             }
             else if (!inRace &&
                 isOriginalOptionsScreen(menuStack.back()) &&
@@ -10855,6 +11249,53 @@ int main(int argc, char** argv)
                     }
                     continue;
                 }
+#ifdef RRR3D_NETWORK
+                if (!inRace && networkLeaverStartDialogVisible)
+                {
+                    if (!inputEvent.active || inputEvent.repeated)
+                        continue;
+                    if (inputEvent.action ==
+                            rrr3d::input::Action::TurnLeft ||
+                        inputEvent.action ==
+                            rrr3d::input::Action::MenuUp)
+                    {
+                        networkLeaverStartYesFocused = true;
+                    }
+                    else if (inputEvent.action ==
+                                 rrr3d::input::Action::TurnRight ||
+                             inputEvent.action ==
+                                 rrr3d::input::Action::MenuDown)
+                    {
+                        networkLeaverStartYesFocused = false;
+                    }
+                    else if (inputEvent.action ==
+                                 rrr3d::input::Action::MenuBack ||
+                             inputEvent.action ==
+                                 rrr3d::input::Action::Pause)
+                    {
+                        networkLeaverStartDialogVisible = false;
+                    }
+                    else if (inputEvent.action ==
+                             rrr3d::input::Action::MenuConfirm)
+                    {
+                        if (inputEvent.source ==
+                                rrr3d::input::Source::Mouse &&
+                            !pointerTargetsItem)
+                        {
+                            continue;
+                        }
+#ifdef RRR3D_AUDIO
+                        playMainButtonClick();
+#endif
+                        const bool accepted =
+                            networkLeaverStartYesFocused;
+                        networkLeaverStartDialogVisible = false;
+                        if (accepted)
+                            startCurrentRace();
+                    }
+                    continue;
+                }
+#endif
                 if (inRace && exitRaceDialogVisible)
                 {
                     if (!inputEvent.active || inputEvent.repeated)
@@ -12649,7 +13090,7 @@ int main(int argc, char** argv)
                 case MenuScreen::RaceMenu:
                     if (menuSelection == 0U)
                     {
-                        startCurrentRace();
+                        activateRaceMenuStart();
                     }
                     else if (menuSelection == 1U)
                     {
@@ -12718,6 +13159,7 @@ int main(int argc, char** argv)
                             networkLocalCarSelected = true;
                             networkHostRaceGoSeconds = -1.0F;
                             networkAppliedRaceGoStage = -1;
+                            networkLocalReadyPublished = false;
                             networkLocalGoWaitPublished = false;
                             networkLocalFinishPublished = false;
                             networkHostFinishTimerStarted = false;
@@ -16213,6 +16655,105 @@ int main(int argc, char** argv)
                         0.5F,
                 45.0F, transparent);
 
+#ifdef RRR3D_NETWORK
+            for (std::size_t index = 0U;
+                 index < networkRacePlayerVisuals.size(); ++index)
+            {
+                const auto& visual = networkRacePlayerVisuals[index];
+                const auto layout = networkRacePlayerCenter(index);
+                const float playerX = layout[0];
+                const float playerY = layout[1];
+                const float direction = layout[2];
+                if (!visual.player.car.empty())
+                {
+                    workshopRenderer.drawCar(
+                        *device, raceShader, visual.player.car,
+                        playerX + 72.0F * direction, playerY,
+                        130.0F, 130.0F,
+                        garageSceneSeconds * bx::kPi * 0.5F,
+                        racePipeline);
+                }
+                drawQuadRotated(
+                    *device, quad, shader, networkPlayerFrame,
+                    static_cast<float>(networkPlayerFrameImage.width),
+                    static_cast<float>(networkPlayerFrameImage.height),
+                    playerX, playerY, 35.0F,
+                    direction < 0.0F ? bx::kPi : 0.0F, transparent);
+                if (visual.photoIndex &&
+                    *visual.photoIndex < gamersBossTextures.size())
+                {
+                    const auto photoIndex = *visual.photoIndex;
+                    const auto& photo = gamersBossImages[photoIndex];
+                    const float scale = std::min(
+                        100.0F /
+                            std::max(
+                                static_cast<float>(photo.width), 1.0F),
+                        97.0F /
+                            std::max(
+                                static_cast<float>(photo.height), 1.0F));
+                    drawQuad(
+                        *device, quad, shader,
+                        gamersBossTextures[photoIndex],
+                        static_cast<float>(photo.width) * scale,
+                        static_cast<float>(photo.height) * scale,
+                        playerX - 60.0F * direction, playerY,
+                        30.0F, transparent);
+                }
+                const float nameScale = std::min(
+                    1.0F, 190.0F /
+                              std::max(visual.name.width, 1.0F));
+                drawQuad(
+                    *device, quad, shader, visual.name.texture,
+                    visual.name.width * nameScale,
+                    visual.name.height * nameScale,
+                    playerX, playerY - 70.0F, 25.0F, transparent);
+                const float readyScale = std::min(
+                    1.0F, 210.0F /
+                              std::max(visual.readyLabel.width, 1.0F));
+                drawQuad(
+                    *device, quad, shader, visual.readyLabel.texture,
+                    visual.readyLabel.width * readyScale,
+                    visual.readyLabel.height * readyScale,
+                    playerX, playerY + 68.0F, 25.0F, transparent);
+                if (visual.player.ownerId !=
+                    r3d::game::originalnetwork::serverOwnerId)
+                {
+                    const auto readyTexture =
+                        visual.player.raceReady
+                            ? networkPlayerReadySelected
+                            : networkPlayerReady;
+                    const auto& readyImage =
+                        visual.player.raceReady
+                            ? networkPlayerReadySelectedImage
+                            : networkPlayerReadyImage;
+                    drawQuad(
+                        *device, quad, shader, readyTexture,
+                        static_cast<float>(readyImage.width),
+                        static_cast<float>(readyImage.height),
+                        playerX + 128.0F * direction,
+                        playerY + 68.0F, 24.0F, transparent);
+                }
+                if (networkHostRequested)
+                {
+                    const bool hovered =
+                        networkKickHoverOwner &&
+                        *networkKickHoverOwner == visual.player.ownerId;
+                    const auto kickTexture =
+                        hovered ? networkPlayerKickSelected
+                                : networkPlayerKick;
+                    const auto& kickImage =
+                        hovered ? networkPlayerKickSelectedImage
+                                : networkPlayerKickImage;
+                    drawQuad(
+                        *device, quad, shader, kickTexture,
+                        static_cast<float>(kickImage.width),
+                        static_cast<float>(kickImage.height),
+                        playerX + 128.0F * direction,
+                        playerY - 68.0F, 24.0F, transparent);
+                }
+            }
+#endif
+
             constexpr std::array<float, 5> headerOffsets{
                 -548.0F, -273.0F, 2.0F, 277.0F, 552.0F};
             for (std::size_t index = 0U;
@@ -16519,6 +17060,9 @@ int main(int argc, char** argv)
                  index < raceMenuIcons.size(); ++index)
             {
                 const bool selectedItem = index == menuSelection;
+                const bool enabled =
+                    index < raceMenuPage.enabled.size() &&
+                    raceMenuPage.enabled[index];
                 const float itemX =
                     firstX +
                     static_cast<float>(index) *
@@ -16536,13 +17080,27 @@ int main(int argc, char** argv)
                             ? raceMenuButtonSelectedImage.height
                             : raceMenuButtonImage.height),
                     itemX, itemY, 35.0F, transparent);
-                drawQuad(
-                    *device, quad, shader, raceMenuIcons[index],
-                    static_cast<float>(
-                        raceMenuIconImages[index].width),
-                    static_cast<float>(
-                        raceMenuIconImages[index].height),
-                    itemX, itemY, 20.0F, transparent);
+                if (enabled)
+                {
+                    drawQuad(
+                        *device, quad, shader, raceMenuIcons[index],
+                        static_cast<float>(
+                            raceMenuIconImages[index].width),
+                        static_cast<float>(
+                            raceMenuIconImages[index].height),
+                        itemX, itemY, 20.0F, transparent);
+                }
+                else
+                {
+                    drawQuadTinted(
+                        *device, quad, shader, raceMenuIcons[index],
+                        static_cast<float>(
+                            raceMenuIconImages[index].width),
+                        static_cast<float>(
+                            raceMenuIconImages[index].height),
+                        itemX, itemY, 20.0F, transparent,
+                        {1.0F, 1.0F, 1.0F, 0.25F});
+                }
             }
         }
         else if (drawingOriginalGarage)
@@ -18566,7 +19124,9 @@ int main(int argc, char** argv)
                     !networkServerTypeObserved ||
                     !networkClientTypeObserved ||
                     !networkBrowserObserved ||
-                    !networkIpObserved || networkSmokeStep != 5U ||
+                    !networkIpObserved ||
+                    !networkHostReadyGateObserved ||
+                    networkSmokeStep != 8U ||
                     networkSession.initialized() || !returnedToMain)
                 {
                     std::cerr
@@ -18578,6 +19138,8 @@ int main(int argc, char** argv)
                         << networkClientTypeObserved
                         << ", browser=" << networkBrowserObserved
                         << ", ip=" << networkIpObserved
+                        << ", hostReadyGate="
+                        << networkHostReadyGateObserved
                         << ", steps=" << networkSmokeStep
                         << ", finalized="
                         << !networkSession.initialized()
@@ -18591,7 +19153,8 @@ int main(int argc, char** argv)
                         << renderedFrames
                         << " frames: NetworkFrame, ServerTypeFrame, "
                            "ClientTypeFrame, LAN browser, manual IP, "
-                           "adapter list and NetGame lifecycle verified\n";
+                           "adapter list, NetGame lifecycle and host "
+                           "AllPlayersReady gate verified\n";
                 }
             }
 #endif

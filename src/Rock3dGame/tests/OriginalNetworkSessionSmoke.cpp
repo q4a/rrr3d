@@ -46,11 +46,19 @@ int main()
         return 6;
     }
 
+    error.clear();
+    if (session.disconnectPlayer(serverOwnerId + 1U, error) ||
+        error.empty())
+    {
+        std::cerr << "missing NetGame::DisconnectPlayer peer gate\n";
+        return 7;
+    }
+
     session.close();
     session.finalize();
     if (session.initialized() ||
         session.snapshot().state != SessionState::Stopped)
-        return 7;
+        return 8;
 
     std::cout << "Original NetGame lifecycle smoke passed on port "
               << defaultPort << '\n';

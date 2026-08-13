@@ -18,6 +18,7 @@ namespace r3d::game::originalnetwork
 
 inline constexpr std::uint32_t raceModelClassId = 1U;
 inline constexpr std::uint32_t playerModelClassId = 2U;
+inline constexpr std::uint32_t serverOwnerId = 1U;
 inline constexpr std::size_t playerSlotCount = 10U;
 
 // The indexes are part of the Windows wire protocol: NetModelRPC assigns an

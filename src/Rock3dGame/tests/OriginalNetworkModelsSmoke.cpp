@@ -452,6 +452,24 @@ int main()
             }, clock, 4000U))
             return 18;
 
+        auto* clientConnection =
+            server.GetConnectionById(net::cServerPlayer + 1U);
+        if (clientConnection == nullptr)
+            return 19;
+        server.Disconnect(clientConnection);
+        if (!pump(server, client, [&]() {
+                const auto serverState = serverModels.snapshot();
+                return server.connectionCount() == 0U &&
+                       std::none_of(
+                           serverState.players.begin(),
+                           serverState.players.end(),
+                           [](const NetworkPlayerState& player) {
+                               return player.ownerId ==
+                                      net::cServerPlayer + 1U;
+                           });
+            }, clock, 4000U))
+            return 20;
+
         client.Close();
         server.Close();
         client.Finalizate();
@@ -461,6 +479,6 @@ int main()
     std::cout
         << "Original NetRace/NetPlayer class IDs, RPC order, match/state, "
            "host options, vehicle BitStream, damage/shot/bonus/mine/chat, "
-           "ExitRace results and repeated-race loopback passed\n";
+           "ExitRace results, repeated-race and host kick loopback passed\n";
     return 0;
 }

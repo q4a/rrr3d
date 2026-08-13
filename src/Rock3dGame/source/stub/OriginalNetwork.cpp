@@ -398,6 +398,36 @@ bool OriginalNetworkSession::setEnableMineBug(
     return true;
 }
 
+bool OriginalNetworkSession::disconnectPlayer(
+    std::uint32_t ownerId, std::string& error)
+{
+    error.clear();
+    if (!impl_->init)
+    {
+        error = "NetLib is not initialized";
+        return false;
+    }
+    if (!impl_->service.isServer())
+    {
+        error = "only the NetRace host can disconnect players";
+        return false;
+    }
+    auto* connection = impl_->service.GetConnectionById(ownerId);
+    if (connection == nullptr)
+    {
+        error = "source NetPlayer connection is not active";
+        return false;
+    }
+
+    // NetGame::DisconnectPlayer resolves the peer through NetPlayer::ownerId
+    // and asks the original NetService to close that exact connection.
+    impl_->service.Disconnect(connection);
+    impl_->value.peerCount = impl_->service.connectionCount();
+    impl_->refreshModels();
+    impl_->changed();
+    return true;
+}
+
 bool OriginalNetworkSession::sendPlayerDamage(
     std::uint32_t senderModelId, std::uint32_t targetModelId,
     float value, std::int32_t damageType, float targetLife,

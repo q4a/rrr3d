@@ -1336,3 +1336,21 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   override и только затем перезагружает выбранный source world.
 - Loopback теперь проверяет все восемь RPC, host-only gate, динамические
   лимиты AI/игроков и последующий `StartRace`; четыре CTest проходят.
+
+### Source RaceMainFrame network ready / kick follow-up
+
+- Перенесены `RaceMainFrame::AddPlayer/AdjustPlayer/UpdatePlayers`: пять
+  оригинальных `netPlayer*.png`, двухколоночный layout, gamer photo/name,
+  вращающаяся исходная машина, `svHostLabel`, ready label/state и доступная
+  только хосту кнопка kick.
+- `RaceMainFrame::RaceRady/OnInvalidate/OnClick` снова соблюдают Windows
+  правила. Клиентский Start переключает точный `NetPlayer::RaceReady` и на
+  время готовности выбирает Start, блокирует и приглушает остальные шесть
+  кнопок. Периодическая публикация car/profile теперь сохраняет этот флаг.
+- Хост требует непустой `netOpponents`, проверяет `AllPlayersReady`, выводит
+  исходный warning и перед повторной гонкой подтверждает удаление leavers.
+  Kick разрешает `ownerId` через исходный `NetService::GetConnectionById` и
+  вызывает `Disconnect`, как `NetGame::DisconnectPlayer`.
+- Loopback regression завершает активного клиента со стороны хоста и
+  проверяет удаление его `NetPlayer`; session smoke проверяет ошибку для
+  отсутствующего peer.
