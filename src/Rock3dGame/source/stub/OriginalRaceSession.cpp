@@ -1008,6 +1008,9 @@ void OriginalRaceSession::reset()
     countdownDisplay_ = 3;
     networkCountdownControlled_ = false;
     networkFinishControlled_ = false;
+    networkGameplayEnabled_ = false;
+    networkGameplayHost_ = false;
+    networkOwnedRacers_.clear();
     elapsedSeconds_ = 0.0F;
     finishSecondsRemaining_ = -1.0F;
     racers_.assign(race_.racers.size(), {});
@@ -1015,6 +1018,7 @@ void OriginalRaceSession::reset()
     weaponCooldown_.assign(race_.racers.size(), {});
     mineCooldown_.assign(race_.racers.size(), 0.0F);
     hyperCooldown_.assign(race_.racers.size(), 0.0F);
+    nextNetworkProjectileIds_.assign(race_.racers.size(), 1U);
     repairSeconds_.assign(race_.racers.size(), 0.0F);
     stuckSeconds_.assign(race_.racers.size(), 0.0F);
     aiBlockingSeconds_.assign(race_.racers.size(), 0.0F);
@@ -1062,6 +1066,8 @@ void OriginalRaceSession::reset()
     respawns_.clear();
     velocityRequests_.clear();
     angularVelocityRequests_.clear();
+    pendingNetworkShots_.clear();
+    pendingNetworkBonuses_.clear();
     achievementPoints_ = initialAchievementPoints_;
     achievementIterations_.assign(race_.achievements.size(), 0U);
     achievementConditionCounters_.assign(
@@ -1421,6 +1427,176 @@ float OriginalRaceSession::damageAfterSupport(
         }
     }
     return result;
+}
+
+void OriginalRaceSession::setNetworkGameplayRole(
+    bool enabled, bool host, std::vector<bool> ownedRacers)
+{
+    networkGameplayEnabled_ = enabled;
+    networkGameplayHost_ = enabled && host;
+    networkOwnedRacers_ = std::move(ownedRacers);
+    networkOwnedRacers_.resize(racers_.size(), false);
+}
+
+void OriginalRaceSession::pushDamageEvent(
+    std::size_t target, std::size_t attacker, const Vec3& position,
+    float damage, DamageType damageType, bool networkReplicated)
+{
+    RaceEvent event;
+    event.kind = RaceEventKind::Damage;
+    event.racer = target;
+    event.target = attacker;
+    event.position = position;
+    event.value = damage;
+    event.touchDamage = damageType == DamageType::Touch;
+    event.damageType = damageType;
+    event.networkReplicated = networkReplicated;
+    events_.push_back(std::move(event));
+    if (target >= racers_.size())
+        return;
+
+    auto& runtime = racers_[target];
+    // GameObject::Damage dispatches OnDamage even while immortal (the
+    // applied life delta is zero), and ImmortalEffect keeps listening until
+    // its fade-out object is freed.
+    if (runtime.shieldSeconds > 0.0F ||
+        runtime.shieldFadeInSeconds >= 0.0F ||
+        runtime.shieldFadeOutSeconds >= 0.0F)
+    {
+        runtime.shieldDamageSeconds = 0.0F;
+    }
+    if (damageType != DamageType::Energy ||
+        target >= race_.racers.size())
+        return;
+
+    // DataBase::LoadCar attaches one dtEnergy DamageEffect to each car.
+    // EventEffect::MakeEffect does not replace or restart the active
+    // 0.5-second damageEnergy<car> child.
+    const bool alreadyActive = std::any_of(
+        effects_.begin(), effects_.end(),
+        [&](const RaceEffect& effect) {
+            return effect.kind == RaceEventKind::VehicleEnergyDamage &&
+                   effect.racer == target;
+        });
+    if (alreadyActive)
+        return;
+    const auto& sourceRacer = race_.racers[target];
+    const auto& vehicleDefinition =
+        sourceRacer.hasConfiguredVehicle
+            ? sourceRacer.configuredVehicle
+            : race_.vehicles.at(sourceRacer.vehicle);
+    const auto& visual = vehicleDefinition.energyDamageEffect;
+    if (visual.visualNodes.empty() && visual.particleEmitters.empty())
+        return;
+    RaceEffect effect;
+    effect.kind = RaceEventKind::VehicleEnergyDamage;
+    effect.racer = target;
+    effect.origin = position;
+    const auto timing = sourceEffectTiming(visual, 0.5F);
+    effect.totalSeconds = timing.visibleSeconds;
+    effect.seconds = effect.totalSeconds;
+    effect.emissionEndSeconds = timing.emissionSeconds;
+    effects_.push_back(std::move(effect));
+}
+
+bool OriginalRaceSession::applyRacerDamageInternal(
+    std::size_t target, std::size_t attacker, const Vec3& position,
+    float sourceDamage, DamageType damageType,
+    const r3d::physics::VehicleState& vehicle,
+    bool incomingAlreadySupported, bool synchronizeState,
+    float targetLife, bool death, bool networkReplicated)
+{
+    if (target >= racers_.size() || racers_[target].destroyed)
+        return false;
+    const bool touch = damageType == DamageType::Touch;
+    // Logic::Damage applies the first reflector before entering NetRace.
+    // Consequently authoritative RPC values must not pass through the
+    // reflector a second time on the host or receiving client.
+    const float incoming = incomingAlreadySupported
+                               ? sourceDamage
+                               : damageAfterSupport(
+                                     target, sourceDamage, touch);
+    const std::size_t damageEvent = events_.size();
+    pushDamageEvent(
+        target, attacker, position, incoming, damageType,
+        networkReplicated);
+
+    // The Windows client does not call GameObject::Damage while producing
+    // NetRace::Damage. It waits for the host's targetLife/death packet.
+    if (networkGameplayEnabled_ && !networkGameplayHost_ &&
+        !synchronizeState)
+    {
+        if (damageEvent < events_.size())
+        {
+            events_[damageEvent].authoritativeLife =
+                racers_[target].life;
+            events_[damageEvent].authoritativeDeath =
+                racers_[target].destroyed;
+        }
+        return false;
+    }
+
+    auto& runtime = racers_[target];
+    if (touch && attacker != RacerRuntime::invalidWeapon)
+    {
+        runtime.touchAttacker = attacker;
+        runtime.touchAttributionSeconds = 3.0F;
+    }
+    if (synchronizeState)
+    {
+        runtime.life = targetLife;
+    }
+    else if (runtime.shieldSeconds <= 0.0F && !runtime.finished)
+    {
+        runtime.life = std::max(0.0F, runtime.life - incoming);
+    }
+
+    const bool shouldDestroy =
+        synchronizeState ? death : runtime.life <= 0.0F;
+    if (!shouldDestroy)
+    {
+        if (damageEvent < events_.size())
+            events_[damageEvent].authoritativeLife = runtime.life;
+        return false;
+    }
+    destroyRacer(
+        target, attacker, position, vehicle, damageType,
+        damageType != DamageType::Mine);
+    if (damageEvent < events_.size())
+    {
+        events_[damageEvent].authoritativeLife = racers_[target].life;
+        events_[damageEvent].authoritativeDeath = true;
+    }
+    return true;
+}
+
+NetworkDamageResult OriginalRaceSession::applyNetworkPlayerDamage(
+    std::size_t target, std::size_t attacker, Vec3 position,
+    float value, DamageType damageType,
+    const r3d::physics::VehicleState& vehicle,
+    bool synchronizeState, float targetLife, bool death)
+{
+    applyRacerDamageInternal(
+        target, attacker, position, value, damageType, vehicle,
+        true, synchronizeState, targetLife, death, true);
+    if (target >= racers_.size())
+        return {};
+    return {racers_[target].life, racers_[target].destroyed};
+}
+
+void OriginalRaceSession::queueNetworkShot(ReplicatedShot shot)
+{
+    if (shot.racer >= racers_.size() || shot.slotMask == 0U)
+        return;
+    pendingNetworkShots_.push_back(std::move(shot));
+}
+
+void OriginalRaceSession::queueNetworkBonus(ReplicatedBonus bonus)
+{
+    if (bonus.racer >= racers_.size() ||
+        bonus.bonus >= race_.bonuses.size())
+        return;
+    pendingNetworkBonuses_.push_back(std::move(bonus));
 }
 
 bool OriginalRaceSession::damageDecorationWithBox(
@@ -2205,7 +2381,11 @@ void OriginalRaceSession::updateAiTracks(
     for (std::size_t racer = 1U;
          racer < racers_.size() && racer < vehicles.size(); ++racer)
     {
-        if (racers_[racer].destroyed || racers_[racer].finished)
+        if (race_.racers[racer].human ||
+            (networkGameplayEnabled_ &&
+             (racer >= networkOwnedRacers_.size() ||
+              !networkOwnedRacers_[racer])) ||
+            racers_[racer].destroyed || racers_[racer].finished)
             continue;
         // AISystem::ComputeTracks only inserts AI players whose live
         // CarState::curTile exists.  PathState may retain lastNode for
@@ -3373,67 +3553,6 @@ void OriginalRaceSession::updateGameplay(
         }
     }
 
-    auto pushDamageEvent =
-        [&](std::size_t target, std::size_t attacker,
-            const Vec3& position, float damage,
-            DamageType damageType) {
-            RaceEvent event;
-            event.kind = RaceEventKind::Damage;
-            event.racer = target;
-            event.target = attacker;
-            event.position = position;
-            event.value = damage;
-            event.touchDamage =
-                damageType == DamageType::Touch;
-            event.damageType = damageType;
-            events_.push_back(std::move(event));
-            if (target >= racers_.size())
-                return;
-            auto& runtime = racers_[target];
-            // GameObject::Damage dispatches OnDamage even while immortal
-            // (the applied life delta is zero), and ImmortalEffect keeps
-            // listening until its fade-out object is freed.
-            if (runtime.shieldSeconds > 0.0F ||
-                runtime.shieldFadeInSeconds >= 0.0F ||
-                runtime.shieldFadeOutSeconds >= 0.0F)
-            {
-                runtime.shieldDamageSeconds = 0.0F;
-            }
-            if (damageType != DamageType::Energy ||
-                target >= race_.racers.size())
-                return;
-            // DataBase::LoadCar attaches one dtEnergy DamageEffect to each
-            // car. EventEffect::MakeEffect does not replace or restart the
-            // active 0.5-second damageEnergy<car> child.
-            const bool alreadyActive = std::any_of(
-                effects_.begin(), effects_.end(),
-                [&](const RaceEffect& effect) {
-                    return effect.kind ==
-                               RaceEventKind::VehicleEnergyDamage &&
-                           effect.racer == target;
-                });
-            if (alreadyActive)
-                return;
-            const auto& sourceRacer = race_.racers[target];
-            const auto& vehicleDefinition =
-                sourceRacer.hasConfiguredVehicle
-                    ? sourceRacer.configuredVehicle
-                    : race_.vehicles.at(sourceRacer.vehicle);
-            const auto& visual =
-                vehicleDefinition.energyDamageEffect;
-            if (visual.visualNodes.empty() &&
-                visual.particleEmitters.empty())
-                return;
-            RaceEffect effect;
-            effect.kind = RaceEventKind::VehicleEnergyDamage;
-            effect.racer = target;
-            effect.origin = position;
-            const auto timing = sourceEffectTiming(visual, 0.5F);
-            effect.totalSeconds = timing.visibleSeconds;
-            effect.seconds = effect.totalSeconds;
-            effect.emissionEndSeconds = timing.emissionSeconds;
-            effects_.push_back(std::move(effect));
-        };
     auto applyRacerDamage =
         [&](std::size_t target, std::size_t attacker,
             const Vec3& position, float sourceDamage,
@@ -3442,38 +3561,9 @@ void OriginalRaceSession::updateGameplay(
                 target >= vehicles.size() ||
                 racers_[target].destroyed)
                 return false;
-            const bool touch =
-                damageType == DamageType::Touch;
-            // Logic::Damage applies the first reflector before
-            // GameObject::Damage tests immortality.  cPlayerDamage keeps
-            // this reflected incoming value even when life cannot change.
-            const float incoming = damageAfterSupport(
-                target, sourceDamage, touch);
-            auto& runtime = racers_[target];
-            if (touch &&
-                attacker != RacerRuntime::invalidWeapon)
-            {
-                // GameObject::Damage keeps _touchPlayerId for exactly
-                // three seconds, including immortal contacts.
-                runtime.touchAttacker = attacker;
-                runtime.touchAttributionSeconds = 3.0F;
-            }
-            // Race::CompleteRace calls Player::SetFinished(true), which
-            // sets GameObject::_immortalFlag. Damage and listener events
-            // still run, but the finished car's life cannot change.
-            if (runtime.shieldSeconds <= 0.0F && !runtime.finished)
-            {
-                runtime.life = std::max(
-                    0.0F, runtime.life - incoming);
-            }
-            pushDamageEvent(
-                target, attacker, position, incoming, damageType);
-            if (runtime.life > 0.0F)
-                return false;
-            destroyRacer(
-                target, attacker, position, vehicles[target],
-                damageType, damageType != DamageType::Mine);
-            return true;
+            return applyRacerDamageInternal(
+                target, attacker, position, sourceDamage, damageType,
+                vehicles[target], false, false, 0.0F, false, false);
         };
 
     auto damageFromContact =
@@ -4441,7 +4531,11 @@ void OriginalRaceSession::updateGameplay(
     for (std::size_t racer = 1;
          racer < vehicles.size() && racer < racers_.size(); ++racer)
     {
-        if (stuckSeconds_[racer] > 3.0F &&
+        if (!race_.racers[racer].human &&
+            (!networkGameplayEnabled_ ||
+             (racer < networkOwnedRacers_.size() &&
+              networkOwnedRacers_[racer])) &&
+            stuckSeconds_[racer] > 3.0F &&
             !racers_[racer].destroyed)
             queueRespawn(racer, vehicles);
     }
@@ -4499,10 +4593,14 @@ void OriginalRaceSession::updateGameplay(
             effects_.push_back(std::move(effect));
         };
 
-    auto placeMine = [&](std::size_t owner) {
+    auto placeMine = [&](
+        std::size_t owner, const Vec3* replicatedPosition = nullptr,
+        std::uint32_t replicatedProjectileId = 0U,
+        bool networkReplicated = false) {
         if (owner >= vehicles.size() || owner >= racers_.size() ||
             racers_[owner].destroyed ||
-            racers_[owner].mines == 0 || mineCooldown_[owner] > 0.0F)
+            racers_[owner].mines == 0 ||
+            (!networkReplicated && mineCooldown_[owner] > 0.0F))
             return;
         const std::size_t weapon = racers_[owner].mineWeapon;
         if (weapon == RacerRuntime::invalidWeapon ||
@@ -4529,7 +4627,19 @@ void OriginalRaceSession::updateGameplay(
             projectile->collision.halfExtents.z;
         const float offset = std::max(-minimumZ, 0.01F);
         const Vec3 position =
-            add(hit.position, {0.0F, 0.0F, offset});
+            replicatedPosition != nullptr
+                ? *replicatedPosition
+                : add(hit.position, {0.0F, 0.0F, offset});
+        const std::uint32_t networkProjectileId =
+            networkReplicated && replicatedProjectileId != 0U
+                ? replicatedProjectileId
+                : nextNetworkProjectileIds_[owner]++;
+        if (networkReplicated)
+        {
+            nextNetworkProjectileIds_[owner] = std::max(
+                nextNetworkProjectileIds_[owner],
+                networkProjectileId + 1U);
+        }
         --racers_[owner].mines;
         mineCooldown_[owner] =
             std::max(race_.weapons[weapon].shotDelay, 0.0F);
@@ -4554,19 +4664,30 @@ void OriginalRaceSession::updateGameplay(
             owner, weapon, PlayerProfile::weaponSlotCount + 1U,
             weaponTransform, *projectile);
         mines_.push_back(mine);
-        events_.push_back({RaceEventKind::MinePlaced, owner, weapon,
-                           weaponTransform.position, 0.0F});
+        RaceEvent mineEvent;
+        mineEvent.kind = RaceEventKind::MinePlaced;
+        mineEvent.racer = owner;
+        mineEvent.target = weapon;
+        mineEvent.position = position;
+        mineEvent.networkReplicated = networkReplicated;
+        mineEvent.networkSlotMask = 0x02U;
+        mineEvent.networkProjectileId = networkProjectileId;
+        mineEvent.networkCoordinates.push_back(position);
+        events_.push_back(std::move(mineEvent));
     };
     if (humanControl.useMine)
         placeMine(0);
-    auto activateHyper = [&](std::size_t owner) {
+    auto activateHyper = [&](
+        std::size_t owner, const Vec3* replicatedPosition = nullptr,
+        std::uint32_t replicatedProjectileId = 0U,
+        bool networkReplicated = false) {
         if (owner >= racers_.size() ||
             racers_[owner].destroyed ||
             racers_[owner].hyperCharge == 0 ||
             racers_[owner].hyperWeapon ==
                 RacerRuntime::invalidWeapon ||
             racers_[owner].hyperWeapon >= race_.weapons.size() ||
-            hyperCooldown_[owner] > 0.0F)
+            (!networkReplicated && hyperCooldown_[owner] > 0.0F))
             return;
         const auto& weapon =
             race_.weapons[racers_[owner].hyperWeapon];
@@ -4589,6 +4710,16 @@ void OriginalRaceSession::updateGameplay(
                 return;
         }
         --racers_[owner].hyperCharge;
+        const std::uint32_t networkProjectileId =
+            networkReplicated && replicatedProjectileId != 0U
+                ? replicatedProjectileId
+                : nextNetworkProjectileIds_[owner]++;
+        if (networkReplicated)
+        {
+            nextNetworkProjectileIds_[owner] = std::max(
+                nextNetworkProjectileIds_[owner],
+                networkProjectileId + 1U);
+        }
         hyperCooldown_[owner] =
             std::max(weapon.shotDelay, 0.0F);
         const Vec3 position = vehicles[owner].body.position;
@@ -4625,8 +4756,10 @@ void OriginalRaceSession::updateGameplay(
             Transform localProjectile;
             localProjectile.position = projectile.position;
             localProjectile.rotation = projectile.rotation;
-            const Transform projectileTransform =
+            auto projectileTransform =
                 compose(weaponTransform, localProjectile);
+            if (replicatedPosition != nullptr)
+                projectileTransform.position = *replicatedPosition;
             ProjectileRuntime runtimeProjectile;
             runtimeProjectile.owner = owner;
             runtimeProjectile.weapon =
@@ -4645,9 +4778,20 @@ void OriginalRaceSession::updateGameplay(
             runtimeProjectile.directWeapon = true;
             projectiles_.push_back(runtimeProjectile);
         }
-        events_.push_back(
-            {RaceEventKind::HyperActivated, owner,
-             racers_[owner].hyperWeapon, position, duration});
+        RaceEvent hyperEvent;
+        hyperEvent.kind = RaceEventKind::HyperActivated;
+        hyperEvent.racer = owner;
+        hyperEvent.target = racers_[owner].hyperWeapon;
+        hyperEvent.position = position;
+        hyperEvent.value = duration;
+        hyperEvent.networkReplicated = networkReplicated;
+        hyperEvent.networkSlotMask = 0x01U;
+        hyperEvent.networkProjectileId = networkProjectileId;
+        hyperEvent.networkCoordinates.push_back(
+            replicatedPosition != nullptr
+                ? *replicatedPosition
+                : weaponTransform.position);
+        events_.push_back(std::move(hyperEvent));
         pushShotEffect(
             owner, racers_[owner].hyperWeapon,
             PlayerProfile::weaponSlotCount,
@@ -4983,6 +5127,122 @@ void OriginalRaceSession::updateGameplay(
         effects_.push_back(std::move(impact));
     };
 
+    auto takeBonus = [&](
+        std::size_t racer, std::size_t bonusIndex, BonusKind kind,
+        float value, bool networkReplicated) {
+        if (racer >= racers_.size() ||
+            bonusIndex >= race_.bonuses.size() ||
+            bonusIndex >= bonusActive_.size() ||
+            !bonusActive_[bonusIndex] || racers_[racer].destroyed)
+            return false;
+        auto& runtime = racers_[racer];
+        PickSlot pickSlot = PickSlot::None;
+        switch (kind)
+        {
+        case BonusKind::Money:
+            runtime.pickedMoney += static_cast<std::uint32_t>(
+                std::max(value, 0.0F));
+            break;
+        case BonusKind::Medpack:
+            runtime.life = std::min(
+                runtime.life +
+                    (value > 0.0F ? value : runtime.maximumLife),
+                runtime.maximumLife);
+            break;
+        case BonusKind::Ammunition:
+        {
+            struct RechargeTarget
+            {
+                std::uint32_t* current = nullptr;
+                std::uint32_t capacity = 0;
+                std::size_t weapon = RacerRuntime::invalidWeapon;
+                PickSlot pickSlot = PickSlot::None;
+            };
+            std::vector<RechargeTarget> targets;
+            for (std::size_t slot = 0;
+                 slot < runtime.weaponSlots.size(); ++slot)
+            {
+                const auto weapon = runtime.weaponSlots[slot];
+                if (weapon == RacerRuntime::invalidWeapon ||
+                    weapon >= race_.weapons.size() ||
+                    runtime.weaponCharges[slot] >=
+                        runtime.weaponCapacity[slot])
+                    continue;
+                targets.push_back(
+                    {&runtime.weaponCharges[slot],
+                     runtime.weaponCapacity[slot], weapon,
+                     PickSlot::Primary});
+            }
+            if (runtime.hyperWeapon != RacerRuntime::invalidWeapon &&
+                runtime.hyperWeapon < race_.weapons.size() &&
+                runtime.hyperCharge < runtime.hyperCapacity)
+            {
+                targets.push_back(
+                    {&runtime.hyperCharge, runtime.hyperCapacity,
+                     runtime.hyperWeapon, PickSlot::Hyper});
+            }
+            if (runtime.mineWeapon != RacerRuntime::invalidWeapon &&
+                runtime.mineWeapon < race_.weapons.size() &&
+                runtime.mines < runtime.mineCapacity)
+            {
+                targets.push_back(
+                    {&runtime.mines, runtime.mineCapacity,
+                     runtime.mineWeapon, PickSlot::Mine});
+            }
+            if (!targets.empty())
+            {
+                auto& target = targets[sourceRoundedRandomIndex(
+                    targets.size(), sourceRandomUnit())];
+                const auto maximumCharge =
+                    race_.weapons[target.weapon].maximumCharge;
+                const auto amount =
+                    sourceBonusCharge(maximumCharge, value);
+                *target.current = std::min(
+                    *target.current + amount, target.capacity);
+                pickSlot = target.pickSlot;
+            }
+            syncSelectedWeapon(runtime);
+            break;
+        }
+        case BonusKind::Shield:
+            if (runtime.shieldSeconds <= 0.0F)
+            {
+                runtime.shieldEffectSeconds = 0.0F;
+                runtime.shieldFadeInSeconds = 0.0F;
+                runtime.shieldFadeOutSeconds = -1.0F;
+                runtime.shieldDamageSeconds = -1.0F;
+            }
+            runtime.shieldSeconds = std::max(value, 0.0F);
+            break;
+        case BonusKind::Speed:
+        case BonusKind::SlowHazard:
+        case BonusKind::OilHazard:
+        case BonusKind::MineHazard:
+        case BonusKind::Unknown:
+            return false;
+        }
+        bonusActive_[bonusIndex] = false;
+        spawnBonusDeathEffect(bonusIndex);
+        RaceEvent event;
+        event.kind = RaceEventKind::Bonus;
+        event.racer = racer;
+        event.target = bonusIndex;
+        event.position = race_.bonuses[bonusIndex].transform.position;
+        event.value = value;
+        event.pickSlot = pickSlot;
+        event.networkReplicated = networkReplicated;
+        events_.push_back(std::move(event));
+        return true;
+    };
+
+    for (const auto& bonus : pendingNetworkBonuses_)
+    {
+        takeBonus(
+            bonus.racer, bonus.bonus, bonus.kind,
+            bonus.value, true);
+    }
+    pendingNetworkBonuses_.clear();
+
     for (std::size_t bonusIndex = 0;
          bonusIndex < race_.bonuses.size(); ++bonusIndex)
     {
@@ -4992,7 +5252,10 @@ void OriginalRaceSession::updateGameplay(
              racer < vehicles.size() && racer < racers_.size(); ++racer)
         {
             auto& runtime = racers_[racer];
-            if (runtime.destroyed)
+            if ((networkGameplayEnabled_ &&
+                 (racer >= networkOwnedRacers_.size() ||
+                  !networkOwnedRacers_[racer])) ||
+                runtime.destroyed)
                 continue;
             const auto& bonus = race_.bonuses[bonusIndex];
             const auto& racerDefinition = race_.racers[racer];
@@ -5130,104 +5393,9 @@ void OriginalRaceSession::updateGameplay(
                 break;
             }
 
-            PickSlot pickSlot = PickSlot::None;
-            switch (bonus.kind)
-            {
-            case BonusKind::Money:
-                runtime.pickedMoney +=
-                    static_cast<std::uint32_t>(std::max(bonus.value, 0.0F));
-                break;
-            case BonusKind::Medpack:
-                runtime.life = std::min(
-                    runtime.life +
-                        (bonus.value > 0.0F
-                             ? bonus.value
-                             : runtime.maximumLife),
-                    runtime.maximumLife);
-                break;
-            case BonusKind::Ammunition:
-            {
-                struct RechargeTarget
-                {
-                    std::uint32_t* current = nullptr;
-                    std::uint32_t capacity = 0;
-                    std::size_t weapon =
-                        RacerRuntime::invalidWeapon;
-                    PickSlot pickSlot = PickSlot::None;
-                };
-                std::vector<RechargeTarget> targets;
-                for (std::size_t slot = 0;
-                     slot < runtime.weaponSlots.size(); ++slot)
-                {
-                    const auto weapon = runtime.weaponSlots[slot];
-                    if (weapon == RacerRuntime::invalidWeapon ||
-                        weapon >= race_.weapons.size() ||
-                        runtime.weaponCharges[slot] >=
-                            runtime.weaponCapacity[slot])
-                        continue;
-                    targets.push_back(
-                        {&runtime.weaponCharges[slot],
-                         runtime.weaponCapacity[slot], weapon,
-                         PickSlot::Primary});
-                }
-                if (runtime.hyperWeapon !=
-                        RacerRuntime::invalidWeapon &&
-                    runtime.hyperWeapon < race_.weapons.size() &&
-                    runtime.hyperCharge < runtime.hyperCapacity)
-                {
-                    targets.push_back(
-                        {&runtime.hyperCharge, runtime.hyperCapacity,
-                         runtime.hyperWeapon, PickSlot::Hyper});
-                }
-                if (runtime.mineWeapon !=
-                        RacerRuntime::invalidWeapon &&
-                    runtime.mineWeapon < race_.weapons.size() &&
-                    runtime.mines < runtime.mineCapacity)
-                {
-                    targets.push_back(
-                        {&runtime.mines, runtime.mineCapacity,
-                         runtime.mineWeapon, PickSlot::Mine});
-                }
-                if (!targets.empty())
-                {
-                    auto& target = targets[
-                        sourceRoundedRandomIndex(
-                            targets.size(),
-                            sourceRandomUnit())];
-                    const auto maximumCharge =
-                        race_.weapons[target.weapon].maximumCharge;
-                    const auto amount =
-                        sourceBonusCharge(
-                            maximumCharge, bonus.value);
-                    *target.current = std::min(
-                        *target.current + amount, target.capacity);
-                    pickSlot = target.pickSlot;
-                }
-                syncSelectedWeapon(runtime);
-                break;
-            }
-            case BonusKind::Shield:
-                if (runtime.shieldSeconds <= 0.0F)
-                {
-                    runtime.shieldEffectSeconds = 0.0F;
-                    runtime.shieldFadeInSeconds = 0.0F;
-                    runtime.shieldFadeOutSeconds = -1.0F;
-                    runtime.shieldDamageSeconds = -1.0F;
-                }
-                runtime.shieldSeconds = std::max(bonus.value, 0.0F);
-                break;
-            case BonusKind::Speed:
-            case BonusKind::SlowHazard:
-            case BonusKind::OilHazard:
-            case BonusKind::MineHazard:
-            case BonusKind::Unknown:
-                break;
-            }
-            bonusActive_[bonusIndex] = false;
-            spawnBonusDeathEffect(bonusIndex);
-            events_.push_back({RaceEventKind::Bonus, racer, bonusIndex,
-                               bonus.transform.position, bonus.value,
-                               pickSlot});
+            takeBonus(
+                racer, bonusIndex, bonus.kind,
+                bonus.value, false);
             break;
         }
     }
@@ -5235,7 +5403,10 @@ void OriginalRaceSession::updateGameplay(
     auto fireWeapon =
         [&](std::size_t shooter, float minimumCooldown = 0.03F,
             std::size_t requestedTarget =
-                RacerRuntime::invalidWeapon) {
+                RacerRuntime::invalidWeapon,
+            const Vec3* replicatedOrigin = nullptr,
+            std::uint32_t replicatedProjectileId = 0U,
+            bool networkReplicated = false) {
         if (shooter >= vehicles.size() ||
             shooter >= racers_.size() || racers_[shooter].finished ||
             racers_[shooter].destroyed)
@@ -5245,7 +5416,8 @@ void OriginalRaceSession::updateGameplay(
         if (runtime.selectedWeapon == RacerRuntime::invalidWeapon ||
             runtime.selectedWeapon >= race_.weapons.size() ||
             runtime.selectedWeaponSlot >= runtime.weaponCharges.size() ||
-            weaponCooldown_[shooter][runtime.selectedWeaponSlot] > 0.0F ||
+            (!networkReplicated &&
+             weaponCooldown_[shooter][runtime.selectedWeaponSlot] > 0.0F) ||
             runtime.weaponCharges[runtime.selectedWeaponSlot] == 0)
             return;
         const std::size_t firedSlot = runtime.selectedWeaponSlot;
@@ -5254,6 +5426,16 @@ void OriginalRaceSession::updateGameplay(
             &race_.weapons[firedWeapon];
         if (weapon->slot == WeaponSlot::Support)
             return;
+        const std::uint32_t networkProjectileId =
+            networkReplicated && replicatedProjectileId != 0U
+                ? replicatedProjectileId
+                : nextNetworkProjectileIds_[shooter]++;
+        if (networkReplicated)
+        {
+            nextNetworkProjectileIds_[shooter] = std::max(
+                nextNetworkProjectileIds_[shooter],
+                networkProjectileId + 1U);
+        }
         --runtime.weaponCharges[firedSlot];
         syncSelectedWeapon(runtime);
         weaponCooldown_[shooter][firedSlot] =
@@ -5261,6 +5443,7 @@ void OriginalRaceSession::updateGameplay(
         const Vec3 eventOrigin = weaponWorldTransform(
             shooter, firedWeapon, firedSlot).position;
         std::size_t target = racers_.size();
+        std::vector<Vec3> networkCoordinates;
         for (std::size_t projectileIndex = 0;
              projectileIndex < weapon->projectiles.size();
              ++projectileIndex)
@@ -5269,9 +5452,13 @@ void OriginalRaceSession::updateGameplay(
                 weapon->projectiles[projectileIndex];
             if (projectile.spawnOnParentDeath)
                 continue;
-            const auto shotTransform = projectileWorldTransform(
+            auto shotTransform = projectileWorldTransform(
                 shooter, firedWeapon, firedSlot, projectile);
+            if (replicatedOrigin != nullptr)
+                shotTransform.position = *replicatedOrigin;
             const Vec3 projectileOrigin = shotTransform.position;
+            if (networkCoordinates.empty())
+                networkCoordinates.push_back(projectileOrigin);
             const Vec3 sourceDirection = normalized3(
                 rotate(shotTransform.rotation,
                        {1.0F, 0.0F, 0.0F}));
@@ -5449,9 +5636,23 @@ void OriginalRaceSession::updateGameplay(
                     shooter, firedWeapon, firedSlot),
                 projectile);
         }
-        events_.push_back({RaceEventKind::WeaponFired, shooter, target,
-                           eventOrigin, 5.0F,
-                           PickSlot::None, firedWeapon});
+        RaceEvent shotEvent;
+        shotEvent.kind = RaceEventKind::WeaponFired;
+        shotEvent.racer = shooter;
+        shotEvent.target = target;
+        shotEvent.position =
+            networkCoordinates.empty()
+                ? eventOrigin
+                : networkCoordinates.front();
+        shotEvent.value = 5.0F;
+        shotEvent.weapon = firedWeapon;
+        shotEvent.networkReplicated = networkReplicated;
+        shotEvent.networkSlotMask = static_cast<std::uint8_t>(
+            1U << (firedSlot + 2U));
+        shotEvent.networkProjectileId = networkProjectileId;
+        shotEvent.networkCoordinates =
+            std::move(networkCoordinates);
+        events_.push_back(std::move(shotEvent));
     };
     if (humanControl.useWeapon)
         fireWeapon(0);
@@ -5491,6 +5692,52 @@ void OriginalRaceSession::updateGameplay(
         runtime.selectedWeaponSlot = selected;
         syncSelectedWeapon(runtime);
     }
+    for (const auto& shot : pendingNetworkShots_)
+    {
+        if (shot.racer >= racers_.size() ||
+            shot.racer >= vehicles.size())
+            continue;
+        auto& runtime = racers_[shot.racer];
+        const auto selected = runtime.selectedWeaponSlot;
+        std::size_t coordinateIndex = 0U;
+        for (std::size_t bit = 0U; bit < 6U; ++bit)
+        {
+            if ((shot.slotMask & (1U << bit)) == 0U)
+                continue;
+            const Vec3* origin =
+                coordinateIndex < shot.coordinates.size()
+                    ? &shot.coordinates[coordinateIndex]
+                    : nullptr;
+            ++coordinateIndex;
+            // ShotSlots preserves the Windows bitfield order:
+            // Hyper, Mine, stWeapon1..stWeapon4.
+            if (bit == 0U)
+            {
+                activateHyper(
+                    shot.racer, origin, shot.projectileId, true);
+                continue;
+            }
+            if (bit == 1U)
+            {
+                placeMine(
+                    shot.racer, origin, shot.projectileId, true);
+                continue;
+            }
+            const std::size_t slot = bit - 2U;
+            if (slot >= runtime.weaponSlots.size() ||
+                runtime.weaponSlots[slot] ==
+                    RacerRuntime::invalidWeapon)
+                continue;
+            runtime.selectedWeaponSlot = slot;
+            syncSelectedWeapon(runtime);
+            fireWeapon(
+                shot.racer, 0.03F, shot.target, origin,
+                shot.projectileId, true);
+        }
+        runtime.selectedWeaponSlot = selected;
+        syncSelectedWeapon(runtime);
+    }
+    pendingNetworkShots_.clear();
     auto raceProgress = [&](std::size_t racer) {
         TraceNodeRef node =
             racer < lastTraceNodes_.size() &&
@@ -5517,7 +5764,11 @@ void OriginalRaceSession::updateGameplay(
         // AttackState::Update returns immediately for curTile == NULL.  A
         // retained lastNode is valid for progress/respawn, not for aiming,
         // mine placement or Hyper activation.
-        if (runtime.destroyed ||
+        if (race_.racers[racer].human ||
+            (networkGameplayEnabled_ &&
+             (racer >= networkOwnedRacers_.size() ||
+              !networkOwnedRacers_[racer])) ||
+            runtime.destroyed ||
             racer >= currentTraceNodes_.size() ||
             !currentTraceNodes_[racer].valid())
             continue;
@@ -6244,8 +6495,14 @@ void OriginalRaceSession::update(
     for (std::size_t racer = 1;
          racer < racers_.size() && racer < vehicles.size(); ++racer)
     {
-        vehicleInputs_[racer] =
-            aiInput(racer, vehicles[racer], seconds);
+        if (!race_.racers[racer].human &&
+            (!networkGameplayEnabled_ ||
+             (racer < networkOwnedRacers_.size() &&
+              networkOwnedRacers_[racer])))
+        {
+            vehicleInputs_[racer] =
+                aiInput(racer, vehicles[racer], seconds);
+        }
     }
 
     // Player::CheatUpdate runs for both HumanPlayer and every AIPlayer.  It
@@ -10496,6 +10753,205 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 throw std::runtime_error(
                     "source ResetCar retained tile coordinate/direction "
                     "failed");
+            }
+        }
+
+        {
+            Race networkRace = race;
+            if (networkRace.racers.size() < 2U || vehicles.size() < 2U)
+            {
+                throw std::runtime_error(
+                    "source network gameplay regression needs two racers");
+            }
+            networkRace.racers[1].human = true;
+            OriginalRaceSession networkSession(networkRace);
+            std::vector<bool> clientOwned(
+                networkRace.racers.size(), false);
+            clientOwned[0] = true;
+            networkSession.setNetworkGameplayRole(
+                true, false, clientOwned);
+
+            const float initialLife =
+                networkSession.racers().front().life;
+            const auto deferred =
+                networkSession.applyNetworkPlayerDamage(
+                    0U, 1U, vehicles[0].body.position, 7.0F,
+                    DamageType::Simple, vehicles[0]);
+            if (std::abs(deferred.life - initialLife) > 0.001F ||
+                networkSession.events().empty() ||
+                !networkSession.events().back().networkReplicated)
+            {
+                throw std::runtime_error(
+                    "source client NetRace::Damage changed life before "
+                    "the host response");
+            }
+
+            std::vector<bool> hostOwned(
+                networkRace.racers.size(), true);
+            networkSession.setNetworkGameplayRole(
+                true, true, hostOwned);
+            const auto authoritative =
+                networkSession.applyNetworkPlayerDamage(
+                    0U, 1U, vehicles[0].body.position, 7.0F,
+                    DamageType::Simple, vehicles[0]);
+            if (std::abs(
+                    authoritative.life - (initialLife - 7.0F)) >
+                    0.001F || authoritative.death)
+            {
+                throw std::runtime_error(
+                    "source host NetRace::Damage authority failed");
+            }
+
+            networkSession.setNetworkGameplayRole(
+                true, false, clientOwned);
+            const auto synchronized =
+                networkSession.applyNetworkPlayerDamage(
+                    0U, 1U, vehicles[0].body.position, 2.0F,
+                    DamageType::Energy, vehicles[0], true,
+                    23.0F, false);
+            if (std::abs(synchronized.life - 23.0F) > 0.001F ||
+                synchronized.death)
+            {
+                throw std::runtime_error(
+                    "source client authoritative targetLife sync failed");
+            }
+
+            RaceControl networkInput;
+            networkSession.synchronizeNetworkCountdown(4);
+            networkSession.update(
+                1.0F / 60.0F, vehicles, networkInput);
+            const auto& remoteInput =
+                networkSession.vehicleInputs()[1];
+            if (std::abs(remoteInput.throttle) > 0.0001F ||
+                std::abs(remoteInput.reverse) > 0.0001F ||
+                std::abs(remoteInput.brake) > 0.0001F ||
+                std::abs(remoteInput.steering) > 0.0001F)
+            {
+                throw std::runtime_error(
+                    "remote human received local AI control");
+            }
+
+            OriginalRaceSession shotSource(networkRace);
+            shotSource.setNetworkGameplayRole(
+                true, true, hostOwned);
+            shotSource.synchronizeNetworkCountdown(4);
+            std::size_t shotSlot =
+                RacerRuntime::invalidWeapon;
+            for (std::size_t slot = 0U;
+                 slot < shotSource.racers()[0].weaponSlots.size(); ++slot)
+            {
+                if (shotSource.racers()[0].weaponSlots[slot] !=
+                        RacerRuntime::invalidWeapon &&
+                    shotSource.racers()[0].weaponCharges[slot] > 0U)
+                {
+                    shotSlot = slot;
+                    break;
+                }
+            }
+            if (shotSlot == RacerRuntime::invalidWeapon)
+            {
+                throw std::runtime_error(
+                    "source network shot regression has no charged slot");
+            }
+            RaceControl shotInput;
+            shotInput.fireWeaponSlot =
+                static_cast<int>(shotSlot);
+            shotSource.update(
+                1.0F / 60.0F, vehicles, shotInput);
+            const auto sourceShot = std::find_if(
+                shotSource.events().begin(),
+                shotSource.events().end(),
+                [](const RaceEvent& event) {
+                    return event.kind == RaceEventKind::WeaponFired &&
+                           event.racer == 0U &&
+                           !event.networkReplicated &&
+                           event.networkSlotMask != 0U &&
+                           !event.networkCoordinates.empty();
+                });
+            if (sourceShot == shotSource.events().end())
+            {
+                throw std::runtime_error(
+                    "source NetPlayer::DoShot packet metadata missing");
+            }
+
+            OriginalRaceSession shotTarget(networkRace);
+            shotTarget.setNetworkGameplayRole(
+                true, false, clientOwned);
+            shotTarget.synchronizeNetworkCountdown(4);
+            ReplicatedShot replicated;
+            replicated.racer = 0U;
+            replicated.slotMask = sourceShot->networkSlotMask;
+            replicated.projectileId =
+                sourceShot->networkProjectileId;
+            replicated.coordinates =
+                sourceShot->networkCoordinates;
+            shotTarget.queueNetworkShot(std::move(replicated));
+            RaceControl noShotInput;
+            shotTarget.update(
+                1.0F / 60.0F, vehicles, noShotInput);
+            const auto targetShot = std::find_if(
+                shotTarget.events().begin(),
+                shotTarget.events().end(),
+                [&](const RaceEvent& event) {
+                    return event.kind == RaceEventKind::WeaponFired &&
+                           event.racer == 0U &&
+                           event.networkReplicated &&
+                           event.networkSlotMask ==
+                               sourceShot->networkSlotMask &&
+                           event.networkProjectileId ==
+                               sourceShot->networkProjectileId &&
+                           !event.networkCoordinates.empty() &&
+                           length3(subtract(
+                               event.networkCoordinates.front(),
+                               sourceShot->networkCoordinates.front())) <
+                               0.001F;
+                });
+            if (targetShot == shotTarget.events().end())
+            {
+                throw std::runtime_error(
+                    "source NetPlayer::DoShot replay failed");
+            }
+
+            const auto sourceBonus = std::find_if(
+                networkRace.bonuses.begin(),
+                networkRace.bonuses.end(),
+                [](const BonusInstance& bonus) {
+                    return bonus.kind == BonusKind::Money ||
+                           bonus.kind == BonusKind::Medpack ||
+                           bonus.kind == BonusKind::Ammunition ||
+                           bonus.kind == BonusKind::Shield;
+                });
+            if (sourceBonus == networkRace.bonuses.end())
+            {
+                throw std::runtime_error(
+                    "source network bonus regression has no pickup");
+            }
+            const std::size_t bonusIndex =
+                static_cast<std::size_t>(std::distance(
+                    networkRace.bonuses.begin(), sourceBonus));
+            OriginalRaceSession bonusTarget(networkRace);
+            bonusTarget.setNetworkGameplayRole(
+                true, false, clientOwned);
+            bonusTarget.synchronizeNetworkCountdown(4);
+            bonusTarget.queueNetworkBonus(
+                {0U, bonusIndex, sourceBonus->kind,
+                 sourceBonus->value});
+            bonusTarget.update(
+                1.0F / 60.0F, vehicles, noShotInput);
+            const auto bonusEvent = std::find_if(
+                bonusTarget.events().begin(),
+                bonusTarget.events().end(),
+                [&](const RaceEvent& event) {
+                    return event.kind == RaceEventKind::Bonus &&
+                           event.racer == 0U &&
+                           event.target == bonusIndex &&
+                           event.networkReplicated;
+                });
+            if (bonusEvent == bonusTarget.events().end() ||
+                bonusTarget.bonusActive()[bonusIndex])
+            {
+                throw std::runtime_error(
+                    "source NetPlayer::OnTakeBonus replay failed");
             }
         }
 

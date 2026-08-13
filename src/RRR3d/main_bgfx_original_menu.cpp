@@ -3873,6 +3873,9 @@ int main(int argc, char** argv)
     bool networkLocalFinishPublished = false;
     bool networkHostFinishTimerStarted = false;
     bool networkRaceExitApplied = false;
+    std::uint64_t networkLastGameplayEventSequence = 0U;
+    std::uint64_t networkLastShotEventSequence = 0U;
+    std::uint64_t networkLastBonusEventSequence = 0U;
     std::vector<std::uint32_t> networkRaceModelOrder;
     std::optional<r3d::game::originalnetwork::NetworkPlayerState>
         networkPublishedPlayer;
@@ -4337,6 +4340,9 @@ int main(int argc, char** argv)
             networkLocalFinishPublished = false;
             networkHostFinishTimerStarted = false;
             networkRaceExitApplied = false;
+            networkLastGameplayEventSequence = 0U;
+            networkLastShotEventSequence = 0U;
+            networkLastBonusEventSequence = 0U;
             networkPublishedPlayer.reset();
             networkRaceModelOrder.clear();
 #ifdef RRR3D_PHYSICS
@@ -5435,6 +5441,36 @@ int main(int argc, char** argv)
             // human NetPlayer has acknowledged that loading is complete.
             raceSession.synchronizeNetworkCountdown(0);
             raceSession.setNetworkFinishControlled(true);
+            std::vector<bool> ownedRacers(
+                networkRaceModelOrder.size(), false);
+            for (std::size_t index = 0U;
+                 index < networkRaceModelOrder.size(); ++index)
+            {
+                const auto player = std::find_if(
+                    networkSnapshot.models.players.begin(),
+                    networkSnapshot.models.players.end(),
+                    [&](const auto& candidate) {
+                        return candidate.modelId ==
+                               networkRaceModelOrder[index];
+                    });
+                if (player == networkSnapshot.models.players.end())
+                    continue;
+                // The host owns the source AIPlayer graph. Human models are
+                // controlled only by the peer which owns that NetPlayer.
+                ownedRacers[index] =
+                    player->owner ||
+                    (networkHostRequested && player->playerId != 0U);
+            }
+            raceSession.setNetworkGameplayRole(
+                true, networkHostRequested, std::move(ownedRacers));
+            networkLastGameplayEventSequence =
+                networkSnapshot.models.events.empty()
+                    ? 0U
+                    : networkSnapshot.models.events.back().sequence;
+            networkLastShotEventSequence =
+                networkLastGameplayEventSequence;
+            networkLastBonusEventSequence =
+                networkLastGameplayEventSequence;
             networkHostRaceGoSeconds = -1.0F;
             networkAppliedRaceGoStage = 0;
             networkHostFinishTimerStarted = false;
@@ -11926,6 +11962,9 @@ int main(int argc, char** argv)
                             networkLocalFinishPublished = false;
                             networkHostFinishTimerStarted = false;
                             networkRaceExitApplied = false;
+                            networkLastGameplayEventSequence = 0U;
+                            networkLastShotEventSequence = 0U;
+                            networkLastBonusEventSequence = 0U;
                             networkPublishedPlayer.reset();
                             networkRaceModelOrder.clear();
                             networkWeatherOverride.reset();
@@ -12341,10 +12380,173 @@ int main(int argc, char** argv)
                     raceVehicles[index] =
                         physicsWorld->vehicle(index);
                 }
+                for (const auto& event :
+                     networkSnapshot.models.events)
+                {
+                    if (event.sequence <=
+                        networkLastShotEventSequence)
+                        continue;
+                    networkLastShotEventSequence = std::max(
+                        networkLastShotEventSequence,
+                        event.sequence);
+                    if (event.kind !=
+                        r3d::game::originalnetwork::
+                            NetworkEventKind::Shot)
+                        continue;
+                    const auto shooterModel = std::find(
+                        networkRaceModelOrder.begin(),
+                        networkRaceModelOrder.end(),
+                        event.playerModelId);
+                    if (shooterModel ==
+                        networkRaceModelOrder.end())
+                        continue;
+                    const auto targetModel = std::find(
+                        networkRaceModelOrder.begin(),
+                        networkRaceModelOrder.end(), event.target);
+                    r3d::game::originalrace::ReplicatedShot shot;
+                    shot.racer = static_cast<std::size_t>(
+                        std::distance(
+                            networkRaceModelOrder.begin(),
+                            shooterModel));
+                    shot.target =
+                        targetModel == networkRaceModelOrder.end()
+                            ? r3d::game::originalrace::
+                                  RacerRuntime::invalidWeapon
+                            : static_cast<std::size_t>(
+                                  std::distance(
+                                      networkRaceModelOrder.begin(),
+                                      targetModel));
+                    shot.slotMask = event.slotMask;
+                    shot.projectileId =
+                        static_cast<std::uint32_t>(
+                            std::max(event.intValue, 0));
+                    shot.coordinates.reserve(
+                        event.coordinates.size());
+                    for (const auto& coordinate : event.coordinates)
+                    {
+                        shot.coordinates.push_back(
+                            {coordinate[0], coordinate[1],
+                             coordinate[2]});
+                    }
+                    raceSession.queueNetworkShot(std::move(shot));
+                }
+                for (const auto& event :
+                     networkSnapshot.models.events)
+                {
+                    if (event.sequence <=
+                        networkLastBonusEventSequence)
+                        continue;
+                    networkLastBonusEventSequence = std::max(
+                        networkLastBonusEventSequence,
+                        event.sequence);
+                    if (event.kind !=
+                            r3d::game::originalnetwork::
+                                NetworkEventKind::Bonus ||
+                        event.target == 0U)
+                        continue;
+                    const auto playerModel = std::find(
+                        networkRaceModelOrder.begin(),
+                        networkRaceModelOrder.end(),
+                        event.playerModelId);
+                    if (playerModel == networkRaceModelOrder.end())
+                        continue;
+                    using BonusKind =
+                        r3d::game::originalrace::BonusKind;
+                    BonusKind kind = BonusKind::Unknown;
+                    switch (event.intValue)
+                    {
+                    case 0:
+                        kind = BonusKind::Money;
+                        break;
+                    case 1:
+                        kind = BonusKind::Ammunition;
+                        break;
+                    case 2:
+                        kind = BonusKind::Medpack;
+                        break;
+                    case 3:
+                        kind = BonusKind::Shield;
+                        break;
+                    default:
+                        break;
+                    }
+                    raceSession.queueNetworkBonus(
+                        {static_cast<std::size_t>(std::distance(
+                             networkRaceModelOrder.begin(), playerModel)),
+                         static_cast<std::size_t>(event.target - 1U),
+                         kind, event.value});
+                }
             }
 #endif
             raceSession.update(frameSeconds, raceVehicles, control);
 #ifdef RRR3D_NETWORK
+            if (networkMatchStarted)
+            {
+                const auto racerForModel =
+                    [&](std::uint32_t modelId) {
+                        const auto model = std::find(
+                            networkRaceModelOrder.begin(),
+                            networkRaceModelOrder.end(), modelId);
+                        return model == networkRaceModelOrder.end()
+                                   ? r3d::game::originalrace::
+                                         RacerRuntime::invalidWeapon
+                                   : static_cast<std::size_t>(
+                                         std::distance(
+                                             networkRaceModelOrder.begin(),
+                                             model));
+                    };
+                for (const auto& event :
+                     networkSnapshot.models.events)
+                {
+                    if (event.sequence <=
+                        networkLastGameplayEventSequence)
+                        continue;
+                    networkLastGameplayEventSequence =
+                        std::max(
+                            networkLastGameplayEventSequence,
+                            event.sequence);
+                    if (event.kind !=
+                        r3d::game::originalnetwork::
+                            NetworkEventKind::PlayerDamage)
+                    {
+                        continue;
+                    }
+                    const auto target = racerForModel(event.target);
+                    if (target >= raceVehicles.size() ||
+                        target >= raceSession.racers().size())
+                        continue;
+                    const auto attacker =
+                        racerForModel(event.playerModelId);
+                    const auto damageType =
+                        static_cast<r3d::game::originalrace::
+                                        DamageType>(
+                            std::clamp(event.intValue, 0, 4));
+                    const auto result =
+                        raceSession.applyNetworkPlayerDamage(
+                            target, attacker,
+                            raceVehicles[target].body.position,
+                            event.value, damageType,
+                            raceVehicles[target],
+                            !networkHostRequested,
+                            event.targetLife, event.flag);
+                    if (networkHostRequested)
+                    {
+                        std::string error;
+                        if (!networkSession.sendPlayerDamage(
+                                event.playerModelId, event.target,
+                                event.value, event.intValue,
+                                result.life, result.death, error))
+                        {
+                            std::cerr
+                                << "Original NetRace::Damage1 host "
+                                   "response failed: "
+                                << error << '\n';
+                            runtimeSmokeFailed = true;
+                            running = false;
+                        }
+                    }
+                }
+            }
             if (networkMatchStarted &&
                 !raceSession.racers().empty() &&
                 raceSession.racers().front().finished &&
@@ -12399,6 +12601,166 @@ int main(int argc, char** argv)
             raceResetRequested = false;
             for (const auto& event : raceSession.events())
             {
+#ifdef RRR3D_NETWORK
+                if (networkMatchStarted &&
+                    (event.kind ==
+                         r3d::game::originalrace::RaceEventKind::
+                             WeaponFired ||
+                     event.kind ==
+                         r3d::game::originalrace::RaceEventKind::
+                             MinePlaced ||
+                     event.kind ==
+                         r3d::game::originalrace::RaceEventKind::
+                             HyperActivated) &&
+                    !event.networkReplicated &&
+                    event.networkSlotMask != 0U &&
+                    event.racer < networkRaceModelOrder.size())
+                {
+                    const auto owner = std::find_if(
+                        networkSnapshot.models.players.begin(),
+                        networkSnapshot.models.players.end(),
+                        [&](const auto& candidate) {
+                            return candidate.modelId ==
+                                       networkRaceModelOrder[event.racer] &&
+                                   candidate.owner;
+                        });
+                    if (owner != networkSnapshot.models.players.end())
+                    {
+                        const std::uint32_t targetObjectId =
+                            event.target < networkRaceModelOrder.size()
+                                ? networkRaceModelOrder[event.target]
+                                : 0U;
+                        std::vector<std::array<float, 3>> coordinates;
+                        coordinates.reserve(
+                            event.networkCoordinates.size());
+                        for (const auto& coordinate :
+                             event.networkCoordinates)
+                        {
+                            coordinates.push_back(
+                                {coordinate.x, coordinate.y,
+                                 coordinate.z});
+                        }
+                        std::string error;
+                        if (!networkSession.sendOwnedPlayerShot(
+                                networkRaceModelOrder[event.racer],
+                                targetObjectId,
+                                event.networkSlotMask,
+                                event.networkProjectileId,
+                                coordinates, error))
+                        {
+                            std::cerr
+                                << "Original NetPlayer::Shot failed: "
+                                << error << '\n';
+                            runtimeSmokeFailed = true;
+                            running = false;
+                        }
+                    }
+                }
+                if (networkMatchStarted &&
+                    event.kind ==
+                        r3d::game::originalrace::RaceEventKind::Bonus &&
+                    !event.networkReplicated &&
+                    event.racer < networkRaceModelOrder.size() &&
+                    event.target < originalRace->bonuses.size())
+                {
+                    const auto owner = std::find_if(
+                        networkSnapshot.models.players.begin(),
+                        networkSnapshot.models.players.end(),
+                        [&](const auto& candidate) {
+                            return candidate.modelId ==
+                                       networkRaceModelOrder[event.racer] &&
+                                   candidate.owner;
+                        });
+                    if (owner != networkSnapshot.models.players.end())
+                    {
+                        std::int32_t bonusType = -1;
+                        switch (originalRace->bonuses[event.target].kind)
+                        {
+                        case r3d::game::originalrace::BonusKind::Money:
+                            bonusType = 0;
+                            break;
+                        case r3d::game::originalrace::BonusKind::Ammunition:
+                            bonusType = 1;
+                            break;
+                        case r3d::game::originalrace::BonusKind::Medpack:
+                            bonusType = 2;
+                            break;
+                        case r3d::game::originalrace::BonusKind::Shield:
+                            bonusType = 3;
+                            break;
+                        default:
+                            break;
+                        }
+                        if (bonusType >= 0)
+                        {
+                            std::string error;
+                            if (!networkSession.sendOwnedPlayerBonus(
+                                    networkRaceModelOrder[event.racer],
+                                    static_cast<std::uint32_t>(
+                                        event.target + 1U),
+                                    bonusType, event.value, error))
+                            {
+                                std::cerr
+                                    << "Original NetPlayer::TakeBonus "
+                                       "failed: "
+                                    << error << '\n';
+                                runtimeSmokeFailed = true;
+                                running = false;
+                            }
+                        }
+                    }
+                }
+                if (networkMatchStarted &&
+                    event.kind ==
+                        r3d::game::originalrace::RaceEventKind::Damage &&
+                    !event.networkReplicated &&
+                    event.racer < networkRaceModelOrder.size())
+                {
+                    bool publishDamage = networkHostRequested;
+                    if (!publishDamage)
+                    {
+                        const std::size_t ownerCandidate =
+                            event.target < networkRaceModelOrder.size()
+                                ? event.target
+                                : event.racer;
+                        const auto owner = std::find_if(
+                            networkSnapshot.models.players.begin(),
+                            networkSnapshot.models.players.end(),
+                            [&](const auto& candidate) {
+                                return candidate.modelId ==
+                                           networkRaceModelOrder[
+                                               ownerCandidate] &&
+                                       candidate.owner;
+                            });
+                        publishDamage =
+                            owner != networkSnapshot.models.players.end();
+                    }
+                    if (publishDamage)
+                    {
+                        const std::uint32_t senderModelId =
+                            event.target < networkRaceModelOrder.size()
+                                ? networkRaceModelOrder[event.target]
+                                : std::numeric_limits<
+                                      std::uint32_t>::max();
+                        std::string error;
+                        if (!networkSession.sendPlayerDamage(
+                                senderModelId,
+                                networkRaceModelOrder[event.racer],
+                                event.value,
+                                static_cast<std::int32_t>(
+                                    event.damageType),
+                                event.authoritativeLife,
+                                event.authoritativeDeath, error))
+                        {
+                            std::cerr
+                                << "Original NetRace::Damage1 failed: "
+                                << error << '\n';
+                            runtimeSmokeFailed = true;
+                            running = false;
+                        }
+                    }
+                }
+#endif
                 if (options->raceRenderSmokeTest &&
                     event.kind ==
                         r3d::game::originalrace::RaceEventKind::Kill &&

@@ -1241,3 +1241,29 @@ runtime. Release hardening
 - Loopback regression проверяет полный цикл ready/start/countdown, все новые
   packet types, кириллический chat, finish/result, повторный `StartRace` и
   reset флагов. Все три CTest и 180-кадровый LAN `bgfx/Metal` smoke проходят.
+
+### Source network gameplay authority follow-up
+
+- RPC больше не заканчиваются в диагностическом snapshot: активная гонка
+  потребляет `Shot`, `Damage` и `Bonus` по монотонному event sequence. Для
+  `ShotSlots` сохранён исходный bitfield `Hyper/Mine/Weapon1..4`, projectile
+  id и мировая позиция первого созданного projectile; удалённая сторона
+  повторно проходит реальные Prepare/projectile/effect/audio пути с этой
+  координатой и не отправляет echo-пакет.
+- Перенесена авторитетность `Logic::Damage -> NetRace::Damage1`: клиент
+  применяет reflector, но не меняет life до ответа; хост применяет значение,
+  вычисляет `targetLife/death` после каждого отдельного попадания и рассылает
+  результат. Клиент вызывает эквивалент overload
+  `GameObject::Damage(value,newLife,death,type)`, включая DamageEffect,
+  destruction и kill semantics.
+- Сетевой ownership теперь отделён от порядка racer list. Remote human больше
+  не получает локальный `AIInput`, AttackState, mine/hyper или автоматический
+  reset. На клиенте AI и чужие human управляются только NetPlayer state, а на
+  хосте source AI остаются авторитетными.
+- Обычный pickup выполняется только владельцем коснувшейся машины и затем
+  повторяется через `OnTakeBonus`; это исключает локальное исчезновение
+  бонуса под удалённой машиной. Money/charge/medpack/immortal используют ту
+  же `Player::TakeBonus` state machine, death effect и HUD event.
+- Race-session regression проверяет deferred/authoritative damage, точный
+  targetLife, отсутствие AI input у remote human, сериализацию/replay
+  projectile origin и сетевой pickup lifecycle.

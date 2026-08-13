@@ -1669,6 +1669,29 @@ bool OriginalNetworkModels::sendLocalShot(
     return true;
 }
 
+bool OriginalNetworkModels::sendOwnedPlayerShot(
+    std::uint32_t modelId, std::uint32_t targetObjectId,
+    std::uint8_t slotMask, std::uint32_t projectileId,
+    const std::vector<std::array<float, 3>>& coordinates,
+    std::string& error)
+{
+    error.clear();
+    const auto found = impl_->players.find(modelId);
+    if (found == impl_->players.end() || found->second == nullptr ||
+        !found->second->owner())
+    {
+        error = "source owned NetPlayer model is not active";
+        return false;
+    }
+    if (!found->second->sendShot(
+            targetObjectId, slotMask, projectileId, coordinates))
+    {
+        error = "source NetPlayer shot slot/coordinate payload is invalid";
+        return false;
+    }
+    return true;
+}
+
 bool OriginalNetworkModels::sendLocalBonus(
     std::uint32_t bonusObjectId, std::int32_t bonusType, float value,
     std::string& error)
@@ -1681,6 +1704,22 @@ bool OriginalNetworkModels::sendLocalBonus(
         return false;
     }
     model->sendBonus(bonusObjectId, bonusType, value);
+    return true;
+}
+
+bool OriginalNetworkModels::sendOwnedPlayerBonus(
+    std::uint32_t modelId, std::uint32_t bonusObjectId,
+    std::int32_t bonusType, float value, std::string& error)
+{
+    error.clear();
+    const auto found = impl_->players.find(modelId);
+    if (found == impl_->players.end() || found->second == nullptr ||
+        !found->second->owner())
+    {
+        error = "source owned NetPlayer model is not active";
+        return false;
+    }
+    found->second->sendBonus(bonusObjectId, bonusType, value);
     return true;
 }
 

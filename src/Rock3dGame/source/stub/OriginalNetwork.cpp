@@ -402,12 +402,37 @@ bool OriginalNetworkSession::sendLocalShot(
     return true;
 }
 
+bool OriginalNetworkSession::sendOwnedPlayerShot(
+    std::uint32_t modelId, std::uint32_t targetObjectId,
+    std::uint8_t slotMask, std::uint32_t projectileId,
+    const std::vector<std::array<float, 3>>& coordinates,
+    std::string& error)
+{
+    if (!impl_->models.sendOwnedPlayerShot(
+            modelId, targetObjectId, slotMask, projectileId,
+            coordinates, error))
+        return false;
+    impl_->refreshModels();
+    return true;
+}
+
 bool OriginalNetworkSession::sendLocalBonus(
     std::uint32_t bonusObjectId, std::int32_t bonusType, float value,
     std::string& error)
 {
     if (!impl_->models.sendLocalBonus(
             bonusObjectId, bonusType, value, error))
+        return false;
+    impl_->refreshModels();
+    return true;
+}
+
+bool OriginalNetworkSession::sendOwnedPlayerBonus(
+    std::uint32_t modelId, std::uint32_t bonusObjectId,
+    std::int32_t bonusType, float value, std::string& error)
+{
+    if (!impl_->models.sendOwnedPlayerBonus(
+            modelId, bonusObjectId, bonusType, value, error))
         return false;
     impl_->refreshModels();
     return true;

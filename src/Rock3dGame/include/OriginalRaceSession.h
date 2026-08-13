@@ -213,6 +213,38 @@ struct RaceEvent
     // contacted racer for that lifetime.
     float soundLifetimeSeconds = -1.0F;
     std::size_t soundFollowRacer = RacerRuntime::invalidWeapon;
+    float authoritativeLife = 0.0F;
+    bool authoritativeDeath = false;
+    // NetRace::OnDamage1/2 applies authoritative packets through the same
+    // GameObject listener graph, but must not send the resulting local event
+    // back over the wire a second time.
+    bool networkReplicated = false;
+    std::uint8_t networkSlotMask = 0U;
+    std::uint32_t networkProjectileId = 0U;
+    std::vector<Vec3> networkCoordinates{};
+};
+
+struct NetworkDamageResult
+{
+    float life = 0.0F;
+    bool death = false;
+};
+
+struct ReplicatedShot
+{
+    std::size_t racer = RacerRuntime::invalidWeapon;
+    std::size_t target = RacerRuntime::invalidWeapon;
+    std::uint8_t slotMask = 0U;
+    std::uint32_t projectileId = 0U;
+    std::vector<Vec3> coordinates{};
+};
+
+struct ReplicatedBonus
+{
+    std::size_t racer = RacerRuntime::invalidWeapon;
+    std::size_t bonus = RacerRuntime::invalidWeapon;
+    BonusKind kind = BonusKind::Unknown;
+    float value = 0.0F;
 };
 
 struct ReplicatedRaceResult
@@ -338,6 +370,19 @@ public:
     void startNetworkFinishTimer() noexcept;
     void synchronizeNetworkFinishResults(
         const std::vector<ReplicatedRaceResult>& results) noexcept;
+    // Logic::Damage is host-authoritative in the source network game. A
+    // client emits the reflected damage event without changing life; the
+    // host applies it and clients later consume the returned life/death.
+    void setNetworkGameplayRole(bool enabled, bool host,
+                                std::vector<bool> ownedRacers);
+    NetworkDamageResult applyNetworkPlayerDamage(
+        std::size_t target, std::size_t attacker, Vec3 position,
+        float value, DamageType damageType,
+        const r3d::physics::VehicleState& vehicle,
+        bool synchronizeState = false, float targetLife = 0.0F,
+        bool death = false);
+    void queueNetworkShot(ReplicatedShot shot);
+    void queueNetworkBonus(ReplicatedBonus bonus);
     void update(float seconds,
                 const std::vector<r3d::physics::VehicleState>& vehicles,
                 const RaceControl& humanControl);
@@ -437,6 +482,15 @@ private:
         const r3d::physics::VehicleState& vehicle,
         DamageType damageType = DamageType::Simple,
         bool killCredit = true);
+    void pushDamageEvent(
+        std::size_t target, std::size_t attacker, const Vec3& position,
+        float damage, DamageType damageType, bool networkReplicated);
+    bool applyRacerDamageInternal(
+        std::size_t target, std::size_t attacker, const Vec3& position,
+        float sourceDamage, DamageType damageType,
+        const r3d::physics::VehicleState& vehicle,
+        bool incomingAlreadySupported, bool synchronizeState,
+        float targetLife, bool death, bool networkReplicated);
     std::size_t findWeapon(std::string_view record,
                            WeaponSlot slot) const noexcept;
     void syncSelectedWeapon(RacerRuntime& racer) const noexcept;
@@ -462,6 +516,9 @@ private:
     int countdownDisplay_ = 3;
     bool networkCountdownControlled_ = false;
     bool networkFinishControlled_ = false;
+    bool networkGameplayEnabled_ = false;
+    bool networkGameplayHost_ = false;
+    std::vector<bool> networkOwnedRacers_;
     std::vector<RacerRuntime> racers_;
     std::vector<r3d::physics::VehicleInput> vehicleInputs_;
     std::vector<bool> decorationActive_;
@@ -471,6 +528,7 @@ private:
         weaponCooldown_;
     std::vector<float> mineCooldown_;
     std::vector<float> hyperCooldown_;
+    std::vector<std::uint32_t> nextNetworkProjectileIds_;
     std::vector<float> repairSeconds_;
     std::vector<float> stuckSeconds_;
     std::vector<float> aiBlockingSeconds_;
@@ -515,6 +573,8 @@ private:
     std::vector<RespawnRequest> respawns_;
     std::vector<VelocityRequest> velocityRequests_;
     std::vector<AngularVelocityRequest> angularVelocityRequests_;
+    std::vector<ReplicatedShot> pendingNetworkShots_;
+    std::vector<ReplicatedBonus> pendingNetworkBonuses_;
     PlayerProfile initialPlayerProfile_;
     std::uint32_t initialAchievementPoints_ = 0;
     std::map<std::string, std::uint32_t>
