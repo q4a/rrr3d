@@ -3902,6 +3902,7 @@ int main(int argc, char** argv)
         for (const auto& source : timedEffectAudio)
             audio.stop(source.voice);
         timedEffectAudio.clear();
+        commentator.stop();
         commentator.pause(true);
         gameMusic.pause(true, audioError);
         if (advanceGameTrack)
@@ -9100,13 +9101,11 @@ int main(int argc, char** argv)
         if (persistProgress)
             saveRaceProfile();
 #ifdef RRR3D_AUDIO
-        if (persistProgress)
-        {
-            stopRaceAudio();
-            // GameMode keeps its commentator alive during FinishMenu: the
-            // result boxes emit their own cPlayerFinish* events.
-            commentator.pause(false);
-        }
+        // GameMode::ExitRace always stops the race commentator/audio before
+        // Menu::ExitRaceGoFinish, on both the host and a receiving client.
+        // The Commentator object remains alive for cPlayerFinish* events.
+        stopRaceAudio();
+        commentator.pause(false);
 #endif
         std::vector<std::size_t> order(
             raceSession.racers().size(), 0U);

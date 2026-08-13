@@ -203,10 +203,7 @@ bool OriginalRaceCommentator::initialize(
 
 void OriginalRaceCommentator::shutdown() noexcept
 {
-    if (voice_ != r3d::audio::invalidVoice)
-        audio_.stop(voice_);
-    voice_ = r3d::audio::invalidVoice;
-    queue_.clear();
+    stop();
     for (const auto& [path, sound] : loadedSounds_)
     {
         static_cast<void>(path);
@@ -221,14 +218,19 @@ void OriginalRaceCommentator::shutdown() noexcept
     paused_ = false;
 }
 
-void OriginalRaceCommentator::reset()
+void OriginalRaceCommentator::stop() noexcept
 {
-    if (!initialized_)
-        return;
     if (voice_ != r3d::audio::invalidVoice)
         audio_.stop(voice_);
     voice_ = r3d::audio::invalidVoice;
     queue_.clear();
+}
+
+void OriginalRaceCommentator::reset()
+{
+    if (!initialized_)
+        return;
+    stop();
     timeSeconds_ = 0.0F;
     silenceSeconds_ = 0.0F;
     for (auto& [name, comment] : comments_)

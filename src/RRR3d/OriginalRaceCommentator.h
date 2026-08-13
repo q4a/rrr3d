@@ -32,6 +32,9 @@ public:
 
     bool initialize(std::string_view style, std::string& error);
     void shutdown() noexcept;
+    // GameMode::ExitRace calls Commentator::Stop: clear playback/queue while
+    // preserving per-comment delay and repeat state for FinishMenu events.
+    void stop() noexcept;
     void reset();
     // GameMode::Commentator is a registered game user in the Windows
     // implementation, so its clock and end-of-stream queue keep advancing

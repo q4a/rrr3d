@@ -938,6 +938,11 @@ SDL_AUDIO_DRIVER=dummy \
   Windows if/else-if chain, события существуют только для первых трёх и
   последнего участника; physics regression проверяет последовательность
   `Lead/Second/Third/none/none/Last`.
+- `GameMode::ExitRace` теперь также буквально вызывает переносной
+  `Commentator::Stop`: активная гоночная фраза и её очередь очищаются до
+  `FinishMenu`, но per-comment delay/repeat state сохраняется. Раньше порт
+  ставил голос на pause и сразу возобновлял его поверх результатов; на
+  network client остановка дополнительно ошибочно зависела от записи профиля.
 - Generic Authors/Credits заменён исходным `FinalMenu.cpp`: чёрный фон,
   девять `GUI/Slides/slide1..9.dds`, секции `svCredits` с красными captions
   и светлыми body-lines, source root `vp.x - 250`, 107-second scroll и
