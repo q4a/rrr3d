@@ -78,12 +78,306 @@ namespace originalaudio = r3d::game::originalaudio;
 
 constexpr int initialWidth = 1280;
 constexpr int initialHeight = 733;
+constexpr std::uint32_t originalMinimumWidth = 1280U;
+constexpr std::uint32_t originalMinimumHeight = 720U;
+constexpr std::uint32_t originalMaximumWidth = 1920U;
+constexpr std::uint32_t originalMaximumHeight = 1080U;
 constexpr std::string_view smokePrefix = "--smoke-test-frames=";
 constexpr std::string_view dataPrefix = "--data-dir=";
 constexpr std::string_view languagePrefix = "--language=";
 constexpr std::string_view trackPrefix = "--track=";
 constexpr std::string_view carPrefix = "--car=";
 constexpr std::string_view weatherPrefix = "--weather=";
+
+struct OriginalDisplayMode
+{
+    std::uint32_t width = 0U;
+    std::uint32_t height = 0U;
+    SDL_DisplayMode sdl{};
+    bool hasSdlMode = false;
+};
+
+constexpr int originalOptionsArrowDirection(
+    float pointerX, float centerX, float halfWidth) noexcept
+{
+    const float left = centerX + 140.0F;
+    const float right = centerX + 380.0F;
+    if (pointerX >= left - halfWidth &&
+        pointerX <= left + halfWidth)
+        return -1;
+    if (pointerX >= right - halfWidth &&
+        pointerX <= right + halfWidth)
+        return 1;
+    return 0;
+}
+
+static_assert(originalOptionsArrowDirection(1100.0F, 960.0F, 20.0F) ==
+              -1);
+static_assert(originalOptionsArrowDirection(1340.0F, 960.0F, 20.0F) ==
+              1);
+
+std::pair<std::uint32_t, std::uint32_t> displayModePixelSize(
+    const SDL_DisplayMode& mode) noexcept
+{
+    const float density =
+        std::isfinite(mode.pixel_density) && mode.pixel_density > 0.0F
+            ? mode.pixel_density
+            : 1.0F;
+    return {
+        static_cast<std::uint32_t>(std::max(
+            std::lround(static_cast<float>(mode.w) * density), 1L)),
+        static_cast<std::uint32_t>(std::max(
+            std::lround(static_cast<float>(mode.h) * density), 1L))};
+}
+
+bool sourceDisplayMode(const OriginalDisplayMode& mode) noexcept
+{
+    return mode.width >= originalMinimumWidth &&
+           mode.width <= originalMaximumWidth &&
+           mode.height >= originalMinimumHeight &&
+           mode.height <= originalMaximumHeight;
+}
+
+std::vector<OriginalDisplayMode> originalDisplayModesForWindow(
+    SDL_Window* window)
+{
+    std::vector<OriginalDisplayMode> candidates;
+    int count = 0;
+    SDL_DisplayMode** modes = SDL_GetFullscreenDisplayModes(
+        SDL_GetDisplayForWindow(window), &count);
+    candidates.reserve(static_cast<std::size_t>(std::max(count, 0)));
+    for (int index = 0; modes != nullptr && index < count; ++index)
+    {
+        if (modes[index] == nullptr || modes[index]->w <= 0 ||
+            modes[index]->h <= 0)
+        {
+            continue;
+        }
+        const auto [width, height] = displayModePixelSize(*modes[index]);
+        candidates.push_back(
+            {width, height, *modes[index], true});
+    }
+    SDL_free(modes);
+
+    // D3D9RenderDriver keeps 1280x720..1920x1080. If an adapter has no
+    // mode inside that range, it falls back to the largest smaller and the
+    // smallest larger mode. Keep that policy, but compare physical pixels:
+    // SDL's macOS mode sizes are logical points and pixel_density carries
+    // the Retina multiplier.
+    std::vector<OriginalDisplayMode> filtered;
+    for (const auto& candidate : candidates)
+    {
+        if (sourceDisplayMode(candidate))
+            filtered.push_back(candidate);
+    }
+    if (filtered.empty() && !candidates.empty())
+    {
+        const auto area = [](const OriginalDisplayMode& mode) {
+            return static_cast<std::uint64_t>(mode.width) * mode.height;
+        };
+        const OriginalDisplayMode* below = nullptr;
+        const OriginalDisplayMode* above = nullptr;
+        for (const auto& candidate : candidates)
+        {
+            if (candidate.width < originalMinimumWidth ||
+                candidate.height < originalMinimumHeight)
+            {
+                if (below == nullptr || area(candidate) > area(*below))
+                    below = &candidate;
+            }
+            if (candidate.width > originalMaximumWidth ||
+                candidate.height > originalMaximumHeight)
+            {
+                if (above == nullptr || area(candidate) < area(*above))
+                    above = &candidate;
+            }
+        }
+        if (below != nullptr)
+            filtered.push_back(*below);
+        if (above != nullptr)
+            filtered.push_back(*above);
+    }
+
+    // D3D9RenderDriver::FindPrefRate selects the available rate nearest
+    // 60 Hz, then removes the rest. SDL reports fractional 59.94 Hz, so use
+    // a small tolerance around the nearest value.
+    float preferredRate = 0.0F;
+    float preferredDistance = std::numeric_limits<float>::max();
+    for (const auto& mode : filtered)
+    {
+        if (mode.sdl.refresh_rate <= 0.0F)
+            continue;
+        const float distance = std::abs(mode.sdl.refresh_rate - 60.0F);
+        if (distance < preferredDistance)
+        {
+            preferredDistance = distance;
+            preferredRate = mode.sdl.refresh_rate;
+        }
+    }
+
+    std::vector<OriginalDisplayMode> preferredCandidates;
+    for (const auto& mode : filtered)
+    {
+        if (preferredRate > 0.0F &&
+            (mode.sdl.refresh_rate <= 0.0F ||
+             std::abs(mode.sdl.refresh_rate - preferredRate) > 0.25F))
+        {
+            continue;
+        }
+        const auto duplicate = std::find_if(
+            preferredCandidates.begin(), preferredCandidates.end(),
+            [&](const auto& existing) {
+                return existing.width == mode.width &&
+                       existing.height == mode.height;
+            });
+        if (duplicate == preferredCandidates.end())
+            preferredCandidates.push_back(mode);
+    }
+
+    // A modern Retina panel exposes a near-continuous ladder of synthetic
+    // scaled modes (1313x820, 1348x842, ...). D3D9 adapters exposed the
+    // conventional video modes that the source OptionsFrame expected. Keep
+    // those source-facing values in the menu and associate each with the
+    // closest real Cocoa mode using the same area-distance rule as
+    // RenderDriver::FindNearMode. This also preserves the shipped 1280x800
+    // profile value instead of silently replacing it with a Retina scale.
+    constexpr std::array<std::pair<std::uint32_t, std::uint32_t>, 10>
+        conventionalModes{{
+            {1280U, 720U},
+            {1280U, 800U},
+            {1366U, 768U},
+            {1280U, 960U},
+            {1440U, 900U},
+            {1280U, 1024U},
+            {1600U, 900U},
+            {1600U, 1024U},
+            {1680U, 1050U},
+            {1920U, 1080U},
+        }};
+    std::vector<OriginalDisplayMode> result;
+    result.reserve(conventionalModes.size());
+    for (const auto [width, height] : conventionalModes)
+    {
+        if (preferredCandidates.empty())
+        {
+            result.push_back({width, height, {}, false});
+            continue;
+        }
+        const auto wantedArea =
+            static_cast<std::uint64_t>(width) * height;
+        const auto closest = std::min_element(
+            preferredCandidates.begin(), preferredCandidates.end(),
+            [&](const auto& left, const auto& right) {
+                const auto leftArea =
+                    static_cast<std::uint64_t>(left.width) * left.height;
+                const auto rightArea =
+                    static_cast<std::uint64_t>(right.width) * right.height;
+                const auto leftDistance =
+                    leftArea > wantedArea ? leftArea - wantedArea
+                                          : wantedArea - leftArea;
+                const auto rightDistance =
+                    rightArea > wantedArea ? rightArea - wantedArea
+                                           : wantedArea - rightArea;
+                return leftDistance < rightDistance;
+            });
+        result.push_back({width, height, closest->sdl, true});
+    }
+    std::sort(result.begin(), result.end(), [](const auto& left,
+                                                const auto& right) {
+        const auto leftArea =
+            static_cast<std::uint64_t>(left.width) * left.height;
+        const auto rightArea =
+            static_cast<std::uint64_t>(right.width) * right.height;
+        if (leftArea != rightArea)
+            return leftArea < rightArea;
+        if (left.width != right.width)
+            return left.width < right.width;
+        return left.height < right.height;
+    });
+    return result;
+}
+
+std::size_t nearestOriginalDisplayMode(
+    const std::vector<OriginalDisplayMode>& modes,
+    std::uint32_t width, std::uint32_t height) noexcept
+{
+    if (modes.empty())
+        return 0U;
+    const auto wantedArea = static_cast<std::uint64_t>(width) * height;
+    std::size_t best = 0U;
+    std::uint64_t bestDistance = std::numeric_limits<std::uint64_t>::max();
+    for (std::size_t index = 0U; index < modes.size(); ++index)
+    {
+        if (modes[index].width == width && modes[index].height == height)
+            return index;
+        const auto area = static_cast<std::uint64_t>(modes[index].width) *
+                          modes[index].height;
+        const auto distance = area > wantedArea ? area - wantedArea
+                                                 : wantedArea - area;
+        if (distance < bestDistance)
+        {
+            best = index;
+            bestDistance = distance;
+        }
+    }
+    return best;
+}
+
+bool applyOriginalWindowMode(
+    SDL_Window* window, const std::vector<OriginalDisplayMode>& modes,
+    std::uint32_t width, std::uint32_t height, bool fullscreen,
+    bool synchronize, std::string& error)
+{
+    if (fullscreen)
+    {
+        const auto index = nearestOriginalDisplayMode(
+            modes, width, height);
+        const SDL_DisplayMode* mode =
+            index < modes.size() && modes[index].hasSdlMode
+                ? &modes[index].sdl
+                : nullptr;
+        if (!SDL_SetWindowFullscreenMode(window, mode) ||
+            !SDL_SetWindowFullscreen(window, true))
+        {
+            error = SDL_GetError();
+            return false;
+        }
+    }
+    else
+    {
+        if ((SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN) != 0U &&
+            !SDL_SetWindowFullscreen(window, false))
+        {
+            error = SDL_GetError();
+            return false;
+        }
+        if (synchronize && !SDL_SyncWindow(window))
+        {
+            error = SDL_GetError();
+            return false;
+        }
+        const float queriedDensity = SDL_GetWindowPixelDensity(window);
+        const float density =
+            std::isfinite(queriedDensity) && queriedDensity > 0.0F
+                ? queriedDensity
+                : 1.0F;
+        const int windowWidth = std::max(
+            static_cast<int>(std::lround(width / density)), 1);
+        const int windowHeight = std::max(
+            static_cast<int>(std::lround(height / density)), 1);
+        if (!SDL_SetWindowSize(window, windowWidth, windowHeight))
+        {
+            error = SDL_GetError();
+            return false;
+        }
+    }
+    if (synchronize && !SDL_SyncWindow(window))
+    {
+        error = SDL_GetError();
+        return false;
+    }
+    return true;
+}
 
 struct Options
 {
@@ -1253,6 +1547,12 @@ int main(int argc, char** argv)
 #ifdef RRR3D_AUDIO
     sdlFlags |= SDL_INIT_AUDIO;
 #endif
+    // The Windows renderer changes fullscreen state immediately. Cocoa's
+    // default fullscreen Space animates asynchronously and can leave SDL
+    // mouse events queued behind several seconds of resize traffic. Use an
+    // immediate fullscreen window and keep the focus-acquiring click.
+    SDL_SetHint(SDL_HINT_VIDEO_MAC_FULLSCREEN_SPACES, "0");
+    SDL_SetHint(SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH, "1");
     if (!SDL_Init(sdlFlags))
     {
         std::cerr << "Unable to initialize SDL3: " << SDL_GetError()
@@ -1313,10 +1613,64 @@ int main(int argc, char** argv)
 #else
         "Motor Rock - Original MainMenu2 (Milestone 6)", initialWidth,
 #endif
-        initialHeight, SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
+        initialHeight,
+        SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY |
+            SDL_WINDOW_HIDDEN);
     if (window == nullptr)
     {
         std::cerr << "Unable to create window: " << SDL_GetError() << '\n';
+#ifdef RRR3D_GAMEPAD_INPUT
+        input.shutdown();
+#endif
+        SDL_Quit();
+        return EXIT_FAILURE;
+    }
+
+    const auto sourceDisplayModes = originalDisplayModesForWindow(window);
+#ifdef RRR3D_PHYSICS
+    const std::uint32_t startupWidth =
+        profileState.config.resolutionWidth;
+    const std::uint32_t startupHeight =
+        profileState.config.resolutionHeight;
+    // Regression fixtures must not seize the user's desktop. An ordinary
+    // launch applies the persisted source View::Desc before the first frame.
+    const bool startupFullscreen =
+        profileState.config.fullScreen && options->smokeFrames == 0U;
+#else
+    const std::uint32_t startupWidth = initialWidth;
+    const std::uint32_t startupHeight = initialHeight;
+    const bool startupFullscreen = false;
+#endif
+    std::string startupWindowError;
+    if (!applyOriginalWindowMode(
+            window, sourceDisplayModes, startupWidth, startupHeight,
+            startupFullscreen, false, startupWindowError))
+    {
+        std::cerr << "Unable to apply original startup display mode: "
+                  << startupWindowError << '\n';
+#ifdef RRR3D_PHYSICS
+        profileState.config.fullScreen = false;
+#endif
+        startupWindowError.clear();
+        if (!applyOriginalWindowMode(
+                window, sourceDisplayModes, startupWidth, startupHeight,
+                false, false, startupWindowError))
+        {
+            std::cerr << "Unable to create fallback window: "
+                      << startupWindowError << '\n';
+            SDL_DestroyWindow(window);
+#ifdef RRR3D_GAMEPAD_INPUT
+            input.shutdown();
+#endif
+            SDL_Quit();
+            return EXIT_FAILURE;
+        }
+    }
+    if (!SDL_ShowWindow(window) || !SDL_SyncWindow(window))
+    {
+        std::cerr << "Unable to show synchronized game window: "
+                  << SDL_GetError() << '\n';
+        SDL_DestroyWindow(window);
 #ifdef RRR3D_GAMEPAD_INPUT
         input.shutdown();
 #endif
@@ -2109,47 +2463,20 @@ int main(int argc, char** argv)
     };
     std::vector<std::pair<std::uint32_t, std::uint32_t>>
         originalDisplayModes;
-    int displayModeCount = 0;
-    SDL_DisplayMode** displayModes = SDL_GetFullscreenDisplayModes(
-        SDL_GetDisplayForWindow(window), &displayModeCount);
-    for (int index = 0; displayModes != nullptr &&
-                        index < displayModeCount;
-         ++index)
-    {
-        if (displayModes[index] == nullptr ||
-            displayModes[index]->w <= 0 ||
-            displayModes[index]->h <= 0)
-        {
-            continue;
-        }
-        const auto mode = std::pair{
-            static_cast<std::uint32_t>(displayModes[index]->w),
-            static_cast<std::uint32_t>(displayModes[index]->h)};
-        if (std::find(
-                originalDisplayModes.begin(), originalDisplayModes.end(),
-                mode) == originalDisplayModes.end())
-        {
-            originalDisplayModes.push_back(mode);
-        }
-    }
-    SDL_free(displayModes);
+    originalDisplayModes.reserve(sourceDisplayModes.size());
+    for (const auto& mode : sourceDisplayModes)
+        originalDisplayModes.emplace_back(mode.width, mode.height);
     const auto configuredDisplayMode = std::pair{
         optionsDraftConfig.resolutionWidth,
         optionsDraftConfig.resolutionHeight};
-    if (std::find(
-            originalDisplayModes.begin(), originalDisplayModes.end(),
-            configuredDisplayMode) == originalDisplayModes.end())
-    {
-        originalDisplayModes.push_back(configuredDisplayMode);
-    }
     if (originalDisplayModes.empty())
-        originalDisplayModes.push_back({initialWidth, initialHeight});
-    std::sort(
-        originalDisplayModes.begin(), originalDisplayModes.end(),
-        [](const auto& first, const auto& second) {
-            return first.first * first.second <
-                   second.first * second.second;
-        });
+        originalDisplayModes.push_back(
+            {originalMinimumWidth, originalMinimumHeight});
+    std::cout << "Original D3D9 display modes (mapped to nearest macOS "
+                 "60 Hz mode):";
+    for (const auto& mode : originalDisplayModes)
+        std::cout << ' ' << mode.first << 'x' << mode.second;
+    std::cout << '\n';
     // Literal order from Data/game.xml, consumed by
     // StartOptionsMenu::StartOptionsMenu.
     constexpr std::array<std::string_view, 6> sourceLanguages{
@@ -2168,11 +2495,9 @@ int main(int argc, char** argv)
     };
     std::size_t startOptionsCameraIndex = 2U;
     std::size_t startOptionsResolutionIndex =
-        static_cast<std::size_t>(std::distance(
-            originalDisplayModes.begin(),
-            std::find(
-                originalDisplayModes.begin(),
-                originalDisplayModes.end(), configuredDisplayMode)));
+        nearestOriginalDisplayMode(
+            sourceDisplayModes, configuredDisplayMode.first,
+            configuredDisplayMode.second);
     if (startOptionsResolutionIndex >= originalDisplayModes.size())
         startOptionsResolutionIndex = 0U;
     std::size_t startOptionsLanguageIndex = sourceListIndex(
@@ -8327,6 +8652,63 @@ int main(int argc, char** argv)
         return true;
     };
 #endif
+    int pendingPixelWidth = pixelWidth;
+    int pendingPixelHeight = pixelHeight;
+    bool drawableResizePending = false;
+    auto requestDrawableResize = [&](int width, int height) {
+        pendingPixelWidth = std::max(width, 1);
+        pendingPixelHeight = std::max(height, 1);
+        drawableResizePending = true;
+    };
+    auto applyPendingDrawableResize = [&]() {
+        if (!drawableResizePending)
+            return true;
+        drawableResizePending = false;
+        if (pendingPixelWidth == pixelWidth &&
+            pendingPixelHeight == pixelHeight)
+        {
+            return true;
+        }
+        pixelWidth = pendingPixelWidth;
+        pixelHeight = pendingPixelHeight;
+        device->resize(static_cast<std::uint32_t>(pixelWidth),
+                       static_cast<std::uint32_t>(pixelHeight));
+#ifdef RRR3D_VIDEO
+        videoPlayer.resize();
+#endif
+#ifdef RRR3D_PHYSICS
+        std::string resizeError;
+        if (!raceRenderer.resize(
+                *device, static_cast<std::uint32_t>(pixelWidth),
+                static_cast<std::uint32_t>(pixelHeight), resizeError) ||
+            !garageRenderer.resize(
+                *device, static_cast<std::uint32_t>(pixelWidth),
+                static_cast<std::uint32_t>(pixelHeight), resizeError) ||
+            !angarRenderer.resize(
+                *device, static_cast<std::uint32_t>(pixelWidth),
+                static_cast<std::uint32_t>(pixelHeight), resizeError))
+        {
+            std::cerr << "Unable to resize M9.3 render targets: "
+                      << resizeError << '\n';
+            return false;
+        }
+#endif
+        return true;
+    };
+    auto requestSynchronizedWindowDrawable = [&]() {
+        // SDL_SyncWindow has finalized the Cocoa operation. Discard only
+        // stale geometry notifications produced during that transition;
+        // mouse and keyboard events remain untouched.
+        SDL_FlushEvent(SDL_EVENT_WINDOW_RESIZED);
+        SDL_FlushEvent(SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED);
+        SDL_FlushEvent(SDL_EVENT_WINDOW_METAL_VIEW_RESIZED);
+        int width = 0;
+        int height = 0;
+        if (!SDL_GetWindowSizeInPixels(window, &width, &height))
+            return false;
+        requestDrawableResize(width, height);
+        return true;
+    };
     auto refreshCurrentOptionsPage = [&]() {
         switch (menuStack.back())
         {
@@ -8607,18 +8989,31 @@ int main(int argc, char** argv)
         profileState.preferredCameraSerialized = true;
         profileState.discreteVideoCardSerialized = true;
         raceRenderer.resetCamera();
-        if (!profileState.config.fullScreen &&
+        if (!options->startOptionsSmokeTest &&
             (profileState.config.resolutionWidth !=
                  previous.resolutionWidth ||
              profileState.config.resolutionHeight !=
                  previous.resolutionHeight))
         {
-            SDL_SetWindowSize(
-                window,
-                static_cast<int>(
-                    profileState.config.resolutionWidth),
-                static_cast<int>(
-                    profileState.config.resolutionHeight));
+            std::string windowError;
+            if (!applyOriginalWindowMode(
+                    window, sourceDisplayModes,
+                    profileState.config.resolutionWidth,
+                    profileState.config.resolutionHeight,
+                    profileState.config.fullScreen, true,
+                    windowError) ||
+                !requestSynchronizedWindowDrawable())
+            {
+                std::cerr
+                    << "Unable to apply StartOptionsMenu resolution: "
+                    << (windowError.empty() ? SDL_GetError()
+                                            : windowError)
+                    << '\n';
+                profileState.config.resolutionWidth =
+                    previous.resolutionWidth;
+                profileState.config.resolutionHeight =
+                    previous.resolutionHeight;
+            }
         }
 #ifdef RRR3D_AUDIO
         if (profileState.config.commentatorStyle !=
@@ -8737,33 +9132,42 @@ int main(int argc, char** argv)
         profileState.config = optionsDraftConfig;
         profileState.player.difficulty = optionsDraftDifficulty;
 
-        if (profileState.config.fullScreen !=
-            previousConfig.fullScreen)
+        const bool windowConfigurationChanged =
+            profileState.config.fullScreen !=
+                previousConfig.fullScreen ||
+            profileState.config.resolutionWidth !=
+                previousConfig.resolutionWidth ||
+            profileState.config.resolutionHeight !=
+                previousConfig.resolutionHeight;
+        if (windowConfigurationChanged)
         {
-            if (!SDL_SetWindowFullscreen(
-                    window, profileState.config.fullScreen))
+            std::string windowError;
+            if (!applyOriginalWindowMode(
+                    window, sourceDisplayModes,
+                    profileState.config.resolutionWidth,
+                    profileState.config.resolutionHeight,
+                    profileState.config.fullScreen, true,
+                    windowError) ||
+                !requestSynchronizedWindowDrawable())
             {
                 std::cerr
-                    << "Unable to apply original window mode: "
-                    << SDL_GetError() << '\n';
+                    << "Unable to apply original display mode: "
+                    << (windowError.empty() ? SDL_GetError()
+                                            : windowError)
+                    << '\n';
                 profileState.config.fullScreen =
                     previousConfig.fullScreen;
                 optionsDraftConfig.fullScreen =
                     previousConfig.fullScreen;
+                profileState.config.resolutionWidth =
+                    previousConfig.resolutionWidth;
+                profileState.config.resolutionHeight =
+                    previousConfig.resolutionHeight;
+                optionsDraftConfig.resolutionWidth =
+                    previousConfig.resolutionWidth;
+                optionsDraftConfig.resolutionHeight =
+                    previousConfig.resolutionHeight;
             }
-        }
-        if (!profileState.config.fullScreen &&
-            (profileState.config.resolutionWidth !=
-                 previousConfig.resolutionWidth ||
-             profileState.config.resolutionHeight !=
-                 previousConfig.resolutionHeight))
-        {
-            SDL_SetWindowSize(
-                window,
-                static_cast<int>(
-                    profileState.config.resolutionWidth),
-                static_cast<int>(
-                    profileState.config.resolutionHeight));
         }
         raceRenderer.resetCamera();
         raceSession.setSpringBorders(
@@ -9000,7 +9404,11 @@ int main(int argc, char** argv)
                         optionsDraftConfig.resolutionHeight});
                 const auto index =
                     current == originalDisplayModes.end()
-                        ? 0U
+                        ? static_cast<std::uint32_t>(
+                              nearestOriginalDisplayMode(
+                                  sourceDisplayModes,
+                                  optionsDraftConfig.resolutionWidth,
+                                  optionsDraftConfig.resolutionHeight))
                         : static_cast<std::uint32_t>(
                               current - originalDisplayModes.begin());
                 const auto& mode = originalDisplayModes[cycleValue(
@@ -10079,7 +10487,8 @@ int main(int argc, char** argv)
             if (originalMovieActive &&
                 event.type != SDL_EVENT_QUIT &&
                 event.type != SDL_EVENT_WINDOW_CLOSE_REQUESTED &&
-                event.type != SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED)
+                event.type != SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED &&
+                event.type != SDL_EVENT_WINDOW_METAL_VIEW_RESIZED)
             {
                 const auto movieInputEvents =
                     input.processEvent(event);
@@ -10101,7 +10510,8 @@ int main(int argc, char** argv)
             if (sourceStartupActive &&
                 event.type != SDL_EVENT_QUIT &&
                 event.type != SDL_EVENT_WINDOW_CLOSE_REQUESTED &&
-                event.type != SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED)
+                event.type != SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED &&
+                event.type != SDL_EVENT_WINDOW_METAL_VIEW_RESIZED)
             {
                 bool skipIntro =
                     event.type == SDL_EVENT_KEY_DOWN &&
@@ -10277,7 +10687,8 @@ int main(int argc, char** argv)
             if (raceLoadingActive &&
                 event.type != SDL_EVENT_QUIT &&
                 event.type != SDL_EVENT_WINDOW_CLOSE_REQUESTED &&
-                event.type != SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED)
+                event.type != SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED &&
+                event.type != SDL_EVENT_WINDOW_METAL_VIEW_RESIZED)
             {
                 // Menu::msInfo is modal, hides the cursor, and does not
                 // dispatch menu/gameplay actions while the world is loaded.
@@ -10287,7 +10698,8 @@ int main(int argc, char** argv)
             if (sourceStartOptionsActive &&
                 event.type != SDL_EVENT_QUIT &&
                 event.type != SDL_EVENT_WINDOW_CLOSE_REQUESTED &&
-                event.type != SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED)
+                event.type != SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED &&
+                event.type != SDL_EVENT_WINDOW_METAL_VIEW_RESIZED)
             {
                 if (startOptionsReloadDialogPending &&
                     infoDialog.visible)
@@ -11635,6 +12047,24 @@ int main(int argc, char** argv)
                             SDL_EVENT_MOUSE_BUTTON_DOWN &&
                         event.button.button == SDL_BUTTON_LEFT)
                     {
+                        const float arrowHalfWidth =
+                            static_cast<float>(std::max(
+                                optionsArrowImage.width,
+                                optionsArrowSelectedImage.width)) *
+                                0.5F +
+                            8.0F;
+                        const bool editableValueRow =
+                            hoveredOption && *hoveredOption < rowCount &&
+                            menuStack.back() !=
+                                MenuScreen::ControlsOptions &&
+                            *hoveredOption < activeMenuPage().enabled.size() &&
+                            activeMenuPage().enabled[*hoveredOption];
+                        const int arrowDirection =
+                            editableValueRow
+                                ? originalOptionsArrowDirection(
+                                      virtualX, centerX,
+                                      arrowHalfWidth)
+                                : 0;
                         const float upY =
                             centerY -
                             (menuStack.back() ==
@@ -11642,7 +12072,13 @@ int main(int argc, char** argv)
                                  ? 150.0F
                                  : 200.0F);
                         const float downY = centerY + 195.0F;
-                        if (std::abs(
+                        if (arrowDirection != 0)
+                        {
+                            menuSelection = *hoveredOption;
+                            adjustCurrentOption(arrowDirection);
+                            pointerHandledOriginalOptions = true;
+                        }
+                        else if (std::abs(
                                 virtualX -
                                 (centerX + 150.0F)) <= 35.0F &&
                             std::abs(virtualY - upY) <= 35.0F &&
@@ -13871,41 +14307,20 @@ int main(int argc, char** argv)
             {
                 running = false;
             }
-            else if (event.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED)
+            else if (event.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED ||
+                     event.type == SDL_EVENT_WINDOW_METAL_VIEW_RESIZED)
             {
-                pixelWidth = std::max(event.window.data1, 1);
-                pixelHeight = std::max(event.window.data2, 1);
-                device->resize(static_cast<std::uint32_t>(pixelWidth),
-                               static_cast<std::uint32_t>(pixelHeight));
-#ifdef RRR3D_VIDEO
-                videoPlayer.resize();
-#endif
-#ifdef RRR3D_PHYSICS
-                std::string resizeError;
-                if (!raceRenderer.resize(
-                        *device,
-                        static_cast<std::uint32_t>(pixelWidth),
-                        static_cast<std::uint32_t>(pixelHeight),
-                        resizeError) ||
-                    !garageRenderer.resize(
-                        *device,
-                        static_cast<std::uint32_t>(pixelWidth),
-                        static_cast<std::uint32_t>(pixelHeight),
-                        resizeError) ||
-                    !angarRenderer.resize(
-                        *device,
-                        static_cast<std::uint32_t>(pixelWidth),
-                        static_cast<std::uint32_t>(pixelHeight),
-                        resizeError))
-                {
-                    std::cerr
-                        << "Unable to resize M9.3 render targets: "
-                        << resizeError << '\n';
-                    running = false;
-                }
-#endif
+                requestDrawableResize(
+                    event.window.data1, event.window.data2);
             }
         }
+
+        // A Cocoa fullscreen transition or a live resize may enqueue dozens
+        // of pixel-size events. Recreate the bgfx backbuffer and the three
+        // source render graphs only once, at the newest size, after input has
+        // already been drained for this frame.
+        if (!applyPendingDrawableResize())
+            running = false;
 
 #ifdef RRR3D_VIDEO
         if (originalMovieActive)
@@ -15435,6 +15850,7 @@ int main(int argc, char** argv)
                     const auto wheelCount = std::min(
                         {raceVehicles[racer].wheelContacts.size(),
                          definition.wheelSlipEffects.size(),
+                         definition.wheelSlipSounds.size(),
                          slipVoices.size()});
                     for (std::size_t wheel = 0;
                          wheel < wheelCount; ++wheel)
@@ -15443,6 +15859,7 @@ int main(int argc, char** argv)
                             raceVehicles[racer].wheelContacts[wheel];
                         const float sourceSlip =
                             definition.wheelSlipEffects[wheel] &&
+                                    definition.wheelSlipSounds[wheel] &&
                                     contact.hasContact
                                 ? std::max(
                                       std::abs(

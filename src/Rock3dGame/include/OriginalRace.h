@@ -473,6 +473,10 @@ struct Vehicle
     std::vector<Transform> wheelVisualTransforms;
     std::vector<Vec3> wheelVisualOffsets;
     std::vector<bool> wheelSlipEffects;
+    // DataBase::LoadCar attaches SkidAsphalt only to wheel i == 0. Other
+    // PxWheelSlipEffect instances still own trail/smoke visuals, but are
+    // intentionally silent.
+    std::vector<bool> wheelSlipSounds;
     std::array<VehicleWeaponMount, 4> weaponMounts;
     std::vector<VehicleNightLight> nightLights;
     ObjectDefinition lowLifeEffect;

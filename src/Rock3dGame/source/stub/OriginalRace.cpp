@@ -3456,14 +3456,18 @@ Vehicle loadVehicle(const resource::ResourceFileSystem& resources,
                  behavior = behavior->NextSiblingElement())
             {
                 const char* type = behavior->Attribute("type");
-                hasSlipEffect =
-                    hasSlipEffect ||
-                    (type != nullptr &&
-                     std::string_view(type) == "9");
+                if (type == nullptr || std::string_view(type) != "9")
+                    continue;
+                hasSlipEffect = true;
             }
         }
         vehicle.wheels.push_back(wheel);
         result.wheelSlipEffects.push_back(hasSlipEffect);
+        // This sound assignment is not serialized in db.xml. LoadCar creates
+        // it procedurally only for source wheel index zero (DataBase.cpp),
+        // while the remaining PxWheelSlipEffect objects stay visual-only.
+        result.wheelSlipSounds.push_back(
+            hasSlipEffect && result.wheelSlipSounds.empty());
         result.wheelVisualOffsets.push_back(
             vector3(item, "offset", source + "/wheel"));
         auto wheelNodes = visualNodes(
@@ -6347,6 +6351,13 @@ bool runOriginalRaceResourceSmokeTest(
         const bool motorRangesMatchSource = std::all_of(
             race.vehicles.begin(), race.vehicles.end(),
             [&](const Vehicle& vehicle) {
+                const bool hasSlipVisual = std::any_of(
+                    vehicle.wheelSlipEffects.begin(),
+                    vehicle.wheelSlipEffects.end(),
+                    [](bool enabled) { return enabled; });
+                const auto slipSoundCount = std::count(
+                    vehicle.wheelSlipSounds.begin(),
+                    vehicle.wheelSlipSounds.end(), true);
                 return !vehicle.idleSoundPath.empty() &&
                        !vehicle.rpmSoundPath.empty() &&
                        near(vehicle.rpmVolumeRange[0], 0.0F) &&
@@ -6354,7 +6365,13 @@ bool runOriginalRaceResourceSmokeTest(
                        near(vehicle.rpmFrequencyRange[0], 0.0F) &&
                        near(vehicle.rpmFrequencyRange[1], 1.0F) &&
                        vehicle.wheelSlipEffects.size() ==
-                           vehicle.physics.wheels.size();
+                           vehicle.physics.wheels.size() &&
+                       vehicle.wheelSlipSounds.size() ==
+                           vehicle.physics.wheels.size() &&
+                       slipSoundCount == (hasSlipVisual ? 1 : 0) &&
+                       (!hasSlipVisual ||
+                        (!vehicle.wheelSlipSounds.empty() &&
+                         vehicle.wheelSlipSounds.front()));
             });
         const bool smokeMatchesSource =
             recordEndsWith(race.wheelSmokeEffect.record, "smoke7") &&
