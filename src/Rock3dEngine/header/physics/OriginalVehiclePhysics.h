@@ -55,6 +55,13 @@ struct TriangleMesh
 
 struct DecorationDescription
 {
+    struct ChildShape
+    {
+        Vec3 position;
+        Quat rotation;
+        Vec3 halfExtents;
+    };
+
     Transform transform;
     Vec3 shapePosition;
     Quat shapeRotation;
@@ -63,6 +70,10 @@ struct DecorationDescription
     bool hasBodyShape = false;
     bool dynamic = false;
     bool collisionResponse = true;
+    // Actor::InitRootNxActor folds every attached px::Actor child shape into
+    // the parent's single actor. DestrObj disables response on that actor,
+    // but the shapes must remain present to produce the lethal touch event.
+    std::vector<ChildShape> childShapes;
 };
 
 struct DecorationState
@@ -192,6 +203,7 @@ struct BodyContact
 struct WheelContactState
 {
     Vec3 position;
+    Vec3 normal{0.0F, 0.0F, 1.0F};
     float longitudinalSlip = 0.0F;
     float lateralSlip = 0.0F;
     bool hasContact = false;

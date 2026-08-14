@@ -3650,6 +3650,8 @@ int main(int argc, char** argv)
     {
         r3d::audio::VoiceHandle voice = r3d::audio::invalidVoice;
         bool spatialProxyPlaying = false;
+        float lastSlip = 0.0F;
+        float silentSeconds = 0.0F;
     };
     struct ShotEffectAudio
     {
@@ -15439,7 +15441,7 @@ int main(int argc, char** argv)
                     {
                         const auto& contact =
                             raceVehicles[racer].wheelContacts[wheel];
-                        const float slip =
+                        const float sourceSlip =
                             definition.wheelSlipEffects[wheel] &&
                                     contact.hasContact
                                 ? std::max(
@@ -15454,6 +15456,31 @@ int main(int argc, char** argv)
                                           0.0F)
                                 : 0.0F;
                         auto& voice = slipVoices[wheel];
+                        float slip = sourceSlip;
+                        if (sourceSlip > 0.0F)
+                        {
+                            voice.lastSlip = sourceSlip;
+                            voice.silentSeconds = 0.0F;
+                        }
+                        else
+                        {
+                            // PhysX supplied a stable wheel-contact stream to
+                            // PxWheelSlipEffect. Jolt can lose that contact for
+                            // a single fixed step on triangle seams; stopping
+                            // and rewinding SkidAsphalt for each such dropout
+                            // sounds like a stalled sample. Keep only an 80 ms
+                            // release tail, shorter than a perceptible new skid.
+                            constexpr float slipReleaseSeconds = 0.08F;
+                            voice.silentSeconds += frameSeconds;
+                            if (voice.voice !=
+                                    r3d::audio::invalidVoice &&
+                                voice.silentSeconds < slipReleaseSeconds)
+                            {
+                                slip = voice.lastSlip *
+                                    (1.0F - voice.silentSeconds /
+                                                slipReleaseSeconds);
+                            }
+                        }
                         if (slip <= 0.0F)
                         {
                             if (voice.voice !=

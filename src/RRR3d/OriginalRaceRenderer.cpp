@@ -877,12 +877,22 @@ bool boundsVisible(
         return true;
     const auto& m = viewProjectionMatrix;
     // ActorManager::Culling tests an actor AABB against the active scene
-    // frustum before OctreeRender submits it. Use the positive vertex of the
-    // world-space AABB for the same conservative plane test.
+    // frustum before OctreeRender submits it. The portable loader flattens
+    // source child actors (most visibly wheels and destruction-list pieces)
+    // into their parent object. Expand that computed parent AABB
+    // conservatively so the flattened children are not clipped as the parent
+    // crosses a camera edge.
+    constexpr float childActorPadding = 2.0F;
     auto outside = [&](float a, float b, float c, float d) {
-        const float x = a >= 0.0F ? bounds.maximum.x : bounds.minimum.x;
-        const float y = b >= 0.0F ? bounds.maximum.y : bounds.minimum.y;
-        const float z = c >= 0.0F ? bounds.maximum.z : bounds.minimum.z;
+        const float x = a >= 0.0F
+                            ? bounds.maximum.x + childActorPadding
+                            : bounds.minimum.x - childActorPadding;
+        const float y = b >= 0.0F
+                            ? bounds.maximum.y + childActorPadding
+                            : bounds.minimum.y - childActorPadding;
+        const float z = c >= 0.0F
+                            ? bounds.maximum.z + childActorPadding
+                            : bounds.minimum.z - childActorPadding;
         return a * x + b * y + c * z + d < -0.01F;
     };
     const auto planeOutside = [&](std::size_t row, float sign) {
@@ -4875,7 +4885,20 @@ void OriginalRaceRenderer::draw(
                 if (slipping)
                 {
                     trailParent.position = contact->position;
-                    trailParent.position.z += 0.001F;
+                    auto normal = normalize(contact->normal);
+                    if (std::abs(normal.x) + std::abs(normal.y) +
+                            std::abs(normal.z) <
+                        0.0001F)
+                    {
+                        normal = {0.0F, 0.0F, 1.0F};
+                    }
+                    constexpr float trailSurfaceOffset = 0.012F;
+                    trailParent.position.x +=
+                        normal.x * trailSurfaceOffset;
+                    trailParent.position.y +=
+                        normal.y * trailSurfaceOffset;
+                    trailParent.position.z +=
+                        normal.z * trailSurfaceOffset;
                 }
                 else
                 {
@@ -5769,7 +5792,21 @@ void OriginalRaceRenderer::renderFrame(
         {
             const auto& contact = state.wheelContacts[wheel];
             auto position = contact.position;
-            position.z += 0.001F;
+            auto normal = normalize(contact.normal);
+            if (std::abs(normal.x) + std::abs(normal.y) +
+                    std::abs(normal.z) <
+                0.0001F)
+            {
+                normal = {0.0F, 0.0F, 1.0F};
+            }
+            // D3D9's trail pass tolerated a coplanar contact strip. Metal's
+            // depth precision needs a small displacement along the actual
+            // road normal; a fixed world-Z millimetre still z-fought on
+            // banked and sloped track pieces.
+            constexpr float trailSurfaceOffset = 0.012F;
+            position.x += normal.x * trailSurfaceOffset;
+            position.y += normal.y * trailSurfaceOffset;
+            position.z += normal.z * trailSurfaceOffset;
             auto& path = paths[wheel];
             auto& sampleTimes = times[wheel];
             while (!sampleTimes.empty() &&

@@ -5105,9 +5105,37 @@ r3d::physics::WorldDescription makePhysicsDescription(
             decoration.halfExtents.z > 0.0F;
         decoration.dynamic =
             definition.dynamicBody && decoration.hasBodyShape;
-        // DestrObj sets NX_AF_DISABLE_RESPONSE on its parent actor. Its child
-        // shapes become independent responding actors only after OnDeath.
+        // Actor::InitRootNxActor merges every destruction-list child shape
+        // into the parent actor. DestrObj gives that actor
+        // NX_AF_DISABLE_RESPONSE: it reports the zero-damage touch that kills
+        // the object, while OnDeath detaches the pieces into their own actors.
         decoration.collisionResponse = !definition.destructible;
+        if (definition.destructible)
+        {
+            for (const auto& piece : definition.destructionPieces)
+            {
+                if (piece.halfExtents.x <= 0.0F ||
+                    piece.halfExtents.y <= 0.0F ||
+                    piece.halfExtents.z <= 0.0F)
+                {
+                    continue;
+                }
+                r3d::physics::DecorationDescription::ChildShape childShape;
+                childShape.position = {
+                    piece.shapePosition.x * instance.transform.scale.x,
+                    piece.shapePosition.y * instance.transform.scale.y,
+                    piece.shapePosition.z * instance.transform.scale.z};
+                childShape.rotation = piece.shapeRotation;
+                childShape.halfExtents = {
+                    std::abs(piece.halfExtents.x *
+                             instance.transform.scale.x),
+                    std::abs(piece.halfExtents.y *
+                             instance.transform.scale.y),
+                    std::abs(piece.halfExtents.z *
+                             instance.transform.scale.z)};
+                decoration.childShapes.push_back(childShape);
+            }
+        }
         result.decorations.push_back(std::move(decoration));
     }
 
@@ -5514,12 +5542,17 @@ bool runOriginalRaceResourceSmokeTest(
                            crush1;
             });
         bool destructionBodiesMatch = false;
+        bool intactDestructionBodiesMatch = false;
         std::size_t destructionBodyCount = 0U;
         std::size_t destructionDynamicCount = 0U;
         if (crush1Instance != race.decorationInstances.end())
         {
             const auto instanceIndex = static_cast<std::size_t>(
                 crush1Instance - race.decorationInstances.begin());
+            intactDestructionBodiesMatch =
+                instanceIndex < physics.decorations.size() &&
+                !physics.decorations[instanceIndex].collisionResponse &&
+                physics.decorations[instanceIndex].childShapes.size() == 12U;
             const auto bodies = makeDecorationDestruction(
                 race, resources, instanceIndex);
             destructionBodyCount = bodies.size();
@@ -5616,6 +5649,7 @@ bool runOriginalRaceResourceSmokeTest(
             !sourcePiecesMatch(reklama, 11U, 10U) ||
             bochka == nullptr || bochka->destructible ||
             !bochka->destructionPieces.empty() ||
+            !intactDestructionBodiesMatch ||
             !destructionBodiesMatch ||
             hasDestructibleWithoutSourcePieces ||
             hasDestructibleWithoutSourceCollision ||

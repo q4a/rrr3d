@@ -973,6 +973,8 @@ public:
         };
         for (const auto body : decoration.meshBodies)
             setBodyEnabled(body);
+        for (const auto body : decoration.childShapeBodies)
+            setBodyEnabled(body);
         setBodyEnabled(decoration.shapeBody);
         decoration.state.active = enabled;
         if (enabled)
@@ -1127,6 +1129,7 @@ private:
     struct DecorationRuntime
     {
         std::vector<JPH::BodyID> meshBodies;
+        std::vector<JPH::BodyID> childShapeBodies;
         JPH::BodyID shapeBody;
         DecorationState state;
     };
@@ -1482,6 +1485,9 @@ private:
             for (auto& body : decoration.meshBodies)
                 destroyBody(body);
             decoration.meshBodies.clear();
+            for (auto& body : decoration.childShapeBodies)
+                destroyBody(body);
+            decoration.childShapeBodies.clear();
             destroyBody(decoration.shapeBody);
             decoration.state.active = false;
         }
@@ -1614,49 +1620,69 @@ private:
              index < description_.decorations.size(); ++index)
         {
             const auto& source = description_.decorations[index];
-            if (!source.hasBodyShape)
-                continue;
-            const auto box = new JPH::BoxShape(toJolt(source.halfExtents));
-            const auto shifted = JPH::RotatedTranslatedShapeSettings(
-                                     toJolt(source.shapePosition),
-                                     toJolt(source.shapeRotation), box)
-                                     .Create();
-            if (shifted.HasError())
-            {
-                throw std::runtime_error(
-                    ("Jolt decoration shape transform: " +
-                     shifted.GetError())
-                        .c_str());
-            }
-            const auto motion =
-                source.dynamic ? JPH::EMotionType::Dynamic
-                               : JPH::EMotionType::Static;
-            JPH::BodyCreationSettings settings(
-                shifted.Get(), toJolt(source.transform.position),
-                toJolt(source.transform.rotation), motion,
-                source.dynamic ? Layers::moving : Layers::nonMoving);
-            if (source.dynamic)
-            {
-                settings.mOverrideMassProperties =
-                    JPH::EOverrideMassProperties::CalculateInertia;
-                settings.mMassPropertiesOverride.mMass =
-                    std::max(source.mass, 1.0F);
-            }
-            settings.mFriction = 0.5F;
-            settings.mRestitution = 0.5F;
-            settings.mEnhancedInternalEdgeRemoval = true;
-            settings.mUserData = decorationUserData(index);
-            settings.mIsSensor = !source.collisionResponse;
             auto& decoration = decorations_[index];
-            decoration.shapeBody =
-                system_.GetBodyInterface().CreateAndAddBody(
-                    settings, source.dynamic
-                                  ? JPH::EActivation::Activate
-                                  : JPH::EActivation::DontActivate);
-            if (decoration.shapeBody.IsInvalid())
+            auto createBoxBody = [&](Vec3 halfExtents, Vec3 shapePosition,
+                                     Quat shapeRotation, bool dynamic,
+                                     float mass, bool collisionResponse) {
+                const auto box = new JPH::BoxShape(toJolt(halfExtents));
+                const auto shifted = JPH::RotatedTranslatedShapeSettings(
+                                         toJolt(shapePosition),
+                                         toJolt(shapeRotation), box)
+                                         .Create();
+                if (shifted.HasError())
+                {
+                    throw std::runtime_error(
+                        ("Jolt decoration shape transform: " +
+                         shifted.GetError())
+                            .c_str());
+                }
+                const auto motion =
+                    dynamic ? JPH::EMotionType::Dynamic
+                            : JPH::EMotionType::Static;
+                JPH::BodyCreationSettings settings(
+                    shifted.Get(), toJolt(source.transform.position),
+                    toJolt(source.transform.rotation), motion,
+                    dynamic ? Layers::moving : Layers::nonMoving);
+                if (dynamic)
+                {
+                    settings.mOverrideMassProperties =
+                        JPH::EOverrideMassProperties::CalculateInertia;
+                    settings.mMassPropertiesOverride.mMass =
+                        std::max(mass, 1.0F);
+                }
+                settings.mFriction = 0.5F;
+                settings.mRestitution = 0.5F;
+                settings.mEnhancedInternalEdgeRemoval = true;
+                settings.mUserData = decorationUserData(index);
+                settings.mIsSensor = !collisionResponse;
+                const auto body =
+                    system_.GetBodyInterface().CreateAndAddBody(
+                        settings, dynamic ? JPH::EActivation::Activate
+                                          : JPH::EActivation::DontActivate);
+                if (body.IsInvalid())
+                {
+                    throw std::runtime_error(
+                        "Jolt could not create decoration body");
+                }
+                return body;
+            };
+            if (source.hasBodyShape)
             {
-                throw std::runtime_error(
-                    "Jolt could not create decoration body");
+                decoration.shapeBody = createBoxBody(
+                    source.halfExtents, source.shapePosition,
+                    source.shapeRotation, source.dynamic, source.mass,
+                    source.collisionResponse);
+            }
+            // Actor::InitRootNxActor attaches these shapes to the parent's
+            // static NX_AF_DISABLE_RESPONSE actor. Their saved body records
+            // take effect only after OnDeath detaches the pieces, so the
+            // intact forms are static sensors here as well.
+            decoration.childShapeBodies.reserve(source.childShapes.size());
+            for (const auto& child : source.childShapes)
+            {
+                decoration.childShapeBodies.push_back(createBoxBody(
+                    child.halfExtents, child.position, child.rotation,
+                    false, 0.0F, source.collisionResponse));
             }
         }
     }
@@ -1980,6 +2006,8 @@ private:
             {
                 contact.position =
                     fromJolt(joltWheel->GetContactPosition());
+                contact.normal =
+                    fromJolt(joltWheel->GetContactNormal());
                 const auto* wheeled =
                     static_cast<const JPH::WheelWV*>(joltWheel);
                 contact.longitudinalSlip = wheeled->mLongitudinalSlip;
@@ -2544,18 +2572,13 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
     barrel.dynamic = true;
     contactDescription.decorations.push_back(barrel);
     DecorationDescription destructible;
+    destructible.transform.position = {2.0F, 0.0F, 0.0F};
     destructible.collisionResponse = false;
+    DecorationDescription::ChildShape attachedBoard;
+    attachedBoard.position = {0.0F, 0.0F, 1.5F};
+    attachedBoard.halfExtents = {0.1F, 2.0F, 1.5F};
+    destructible.childShapes.push_back(attachedBoard);
     contactDescription.decorations.push_back(destructible);
-    TriangleMesh destructibleMesh;
-    destructibleMesh.surface = CollisionSurface::Decoration;
-    destructibleMesh.decorationInstance = 1U;
-    destructibleMesh.vertices = {{2.0F, -2.0F, 0.0F},
-                                 {2.0F, 2.0F, 3.0F},
-                                 {2.0F, 2.0F, 0.0F},
-                                 {2.0F, -2.0F, 3.0F}};
-    destructibleMesh.indices = {0U, 1U, 2U, 0U, 3U, 1U};
-    contactDescription.collisionMeshes.push_back(
-        std::move(destructibleMesh));
     auto contactWorld =
         createOriginalVehicleWorld(contactDescription, error);
     if (!contactWorld)
@@ -2647,8 +2670,8 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
     if (!sawDestructibleSensor)
     {
         error =
-            "source NX_AF_DISABLE_RESPONSE decoration did not report its "
-            "owning MapObj contact";
+            "source NX_AF_DISABLE_RESPONSE destruct-list box did not report "
+            "its owning MapObj contact";
         return false;
     }
     DebrisDescription debrisDescription;
