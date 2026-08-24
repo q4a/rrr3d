@@ -513,9 +513,53 @@ source `Tournament::ChangePlanet`, включая правильную посл�
 AI pass loadout, завершение финального pass и перенос наград через active
 `completeOriginalTournamentTrack`.
 
-Не перенесёнными внутри этого класса пока остаются weighted weather state
-при `SetCurTrack`, полная XML serialization самого library object и вызов
+После P2.2 внутри этого класса оставались weighted weather state при
+`SetCurTrack`, полная XML serialization самого library object и вызов
 `StartPass` для уже созданных runtime Player при сетевой смене состояния.
+
+### P2.3 — Planet weather и gameplay object graph Trace — выполнено
+
+Перенесены `Planet::Wheater`, `Wheaters`, `SetWheaters` и точная двухпроходная
+реализация `GenerateWheater`: фильтр night, most-probable, weighted interval
+с включёнными границами и исходный fallback. `Tournament` теперь хранит
+`wheater`/`wheaterNightPass`, сбрасывает night-pass при построении нового
+списка трасс и не допускает второй night внутри серии. Активный
+`selectOriginalWeather` больше не содержит копию этого алгоритма, а строит
+source `Planet` из уже разобранного `tournamet.xml` и делегирует ему выбор.
+
+Отдельными компилируемыми файлами `OriginalTrace.h/.cpp` перенесён gameplay
+object graph из `eff9338:prog/Rock3dGame/header/game/Trace.h` и
+`source/game/Trace.cpp`:
+
+- `WayPoint`: id/position/size/offset, membership, node links, closest-node и
+  sphere raycast;
+- `WayPath`: linked insertion/deletion, open/enclosed path, source order
+  поиска tile, endpoint sphere fallback и длина;
+- `WayNode::Tile`: direction/normal/mid-miter geometry, node radius, turn
+  angle, interpolated width/height/Z, track lane index/offset, containment,
+  source finish distance и raycast;
+- `Trace`: point/path ownership, lookup, preferred-path search, alternate
+  paths и stable path/node references.
+
+`OriginalRaceSession` теперь один раз строит этот graph из оригинальных
+`map/trace/points` и `map/trace/pathes`. Удалена дублирующая session-формула
+miter planes. Через source-классы проходят текущий tile, branch transition,
+wrong-way distance, lap position, map projection и reset/respawn anchor.
+AI и Human используют один и тот же graph. Адаптер оставляет числовой
+`TraceNodeRef` только для существующей сериализации runtime state.
+
+Прямой `OriginalTraceSmoke` проверяет поворотный miter, переменную ширину,
+terminal half-width в `GetFinishDist`, closest node, alternate path и links.
+Расширенный `OriginalTournamentSmoke` проверяет night filtering, weighted
+выбор и night-pass. Полный arm64 Debug прошёл 7/7 CTest, resource audit,
+автономную bundle verification и `--physics-smoke-test`, включая
+checkpoint/lap/finish, AI catch-up и trace reset.
+
+Пока остаются на boundary, а не внутри source classes: TinyXML
+`Trace::Load/Save`, editor-only triangle-strip buffer, D3D ray helper types и
+полная Component/Object serialization `Tournament`. Gameplay-методы этих
+классов уже находятся в active code path; перечисленные boundary части не
+заменены заглушками и не участвуют в гонке.
 
 ## Итоговое решение
 

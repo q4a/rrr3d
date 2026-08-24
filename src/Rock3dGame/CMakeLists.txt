@@ -49,9 +49,11 @@ else()
     if(RRR3D_BUILD_ORIGINAL_MENU)
         list(APPEND _rrr3d_portable_game_sources
             source/stub/OriginalMainMenu.cpp
+            source/stub/OriginalTrace.cpp
             source/stub/OriginalTournament.cpp
             source/stub/OriginalUserChat.cpp
             include/OriginalMainMenu.h
+            include/OriginalTrace.h
             include/OriginalTournament.h
             include/OriginalUserChat.h
         )
@@ -119,6 +121,18 @@ if(NOT WIN32 AND RRR3D_BUILD_ORIGINAL_MENU)
     add_test(
         NAME rrr3d_original_tournament_smoke
         COMMAND rrr3d_original_tournament_smoke
+    )
+
+    add_executable(rrr3d_original_trace_smoke
+        tests/OriginalTraceSmoke.cpp
+    )
+    target_link_libraries(rrr3d_original_trace_smoke PRIVATE
+        ${PROJECT_NAME}
+    )
+    rrr3d_set_common_target_options(rrr3d_original_trace_smoke)
+    add_test(
+        NAME rrr3d_original_trace_smoke
+        COMMAND rrr3d_original_trace_smoke
     )
 endif()
 

@@ -4420,48 +4420,20 @@ void selectOriginalWeather(
     const resource::ResourceFileSystem& resources, Race& race,
     bool allowNight, bool mostProbable, float randomUnit)
 {
-    // Planet::GenerateWheater: night is removed when middle lighting is not
-    // available or a night race already occurred in this tournament. During
-    // the tutorial the largest chance wins; afterwards selection is weighted.
     const auto& chances = race.environment.weatherChances;
     if (chances.empty())
         return;
-    const WeatherChance* maximum = nullptr;
-    float maximumChance = 0.0F;
-    float chanceSum = 0.0F;
+    source::Planet planet;
+    source::Planet::Wheaters wheaters;
+    wheaters.reserve(chances.size());
     for (const auto& item : chances)
-    {
-        if (item.weather == Weather::Night && !allowNight)
-            continue;
-        if (maximum == nullptr || maximumChance < item.chance)
-        {
-            maximum = &item;
-            maximumChance = item.chance;
-        }
-        chanceSum += item.chance;
-    }
-    if (maximum == nullptr)
-        return;
-    const WeatherChance* selected = maximum;
-    if (!mostProbable && chanceSum > 0.0F)
-    {
-        const float wanted = chanceSum *
-            std::clamp(randomUnit, 0.0F, 1.0F);
-        float accumulated = 0.0F;
-        for (const auto& item : chances)
-        {
-            if (item.weather == Weather::Night && !allowNight)
-                continue;
-            if (wanted >= accumulated &&
-                wanted <= accumulated + item.chance)
-            {
-                selected = &item;
-                break;
-            }
-            accumulated += item.chance;
-        }
-    }
-    applyWeatherDescription(resources, race, selected->weather);
+        wheaters.push_back(
+            {static_cast<int>(item.weather), item.chance});
+    planet.SetWheaters(std::move(wheaters));
+    const auto selected = planet.GenerateWheater(
+        allowNight, mostProbable, randomUnit);
+    applyWeatherDescription(
+        resources, race, static_cast<Weather>(selected.type));
 }
 
 Race loadOriginalGarageScene(

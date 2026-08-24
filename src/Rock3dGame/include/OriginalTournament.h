@@ -22,6 +22,14 @@ public:
         int points = 0;
     };
 
+    // The misspelling is intentional: the shipped Windows API and
+    // tournamet.xml schema both expose Planet::Wheater/Wheaters.
+    struct Wheater
+    {
+        int type = 0;
+        float chance = 0.0F;
+    };
+
     struct Track
     {
         std::size_t catalogIndex = 0U;
@@ -72,6 +80,7 @@ public:
     using Slots = std::vector<SlotData>;
     using Cars = std::vector<CarData>;
     using Players = std::vector<PlayerData>;
+    using Wheaters = std::vector<Wheater>;
 
     // Values intentionally match Planet::State in the Windows save format.
     enum State
@@ -122,6 +131,11 @@ public:
     Price GetPrice(int place) const noexcept;
     void SetPrices(Prices value);
 
+    Wheater GenerateWheater(bool allowNight, bool mostProbable,
+                            float randomUnit) const noexcept;
+    void SetWheaters(Wheaters value);
+    const Wheaters& GetWheaters() const noexcept;
+
     void InsertSlot(SlotData slot);
     void ClearSlots() noexcept;
     void SetSlots(Slots value);
@@ -148,6 +162,7 @@ private:
     RequestPoints requestPoints_;
     State state_ = psUnavailable;
     Prices prices_;
+    Wheaters wheaters_;
     Slots slots_;
     Cars cars_;
     Players players_;
@@ -198,6 +213,12 @@ public:
     std::size_t GetCurTrackIndex() const noexcept;
     const Planet::Track* NextTrack(const Planet::Track* track);
 
+    Planet::Wheater SelectWheater(bool allowNight, bool mostProbable,
+                                  float randomUnit) noexcept;
+    int GetWheater() const noexcept;
+    bool GetWheaterNightPass() const noexcept;
+    void ResetWheaterNightPass() noexcept;
+
     Advance CompleteTrack(int points,
                           std::uint32_t humanOrOpponentCount);
     void Reset() noexcept;
@@ -210,6 +231,8 @@ private:
     std::vector<const Planet::Track*> trackList_;
     bool hasCurPlanet_ = false;
     bool campaign_ = true;
+    int wheater_ = 0;
+    bool wheaterNightPass_ = false;
 };
 
 } // namespace r3d::game::originalrace::source

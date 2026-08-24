@@ -1017,6 +1017,7 @@ OriginalRaceSession::OriginalRaceSession(
     if (race_.tracePath.size() < 2 || race_.tracePoints.empty() ||
         race_.racers.empty())
         throw std::invalid_argument("Original race session data is incomplete");
+    buildSourceTrace();
     reset();
 }
 
@@ -2146,6 +2147,41 @@ const TracePoint& OriginalRaceSession::tracePoint(
     return *found;
 }
 
+void OriginalRaceSession::buildSourceTrace()
+{
+    sourceTrace_.Clear();
+    for (const auto& pointData : race_.tracePoints)
+    {
+        auto* point = sourceTrace_.AddPoint(pointData.id);
+        point->SetPos(pointData.position);
+        point->SetSize(pointData.width);
+    }
+    const auto appendPath = [&](const std::vector<std::uint32_t>& nodes) {
+        if (nodes.size() < 2U)
+            return;
+        auto* path = sourceTrace_.AddPath();
+        for (const auto id : nodes)
+        {
+            auto* point = sourceTrace_.FindPoint(id);
+            if (point == nullptr)
+                throw std::runtime_error(
+                    "Original race trace path is unresolved");
+            path->Add(point);
+        }
+    };
+    if (!race_.tracePaths.empty())
+    {
+        for (const auto& path : race_.tracePaths)
+            appendPath(path);
+    }
+    else
+    {
+        appendPath(race_.tracePath);
+    }
+    if (sourceTrace_.GetPathCount() == 0U)
+        throw std::runtime_error("Original race trace has no paths");
+}
+
 OriginalRaceSession::TraceTileProjection
 OriginalRaceSession::projectTraceTile(
     std::size_t path, std::size_t segment, Vec3 position,
@@ -2153,58 +2189,17 @@ OriginalRaceSession::projectTraceTile(
 {
     TraceTileProjection result;
     result.node = {path, segment};
-    const auto& nodes = tracePathAt(path);
-    const std::size_t segmentCount = nodes.size() - 1U;
-    auto segmentDirection = [&](std::size_t index) {
-        return normalized2(subtract(
-            tracePoint(path, index + 1U).position,
-            tracePoint(path, index).position));
-    };
-    auto miterDirection = [&](Vec3 first, Vec3 second) {
-        const Vec3 sum = add(first, second);
-        return length2(sum) > 0.0001F ? normalized2(sum) : second;
-    };
-    const auto& start = tracePoint(path, segment);
-    const auto& end = tracePoint(path, segment + 1U);
-    result.direction = segmentDirection(segment);
-    const float length = std::max(
-        length2(subtract(end.position, start.position)), 0.0001F);
-    const Vec3 relative = subtract(position, start.position);
-    const float along = dot2(relative, result.direction);
-    result.coordinate = std::clamp(along / length, 0.0F, 1.0F);
-    const float width =
-        start.width + (end.width - start.width) * result.coordinate;
-    const Vec3 normal{result.direction.y, -result.direction.x, 0.0F};
-    const float pathZ =
-        start.position.z +
-        (end.position.z - start.position.z) * result.coordinate;
-    const Vec3 previousDirection =
-        segment > 0U ? segmentDirection(segment - 1U)
-                     : result.direction;
-    const Vec3 followingDirection =
-        segment + 1U < segmentCount
-            ? segmentDirection(segment + 1U)
-            : result.direction;
-    const Vec3 startMiter =
-        miterDirection(previousDirection, result.direction);
-    const Vec3 endMiter =
-        miterDirection(result.direction, followingDirection);
-    constexpr float boundaryEpsilon = 0.05F;
-    const bool betweenMiterPlanes =
-        dot2(relative, startMiter) >= -boundaryEpsilon &&
-        dot2(subtract(position, end.position), endMiter) <=
-            boundaryEpsilon;
-    result.contains =
-        betweenMiterPlanes &&
-        std::abs(dot2(relative, normal)) < width * 0.5F + widthError &&
-        std::abs(pathZ - position.z) < width * 0.5F + widthError;
-    for (std::size_t index = 0U; index < segment; ++index)
-    {
-        result.pathDistance += length2(subtract(
-            tracePoint(path, index + 1U).position,
-            tracePoint(path, index).position));
-    }
-    result.pathDistance += along;
+    const auto* node = sourceTrace_.GetNode(path, segment);
+    if (node == nullptr || node->GetNext() == nullptr)
+        return result;
+    const auto& tile = node->GetTile();
+    const auto direction = tile.GetDir();
+    result.direction = {direction.x, direction.y, 0.0F};
+    result.coordinate = tile.ComputeCoordX({position.x, position.y});
+    result.contains = tile.IsContains(
+        position, true, nullptr, widthError);
+    result.pathDistance = tile.GetStartDist() +
+                          tile.ComputeLength(result.coordinate);
     return result;
 }
 
@@ -2212,70 +2207,35 @@ OriginalRaceSession::TraceTileProjection
 OriginalRaceSession::findTraceTile(
     Vec3 position, TraceNodeRef preferred) const
 {
-    TraceTileProjection result;
-    auto scanPath = [&](std::size_t path,
-                        std::size_t firstSegment) {
-        const auto& nodes = tracePathAt(path);
-        const std::size_t segmentCount = nodes.size() - 1U;
-        firstSegment = std::min(firstSegment, segmentCount - 1U);
-        for (std::size_t segment = firstSegment;
-             segment < segmentCount; ++segment)
-        {
-            auto candidate =
-                projectTraceTile(path, segment, position);
-            if (candidate.contains)
-                return candidate;
-        }
-        // WayPath::IsTileContains separately tests its first WayNode sphere
-        // after every tile failed.  It does not require the point to remain
-        // between the first tile's miter planes.  That distinction closes a
-        // lap when a car has just crossed the final plane but is still a
-        // little behind the outgoing first tile -- a common case for the
-        // outside starting lanes used by campaign AI.
-        auto first = projectTraceTile(path, 0U, position);
-        const float nodeRadius =
-            std::max(tracePoint(path, 0U).width * 0.5F, 0.0001F);
-        if (length3(subtract(position,
-                             tracePoint(path, 0U).position)) <
-            nodeRadius)
-        {
-            first.contains = true;
-            first.coordinate = 0.0F;
-            first.pathDistance = 0.0F;
-            return first;
-        }
-        return TraceTileProjection{};
-    };
-
-    if (preferred.valid() && preferred.path <
-                                 (race_.tracePaths.empty()
-                                      ? 1U
-                                      : race_.tracePaths.size()))
+    auto* preferredNode = preferred.valid()
+                              ? sourceTrace_.GetNode(
+                                    preferred.path, preferred.node)
+                              : nullptr;
+    auto* found = sourceTrace_.IsTileContains(
+        position, const_cast<source::WayNode*>(preferredNode));
+    const auto reference = sourceTrace_.GetNodeRef(found);
+    if (!reference.valid())
+        return {};
+    const auto* path = sourceTrace_.GetPath(reference.path);
+    if (path == nullptr || path->GetCount() < 2U)
+        return {};
+    const std::size_t segment = std::min<std::size_t>(
+        reference.node, path->GetCount() - 2U);
+    auto result = projectTraceTile(reference.path, segment, position);
+    // WayPath performs source sphere fallbacks for endpoint nodes after all
+    // finite tiles fail. Preserve the accepted membership at this adapter.
+    if (!result.contains)
     {
-        const auto& path = tracePathAt(preferred.path);
-        if (path.size() > 1U)
-        {
-            const std::size_t first =
-                preferred.node > 0U ? preferred.node - 1U : 0U;
-            result = scanPath(preferred.path, first);
-            if (result.contains)
-                return result;
-        }
+        result.contains = true;
+        result.coordinate = reference.node == 0U ? 0.0F : 1.0F;
+        const auto* node = sourceTrace_.GetNode(reference.path, segment);
+        result.pathDistance = node != nullptr
+                                  ? node->GetTile().GetStartDist() +
+                                        node->GetTile().ComputeLength(
+                                            result.coordinate)
+                                  : 0.0F;
     }
-
-    const std::size_t pathCount =
-        race_.tracePaths.empty() ? 1U : race_.tracePaths.size();
-    for (std::size_t path = 0U; path < pathCount; ++path)
-    {
-        if (preferred.valid() && path == preferred.path)
-            continue;
-        if (tracePathAt(path).size() < 2U)
-            continue;
-        result = scanPath(path, 0U);
-        if (result.contains)
-            return result;
-    }
-    return {};
+    return result;
 }
 
 bool OriginalRaceSession::linkedTraceTransition(
@@ -2347,15 +2307,8 @@ OriginalRaceSession::TraceNodeRef OriginalRaceSession::aiTraceNode(
 
 float OriginalRaceSession::tracePathLength(std::size_t path) const
 {
-    const auto& nodes = tracePathAt(path);
-    float result = 0.0F;
-    for (std::size_t node = 1U; node < nodes.size(); ++node)
-    {
-        result += length2(subtract(
-            tracePoint(path, node).position,
-            tracePoint(path, node - 1U).position));
-    }
-    return result;
+    const auto* value = sourceTrace_.GetPath(path);
+    return value != nullptr ? value->GetLength() : 0.0F;
 }
 
 float OriginalRaceSession::traceDistance(
@@ -2363,23 +2316,16 @@ float OriginalRaceSession::traceDistance(
 {
     if (!node.valid())
         return 0.0F;
-    const auto& path = tracePathAt(node.path);
-    if (path.size() < 2U)
+    const auto* path = sourceTrace_.GetPath(node.path);
+    if (path == nullptr || path->GetCount() < 2U)
         return 0.0F;
     const std::size_t segment =
-        std::min(node.node, path.size() - 2U);
-    float result = 0.0F;
-    for (std::size_t index = 0U; index < segment; ++index)
-    {
-        result += length2(subtract(
-            tracePoint(node.path, index + 1U).position,
-            tracePoint(node.path, index).position));
-    }
-    result += length2(subtract(
-                  tracePoint(node.path, segment + 1U).position,
-                  tracePoint(node.path, segment).position)) *
-              std::clamp(coordinate, 0.0F, 1.0F);
-    return result;
+        std::min<std::size_t>(node.node, path->GetCount() - 2U);
+    const auto* value = path->GetNode(segment);
+    if (value == nullptr)
+        return 0.0F;
+    return value->GetTile().GetStartDist() +
+           value->GetTile().ComputeLength(coordinate);
 }
 
 float OriginalRaceSession::lapPosition(
@@ -2477,12 +2423,12 @@ void OriginalRaceSession::updateProgress(
     const auto& tilePath = tracePathAt(tile.node.path);
     const auto& tileStart =
         tracePoint(tile.node.path, tile.node.node);
-    const auto& tileEnd =
-        tracePoint(tile.node.path, tile.node.node + 1U);
-    mapPositions_[racer] = add(
-        tileStart.position,
-        multiply(subtract(tileEnd.position, tileStart.position),
-                 tile.coordinate));
+    const auto* sourceNode = sourceTrace_.GetNode(
+        tile.node.path, tile.node.node);
+    mapPositions_[racer] = sourceNode != nullptr
+                               ? sourceNode->GetTile().GetPoint(
+                                     tile.coordinate)
+                               : tileStart.position;
     const bool wasWrongWay = runtime.wrongWay;
     const Vec3 carDirection = normalized2(forward(vehicle.body.rotation));
     if (dot2(tile.direction, carDirection) < 0.0F)
@@ -3307,15 +3253,17 @@ void OriginalRaceSession::queueRespawn(
                                   : 0U,
                               race_.tracePath.size() - 2U)};
     }
-    const auto& path = tracePathAt(traceNode.path);
+    const auto* path = sourceTrace_.GetPath(traceNode.path);
+    if (path == nullptr || path->GetCount() < 2U)
+        return;
     std::size_t nodeIndex =
-        std::min(traceNode.node, path.size() - 2U);
+        std::min<std::size_t>(traceNode.node, path->GetCount() - 2U);
     auto segmentLength = [&](std::size_t node) {
-        return std::max(
-            length2(subtract(
-                tracePoint(traceNode.path, node + 1U).position,
-                tracePoint(traceNode.path, node).position)),
-            0.0001F);
+        const auto* sourceNode = path->GetNode(node);
+        return sourceNode != nullptr
+                   ? std::max(sourceNode->GetTile().GetDirLength(),
+                              0.0001F)
+                   : 0.0001F;
     };
     float distance =
         segmentLength(nodeIndex) *
@@ -3332,21 +3280,20 @@ void OriginalRaceSession::queueRespawn(
         int sample = 0;
         while (sample < static_cast<int>(offsets.size()))
         {
-            const auto& start = tracePoint(traceNode.path, nodeIndex);
-            const auto& end = tracePoint(traceNode.path, nodeIndex + 1U);
+            const auto* sourceNode = path->GetNode(nodeIndex);
+            if (sourceNode == nullptr)
+                break;
+            const auto& sourceTile = sourceNode->GetTile();
             const float length = segmentLength(nodeIndex);
             const float coordinate = std::clamp(
                 (distance + offsets[static_cast<std::size_t>(sample)]) /
                     length,
                 0.0F, 1.0F);
-            const Vec3 tileDirection =
-                normalized2(subtract(end.position, start.position));
-            const float width =
-                start.width + (end.width - start.width) * coordinate;
-            Vec3 rayPosition = add(
-                start.position,
-                multiply(subtract(end.position, start.position),
-                         coordinate));
+            const auto sourceDirection = sourceTile.GetDir();
+            const Vec3 tileDirection{
+                sourceDirection.x, sourceDirection.y, 0.0F};
+            const float width = sourceTile.ComputeWidth(coordinate);
+            Vec3 rayPosition = sourceTile.GetPoint(coordinate);
             rayPosition.z += width * 0.25F;
 
             if (attempt == 0 && sample == 0)
@@ -7983,7 +7930,14 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             for (int frame = 0; frame < 250; ++frame)
                 aiCheatSession.update(
                     1.0F / 60.0F, cheatVehicles, input);
-            cheatVehicles[0].body.position = point(1U).position;
+            // Trace::WayNode::Tile uses strict miter-plane containment at a
+            // node boundary. Sample the interior of the following source
+            // tile instead of relying on the old session epsilon.
+            cheatVehicles[0].body.position = add(
+                point(1U).position,
+                multiply(subtract(point(2U).position,
+                                  point(1U).position),
+                         0.5F));
             aiCheatSession.update(
                 1.0F / 60.0F, cheatVehicles, input);
             aiCheatSession.update(

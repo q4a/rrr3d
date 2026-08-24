@@ -12,6 +12,7 @@ int main()
     planet.AddTrack(2, 2U, 5U);
     planet.SetRequestPoints({{1, 200}, {2, 350}});
     planet.SetPrices({{1000, 100}, {500, 50}});
+    planet.SetWheaters({{0, 0.2F}, {1, 0.7F}, {2, 0.1F}});
     planet.InsertCar({"car-pass-zero", 0});
     planet.InsertSlot({"slot-pass-one", 4U, "stWeapon1", 1});
 
@@ -33,6 +34,9 @@ int main()
         planet.GetRequestPoints(8, 4U) != 500 ||
         planet.GetPrice(2).money != 500 ||
         planet.GetPrice(0).money != 0 ||
+        planet.GenerateWheater(true, true, 0.0F).type != 1 ||
+        planet.GenerateWheater(false, true, 0.0F).type != 0 ||
+        planet.GenerateWheater(true, false, 0.95F).type != 2 ||
         planet.GetPlayer(2) == nullptr ||
         planet.GetPlayer("scRip") == nullptr ||
         planet.GetBoss().id != 2)
@@ -62,12 +66,17 @@ int main()
     campaignPlanet.AddTrack(1, 1U, 4U);
     campaignPlanet.AddTrack(2, 2U, 5U);
     campaignPlanet.SetRequestPoints({{1, 200}, {2, 350}});
+    campaignPlanet.SetWheaters({{0, 0.2F}, {1, 0.7F}, {2, 0.1F}});
     campaignPlanet.InsertSlot(
         {"slot-pass-one", 0U, {}, 1});
     campaignPlanet.Restore(source::Planet::psOpen, 1);
 
     if (!tournament.Select(0U, 1, 0U))
         return 4;
+    if (tournament.SelectWheater(true, true, 0.0F).type != 1 ||
+        !tournament.GetWheaterNightPass() ||
+        tournament.SelectWheater(true, true, 0.0F).type != 0)
+        return 12;
     const auto next = tournament.CompleteTrack(0, 1U);
     if (next.trackIndex != 1U || next.passComplete)
         return 5;

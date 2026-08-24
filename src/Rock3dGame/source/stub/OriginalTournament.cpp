@@ -294,6 +294,54 @@ void Planet::SetPrices(Prices value)
     prices_ = std::move(value);
 }
 
+Planet::Wheater Planet::GenerateWheater(
+    bool allowNight, bool mostProbable, float randomUnit) const noexcept
+{
+    // Environment::ewNight is the second serialized enum value in both the
+    // Windows source and the portable Weather enum.
+    constexpr int night = 1;
+    Wheater maximum{};
+    float maximumChance = 0.0F;
+    float chanceSum = 0.0F;
+    for (const auto& wheater : wheaters_)
+    {
+        if (wheater.type == night && !allowNight)
+            continue;
+        if (maximumChance < wheater.chance)
+        {
+            maximumChance = wheater.chance;
+            maximum = wheater;
+        }
+        chanceSum += wheater.chance;
+    }
+    if (mostProbable)
+        return maximum;
+
+    const float wanted = chanceSum *
+        std::clamp(randomUnit, 0.0F, 1.0F);
+    chanceSum = 0.0F;
+    for (const auto& wheater : wheaters_)
+    {
+        if (wheater.type == night && !allowNight)
+            continue;
+        if (wanted >= chanceSum &&
+            wanted <= chanceSum + wheater.chance)
+            return wheater;
+        chanceSum += wheater.chance;
+    }
+    return !wheaters_.empty() ? wheaters_.front() : maximum;
+}
+
+void Planet::SetWheaters(Wheaters value)
+{
+    wheaters_ = std::move(value);
+}
+
+const Planet::Wheaters& Planet::GetWheaters() const noexcept
+{
+    return wheaters_;
+}
+
 void Planet::InsertSlot(SlotData slot)
 {
     if (!slot.record.empty())
@@ -567,11 +615,15 @@ const Planet::Track* Tournament::NextTrack(
     {
         const auto& tracks = planet->GetTracks();
         if (track == nullptr)
+        {
+            wheaterNightPass_ = false;
             return tracks.empty() ? nullptr : &tracks.front();
+        }
         return planet->NextTrack(track);
     }
     if (trackList_.empty())
     {
+        wheaterNightPass_ = false;
         for (const auto& [pass, tracks] : planet->GetTrackMap())
         {
             (void)pass;
@@ -595,6 +647,31 @@ const Planet::Track* Tournament::NextTrack(
     const auto* next = trackList_.front();
     trackList_.erase(trackList_.begin());
     return next;
+}
+
+Planet::Wheater Tournament::SelectWheater(
+    bool allowNight, bool mostProbable, float randomUnit) noexcept
+{
+    const auto* planet = GetCurPlanet();
+    if (planet == nullptr)
+        return {};
+    const auto result = planet->GenerateWheater(
+        allowNight && !wheaterNightPass_, mostProbable, randomUnit);
+    wheater_ = result.type;
+    wheaterNightPass_ = wheaterNightPass_ || wheater_ == 1;
+    return result;
+}
+
+int Tournament::GetWheater() const noexcept { return wheater_; }
+
+bool Tournament::GetWheaterNightPass() const noexcept
+{
+    return wheaterNightPass_;
+}
+
+void Tournament::ResetWheaterNightPass() noexcept
+{
+    wheaterNightPass_ = false;
 }
 
 Tournament::Advance Tournament::CompleteTrack(
@@ -638,6 +715,8 @@ void Tournament::Reset() noexcept
     curTrack_ = nullptr;
     trackList_.clear();
     hasCurPlanet_ = false;
+    wheater_ = 0;
+    wheaterNightPass_ = false;
 }
 
 } // namespace r3d::game::originalrace::source

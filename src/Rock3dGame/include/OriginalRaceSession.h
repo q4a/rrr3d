@@ -2,6 +2,7 @@
 
 #include "OriginalProfile.h"
 #include "OriginalRace.h"
+#include "OriginalTrace.h"
 
 #include <array>
 #include <cstddef>
@@ -491,6 +492,7 @@ private:
     const TracePoint& tracePoint(std::size_t pathNode) const;
     const TracePoint& tracePoint(std::size_t path,
                                  std::size_t pathNode) const;
+    void buildSourceTrace();
     TraceTileProjection projectTraceTile(
         std::size_t path, std::size_t segment, Vec3 position,
         float widthError = 0.0F) const;
@@ -562,6 +564,7 @@ private:
     void applyCampaignRewards() noexcept;
 
     const Race& race_;
+    source::Trace sourceTrace_{4U};
     RacePhase phase_ = RacePhase::Countdown;
     RacePhase phaseBeforePause_ = RacePhase::Countdown;
     float countdownSeconds_ = 4.0F;
