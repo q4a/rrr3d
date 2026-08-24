@@ -493,7 +493,6 @@ private:
     std::vector<std::size_t> bonusNetworkPendingContact_;
     std::vector<std::array<float, PlayerProfile::weaponSlotCount>>
         weaponCooldown_;
-    std::vector<float> mineCooldown_;
     // Weapon::_shotTime grows from zero independently of the default shot
     // delay and is also queried with the analog mine threshold.
     std::vector<float> mineShotAge_;
@@ -501,9 +500,9 @@ private:
     std::vector<std::uint32_t> nextNetworkProjectileIds_;
     std::vector<float> repairSeconds_;
     std::vector<source::AICar> aiCars_;
-    std::vector<float> aiMineRandom_;
-    std::vector<std::size_t> aiFrontTargets_;
-    std::vector<std::size_t> aiBackTargets_;
+    // Per-frame adapter snapshot reused without allocation. Retained target
+    // ownership lives in source::AICar::AttackState, not in this buffer.
+    std::vector<source::AICar::AttackTarget> aiAttackTargetsScratch_;
     std::vector<Vec3> previousPositions_;
     // Race::OnLateProgress uses last-correct path positions to debounce
     // leader/third-place changes by 300 source units.

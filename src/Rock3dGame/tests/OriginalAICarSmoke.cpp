@@ -1,7 +1,19 @@
 #include "OriginalAICar.h"
 
+#include <array>
 #include <cmath>
 #include <iostream>
+
+namespace
+{
+
+float randomValue = 1.0F;
+double uniformRandomValue = 0.0;
+
+float testRandom() { return randomValue; }
+double testUniformRandom() { return uniformRandomValue; }
+
+} // namespace
 
 int main()
 {
@@ -100,6 +112,100 @@ int main()
     if (!command.resetCar || !ai.TakeResetCar() || ai.TakeResetCar())
         return 10;
 
-    std::cout << "original AICar path/control source rules passed\n";
+    ai.Reset(4U);
+    vehicle.position = {40.0F, 0.0F, 0.0F};
+    vehicle.direction = {1.0F, 0.0F, 0.0F};
+    vehicle.direction3 = vehicle.direction;
+    vehicle.speed = 20.0F;
+    player.car.Update(
+        trace, vehicle.position, vehicle.direction, vehicle.speed,
+        1.0F / 60.0F);
+    ai.path.Update(1.0F / 60.0F, player.car, vehicle);
+    std::array<source::AICar::AttackTarget, 4> targets{};
+    targets[0] = {vehicle.position, 4.0F, 2.0F, true};
+    targets[1] = {{60.0F, 0.0F, 0.0F}, 4.0F, 2.0F, true};
+    targets[2] = {{20.0F, 0.0F, 0.0F}, 4.0F, 2.0F, true};
+    targets[3] = {{58.0F, 0.0F, 0.0F}, 4.0F, 2.0F, false};
+    std::array<source::AICar::AttackWeapon, 1> weapons{{
+        {0U, 0U, 100.0F, 10U, 10U, true}}};
+    source::AICar::AttackContext attack;
+    attack.owner = 0U;
+    attack.targets = targets;
+    attack.weapons = weapons;
+    attack.randomSource = &testRandom;
+    attack.uniformRandomSource = &testUniformRandom;
+    randomValue = 1.0F;
+    auto attackDecision = ai.attack.Update(
+        player.car, vehicle, ai.path, attack);
+    if (!attackDecision.hasWeaponShot() ||
+        attackDecision.weaponSlot != 0U ||
+        attackDecision.weaponTarget != 1U ||
+        ai.attack.target != 1U || ai.attack.backTarget != 2U)
+        return 11;
+
+    // FindEnemy retains the current target when a newly closest candidate
+    // is within the current car's full source size.
+    targets[3].active = true;
+    attackDecision = ai.attack.Update(
+        player.car, vehicle, ai.path, attack);
+    if (ai.attack.target != 1U ||
+        attackDecision.weaponTarget != 1U)
+        return 12;
+
+    // An unready installed ordinary weapon aborts ShotByEnemy before any
+    // other slot can fire.
+    weapons[0].ready = false;
+    attackDecision = ai.attack.Update(
+        player.car, vehicle, ai.path, attack);
+    if (attackDecision.hasWeaponShot())
+        return 13;
+
+    // ptTorpeda is the source exception which can fire at the retained
+    // target behind the car.
+    weapons[0].ready = true;
+    weapons[0].projectileType = 2U;
+    targets[1].active = false;
+    targets[3].active = false;
+    attackDecision = ai.attack.Update(
+        player.car, vehicle, ai.path, attack);
+    if (!attackDecision.hasWeaponShot() ||
+        attackDecision.weaponTarget != 2U)
+        return 14;
+
+    attack.weapons = {};
+    attack.hyper = {true, 10.0F, 10U, 10U};
+    ai.path.brake = false;
+    attackDecision = ai.attack.Update(
+        player.car, vehicle, ai.path, attack);
+    if (!attackDecision.useHyper)
+        return 15;
+    vehicle.position = {90.0F, 0.0F, 0.0F};
+    player.car.Update(
+        trace, vehicle.position, vehicle.direction, vehicle.speed,
+        1.0F / 60.0F);
+    ai.path.Update(1.0F / 60.0F, player.car, vehicle);
+    ai.path.brake = false;
+    attackDecision = ai.attack.Update(
+        player.car, vehicle, ai.path, attack);
+    if (attackDecision.useHyper)
+        return 16;
+
+    ai.attack.Reset();
+    attack.hyper = {};
+    attack.mine = {true, false, 3U, 3U};
+    randomValue = 1.0F;
+    attackDecision = ai.attack.Update(
+        player.car, vehicle, ai.path, attack);
+    if (!attackDecision.useMine ||
+        std::abs(ai.attack.placeMineRandom) > 0.0001F)
+        return 17;
+    ai.attack.target = 1U;
+    ai.attack.backTarget = 2U;
+    ai.attack.DisposeTarget(2U);
+    if (ai.attack.target != 1U ||
+        ai.attack.backTarget != source::AICar::invalidIndex)
+        return 18;
+
+    std::cout << "original AICar path/control/attack source rules passed\n";
     return 0;
 }

@@ -971,8 +971,30 @@ Network, video и Steam явно выключены.
 - Новый девятый CTest `OriginalAICarSmoke` независимо проверяет lane search,
   corner braking, off-trace retention, blocking recovery и reset; полный
   resource regression сохраняет AI attack/Hyper/mine/finish coverage.
-- Следующий source-class блок — `AICar::AttackState`; его retained targets,
-  random mine state и weapon orchestration пока остаются в session.
+- Этот path/control этап оставлял `AttackState` в session; следующий раздел
+  фиксирует завершение и этой границы.
+
+### Source AICar attack object block
+
+- `AICar::AttackState` теперь находится рядом с уже перенесёнными
+  `PathState/ControlState`. Из сессии удалены три retained AI arrays:
+  front target, back target и mine random; `PlayerDispose` очищает ссылки
+  через source state.
+- Перенесены точные `FindEnemy` и `ShotByEnemy`: front/back `pi/4`, live-tile
+  Z level, target-size hysteresis, lateral/Z alignment, all-weapon readiness,
+  max-distance sort, 25% source RNG, ammo distribution и back-only torpedo.
+- Hyper decision использует live `WayNode` coordinate, turn `pi/6`, текущий
+  `PathState::brake` и source charge curve. Mine decision сохраняет
+  `placeMineRandom`, 5–95% progress, nearby-back bonus и отдельный maslo
+  лимит; фактический shot readiness остаётся у Weapon boundary, как в
+  `Logic::Shot` Windows.
+- Удалён ставший лишним второй `mineCooldown_`: единственным source clock
+  снова является эквивалент `Weapon::_shotTime` (`mineShotAge_`). Per-frame
+  target snapshot переиспользует буфер без heap allocation, а четыре weapon
+  candidates обрабатываются fixed-size массивом.
+- `OriginalAICarSmoke` расширен front-retention, readiness-abort, back
+  torpedo, Hyper, Mine и dispose regressions; resource race regression
+  проверяет связку с projectile/Jolt/effect backend.
 
 ## Очередь дальнейшего переноса
 

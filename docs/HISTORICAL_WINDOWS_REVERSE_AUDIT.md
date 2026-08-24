@@ -666,6 +666,41 @@ reverse/reset и AI finish regressions на оригинальной карте.
 weapon readiness/range, Hyper и Mine state пока source-derived, но всё ещё
 координируются массивами и ветвями `OriginalRaceSession`.
 
+### P2.7 — AICar::AttackState — выполнено
+
+Третий вложенный state оригинального `AICar` перенесён в тот же active
+`source::AICar`. Из `OriginalRaceSession` удалены retained front/back target,
+`placeMineRandom` и отдельный неиспользуемый mine cooldown; сессия теперь
+строит только per-frame snapshot машин/установленного оружия и исполняет
+backend-neutral решения `AttackState` через существующие Weapon/Jolt методы.
+
+Перенесены source branches:
+
+- поиск ближайшей цели в переднем/заднем конусе `pi/4` по расстоянию до
+  плоскости машины и точный `WayNode::Tile::IsZLevelContains`;
+- удержание прежней цели, пока новый кандидат не дальше её полного car size;
+- lateral и Z gates `ShotByEnemy`, общий abort при неготовом weapon slot,
+  сортировка по `maxDist`, 25-процентный случайный выбор и source
+  ammo-by-road-progress policy;
+- исключение Hyper/Mine из ordinary slots и `ptTorpeda` как единственное
+  обычное оружие, способное стрелять назад;
+- `RunHyper` с distance-to-next-turn, `pi/6`, brake gate и charge policy;
+- `PlaceMine` с исходным диапазоном 5–95%, бонусом 30% за близкую заднюю
+  цель, `RandomRange(-0.5, 0)`, лимитом трёх charges (двух для maslo) и
+  повторной попыткой до фактической readiness Weapon;
+- немедленная очистка retained targets при `PlayerDispose`/network
+  disconnect.
+
+`OriginalAICarSmoke` теперь отдельно проверяет front retention, readiness
+abort, back torpedo, Hyper turn gate, Mine RNG/charge и target disposal.
+Resource smoke продолжает проверять те же решения через реальные weapon
+records и projectile effects.
+
+После P2.7 исходные `PathState`, `AttackState` и `ControlState` снова собраны
+одним классом. Следующий логичный decomposition-блок — `AIPlayer/AISystem`
+lane-chain ownership либо `Weapon/Logic`; PhysX/D3D9 вызовы остаются
+осознанными Jolt/bgfx boundaries.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

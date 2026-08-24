@@ -1019,7 +1019,6 @@ void OriginalRaceSession::reset()
     racers_.assign(race_.racers.size(), {});
     vehicleInputs_.assign(race_.racers.size(), {});
     weaponCooldown_.assign(race_.racers.size(), {});
-    mineCooldown_.assign(race_.racers.size(), 0.0F);
     mineShotAge_.assign(race_.racers.size(), 0.0F);
     hyperCooldown_.assign(race_.racers.size(), 0.0F);
     nextNetworkProjectileIds_.assign(race_.racers.size(), 1U);
@@ -1028,11 +1027,7 @@ void OriginalRaceSession::reset()
     aiCars_.reserve(race_.racers.size());
     for (std::size_t index = 0U; index < race_.racers.size(); ++index)
         aiCars_.emplace_back(sourceTrace_.GetTrackCount());
-    aiMineRandom_.assign(race_.racers.size(), -1.0F);
-    aiFrontTargets_.assign(
-        race_.racers.size(), RacerRuntime::invalidWeapon);
-    aiBackTargets_.assign(
-        race_.racers.size(), RacerRuntime::invalidWeapon);
+    aiAttackTargetsScratch_.assign(race_.racers.size(), {});
     previousPositions_.assign(race_.racers.size(), {});
     lastLeadPlace_ = 0.0F;
     lastThirdPlace_ = 0.0F;
@@ -1423,6 +1418,8 @@ bool OriginalRaceSession::disconnectNetworkRacer(
         vehicleInputs_[racer] = {};
     if (racer < networkOwnedRacers_.size())
         networkOwnedRacers_[racer] = false;
+    for (auto& aiCar : aiCars_)
+        aiCar.attack.DisposeTarget(racer);
 
     std::erase_if(respawns_, [racer](const auto& request) {
         return request.racer == racer;
@@ -2454,6 +2451,8 @@ r3d::physics::VehicleInput OriginalRaceSession::aiInput(
     sourceVehicle.position = vehicle.body.position;
     sourceVehicle.direction =
         normalized2(forward(vehicle.body.rotation));
+    sourceVehicle.direction3 =
+        normalized3(forward(vehicle.body.rotation));
     sourceVehicle.speed = vehicle.speed;
     sourceVehicle.size =
         2.0F * std::sqrt(half.x * half.x + half.y * half.y +
@@ -3089,8 +3088,6 @@ void OriginalRaceSession::updateGameplay(
         }
         for (auto& cooldown : weaponCooldown_[racer])
             cooldown = std::max(0.0F, cooldown - seconds);
-        mineCooldown_[racer] =
-            std::max(0.0F, mineCooldown_[racer] - seconds);
         mineShotAge_[racer] += seconds;
         hyperCooldown_[racer] =
             std::max(0.0F, hyperCooldown_[racer] - seconds);
@@ -4253,8 +4250,6 @@ void OriginalRaceSession::updateGameplay(
                 networkProjectileId + 1U);
         }
         --racers_[owner].mines;
-        mineCooldown_[owner] =
-            std::max(race_.weapons[weapon].shotDelay, 0.0F);
         mineShotAge_[owner] = 0.0F;
         racers_[owner].mineLockSeconds = 0.4F;
         MineRuntime mine;
@@ -5438,347 +5433,133 @@ void OriginalRaceSession::updateGameplay(
         runtime.SyncSelectedWeapon(race_.weapons.size());
     }
     pendingNetworkShots_.clear();
-    auto raceProgress = [&](std::size_t racer) {
-        if (racer >= racers_.size())
-            return 0.0F;
-        const auto& car = racers_[racer].car;
-        const float pathLength = car.GetPathLength(true);
-        if (pathLength <= 0.0001F)
-            return 0.0F;
-        return std::clamp(
-            car.GetDist(true) / pathLength,
-            0.0F, 1.0F);
-    };
-    for (std::size_t racer = 1;
+    auto& attackTargets = aiAttackTargetsScratch_;
+    attackTargets.resize(racers_.size());
+    for (std::size_t target = 0U; target < racers_.size(); ++target)
+    {
+        source::AICar::AttackTarget state;
+        state.active =
+            target < vehicles.size() &&
+            !racers_[target].destroyed &&
+            !racers_[target].disconnected;
+        if (target < vehicles.size())
+            state.position = vehicles[target].body.position;
+        const auto& racerDefinition = race_.racers[target];
+        const auto& vehicleDefinition =
+            racerDefinition.hasConfiguredVehicle
+                ? racerDefinition.configuredVehicle
+                : race_.vehicles.at(racerDefinition.vehicle);
+        const Vec3 half = vehicleDefinition.physics.halfExtents;
+        state.radius = std::max(
+            std::sqrt(half.x * half.x + half.y * half.y +
+                      half.z * half.z),
+            0.5F);
+        state.size = state.radius * 2.0F;
+        attackTargets[target] = state;
+    }
+    for (std::size_t racer = 1U;
          racer < racers_.size() && racer < vehicles.size(); ++racer)
     {
         auto& runtime = racers_[racer];
-        // AttackState::Update returns immediately for curTile == NULL.  A
-        // retained lastNode is valid for progress/respawn, not for aiming,
-        // mine placement or Hyper activation.
+        // AICar::AttackState::Update returns before changing retained targets
+        // or RNG state while the source CarState has no live curTile.
         if (race_.racers[racer].human ||
             (networkGameplayEnabled_ &&
              (racer >= networkOwnedRacers_.size() ||
               !networkOwnedRacers_[racer])) ||
             runtime.destroyed ||
-            !runtime.car.GetLiveTileRef().valid())
+            racer >= aiCars_.size() ||
+            runtime.car.GetLiveTile() == nullptr)
+        {
             continue;
-        const Vec3 carDirection =
+        }
+
+        const auto& racerDefinition = race_.racers[racer];
+        const auto& vehicleDefinition =
+            racerDefinition.hasConfiguredVehicle
+                ? racerDefinition.configuredVehicle
+                : race_.vehicles.at(racerDefinition.vehicle);
+        const Vec3 half = vehicleDefinition.physics.halfExtents;
+        source::AICar::VehicleState sourceVehicle;
+        sourceVehicle.position = vehicles[racer].body.position;
+        sourceVehicle.direction =
             normalized2(forward(vehicles[racer].body.rotation));
-        const Vec3 carDirection3 =
+        sourceVehicle.direction3 =
             normalized3(forward(vehicles[racer].body.rotation));
-        auto carRadius = [&](std::size_t target) {
-            const auto& definition = race_.racers[target];
-            const auto& vehicle =
-                definition.hasConfiguredVehicle
-                    ? definition.configuredVehicle
-                    : race_.vehicles.at(definition.vehicle);
-            const auto half = vehicle.physics.halfExtents;
-            return std::max(
-                std::sqrt(half.x * half.x + half.y * half.y +
-                          half.z * half.z),
-                0.5F);
-        };
-        auto zLevelContains = [&](std::size_t target) {
-            TraceNodeRef node = runtime.car.GetLiveTileRef();
-            const auto& path = tracePathAt(node.path);
-            node.node = std::min(node.node, path.size() - 2U);
-            const auto& start = tracePoint(node.path, node.node);
-            const auto& end = tracePoint(node.path, node.node + 1U);
-            const Vec3 direction = normalized2(
-                subtract(end.position, start.position));
-            const float segmentLength = std::max(
-                length2(subtract(end.position, start.position)),
-                0.0001F);
-            const float part = std::clamp(
-                dot2(subtract(
-                         vehicles[target].body.position,
-                         start.position),
-                     direction) /
-                    segmentLength,
-                0.0F, 1.0F);
-            const float level =
-                start.position.z +
-                (end.position.z - start.position.z) * part;
-            const float height =
-                (start.width +
-                 (end.width - start.width) * part) *
-                0.5F;
-            return level - vehicles[target].body.position.z <
-                   height;
-        };
-        auto findEnemy =
-            [&](int direction,
-                std::size_t currentTarget) {
-                std::size_t enemy =
-                    RacerRuntime::invalidWeapon;
-                float minimumPlaneDistance = 0.0F;
-                for (std::size_t target = 0;
-                     target < vehicles.size() &&
-                     target < racers_.size(); ++target)
-                {
-                    if (target == racer ||
-                        racers_[target].destroyed ||
-                        !zLevelContains(target))
-                        continue;
-                    const Vec3 difference = subtract(
-                        vehicles[target].body.position,
-                        vehicles[racer].body.position);
-                    const float distance = length3(difference);
-                    if (distance <= 0.0001F)
-                        continue;
-                    const float alignment = dot3(
-                        carDirection3,
-                        multiply(difference, 1.0F / distance));
-                    const bool inView =
-                        direction > 0
-                            ? alignment >= 0.70710678F
-                            : alignment <= -0.70710678F;
-                    const float planeDistance = std::abs(
-                        dot3(carDirection3, difference));
-                    if (!inView ||
-                        (enemy != RacerRuntime::invalidWeapon &&
-                         planeDistance >= minimumPlaneDistance))
-                        continue;
-                    enemy = target;
-                    minimumPlaneDistance = planeDistance;
-                }
-                if (currentTarget == enemy)
-                    return enemy;
-                const bool currentValid =
-                    currentTarget < racers_.size() &&
-                    currentTarget < vehicles.size() &&
-                    !racers_[currentTarget].destroyed &&
-                    zLevelContains(currentTarget);
-                if (enemy == RacerRuntime::invalidWeapon)
-                {
-                    return currentValid
-                               ? currentTarget
-                               : RacerRuntime::invalidWeapon;
-                }
-                if (!currentValid ||
-                    length2(subtract(
-                        vehicles[currentTarget].body.position,
-                        vehicles[enemy].body.position)) >
-                        carRadius(currentTarget) * 2.0F)
-                    return enemy;
-                return currentTarget;
-            };
-        aiFrontTargets_[racer] =
-            findEnemy(1, aiFrontTargets_[racer]);
-        aiBackTargets_[racer] =
-            findEnemy(-1, aiBackTargets_[racer]);
-        const std::size_t frontTarget =
-            aiFrontTargets_[racer];
-        const std::size_t backTarget =
-            aiBackTargets_[racer];
-        const float backDistance =
-            backTarget < racers_.size()
-                ? length2(subtract(
-                      vehicles[backTarget].body.position,
-                      vehicles[racer].body.position))
-                : 0.0F;
+        sourceVehicle.speed = vehicles[racer].speed;
+        sourceVehicle.size =
+            2.0F * std::sqrt(
+                half.x * half.x + half.y * half.y +
+                half.z * half.z);
+        sourceVehicle.steeringControl =
+            vehicleDefinition.physics.steeringControl;
+        sourceVehicle.mapObject = true;
 
-        auto shotByEnemy = [&](std::size_t enemy) {
-            if (enemy >= racers_.size() ||
-                enemy >= vehicles.size())
-                return;
-            const Vec3 difference = subtract(
-                vehicles[enemy].body.position,
-                vehicles[racer].body.position);
-            const float enemyRadius = carRadius(enemy);
-            const float sourceRadius = carRadius(racer);
-            const float lineDistance = std::abs(
-                carDirection.x * difference.y -
-                carDirection.y * difference.x);
-            if (lineDistance >= enemyRadius ||
-                std::abs(difference.z) >=
-                    std::min(sourceRadius, enemyRadius))
-                return;
-            const float targetDistance = length2(difference);
-            const float targetForwardDistance =
-                dot2(carDirection, difference);
+        std::array<source::AICar::AttackWeapon,
+                   PlayerProfile::weaponSlotCount> attackWeapons{};
+        std::size_t attackWeaponCount = 0U;
+        for (std::size_t slot = 0U;
+             slot < runtime.weaponSlots.size(); ++slot)
+        {
+            const std::size_t weaponIndex =
+                runtime.weaponSlots[slot];
+            if (weaponIndex == RacerRuntime::invalidWeapon ||
+                weaponIndex >= race_.weapons.size())
             {
-                std::vector<std::size_t> usableSlots;
-                std::size_t chargedWeapons = 0;
-                for (std::size_t slot = 0;
-                     slot < runtime.weaponSlots.size(); ++slot)
-                {
-                    const auto weaponIndex =
-                        runtime.weaponSlots[slot];
-                    if (weaponIndex ==
-                            RacerRuntime::invalidWeapon ||
-                        weaponIndex >= race_.weapons.size())
-                        continue;
-                    const auto& weapon =
-                        race_.weapons[weaponIndex];
-                    if (weaponCooldown_[racer][slot] > 0.0F)
-                        return;
-                    if (runtime.weaponCharges[slot] > 0U)
-                        ++chargedWeapons;
-                    const bool inRange =
-                        weapon.maximumDistance <= 0.0F ||
-                        targetDistance <
-                            std::min(
-                                weapon.maximumDistance, 100.0F);
-                    const bool forwardOrTorpedo =
-                        weapon.projectileType == 2U ||
-                        targetForwardDistance >
-                            sourceRadius * 0.5F;
-                    if (runtime.weaponCharges[slot] > 0U &&
-                        inRange && forwardOrTorpedo)
-                        usableSlots.push_back(slot);
-                }
-                std::stable_sort(
-                    usableSlots.begin(), usableSlots.end(),
-                    [&](std::size_t first,
-                        std::size_t second) {
-                        return race_
-                                   .weapons[runtime.weaponSlots[first]]
-                                   .maximumDistance <
-                               race_
-                                   .weapons[runtime.weaponSlots[second]]
-                                   .maximumDistance;
-                    });
-                if (usableSlots.empty())
-                    return;
-                const auto slot =
-                    sourceRandomUnit() < 0.25F
-                        ? usableSlots[sourceUniformRandomIndex(
-                              usableSlots.size(),
-                              sourceUniformRandomUnit())]
-                        : usableSlots.front();
-                const float summedPart = std::clamp(
-                    raceProgress(racer) / 0.7F, 0.0F, 1.0F);
-                const float weaponPart =
-                    chargedWeapons > 0U
-                        ? 1.0F /
-                              static_cast<float>(chargedWeapons)
-                        : 1.0F;
-                const float part =
-                    std::min(summedPart / weaponPart, 1.0F);
-                const float ammunition = std::max(
-                    static_cast<float>(
-                        runtime.weaponCharges[slot]) -
-                        (1.0F - part) *
-                            static_cast<float>(
-                                runtime.weaponCapacity[slot]),
-                    0.0F);
-                if (runtime.weaponCapacity[slot] != 0U &&
-                    ammunition <= 0.0F)
-                    return;
-                runtime.selectedWeaponSlot = slot;
-                runtime.SyncSelectedWeapon(race_.weapons.size());
-                fireWeapon(racer, 0.25F, enemy);
+                continue;
             }
-        };
-        shotByEnemy(frontTarget);
-        shotByEnemy(backTarget);
+            const auto& weapon = race_.weapons[weaponIndex];
+            source::AICar::AttackWeapon state;
+            state.slot = slot;
+            state.projectileType = weapon.projectileType;
+            state.maximumDistance = weapon.maximumDistance;
+            state.capacity = runtime.weaponCapacity[slot];
+            state.charge = runtime.weaponCharges[slot];
+            state.ready = weaponCooldown_[racer][slot] <= 0.0F;
+            attackWeapons[attackWeaponCount++] = state;
+        }
 
-        if (runtime.hyperCharge > 0 &&
-            hyperCooldown_[racer] <= 0.0F &&
-            vehicles[racer].speed > 1.0F &&
+        source::AICar::AttackContext context;
+        context.owner = racer;
+        context.targets = attackTargets;
+        context.weapons = std::span<const source::AICar::AttackWeapon>(
+            attackWeapons.data(), attackWeaponCount);
+        context.enabled = true;
+        context.randomSource = &sourceRandomUnit;
+        context.uniformRandomSource = &sourceUniformRandomUnit;
+        if (runtime.hyperWeapon != RacerRuntime::invalidWeapon &&
             runtime.hyperWeapon < race_.weapons.size())
         {
-            TraceNodeRef node = runtime.car.GetLiveTileRef();
-            const auto& path = tracePathAt(node.path);
-            node.node = std::min(node.node, path.size() - 2U);
-            const auto& start = tracePoint(node.path, node.node);
-            const auto& target = tracePoint(node.path, node.node + 1U);
-            const auto currentDirection = normalized2(
-                subtract(target.position, start.position));
-            float turnAngle = 0.0F;
-            if (node.node + 2U < path.size())
-            {
-                const auto& following =
-                    tracePoint(node.path, node.node + 2U);
-                const auto nextDirection = normalized2(
-                    subtract(following.position, target.position));
-                turnAngle = std::acos(std::clamp(
-                    dot2(currentDirection, nextDirection),
-                    -1.0F, 1.0F));
-            }
-            const auto* sourceNode =
-                sourceTrace_.GetNode(node.path, node.node);
-            const float tileCoordinate =
-                sourceNode != nullptr
-                    ? sourceNode->GetTile().ComputeCoordX(
-                          {vehicles[racer].body.position.x,
-                           vehicles[racer].body.position.y})
-                    : 0.0F;
-            const float distanceToTurn =
-                length2(subtract(target.position, start.position)) *
-                (1.0F - tileCoordinate);
-            const float hyperDistance =
-                race_.weapons[runtime.hyperWeapon].projectileSpeed +
-                vehicles[racer].speed;
-            const bool safeDistance =
-                node.node + 2U >= path.size() ||
-                turnAngle < 3.14159265358979323846F / 6.0F ||
-                distanceToTurn > hyperDistance;
-            const float summedPart = std::clamp(
-                raceProgress(racer) / 0.7F, 0.0F, 1.0F);
-            const float ammunition = std::max(
-                static_cast<float>(runtime.hyperCharge) -
-                    (1.0F - summedPart) *
-                        static_cast<float>(runtime.hyperCapacity),
-                0.0F);
-            if (safeDistance && racer < aiCars_.size() &&
-                !aiCars_[racer].path.brake &&
-                (runtime.hyperCapacity == 0U || ammunition > 0.0F))
-                activateHyper(racer);
+            context.hyper.installed = true;
+            context.hyper.projectileSpeed =
+                race_.weapons[runtime.hyperWeapon].projectileSpeed;
+            context.hyper.capacity = runtime.hyperCapacity;
+            context.hyper.charge = runtime.hyperCharge;
         }
-        // AttackState::Update invokes RunHyper before PlaceMine.  Keep the
-        // order because both shots may emit effects and consume slots in a
-        // single source progress tick.
-        if (runtime.mines > 0 &&
-            mineCooldown_[racer] <= 0.0F)
+        if (runtime.mineWeapon != RacerRuntime::invalidWeapon &&
+            runtime.mineWeapon < race_.weapons.size())
         {
-            if (aiMineRandom_[racer] == -1.0F)
-            {
-                aiMineRandom_[racer] =
-                    -0.5F + sourceRandomUnit() * 0.5F;
-            }
-            float summedPart = std::clamp(
-                (raceProgress(racer) - 0.05F) / 0.9F,
-                0.0F, 1.0F);
-            if (summedPart > 0.0F && summedPart < 1.0F)
-            {
-                if (backTarget < racers_.size() &&
-                    backDistance < 30.0F)
-                    summedPart += 0.3F;
-                summedPart = std::clamp(
-                    summedPart + aiMineRandom_[racer],
-                    0.0F, 1.0F);
-            }
-            std::uint32_t maximumUsedCharge = 3U;
-            if (runtime.mineWeapon < race_.weapons.size() &&
+            context.mine.installed = true;
+            context.mine.oil =
                 race_.weapons[runtime.mineWeapon].record.find("maslo") !=
-                    std::string::npos)
-                maximumUsedCharge = 2U;
-            const auto capacity =
-                std::min(runtime.mineCapacity, maximumUsedCharge);
-            const auto spent =
-                runtime.mineCapacity > runtime.mines
-                    ? runtime.mineCapacity - runtime.mines
-                    : 0U;
-            const auto current =
-                capacity - std::min(spent, capacity);
-            const float ammunition = std::max(
-                static_cast<float>(current) -
-                    (1.0F - summedPart) *
-                        static_cast<float>(capacity),
-                0.0F);
-            if ((capacity == 0U || ammunition > 0.0F) &&
-                vehicles[racer].speed > 5.0F)
-            {
-                placeMine(racer);
-                aiMineRandom_[racer] =
-                    -0.5F + sourceRandomUnit() * 0.5F;
-            }
+                std::string::npos;
+            context.mine.capacity = runtime.mineCapacity;
+            context.mine.charge = runtime.mines;
         }
-    }
 
+        const auto decision = aiCars_[racer].attack.Update(
+            runtime.car, sourceVehicle, aiCars_[racer].path, context);
+        if (decision.hasWeaponShot())
+        {
+            runtime.selectedWeaponSlot = decision.weaponSlot;
+            runtime.SyncSelectedWeapon(race_.weapons.size());
+            fireWeapon(racer, 0.25F, decision.weaponTarget);
+        }
+        if (decision.useHyper)
+            activateHyper(racer);
+        if (decision.useMine)
+            placeMine(racer);
+    }
     const std::size_t collisionRacers =
         std::min(vehicles.size(), racers_.size());
     for (std::size_t first = 0; first < collisionRacers; ++first)

@@ -1,6 +1,7 @@
 #include "OriginalAICar.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 
 namespace r3d::game::originalrace::source
@@ -55,6 +56,57 @@ TraceVec2 normalized(TraceVec2 value) noexcept
     const float magnitude = length(value);
     return magnitude > epsilon ? multiply(value, 1.0F / magnitude)
                                : TraceVec2{};
+}
+
+TraceVec3 subtract(TraceVec3 first, TraceVec3 second) noexcept
+{
+    return {first.x - second.x, first.y - second.y,
+            first.z - second.z};
+}
+
+TraceVec3 multiply(TraceVec3 value, float scale) noexcept
+{
+    return {value.x * scale, value.y * scale, value.z * scale};
+}
+
+float dot(TraceVec3 first, TraceVec3 second) noexcept
+{
+    return first.x * second.x + first.y * second.y +
+           first.z * second.z;
+}
+
+float length(TraceVec3 value) noexcept
+{
+    return std::sqrt(dot(value, value));
+}
+
+TraceVec3 normalized(TraceVec3 value) noexcept
+{
+    const float magnitude = length(value);
+    return magnitude > epsilon ? multiply(value, 1.0F / magnitude)
+                               : TraceVec3{};
+}
+
+float randomUnit(AICar::RandomSource source,
+                 float fallback = 1.0F) noexcept
+{
+    return source != nullptr
+               ? std::clamp(source(), 0.0F, 1.0F)
+               : fallback;
+}
+
+std::size_t uniformRandomIndex(
+    std::size_t count, AICar::UniformRandomSource source) noexcept
+{
+    if (count <= 1U)
+        return 0U;
+    const double value = source != nullptr ? source() : 0.0;
+    const double unit = std::clamp(
+        value, 0.0, std::nextafter(1.0, 0.0));
+    return std::min(
+        static_cast<std::size_t>(
+            std::floor(unit * static_cast<double>(count))),
+        count - 1U);
 }
 
 float lineDistance(TraceVec2 normal, TraceVec2 point,
@@ -323,6 +375,292 @@ void AICar::PathState::Update(
         ComputeMovDir(car, vehicle);
 }
 
+void AICar::AttackState::Reset() noexcept
+{
+    target = invalidIndex;
+    backTarget = invalidIndex;
+    placeMineRandom = -1.0F;
+}
+
+void AICar::AttackState::DisposeTarget(std::size_t player) noexcept
+{
+    if (target == player)
+        target = invalidIndex;
+    if (backTarget == player)
+        backTarget = invalidIndex;
+}
+
+std::size_t AICar::AttackState::FindEnemy(
+    const Player::CarState& car, const VehicleState& vehicle,
+    const AttackContext& context, int direction,
+    std::size_t currentEnemy) const
+{
+    const WayNode* liveTile = car.GetLiveTile();
+    if (liveTile == nullptr)
+        return invalidIndex;
+
+    const TraceVec3 direction3 = normalized(vehicle.direction3);
+    std::size_t enemy = invalidIndex;
+    float minimumPlaneDistance = 0.0F;
+    for (std::size_t candidate = 0U;
+         candidate < context.targets.size(); ++candidate)
+    {
+        const auto& targetState = context.targets[candidate];
+        if (candidate == context.owner || !targetState.active ||
+            !liveTile->GetTile().IsZLevelContains(
+                targetState.position))
+        {
+            continue;
+        }
+        const TraceVec3 difference = subtract(
+            targetState.position, vehicle.position);
+        const float distance = length(difference);
+        if (distance <= epsilon)
+            continue;
+        const float alignment = dot(
+            normalized(difference), direction3);
+        const bool inView =
+            direction > 0 ? alignment >= 0.70710678F
+                          : alignment <= -0.70710678F;
+        const float planeDistance =
+            std::abs(dot(direction3, difference));
+        if (!inView ||
+            (enemy != invalidIndex &&
+             planeDistance >= minimumPlaneDistance))
+        {
+            continue;
+        }
+        enemy = candidate;
+        minimumPlaneDistance = planeDistance;
+    }
+
+    if (currentEnemy == enemy)
+        return enemy;
+    const bool currentValid =
+        currentEnemy < context.targets.size() &&
+        context.targets[currentEnemy].active &&
+        liveTile->GetTile().IsZLevelContains(
+            context.targets[currentEnemy].position);
+    if (enemy == invalidIndex)
+        return currentValid ? currentEnemy : invalidIndex;
+    if (!currentValid ||
+        length(subtract(
+            xy(context.targets[currentEnemy].position),
+            xy(context.targets[enemy].position))) >
+            context.targets[currentEnemy].size)
+    {
+        return enemy;
+    }
+    return currentEnemy;
+}
+
+std::size_t AICar::AttackState::ShotByEnemy(
+    const Player::CarState& car, const VehicleState& vehicle,
+    const AttackContext& context, std::size_t enemy) const
+{
+    if (enemy >= context.targets.size() ||
+        !context.targets[enemy].active)
+    {
+        return invalidIndex;
+    }
+    const auto& enemyState = context.targets[enemy];
+    const TraceVec2 direction = normalized(xy(vehicle.direction));
+    const TraceVec2 difference = subtract(
+        xy(enemyState.position), xy(vehicle.position));
+    const float lateralDistance =
+        std::abs(cross(direction, difference));
+    const float sourceRadius = vehicle.size * 0.5F;
+    if (lateralDistance >= enemyState.radius ||
+        std::abs(vehicle.position.z - enemyState.position.z) >=
+            std::min(sourceRadius, enemyState.radius))
+    {
+        return invalidIndex;
+    }
+
+    const float targetDistance = length(difference);
+    const float forwardDistance = dot(direction, difference);
+    std::array<const AttackWeapon*, 4> usable{};
+    std::size_t usableCount = 0U;
+    std::size_t chargedWeapons = 0U;
+    for (const auto& weapon : context.weapons)
+    {
+        // Proj::ptHyper and ptMine do not participate in stWeapon1..4.
+        if (weapon.projectileType == 1U ||
+            weapon.projectileType == 11U)
+        {
+            continue;
+        }
+        // The source returns immediately if any installed ordinary weapon
+        // has not reached max(shotDelay, 0.25).
+        if (!weapon.ready)
+            return invalidIndex;
+        if (weapon.charge > 0U)
+            ++chargedWeapons;
+        const bool inRange =
+            weapon.maximumDistance <= 0.0F ||
+            targetDistance <
+                std::min(weapon.maximumDistance, 100.0F);
+        const bool hasCharge =
+            weapon.capacity == 0U || weapon.charge > 0U;
+        const bool forwardOrTorpedo =
+            weapon.projectileType == 2U ||
+            forwardDistance > sourceRadius * 0.5F;
+        if (inRange && hasCharge && forwardOrTorpedo &&
+            usableCount < usable.size())
+        {
+            usable[usableCount++] = &weapon;
+        }
+    }
+    if (usableCount == 0U)
+        return invalidIndex;
+
+    std::stable_sort(
+        usable.begin(), usable.begin() +
+                            static_cast<std::ptrdiff_t>(usableCount),
+        [](const AttackWeapon* first, const AttackWeapon* second) {
+            return first->maximumDistance < second->maximumDistance;
+        });
+    const AttackWeapon* weapon = usable.front();
+    if (randomUnit(context.randomSource) < 0.25F)
+    {
+        weapon = usable[uniformRandomIndex(
+            usableCount, context.uniformRandomSource)];
+    }
+
+    const float roadDistance = [&]() {
+        const float pathLength = car.GetPathLength(true);
+        return pathLength > epsilon
+                   ? car.GetDist(true) / pathLength
+                   : 0.0F;
+    }();
+    const float summedPart = std::clamp(
+        roadDistance / 0.7F, 0.0F, 1.0F);
+    const float weaponPart =
+        chargedWeapons > 0U
+            ? 1.0F / static_cast<float>(chargedWeapons)
+            : 1.0F;
+    const float part = std::min(summedPart / weaponPart, 1.0F);
+    const float ammunition = std::max(
+        static_cast<float>(weapon->charge) -
+            (1.0F - part) *
+                static_cast<float>(weapon->capacity),
+        0.0F);
+    return weapon->capacity == 0U || ammunition > 0.0F
+               ? weapon->slot
+               : invalidIndex;
+}
+
+AICar::AttackDecision AICar::AttackState::Update(
+    const Player::CarState& car, const VehicleState& vehicle,
+    const PathState& path, const AttackContext& context)
+{
+    AttackDecision decision;
+    const WayNode* liveTile = car.GetLiveTile();
+    if (liveTile == nullptr)
+        return decision;
+
+    target = FindEnemy(car, vehicle, context, 1, target);
+    backTarget = FindEnemy(car, vehicle, context, -1, backTarget);
+
+    const std::size_t frontSlot = ShotByEnemy(
+        car, vehicle, context, target);
+    if (frontSlot != invalidIndex && context.enabled)
+    {
+        decision.weaponSlot = frontSlot;
+        decision.weaponTarget = target;
+    }
+    else
+    {
+        const std::size_t backSlot = ShotByEnemy(
+            car, vehicle, context, backTarget);
+        if (backSlot != invalidIndex && context.enabled)
+        {
+            decision.weaponSlot = backSlot;
+            decision.weaponTarget = backTarget;
+        }
+    }
+
+    if (context.hyper.installed && vehicle.speed > 1.0F &&
+        !path.brake)
+    {
+        const float coordinate =
+            liveTile->GetTile().ComputeCoordX(xy(vehicle.position));
+        const float distanceToTurn =
+            liveTile->GetTile().ComputeLength(1.0F - coordinate);
+        const float maximumHyperDistance =
+            context.hyper.projectileSpeed + vehicle.speed;
+        const bool safeDistance =
+            path.nextTile == nullptr ||
+            path.nextTile->GetTile().GetTurnAngle() < pi / 6.0F ||
+            distanceToTurn > maximumHyperDistance;
+        const float pathLength = car.GetPathLength(true);
+        const float roadDistance =
+            pathLength > epsilon ? car.GetDist(true) / pathLength
+                                 : 0.0F;
+        const float summedPart = std::clamp(
+            roadDistance / 0.7F, 0.0F, 1.0F);
+        const float ammunition = std::max(
+            static_cast<float>(context.hyper.charge) -
+                (1.0F - summedPart) *
+                    static_cast<float>(context.hyper.capacity),
+            0.0F);
+        decision.useHyper =
+            context.enabled && safeDistance &&
+            (context.hyper.capacity == 0U || ammunition > 0.0F);
+    }
+
+    if (context.mine.installed && vehicle.speed > 5.0F)
+    {
+        if (placeMineRandom == -1.0F)
+        {
+            placeMineRandom =
+                -0.5F + randomUnit(context.randomSource) * 0.5F;
+        }
+        const float pathLength = car.GetPathLength(true);
+        const float roadDistance =
+            pathLength > epsilon ? car.GetDist(true) / pathLength
+                                 : 0.0F;
+        float summedPart = std::clamp(
+            (roadDistance - 0.05F) / 0.9F, 0.0F, 1.0F);
+        if (summedPart > 0.0F && summedPart < 1.0F)
+        {
+            if (backTarget < context.targets.size() &&
+                context.targets[backTarget].active &&
+                length(subtract(
+                    xy(context.targets[backTarget].position),
+                    xy(vehicle.position))) < 30.0F)
+            {
+                summedPart += 0.3F;
+            }
+            summedPart = std::clamp(
+                summedPart + placeMineRandom, 0.0F, 1.0F);
+        }
+        const std::uint32_t maximumCharge =
+            context.mine.oil ? 2U : 3U;
+        const std::uint32_t capacity =
+            std::min(context.mine.capacity, maximumCharge);
+        const std::uint32_t spent =
+            context.mine.capacity > context.mine.charge
+                ? context.mine.capacity - context.mine.charge
+                : 0U;
+        const std::uint32_t current =
+            capacity - std::min(spent, capacity);
+        const float ammunition = std::max(
+            static_cast<float>(current) -
+                (1.0F - summedPart) *
+                    static_cast<float>(capacity),
+            0.0F);
+        if ((capacity == 0U || ammunition > 0.0F) &&
+            context.enabled)
+        {
+            decision.useMine = true;
+            placeMineRandom =
+                -0.5F + randomUnit(context.randomSource) * 0.5F;
+        }
+    }
+    return decision;
+}
+
 void AICar::ControlState::Reset() noexcept
 {
     steerAngle = 0.0F;
@@ -425,6 +763,7 @@ AICar::AICar(std::uint32_t trackCount) : path(trackCount) {}
 void AICar::Reset(std::uint32_t trackCount)
 {
     path.Reset(trackCount);
+    attack.Reset();
     control.Reset();
     resetCar_ = false;
 }
