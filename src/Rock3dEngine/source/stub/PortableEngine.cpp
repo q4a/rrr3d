@@ -12,7 +12,7 @@ EngineCapabilities engine_capabilities() noexcept
 #else
     constexpr bool renderer = false;
 #endif
-#ifdef RRR3D_PHYSICS_MINIMAL
+#if defined(RRR3D_PHYSICS_JOLT) || defined(RRR3D_PHYSICS_MINIMAL)
     constexpr bool physics = true;
 #else
     constexpr bool physics = false;
@@ -29,7 +29,10 @@ void log_engine_capabilities() noexcept
     rrr3d::platform::report_error(
         "Rock3dEngine", "renderer disabled (RRR3D_ENABLE_RENDERER=OFF)");
 #endif
-#ifdef RRR3D_PHYSICS_MINIMAL
+#ifdef RRR3D_PHYSICS_JOLT
+    rrr3d::platform::report_error(
+        "Rock3dEngine", "portable vehicle physics enabled (Jolt backend)");
+#elif defined(RRR3D_PHYSICS_MINIMAL)
     rrr3d::platform::report_error(
         "Rock3dEngine", "portable vehicle physics enabled (fixed-step minimal backend)");
 #else

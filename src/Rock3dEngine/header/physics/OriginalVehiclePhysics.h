@@ -220,6 +220,11 @@ struct VehicleState
     // velocity. Preserve the backend's world-space rigid-body value so the
     // source seven-field BitStream can be reproduced without approximation.
     Vec3 angularMomentum;
+    // NxActor::computeKineticEnergy returns the sum of translational and
+    // rotational rigid-body energy. Keep the backend-computed value because
+    // contact attribution cannot reconstruct the exact inertia tensor from a
+    // rendered car pose.
+    float kineticEnergy = std::numeric_limits<float>::quiet_NaN();
     float speed = 0.0F;
     // GameCar::GetDrivenWheelSpeed is the axle speed of the first wheel
     // outside GetLeadGroup multiplied by its radius. CameraManager uses its
@@ -266,6 +271,11 @@ public:
                                    Vec3 delta) noexcept = 0;
     virtual void addAngularVelocity(std::size_t index,
                                     Vec3 delta) noexcept = 0;
+    // GameCar::StabilizeForce installs a complete PhysX angular momentum
+    // after applying clutch/oil behavior; it is not an angular-velocity
+    // impulse. Preserve that operation at the physics boundary.
+    virtual void setAngularMomentum(std::size_t index,
+                                    Vec3 momentum) noexcept = 0;
     // Active NetPlayer::ResponseStream receive path: snap position beyond
     // four source units, bias momentum for smaller divergence, snap a
     // sufficiently divergent rotation, then install both momenta.

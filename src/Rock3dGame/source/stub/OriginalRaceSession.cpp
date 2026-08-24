@@ -1052,8 +1052,6 @@ void OriginalRaceSession::reset()
     stuckSeconds_.assign(race_.racers.size(), 0.0F);
     aiBlockingSeconds_.assign(race_.racers.size(), 0.0F);
     aiBackMovingSeconds_.assign(race_.racers.size(), 0.0F);
-    touchCooldown_.assign(
-        race_.racers.size() * race_.racers.size(), 0.0F);
     aiBrake_.assign(race_.racers.size(), false);
     aiBlocking_.assign(race_.racers.size(), false);
     aiBackMovingMode_.assign(race_.racers.size(), false);
@@ -1097,6 +1095,7 @@ void OriginalRaceSession::reset()
     respawns_.clear();
     velocityRequests_.clear();
     angularVelocityRequests_.clear();
+    angularMomentumRequests_.clear();
     pendingNetworkShots_.clear();
     pendingNetworkBonuses_.clear();
     pendingNetworkMineContacts_.clear();
@@ -1110,6 +1109,7 @@ void OriginalRaceSession::reset()
         race_.achievements.size(), 0.0F);
     achievementGlobalKills_ = 0U;
     achievementPreviousLapPlace_ = 0U;
+    campaignRewardsApplied_ = false;
     for (std::size_t index = 0;
          index < race_.achievements.size(); ++index)
     {
@@ -1502,6 +1502,9 @@ bool OriginalRaceSession::disconnectNetworkRacer(
         return request.racer == racer;
     });
     std::erase_if(angularVelocityRequests_, [racer](const auto& request) {
+        return request.racer == racer;
+    });
+    std::erase_if(angularMomentumRequests_, [racer](const auto& request) {
         return request.racer == racer;
     });
     // FreeCar removes car-owned listener/effect objects. Independent fired
@@ -2106,6 +2109,14 @@ OriginalRaceSession::takeAngularVelocityRequests()
     return result;
 }
 
+std::vector<AngularMomentumRequest>
+OriginalRaceSession::takeAngularMomentumRequests()
+{
+    auto result = std::move(angularMomentumRequests_);
+    angularMomentumRequests_.clear();
+    return result;
+}
+
 const std::vector<std::uint32_t>& OriginalRaceSession::tracePathAt(
     std::size_t path) const
 {
@@ -2603,8 +2614,6 @@ void OriginalRaceSession::updateProgress(
         }
         if (racer == 0)
         {
-            runtime.money += runtime.rewardMoney + runtime.pickedMoney;
-            runtime.points += runtime.rewardPoints;
             events_.push_back({RaceEventKind::RaceFinish, racer, 0U,
                                vehicle.body.position,
                                runtime.finishTime});
@@ -4061,9 +4070,6 @@ void OriginalRaceSession::updateGameplay(
                     vehicles[racer].body.position);
         }
     }
-    for (auto& cooldown : touchCooldown_)
-        cooldown = std::max(0.0F, cooldown - seconds);
-
     auto spawnProjectileImpact =
         [&](const ProjectileRuntime& projectile, const Vec3& position,
             std::size_t targetRacer) {
@@ -5182,8 +5188,18 @@ void OriginalRaceSession::updateGameplay(
                     ? -mine.damage
                     : mine.damage;
             racers_[racer].clutchSeconds = 0.38F;
-            angularVelocityRequests_.push_back(
-                {racer, {0.0F, 0.0F, strength}});
+            const Quat inverseRotation{
+                -vehicles[racer].body.rotation.x,
+                -vehicles[racer].body.rotation.y,
+                -vehicles[racer].body.rotation.z,
+                vehicles[racer].body.rotation.w};
+            Vec3 localMomentum = rotate(
+                inverseRotation, vehicles[racer].angularMomentum);
+            localMomentum.z =
+                strength * std::max(vehicleDefinition.physics.mass, 0.0F);
+            angularMomentumRequests_.push_back(
+                {racer,
+                 rotate(vehicles[racer].body.rotation, localMomentum)});
             return true;
         }
         applyRacerDamage(
@@ -5740,8 +5756,26 @@ void OriginalRaceSession::updateGameplay(
                             ? -bonus.value
                             : bonus.value;
                     runtime.clutchSeconds = 0.38F;
-                    angularVelocityRequests_.push_back(
-                        {racer, {0.0F, 0.0F, strength}});
+                    const auto& sourceRacer = race_.racers[racer];
+                    const auto& vehicleDefinition =
+                        sourceRacer.hasConfiguredVehicle
+                            ? sourceRacer.configuredVehicle
+                            : race_.vehicles.at(sourceRacer.vehicle);
+                    const Quat inverseRotation{
+                        -vehicles[racer].body.rotation.x,
+                        -vehicles[racer].body.rotation.y,
+                        -vehicles[racer].body.rotation.z,
+                        vehicles[racer].body.rotation.w};
+                    Vec3 localMomentum = rotate(
+                        inverseRotation,
+                        vehicles[racer].angularMomentum);
+                    localMomentum.z =
+                        strength *
+                        std::max(vehicleDefinition.physics.mass, 0.0F);
+                    angularMomentumRequests_.push_back(
+                        {racer,
+                         rotate(vehicles[racer].body.rotation,
+                                localMomentum)});
                 }
                 continue;
             }
@@ -6491,27 +6525,51 @@ void OriginalRaceSession::updateGameplay(
             const std::size_t second = contact.otherVehicle;
             if (racers_[second].destroyed)
                 continue;
-            const std::size_t cooldownIndex =
-                first * collisionRacers + second;
-            if (cooldownIndex >= touchCooldown_.size() ||
-                touchCooldown_[cooldownIndex] > 0.0F)
-                continue;
             float forcePart = 0.0F;
             const float damage = damageFromContact(
                 race_.touchCarDamage, race_.touchCarDamageForce,
                 contact.force, forcePart);
             if (forcePart <= 0.0F || damage <= 0.0F)
                 continue;
-            touchCooldown_[cooldownIndex] = 0.25F;
             auto kineticEnergy = [&](std::size_t racer) {
+                if (std::isfinite(vehicles[racer].kineticEnergy) &&
+                    vehicles[racer].kineticEnergy >= 0.0F)
+                {
+                    return vehicles[racer].kineticEnergy;
+                }
                 const auto& source = race_.racers[racer];
                 const auto& definition =
                     source.hasConfiguredVehicle
                         ? source.configuredVehicle
                         : race_.vehicles.at(source.vehicle);
-                return 0.5F * definition.physics.mass *
-                       vehicles[racer].speed *
-                       vehicles[racer].speed;
+                const float translational =
+                    0.5F * definition.physics.mass *
+                    dot3(vehicles[racer].linearVelocity,
+                         vehicles[racer].linearVelocity);
+                const Vec3 localMomentum = rotate(
+                    {-vehicles[racer].body.rotation.x,
+                     -vehicles[racer].body.rotation.y,
+                     -vehicles[racer].body.rotation.z,
+                     vehicles[racer].body.rotation.w},
+                    vehicles[racer].angularMomentum);
+                const Vec3 extent = definition.physics.halfExtents;
+                const float inertiaX = std::max(
+                    definition.physics.mass / 3.0F *
+                        (extent.y * extent.y + extent.z * extent.z),
+                    0.0001F);
+                const float inertiaY = std::max(
+                    definition.physics.mass / 3.0F *
+                        (extent.x * extent.x + extent.z * extent.z),
+                    0.0001F);
+                const float inertiaZ = std::max(
+                    definition.physics.mass / 3.0F *
+                        (extent.x * extent.x + extent.y * extent.y),
+                    0.0001F);
+                const float rotational = 0.5F *
+                    (localMomentum.x * localMomentum.x / inertiaX +
+                     localMomentum.y * localMomentum.y / inertiaY +
+                     localMomentum.z * localMomentum.z / inertiaZ);
+                return translational + rotational;
             };
             const float firstEnergy = kineticEnergy(first);
             const float secondEnergy = kineticEnergy(second);
@@ -6805,6 +6863,21 @@ void OriginalRaceSession::completeRemainingRacers(
         if (racer < vehicleInputs_.size())
             vehicleInputs_[racer] = {};
     }
+    applyCampaignRewards();
+}
+
+void OriginalRaceSession::applyCampaignRewards() noexcept
+{
+    if (!campaign_ || campaignRewardsApplied_)
+        return;
+    for (auto& runtime : racers_)
+    {
+        if (runtime.disconnected || !runtime.finished)
+            continue;
+        runtime.money += runtime.rewardMoney + runtime.pickedMoney;
+        runtime.points += runtime.rewardPoints;
+    }
+    campaignRewardsApplied_ = true;
 }
 
 void OriginalRaceSession::update(
@@ -9008,6 +9081,75 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 throw std::runtime_error(
                     "source car-contact damage transition failed");
             vehicles[0].bodyContacts.clear();
+
+            {
+                OriginalRaceSession repeatedContactSession(race);
+                auto repeatedVehicles = vehicles;
+                for (auto& state : repeatedVehicles)
+                    state.bodyContacts.clear();
+                for (int frame = 0; frame < 250; ++frame)
+                {
+                    repeatedContactSession.update(
+                        1.0F / 60.0F, repeatedVehicles, input);
+                }
+                repeatedVehicles[0].kineticEnergy = 100.0F;
+                repeatedVehicles[1].kineticEnergy = 10.0F;
+                repeatedVehicles[0].bodyContacts = {
+                    {r3d::physics::CollisionSurface::Vehicle, 1U,
+                     {-1.0F, 0.0F, 0.0F}, 20.0F, 1200000.0F}};
+                const float beforeFirstContact =
+                    repeatedContactSession.racers()[1].life;
+                repeatedContactSession.update(
+                    1.0F / 60.0F, repeatedVehicles, input);
+                const float afterFirstContact =
+                    repeatedContactSession.racers()[1].life;
+                repeatedContactSession.update(
+                    1.0F / 60.0F, repeatedVehicles, input);
+                const float afterSecondContact =
+                    repeatedContactSession.racers()[1].life;
+                if (!(afterFirstContact < beforeFirstContact) ||
+                    !(afterSecondContact < afterFirstContact))
+                {
+                    throw std::runtime_error(
+                        "source car contact was incorrectly rate-limited");
+                }
+            }
+
+            {
+                OriginalRaceSession energySession(race);
+                auto energyVehicles = vehicles;
+                for (auto& state : energyVehicles)
+                    state.bodyContacts.clear();
+                for (int frame = 0; frame < 250; ++frame)
+                {
+                    energySession.update(
+                        1.0F / 60.0F, energyVehicles, input);
+                }
+                // The slower second car has more rotational energy. PhysX
+                // computeKineticEnergy therefore attributes touch damage to
+                // it and damages the first car.
+                energyVehicles[0].speed = 40.0F;
+                energyVehicles[1].speed = 0.0F;
+                energyVehicles[0].kineticEnergy = 100.0F;
+                energyVehicles[1].kineticEnergy = 1000.0F;
+                energyVehicles[0].bodyContacts = {
+                    {r3d::physics::CollisionSurface::Vehicle, 1U,
+                     {-1.0F, 0.0F, 0.0F}, 20.0F, 1200000.0F}};
+                const float firstEnergyLife =
+                    energySession.racers()[0].life;
+                const float secondEnergyLife =
+                    energySession.racers()[1].life;
+                energySession.update(
+                    1.0F / 60.0F, energyVehicles, input);
+                if (!(energySession.racers()[0].life < firstEnergyLife) ||
+                    std::abs(
+                        energySession.racers()[1].life -
+                        secondEnergyLife) > 0.001F)
+                {
+                    throw std::runtime_error(
+                        "source total kinetic-energy attribution failed");
+                }
+            }
         }
 
         OriginalRaceSession lapSession(race);
@@ -9141,6 +9283,62 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 {
                     throw std::runtime_error(
                         "finished campaign AI continued driving");
+                }
+            }
+
+            for (std::size_t segment = 0U;
+                 segment + 1U < aiFinishRace.tracePath.size(); ++segment)
+            {
+                placeAiOnMainSegment(0U, segment);
+            }
+            aiFinishVehicles[0].body.position.x += 1000.0F;
+            aiFinishVehicles[0].body.position.y += 1000.0F;
+            aiFinishSession.update(
+                1.0F / 60.0F, aiFinishVehicles, input);
+            placeAiOnMainSegment(0U, 0U);
+            std::vector<std::uint32_t> expectedMoney;
+            std::vector<std::uint32_t> expectedPoints;
+            expectedMoney.reserve(aiFinishSession.racers().size());
+            expectedPoints.reserve(aiFinishSession.racers().size());
+            for (const auto& runtime : aiFinishSession.racers())
+            {
+                expectedMoney.push_back(
+                    runtime.rewardMoney + runtime.pickedMoney);
+                expectedPoints.push_back(runtime.rewardPoints);
+            }
+            for (int frame = 0; frame < 31; ++frame)
+            {
+                aiFinishSession.update(
+                    0.1F, aiFinishVehicles, input);
+            }
+            if (!aiFinishSession.finishPresentationReady())
+            {
+                throw std::runtime_error(
+                    "campaign CompleteRace result timer failed");
+            }
+            for (std::size_t racer = 0U;
+                 racer < aiFinishSession.racers().size(); ++racer)
+            {
+                const auto& runtime = aiFinishSession.racers()[racer];
+                if (runtime.money != expectedMoney[racer] ||
+                    runtime.points != expectedPoints[racer])
+                {
+                    throw std::runtime_error(
+                        "campaign result was not awarded to every racer");
+                }
+            }
+            aiFinishSession.update(
+                0.1F, aiFinishVehicles, input);
+            for (std::size_t racer = 0U;
+                 racer < aiFinishSession.racers().size(); ++racer)
+            {
+                if (aiFinishSession.racers()[racer].money !=
+                        expectedMoney[racer] ||
+                    aiFinishSession.racers()[racer].points !=
+                        expectedPoints[racer])
+                {
+                    throw std::runtime_error(
+                        "campaign result was awarded more than once");
                 }
             }
         }
@@ -11315,6 +11513,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             auto sourceVehicles = isolatedMineVehicles();
             sourceVehicles[0].linearVelocity =
                 {10.0F, 0.0F, 0.0F};
+            sourceVehicles[0].angularMomentum =
+                {11.0F, 22.0F, 33.0F};
             sourceVehicles[0].speed = 10.0F;
             advanceMineCountdown(
                 oilSession, sourceVehicles);
@@ -11323,23 +11523,36 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             oilSession.update(
                 1.0F / 60.0F, sourceVehicles, sourceInput);
             sourceInput.useMine = false;
-            const auto earlyAngular =
-                oilSession.takeAngularVelocityRequests();
+            const auto earlyMomentum =
+                oilSession.takeAngularMomentumRequests();
             for (int frame = 0; frame < 30; ++frame)
             {
                 oilSession.update(
                     1.0F / 60.0F, sourceVehicles,
                     sourceInput);
             }
-            const auto armedAngular =
-                oilSession.takeAngularVelocityRequests();
+            const auto armedMomentum =
+                oilSession.takeAngularMomentumRequests();
+            const auto& oilRacer = race.racers.front();
+            const auto& oilVehicle =
+                oilRacer.hasConfiguredVehicle
+                    ? oilRacer.configuredVehicle
+                    : race.vehicles.at(oilRacer.vehicle);
+            const float expectedOilYawMomentum =
+                std::abs(
+                    oilMine->projectiles.front().damage *
+                    oilVehicle.physics.mass);
             const bool oilLockedClutch = std::any_of(
-                armedAngular.begin(), armedAngular.end(),
-                [](const AngularVelocityRequest& request) {
+                armedMomentum.begin(), armedMomentum.end(),
+                [&](const AngularMomentumRequest& request) {
                     return request.racer == 0U &&
-                           std::abs(request.delta.z) > 0.0F;
+                           std::abs(request.momentum.x - 11.0F) < 0.001F &&
+                           std::abs(request.momentum.y - 22.0F) < 0.001F &&
+                           std::abs(
+                               std::abs(request.momentum.z) -
+                               expectedOilYawMomentum) < 0.01F;
                 });
-            if (!earlyAngular.empty() ||
+            if (!earlyMomentum.empty() ||
                 oilSession.mines().size() != 1U ||
                 !oilLockedClutch ||
                 oilSession.racers()[0].clutchSeconds <= 0.0F)

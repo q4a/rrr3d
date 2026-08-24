@@ -799,6 +799,26 @@ public:
         bodies.ActivateBody(vehicles_[index].body);
     }
 
+    void setAngularMomentum(std::size_t index,
+                            Vec3 momentum) noexcept override
+    {
+        if (index >= vehicles_.size() || !vehicles_[index].enabled)
+            return;
+        auto& vehicle = vehicles_[index];
+        JPH::BodyLockRead lock(
+            system_.GetBodyLockInterface(), vehicle.body);
+        if (!lock.Succeeded())
+            return;
+        const auto angularVelocity =
+            lock.GetBody().GetInverseInertia().Multiply3x3(
+                toJoltAngular(momentum));
+        lock.ReleaseLock();
+        auto& bodies = system_.GetBodyInterface();
+        bodies.SetAngularVelocity(vehicle.body, angularVelocity);
+        bodies.ActivateBody(vehicle.body);
+        updateState(vehicle);
+    }
+
     void synchronizeNetworkVehicle(
         std::size_t index, Vec3 position, Quat rotation,
         Vec3 linearMomentum, Vec3 angularMomentum) noexcept override
@@ -1919,6 +1939,7 @@ private:
         {
             vehicle.state.linearVelocity = {};
             vehicle.state.angularMomentum = {};
+            vehicle.state.kineticEnergy = 0.0F;
             vehicle.state.speed = 0.0F;
             vehicle.state.drivenWheelSpeed = 0.0F;
             vehicle.state.engineRpm = 0.0F;
@@ -1939,10 +1960,16 @@ private:
         state.body.rotation = fromJolt(body.GetRotation());
         state.body.scale = {1.0F, 1.0F, 1.0F};
         state.linearVelocity = fromJolt(body.GetLinearVelocity());
-        state.angularMomentum = fromJoltAngular(
+        const JPH::Vec3 angularVelocity = body.GetAngularVelocity();
+        const JPH::Vec3 angularMomentum =
             body.GetInverseInertia()
                 .Inversed3x3()
-                .Multiply3x3(body.GetAngularVelocity()));
+                .Multiply3x3(angularVelocity);
+        state.angularMomentum = fromJoltAngular(angularMomentum);
+        state.kineticEnergy =
+            0.5F * vehicle.spawn.vehicle.mass *
+                body.GetLinearVelocity().LengthSq() +
+            0.5F * angularVelocity.Dot(angularMomentum);
         // Player::CarState::Update obtains GameCar::GetSpeed(actor, dir),
         // i.e. the signed projection on the car's local +X axis, and applies
         // its one-metre-per-second dead zone.  Feeding total velocity length
@@ -2175,7 +2202,10 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
         synchronizedRotationDot < 0.999F ||
         std::abs(synchronized.linearVelocity.x - 2.0F) > 0.01F ||
         std::abs(synchronized.angularMomentum.z -
-                 networkAngularMomentum.z) > 0.1F)
+                 networkAngularMomentum.z) > 0.1F ||
+        !std::isfinite(synchronized.kineticEnergy) ||
+        synchronized.kineticEnergy <=
+            0.5F * sourceVehicle.mass * 4.0F)
     {
         error = "active NetPlayer::ResponseStream momentum/rotation "
                 "synchronization diverged from the source path: pos=" +
@@ -2194,6 +2224,19 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
                 std::to_string(synchronized.angularMomentum.x) + "," +
                 std::to_string(synchronized.angularMomentum.y) + "," +
                 std::to_string(synchronized.angularMomentum.z);
+        return false;
+    }
+    const Vec3 installedAngularMomentum{25.0F, -50.0F, 75.0F};
+    networkWorld->setAngularMomentum(0U, installedAngularMomentum);
+    const auto installedMomentum = networkWorld->vehicle();
+    if (std::abs(installedMomentum.angularMomentum.x -
+                 installedAngularMomentum.x) > 0.1F ||
+        std::abs(installedMomentum.angularMomentum.y -
+                 installedAngularMomentum.y) > 0.1F ||
+        std::abs(installedMomentum.angularMomentum.z -
+                 installedAngularMomentum.z) > 0.1F)
+    {
+        error = "GameCar clutch/oil angular momentum replacement failed";
         return false;
     }
     // Player::CarState exposes signed longitudinal GameCar::GetSpeed, not

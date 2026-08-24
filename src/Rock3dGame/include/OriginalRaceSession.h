@@ -187,6 +187,12 @@ struct AngularVelocityRequest
     Vec3 delta;
 };
 
+struct AngularMomentumRequest
+{
+    std::size_t racer = 0;
+    Vec3 momentum;
+};
+
 struct RaceEvent
 {
     RaceEventKind kind = RaceEventKind::Checkpoint;
@@ -445,6 +451,7 @@ public:
     std::vector<RespawnRequest> takeRespawns();
     std::vector<VelocityRequest> takeVelocityRequests();
     std::vector<AngularVelocityRequest> takeAngularVelocityRequests();
+    std::vector<AngularMomentumRequest> takeAngularMomentumRequests();
 
 private:
     bool legacyWindowsDebug_ = false;
@@ -552,6 +559,7 @@ private:
     void completeAchievement(std::size_t achievement);
     void completeRemainingRacers(
         const std::vector<r3d::physics::VehicleState>& vehicles);
+    void applyCampaignRewards() noexcept;
 
     const Race& race_;
     RacePhase phase_ = RacePhase::Countdown;
@@ -584,7 +592,6 @@ private:
     std::vector<float> stuckSeconds_;
     std::vector<float> aiBlockingSeconds_;
     std::vector<float> aiBackMovingSeconds_;
-    std::vector<float> touchCooldown_;
     std::vector<bool> aiBrake_;
     std::vector<bool> aiBlocking_;
     std::vector<bool> aiBackMovingMode_;
@@ -624,6 +631,7 @@ private:
     std::vector<RespawnRequest> respawns_;
     std::vector<VelocityRequest> velocityRequests_;
     std::vector<AngularVelocityRequest> angularVelocityRequests_;
+    std::vector<AngularMomentumRequest> angularMomentumRequests_;
     std::vector<ReplicatedShot> pendingNetworkShots_;
     std::vector<ReplicatedBonus> pendingNetworkBonuses_;
     std::vector<ReplicatedMineContact> pendingNetworkMineContacts_;
@@ -640,6 +648,7 @@ private:
     std::uint32_t achievementPreviousLapPlace_ = 0;
     float achievementMultiplier_ = 1.2F;
     bool campaign_ = true;
+    bool campaignRewardsApplied_ = false;
     bool enableMineBug_ = true;
     bool springBorders_ = true;
     bool debugHumanAiControl_ = false;

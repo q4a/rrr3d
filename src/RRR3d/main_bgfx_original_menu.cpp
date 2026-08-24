@@ -16435,6 +16435,12 @@ int main(int argc, char** argv)
                     physicsWorld->addAngularVelocity(
                         velocity.racer, velocity.delta);
                 }
+                for (const auto& momentum :
+                     raceSession.takeAngularMomentumRequests())
+                {
+                    physicsWorld->setAngularMomentum(
+                        momentum.racer, momentum.momentum);
+                }
                 for (std::size_t racer = 0;
                      racer < raceSession.racers().size(); ++racer)
                 {

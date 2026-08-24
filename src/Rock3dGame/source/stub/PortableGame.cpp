@@ -18,15 +18,25 @@ GameCapabilities game_capabilities() noexcept
 #else
         false,
 #endif
-        false, false, false};
+#ifdef RRR3D_VIDEO
+        true,
+#else
+        false,
+#endif
+        false,
+#ifdef RRR3D_AUDIO
+        true};
+#else
+        false};
+#endif
 }
 
 void log_game_capabilities() noexcept
 {
-#ifdef RRR3D_PHYSICS_MINIMAL
+#if defined(RRR3D_PHYSICS_JOLT) || defined(RRR3D_PHYSICS_MINIMAL)
     rrr3d::platform::report_error(
         "Rock3dGame",
-        "portable race vertical slice enabled; legacy IWorld unavailable");
+        "source-derived race runtime enabled; legacy IWorld unavailable");
 #else
     rrr3d::platform::report_error(
         "Rock3dGame", "portable target linked; gameplay world unavailable");
@@ -35,17 +45,27 @@ void log_game_capabilities() noexcept
 #ifdef RRR3D_NETWORK
     rrr3d::platform::report_error(
         "Rock3dGame",
-        "source NetLib LAN transport/session enabled; race models pending");
+        "source NetLib LAN transport/session and race models enabled");
 #else
     rrr3d::platform::report_error(
         "Rock3dGame", "network disabled (RRR3D_ENABLE_NETWORK=OFF)");
 #endif
+#ifdef RRR3D_VIDEO
+    rrr3d::platform::report_error(
+        "Rock3dGame", "AVFoundation video playback enabled");
+#else
     rrr3d::platform::report_error(
         "Rock3dGame", "video disabled (RRR3D_ENABLE_VIDEO=OFF)");
+#endif
     rrr3d::platform::report_error(
-        "Rock3dGame", "Steam disabled (RRR3D_ENABLE_STEAM=OFF)");
+        "Rock3dGame", "Steam integration unavailable in the portable runtime");
+#ifdef RRR3D_AUDIO
     rrr3d::platform::report_error(
-        "Rock3dGame", "legacy IWorld audio integration unavailable");
+        "Rock3dGame", "SDL3/Vorbis audio runtime enabled");
+#else
+    rrr3d::platform::report_error(
+        "Rock3dGame", "audio disabled (RRR3D_ENABLE_AUDIO=OFF)");
+#endif
 }
 
 } // namespace r3d::portable
@@ -56,7 +76,7 @@ namespace r3d
 ROCK3DGAME_API IWorld* CreateWorld(const IView::Desc& view_desc, bool steam_init)
 {
     portable::log_game_capabilities();
-#ifdef RRR3D_PHYSICS_MINIMAL
+#if defined(RRR3D_PHYSICS_JOLT) || defined(RRR3D_PHYSICS_MINIMAL)
     throw std::runtime_error(
         "Legacy Rock3dGame IWorld is unavailable; use PortableRaceSession");
 #else

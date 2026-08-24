@@ -33,9 +33,12 @@ vehicle physics. Явно отключён только `FxPhysicsEmitter`. Ос
 
 Поэтому текущий результат корректно называть работающим native arm64
 source-derived портом с большим покрытием оригинальных данных, но нельзя
-называть доказанным полным портом Windows-игры. В текущем HEAD также
-подтверждены пять конкретных расхождений игровой логики и одно расхождение
-диагностического API.
+называть доказанным полным портом Windows-игры. Первичный аудит выделил пять
+предполагаемых расхождений игровой логики и одно расхождение
+диагностического API. При implementation-перепроверке RA-C03 был снят:
+вложенность скобок Windows-кода изначально была прочитана неверно. Остальные
+четыре игровых расхождения и capability API исправлены следующим P0-этапом
+и закрыты regression-проверками.
 
 ## 1. Какая версия является эталоном
 
@@ -249,11 +252,11 @@ scalar friction вместо PhysX anisotropic material и Jolt-specific solver
 order. Это допустимые engineering adaptations, но они требуют trace/A-B
 валидации и не могут считаться автоматическим физическим паритетом.
 
-## 6. Подтверждённые конкретные расхождения HEAD
+## 6. Конкретные расхождения audit HEAD и результат P0
 
 ### RA-C01 — campaign reward начисляется только human runtime
 
-**Подтверждено.**
+**Подтверждено; исправлено.**
 
 Windows `Race::CompleteRace(const Results*)` проходит по всем `_results` и
 вызывает `AddMoney`/`AddPoints` для каждого найденного `Player`. В
@@ -265,9 +268,16 @@ Windows `Race::CompleteRace(const Results*)` проходит по всем `_re
 Насколько это видно между конкретными campaign races, требует runtime trace,
 но кодовая семантика различается однозначно.
 
+P0 переносит начисление в эквивалент завершения
+`Race::CompleteRace(const Results*)`: после окончательного ранжирования
+награды один раз применяются ко всем finished/non-disconnected runtime, а не
+только к human в момент пересечения линии. Regression завершает всех
+участников, проверяет money/points каждого и повторным update исключает
+двойное начисление.
+
 ### RA-C02 — oil/Maslo прибавляет angular velocity вместо замены momentum
 
-**Подтверждено.**
+**Подтверждено; исправлено.**
 
 Windows `GameCar::StabilizeForce` переводит текущий angular momentum в
 локальную систему, заменяет локальный Z на `_clutchStrength * mass`, затем
@@ -276,35 +286,57 @@ Windows `GameCar::StabilizeForce` переводит текущий angular mome
 `AddLinearAndAngularVelocity`. Отличаются physical quantity, inertia/mass
 семантика и операция replace/add.
 
-### RA-C03 — border damage ошибочно зависит от скорости `> 16`
+P0 добавляет отдельную backend-операцию `setAngularMomentum`. Oil/Maslo
+переводит сохранённый momentum в локальную систему машины, сохраняет X/Y,
+заменяет локальный Z на `strength * mass` и устанавливает полный мировой
+momentum. Jolt regression проверяет установку физической величины, а race
+regression — сохранение X/Y и замену Z вместо additive velocity.
 
-**Подтверждено.**
+### RA-C03 — предполагаемая ошибка speed gate border damage
 
-В Windows проверка скорости ограничивает только spring-border correction;
-расчёт `touchDamage` выполняется после этой ветви. В portable code условие
-`vehicles[racer].speed <= 16.0F` делает `continue` до применения damage.
-Поэтому сильный низкоскоростной удар о border может не нанести исходный урон.
+**Не подтвердилось при implementation-перепроверке; изменение не требуется.**
+
+В историческом `GameCar.cpp` условие
+`borderContact && vel.magnitude() > 16.0f` открывается на строке 1048, а
+`Damage(..., dtTouch)` на строках 1103–1104 находится до закрывающей его
+скобки на строке 1105. Следовательно, скорость ограничивает и redirect, и
+damage. Portable `speed <= 16.0F -> continue` семантически совпадает с этим
+фрагментом. Первичный вывод возник из неверного чтения уровня вложенности в
+длинной ветви spring-border correction и настоящим defect не является.
 
 ### RA-C04 — введён отсутствующий в Windows cooldown contact damage
 
-**Подтверждено.**
+**Подтверждено; исправлено.**
 
 Portable session создаёт матрицу `touchCooldown_` и после car-to-car damage
 блокирует повторный damage на `0.25` секунды. Windows contact callback такого
-cooldown не имеет. `dtTouch` — тип урона/attribution, а не имя таймера.
+cooldown не имеет. `GameCar` включает `NX_NOTIFY_ALL`, поэтому PhysX
+доставляет не только начало, но и продолжающийся touch; portable Jolt listener
+аналогично записывает `OnContactAdded` и `OnContactPersisted`. `dtTouch` — тип
+урона/attribution, а не имя таймера.
+
+P0 удаляет матрицу `touchCooldown_` и 0.25-second gate. Regression подаёт
+один и тот же подтверждённый manifold в двух соседних updates и проверяет,
+что оба source contact callbacks наносят урон.
 
 ### RA-C05 — car collision energy игнорирует вращение
 
-**Подтверждено после проверки старого PhysX SDK header.**
+**Подтверждено после проверки старого PhysX SDK header; исправлено.**
 
 Windows сравнивает `NxActor::computeKineticEnergy()`. Заголовок PhysX 2.8.4
 из `eff9338` прямо определяет его как total rotational and translational
 energy. Portable code сравнивает только `0.5 * mass * speed^2`. При заметном
 вращении может быть выбран другой attacker/target для touch damage.
 
+P0 сохраняет вычисленную Jolt rigid-body energy в `VehicleState` как
+`0.5*m*v² + 0.5*omega·L`; session использует её для attribution. Для
+синтетических backend-независимых states оставлен эквивалентный fallback по
+box inertia. Regression задаёт медленной машине большую rotational energy и
+проверяет выбор именно её как attacker.
+
 ### RA-C06 — capability API сообщает устаревшее состояние
 
-**Подтверждено, низкий приоритет для active UI.**
+**Подтверждено, низкий приоритет для active UI; исправлено.**
 
 `PortableGame::game_capabilities()` возвращает `video=false` и `audio=false`
 даже в активной M10-конфигурации. `log_game_capabilities()` всегда пишет,
@@ -313,33 +345,38 @@ physics включённой только при `RRR3D_PHYSICS_MINIMAL`, поэ
 `RRR3D_PHYSICS_JOLT` отражается как `physics=false`. Финальный main эти
 диагностические функции обычно не вызывает, но публичные данные неверны.
 
+P0 передаёт audio/video flags библиотеке, распознаёт Jolt как активную
+physics, исправляет устаревший network log и добавляет отдельный capability
+smoke, сопоставляющий API с compile definitions.
+
 ## 7. Перепроверка прежних находок
 
 | Прежний пункт | Новый результат | Основание |
 | --- | --- | --- |
 | F-004: finished AI car не освобождается | Не подтвердился как дефект | Windows `AIPlayer::FreeCar()` удаляет AI controller и выставляет `mcNone`, но не удаляет физический `Player::GameCar`; portable zero input + delayed brake соответствует фактической семантике |
-| F-005: AI reward не накапливается | Подтверждён как RA-C01 | Прямое сравнение обоих finish paths |
+| F-005: AI reward не накапливается | Подтверждён как RA-C01; исправлен в P0 | Прямое сравнение обоих finish paths и regression всех runtime |
 | F-006: потерян 0.3 s finish block/brake | Уже исправлен | Portable сохраняет 0.3-second transition и затем full brake; есть regression |
-| F-007: неверная oil angular semantics | Подтверждён как RA-C02 | Momentum replace против velocity add |
-| F-008: border damage пропускается при низкой скорости | Подтверждён как RA-C03 | Скоростная проверка стоит на другом уровне ветвления |
-| F-009: искусственный touch cooldown | Подтверждён как RA-C04 | В Windows таймера нет |
+| F-007: неверная oil angular semantics | Подтверждён как RA-C02; исправлен в P0 | Momentum replace против velocity add |
+| F-008: border damage пропускается при низкой скорости | Не подтвердился; RA-C03 отозван | Windows damage находится внутри `speed > 16` branch |
+| F-009: искусственный touch cooldown | Подтверждён как RA-C04; исправлен в P0 | В Windows таймера нет |
 | F-010: `armor4` не действует | Уже исправлен | `OriginalRace` и `OriginalGarage` добавляют +10 до difficulty scale, tests присутствуют |
-| U-001: неясна семантика `computeKineticEnergy` | Теперь подтверждён как RA-C05 | Исторический `NxActor.h` явно включает rotational + translational energy |
+| U-001: неясна семантика `computeKineticEnergy` | Подтверждён как RA-C05; исправлен в P0 | Исторический `NxActor.h` явно включает rotational + translational energy |
 
 ## 8. Что тесты подтверждают и чего не подтверждают
 
 На этом HEAD выполнены:
 
-- `ctest --test-dir build/macos-arm64-m10 --output-on-failure`: 4/4 passed;
+- `ctest --test-dir build/macos-arm64-m10 --output-on-failure`: 5/5 passed,
+  включая новый `rrr3d_portable_capabilities_smoke`;
 - arm64 Debug `--physics-smoke-test`: passed;
 - resource audit во время smoke: 1196 original assets, map1 и vehicle data
   успешно прочитаны.
 
 Это подтверждает сборку, загрузку ресурсов, основные state transitions,
-Jolt vehicle operation и network regression set. Все тесты проходят даже
-при наличии RA-C01…RA-C05, потому что соответствующие проверки отсутствуют
-либо закрепляют более грубый portable контракт. Smoke tests нельзя
-использовать как доказательство полного Windows parity.
+Jolt vehicle operation и network regression set. P0 также добавил прямые
+counterexample checks для RA-C01, RA-C02, RA-C04 и RA-C05. Даже эти проверки
+не доказывают полный Windows parity: они закрывают конкретные установленные
+расхождения, но не заменяют одинаковый runtime trace двух исполняемых версий.
 
 ## 9. Границы доказательства
 
@@ -370,15 +407,14 @@ commit. Сравнения выполнялись по явным commit IDs, ч
 
 ## 11. Рекомендуемый путь восстановления полного порта
 
-### P0 — исправить доказанные расхождения
+### P0 — исправить доказанные расхождения — выполнено
 
 1. RA-C01: начислять campaign result каждому participant runtime/profile.
 2. RA-C02: добавить backend operation «установить angular momentum в local
    Z» вместо additive angular velocity для oil.
-3. RA-C03: вынести speed gate внутрь spring-border redirect, оставив damage
-   снаружи.
-4. RA-C04: удалить 0.25-second cooldown либо доказать его наличие в другом
-   исходном слое; текущий Windows source его не содержит.
+3. RA-C03: повторная проверка доказала совпадение текущего speed gate;
+   ошибочный пункт отозван без изменения game logic.
+4. RA-C04: удалить отсутствующий в Windows 0.25-second cooldown.
 5. RA-C05: сравнивать translational + rotational energy через inertia tensor.
 6. RA-C06: привести capability API к реальным build flags.
 

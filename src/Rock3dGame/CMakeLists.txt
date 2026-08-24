@@ -94,6 +94,18 @@ if(NOT WIN32 AND RRR3D_BUILD_ORIGINAL_MENU)
         NAME rrr3d_original_user_chat_smoke
         COMMAND rrr3d_original_user_chat_smoke
     )
+
+    add_executable(rrr3d_portable_capabilities_smoke
+        tests/PortableCapabilitiesSmoke.cpp
+    )
+    target_link_libraries(rrr3d_portable_capabilities_smoke PRIVATE
+        ${PROJECT_NAME}
+    )
+    rrr3d_set_common_target_options(rrr3d_portable_capabilities_smoke)
+    add_test(
+        NAME rrr3d_portable_capabilities_smoke
+        COMMAND rrr3d_portable_capabilities_smoke
+    )
 endif()
 
 target_include_directories(${PROJECT_NAME}
@@ -138,6 +150,14 @@ if(NOT WIN32 AND RRR3D_ENABLE_NETWORK)
         NAME rrr3d_original_network_models_smoke
         COMMAND rrr3d_original_network_models_smoke
     )
+endif()
+
+if(NOT WIN32 AND RRR3D_ENABLE_AUDIO)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC RRR3D_AUDIO=1)
+endif()
+
+if(NOT WIN32 AND RRR3D_ENABLE_VIDEO)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC RRR3D_VIDEO=1)
 endif()
 
 if(WIN32)
