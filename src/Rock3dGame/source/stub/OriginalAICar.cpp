@@ -792,6 +792,93 @@ bool AICar::TakeResetCar() noexcept
     return result;
 }
 
+AIPlayer::AIPlayer(std::uint32_t trackCount)
+    : car_(trackCount), trackCount_(std::max(trackCount, 1U))
+{
+}
+
+AIPlayer::AIPlayer(Player* player, bool human,
+                   std::uint32_t trackCount)
+    : AIPlayer(trackCount)
+{
+    Reset(player, human, trackCount);
+}
+
+void AIPlayer::Reset(Player* player, bool human,
+                     std::uint32_t trackCount)
+{
+    FreeCar();
+    player_ = player;
+    trackCount_ = std::max(trackCount, 1U);
+    cheat_ = human
+                 ? cheatDisabled
+                 : cheatEnableFaster | cheatEnableSlower;
+    enabled_ = true;
+}
+
+void AIPlayer::CreateCar()
+{
+    if (carCreated_ || player_ == nullptr)
+        return;
+    car_.Reset(trackCount_);
+    carCreated_ = true;
+}
+
+void AIPlayer::FreeCar()
+{
+    if (!carCreated_)
+        return;
+    car_.Reset(trackCount_);
+    carCreated_ = false;
+}
+
+AICar::Command AIPlayer::OnProgress(
+    float deltaTime, const AICar::VehicleState& vehicle,
+    AICar::RandomSource randomSource)
+{
+    if (!carCreated_ || player_ == nullptr)
+        return {};
+    return car_.Update(
+        deltaTime, player_->car, vehicle, enabled_, randomSource);
+}
+
+AICar::AttackDecision AIPlayer::UpdateAttack(
+    const AICar::VehicleState& vehicle,
+    const AICar::AttackContext& context)
+{
+    if (!carCreated_ || player_ == nullptr)
+        return {};
+    AICar::AttackContext enabledContext = context;
+    enabledContext.enabled = enabled_ && context.enabled;
+    return car_.attack.Update(
+        player_->car, vehicle, car_.path, enabledContext);
+}
+
+void AIPlayer::DisposeTarget(std::size_t player) noexcept
+{
+    car_.attack.DisposeTarget(player);
+}
+
+bool AIPlayer::TakeResetCar() noexcept
+{
+    return carCreated_ && car_.TakeResetCar();
+}
+
+void AIPlayer::SetEnabled(bool value) noexcept { enabled_ = value; }
+bool AIPlayer::IsEnabled() const noexcept { return enabled_; }
+bool AIPlayer::HasCar() const noexcept { return carCreated_; }
+std::uint32_t AIPlayer::GetCheat() const noexcept { return cheat_; }
+Player* AIPlayer::GetPlayer() noexcept { return player_; }
+const Player* AIPlayer::GetPlayer() const noexcept { return player_; }
+AICar* AIPlayer::GetCar() noexcept
+{
+    return carCreated_ ? &car_ : nullptr;
+}
+const AICar* AIPlayer::GetCar() const noexcept
+{
+    return carCreated_ ? &car_ : nullptr;
+}
+
 AISystem::AISystem(std::uint32_t trackCount) noexcept
 {
     Reset(trackCount);

@@ -1013,6 +1013,21 @@ Network, video и Steam явно выключены.
 - Прямой `OriginalAICarSmoke` проверяет ожидаемые lock masks цепочки из трёх
   машин и обязательный reset полос у одиночной машины.
 
+### Source AIPlayer owner block
+
+- `source::AIPlayer` теперь владеет отношением portable `Player`/`AICar` и
+  сохраняет source `CreateCar`, `FreeCar`, `OnProgress`, AI enable и
+  target-dispose lifecycle. Session-owned `std::vector<AICar>` удалён.
+- Lane-chain, steering/control, attack, blocked reset и disconnect проходят
+  через owner вместо прямого доступа к вложенным состояниям.
+- Computer owners получают source faster+slower cheat bits; human owner не
+  получает их. Catch-up/easing использует этот mask, а network HumanPlayer
+  остаётся отдельной faster-only веткой.
+- Human owner создаётся dormant для отдельного legacy debug режима; F7
+  меняет его source enable gate, не создавая синтетического участника.
+- Прямой smoke проверяет ownership, masks, disabled command и полное
+  освобождение AICar state.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

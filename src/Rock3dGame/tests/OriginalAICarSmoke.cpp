@@ -251,6 +251,35 @@ int main()
             [](bool locked) { return locked; }))
         return 22;
 
-    std::cout << "original AICar path/control/attack/AISystem source rules passed\n";
+    source::AIPlayer computerOwner(&lanePlayers[0], false, 4U);
+    source::AIPlayer humanOwner(&lanePlayers[1], true, 4U);
+    if (computerOwner.HasCar() ||
+        computerOwner.GetCheat() !=
+            (source::AIPlayer::cheatEnableFaster |
+             source::AIPlayer::cheatEnableSlower) ||
+        humanOwner.GetCheat() != source::AIPlayer::cheatDisabled)
+        return 23;
+    computerOwner.CreateCar();
+    computerOwner.SetEnabled(false);
+    vehicle.position = lanePositions[0];
+    vehicle.speed = 20.0F;
+    command = computerOwner.OnProgress(
+        1.0F / 60.0F, vehicle, &testRandom);
+    if (!computerOwner.HasCar() || computerOwner.GetCar() == nullptr ||
+        command.move != source::AICar::MoveCarState::None)
+        return 24;
+    computerOwner.SetEnabled(true);
+    command = computerOwner.OnProgress(
+        1.0F / 60.0F, vehicle, &testRandom);
+    if (command.move != source::AICar::MoveCarState::Accelerate)
+        return 25;
+    computerOwner.FreeCar();
+    if (computerOwner.HasCar() || computerOwner.GetCar() != nullptr ||
+        computerOwner.OnProgress(
+            1.0F / 60.0F, vehicle, &testRandom).move !=
+            source::AICar::MoveCarState::None)
+        return 26;
+
+    std::cout << "original AIPlayer/AICar/AISystem source rules passed\n";
     return 0;
 }

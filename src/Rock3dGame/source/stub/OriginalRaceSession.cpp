@@ -1023,10 +1023,20 @@ void OriginalRaceSession::reset()
     hyperCooldown_.assign(race_.racers.size(), 0.0F);
     nextNetworkProjectileIds_.assign(race_.racers.size(), 1U);
     repairSeconds_.assign(race_.racers.size(), 0.0F);
-    aiCars_.clear();
-    aiCars_.reserve(race_.racers.size());
+    aiPlayers_.clear();
+    aiPlayers_.reserve(race_.racers.size());
     for (std::size_t index = 0U; index < race_.racers.size(); ++index)
-        aiCars_.emplace_back(sourceTrace_.GetTrackCount());
+    {
+        aiPlayers_.emplace_back(
+            &racers_[index], race_.racers[index].human,
+            sourceTrace_.GetTrackCount());
+        // A debug build also creates an AIPlayer for the human; keeping the
+        // dormant owner here lets the separately enabled legacy debug mode
+        // reproduce that branch without rebuilding the session.
+        aiPlayers_.back().CreateCar();
+        if (race_.racers[index].human)
+            aiPlayers_.back().SetEnabled(false);
+    }
     aiSystem_.Reset(sourceTrace_.GetTrackCount());
     aiSystemEntriesScratch_.clear();
     aiSystemEntriesScratch_.reserve(race_.racers.size());
@@ -1421,8 +1431,8 @@ bool OriginalRaceSession::disconnectNetworkRacer(
         vehicleInputs_[racer] = {};
     if (racer < networkOwnedRacers_.size())
         networkOwnedRacers_[racer] = false;
-    for (auto& aiCar : aiCars_)
-        aiCar.attack.DisposeTarget(racer);
+    for (auto& aiPlayer : aiPlayers_)
+        aiPlayer.DisposeTarget(racer);
 
     std::erase_if(respawns_, [racer](const auto& request) {
         return request.racer == racer;
@@ -2268,7 +2278,7 @@ void OriginalRaceSession::updateAiTracks(
     aiSystemEntriesScratch_.clear();
     for (std::size_t racer = 1U;
          racer < racers_.size() && racer < vehicles.size() &&
-         racer < aiCars_.size(); ++racer)
+         racer < aiPlayers_.size(); ++racer)
     {
         if (race_.racers[racer].human ||
             (networkGameplayEnabled_ &&
@@ -2292,9 +2302,12 @@ void OriginalRaceSession::updateAiTracks(
         const float radius =
             std::sqrt(half.x * half.x + half.y * half.y +
                       half.z * half.z);
-        aiSystemEntriesScratch_.push_back({
-            racer, &aiCars_[racer], &carState,
-            vehicles[racer].body.position, radius, true});
+        if (auto* aiCar = aiPlayers_[racer].GetCar())
+        {
+            aiSystemEntriesScratch_.push_back({
+                racer, aiCar, &carState,
+                vehicles[racer].body.position, radius, true});
+        }
     }
     aiSystem_.ComputeTracks(aiSystemEntriesScratch_);
 }
@@ -2303,7 +2316,7 @@ r3d::physics::VehicleInput OriginalRaceSession::aiInput(
     std::size_t racer, const r3d::physics::VehicleState& vehicle,
     float seconds)
 {
-    if (racer >= racers_.size() || racer >= aiCars_.size() ||
+    if (racer >= racers_.size() || racer >= aiPlayers_.size() ||
         racers_[racer].finished || racers_[racer].destroyed)
         return {};
 
@@ -2327,9 +2340,8 @@ r3d::physics::VehicleInput OriginalRaceSession::aiInput(
         vehicleDefinition.physics.steeringControl;
     sourceVehicle.mapObject = true;
 
-    const auto command = aiCars_[racer].Update(
-        seconds, racers_[racer].car, sourceVehicle, true,
-        &sourceRandomUnit);
+    const auto command = aiPlayers_[racer].OnProgress(
+        seconds, sourceVehicle, &sourceRandomUnit);
     r3d::physics::VehicleInput input;
     input.steering = clampSteering(
         command.steeringAngle /
@@ -4005,8 +4017,8 @@ void OriginalRaceSession::updateGameplay(
             (!networkGameplayEnabled_ ||
              (racer < networkOwnedRacers_.size() &&
               networkOwnedRacers_[racer])) &&
-            racer < aiCars_.size() &&
-            aiCars_[racer].TakeResetCar() &&
+            racer < aiPlayers_.size() &&
+            aiPlayers_[racer].TakeResetCar() &&
             !racers_[racer].destroyed)
             queueRespawn(racer, vehicles);
     }
@@ -5334,7 +5346,7 @@ void OriginalRaceSession::updateGameplay(
              (racer >= networkOwnedRacers_.size() ||
               !networkOwnedRacers_[racer])) ||
             runtime.destroyed ||
-            racer >= aiCars_.size() ||
+            racer >= aiPlayers_.size() ||
             runtime.car.GetLiveTile() == nullptr)
         {
             continue;
@@ -5413,8 +5425,8 @@ void OriginalRaceSession::updateGameplay(
             context.mine.charge = runtime.mines;
         }
 
-        const auto decision = aiCars_[racer].attack.Update(
-            runtime.car, sourceVehicle, aiCars_[racer].path, context);
+        const auto decision = aiPlayers_[racer].UpdateAttack(
+            sourceVehicle, context);
         if (decision.hasWeaponShot())
         {
             runtime.selectedWeaponSlot = decision.weaponSlot;
@@ -5925,6 +5937,15 @@ void OriginalRaceSession::update(
     {
         if (racers_[racer].destroyed)
             continue;
+        const std::uint32_t cheat =
+            racer < aiPlayers_.size() &&
+                    !race_.racers[racer].human
+                ? aiPlayers_[racer].GetCheat()
+                : (racer == 0U && networkGameplayEnabled_
+                       ? source::AIPlayer::cheatEnableFaster
+                       : source::AIPlayer::cheatDisabled);
+        if (cheat == source::AIPlayer::cheatDisabled)
+            continue;
         const float racerLap =
             this->lapPosition(racer, vehicles[racer]);
         std::size_t opponent = RacerRuntime::invalidWeapon;
@@ -5971,8 +5992,7 @@ void OriginalRaceSession::update(
             distance >
                 easingMinimumDistance[difficultyIndex])
         {
-            // HumanPlayer does not enable cCheatEnableSlower.
-            if (racer != 0U)
+            if ((cheat & source::AIPlayer::cheatEnableSlower) != 0U)
             {
                 const float speedLimit =
                     easingMinimumSpeed[difficultyIndex] +
@@ -5990,17 +6010,16 @@ void OriginalRaceSession::update(
         else if (distance >
                  easingMinimumDistance[difficultyIndex])
         {
-            // Offline HumanPlayer does not enable the faster cheat.  The
-            // source installs it only for a started network human.
-            if (racer == 0U && !networkGameplayEnabled_)
-                continue;
-            const float torqueScale =
-                cheatMinimumTorque[difficultyIndex] +
-                (cheatMaximumTorque[difficultyIndex] -
-                 cheatMinimumTorque[difficultyIndex]) *
-                    distancePart;
-            control.motorTorqueScale = torqueScale;
-            control.lateralGripScale = torqueScale;
+            if ((cheat & source::AIPlayer::cheatEnableFaster) != 0U)
+            {
+                const float torqueScale =
+                    cheatMinimumTorque[difficultyIndex] +
+                    (cheatMaximumTorque[difficultyIndex] -
+                     cheatMinimumTorque[difficultyIndex]) *
+                        distancePart;
+                control.motorTorqueScale = torqueScale;
+                control.lateralGripScale = torqueScale;
+            }
         }
     }
 
@@ -6033,6 +6052,8 @@ void OriginalRaceSession::update(
 void OriginalRaceSession::setDebugHumanAiControl(bool enabled) noexcept
 {
     debugHumanAiControl_ = enabled;
+    if (!aiPlayers_.empty())
+        aiPlayers_.front().SetEnabled(enabled);
 }
 
 bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)

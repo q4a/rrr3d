@@ -202,6 +202,56 @@ private:
     bool resetCar_ = false;
 };
 
+// Source AIPlayer owns the lifetime relation between Player and AICar.  The
+// portable form does not reference-count Player because OriginalRaceSession
+// owns a stable Player vector, but preserves CreateCar/FreeCar, per-player AI
+// enablement and the non-human cheat mask.
+class AIPlayer
+{
+public:
+    static constexpr std::uint32_t cheatDisabled = 0U;
+    static constexpr std::uint32_t cheatEnableSlower = 1U << 0U;
+    static constexpr std::uint32_t cheatEnableFaster = 1U << 1U;
+
+    explicit AIPlayer(std::uint32_t trackCount = 4U);
+    AIPlayer(Player* player, bool human,
+             std::uint32_t trackCount = 4U);
+    AIPlayer(const AIPlayer&) = delete;
+    AIPlayer& operator=(const AIPlayer&) = delete;
+    AIPlayer(AIPlayer&&) noexcept = default;
+    AIPlayer& operator=(AIPlayer&&) noexcept = default;
+
+    void Reset(Player* player, bool human,
+               std::uint32_t trackCount = 4U);
+    void CreateCar();
+    void FreeCar();
+    AICar::Command OnProgress(
+        float deltaTime, const AICar::VehicleState& vehicle,
+        AICar::RandomSource randomSource = nullptr);
+    AICar::AttackDecision UpdateAttack(
+        const AICar::VehicleState& vehicle,
+        const AICar::AttackContext& context);
+    void DisposeTarget(std::size_t player) noexcept;
+    bool TakeResetCar() noexcept;
+
+    void SetEnabled(bool value) noexcept;
+    bool IsEnabled() const noexcept;
+    bool HasCar() const noexcept;
+    std::uint32_t GetCheat() const noexcept;
+    Player* GetPlayer() noexcept;
+    const Player* GetPlayer() const noexcept;
+    AICar* GetCar() noexcept;
+    const AICar* GetCar() const noexcept;
+
+private:
+    Player* player_ = nullptr;
+    AICar car_;
+    std::uint32_t trackCount_ = 4U;
+    std::uint32_t cheat_ = cheatDisabled;
+    bool carCreated_ = false;
+    bool enabled_ = true;
+};
+
 // Backend-neutral transcription of AISystem::ComputeTracks.  The original
 // system owned AIPlayer pointers and read their Player::CarState objects;
 // Entry keeps that non-owning relation without exposing Jolt vehicles to the

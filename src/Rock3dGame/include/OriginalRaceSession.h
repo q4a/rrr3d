@@ -499,7 +499,7 @@ private:
     std::vector<float> hyperCooldown_;
     std::vector<std::uint32_t> nextNetworkProjectileIds_;
     std::vector<float> repairSeconds_;
-    std::vector<source::AICar> aiCars_;
+    std::vector<source::AIPlayer> aiPlayers_;
     source::AISystem aiSystem_{4U};
     // Per-frame non-owning adapter reused by source::AISystem without
     // reconstructing trace geometry in the session.

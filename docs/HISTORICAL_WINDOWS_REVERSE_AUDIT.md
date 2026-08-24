@@ -732,6 +732,31 @@ session-local аппроксимация по `TracePoint`, включая по�
 одиночного участника. Следующий крупный gameplay block — source `AIPlayer`
 lifecycle либо `Weapon/Logic` ownership.
 
+### P2.9 — AIPlayer lifecycle — выполнено
+
+Перенесён owner-класс `source::AIPlayer`, и прямой массив `AICar` удалён из
+`OriginalRaceSession`. Как и в Windows, каждый AI owner теперь связывает один
+`Player` с опционально созданным `AICar` и является точкой входа для
+`OnProgress`, attack, reset и dispose-target.
+
+Сохранены исходные особенности:
+
+- `CreateCar` идемпотентен, `FreeCar` очищает всё вложенное состояние;
+- computer owner получает `cCheatEnableFaster | cCheatEnableSlower`, human
+  owner — `cCheatDisable`;
+- AI enable flag запрещает применение control/weapon решений, не подменяя
+  source path/control вычисления;
+- отдельный human AI owner оставлен dormant для перенесённого debug F7 mode;
+- `AISystem`, Jolt command adapter, attack execution, blocked-car respawn и
+  network `PlayerDispose` обращаются к `AICar` только через `AIPlayer`;
+- catch-up/easing ветка сессии читает source cheat mask вместо проверки
+  индекса участника; отдельный network HumanPlayer сохраняет faster-only
+  mask.
+
+`OriginalAICarSmoke` проверяет computer/human masks, Create/Free lifecycle и
+enable/disable command gate. Следующий decomposition block — `Weapon/Logic`
+runtime ownership и удаление cooldown/charge coordination из сессии.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
