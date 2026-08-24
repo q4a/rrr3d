@@ -142,9 +142,19 @@ std::vector<OriginalDisplayMode> originalDisplayModesForWindow(
     SDL_Window* window)
 {
     std::vector<OriginalDisplayMode> candidates;
+    const SDL_DisplayID display = SDL_GetDisplayForWindow(window);
+    std::optional<OriginalDisplayMode> nativeMode;
+    if (const SDL_DisplayMode* desktop =
+            SDL_GetDesktopDisplayMode(display);
+        desktop != nullptr && desktop->w > 0 && desktop->h > 0)
+    {
+        const auto [width, height] = displayModePixelSize(*desktop);
+        nativeMode = OriginalDisplayMode{
+            width, height, *desktop, true};
+    }
     int count = 0;
     SDL_DisplayMode** modes = SDL_GetFullscreenDisplayModes(
-        SDL_GetDisplayForWindow(window), &count);
+        display, &count);
     candidates.reserve(static_cast<std::size_t>(std::max(count, 0)));
     for (int index = 0; modes != nullptr && index < count; ++index)
     {
@@ -255,7 +265,8 @@ std::vector<OriginalDisplayMode> originalDisplayModesForWindow(
             {1920U, 1080U},
         }};
     std::vector<OriginalDisplayMode> result;
-    result.reserve(conventionalModes.size());
+    result.reserve(
+        conventionalModes.size() + (nativeMode.has_value() ? 1U : 0U));
     for (const auto [width, height] : conventionalModes)
     {
         if (preferredCandidates.empty())
@@ -281,6 +292,22 @@ std::vector<OriginalDisplayMode> originalDisplayModesForWindow(
                 return leftDistance < rightDistance;
             });
         result.push_back({width, height, closest->sdl, true});
+    }
+    // The Windows renderer capped the adapter list at 1920x1080, but the
+    // native macOS port must also expose the physical pixel size of the
+    // active Retina display.  Use SDL's desktop mode instead of the largest
+    // enumerated mode: on a scaled MacBook desktop it carries the logical
+    // size together with the exact backing-pixel density (for example
+    // 1728x1117 points at 2x is the panel-native 3456x2234 mode).
+    if (nativeMode.has_value() &&
+        std::none_of(
+            result.begin(), result.end(),
+            [&](const OriginalDisplayMode& mode) {
+                return mode.width == nativeMode->width &&
+                       mode.height == nativeMode->height;
+            }))
+    {
+        result.push_back(*nativeMode);
     }
     std::sort(result.begin(), result.end(), [](const auto& left,
                                                 const auto& right) {
