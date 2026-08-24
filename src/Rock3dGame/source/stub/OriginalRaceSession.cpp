@@ -2208,18 +2208,23 @@ OriginalRaceSession::findTraceTile(
             if (candidate.contains)
                 return candidate;
         }
-        // WayPath::IsTileContains separately tests its first WayNode after
-        // the forward scan.  This is the source loop-closing transition.
-        if (firstSegment > 0U)
+        // WayPath::IsTileContains separately tests its first WayNode sphere
+        // after every tile failed.  It does not require the point to remain
+        // between the first tile's miter planes.  That distinction closes a
+        // lap when a car has just crossed the final plane but is still a
+        // little behind the outgoing first tile -- a common case for the
+        // outside starting lanes used by campaign AI.
+        auto first = projectTraceTile(path, 0U, position);
+        const float nodeRadius =
+            std::max(tracePoint(path, 0U).width * 0.5F, 0.0001F);
+        if (length3(subtract(position,
+                             tracePoint(path, 0U).position)) <
+            nodeRadius)
         {
-            auto first = projectTraceTile(path, 0U, position);
-            const float nodeRadius =
-                std::max(tracePoint(path, 0U).width * 0.5F, 0.0001F);
-            if (first.contains &&
-                length3(subtract(position,
-                                 tracePoint(path, 0U).position)) <
-                    nodeRadius)
-                return first;
+            first.contains = true;
+            first.coordinate = 0.0F;
+            first.pathDistance = 0.0F;
+            return first;
         }
         return TraceTileProjection{};
     };
@@ -7276,9 +7281,21 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             placeOnBranch(branchSession, 0U, 1U, 1U, 0.5F, false);
             placeOnBranch(branchSession, 0U, 0U, 3U, 0.5F, false);
             placeOnBranch(branchSession, 0U, 0U, 4U, 0.5F, false);
-            // WayPath first releases the final tile once the car leaves its
-            // half-width, then reacquires the first tile on the next update.
-            placeOnBranch(branchSession, 0U, 0U, 0U, 0.25F, false);
+            // WayPath first releases the final tile once the car crosses its
+            // end plane, then reacquires the first WayNode by its spherical
+            // fallback.  The point is deliberately behind both segment
+            // planes: requiring firstTile.contains here used to strand AI on
+            // the preceding lap indefinitely.
+            branchVehicles[0].body.position =
+                add(branchPoint(0U, 0U).position,
+                    {-1.0F, -1.0F, 2.0F});
+            branchVehicles[0].body.rotation = shortestArcFromX(
+                normalized2(subtract(
+                    branchPoint(0U, 1U).position,
+                    branchPoint(0U, 0U).position)));
+            branchVehicles[0].speed = 10.0F;
+            branchSession.update(
+                1.0F / 60.0F, branchVehicles, input);
             placeOnBranch(branchSession, 0U, 0U, 0U, 0.5F, false);
             if (branchSession.racers().front().completedLaps != 1U)
             {
@@ -8906,6 +8923,91 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             1.0F / 60.0F, lapVehicles, input);
         if (lapSession.racers().front().completedLaps != 1U)
             throw std::runtime_error("finish tile counted the same lap twice");
+
+        if (race.racers.size() >= 4U &&
+            vehicles.size() >= race.racers.size())
+        {
+            // Campaign Race::CreatePlayers installs five AI players.  Drive
+            // every one of them (including the source Rip/Shred slots) over
+            // a complete trace and prove CompleteRace(Player*) removes its
+            // AICar control after the configured lap count.
+            Race aiFinishRace = race;
+            aiFinishRace.lapCount = 1U;
+            OriginalRaceSession aiFinishSession(aiFinishRace);
+            auto aiFinishVehicles = vehicles;
+            for (auto& vehicle : aiFinishVehicles)
+            {
+                vehicle.bodyContacts.clear();
+                vehicle.speed = 10.0F;
+                vehicle.linearVelocity = {};
+            }
+            for (int frame = 0; frame < 250; ++frame)
+                aiFinishSession.update(
+                    1.0F / 60.0F, aiFinishVehicles, input);
+
+            auto placeAiOnMainSegment =
+                [&](std::size_t racer, std::size_t segment) {
+                    const auto& start = point(segment);
+                    const auto& end = point(segment + 1U);
+                    aiFinishVehicles[racer].body.position = multiply(
+                        add(start.position, end.position), 0.5F);
+                    aiFinishVehicles[racer].body.position.z =
+                        (start.position.z + end.position.z) * 0.5F +
+                        2.0F;
+                    aiFinishVehicles[racer].body.rotation =
+                        shortestArcFromX(normalized2(subtract(
+                            end.position, start.position)));
+                    aiFinishSession.update(
+                        1.0F / 60.0F, aiFinishVehicles, input);
+                };
+
+            for (std::size_t racer = 1U;
+                 racer < aiFinishRace.racers.size(); ++racer)
+            {
+                for (std::size_t segment = 0U;
+                     segment + 1U < aiFinishRace.tracePath.size();
+                     ++segment)
+                {
+                    placeAiOnMainSegment(racer, segment);
+                }
+                aiFinishVehicles[racer].body.position.x += 1000.0F;
+                aiFinishVehicles[racer].body.position.y += 1000.0F;
+                aiFinishSession.update(
+                    1.0F / 60.0F, aiFinishVehicles, input);
+                placeAiOnMainSegment(racer, 0U);
+
+                const auto& runtime = aiFinishSession.racers()[racer];
+                const bool emittedFinish = std::any_of(
+                    aiFinishSession.events().begin(),
+                    aiFinishSession.events().end(),
+                    [racer](const RaceEvent& event) {
+                        return event.kind == RaceEventKind::Finish &&
+                               event.racer == racer;
+                    });
+                const auto& coasting =
+                    aiFinishSession.vehicleInputs()[racer];
+                if (!runtime.finished || runtime.completedLaps != 1U ||
+                    !emittedFinish || coasting.throttle > 0.1F ||
+                    coasting.reverse > 0.1F ||
+                    std::abs(coasting.steering) > 0.1F)
+                {
+                    throw std::runtime_error(
+                        "campaign AI did not finish and release AICar");
+                }
+
+                for (int frame = 0; frame < 4; ++frame)
+                    aiFinishSession.update(
+                        0.1F, aiFinishVehicles, input);
+                if (aiFinishSession.vehicleInputs()[racer].brake <
+                        0.9F ||
+                    aiFinishSession.racers()[racer].completedLaps !=
+                        1U)
+                {
+                    throw std::runtime_error(
+                        "finished campaign AI continued driving");
+                }
+            }
+        }
 
         const auto lapPrimary = std::find_if(
             race.weapons.begin(), race.weapons.end(),
