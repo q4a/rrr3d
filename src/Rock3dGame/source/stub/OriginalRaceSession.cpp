@@ -915,32 +915,6 @@ std::size_t sourceUniformRandomIndex(
         count - 1U);
 }
 
-std::size_t sourceRoundedRandomIndex(
-    std::size_t count, float randomUnit)
-{
-    if (count <= 1U)
-        return 0U;
-    const float value =
-        static_cast<float>(count - 1U) *
-        std::clamp(randomUnit, 0.0F, 1.0F);
-    const float floorValue = std::floor(value);
-    const float rounded =
-        value - 0.5F < floorValue
-            ? floorValue
-            : floorValue + 1.0F;
-    return std::min(
-        static_cast<std::size_t>(rounded), count - 1U);
-}
-
-std::uint32_t sourceBonusCharge(
-    std::uint32_t maximumCharge, float value)
-{
-    return static_cast<std::uint32_t>(
-        std::max(
-            static_cast<float>(maximumCharge) * value,
-            1.0F));
-}
-
 DamageType sourceProjectileDamageType(std::uint32_t type)
 {
     switch (type)
@@ -1128,9 +1102,9 @@ void OriginalRaceSession::reset()
                 ? sourceRacer.configuredVehicle
                 : race_.vehicles.at(std::min(
                       vehicleIndex, race_.vehicles.size() - 1U));
-        racers_[index].maximumLife = std::max(vehicle.maximumLife, 1.0F);
-        racers_[index].life = racers_[index].maximumLife;
-        racers_[index].place = static_cast<std::uint32_t>(index + 1U);
+        racers_[index].Reset(
+            vehicle.maximumLife,
+            static_cast<std::uint32_t>(index + 1U));
         for (std::size_t weaponIndex = 0;
              weaponIndex < race_.weapons.size(); ++weaponIndex)
         {
@@ -1292,7 +1266,7 @@ void OriginalRaceSession::reset()
                 }
             }
         }
-        syncSelectedWeapon(racers_[index]);
+        racers_[index].SyncSelectedWeapon(race_.weapons.size());
     }
     events_.push_back(
         {RaceEventKind::CountdownChanged, 0, 0, {}, 3.0F});
@@ -1414,28 +1388,6 @@ std::size_t OriginalRaceSession::findWeapon(
     return RacerRuntime::invalidWeapon;
 }
 
-void OriginalRaceSession::syncSelectedWeapon(
-    RacerRuntime& racer) const noexcept
-{
-    for (std::size_t offset = 0;
-         offset < racer.weaponSlots.size(); ++offset)
-    {
-        const auto slot =
-            (racer.selectedWeaponSlot + offset) %
-            racer.weaponSlots.size();
-        const auto weapon = racer.weaponSlots[slot];
-        if (weapon == RacerRuntime::invalidWeapon ||
-            weapon >= race_.weapons.size())
-            continue;
-        racer.selectedWeaponSlot = slot;
-        racer.selectedWeapon = weapon;
-        racer.ammunition = racer.weaponCharges[slot];
-        return;
-    }
-    racer.selectedWeapon = RacerRuntime::invalidWeapon;
-    racer.ammunition = 0;
-}
-
 float OriginalRaceSession::damageAfterSupport(
     std::size_t racer, float damage, bool touchDamage) const noexcept
 {
@@ -1478,19 +1430,7 @@ bool OriginalRaceSession::disconnectNetworkRacer(
         return false;
 
     auto& runtime = racers_[racer];
-    runtime.disconnected = true;
-    runtime.destroyed = true;
-    runtime.finished = false;
-    runtime.life = 0.0F;
-    runtime.lowLife = false;
-    runtime.restoreSeconds = 0.0F;
-    runtime.shieldSeconds = 0.0F;
-    runtime.shieldEffectSeconds = 0.0F;
-    runtime.shieldFadeInSeconds = -1.0F;
-    runtime.shieldFadeOutSeconds = -1.0F;
-    runtime.shieldDamageSeconds = -1.0F;
-    runtime.touchAttacker = RacerRuntime::invalidWeapon;
-    runtime.touchAttributionSeconds = 0.0F;
+    runtime.Disconnect();
     if (racer < vehicleInputs_.size())
         vehicleInputs_[racer] = {};
     if (racer < networkOwnedRacers_.size())
@@ -1956,14 +1896,15 @@ void OriginalRaceSession::synchronizeNetworkFinishResults(
         if (result.racer >= racers_.size())
             continue;
         auto& racer = racers_[result.racer];
-        racer.finished = true;
-        racer.place = result.place;
-        racer.rewardMoney = static_cast<std::uint32_t>(
-            std::max(result.rewardMoney, 0));
+        racer.Complete(
+            result.place,
+            static_cast<std::uint32_t>(
+                std::max(result.rewardMoney, 0)),
+            static_cast<std::uint32_t>(
+                std::max(result.rewardPoints, 0)),
+            elapsedSeconds_);
         racer.pickedMoney = static_cast<std::uint32_t>(
             std::max(result.pickedMoney, 0));
-        racer.rewardPoints = static_cast<std::uint32_t>(
-            std::max(result.rewardPoints, 0));
     }
     finishSecondsRemaining_ = 0.0F;
 }
@@ -2483,21 +2424,9 @@ void OriginalRaceSession::updateProgress(
         return;
 
     ++runtime.completedLaps;
-    // Player::OnLapPass reloads every WeaponItem from stHyper through
-    // stWeapon4 before Race receives cRacePassLap/cRaceLastLap/finish.
-    for (std::size_t slot = 0U;
-         slot < runtime.weaponCharges.size(); ++slot)
-    {
-        if (runtime.weaponSlots[slot] !=
-            RacerRuntime::invalidWeapon)
-            runtime.weaponCharges[slot] =
-                runtime.weaponCapacity[slot];
-    }
-    if (runtime.hyperWeapon != RacerRuntime::invalidWeapon)
-        runtime.hyperCharge = runtime.hyperCapacity;
-    if (runtime.mineWeapon != RacerRuntime::invalidWeapon)
-        runtime.mines = runtime.mineCapacity;
-    syncSelectedWeapon(runtime);
+    // Player::OnLapPass increments CarState::numLaps and then delegates the
+    // complete stHyper..stWeapon4 reload to Player::ReloadWeapons.
+    runtime.ReloadWeapons(race_.weapons.size());
     events_.push_back({RaceEventKind::Lap, racer, runtime.completedLaps,
                        vehicle.body.position,
                        static_cast<float>(runtime.completedLaps)});
@@ -2519,28 +2448,25 @@ void OriginalRaceSession::updateProgress(
     }
     if (runtime.completedLaps >= race_.lapCount)
     {
-        runtime.finished = true;
-        runtime.finishTime = elapsedSeconds_;
         const auto finishedBefore = std::count_if(
             racers_.begin(), racers_.end(),
             [&](const RacerRuntime& candidate) {
                 return &candidate != &runtime &&
                        !candidate.disconnected && candidate.finished;
             });
-        runtime.place =
+        const auto resultPlace =
             static_cast<std::uint32_t>(finishedBefore + 1U);
-        if (runtime.place >= 1U &&
-            runtime.place <= race_.rewardMoney.size())
+        std::uint32_t rewardMoney = 0U;
+        std::uint32_t rewardPoints = 0U;
+        if (resultPlace >= 1U &&
+            resultPlace <= race_.rewardMoney.size())
         {
-            const std::size_t reward = runtime.place - 1U;
-            runtime.rewardMoney = race_.rewardMoney[reward];
-            runtime.rewardPoints = race_.rewardPoints[reward];
+            const std::size_t reward = resultPlace - 1U;
+            rewardMoney = race_.rewardMoney[reward];
+            rewardPoints = race_.rewardPoints[reward];
         }
-        else
-        {
-            runtime.rewardMoney = 0U;
-            runtime.rewardPoints = 0U;
-        }
+        runtime.Complete(
+            resultPlace, rewardMoney, rewardPoints, elapsedSeconds_);
         vehicleInputs_[racer] = {};
         events_.push_back({RaceEventKind::Finish, racer, 0,
                            vehicle.body.position, runtime.finishTime});
@@ -3362,19 +3288,8 @@ void OriginalRaceSession::destroyRacer(
         racers_[racer].destroyed)
         return;
     auto& runtime = racers_[racer];
-    runtime.life = 0.0F;
-    runtime.destroyed = true;
-    runtime.lowLife = false;
-    runtime.lowLifeEffectSeconds = 0.0F;
-    runtime.shieldSeconds = 0.0F;
-    runtime.shieldEffectSeconds = 0.0F;
-    runtime.shieldFadeInSeconds = -1.0F;
-    runtime.shieldFadeOutSeconds = -1.0F;
-    runtime.shieldDamageSeconds = -1.0F;
-    runtime.touchAttacker = RacerRuntime::invalidWeapon;
-    runtime.touchAttributionSeconds = 0.0F;
-    // Player::cTimeRestoreCar in the Windows implementation.
-    runtime.restoreSeconds = 2.0F;
+    // Player::OnDeath/OnDestroy begins the exact cTimeRestoreCar lifecycle.
+    runtime.Destroy();
     if (racer < vehicleInputs_.size())
         vehicleInputs_[racer] = {};
     if (damageType == DamageType::DeathPlane)
@@ -3484,21 +3399,10 @@ void OriginalRaceSession::updateGameplay(
         if (!runtime.destroyed)
             continue;
         vehicleInputs_[racer] = {};
-        if (runtime.restoreSeconds < 0.0F)
+        const auto restore = runtime.ProgressRestore(seconds);
+        if (restore == source::PlayerRestoreStep::QueueRespawn)
         {
-            runtime.restoreSeconds = 0.0F;
-            runtime.destroyed = false;
-            continue;
-        }
-        runtime.restoreSeconds =
-            std::max(0.0F, runtime.restoreSeconds - seconds);
-        if (runtime.restoreSeconds <= 0.0F)
-        {
-            runtime.life = runtime.maximumLife;
             queueRespawn(racer, vehicles);
-            // Keep the old car hidden until the reset request has reached
-            // Jolt; it becomes live on the next session update.
-            runtime.restoreSeconds = -1.0F;
         }
     }
     if (!racers_.empty() && humanControl.weaponSlot >= 0 &&
@@ -3511,7 +3415,7 @@ void OriginalRaceSession::updateGameplay(
             RacerRuntime::invalidWeapon)
         {
             racers_[0].selectedWeaponSlot = slot;
-            syncSelectedWeapon(racers_[0]);
+            racers_[0].SyncSelectedWeapon(race_.weapons.size());
         }
     }
     if (humanControl.changeWeapon && !racers_.empty())
@@ -3541,7 +3445,7 @@ void OriginalRaceSession::updateGameplay(
                 0, static_cast<int>(usable.size()) - 1);
             runtime.selectedWeaponSlot =
                 usable[static_cast<std::size_t>(wanted)];
-            syncSelectedWeapon(runtime);
+            runtime.SyncSelectedWeapon(race_.weapons.size());
         }
     }
     auto directWeaponWorldTransform =
@@ -5516,82 +5420,37 @@ void OriginalRaceSession::updateGameplay(
         switch (kind)
         {
         case BonusKind::Money:
-            runtime.pickedMoney += static_cast<std::uint32_t>(
-                std::max(value, 0.0F));
+            runtime.TakeMoney(value);
             break;
         case BonusKind::Medpack:
-            runtime.life = std::min(
-                runtime.life + value,
-                runtime.maximumLife);
+            runtime.TakeMedpack(value);
             break;
         case BonusKind::Ammunition:
         {
-            struct RechargeTarget
+            std::vector<std::uint32_t> weaponMaximumCharges;
+            weaponMaximumCharges.reserve(race_.weapons.size());
+            for (const auto& weapon : race_.weapons)
+                weaponMaximumCharges.push_back(weapon.maximumCharge);
+            const auto result = runtime.TakeAmmunition(
+                value, weaponMaximumCharges, sourceRandomUnit());
+            switch (result.slot)
             {
-                std::uint32_t* current = nullptr;
-                std::uint32_t capacity = 0;
-                std::size_t weapon = RacerRuntime::invalidWeapon;
-                PickSlot pickSlot = PickSlot::None;
-            };
-            std::vector<RechargeTarget> targets;
-            // Player::TakeBonus enumerates the contiguous source SlotType
-            // range stHyper..stWeapon4. Preserve that order because its
-            // rounded random index chooses a concrete slot from this list.
-            if (runtime.hyperWeapon != RacerRuntime::invalidWeapon &&
-                runtime.hyperWeapon < race_.weapons.size() &&
-                runtime.hyperCharge < runtime.hyperCapacity)
-            {
-                targets.push_back(
-                    {&runtime.hyperCharge, runtime.hyperCapacity,
-                     runtime.hyperWeapon, PickSlot::Hyper});
+            case source::PlayerBonusSlot::Primary:
+                pickSlot = PickSlot::Primary;
+                break;
+            case source::PlayerBonusSlot::Hyper:
+                pickSlot = PickSlot::Hyper;
+                break;
+            case source::PlayerBonusSlot::Mine:
+                pickSlot = PickSlot::Mine;
+                break;
+            case source::PlayerBonusSlot::None:
+                break;
             }
-            if (runtime.mineWeapon != RacerRuntime::invalidWeapon &&
-                runtime.mineWeapon < race_.weapons.size() &&
-                runtime.mines < runtime.mineCapacity)
-            {
-                targets.push_back(
-                    {&runtime.mines, runtime.mineCapacity,
-                     runtime.mineWeapon, PickSlot::Mine});
-            }
-            for (std::size_t slot = 0;
-                 slot < runtime.weaponSlots.size(); ++slot)
-            {
-                const auto weapon = runtime.weaponSlots[slot];
-                if (weapon == RacerRuntime::invalidWeapon ||
-                    weapon >= race_.weapons.size() ||
-                    runtime.weaponCharges[slot] >=
-                        runtime.weaponCapacity[slot])
-                    continue;
-                targets.push_back(
-                    {&runtime.weaponCharges[slot],
-                     runtime.weaponCapacity[slot], weapon,
-                     PickSlot::Primary});
-            }
-            if (!targets.empty())
-            {
-                auto& target = targets[sourceRoundedRandomIndex(
-                    targets.size(), sourceRandomUnit())];
-                const auto maximumCharge =
-                    race_.weapons[target.weapon].maximumCharge;
-                const auto amount =
-                    sourceBonusCharge(maximumCharge, value);
-                *target.current = std::min(
-                    *target.current + amount, target.capacity);
-                pickSlot = target.pickSlot;
-            }
-            syncSelectedWeapon(runtime);
             break;
         }
         case BonusKind::Shield:
-            if (runtime.shieldSeconds <= 0.0F)
-            {
-                runtime.shieldEffectSeconds = 0.0F;
-                runtime.shieldFadeInSeconds = 0.0F;
-                // ImmortalEffect::OnImmortalStatus(true) starts fade-in but
-                // intentionally leaves an existing fade-out active.
-                runtime.shieldDamageSeconds = -1.0F;
-            }
-            runtime.shieldSeconds = std::max(value, 0.0F);
+            runtime.TakeImmortal(value);
             break;
         case BonusKind::Speed:
         case BonusKind::SlowHazard:
@@ -5772,7 +5631,7 @@ void OriginalRaceSession::updateGameplay(
             racers_[shooter].destroyed)
             return;
         auto& runtime = racers_[shooter];
-        syncSelectedWeapon(runtime);
+        runtime.SyncSelectedWeapon(race_.weapons.size());
         if (runtime.selectedWeapon == RacerRuntime::invalidWeapon ||
             runtime.selectedWeapon >= race_.weapons.size() ||
             runtime.selectedWeaponSlot >= runtime.weaponCharges.size() ||
@@ -5797,7 +5656,7 @@ void OriginalRaceSession::updateGameplay(
                 networkProjectileId + 1U);
         }
         --runtime.weaponCharges[firedSlot];
-        syncSelectedWeapon(runtime);
+        runtime.SyncSelectedWeapon(race_.weapons.size());
         weaponCooldown_[shooter][firedSlot] =
             std::max(weapon->shotDelay, minimumCooldown);
         const Vec3 eventOrigin = weaponWorldTransform(
@@ -6043,10 +5902,10 @@ void OriginalRaceSession::updateGameplay(
         {
             const auto selected = runtime.selectedWeaponSlot;
             runtime.selectedWeaponSlot = requested;
-            syncSelectedWeapon(runtime);
+            runtime.SyncSelectedWeapon(race_.weapons.size());
             fireWeapon(0);
             runtime.selectedWeaponSlot = selected;
-            syncSelectedWeapon(runtime);
+            runtime.SyncSelectedWeapon(race_.weapons.size());
         }
     }
     if (humanControl.useAllWeapons && !racers_.empty())
@@ -6061,11 +5920,11 @@ void OriginalRaceSession::updateGameplay(
                 runtime.weaponCharges[slot] == 0U)
                 continue;
             runtime.selectedWeaponSlot = slot;
-            syncSelectedWeapon(runtime);
+            runtime.SyncSelectedWeapon(race_.weapons.size());
             fireWeapon(0);
         }
         runtime.selectedWeaponSlot = selected;
-        syncSelectedWeapon(runtime);
+        runtime.SyncSelectedWeapon(race_.weapons.size());
     }
     for (const auto& shot : pendingNetworkShots_)
     {
@@ -6104,13 +5963,13 @@ void OriginalRaceSession::updateGameplay(
                     RacerRuntime::invalidWeapon)
                 continue;
             runtime.selectedWeaponSlot = slot;
-            syncSelectedWeapon(runtime);
+            runtime.SyncSelectedWeapon(race_.weapons.size());
             fireWeapon(
                 shot.racer, 0.03F, shot.target, origin,
                 shot.projectileId, true);
         }
         runtime.selectedWeaponSlot = selected;
-        syncSelectedWeapon(runtime);
+        runtime.SyncSelectedWeapon(race_.weapons.size());
     }
     pendingNetworkShots_.clear();
     auto raceProgress = [&](std::size_t racer) {
@@ -6352,7 +6211,7 @@ void OriginalRaceSession::updateGameplay(
                     ammunition <= 0.0F)
                     return;
                 runtime.selectedWeaponSlot = slot;
-                syncSelectedWeapon(runtime);
+                runtime.SyncSelectedWeapon(race_.weapons.size());
                 fireWeapon(racer, 0.25F, enemy);
             }
         };
@@ -6791,22 +6650,20 @@ void OriginalRaceSession::completeRemainingRacers(
     for (const std::size_t racer : remaining)
     {
         auto& runtime = racers_[racer];
-        runtime.finished = true;
-        runtime.finishTime =
+        const float finishTime =
             elapsedSeconds_ + static_cast<float>(completed) * 0.001F;
-        runtime.place = static_cast<std::uint32_t>(++completed);
-        if (runtime.place >= 1U &&
-            runtime.place <= race_.rewardMoney.size())
+        const auto resultPlace = static_cast<std::uint32_t>(++completed);
+        std::uint32_t rewardMoney = 0U;
+        std::uint32_t rewardPoints = 0U;
+        if (resultPlace >= 1U &&
+            resultPlace <= race_.rewardMoney.size())
         {
-            const std::size_t reward = runtime.place - 1U;
-            runtime.rewardMoney = race_.rewardMoney[reward];
-            runtime.rewardPoints = race_.rewardPoints[reward];
+            const std::size_t reward = resultPlace - 1U;
+            rewardMoney = race_.rewardMoney[reward];
+            rewardPoints = race_.rewardPoints[reward];
         }
-        else
-        {
-            runtime.rewardMoney = 0U;
-            runtime.rewardPoints = 0U;
-        }
+        runtime.Complete(
+            resultPlace, rewardMoney, rewardPoints, finishTime);
         if (racer < vehicleInputs_.size())
             vehicleInputs_[racer] = {};
     }
@@ -6821,8 +6678,7 @@ void OriginalRaceSession::applyCampaignRewards() noexcept
     {
         if (runtime.disconnected || !runtime.finished)
             continue;
-        runtime.money += runtime.rewardMoney + runtime.pickedMoney;
-        runtime.points += runtime.rewardPoints;
+        runtime.ApplyRaceReward();
     }
     campaignRewardsApplied_ = true;
 }
@@ -6913,22 +6769,18 @@ void OriginalRaceSession::update(
         initialPlayerProfile_.difficulty == "gdEasy"
             ? 0U
             : initialPlayerProfile_.difficulty == "gdHard" ? 2U : 1U;
-    static constexpr std::array<float, 3> easingMinimumDistance{
-        20.0F, 20.0F, 20.0F};
-    static constexpr std::array<float, 3> easingMaximumDistance{
-        200.0F, 200.0F, 200.0F};
-    static constexpr std::array<float, 3> easingMinimumSpeed{
-        95.0F * 1000.0F / 3600.0F,
-        110.0F * 1000.0F / 3600.0F,
-        125.0F * 1000.0F / 3600.0F};
-    static constexpr std::array<float, 3> easingMaximumSpeed{
-        55.0F * 1000.0F / 3600.0F,
-        65.0F * 1000.0F / 3600.0F,
-        75.0F * 1000.0F / 3600.0F};
-    static constexpr std::array<float, 3> cheatMinimumTorque{
-        1.05F, 1.20F, 1.30F};
-    static constexpr std::array<float, 3> cheatMaximumTorque{
-        1.30F, 1.65F, 1.85F};
+    const auto& easingMinimumDistance =
+        source::Player::humanEasingMinimumDistance;
+    const auto& easingMaximumDistance =
+        source::Player::humanEasingMaximumDistance;
+    const auto& easingMinimumSpeed =
+        source::Player::humanEasingMinimumSpeed;
+    const auto& easingMaximumSpeed =
+        source::Player::humanEasingMaximumSpeed;
+    const auto& cheatMinimumTorque =
+        source::Player::computerCheatMinimumTorque;
+    const auto& cheatMaximumTorque =
+        source::Player::computerCheatMaximumTorque;
     const float pathLength = [&]() {
         float result = 0.0F;
         for (std::size_t node = 1U;
@@ -7053,8 +6905,7 @@ void OriginalRaceSession::update(
         control.steering = 0.0F;
         // CompleteRace sets Player::_block to 0.3. Player::OnProgress then
         // emits mcNone until it reaches zero and mcBrake thereafter.
-        control.brake =
-            elapsedSeconds_ - runtime.finishTime >= 0.3F ? 1.0F : 0.0F;
+        control.brake = runtime.FinishBrake(elapsedSeconds_);
     }
 
     updateGameplay(seconds, vehicles, humanControl);
@@ -7092,13 +6943,13 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             sourceUniformRandomIndex(4U, 0.25) != 1U ||
             sourceUniformRandomIndex(4U, 0.5) != 2U ||
             sourceUniformRandomIndex(4U, 0.999999) != 3U ||
-            sourceRoundedRandomIndex(4U, 0.0F) != 0U ||
-            sourceRoundedRandomIndex(4U, 0.16F) != 0U ||
-            sourceRoundedRandomIndex(4U, 0.5F) != 2U ||
-            sourceRoundedRandomIndex(4U, 1.0F) != 3U ||
-            sourceBonusCharge(3U, 0.5F) != 1U ||
-            sourceBonusCharge(6U, 0.5F) != 3U ||
-            sourceBonusCharge(10U, 0.0F) != 1U)
+            source::Player::RoundedRandomIndex(4U, 0.0F) != 0U ||
+            source::Player::RoundedRandomIndex(4U, 0.16F) != 0U ||
+            source::Player::RoundedRandomIndex(4U, 0.5F) != 2U ||
+            source::Player::RoundedRandomIndex(4U, 1.0F) != 3U ||
+            source::Player::BonusCharge(3U, 0.5F) != 1U ||
+            source::Player::BonusCharge(6U, 0.5F) != 3U ||
+            source::Player::BonusCharge(10U, 0.0F) != 1U)
         {
             throw std::runtime_error(
                 "source RandomRange/Player::TakeBonus formula failed");
@@ -8427,7 +8278,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             for (; sourceSeed < 4096U; ++sourceSeed)
             {
                 std::srand(sourceSeed);
-                if (sourceRoundedRandomIndex(
+                if (source::Player::RoundedRandomIndex(
                         3U, sourceRandomUnit()) == 0U)
                     break;
             }

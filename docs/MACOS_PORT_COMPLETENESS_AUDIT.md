@@ -906,6 +906,29 @@ Network, video и Steam явно выключены.
 - Поведенческий regression проверяет повреждённую машину, точное лечение,
   pickup death/event и тот же результат через `NetPlayer::OnTakeBonus` replay.
 
+### Source Player runtime object block
+
+- `RacerRuntime` больше не является session-local суррогатной структурой:
+  public adapter name теперь ссылается на отдельный `source::Player`,
+  компилируемый из `OriginalPlayer.h/.cpp` и используемый active race/HUD/net
+  path.
+- Из `OriginalRaceSession` удалены дублирующие реализации weapon selection,
+  lap reload, ammunition bonus target ordering/rounding, money/medpack/shield,
+  finish block, campaign rewards, destroy/restore и disconnect state reset.
+  Сессия вызывает методы `Player`, оставляя у себя только orchestration
+  событий, Jolt requests и network authority.
+- Перенесены оригинальные tuning arrays `cHumanEasing*`, `cCompCheat*` и
+  `cHumanArmorK`; AI catch-up и `ApplyMobility` используют единый source
+  definition вместо повторных literal arrays.
+- Новый `OriginalPlayerSmoke` является прямым counterexample regression для
+  slot order `Hyper -> Mine -> Weapon1..4`, rounded random, minimum-one ammo,
+  reload, exact medpack, immortal, 0.3-second finish brake, 2-second respawn,
+  rewards и disconnect. Полный набор теперь содержит 8/8 проходящих CTest.
+- Не заявляется перенос renderer/physics ownership исходного Player:
+  headlights/color material остаются bgfx-ответственностью, PhysX pointers
+  заменены Jolt requests, а `Player::CarState` будет следующим отдельным
+  source-class блоком поверх уже перенесённого `source::Trace`.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

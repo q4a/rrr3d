@@ -1,5 +1,6 @@
 #pragma once
 
+#include "OriginalPlayer.h"
 #include "OriginalProfile.h"
 #include "OriginalRace.h"
 #include "OriginalTrace.h"
@@ -109,65 +110,12 @@ struct RaceControl
     bool reset = false;
 };
 
-struct RacerRuntime
-{
-    static constexpr std::size_t invalidWeapon =
-        std::numeric_limits<std::size_t>::max();
-
-    std::uint32_t completedLaps = 0;
-    std::size_t nextPathNode = 1;
-    std::uint32_t place = 1;
-    float life = 100.0F;
-    float maximumLife = 100.0F;
-    std::uint32_t ammunition = 10;
-    std::uint32_t mines = 0;
-    std::uint32_t mineCapacity = 0;
-    std::array<std::size_t, PlayerProfile::weaponSlotCount> weaponSlots{
-        invalidWeapon, invalidWeapon, invalidWeapon, invalidWeapon};
-    std::array<std::uint32_t, PlayerProfile::weaponSlotCount> weaponCharges{};
-    std::array<std::uint32_t, PlayerProfile::weaponSlotCount>
-        weaponCapacity{};
-    // Proj::DrobilkaUpdate rotates the mounted weapon actor itself.  Keep
-    // that per-slot actor state separate from projectile age so both the
-    // renderer and the contact transform observe the same source rotation.
-    std::array<float, PlayerProfile::weaponSlotCount> weaponSpinRadians{};
-    std::size_t selectedWeaponSlot = 0;
-    std::size_t selectedWeapon = invalidWeapon;
-    std::size_t hyperWeapon = invalidWeapon;
-    std::uint32_t hyperCharge = 0;
-    std::uint32_t hyperCapacity = 0;
-    std::size_t mineWeapon = invalidWeapon;
-    std::uint32_t money = 0;
-    std::uint32_t points = 0;
-    std::uint32_t pickedMoney = 0;
-    std::uint32_t rewardMoney = 0;
-    std::uint32_t rewardPoints = 0;
-    float shieldSeconds = 0.0F;
-    float speedBoostSeconds = 0.0F;
-    float slowSeconds = 0.0F;
-    std::size_t slowWeapon = invalidWeapon;
-    std::size_t slowProjectile = invalidWeapon;
-    float clutchSeconds = 0.0F;
-    float mineLockSeconds = 0.0F;
-    float springLockSeconds = 0.0F;
-    std::size_t touchAttacker = invalidWeapon;
-    float touchAttributionSeconds = 0.0F;
-    float restoreSeconds = 0.0F;
-    float lowLifeEffectSeconds = 0.0F;
-    float shieldEffectSeconds = 0.0F;
-    float shieldFadeInSeconds = -1.0F;
-    float shieldFadeOutSeconds = -1.0F;
-    float shieldDamageSeconds = -1.0F;
-    float finishTime = -1.0F;
-    bool wrongWay = false;
-    bool finished = false;
-    bool destroyed = false;
-    // NetPlayer::~NetPlayer removes its Player/Car from the Windows race.
-    // Portable arrays keep stable model-to-racer indices, so retain the
-    // slot but exclude it from physics/gameplay/HUD once its model leaves.
-    bool disconnected = false;
-    bool lowLife = false;
-};
+// Preserve the public adapter name while the active runtime object is now the
+// source-derived Player class instead of session-owned anonymous state.
+using RacerRuntime = source::Player;
+static_assert(
+    PlayerProfile::weaponSlotCount == source::Player::weaponSlotCount,
+    "portable profile and source Player slot layouts must match");
 
 struct RespawnRequest
 {
@@ -544,7 +492,6 @@ private:
         float targetLife, bool death, bool networkReplicated);
     std::size_t findWeapon(std::string_view record,
                            WeaponSlot slot) const noexcept;
-    void syncSelectedWeapon(RacerRuntime& racer) const noexcept;
     float damageAfterSupport(std::size_t racer, float damage,
                              bool touchDamage) const noexcept;
     bool damageDecorationWithBox(

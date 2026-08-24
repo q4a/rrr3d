@@ -561,6 +561,39 @@ checkpoint/lap/finish, AI catch-up и trace reset.
 классов уже находятся в active code path; перечисленные boundary части не
 заменены заглушками и не участвуют в гонке.
 
+### P2.4 — первый исполняемый блок source Player — выполнено
+
+Из анонимного `RacerRuntime` и `OriginalRaceSession` выделен отдельный
+компилируемый `source::Player` в `OriginalPlayer.h/.cpp`. Это не новое
+portable-поведение: класс переносит gameplay-owned часть
+`eff9338:Player` и сохраняет исходные константы Human easing, Computer cheat,
+`cHumanArmorK`, `cTimeRestoreCar=2.0` и finish block `0.3`.
+
+В active code path перенесены:
+
+- `Player::ReloadWeapons` с порядком `stHyper, stMine, stWeapon1..4`;
+- выбор текущего установленного weapon slot и синхронизация charge/HUD;
+- `Player::TakeBonus` для money, medpack, immortal и ammunition, включая
+  исходный rounded-random index и формулу minimum-one charge;
+- `SetFinished`, финишная блокировка управления и reward/place state;
+- `AddMoney`, `AddPoints`, campaign result и picked money;
+- destroy/restore lifecycle `OnDestroy -> 2 s -> CreateCar/ResetCar`, включая
+  отдельный кадр между Jolt respawn request и повторной активацией машины;
+- `NetPlayer` disconnect cleanup игрового Player state;
+- `ApplyMobility` теперь читает `cHumanArmorK` из того же source-класса.
+
+`OriginalRaceSession` остаётся координатором физики, событий и сетевой
+авторитетности, но больше не содержит собственные реализации перечисленных
+методов. Прямой `OriginalPlayerSmoke` проверяет slot order, reload, bonus
+rounding, healing/shield, finish brake, rewards, restore и disconnect; полный
+arm64 Debug прошёл 8/8 CTest, physics smoke и 240-frame race-render smoke.
+
+Граница этого этапа намеренная: `Player::CarState` geometry/progress пока
+исполняется адаптером поверх уже перенесённого `source::Trace`, renderer-owned
+headlights/color material остаются в bgfx renderer, а RockCar/PhysX вызовы —
+на Jolt boundary. Следующий Player-блок должен перенести `CarState` как класс
+и передать ему source Trace references, после чего можно отделять `AICar`.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

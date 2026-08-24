@@ -1,5 +1,6 @@
 #include "OriginalRace.h"
 
+#include "OriginalPlayer.h"
 #include "OriginalProfile.h"
 #include "OriginalTournament.h"
 #include "resource/R3DMeshAsset.h"
@@ -361,11 +362,12 @@ void applyMobilityLoadout(
     float armorScale = 1.0F;
     if (humanOrOpponent)
     {
-        armorScale = 1.75F;
-        if (difficulty == "gdEasy")
-            armorScale = 2.0F;
-        else if (difficulty == "gdHard")
-            armorScale = 1.5F;
+        const std::size_t difficultyIndex =
+            difficulty == "gdEasy" ? 0U
+            : difficulty == "gdHard" ? 2U
+                                     : 1U;
+        armorScale =
+            source::Player::humanArmorScale[difficultyIndex];
     }
     vehicle.maximumLife = maximumLife * armorScale;
     for (auto& wheel : vehicle.physics.wheels)
