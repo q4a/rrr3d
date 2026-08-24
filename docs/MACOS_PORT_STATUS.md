@@ -1,5 +1,26 @@
 # Статус порта RRR3D / Motor Rock на macOS
 
+## Полный обратный аудит относительно pristine Windows source (2026-08-24)
+
+За эталон зафиксирован `eff933868c1fbdfd266738a403fac80084f2b51e`
+(`origin/master`), а не `dxvk-glm`. Аудит подтвердил, что `dxvk-glm` не
+отключает основную PhysX vehicle physics, но массово меняет D3DX math и
+комментирует `FxPhysicsEmitter`. Более важный факт: финальная arm64-сборка не
+компилирует ни один из 34 legacy game `.cpp` и исполняет отдельную
+`Original*`/bgfx/Jolt/SDL реализацию на 1196 оригинальных ресурсах.
+Первая зафиксированная точка этого архитектурного ответвления — самый первый
+macOS commit `59fc40f` (его parent непосредственно `bfbde0d`): в нём
+non-Windows CMake сразу переключён на `source/stub` и portable entry points.
+
+Найдены пять подтверждённых расхождений игровой семантики: AI campaign
+reward accumulation, oil angular momentum, low-speed border damage,
+отсутствующий в Windows 0.25-second car-contact cooldown и игнорирование
+rotational kinetic energy. Ещё одно расхождение относится к устаревшему
+capability API. Полная lineage-карта, build graph, матрица подсистем,
+перепроверка прежних findings и план перехода к исполняемому Windows oracle
+находятся в
+[`HISTORICAL_WINDOWS_REVERSE_AUDIT.md`](HISTORICAL_WINDOWS_REVERSE_AUDIT.md).
+
 ## Windows `_DEBUG` compatibility runtime (2026-08-24)
 
 Глобальные сценарные ветки Windows `_DEBUG`/`DEBUG_PX` теперь доступны только
