@@ -126,6 +126,63 @@ std::vector<std::uint32_t> skyIndices()
     return result;
 }
 
+std::pair<std::vector<StaticMeshVertex>, std::vector<std::uint32_t>>
+debugTraceGeometry(const r3d::game::originalrace::Race& race)
+{
+    std::vector<StaticMeshVertex> vertices;
+    std::vector<std::uint32_t> indices;
+    const std::vector<std::vector<std::uint32_t>> fallback{
+        race.tracePath};
+    const auto& paths = race.tracePaths.empty() ? fallback
+                                                : race.tracePaths;
+    auto pointForId = [&](std::uint32_t id)
+        -> const r3d::game::originalrace::TracePoint* {
+        const auto found = std::find_if(
+            race.tracePoints.begin(), race.tracePoints.end(),
+            [id](const auto& point) { return point.id == id; });
+        return found == race.tracePoints.end() ? nullptr : &*found;
+    };
+    constexpr float halfWidth = 0.08F;
+    constexpr float elevation = 0.35F;
+    for (const auto& path : paths)
+    {
+        if (path.size() < 2U)
+            continue;
+        for (std::size_t node = 0U; node < path.size(); ++node)
+        {
+            const auto* first = pointForId(path[node]);
+            const auto* second = pointForId(path[(node + 1U) % path.size()]);
+            if (first == nullptr || second == nullptr || first == second)
+                continue;
+            const float dx = second->position.x - first->position.x;
+            const float dy = second->position.y - first->position.y;
+            const float length = std::sqrt(dx * dx + dy * dy);
+            if (length <= 0.0001F)
+                continue;
+            const float px = -dy / length * halfWidth;
+            const float py = dx / length * halfWidth;
+            const auto base = static_cast<std::uint32_t>(vertices.size());
+            vertices.insert(vertices.end(), {
+                {first->position.x + px, first->position.y + py,
+                 first->position.z + elevation, 0.0F, 0.0F, 1.0F,
+                 0.0F, 0.0F},
+                {first->position.x - px, first->position.y - py,
+                 first->position.z + elevation, 0.0F, 0.0F, 1.0F,
+                 0.0F, 1.0F},
+                {second->position.x + px, second->position.y + py,
+                 second->position.z + elevation, 0.0F, 0.0F, 1.0F,
+                 1.0F, 0.0F},
+                {second->position.x - px, second->position.y - py,
+                 second->position.z + elevation, 0.0F, 0.0F, 1.0F,
+                 1.0F, 1.0F}});
+            indices.insert(indices.end(),
+                           {base, base + 1U, base + 2U,
+                            base + 1U, base + 3U, base + 2U});
+        }
+    }
+    return {std::move(vertices), std::move(indices)};
+}
+
 constexpr std::array<StaticMeshVertex, 4> effectVertices{{
     {-0.5F, -0.5F, 0.0F, 0.0F, 0.0F, 1.0F, 0.0F, 1.0F},
     {0.5F, -0.5F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F},
@@ -2444,6 +2501,21 @@ bool OriginalRaceRenderer::initialize(
         effectMesh_ = device.createMesh(
             effectVertices.data(), effectVertices.size(),
             effectIndices.data(), effectIndices.size());
+        const auto [debugTraceVertices, debugTraceIndices] =
+            debugTraceGeometry(race);
+        if (!debugTraceVertices.empty() && !debugTraceIndices.empty())
+        {
+            debugTraceMesh_ = device.createMesh(
+                debugTraceVertices.data(), debugTraceVertices.size(),
+                debugTraceIndices.data(), debugTraceIndices.size());
+            constexpr std::array<std::uint8_t, 4> white{
+                255U, 255U, 255U, 255U};
+            debugTraceTexture_ = device.createTextureRgba8(
+                1U, 1U, white.data(), white.size());
+            if (!valid(debugTraceMesh_) || !valid(debugTraceTexture_))
+                throw r3d::resource::ResourceError(
+                    "Unable to upload original AIDebug trace geometry");
+        }
 
         // GraphManager::BuildOctree derives _groundAABB and the world AABB
         // used by SunShaft from all map actors before cars are created.
@@ -2641,6 +2713,10 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
         device.destroy(skyShader_);
     if (valid(postProcessMesh_))
         device.destroy(postProcessMesh_);
+    if (valid(debugTraceMesh_))
+        device.destroy(debugTraceMesh_);
+    if (valid(debugTraceTexture_))
+        device.destroy(debugTraceTexture_);
     toneMapShader_ = {};
     copyShader_ = {};
     waterShader_ = {};
@@ -2658,6 +2734,8 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
     skyShader_ = {};
     environmentReflectionTarget_ = {};
     postProcessMesh_ = {};
+    debugTraceMesh_ = {};
+    debugTraceTexture_ = {};
     auto release = [&](Asset& asset) {
         for (const auto texture : asset.normalTextures)
             if (valid(texture))
@@ -5656,7 +5734,7 @@ void OriginalRaceRenderer::renderFrame(
         r3d::game::originalrace::ProjectileRuntime>& projectiles,
     float elapsedSeconds,
     const r3d::game::originalrace::QualityConfig& quality,
-    std::int32_t countdownStage)
+    std::int32_t countdownStage, bool debugTraceVisible)
 {
     const bool resetVehicleAnimation =
         vehicleAnimationUpdateSeconds_ < 0.0F ||
@@ -6242,6 +6320,26 @@ void OriginalRaceRenderer::renderFrame(
          racerRuntime, effects, mines, projectiles, elapsedSeconds,
          countdownStage,
          false, usesSceneDepthSurface, false, false, &camera);
+    if (debugTraceVisible && valid(debugTraceMesh_) &&
+        valid(debugTraceTexture_))
+    {
+        // TraceGfx in AIDebug disables Z read/write and lighting. A thin
+        // emissive ribbon provides the same always-visible source route on
+        // Metal, where legacy D3D line primitives are not available.
+        PipelineState debugPipeline = pipeline;
+        debugPipeline.writeDepth = false;
+        debugPipeline.depthTest = false;
+        debugPipeline.faceCulling = PipelineState::FaceCulling::None;
+        debugPipeline.blendMode = PipelineState::BlendMode::Alpha;
+        MaterialState debugMaterial;
+        debugMaterial.color = {0.15F, 1.0F, 0.1F, 0.9F};
+        debugMaterial.emissive = 1.0F;
+        debugMaterial.ignoreFog = true;
+        debugMaterial.receivesShadow = false;
+        r3d::physics::Transform identity;
+        device.draw(debugTraceMesh_, sceneShader, debugTraceTexture_,
+                    transform(identity), debugPipeline, {}, debugMaterial);
+    }
 
     Camera postCamera;
     postCamera.view = identityMatrix();

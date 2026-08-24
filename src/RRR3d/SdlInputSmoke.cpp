@@ -122,6 +122,7 @@ bool runSdlInputSmokeTest(SdlInputManager &input, std::string &error)
 	    {"gaBreak", "Down Arrow"},
 	    {"gaWheelLeft", "Left Arrow"},
 	    {"gaWheelRight", "Right Arrow"},
+	    {"gaDebug1", "F1"},
 	});
 	input.applyGamepadBindings({
 	    {"gaAccel", "A"},
@@ -161,6 +162,28 @@ bool runSdlInputSmokeTest(SdlInputManager &input, std::string &error)
 	if (!contains(actions, Action::MenuDown, Source::Keyboard, true))
 	{
 		error = "keyboard action mapping failed";
+		return false;
+	}
+
+	event = {};
+	event.key.type = SDL_EVENT_KEY_DOWN;
+	event.key.down = true;
+	event.key.scancode = SDL_SCANCODE_F1;
+	actions = input.processEvent(event);
+	if (!contains(actions, Action::Debug1, Source::Keyboard, true))
+	{
+		error = "original gaDebug1/F1 keyboard mapping failed";
+		return false;
+	}
+
+	event = {};
+	event.key.type = SDL_EVENT_KEY_DOWN;
+	event.key.down = true;
+	event.key.scancode = SDL_SCANCODE_F10;
+	actions = input.processEvent(event);
+	if (!contains(actions, Action::DebugOverlay, Source::Keyboard, true))
+	{
+		error = "portable debug overlay/F10 mapping failed";
 		return false;
 	}
 

@@ -1032,6 +1032,7 @@ void OriginalRaceSession::reset()
     networkFinishControlled_ = false;
     networkGameplayEnabled_ = false;
     networkGameplayHost_ = false;
+    debugHumanAiControl_ = false;
     networkOwnedRacers_.clear();
     elapsedSeconds_ = 0.0F;
     finishSecondsRemaining_ = -1.0F;
@@ -6873,6 +6874,15 @@ void OriginalRaceSession::update(
          racer < racers_.size() && racer < vehicles.size(); ++racer)
         updateProgress(racer, vehicles[racer], seconds);
     updateAiTracks(vehicles);
+    if (debugHumanAiControl_ && !vehicleInputs_.empty() &&
+        !racers_.front().finished && !racers_.front().destroyed &&
+        !vehicles.empty())
+    {
+        // AIDebug F7 flips AICar::_enbAI for the human car. Reuse the same
+        // portable AICar path controller as opponents instead of creating a
+        // synthetic racer or a second physics vehicle.
+        vehicleInputs_[0] = aiInput(0U, vehicles.front(), seconds);
+    }
     const auto difficultyIndex =
         initialPlayerProfile_.difficulty == "gdEasy"
             ? 0U
@@ -7030,6 +7040,11 @@ void OriginalRaceSession::update(
         completeRemainingRacers(vehicles);
         updatePlaces(vehicles);
     }
+}
+
+void OriginalRaceSession::setDebugHumanAiControl(bool enabled) noexcept
+{
+    debugHumanAiControl_ = enabled;
 }
 
 bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)

@@ -127,7 +127,8 @@ public:
             r3d::game::originalrace::ProjectileRuntime>& projectiles,
         float elapsedSeconds,
         const r3d::game::originalrace::QualityConfig& quality,
-        std::int32_t countdownStage = 4);
+        std::int32_t countdownStage = 4,
+        bool debugTraceVisible = false);
 
 private:
     bool createFrameTargets(r3d::renderer::GraphicsDevice& device,
@@ -180,6 +181,8 @@ private:
     r3d::renderer::Mesh effectMesh_;
     r3d::renderer::Mesh grassMesh_;
     r3d::renderer::Mesh postProcessMesh_;
+    r3d::renderer::Mesh debugTraceMesh_;
+    r3d::renderer::Texture debugTraceTexture_;
     r3d::renderer::Shader shadowShader_;
     r3d::renderer::Shader skyShader_;
     r3d::renderer::Shader bloomExtractShader_;

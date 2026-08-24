@@ -384,6 +384,9 @@ public:
     void setEnableMineBug(bool enabled) noexcept;
     void setSpringBorders(bool enabled) noexcept;
     void setPaused(bool paused) noexcept;
+    // AIDebug::Control toggles AICar::_enbAI for the inspected human car on
+    // F7.  This is intentionally runtime-only and never changes race setup.
+    void setDebugHumanAiControl(bool enabled) noexcept;
     // GameMode::GoRace is server-authoritative in a network match. Stage 0
     // holds the red semaphore while peers load, stages 1..3 advance the
     // countdown, and stage 4 releases vehicle control.
@@ -637,6 +640,7 @@ private:
     bool campaign_ = true;
     bool enableMineBug_ = true;
     bool springBorders_ = true;
+    bool debugHumanAiControl_ = false;
 };
 
 bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error);

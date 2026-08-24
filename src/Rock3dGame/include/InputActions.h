@@ -29,7 +29,17 @@ enum class Action : std::uint8_t
     MenuUp,
     MenuDown,
     MenuConfirm,
-    MenuBack
+    MenuBack,
+    Debug1,
+    Debug2,
+    Debug3,
+    Debug4,
+    Debug5,
+    Debug6,
+    Debug7,
+    DebugOverlay,
+    DebugPagePrevious,
+    DebugPageNext
 };
 
 enum class Source : std::uint8_t
@@ -99,6 +109,26 @@ constexpr std::string_view actionName(Action action) noexcept
         return "MenuConfirm";
     case Action::MenuBack:
         return "MenuBack";
+    case Action::Debug1:
+        return "Debug1";
+    case Action::Debug2:
+        return "Debug2";
+    case Action::Debug3:
+        return "Debug3";
+    case Action::Debug4:
+        return "Debug4";
+    case Action::Debug5:
+        return "Debug5";
+    case Action::Debug6:
+        return "Debug6";
+    case Action::Debug7:
+        return "Debug7";
+    case Action::DebugOverlay:
+        return "DebugOverlay";
+    case Action::DebugPagePrevious:
+        return "DebugPagePrevious";
+    case Action::DebugPageNext:
+        return "DebugPageNext";
     }
     return "Unknown";
 }

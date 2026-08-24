@@ -5,6 +5,7 @@
 #include "OriginalNetwork.h"
 #endif
 #ifdef RRR3D_PHYSICS
+#include "OriginalGameDebug.h"
 #include "OriginalGarage.h"
 #include "OriginalProfile.h"
 #include "OriginalRace.h"
@@ -423,6 +424,7 @@ struct Options
 #endif
 #ifdef RRR3D_PHYSICS
     bool physicsSmokeTest = false;
+    bool gameDebug = false;
     bool raceRenderSmokeTest = false;
     bool finishMenuSmokeTest = false;
     bool gamersFrameSmokeTest = false;
@@ -708,6 +710,11 @@ std::optional<Options> parseOptions(int argc, char** argv)
         }
 #endif
 #ifdef RRR3D_PHYSICS
+        if (argument == "--game-debug")
+        {
+            options.gameDebug = true;
+            continue;
+        }
         if (argument.substr(0, trackPrefix.size()) == trackPrefix)
         {
             const auto value = argument.substr(trackPrefix.size());
@@ -1550,7 +1557,7 @@ int main(int argc, char** argv)
                      " [--audio-smoke-test]"
 #endif
 #ifdef RRR3D_PHYSICS
-                     " [--track=0..87] [--car=garage-record] "
+                     " [--game-debug] [--track=0..87] [--car=garage-record] "
                      "[--weather=fair|night|cloudy|rainy|sahara|hell|snow] "
                      "[--physics-smoke-test] [--race-render-smoke-test] "
                      "[--finish-menu-smoke-test] "
@@ -1771,6 +1778,7 @@ int main(int argc, char** argv)
                     physicsError) ||
             !r3d::game::originalrace::runOriginalRaceSessionSmokeTest(
                 *originalRace, physicsError) ||
+            !rrr3d::debug::runOriginalGameDebugSmokeTest(physicsError) ||
             !r3d::physics::runOriginalVehiclePhysicsSmokeTest(
                 *physicsDescription, physicsError))
         {
@@ -3863,6 +3871,9 @@ int main(int argc, char** argv)
     raceSession.applyAchievementProfile(profileState);
     raceSession.setEnableMineBug(profileState.config.enableMineBug);
     raceSession.setSpringBorders(profileState.config.springBorders);
+    rrr3d::debug::OriginalGameDebug gameDebug(
+        options->gameDebug, profileState.config.quality.postEffect);
+    std::vector<TextVisual> gameDebugVisual;
     rrr3d::race::OriginalRaceRenderer raceRenderer;
     rrr3d::race::OriginalRaceRenderer garageRenderer;
     rrr3d::race::OriginalRaceRenderer angarRenderer;
@@ -6417,6 +6428,7 @@ int main(int argc, char** argv)
                 profileState.config.enableMineBug);
             raceSession.setSpringBorders(
                 profileState.config.springBorders);
+            gameDebug.resetRaceState();
 #ifdef RRR3D_AUDIO
             engineAudio.assign(
                 originalRace->racers.size(), EngineAudio{});
@@ -6730,6 +6742,16 @@ int main(int argc, char** argv)
         raceWeaponChangeDirection = 1;
         raceFireWeaponSlotRequested = -1;
         raceResetRequested = false;
+        gameDebug.resetRaceState();
+        if (options->gameDebug && options->raceRenderSmokeTest)
+        {
+            // Exercise the F6 TraceGfx submission in the automated Metal
+            // race path. Ordinary --game-debug launches still start hidden,
+            // matching AIDebug's constructor.
+            gameDebug.handle(
+                rrr3d::input::Action::Debug6, true, false);
+        }
+        raceSession.setDebugHumanAiControl(false);
         exitRaceDialogVisible = false;
         exitRaceYesFocused = true;
         racePauseElapsedSnapshot = -1.0F;
@@ -12820,6 +12842,69 @@ int main(int argc, char** argv)
                 {
                     switch (inputEvent.action)
                     {
+                    case rrr3d::input::Action::Debug1:
+                    case rrr3d::input::Action::Debug2:
+                    case rrr3d::input::Action::Debug3:
+                    case rrr3d::input::Action::Debug4:
+                    case rrr3d::input::Action::Debug5:
+                    case rrr3d::input::Action::Debug6:
+                    case rrr3d::input::Action::Debug7:
+                    case rrr3d::input::Action::DebugOverlay:
+                    case rrr3d::input::Action::DebugPagePrevious:
+                    case rrr3d::input::Action::DebugPageNext: {
+                        const auto command = gameDebug.handle(
+                            inputEvent.action, inputEvent.active,
+                            inputEvent.repeated);
+                        if (!gameDebug.enabled())
+                            break;
+                        if (command ==
+                            rrr3d::debug::Command::ResetVehicles)
+                        {
+                            const std::size_t count = std::min(
+                                physicsWorld->vehicleCount(),
+                                physicsDescription->spawns.size());
+                            for (std::size_t index = 0U; index < count;
+                                 ++index)
+                            {
+                                physicsWorld->resetVehicle(
+                                    index,
+                                    physicsDescription->spawns[index]
+                                        .position,
+                                    physicsDescription->spawns[index]
+                                        .direction);
+                                if (index < raceVehicles.size())
+                                    raceVehicles[index] =
+                                        physicsWorld->vehicle(index);
+                            }
+                            raceRenderer.resetCamera();
+                        }
+                        else if (
+                            command ==
+                            rrr3d::debug::Command::ToggleFullscreen)
+                        {
+                            const bool fullscreen =
+                                (SDL_GetWindowFlags(window) &
+                                 SDL_WINDOW_FULLSCREEN) != 0U;
+                            std::string windowError;
+                            if (!applyOriginalWindowMode(
+                                    window, sourceDisplayModes,
+                                    profileState.config.resolutionWidth,
+                                    profileState.config.resolutionHeight,
+                                    !fullscreen, true, windowError) ||
+                                !requestSynchronizedWindowDrawable())
+                            {
+                                std::cerr
+                                    << "Game debug F3 display toggle failed: "
+                                    << (windowError.empty()
+                                            ? SDL_GetError()
+                                            : windowError)
+                                    << '\n';
+                            }
+                        }
+                        raceSession.setDebugHumanAiControl(
+                            gameDebug.humanAiControl());
+                        break;
+                    }
                     case rrr3d::input::Action::Accelerate:
                         raceInput.throttle = inputEvent.active
                                                  ? inputEvent.value
@@ -17022,6 +17107,7 @@ int main(int argc, char** argv)
         }
         if (inRace)
         {
+            gameDebug.updateFrame(frameSeconds);
             const float raceRenderSeconds =
                 raceSession.phase() ==
                         r3d::game::originalrace::RacePhase::Paused
@@ -17050,6 +17136,9 @@ int main(int argc, char** argv)
                 static_cast<std::uint32_t>(pixelHeight),
                 cameraStyle,
                 profileState.config.cameraDistance, raceRenderSeconds);
+            auto raceQuality = profileState.config.quality;
+            raceQuality.postEffect = gameDebug.effectivePostEffect(
+                raceQuality.postEffect);
             raceRenderer.renderFrame(
                 *device, raceShader, raceCamera, 0x6b91b8ffU,
                 *originalRace, raceVehicles, racePipeline,
@@ -17059,8 +17148,8 @@ int main(int argc, char** argv)
                 raceSession.racers(),
                 raceSession.effects(), raceSession.mines(),
                 raceSession.projectiles(), raceElapsedSeconds,
-                profileState.config.quality,
-                raceSession.countdownStage());
+                raceQuality, raceSession.countdownStage(),
+                gameDebug.traceVisible());
             raceHud.update(*device, *originalRace, raceSession,
                            raceVehicles, raceCamera, raceRenderSeconds);
             device->beginOverlay(camera);
@@ -17069,6 +17158,70 @@ int main(int argc, char** argv)
             // widgets. Event overlays, the map and the countdown remain.
             raceHud.draw(*device, quad, shader, raceShader,
                          profileState.config.enableHud);
+            if (gameDebug.takeOverlayRefresh())
+            {
+                for (auto& line : gameDebugVisual)
+                    if (valid(line.texture))
+                        device->destroy(line.texture);
+                gameDebugVisual.clear();
+                const auto sourceLines = gameDebug.lines(
+                    *originalRace, raceSession, raceVehicles,
+                    *physicsDescription, device->renderTelemetry());
+                gameDebugVisual.reserve(sourceLines.size());
+                for (const auto& line : sourceLines)
+                {
+                    gameDebugVisual.push_back(createText(
+                        *device, line, 17.0F, true,
+                        menu::Rgba8{222U, 255U, 212U, 255U},
+                        resolvedFont));
+                }
+            }
+            if (gameDebug.overlayVisible() &&
+                !gameDebugVisual.empty())
+            {
+                constexpr float debugLeft = 18.0F;
+                constexpr float debugTop = 16.0F;
+                constexpr float debugLineStep = 22.0F;
+                const auto widest = std::max_element(
+                    gameDebugVisual.begin(), gameDebugVisual.end(),
+                    [](const TextVisual& first,
+                       const TextVisual& second) {
+                        return first.width < second.width;
+                    });
+                const float panelWidth = std::min(
+                    widest->width + 24.0F,
+                    menu::virtualWidth - debugLeft * 2.0F);
+                const float panelHeight =
+                    static_cast<float>(gameDebugVisual.size()) *
+                        debugLineStep +
+                    16.0F;
+                drawQuadTinted(
+                    *device, quad, shader, background,
+                    panelWidth, panelHeight,
+                    debugLeft + panelWidth * 0.5F,
+                    debugTop + panelHeight * 0.5F,
+                    7.0F, transparent,
+                    {0.0F, 0.0F, 0.0F, 0.72F});
+                for (std::size_t line = 0U;
+                     line < gameDebugVisual.size(); ++line)
+                {
+                    const auto& text = gameDebugVisual[line];
+                    const float scale = std::min(
+                        1.0F,
+                        (panelWidth - 16.0F) /
+                            std::max(text.width, 1.0F));
+                    drawQuad(
+                        *device, quad, shader, text.texture,
+                        text.width * scale, text.height * scale,
+                        debugLeft + 8.0F +
+                            text.width * scale * 0.5F,
+                        debugTop + 8.0F +
+                            text.height * scale * 0.5F +
+                            static_cast<float>(line) *
+                                debugLineStep,
+                        6.0F, transparent);
+                }
+            }
             drawUserChat();
             drawAcceptDialog();
 #ifdef RRR3D_AUDIO
@@ -21448,6 +21601,10 @@ int main(int argc, char** argv)
         saveRaceProfile();
     if (userChat.inputVisible())
         SDL_StopTextInput(window);
+    for (auto& line : gameDebugVisual)
+        if (valid(line.texture))
+            device->destroy(line.texture);
+    gameDebugVisual.clear();
     destroyUserChatVisual(*device, userChatVisual);
     physicsWorld.reset();
     raceHud.shutdown(*device);

@@ -1,5 +1,19 @@
 # Статус порта RRR3D / Motor Rock на macOS
 
+## Original game debug runtime (2026-08-24)
+
+Полезная часть исходного Windows debug-кода перенесена как отдельный режим
+`--game-debug`; обычный запуск полностью его обходит. Сохранённые в профиле
+`gaDebug1..gaDebug7` теперь проходят через SDL-ввод. F1 сбрасывает все машины
+на исходные стартовые позиции, F2 временно переключает Bloom/HDR, F3 —
+fullscreen, F6 — исходную AI trace, F7 передаёт существующую машину игрока
+перенесённому AI-контроллеру. F10 скрывает overlay, Page Up/Page Down выбирают
+страницы race/engine, wheel/contact и vehicle/suspension telemetry.
+
+Глобальный `_DEBUG` намеренно не включён: он меняет количество кругов,
+погоду, startup/movie flow и состав отладочного исполнения. Подробное описание
+и команды проверки находятся в [`ORIGINAL_GAME_DEBUG.md`](ORIGINAL_GAME_DEBUG.md).
+
 > **Windows-эталон для всех следующих сравнений:** Parallels VM `Windows 11`,
 > `\\Mac\Home\Downloads\Motor Rock\MR.exe` (`v. 1.2.0`, fullscreen
 > `1920x1080`). Запуск, фокус, ввод и framebuffer capture описаны в

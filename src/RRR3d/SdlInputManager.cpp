@@ -74,14 +74,17 @@ void appendDirectionalAxis(std::vector<ActionEvent> &events, float signed_value,
 	appendAnalog(events, Action::TurnRight, std::max(signed_value, 0.0F), Source::GamepadAxis, device_id);
 }
 
-constexpr std::array<Action, 22> allActions = {
+constexpr std::array<Action, 32> allActions = {
 	Action::Accelerate, Action::Brake, Action::TurnLeft, Action::TurnRight,
 	Action::UseWeapon, Action::UseAllWeapons, Action::UseMine,
 	Action::UseHyper, Action::ChangeWeapon, Action::PreviousWeapon,
 	Action::NextWeapon,
 	Action::SelectWeapon1, Action::SelectWeapon2, Action::SelectWeapon3, Action::SelectWeapon4,
 	Action::ToggleCamera, Action::ResetVehicle, Action::Pause, Action::MenuUp,
-	Action::MenuDown, Action::MenuConfirm, Action::MenuBack};
+	Action::MenuDown, Action::MenuConfirm, Action::MenuBack,
+	Action::Debug1, Action::Debug2, Action::Debug3, Action::Debug4,
+	Action::Debug5, Action::Debug6, Action::Debug7, Action::DebugOverlay,
+	Action::DebugPagePrevious, Action::DebugPageNext};
 
 SDL_Scancode legacyScancode(const std::string &name) noexcept
 {
@@ -141,6 +144,20 @@ std::optional<Action> gameAction(std::string_view name) noexcept
 		return Action::MenuConfirm;
 	if (name == "gaEscape")
 		return Action::Pause;
+	if (name == "gaDebug1")
+		return Action::Debug1;
+	if (name == "gaDebug2")
+		return Action::Debug2;
+	if (name == "gaDebug3")
+		return Action::Debug3;
+	if (name == "gaDebug4")
+		return Action::Debug4;
+	if (name == "gaDebug5")
+		return Action::Debug5;
+	if (name == "gaDebug6")
+		return Action::Debug6;
+	if (name == "gaDebug7")
+		return Action::Debug7;
 	return std::nullopt;
 }
 
@@ -409,6 +426,18 @@ std::vector<ActionEvent> SdlInputManager::processEvent(const SDL_Event &event)
 				appendDigital(events, Action::MenuBack, down, repeat,
 				              Source::Keyboard);
 				break;
+			case SDL_SCANCODE_F10:
+				appendDigital(events, Action::DebugOverlay, down, repeat,
+				              Source::Keyboard);
+				break;
+			case SDL_SCANCODE_PAGEUP:
+				appendDigital(events, Action::DebugPagePrevious, down, repeat,
+				              Source::Keyboard);
+				break;
+			case SDL_SCANCODE_PAGEDOWN:
+				appendDigital(events, Action::DebugPageNext, down, repeat,
+				              Source::Keyboard);
+				break;
 			default:
 				break;
 			}
@@ -496,6 +525,36 @@ std::vector<ActionEvent> SdlInputManager::processEvent(const SDL_Event &event)
 			break;
 		case SDL_SCANCODE_P:
 			appendDigital(events, Action::Pause, down, repeat, Source::Keyboard);
+			break;
+		case SDL_SCANCODE_F1:
+			appendDigital(events, Action::Debug1, down, repeat, Source::Keyboard);
+			break;
+		case SDL_SCANCODE_F2:
+			appendDigital(events, Action::Debug2, down, repeat, Source::Keyboard);
+			break;
+		case SDL_SCANCODE_F3:
+			appendDigital(events, Action::Debug3, down, repeat, Source::Keyboard);
+			break;
+		case SDL_SCANCODE_F4:
+			appendDigital(events, Action::Debug4, down, repeat, Source::Keyboard);
+			break;
+		case SDL_SCANCODE_F5:
+			appendDigital(events, Action::Debug5, down, repeat, Source::Keyboard);
+			break;
+		case SDL_SCANCODE_F6:
+			appendDigital(events, Action::Debug6, down, repeat, Source::Keyboard);
+			break;
+		case SDL_SCANCODE_F7:
+			appendDigital(events, Action::Debug7, down, repeat, Source::Keyboard);
+			break;
+		case SDL_SCANCODE_F10:
+			appendDigital(events, Action::DebugOverlay, down, repeat, Source::Keyboard);
+			break;
+		case SDL_SCANCODE_PAGEUP:
+			appendDigital(events, Action::DebugPagePrevious, down, repeat, Source::Keyboard);
+			break;
+		case SDL_SCANCODE_PAGEDOWN:
+			appendDigital(events, Action::DebugPageNext, down, repeat, Source::Keyboard);
 			break;
 		default:
 			break;
