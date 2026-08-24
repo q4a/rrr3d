@@ -1,6 +1,7 @@
 #include "OriginalRace.h"
 
 #include "OriginalProfile.h"
+#include "OriginalTournament.h"
 #include "resource/R3DMeshAsset.h"
 #include "resource/ResourceFileSystem.h"
 
@@ -4622,20 +4623,66 @@ Race loadOriginalAngarScene(
 namespace
 {
 
-std::uint32_t normalizedRacePass(const Race& race,
-                                 std::uint32_t planet,
-                                 std::uint32_t pass) noexcept
+source::Tournament makeSourceTournament(
+    const Race& race, const PlayerProfile& profile)
 {
-    std::uint32_t maximumPass = 0U;
+    std::size_t planetCount = profile.planets.size();
     for (const auto& track : race.trackCatalog)
+        planetCount = std::max(
+            planetCount,
+            static_cast<std::size_t>(track.planetIndex) + 1U);
+
+    source::Tournament tournament(true);
+    source::Planet::RequestPoints requestPoints;
+    for (std::size_t index = 0U; index < race.requiredPoints.size(); ++index)
     {
-        if (track.planetIndex == planet)
-            maximumPass = std::max(maximumPass, track.racePass);
+        requestPoints.emplace(
+            static_cast<int>(index + 1U),
+            static_cast<int>(std::min<std::uint32_t>(
+                race.requiredPoints[index],
+                static_cast<std::uint32_t>(
+                    std::numeric_limits<int>::max()))));
     }
-    if (maximumPass == 0U)
-        return 1U;
-    const auto oneBasedPass = std::max(pass, 1U);
-    return ((oneBasedPass - 1U) % maximumPass) + 1U;
+    for (std::size_t index = 0U; index < planetCount; ++index)
+    {
+        auto& planet = tournament.AddPlanet();
+        planet.SetRequestPoints(requestPoints);
+        if (index < profile.planets.size())
+        {
+            const auto& saved = profile.planets[index];
+            planet.Restore(
+                static_cast<source::Planet::State>(
+                    std::min<std::uint32_t>(
+                        saved.state,
+                        static_cast<std::uint32_t>(
+                            source::Planet::psCompleted))),
+                static_cast<int>(std::min<std::uint32_t>(
+                    saved.pass,
+                    static_cast<std::uint32_t>(
+                        std::numeric_limits<int>::max()))));
+        }
+    }
+    for (std::size_t index = 0U; index < race.trackCatalog.size(); ++index)
+    {
+        const auto& track = race.trackCatalog[index];
+        auto* planet = tournament.GetPlanet(track.planetIndex);
+        if (planet != nullptr)
+        {
+            planet->AddTrack(
+                static_cast<int>(track.racePass), index,
+                track.lapCount);
+        }
+    }
+    return tournament;
+}
+
+std::uint32_t sourceHumanOrOpponentCount(const Race& race) noexcept
+{
+    return static_cast<std::uint32_t>(std::max<std::size_t>(
+        std::count_if(
+            race.racers.begin(), race.racers.end(),
+            [](const Racer& racer) { return racer.human; }),
+        1U));
 }
 
 } // namespace
@@ -4645,23 +4692,24 @@ std::size_t resolveOriginalTournamentTrack(
 {
     if (race.trackCatalog.empty())
         return 0U;
-    const auto wantedPass = normalizedRacePass(
-        race, profile.currentPlanet, profile.currentPass);
-    std::size_t localTrack = 0U;
-    std::size_t firstMatch = race.trackCatalog.size();
-    for (std::size_t index = 0; index < race.trackCatalog.size(); ++index)
+    try
     {
-        const auto& track = race.trackCatalog[index];
-        if (track.planetIndex != profile.currentPlanet ||
-            track.racePass != wantedPass)
-            continue;
-        if (firstMatch == race.trackCatalog.size())
-            firstMatch = index;
-        if (localTrack == profile.currentTrack)
-            return index;
-        ++localTrack;
+        auto tournament = makeSourceTournament(race, profile);
+        if (tournament.Select(
+                profile.currentPlanet,
+                static_cast<int>(profile.currentPass),
+                profile.currentTrack))
+        {
+            const auto* track = tournament.GetCurTrack();
+            if (track != nullptr)
+                return track->catalogIndex;
+        }
     }
-    return firstMatch < race.trackCatalog.size() ? firstMatch : 0U;
+    catch (...)
+    {
+        // This function is used while recovering incomplete profile data.
+    }
+    return 0U;
 }
 
 void writeOriginalTournamentSelection(
@@ -4685,6 +4733,33 @@ void writeOriginalTournamentSelection(
     }
 }
 
+int originalTournamentRequestPoints(
+    const Race& race, std::uint32_t pass) noexcept
+{
+    try
+    {
+        source::Planet planet;
+        source::Planet::RequestPoints requestPoints;
+        for (std::size_t index = 0U;
+             index < race.requiredPoints.size(); ++index)
+        {
+            requestPoints.emplace(
+                static_cast<int>(index + 1U),
+                static_cast<int>(std::min<std::uint32_t>(
+                    race.requiredPoints[index],
+                    static_cast<std::uint32_t>(
+                        std::numeric_limits<int>::max()))));
+        }
+        planet.SetRequestPoints(std::move(requestPoints));
+        return planet.GetRequestPoints(
+            static_cast<int>(pass), sourceHumanOrOpponentCount(race));
+    }
+    catch (...)
+    {
+        return -1;
+    }
+}
+
 TournamentAdvance completeOriginalTournamentTrack(
     const Race& race, std::size_t trackIndex,
     ProfileState& profile) noexcept
@@ -4694,77 +4769,75 @@ TournamentAdvance completeOriginalTournamentTrack(
         return result;
     const auto& selected = race.trackCatalog[trackIndex];
     const auto planet = selected.planetIndex;
-    const auto pass = selected.racePass;
-
-    for (std::size_t index = trackIndex + 1U;
-         index < race.trackCatalog.size(); ++index)
+    try
     {
-        const auto& candidate = race.trackCatalog[index];
-        if (candidate.planetIndex == planet &&
-            candidate.racePass == pass)
+        auto tournament = makeSourceTournament(race, profile.player);
+        if (!tournament.Select(
+                planet, static_cast<int>(selected.racePass),
+                profile.player.currentTrack))
         {
-            result.trackIndex = index;
-            writeOriginalTournamentSelection(
-                race, result.trackIndex, profile.player);
             return result;
         }
-    }
+        // Select by the actual catalog entry as well.  This keeps recovery
+        // correct if a profile's local track index was stale.
+        tournament.SetCurTrack(trackIndex);
+        const auto advance = tournament.CompleteTrack(
+            static_cast<int>(std::min<std::uint32_t>(
+                profile.player.points,
+                static_cast<std::uint32_t>(
+                    std::numeric_limits<int>::max()))),
+            sourceHumanOrOpponentCount(race));
+        result.trackIndex = advance.trackIndex;
+        result.passComplete = advance.passComplete;
+        result.passChampion = advance.passChampion;
+        result.planetChampion = advance.planetChampion;
 
-    result.passComplete = true;
-    const auto required =
-        pass > 0U && pass <= race.requiredPoints.size()
-            ? race.requiredPoints[pass - 1U]
-            : 0U;
-    if (required > 0U && profile.player.points >= required)
-    {
-        result.passChampion = true;
-        const auto nextPass = pass + 1U;
-        profile.player.currentPass = nextPass;
+        writeOriginalTournamentSelection(
+            race, result.trackIndex, profile.player);
+        if (advance.passComplete)
+            profile.player.points = 0U;
+        profile.player.currentPass = static_cast<std::uint32_t>(
+            std::max(advance.planetPass, 0));
         if (planet < profile.player.planets.size())
         {
             auto& progress = profile.player.planets[planet];
-            progress.pass = nextPass;
-            if (nextPass >= 3U)
+            const auto* sourcePlanet = tournament.GetPlanet(planet);
+            if (sourcePlanet != nullptr)
             {
-                progress.state = 3U;
-                result.planetChampion = true;
-                const auto rememberCompleted =
-                    [&](std::uint32_t completed) {
-                    if (std::find(
-                            profile.planetsCompleted.begin(),
-                            profile.planetsCompleted.end(),
-                            completed) ==
-                        profile.planetsCompleted.end())
-                    {
-                        profile.planetsCompleted.push_back(completed);
-                    }
-                };
-                rememberCompleted(planet);
-                // Race::CompletePlanet unlocks every tournament entry after
-                // the fifth campaign planet when Inferno is completed.
-                if (planet ==
-                    originalTournamentPlanetCount - 1U)
+                progress.pass = static_cast<std::uint32_t>(
+                    std::max(sourcePlanet->GetPass(), 0));
+                progress.state = static_cast<std::uint32_t>(
+                    sourcePlanet->GetState());
+            }
+        }
+
+        if (result.planetChampion)
+        {
+            const auto rememberCompleted =
+                [&](std::uint32_t completed) {
+                if (std::find(
+                        profile.planetsCompleted.begin(),
+                        profile.planetsCompleted.end(), completed) ==
+                    profile.planetsCompleted.end())
                 {
-                    for (std::uint32_t hidden =
-                             originalTournamentPlanetCount;
-                         hidden < profile.player.planets.size(); ++hidden)
-                    {
-                        rememberCompleted(hidden);
-                    }
+                    profile.planetsCompleted.push_back(completed);
+                }
+            };
+            rememberCompleted(planet);
+            if (planet == originalTournamentPlanetCount - 1U)
+            {
+                for (std::uint32_t hidden =
+                         originalTournamentPlanetCount;
+                     hidden < profile.player.planets.size(); ++hidden)
+                {
+                    rememberCompleted(hidden);
                 }
             }
         }
     }
-    profile.player.points = 0U;
-    result.trackIndex =
-        resolveOriginalTournamentTrack(race, profile.player);
-    writeOriginalTournamentSelection(
-        race, result.trackIndex, profile.player);
-    if (result.planetChampion)
+    catch (...)
     {
-        profile.player.currentPass = pass + 1U;
-        if (planet < profile.player.planets.size())
-            profile.player.planets[planet].pass = pass + 1U;
+        return {};
     }
     return result;
 }

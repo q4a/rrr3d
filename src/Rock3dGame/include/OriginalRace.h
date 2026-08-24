@@ -837,6 +837,8 @@ std::size_t resolveOriginalTournamentTrack(
 void writeOriginalTournamentSelection(
     const Race& race, std::size_t trackIndex,
     PlayerProfile& profile) noexcept;
+int originalTournamentRequestPoints(
+    const Race& race, std::uint32_t pass) noexcept;
 TournamentAdvance completeOriginalTournamentTrack(
     const Race& race, std::size_t trackIndex,
     ProfileState& profile) noexcept;

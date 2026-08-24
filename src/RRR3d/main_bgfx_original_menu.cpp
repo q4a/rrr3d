@@ -3001,10 +3001,10 @@ int main(int argc, char** argv)
                           .name)
                 : selected.worldType;
         const auto pass = std::max(selected.racePass, 1U);
-        const auto required =
-            pass <= originalRace->requiredPoints.size()
-                ? originalRace->requiredPoints[pass - 1U]
-                : 0U;
+        const auto required = std::max(
+            r3d::game::originalrace::originalTournamentRequestPoints(
+                *originalRace, pass),
+            0);
         const std::string passInfo = formatOriginalRaceInfo(
             localized("svPassInfo"), planetName,
             std::max(trackNumber, 1U),

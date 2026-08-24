@@ -366,8 +366,9 @@ smoke, сопоставляющий API с compile definitions.
 
 На этом HEAD выполнены:
 
-- `ctest --test-dir build/macos-arm64-m10 --output-on-failure`: 5/5 passed,
-  включая новый `rrr3d_portable_capabilities_smoke`;
+- `ctest --test-dir build/macos-arm64-m10 --output-on-failure`: 6/6 passed,
+  включая `rrr3d_portable_capabilities_smoke` и отдельный
+  `rrr3d_original_tournament_smoke`;
 - arm64 Debug `--physics-smoke-test`: passed;
 - resource audit во время smoke: 1196 original assets, map1 и vehicle data
   успешно прочитаны.
@@ -450,6 +451,39 @@ commit. Сравнения выполнялись по явным commit IDs, ч
 6. renderer/material/effect graph;
 7. physics contacts/wheels и audio graph;
 8. network model graph и только затем Steam.
+
+### P2.1 — первый исполняемый перенос source classes — выполнено
+
+Первым блоком введены независимые от Windows части исходных `Planet::Track`,
+`Planet` и `Tournament` из
+`eff9338:prog/Rock3dGame/header/game/Race.h` и соответствующих реализаций в
+`source/game/Race.cpp`. Они собираются отдельными файлами
+`OriginalTournament.h/.cpp`, а не растворены в объединённом
+`OriginalRaceSession`.
+
+Перенесены и покрыты прямыми counterexample-тестами:
+
+- `Planet::AddTrack`, `ClearTracks`, обе формы `GetTracks`, `NextTrack` и
+  оригинальная формула `abs(pass - 1) % maxPass + 1`;
+- состояния `Unlock`, `Open`, `Complete`, `SetState`, `NextPass`, `Reset`;
+- `GetRequestPoints`, включая fallback на последний pass и исходное
+  округление/множители для нескольких Human/Opponent;
+- `HasRequestPoints`, `GetPrice`;
+- campaign `Tournament::NextTrack` и `CompleteTrack`;
+- skirmish track queue с отдельным перемешиванием списка каждого pass через
+  тот же process `rand()` stream, который использовал Windows
+  `random_shuffle`.
+
+Это уже active code path: `resolveOriginalTournamentTrack`, завершение
+заезда и текст требуемых очков в RaceMenu делегируют новым source classes.
+Прежняя дублирующая реализация переходов удалена. D3D9/bgfx и PhysX/Jolt
+границы этим блоком не менялись.
+
+Этот этап ещё не означает перенос всего object graph `Tournament`. В
+следующий блок остаются `StartPass/CompletePass` с выдачей машин и слотов,
+`PlayerData`/gamer lookup, weather side effects `SetCurTrack`, сериализация
+полного объекта и связанные методы `Race`. Они должны подключаться к уже
+введённым классам, а не воспроизводиться новыми helper-функциями.
 
 ## Итоговое решение
 
