@@ -1960,23 +1960,18 @@ int main(int argc, char** argv)
         SDL_Quit();
         return EXIT_FAILURE;
     }
-    int menuViewportWidth = 0;
-    int menuViewportHeight = 0;
-    if (!SDL_GetWindowSize(
-            window, &menuViewportWidth, &menuViewportHeight) ||
-        menuViewportWidth <= 0 || menuViewportHeight <= 0)
-    {
-        std::cerr << "Unable to obtain GUI viewport: " << SDL_GetError()
-                  << '\n';
-        SDL_DestroyWindow(window);
-#ifdef RRR3D_GAMEPAD_INPUT
-        input.shutdown();
-#endif
-        SDL_Quit();
-        return EXIT_FAILURE;
-    }
-    menu::virtualWidth = static_cast<float>(menuViewportWidth);
-    menu::virtualHeight = static_cast<float>(menuViewportHeight);
+    // D3D9's GUI viewport was expressed in backbuffer pixels. SDL mouse
+    // coordinates remain logical points on Retina, but the Metal drawable
+    // and the original GUI assets use pixels; pointer conversion below
+    // deliberately maps between those two coordinate spaces.
+    menu::virtualWidth = static_cast<float>(pixelWidth);
+    menu::virtualHeight = static_cast<float>(pixelHeight);
+    int logicalWindowWidth = 0;
+    int logicalWindowHeight = 0;
+    SDL_GetWindowSize(window, &logicalWindowWidth, &logicalWindowHeight);
+    std::cout << "GUI viewport: " << logicalWindowWidth << 'x'
+              << logicalWindowHeight << " points, " << pixelWidth << 'x'
+              << pixelHeight << " drawable pixels\n";
     // Menu renders the shipped GUI/cursor.png itself. Keep the Cocoa arrow
     // hidden so the source cursor is not doubled.
     SDL_HideCursor();
@@ -4568,7 +4563,7 @@ int main(int argc, char** argv)
     racePipeline.faceCulling =
         PipelineState::FaceCulling::Clockwise;
 #endif
-    const Camera camera = makeCamera(*device);
+    Camera camera = makeCamera(*device);
 
     bool running = true;
     bool runtimeSmokeFailed = false;
@@ -9057,20 +9052,14 @@ int main(int argc, char** argv)
         }
         pixelWidth = pendingPixelWidth;
         pixelHeight = pendingPixelHeight;
-        int viewportWidth = 0;
-        int viewportHeight = 0;
-        if (!SDL_GetWindowSize(
-                window, &viewportWidth, &viewportHeight) ||
-            viewportWidth <= 0 || viewportHeight <= 0)
-        {
-            std::cerr << "Unable to resize GUI viewport: "
-                      << SDL_GetError() << '\n';
-            return false;
-        }
-        menu::virtualWidth = static_cast<float>(viewportWidth);
-        menu::virtualHeight = static_cast<float>(viewportHeight);
+        menu::virtualWidth = static_cast<float>(pixelWidth);
+        menu::virtualHeight = static_cast<float>(pixelHeight);
         device->resize(static_cast<std::uint32_t>(pixelWidth),
                        static_cast<std::uint32_t>(pixelHeight));
+        // The original GUI projection follows the active D3D backbuffer.
+        // Rebuild it together with bgfx so resolution/fullscreen changes do
+        // not keep hit testing and rendering in different coordinate spaces.
+        camera = makeCamera(*device);
 #ifdef RRR3D_VIDEO
         videoPlayer.resize();
 #endif

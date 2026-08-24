@@ -1,5 +1,11 @@
 # Статус порта RRR3D / Motor Rock на macOS
 
+> **Windows-эталон для всех следующих сравнений:** Parallels VM `Windows 11`,
+> `\\Mac\Home\Downloads\Motor Rock\MR.exe` (`v. 1.2.0`, fullscreen
+> `1920x1080`). Запуск, фокус, ввод и framebuffer capture описаны в
+> [`WINDOWS_REFERENCE.md`](WINDOWS_REFERENCE.md). CrossOver для визуального
+> эталона не использовать.
+
 > **Актуальное заключение ревизии:** milestones 5–10 создали нативный arm64
 > bundle и source-driven vertical slice на оригинальных ресурсах, но не
 > доказали полный перенос Windows-игры. Исходные `Rock3dGame/source/game`

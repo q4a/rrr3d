@@ -60,8 +60,9 @@ constexpr const char* commandName(Command command) noexcept
 }
 
 // The Windows GUI manager projects directly into the active backbuffer
-// resolution. These values follow the SDL logical window size so Retina
-// drawable scaling does not shrink the source's fixed-pixel GUI metrics.
+// resolution. Keep these values in drawable pixels: the shipped GUI images
+// and fixed-pixel metrics otherwise become twice as large and blurry in a
+// Retina window whose SDL logical size is half its Metal drawable size.
 inline float virtualWidth = 1920.0F;
 inline float virtualHeight = 1100.0F;
 inline constexpr float itemCenterOffsetX = 5.0F;
