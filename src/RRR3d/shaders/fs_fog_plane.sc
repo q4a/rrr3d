@@ -26,6 +26,12 @@ void main()
         abs(sceneView.z / max(abs(sceneView.w), 0.0001));
     float depthDistance =
         sceneViewDepth - v_projectedPosition.z;
+    // FogPlane has the same source depth contract as WaterPlane.  Its Metal
+    // composition target contains only a copied color attachment, therefore
+    // emulate the original D3D9 depth rejection before blending the cloud
+    // volume over the scene.
+    if (depthDistance <= 0.001)
+        discard;
     float transmittance = depthDistance > 0.001
         ? 1.0 / exp(depthDistance * depthDistance *
                     u_materialParams.y)

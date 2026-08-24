@@ -66,6 +66,14 @@ void main()
         abs(sceneView.z / max(abs(sceneView.w), 0.0001));
     float depthDistance =
         sceneViewDepth - v_projectedPosition.z;
+    // The Windows WaterPlane is submitted into the scene render target and
+    // therefore still has the opaque scene depth attached.  The Metal port
+    // copies the scene into a second color target before this pass, so its
+    // depth attachment is empty.  Reproduce the source depth test explicitly:
+    // a car or track fragment in front of the water must reject this water
+    // fragment instead of being covered by the reflected scene.
+    if (depthDistance <= 0.001)
+        discard;
     float transmittance = depthDistance > 0.001
         ? 1.0 / exp(depthDistance * depthDistance *
                     u_materialParams.y)

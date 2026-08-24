@@ -68,6 +68,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 #include <vector>
 
 namespace
@@ -4353,6 +4354,8 @@ int main(int argc, char** argv)
     std::vector<EngineAudio> engineAudio(originalRace->racers.size());
     std::vector<std::vector<WheelSlipAudio>>
         wheelSlipVoices(originalRace->racers.size());
+    std::unordered_set<r3d::audio::VoiceHandle> raceLoopVoices;
+    bool raceLoopTeardownObserved = !options->raceRenderSmokeTest;
     std::vector<ShotEffectAudio> shotEffectAudio;
     std::vector<ContactEffectAudio> contactEffectAudio;
     std::vector<TimedEffectAudio> timedEffectAudio;
@@ -4504,24 +4507,70 @@ int main(int argc, char** argv)
         SDL_Quit();
         return EXIT_FAILURE;
     }
+    auto stopRaceLoopVoice = [&](r3d::audio::VoiceHandle& voice) {
+        if (voice == r3d::audio::invalidVoice)
+            return;
+        audio.stop(voice);
+        raceLoopVoices.erase(voice);
+        voice = r3d::audio::invalidVoice;
+    };
+    auto playRaceLoop = [&](r3d::audio::SoundHandle sound,
+                            const r3d::audio::PlayOptions& options) {
+        const auto voice = audio.play(sound, options, audioError);
+        if (voice != r3d::audio::invalidVoice)
+            raceLoopVoices.insert(voice);
+        return voice;
+    };
+    auto stopAllRaceLoops = [&]() {
+        // This ownership set is deliberately authoritative.  A respawn or a
+        // repeated race initialization may replace a per-wheel handle; the
+        // source SoundMotor destructor still stops every loop it created.
+        // Keeping all loop handles here gives the portable transition the
+        // same guarantee when Race -> Menu tears the world down.
+        const std::vector<r3d::audio::VoiceHandle> ownedVoices(
+            raceLoopVoices.begin(), raceLoopVoices.end());
+        for (const auto voice : ownedVoices)
+            audio.stop(voice);
+        raceLoopVoices.clear();
+        for (auto& engine : engineAudio)
+        {
+            engine.idleVoice = r3d::audio::invalidVoice;
+            engine.rpmVoice = r3d::audio::invalidVoice;
+        }
+        for (auto& wheels : wheelSlipVoices)
+            for (auto& voice : wheels)
+                voice = {};
+        if (!ownedVoices.empty() &&
+            std::none_of(
+                ownedVoices.begin(), ownedVoices.end(),
+                [&](const auto voice) {
+                    return audio.isVoiceActive(voice);
+                }))
+        {
+            raceLoopTeardownObserved = true;
+        }
+    };
     auto startRacerMotorAudio = [&](std::size_t racer) {
         if (racer >= engineAudio.size() ||
             racer >= originalRace->racers.size())
             return;
         auto& engine = engineAudio[racer];
-        audio.stop(engine.idleVoice);
-        audio.stop(engine.rpmVoice);
+        stopRaceLoopVoice(engine.idleVoice);
+        stopRaceLoopVoice(engine.rpmVoice);
+        if (racer < wheelSlipVoices.size())
+        {
+            for (auto& voice : wheelSlipVoices[racer])
+                stopRaceLoopVoice(voice.voice);
+        }
         engine.currentRpm = 0.0F;
         engine.spatialProxyPlaying = true;
         r3d::audio::PlayOptions options;
         options.bus = r3d::audio::Bus::Effects;
         options.loop = true;
         options.volume = racer == 0U ? 0.5F : 0.0F;
-        engine.idleVoice = audio.play(
-            engine.idle, options, audioError);
+        engine.idleVoice = playRaceLoop(engine.idle, options);
         options.volume = racer == 0U ? 0.2F : 0.0F;
-        engine.rpmVoice = audio.play(
-            engine.rpm, options, audioError);
+        engine.rpmVoice = playRaceLoop(engine.rpm, options);
         const auto& sourceRacer = originalRace->racers[racer];
         const auto& vehicle =
             sourceRacer.hasConfiguredVehicle
@@ -4534,18 +4583,17 @@ int main(int argc, char** argv)
         if (racer >= engineAudio.size())
             return;
         auto& engine = engineAudio[racer];
-        audio.stop(engine.idleVoice);
-        audio.stop(engine.rpmVoice);
-        engine.idleVoice = r3d::audio::invalidVoice;
-        engine.rpmVoice = r3d::audio::invalidVoice;
+        stopRaceLoopVoice(engine.idleVoice);
+        stopRaceLoopVoice(engine.rpmVoice);
         if (racer < wheelSlipVoices.size())
         {
             for (auto& voice : wheelSlipVoices[racer])
-                audio.stop(voice.voice);
+                stopRaceLoopVoice(voice.voice);
             wheelSlipVoices[racer].clear();
         }
     };
     auto startRaceAudio = [&]() {
+        stopAllRaceLoops();
         audio.setBusVolume(r3d::audio::Bus::Effects,
                            profileState.config.effectsVolume);
         music.pause(true, audioError);
@@ -4569,21 +4617,7 @@ int main(int argc, char** argv)
             startRacerMotorAudio(racer);
     };
     auto stopRaceAudio = [&](bool advanceGameTrack = true) {
-        for (auto& engine : engineAudio)
-        {
-            audio.stop(engine.idleVoice);
-            audio.stop(engine.rpmVoice);
-            engine.idleVoice = r3d::audio::invalidVoice;
-            engine.rpmVoice = r3d::audio::invalidVoice;
-        }
-        for (auto& wheels : wheelSlipVoices)
-        {
-            for (auto& voice : wheels)
-            {
-                audio.stop(voice.voice);
-                voice = {};
-            }
-        }
+        stopAllRaceLoops();
         for (const auto& source : shotEffectAudio)
             audio.stop(source.voice);
         shotEffectAudio.clear();
@@ -7408,18 +7442,14 @@ int main(int argc, char** argv)
 #ifdef RRR3D_AUDIO
             if (racer < engineAudio.size())
             {
-                audio.stop(engineAudio[racer].idleVoice);
-                audio.stop(engineAudio[racer].rpmVoice);
-                engineAudio[racer].idleVoice =
-                    r3d::audio::invalidVoice;
-                engineAudio[racer].rpmVoice =
-                    r3d::audio::invalidVoice;
+                stopRaceLoopVoice(engineAudio[racer].idleVoice);
+                stopRaceLoopVoice(engineAudio[racer].rpmVoice);
             }
             if (racer < wheelSlipVoices.size())
             {
                 for (auto& wheel : wheelSlipVoices[racer])
                 {
-                    audio.stop(wheel.voice);
+                    stopRaceLoopVoice(wheel.voice);
                     wheel = {};
                 }
             }
@@ -10830,6 +10860,23 @@ int main(int argc, char** argv)
                 closeExitRaceDialog();
             ++racePauseSmokeStep;
         }
+#ifdef RRR3D_AUDIO
+        if (options->raceRenderSmokeTest && inRace &&
+            racePauseSmokeStep == 3U &&
+            raceChatSmokeStep == 4U &&
+            !raceLoopTeardownObserved)
+        {
+            // Exercise the same authoritative loop teardown used by
+            // leaveCurrentRace, then restore SoundMotor for the remaining
+            // physics/render fixture.
+            stopAllRaceLoops();
+            for (std::size_t racer = 0U; racer < engineAudio.size();
+                 ++racer)
+            {
+                startRacerMotorAudio(racer);
+            }
+        }
+#endif
         if (options->raceRenderSmokeTest && inRace &&
             racePauseSmokeStep == 3U &&
             raceChatSmokeStep < 4U &&
@@ -16723,7 +16770,7 @@ int main(int argc, char** argv)
                             if (voice.voice !=
                                 r3d::audio::invalidVoice)
                             {
-                                audio.stop(voice.voice);
+                                stopRaceLoopVoice(voice.voice);
                                 voice = {};
                             }
                             continue;
@@ -16753,8 +16800,8 @@ int main(int argc, char** argv)
                             options.bus = r3d::audio::Bus::Effects;
                             options.loop = true;
                             options.volume = 0.0F;
-                            voice.voice = audio.play(
-                                wheelSlipSound, options, audioError);
+                            voice.voice = playRaceLoop(
+                                wheelSlipSound, options);
                         }
                         if (voice.voice !=
                             r3d::audio::invalidVoice)
@@ -21510,6 +21557,7 @@ int main(int argc, char** argv)
                     !raceAchievementFrameObserved ||
 #ifdef RRR3D_AUDIO
                     !raceMusicDialogObserved ||
+                    !raceLoopTeardownObserved ||
 #endif
                     !racePauseDialogObserved ||
                     !racePauseResumeObserved ||
@@ -21575,6 +21623,8 @@ int main(int argc, char** argv)
 #ifdef RRR3D_AUDIO
                         << ", musicDialog="
                         << raceMusicDialogObserved
+                        << ", raceLoopTeardown="
+                        << raceLoopTeardownObserved
 #endif
                         << ", pause="
                         << racePauseDialogObserved << '/'
@@ -21662,6 +21712,9 @@ int main(int argc, char** argv)
                            "life "
                         << minimumRacePlayerLife << "), "
                            "source HudMenu pause/accept/frozen-world, "
+#ifdef RRR3D_AUDIO
+                           "authoritative SoundMotor/wheel-loop teardown, "
+#endif
                            "source UserChat Enter/input/history/fade, "
                            "source GameModeFrame/TournamentFrame layout, "
                            "source ProfileFrame/delete dialog, "
