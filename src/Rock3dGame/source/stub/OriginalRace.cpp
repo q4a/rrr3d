@@ -4015,7 +4015,8 @@ std::uint32_t unsignedValue(std::string_view value,
 
 } // namespace
 
-Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources)
+Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources,
+                           bool legacyWindowsDebug)
 {
     auto tournamentDocument = parseXml(resources, "tournamet.xml");
     auto databaseDocument = parseXml(resources, "db.xml");
@@ -4219,6 +4220,23 @@ Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources)
     {
         const std::string worldType =
             text(planet, "worldType", "tournamet.xml");
+        // Race.cpp adds these two tracks before Planet::LoadFrom when either
+        // _DEBUG or DEBUG_PX is defined. Keep them behind an explicit runtime
+        // mode so a Debug macOS build still has the shipped 88-track catalog.
+        if (legacyWindowsDebug && planetIndex == 1U)
+        {
+            race.trackCatalog.push_back(
+                {canonicalDataPath(
+                     resources, "Data/Map/debugTrack.r3dMap"),
+                 99U, worldType, planetIndex, 1U});
+        }
+        else if (legacyWindowsDebug && planetIndex == 3U)
+        {
+            race.trackCatalog.push_back(
+                {canonicalDataPath(
+                     resources, "Data/Map/World5/map0.r3dMap"),
+                 99U, worldType, planetIndex, 1U});
+        }
         auto* trackMap = require(planet, "trackMap", "tournamet.xml");
         for (auto* group = trackMap->FirstChildElement(); group != nullptr;
              group = group->NextSiblingElement())
@@ -4256,6 +4274,20 @@ Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources)
         race.vehicles.push_back(loadVehicle(
             resources, database, garageDocument.RootElement(), record));
     }
+    if (legacyWindowsDebug)
+    {
+        // PxWheelSlipEffect::OnProgress and PairPxContactEffect::OnContact
+        // are both compiled out by Windows _DEBUG. Keep the serialized
+        // objects loaded, but prevent portable wheel effects/audio from
+        // running in the compatibility mode.
+        for (auto& vehicle : race.vehicles)
+        {
+            std::fill(vehicle.wheelSlipEffects.begin(),
+                      vehicle.wheelSlipEffects.end(), false);
+            std::fill(vehicle.wheelSlipSounds.begin(),
+                      vehicle.wheelSlipSounds.end(), false);
+        }
+    }
     const auto humanVehicle = vehicleIndices.find(carRecord);
     if (humanVehicle == vehicleIndices.end())
         throw resource::ResourceError(
@@ -4275,9 +4307,10 @@ Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources)
 
 Race loadOriginalRace(const resource::ResourceFileSystem& resources,
                       std::size_t trackIndex,
-                      std::string_view playerCar)
+                      std::string_view playerCar,
+                      bool legacyWindowsDebug)
 {
-    Race result = loadFirstOriginalRace(resources);
+    Race result = loadFirstOriginalRace(resources, legacyWindowsDebug);
     if (trackIndex >= result.trackCatalog.size())
         throw resource::ResourceError(
             "Requested tournament track index is out of range");
@@ -5242,6 +5275,42 @@ bool runOriginalRaceResourceSmokeTest(
         auto workshopDocument = parseXml(resources, "workshop.xml");
         auto* workshop = require(
             workshopDocument.RootElement(), "workshop", "workshop.xml");
+        const auto windowsDebugRace =
+            loadFirstOriginalRace(resources, true);
+        const auto patagonisDebugTrack = std::find_if(
+            windowsDebugRace.trackCatalog.begin(),
+            windowsDebugRace.trackCatalog.end(),
+            [](const TrackCatalogEntry& track) {
+                return track.levelPath ==
+                           "Data/Map/debugTrack.r3dMap" &&
+                       track.lapCount == 99U &&
+                       track.planetIndex == 1U &&
+                       track.racePass == 1U;
+            });
+        const auto nhoDebugTrack = std::find_if(
+            windowsDebugRace.trackCatalog.begin(),
+            windowsDebugRace.trackCatalog.end(),
+            [](const TrackCatalogEntry& track) {
+                return track.levelPath ==
+                           "Data/Map/World5/map0.r3dMap" &&
+                       track.lapCount == 99U &&
+                       track.planetIndex == 3U &&
+                       track.racePass == 1U;
+            });
+        if (windowsDebugRace.trackCatalog.size() != 90U ||
+            patagonisDebugTrack ==
+                windowsDebugRace.trackCatalog.end() ||
+            nhoDebugTrack == windowsDebugRace.trackCatalog.end() ||
+            patagonisDebugTrack ==
+                windowsDebugRace.trackCatalog.begin() ||
+            std::prev(patagonisDebugTrack)->planetIndex == 1U ||
+            nhoDebugTrack == windowsDebugRace.trackCatalog.begin() ||
+            std::prev(nhoDebugTrack)->planetIndex == 3U)
+        {
+            error =
+                "Windows _DEBUG 99-lap track injection/order mismatch";
+            return false;
+        }
         if (race.racers.size() < 2U)
         {
             error = "source Player::ApplyMobility role regression has no AI";

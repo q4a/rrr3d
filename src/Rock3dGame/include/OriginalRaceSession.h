@@ -373,7 +373,8 @@ struct ProjectileRuntime
 class OriginalRaceSession
 {
 public:
-    explicit OriginalRaceSession(const Race& race);
+    explicit OriginalRaceSession(const Race& race,
+                                 bool legacyWindowsDebug = false);
 
     void reset();
     void applyPlayerProfile(const PlayerProfile& profile);
@@ -446,6 +447,7 @@ public:
     std::vector<AngularVelocityRequest> takeAngularVelocityRequests();
 
 private:
+    bool legacyWindowsDebug_ = false;
     struct TraceNodeRef
     {
         std::size_t path = RacerRuntime::invalidWeapon;

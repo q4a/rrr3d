@@ -812,10 +812,12 @@ enum class FinishTransition
     Final,
 };
 
-Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources);
+Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources,
+                           bool legacyWindowsDebug = false);
 Race loadOriginalRace(const resource::ResourceFileSystem& resources,
                       std::size_t trackIndex,
-                      std::string_view playerCar = {});
+                      std::string_view playerCar = {},
+                      bool legacyWindowsDebug = false);
 void selectOriginalWeather(
     const resource::ResourceFileSystem& resources, Race& race,
     bool allowNight, bool mostProbable, float randomUnit);

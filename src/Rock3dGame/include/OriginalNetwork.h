@@ -76,7 +76,8 @@ public:
     void process(std::uint32_t milliseconds);
     void setGamerCatalog(std::vector<std::int32_t> gamerIds);
 
-    bool beginLanSearch(std::string& error);
+    bool beginLanSearch(std::string& error,
+                        bool legacyWindowsDebug = false);
     void cancelLanSearch() noexcept;
     bool createHost(std::string& error);
     bool connect(const Endpoint& endpoint, std::string& error);

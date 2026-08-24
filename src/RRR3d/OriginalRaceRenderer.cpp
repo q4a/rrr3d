@@ -2883,6 +2883,19 @@ Camera OriginalRaceRenderer::makeCamera(
     r3d::game::originalrace::PreferredCamera style,
     float cameraDistance, float seconds) noexcept
 {
+    return makeCamera(
+        device, vehicle, width, height,
+        style == r3d::game::originalrace::PreferredCamera::Isometric
+            ? RaceCameraStyle::Isometric
+            : RaceCameraStyle::ThirdPerson,
+        cameraDistance, seconds);
+}
+
+Camera OriginalRaceRenderer::makeCamera(
+    const GraphicsDevice& device, const r3d::physics::VehicleState& vehicle,
+    std::uint32_t width, std::uint32_t height, RaceCameraStyle style,
+    float cameraDistance, float seconds) noexcept
+{
     const float aspect =
         static_cast<float>(std::max(width, 1U)) /
         static_cast<float>(std::max(height, 1U));
@@ -2927,8 +2940,7 @@ Camera OriginalRaceRenderer::makeCamera(
     }
     else if (cameraStyle_ != style)
     {
-        if (style ==
-            r3d::game::originalrace::PreferredCamera::Isometric)
+        if (style == RaceCameraStyle::Isometric)
         {
             cameraLead_ = {};
             previousCameraTarget_ = position;
@@ -2945,8 +2957,7 @@ Camera OriginalRaceRenderer::makeCamera(
         }
         cameraStyle_ = style;
     }
-    if (style ==
-        r3d::game::originalrace::PreferredCamera::Isometric)
+    if (style == RaceCameraStyle::Isometric)
     {
         pointSpriteScale_ = 0.75F;
         // CameraManager::csIsometric: Y=15.5 degrees, Z=45 degrees,
@@ -3081,6 +3092,83 @@ Camera OriginalRaceRenderer::makeCamera(
         return camera;
     }
 
+    if (style != RaceCameraStyle::ThirdPerson)
+    {
+        // csLights uses the selected light transform when an editor light is
+        // present. A running race has no selected editor light, so it shares
+        // csFreeView's retained perspective transform. csIsoView retains the
+        // same position but applies the source fixed 15.5/45-degree ortho
+        // rotation and clamps its height to at least ten units.
+        constexpr float radians = 3.14159265358979323846F / 180.0F;
+        const float elevation = 15.5F * radians;
+        const float azimuth = 45.0F * radians;
+        const r3d::physics::Quat rotationY{
+            0.0F, std::sin(elevation * 0.5F), 0.0F,
+            std::cos(elevation * 0.5F)};
+        const r3d::physics::Quat rotationZ{
+            0.0F, 0.0F, std::sin(azimuth * 0.5F),
+            std::cos(azimuth * 0.5F)};
+        const auto isoRotation = multiply(rotationZ, rotationY);
+        if (!cameraInitialized_)
+        {
+            const auto direction =
+                normalize(rotate(isoRotation, {1.0F, 0.0F, 0.0F}));
+            cameraPosition_ = {
+                position.x - direction.x * 20.0F,
+                position.y - direction.y * 20.0F,
+                position.z - direction.z * 20.0F};
+            cameraViewDirection_ = direction;
+            cameraRotation_ = isoRotation;
+            cameraInitialized_ = true;
+        }
+        if (style == RaceCameraStyle::IsometricView)
+        {
+            cameraRotation_ = isoRotation;
+            cameraViewDirection_ =
+                normalize(rotate(isoRotation, {1.0F, 0.0F, 0.0F}));
+            cameraPosition_.z = std::max(cameraPosition_.z, 10.0F);
+        }
+        const auto cameraUp = normalize(rotate(
+            cameraRotation_, {0.0F, 0.0F, 1.0F}));
+        const bx::Vec3 eye{
+            cameraPosition_.x, cameraPosition_.y, cameraPosition_.z};
+        const bx::Vec3 at{
+            eye.x + cameraViewDirection_.x,
+            eye.y + cameraViewDirection_.y,
+            eye.z + cameraViewDirection_.z};
+        pointSpriteScale_ = style == RaceCameraStyle::IsometricView
+                                ? 0.75F
+                                : 0.25F;
+        activeCameraFarDistance_ =
+            style == RaceCameraStyle::IsometricView
+                ? 150.0F
+                : perspectiveFarDistance_;
+        Camera camera;
+        bx::mtxLookAt(
+            camera.view.data(), eye, at,
+            {cameraUp.x, cameraUp.y, cameraUp.z},
+            bx::Handedness::Right);
+        if (style == RaceCameraStyle::IsometricView)
+        {
+            const float cameraWidth = 28.0F * cameraDistance;
+            const float cameraHeight = cameraWidth / aspect;
+            bx::mtxOrtho(
+                camera.projection.data(), -cameraWidth * 0.5F,
+                cameraWidth * 0.5F, -cameraHeight * 0.5F,
+                cameraHeight * 0.5F, 1.0F, 150.0F, 0.0F,
+                device.usesHomogeneousDepth(),
+                bx::Handedness::Right);
+        }
+        else
+        {
+            bx::mtxProj(
+                camera.projection.data(), 90.0F, aspect, 1.0F,
+                activeCameraFarDistance_, device.usesHomogeneousDepth(),
+                bx::Handedness::Right);
+        }
+        return camera;
+    }
+
     const float speedFactor =
         std::clamp(velocityLength / (150.0F / 3.6F), 0.0F, 1.0F);
     pointSpriteScale_ = 0.25F;
@@ -3170,13 +3258,61 @@ Camera OriginalRaceRenderer::makePresentationCamera(
         device.usesHomogeneousDepth(), bx::Handedness::Right);
     cameraPosition_ = source.position;
     cameraViewDirection_ = direction;
-    cameraStyle_ =
-        r3d::game::originalrace::PreferredCamera::ThirdPerson;
+    cameraStyle_ = RaceCameraStyle::ThirdPerson;
     cameraStyleInitialized_ = true;
     activeCameraFarDistance_ = std::max(source.farDistance, 1.0F);
     previousCameraTarget_ = {};
     cameraInitialized_ = true;
     return camera;
+}
+
+void OriginalRaceRenderer::moveDebugCamera(
+    RaceCameraStyle style, float forwardAmount, float rightAmount,
+    float seconds) noexcept
+{
+    if (!cameraInitialized_)
+        return;
+    const float step = 20.0F * std::clamp(seconds, 0.0F, 0.25F);
+    const auto direction =
+        style == RaceCameraStyle::IsometricView
+            ? normalize(r3d::physics::Vec3{1.0F, 1.0F, 0.0F})
+            : cameraViewDirection_;
+    const auto right =
+        style == RaceCameraStyle::IsometricView
+            ? normalize(r3d::physics::Vec3{-1.0F, 1.0F, 0.0F})
+            : normalize(rotate(
+                  cameraRotation_, {0.0F, 1.0F, 0.0F}));
+    cameraPosition_.x +=
+        direction.x * forwardAmount * step +
+        right.x * rightAmount * step;
+    cameraPosition_.y +=
+        direction.y * forwardAmount * step +
+        right.y * rightAmount * step;
+    cameraPosition_.z +=
+        direction.z * forwardAmount * step +
+        right.z * rightAmount * step;
+}
+
+void OriginalRaceRenderer::rotateDebugCamera(
+    float deltaX, float deltaY) noexcept
+{
+    if (!cameraInitialized_)
+        return;
+    const auto right = normalize(rotate(
+        cameraRotation_, {0.0F, 1.0F, 0.0F}));
+    const float yawAngle = -0.005F * deltaX;
+    const float pitchAngle = 0.005F * deltaY;
+    const r3d::physics::Quat yaw{
+        0.0F, 0.0F, std::sin(yawAngle * 0.5F),
+        std::cos(yawAngle * 0.5F)};
+    const float pitchSin = std::sin(pitchAngle * 0.5F);
+    const r3d::physics::Quat pitch{
+        right.x * pitchSin, right.y * pitchSin,
+        right.z * pitchSin, std::cos(pitchAngle * 0.5F)};
+    cameraRotation_ = normalizeQuaternion(
+        multiply(multiply(yaw, pitch), cameraRotation_));
+    cameraViewDirection_ = normalize(rotate(
+        cameraRotation_, {1.0F, 0.0F, 0.0F}));
 }
 
 void OriginalRaceRenderer::resetCamera() noexcept
@@ -3245,8 +3381,7 @@ void OriginalRaceRenderer::draw(
     sceneLighting.fogColor = race.environment.fogColor;
     sceneLighting.fogColor[3] =
         race.environment.fogEnabled &&
-                cameraStyle_ !=
-                    r3d::game::originalrace::PreferredCamera::Isometric
+                cameraStyle_ != RaceCameraStyle::Isometric
             ? race.environment.fogIntensity
             : 0.0F;
     std::size_t lampIndex = 0U;
@@ -5426,8 +5561,7 @@ void OriginalRaceRenderer::draw(
     }
 
     if (race.environment.rain && !vehicles.empty() &&
-        cameraStyle_ !=
-            r3d::game::originalrace::PreferredCamera::Isometric)
+        cameraStyle_ != RaceCameraStyle::Isometric)
     {
         r3d::physics::Transform rainParent;
         rainParent.position = cameraPosition_;

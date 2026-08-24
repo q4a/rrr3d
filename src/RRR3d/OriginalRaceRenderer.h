@@ -14,6 +14,17 @@
 namespace rrr3d::race
 {
 
+// CameraManager::Style values reachable through gaViewSwitch in Windows
+// _DEBUG. The normal profile still serializes only the first two styles.
+enum class RaceCameraStyle
+{
+    ThirdPerson,
+    Isometric,
+    Lights,
+    IsometricView,
+    FreeView,
+};
+
 class OriginalRaceRenderer
 {
 public:
@@ -69,10 +80,18 @@ public:
         std::uint32_t height,
         r3d::game::originalrace::PreferredCamera style,
         float cameraDistance, float seconds) noexcept;
+    r3d::renderer::Camera makeCamera(
+        const r3d::renderer::GraphicsDevice& device,
+        const r3d::physics::VehicleState& vehicle, std::uint32_t width,
+        std::uint32_t height, RaceCameraStyle style,
+        float cameraDistance, float seconds) noexcept;
     r3d::renderer::Camera makePresentationCamera(
         const r3d::renderer::GraphicsDevice& device,
         const r3d::game::originalrace::PresentationCamera& source,
         std::uint32_t width, std::uint32_t height) noexcept;
+    void moveDebugCamera(RaceCameraStyle style, float forward,
+                         float right, float seconds) noexcept;
+    void rotateDebugCamera(float deltaX, float deltaY) noexcept;
     void resetCamera() noexcept;
     void draw(r3d::renderer::GraphicsDevice& device,
               r3d::renderer::Shader shader,
@@ -229,8 +248,7 @@ private:
     r3d::physics::Vec3 cameraJumpDirection_;
     r3d::physics::Quat cameraRotation_;
     r3d::physics::Quat thirdPersonRotation_;
-    r3d::game::originalrace::PreferredCamera cameraStyle_ =
-        r3d::game::originalrace::PreferredCamera::Isometric;
+    RaceCameraStyle cameraStyle_ = RaceCameraStyle::Isometric;
     std::vector<std::vector<std::vector<r3d::physics::Vec3>>>
         wheelTrailPaths_;
     std::vector<std::vector<std::vector<float>>> wheelTrailTimes_;

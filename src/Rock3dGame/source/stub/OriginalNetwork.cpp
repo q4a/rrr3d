@@ -208,7 +208,8 @@ void OriginalNetworkSession::setGamerCatalog(
     impl_->models.setGamerCatalog(std::move(gamerIds));
 }
 
-bool OriginalNetworkSession::beginLanSearch(std::string& error)
+bool OriginalNetworkSession::beginLanSearch(
+    std::string& error, bool legacyWindowsDebug)
 {
     error.clear();
     if (!impl_->init)
@@ -222,11 +223,12 @@ bool OriginalNetworkSession::beginLanSearch(std::string& error)
     impl_->clearError();
     impl_->value.discoveredHosts.clear();
     impl_->value.state = SessionState::Searching;
-#ifdef NDEBUG
-    impl_->service.Ping(defaultPort, 3000U, 500U);
-#else
-    impl_->service.Ping(defaultPort, 500U, 250U);
-#endif
+    // NetGame.cpp uses 500/250 under Windows _DEBUG and 3000/500 in the
+    // shipped build. This must depend on the explicit compatibility mode,
+    // not on whether the native macOS target itself was built with symbols.
+    impl_->service.Ping(defaultPort,
+                        legacyWindowsDebug ? 500U : 3000U,
+                        legacyWindowsDebug ? 250U : 500U);
     impl_->changed();
     return true;
 }

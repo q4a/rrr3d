@@ -1010,7 +1010,9 @@ std::string workshopReference(std::string_view record)
 
 } // namespace
 
-OriginalRaceSession::OriginalRaceSession(const Race& race) : race_(race)
+OriginalRaceSession::OriginalRaceSession(
+    const Race& race, bool legacyWindowsDebug)
+    : legacyWindowsDebug_(legacyWindowsDebug), race_(race)
 {
     if (race_.tracePath.size() < 2 || race_.tracePoints.empty() ||
         race_.racers.empty())
@@ -1020,14 +1022,17 @@ OriginalRaceSession::OriginalRaceSession(const Race& race) : race_(race)
 
 void OriginalRaceSession::reset()
 {
-    phase_ = RacePhase::Countdown;
+    // DEBUG_PX makes GameMode::DoStartRace call GoRace(cGoRace) directly,
+    // bypassing cGoRaceWait and the three visible countdown stages.
+    phase_ = legacyWindowsDebug_ ? RacePhase::Racing
+                                : RacePhase::Countdown;
     phaseBeforePause_ = phase_;
     // GameMode::DoStartRace first emits cGoRaceWait. GoRaceTimer then uses
     // cGoRaceLag=1 and advances cGoRace1..cGoRace in one-second steps. The
     // car is therefore blocked for four seconds, not three.
-    countdownSeconds_ = 4.0F;
-    countdownDisplay_ = 3;
-    countdownStage_ = 0;
+    countdownSeconds_ = legacyWindowsDebug_ ? 0.0F : 4.0F;
+    countdownDisplay_ = legacyWindowsDebug_ ? 0 : 3;
+    countdownStage_ = legacyWindowsDebug_ ? 4 : 0;
     networkCountdownControlled_ = false;
     networkFinishControlled_ = false;
     networkGameplayEnabled_ = false;
@@ -3879,7 +3884,8 @@ void OriginalRaceSession::updateGameplay(
     constexpr float sourceContactRelease = 0.1F;
     constexpr float sourceContactParticleLife = 0.7F;
     for (std::size_t racer = 0;
-         racer < vehicles.size() && racer < racers_.size(); ++racer)
+         !legacyWindowsDebug_ && racer < vehicles.size() &&
+         racer < racers_.size(); ++racer)
     {
         if (racers_[racer].destroyed)
             continue;
@@ -7097,6 +7103,16 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
         }
         RaceControl input;
         input.driving.throttle = 1.0F;
+        OriginalRaceSession windowsDebugSession(race, true);
+        windowsDebugSession.update(0.1F, vehicles, input);
+        if (windowsDebugSession.countdownStage() != 4 ||
+            windowsDebugSession.countdownSeconds() != 0.0F ||
+            windowsDebugSession.phase() != RacePhase::Racing ||
+            windowsDebugSession.vehicleInputs().front().throttle < 0.9F)
+        {
+            throw std::runtime_error(
+                "Windows DEBUG_PX immediate cGoRace was not preserved");
+        }
         if (session.countdownStage() != 0 ||
             session.countdownSeconds() != 4.0F)
         {

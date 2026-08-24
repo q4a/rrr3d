@@ -425,6 +425,7 @@ struct Options
 #ifdef RRR3D_PHYSICS
     bool physicsSmokeTest = false;
     bool gameDebug = false;
+    bool legacyWindowsDebug = false;
     bool raceRenderSmokeTest = false;
     bool finishMenuSmokeTest = false;
     bool gamersFrameSmokeTest = false;
@@ -713,6 +714,11 @@ std::optional<Options> parseOptions(int argc, char** argv)
         if (argument == "--game-debug")
         {
             options.gameDebug = true;
+            continue;
+        }
+        if (argument == "--legacy-windows-debug")
+        {
+            options.legacyWindowsDebug = true;
             continue;
         }
         if (argument.substr(0, trackPrefix.size()) == trackPrefix)
@@ -1557,7 +1563,8 @@ int main(int argc, char** argv)
                      " [--audio-smoke-test]"
 #endif
 #ifdef RRR3D_PHYSICS
-                     " [--game-debug] [--track=0..87] [--car=garage-record] "
+                     " [--game-debug] [--legacy-windows-debug] "
+                     "[--track=0..89] [--car=garage-record] "
                      "[--weather=fair|night|cloudy|rainy|sahara|hell|snow] "
                      "[--physics-smoke-test] [--race-render-smoke-test] "
                      "[--finish-menu-smoke-test] "
@@ -1571,7 +1578,14 @@ int main(int argc, char** argv)
     // renderer/test fixtures immediate, but preserve the release startup
     // sequence for an ordinary launch and for its dedicated regression.
     const bool sourceStartupRequested =
-        options->startupSmokeTest || options->smokeFrames == 0U;
+        options->startupSmokeTest ||
+        (options->smokeFrames == 0U &&
+#ifdef RRR3D_PHYSICS
+         !options->legacyWindowsDebug
+#else
+         true
+#endif
+        );
 
     std::string directoryError;
     if (!rrr3d::platform::ensure_application_directories(directoryError))
@@ -1660,7 +1674,8 @@ int main(int argc, char** argv)
                 "armor4 reward requires the source armor3 workshop item");
         }
         originalRace.emplace(r3d::game::originalrace::loadOriginalRace(
-            *resources, selectedTrack, selectedCar));
+            *resources, selectedTrack, selectedCar,
+            options->legacyWindowsDebug));
         // The provenance/physics smoke has exact World1/map1 assertions and
         // must not depend on whichever tournament track a prior GUI run
         // persisted in user.xml.
@@ -1673,7 +1688,8 @@ int main(int argc, char** argv)
             {
                 originalRace.emplace(
                     r3d::game::originalrace::loadOriginalRace(
-                        *resources, selectedTrack, selectedCar));
+                        *resources, selectedTrack, selectedCar,
+                        options->legacyWindowsDebug));
             }
         }
         if (!options->physicsSmokeTest)
@@ -1691,6 +1707,9 @@ int main(int argc, char** argv)
         }
         if (options->weatherSelected)
             applyWeather(originalRace->environment, options->weather,
+                         originalRace->levelPath);
+        if (options->legacyWindowsDebug)
+            applyWeather(originalRace->environment, "cloudy",
                          originalRace->levelPath);
         profileState.player.currentCar = originalRace->vehicle.record;
         if (!originalRace->racers.empty())
@@ -1980,9 +1999,15 @@ int main(int argc, char** argv)
     std::cout << "GUI viewport: " << logicalWindowWidth << 'x'
               << logicalWindowHeight << " points, " << pixelWidth << 'x'
               << pixelHeight << " drawable pixels\n";
-    // Menu renders the shipped GUI/cursor.png itself. Keep the Cocoa arrow
-    // hidden so the source cursor is not doubled.
-    SDL_HideCursor();
+    // Release handles WM_SETCURSOR by hiding the system arrow. Windows
+    // _DEBUG deliberately omits that call, so the compatibility mode keeps
+    // the Cocoa cursor visible as well.
+#ifdef RRR3D_PHYSICS
+    if (options->legacyWindowsDebug)
+        SDL_ShowCursor();
+    else
+#endif
+        SDL_HideCursor();
 #ifdef RRR3D_VIDEO
     rrr3d::video::MacVideoPlayer videoPlayer(nativeWindow);
 #endif
@@ -3860,19 +3885,37 @@ int main(int argc, char** argv)
     std::cout << "Input: SDL3 keyboard/mouse/gamepad, "
               << input.connectedGamepadCount() << " gamepad(s)\n";
 #endif
+#ifdef RRR3D_PHYSICS
+    if (options->legacyWindowsDebug)
+    {
+        std::cout
+            << "Legacy Windows _DEBUG compatibility: enabled; "
+               "startup/campaign intros skipped, cloudy weather, "
+               "immediate cGoRace, AIDebug/F1-F7, five debug cameras, "
+               "90-track catalog with two 99-lap fixtures, debug LAN "
+               "timing, skid/contact effects disabled\n";
+    }
+#endif
 
 #ifdef RRR3D_PHYSICS
     std::string physicsError;
     auto physicsWorld = r3d::physics::createOriginalVehicleWorld(
         *physicsDescription, physicsError);
-    r3d::game::originalrace::OriginalRaceSession raceSession(*originalRace);
+    r3d::game::originalrace::OriginalRaceSession raceSession(
+        *originalRace, options->legacyWindowsDebug);
     raceSession.setCampaign(true);
     raceSession.applyPlayerProfile(profileState.player);
     raceSession.applyAchievementProfile(profileState);
     raceSession.setEnableMineBug(profileState.config.enableMineBug);
     raceSession.setSpringBorders(profileState.config.springBorders);
     rrr3d::debug::OriginalGameDebug gameDebug(
-        options->gameDebug, profileState.config.quality.postEffect);
+        options->gameDebug || options->legacyWindowsDebug,
+        profileState.config.quality.postEffect);
+    auto raceCameraStyle =
+        profileState.config.preferredCamera ==
+                r3d::game::originalrace::PreferredCamera::ThirdPerson
+            ? rrr3d::race::RaceCameraStyle::ThirdPerson
+            : rrr3d::race::RaceCameraStyle::Isometric;
     std::vector<TextVisual> gameDebugVisual;
     rrr3d::race::OriginalRaceRenderer raceRenderer;
     rrr3d::race::OriginalRaceRenderer garageRenderer;
@@ -5544,6 +5587,7 @@ int main(int argc, char** argv)
     std::uint32_t maximumTransientDraws = 0;
     std::uint32_t maximumActiveSpotLights = 0;
     std::array<bool, 2> raceCameraStylesObserved{};
+    std::array<bool, 5> legacyDebugCameraStylesObserved{};
     bool raceProgressSaved = false;
     bool finishMenuShown = false;
     bool finishMenuFrameObserved =
@@ -6236,7 +6280,8 @@ int main(int argc, char** argv)
             *originalRace =
                 r3d::game::originalrace::loadOriginalRace(
                     *resources, selectedTrack,
-                    profileState.player.currentCar);
+                    profileState.player.currentCar,
+                    options->legacyWindowsDebug);
             r3d::game::originalrace::selectOriginalWeather(
                 *resources, *originalRace,
                 profileState.config.quality.light >= 1U &&
@@ -6260,6 +6305,10 @@ int main(int argc, char** argv)
             if (options->weatherSelected)
                 applyWeather(
                     originalRace->environment, options->weather,
+                    originalRace->levelPath);
+            if (options->legacyWindowsDebug)
+                applyWeather(
+                    originalRace->environment, "cloudy",
                     originalRace->levelPath);
             profileState.player.currentCar =
                 originalRace->vehicle.record;
@@ -6679,7 +6728,8 @@ int main(int argc, char** argv)
             // Windows GameMode::DoStartRace enters cGoRaceWait first. The
             // host does not start its one-second-lagged countdown until every
             // human NetPlayer has acknowledged that loading is complete.
-            raceSession.synchronizeNetworkCountdown(0);
+            raceSession.synchronizeNetworkCountdown(
+                options->legacyWindowsDebug ? 4 : 0);
             raceSession.setNetworkFinishControlled(true);
             std::vector<bool> ownedRacers(
                 networkRaceModelOrder.size(), false);
@@ -6714,7 +6764,8 @@ int main(int argc, char** argv)
             networkLastMineEventSequence =
                 networkLastGameplayEventSequence;
             networkHostRaceGoSeconds = -1.0F;
-            networkAppliedRaceGoStage = 0;
+            networkAppliedRaceGoStage =
+                options->legacyWindowsDebug ? 4 : 0;
             networkHostFinishTimerStarted = false;
             networkRaceExitApplied = false;
             if (!publishLocalNetworkPlayer())
@@ -6724,14 +6775,34 @@ int main(int argc, char** argv)
                 return;
             }
             std::string error;
-            if (!networkSession.setLocalPlayerGoWait(true, error))
+            if (options->legacyWindowsDebug)
+            {
+                if (networkHostRequested &&
+                    !networkSession.setRaceGoStage(4, error))
+                {
+                    std::cerr
+                        << "Original Windows DEBUG_PX cGoRace publish "
+                           "failed: "
+                        << error << '\n';
+                }
+            }
+            else if (!networkSession.setLocalPlayerGoWait(true, error))
+            {
                 std::cerr << "Original NetPlayer::RaceGoWait failed: "
                           << error << '\n';
+            }
             else
+            {
                 networkLocalGoWaitPublished = true;
+            }
         }
 #endif
         raceRenderer.resetCamera();
+        raceCameraStyle =
+            profileState.config.preferredCamera ==
+                    r3d::game::originalrace::PreferredCamera::ThirdPerson
+                ? rrr3d::race::RaceCameraStyle::ThirdPerson
+                : rrr3d::race::RaceCameraStyle::Isometric;
         raceInput = {};
         raceUseWeaponRequested = false;
         raceUseAllWeaponsRequested = false;
@@ -6743,7 +6814,7 @@ int main(int argc, char** argv)
         raceFireWeaponSlotRequested = -1;
         raceResetRequested = false;
         gameDebug.resetRaceState();
-        if (options->gameDebug && options->raceRenderSmokeTest)
+        if (gameDebug.enabled() && options->raceRenderSmokeTest)
         {
             // Exercise the F6 TraceGfx submission in the automated Metal
             // race path. Ordinary --game-debug launches still start hidden,
@@ -7861,7 +7932,7 @@ int main(int argc, char** argv)
         if (championshipMode && !options->gamersFrameSmokeTest)
             saveRaceProfile();
 #ifdef RRR3D_VIDEO
-        if (championshipMode &&
+        if (!options->legacyWindowsDebug && championshipMode &&
             !profileState.config.disableVideo)
         {
             const auto movie =
@@ -8727,7 +8798,8 @@ int main(int argc, char** argv)
 #endif
         angarTravelDialogVisible = false;
 #ifdef RRR3D_VIDEO
-        if (newPlanet && championshipMode &&
+        if (!options->legacyWindowsDebug && newPlanet &&
+            championshipMode &&
             !profileState.config.disableVideo)
         {
             const std::string movie =
@@ -10405,7 +10477,8 @@ int main(int argc, char** argv)
                 pushMenu(MenuScreen::NetworkClientType);
                 break;
             case 2U:
-                if (!networkSession.beginLanSearch(error))
+                if (!networkSession.beginLanSearch(
+                        error, options->legacyWindowsDebug))
                 {
                     std::cerr << "Network menu smoke PingHosts failed: "
                               << error << '\n';
@@ -10909,6 +10982,19 @@ int main(int argc, char** argv)
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {
+#ifdef RRR3D_PHYSICS
+            if (options->legacyWindowsDebug && inRace &&
+                event.type == SDL_EVENT_MOUSE_MOTION &&
+                (raceCameraStyle ==
+                     rrr3d::race::RaceCameraStyle::Lights ||
+                 raceCameraStyle ==
+                     rrr3d::race::RaceCameraStyle::FreeView) &&
+                (event.motion.state & SDL_BUTTON_RMASK) != 0U)
+            {
+                raceRenderer.rotateDebugCamera(
+                    event.motion.xrel, event.motion.yrel);
+            }
+#endif
 #ifdef RRR3D_AUDIO
             if ((event.type == SDL_EVENT_AUDIO_DEVICE_ADDED ||
                  event.type == SDL_EVENT_AUDIO_DEVICE_REMOVED ||
@@ -12980,15 +13066,49 @@ int main(int argc, char** argv)
                     case rrr3d::input::Action::ToggleCamera:
                         if (inputEvent.active && !inputEvent.repeated)
                         {
-                            using CameraStyle =
-                                r3d::game::originalrace::PreferredCamera;
-                            profileState.config.preferredCamera =
-                                profileState.config.preferredCamera ==
-                                        CameraStyle::Isometric
-                                    ? CameraStyle::ThirdPerson
-                                    : CameraStyle::Isometric;
-                            raceRenderer.resetCamera();
-                            saveRaceProfile();
+                            if (options->legacyWindowsDebug)
+                            {
+                                using Style =
+                                    rrr3d::race::RaceCameraStyle;
+                                switch (raceCameraStyle)
+                                {
+                                case Style::ThirdPerson:
+                                    raceCameraStyle = Style::Isometric;
+                                    break;
+                                case Style::Isometric:
+                                    raceCameraStyle = Style::Lights;
+                                    break;
+                                case Style::Lights:
+                                    raceCameraStyle = Style::IsometricView;
+                                    break;
+                                case Style::IsometricView:
+                                    raceCameraStyle = Style::FreeView;
+                                    break;
+                                case Style::FreeView:
+                                    raceCameraStyle = Style::ThirdPerson;
+                                    break;
+                                }
+                            }
+                            else
+                            {
+                                using CameraStyle =
+                                    r3d::game::originalrace::
+                                        PreferredCamera;
+                                profileState.config.preferredCamera =
+                                    profileState.config.preferredCamera ==
+                                            CameraStyle::Isometric
+                                        ? CameraStyle::ThirdPerson
+                                        : CameraStyle::Isometric;
+                                raceCameraStyle =
+                                    profileState.config.preferredCamera ==
+                                            CameraStyle::ThirdPerson
+                                        ? rrr3d::race::RaceCameraStyle::
+                                              ThirdPerson
+                                        : rrr3d::race::RaceCameraStyle::
+                                              Isometric;
+                                raceRenderer.resetCamera();
+                                saveRaceProfile();
+                            }
                         }
                         break;
                     case rrr3d::input::Action::ResetVehicle:
@@ -14572,7 +14692,8 @@ int main(int argc, char** argv)
                             showOriginalRaceMenu();
                     };
 #ifdef RRR3D_VIDEO
-                    if (championshipMode &&
+                    if (!options->legacyWindowsDebug &&
+                        championshipMode &&
                         newTournamentProfile &&
 #ifdef RRR3D_NETWORK
                         !networkHostRequested &&
@@ -14689,7 +14810,8 @@ int main(int argc, char** argv)
                     if (menuSelection == 0U)
                     {
                         std::string error;
-                        if (networkSession.beginLanSearch(error))
+                        if (networkSession.beginLanSearch(
+                                error, options->legacyWindowsDebug))
                         {
                             pushMenu(MenuScreen::NetworkBrowser);
                             renderedNetworkRevision =
@@ -15197,7 +15319,8 @@ int main(int argc, char** argv)
             control.fireWeaponSlot = raceFireWeaponSlotRequested;
             control.reset = raceResetRequested;
 #ifdef RRR3D_NETWORK
-            if (networkMatchStarted)
+            if (networkMatchStarted &&
+                !options->legacyWindowsDebug)
             {
                 if (networkHostRequested &&
                     networkSnapshot.models.raceActive)
@@ -17113,22 +17236,52 @@ int main(int argc, char** argv)
                         r3d::game::originalrace::RacePhase::Paused
                     ? 0.0F
                     : frameSeconds;
-            auto cameraStyle =
-                profileState.config.preferredCamera;
+            auto cameraStyle = raceCameraStyle;
             if (options->raceRenderSmokeTest)
             {
-                cameraStyle =
-                    renderedFrames < options->smokeFrames / 2U
-                        ? r3d::game::originalrace::
-                              PreferredCamera::Isometric
-                        : r3d::game::originalrace::
-                              PreferredCamera::ThirdPerson;
+                if (options->legacyWindowsDebug)
+                {
+                    constexpr std::array styles{
+                        rrr3d::race::RaceCameraStyle::ThirdPerson,
+                        rrr3d::race::RaceCameraStyle::Isometric,
+                        rrr3d::race::RaceCameraStyle::Lights,
+                        rrr3d::race::RaceCameraStyle::IsometricView,
+                        rrr3d::race::RaceCameraStyle::FreeView};
+                    const auto styleIndex =
+                        (renderedFrames / 8U) % styles.size();
+                    cameraStyle = styles[styleIndex];
+                    legacyDebugCameraStylesObserved[styleIndex] = true;
+                }
+                else
+                {
+                    cameraStyle =
+                        renderedFrames < options->smokeFrames / 2U
+                            ? rrr3d::race::RaceCameraStyle::Isometric
+                            : rrr3d::race::RaceCameraStyle::ThirdPerson;
+                }
                 raceCameraStylesObserved[
                     cameraStyle ==
-                            r3d::game::originalrace::
-                                PreferredCamera::ThirdPerson
+                            rrr3d::race::RaceCameraStyle::ThirdPerson
                         ? 0U
                         : 1U] = true;
+            }
+            if (options->legacyWindowsDebug &&
+                (cameraStyle ==
+                     rrr3d::race::RaceCameraStyle::Lights ||
+                 cameraStyle ==
+                     rrr3d::race::RaceCameraStyle::IsometricView ||
+                 cameraStyle ==
+                     rrr3d::race::RaceCameraStyle::FreeView))
+            {
+                const bool* keys = SDL_GetKeyboardState(nullptr);
+                const float forward =
+                    (keys[SDL_SCANCODE_W] ? 1.0F : 0.0F) -
+                    (keys[SDL_SCANCODE_S] ? 1.0F : 0.0F);
+                const float right =
+                    (keys[SDL_SCANCODE_A] ? 1.0F : 0.0F) -
+                    (keys[SDL_SCANCODE_D] ? 1.0F : 0.0F);
+                raceRenderer.moveDebugCamera(
+                    cameraStyle, forward, right, raceRenderSeconds);
             }
             const auto raceCamera = raceRenderer.makeCamera(
                 *device, physicsWorld->vehicle(),
@@ -21372,6 +21525,11 @@ int main(int argc, char** argv)
                     raceVehicles.size() < 2U ||
                     !raceCameraStylesObserved[0] ||
                     !raceCameraStylesObserved[1] ||
+                    (options->legacyWindowsDebug &&
+                     !std::all_of(
+                         legacyDebugCameraStylesObserved.begin(),
+                         legacyDebugCameraStylesObserved.end(),
+                         [](bool observed) { return observed; })) ||
                     !renderGraphComplete ||
                     maximumEnvironmentMappedDraws == 0U ||
                     (expectsBumpMapping &&
@@ -21447,7 +21605,12 @@ int main(int argc, char** argv)
                         << ", cars=" << raceVehicles.size()
                         << ", cameras="
                         << raceCameraStylesObserved[0] << '/'
-                        << raceCameraStylesObserved[1] << '\n';
+                        << raceCameraStylesObserved[1]
+                        << ", legacyDebugCameras=";
+                    for (const bool observed :
+                         legacyDebugCameraStylesObserved)
+                        std::cerr << observed;
+                    std::cerr << '\n';
                     runtimeSmokeFailed = true;
                 }
                 else
@@ -21474,6 +21637,9 @@ int main(int argc, char** argv)
                     }
                     std::cout
                         << ", ahead=" << aheadAiCount
+                        << (options->legacyWindowsDebug
+                                ? ", Windows _DEBUG cameras=5"
+                                : "")
                         << ", renderer passes cube6/shadow2/scene/HDR64-1/"
                            "adapt/bloom/composite/HUD"
                         << "/loadingFrame"

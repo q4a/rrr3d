@@ -1,6 +1,24 @@
 # Статус порта RRR3D / Motor Rock на macOS
 
-## Original game debug runtime (2026-08-24)
+## Windows `_DEBUG` compatibility runtime (2026-08-24)
+
+Глобальные сценарные ветки Windows `_DEBUG`/`DEBUG_PX` теперь доступны только
+через отдельный флаг `--legacy-windows-debug`. Режим пропускает release
+startup и три типа кампанийных intro-роликов, добавляет исходные debugTrack и
+World5/map0 с 99 кругами, принудительно выбирает `ewClody`, сразу переходит в
+`cGoRace`, подключает AIDebug к существующей машине игрока, включает полный
+debug-цикл из пяти камер и Windows Debug LAN timing. Состав участников не
+увеличивается. Исходные `#if !_DEBUG` также соблюдены: skid/contact effects в
+этом сравнительном режиме отключены. Обычный запуск и `--game-debug` не
+получают этих изменений.
+
+Ранее написанное «debug меняет состав гонки» исправлено: дополнительный
+`AIPlayer` ссылается на уже существующего human `Player`, новой машины или
+строки результатов он не создаёт. Полная матрица режимов и инструкция для
+будущего сравнения с пересобранной Windows Debug-версией находятся в
+[`ORIGINAL_GAME_DEBUG.md`](ORIGINAL_GAME_DEBUG.md).
+
+## Original game debug instrumentation (2026-08-24)
 
 Полезная часть исходного Windows debug-кода перенесена как отдельный режим
 `--game-debug`; обычный запуск полностью его обходит. Сохранённые в профиле
@@ -10,9 +28,9 @@ fullscreen, F6 — исходную AI trace, F7 передаёт существ
 перенесённому AI-контроллеру. F10 скрывает overlay, Page Up/Page Down выбирают
 страницы race/engine, wheel/contact и vehicle/suspension telemetry.
 
-Глобальный `_DEBUG` намеренно не включён: он меняет количество кругов,
-погоду, startup/movie flow и состав отладочного исполнения. Подробное описание
-и команды проверки находятся в [`ORIGINAL_GAME_DEBUG.md`](ORIGINAL_GAME_DEBUG.md).
+`--game-debug` по-прежнему является только инструментальным режимом и не
+меняет кампанию. Для глобального поведения используется отдельный
+`--legacy-windows-debug`.
 
 > **Windows-эталон для всех следующих сравнений:** Parallels VM `Windows 11`,
 > `\\Mac\Home\Downloads\Motor Rock\MR.exe` (`v. 1.2.0`, fullscreen

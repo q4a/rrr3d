@@ -20,9 +20,9 @@ enum class Command
     ToggleFullscreen,
 };
 
-// Portable counterpart of the source AIDebug/DEBUG_PX controls.  It is an
-// explicit runtime facility: none of the Windows-wide _DEBUG gameplay
-// branches (99 laps, forced weather, skipped movies, debug roster) live here.
+// Portable counterpart of the source AIDebug/DEBUG_PX controls. It can be
+// enabled alone by --game-debug, while --legacy-windows-debug composes it
+// with the separate Windows-wide scenario changes in the application flow.
 class OriginalGameDebug
 {
 public:
