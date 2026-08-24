@@ -8735,20 +8735,16 @@ int main(int argc, char** argv)
             profileState.player.planets.size());
         if (index >= count)
             return;
-        auto& progress = profileState.player.planets[index];
+        const auto& progress = profileState.player.planets[index];
         const bool newPlanet =
             progress.state == 1U || progress.state == 2U;
-        if (progress.state == 1U || progress.state == 2U)
+        if (!r3d::game::originalrace::changeOriginalTournamentPlanet(
+                *originalRace, index, profileState.player))
         {
-            // Planet::Unlock followed by Tournament::ChangePlanet/Open.
-            progress.state = 0U;
-            progress.pass = 1U;
+            std::cerr << "Original Tournament::ChangePlanet failed\n";
+            runtimeSmokeFailed = true;
+            return;
         }
-        profileState.player.currentPlanet =
-            static_cast<std::uint32_t>(index);
-        profileState.player.currentPass =
-            std::max<std::uint32_t>(progress.pass, 1U);
-        profileState.player.currentTrack = 0U;
         weatherNightPassed = false;
         selectedTrack =
             r3d::game::originalrace::resolveOriginalTournamentTrack(

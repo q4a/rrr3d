@@ -400,64 +400,87 @@ void selectRacers(Race& race,
     race.racers.back().configuredVehicle =
         race.vehicles[humanVehicle->second];
     race.racers.back().hasConfiguredVehicle = true;
+    source::Planet sourcePlanet;
     auto* opponentEntries =
         require(planet, "players", "tournamet.xml/planet");
-    const std::string requestedPass = std::to_string(racePass);
     for (auto* opponent = opponentEntries->FirstChildElement();
          opponent != nullptr; opponent = opponent->NextSiblingElement())
     {
-        auto* choices =
-            require(opponent, "cars", "tournamet.xml/player");
-        TiXmlElement* selected = nullptr;
-        for (auto* choice = choices->FirstChildElement();
-             choice != nullptr; choice = choice->NextSiblingElement())
-        {
-            if (text(choice, "pass", "tournamet.xml/player car") ==
-                requestedPass)
-            {
-                selected = choice;
-                break;
-            }
-        }
-        if (selected == nullptr)
-            continue;
-        const std::string record =
-            text(selected, "record", "tournamet.xml/player car");
-        const auto vehicle = vehicleIndices.find(record);
-        if (vehicle == vehicleIndices.end())
-            throw resource::ResourceError(
-                "garage.xml: AI tournament car is missing: " + record);
-        Racer racer;
-        racer.gamerId = unsignedValue(
+        source::Planet::PlayerData player;
+        player.id = static_cast<int>(unsignedValue(
             text(opponent, "id", "tournamet.xml/player"),
-            "tournamet.xml/player/id");
-        racer.name = text(opponent, "name", "tournamet.xml/player");
+            "tournamet.xml/player/id"));
+        player.name = text(opponent, "name", "tournamet.xml/player");
+        player.maxPass = static_cast<int>(unsignedValue(
+            text(opponent, "maxPass", "tournamet.xml/player"),
+            "tournamet.xml/player/maxPass"));
+        if (auto* bonus = child(opponent, "bonus");
+            bonus != nullptr && bonus->GetText() != nullptr)
+        {
+            player.bonus = bonus->GetText();
+        }
         if (auto* photo = child(opponent, "photo");
             photo != nullptr && photo->Attribute("item") != nullptr)
         {
-            racer.photoPath =
+            player.photoPath =
                 canonicalDataPath(resources, photo->Attribute("item"));
         }
-        racer.vehicle = vehicle->second;
-        racer.configuredVehicle = race.vehicles[vehicle->second];
-        racer.hasConfiguredVehicle = true;
+        auto* choices = require(
+            opponent, "cars", "tournamet.xml/player");
+        for (auto* choice = choices->FirstChildElement();
+             choice != nullptr; choice = choice->NextSiblingElement())
+        {
+            player.cars.push_back(
+                {text(choice, "record", "tournamet.xml/player car"),
+                 static_cast<int>(unsignedValue(
+                     text(choice, "pass", "tournamet.xml/player car"),
+                     "tournamet.xml/player car/pass"))});
+        }
         if (auto* slots = child(opponent, "slots"))
         {
             for (auto* slot = slots->FirstChildElement(); slot != nullptr;
                  slot = slot->NextSiblingElement())
             {
-                if (text(slot, "pass", "tournamet.xml/player slot") !=
-                    requestedPass)
-                    continue;
-                racer.loadout.push_back(
-                    {text(slot, "record",
-                          "tournamet.xml/player slot"),
-                     text(slot, "type", "tournamet.xml/player slot"),
+                player.slots.push_back(
+                    {text(slot, "record", "tournamet.xml/player slot"),
                      unsignedValue(
                          text(slot, "charge",
                               "tournamet.xml/player slot"),
-                         "tournamet.xml/player slot/charge")});
+                         "tournamet.xml/player slot/charge"),
+                     text(slot, "type", "tournamet.xml/player slot"),
+                     static_cast<int>(unsignedValue(
+                         text(slot, "pass", "tournamet.xml/player slot"),
+                         "tournamet.xml/player slot/pass"))});
             }
+        }
+        sourcePlanet.InsertPlayer(std::move(player));
+    }
+
+    for (const auto& player : sourcePlanet.GetPlayers())
+    {
+        source::Planet::PlayerState state;
+        state.id = player.id;
+        state.computer = true;
+        sourcePlanet.StartPass(
+            static_cast<int>(racePass), state, true);
+        if (state.car.empty())
+            continue;
+        const auto vehicle = vehicleIndices.find(state.car);
+        if (vehicle == vehicleIndices.end())
+            throw resource::ResourceError(
+                "garage.xml: AI tournament car is missing: " + state.car);
+        Racer racer;
+        racer.gamerId = static_cast<std::uint32_t>(player.id);
+        racer.name = player.name;
+        racer.photoPath = player.photoPath;
+        racer.vehicle = vehicle->second;
+        racer.configuredVehicle = race.vehicles[vehicle->second];
+        racer.hasConfiguredVehicle = true;
+        racer.loadout.reserve(state.slots.size());
+        for (const auto& slot : state.slots)
+        {
+            racer.loadout.push_back(
+                {slot.record, slot.type, slot.charge});
         }
         race.racers.push_back(std::move(racer));
     }
@@ -3136,11 +3159,15 @@ void loadAchievements(
     }
 }
 
-void loadRewards(TiXmlElement* planet, Race& race)
+void loadRewards(TiXmlElement* planet, std::uint32_t planetIndex,
+                 Race& race)
 {
     race.rewardMoney.fill(0U);
     race.rewardPoints.fill(0U);
     race.requiredPoints.clear();
+    race.tournamentPlanetIndex = planetIndex;
+    race.tournamentCarRewards.clear();
+    race.tournamentSlotRewards.clear();
     if (auto* points = child(planet, "points"))
     {
         for (auto* point = points->FirstChildElement();
@@ -3156,6 +3183,29 @@ void loadRewards(TiXmlElement* planet, Race& race)
                 optionalUnsigned(point, "value", 0U);
         }
     }
+    const auto loadPassRewards = [&](const char* group,
+                                     std::vector<TournamentReward>& output) {
+        auto* rewards = child(planet, group);
+        if (rewards == nullptr)
+            return;
+        for (auto* reward = rewards->FirstChildElement(); reward != nullptr;
+             reward = reward->NextSiblingElement())
+        {
+            TournamentReward value;
+            value.record = text(
+                reward, "record", "tournamet.xml/pass reward");
+            value.pass = optionalUnsigned(reward, "pass", 0U);
+            value.charge = optionalUnsigned(reward, "charge", 0U);
+            if (auto* type = child(reward, "type");
+                type != nullptr && type->GetText() != nullptr)
+            {
+                value.slotType = type->GetText();
+            }
+            output.push_back(std::move(value));
+        }
+    };
+    loadPassRewards("cars", race.tournamentCarRewards);
+    loadPassRewards("slots", race.tournamentSlotRewards);
     auto* prices = child(planet, "prices");
     if (prices == nullptr)
         return;
@@ -4038,7 +4088,7 @@ Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources,
     loadWeapons(resources, workshopDocument.RootElement(), database, race);
     loadAchievements(resources, race);
     auto* firstPlanet = require(tournament, "planets/planet0", "tournamet.xml");
-    loadRewards(firstPlanet, race);
+    loadRewards(firstPlanet, 0U, race);
     auto* firstTrack = require(firstPlanet,
                                "trackMap/tracks0/track0", "tournamet.xml");
     race.levelPath = canonicalDataPath(
@@ -4356,7 +4406,8 @@ Race loadOriginalRace(const resource::ResourceFileSystem& resources,
     if (selectedPlanet == nullptr)
         throw resource::ResourceError(
             "tournamet.xml: selected planet is unavailable");
-    loadRewards(selectedPlanet, result);
+    loadRewards(selectedPlanet,
+                result.trackCatalog[trackIndex].planetIndex, result);
     applyPlanetEnvironment(resources, selectedPlanet, result);
     selectRacers(result, resources, selectedPlanet,
                  result.trackCatalog[trackIndex].racePass,
@@ -4673,6 +4724,21 @@ source::Tournament makeSourceTournament(
                 track.lapCount);
         }
     }
+    if (auto* rewardPlanet =
+            tournament.GetPlanet(race.tournamentPlanetIndex))
+    {
+        for (const auto& reward : race.tournamentCarRewards)
+        {
+            rewardPlanet->InsertCar(
+                {reward.record, static_cast<int>(reward.pass)});
+        }
+        for (const auto& reward : race.tournamentSlotRewards)
+        {
+            rewardPlanet->InsertSlot(
+                {reward.record, reward.charge, reward.slotType,
+                 static_cast<int>(reward.pass)});
+        }
+    }
     return tournament;
 }
 
@@ -4730,6 +4796,52 @@ void writeOriginalTournamentSelection(
         if (candidate.planetIndex == selected.planetIndex &&
             candidate.racePass == selected.racePass)
             ++profile.currentTrack;
+    }
+}
+
+bool changeOriginalTournamentPlanet(
+    const Race& race, std::size_t planetIndex,
+    PlayerProfile& profile) noexcept
+{
+    try
+    {
+        auto tournament = makeSourceTournament(race, profile);
+        auto* planet = tournament.GetPlanet(planetIndex);
+        if (planet == nullptr)
+            return false;
+
+        // The Hangar flow unlocks a closed/unavailable destination before
+        // invoking the source Tournament::ChangePlanet method.  Completed
+        // planets must not be fed through Unlock because Windows uses that
+        // operation only while exposing entries to a new game mode.
+        if (planet->GetState() == source::Planet::psClosed ||
+            planet->GetState() == source::Planet::psUnavailable)
+        {
+            planet->Unlock();
+        }
+        if (!tournament.ChangePlanet(planetIndex))
+            return false;
+
+        const auto* selectedPlanet = tournament.GetCurPlanet();
+        const auto* selectedTrack = tournament.GetCurTrack();
+        if (selectedPlanet == nullptr || selectedTrack == nullptr)
+            return false;
+
+        profile.currentPlanet = static_cast<std::uint32_t>(planetIndex);
+        profile.currentTrack = tournament.GetCurTrackIndex();
+        profile.currentPass = static_cast<std::uint32_t>(
+            std::max(selectedPlanet->GetPass(), 0));
+        if (planetIndex < profile.planets.size())
+        {
+            profile.planets[planetIndex].state =
+                static_cast<std::uint32_t>(selectedPlanet->GetState());
+            profile.planets[planetIndex].pass = profile.currentPass;
+        }
+        return selectedTrack->catalogIndex < race.trackCatalog.size();
+    }
+    catch (...)
+    {
+        return false;
     }
 }
 
@@ -4791,6 +4903,8 @@ TournamentAdvance completeOriginalTournamentTrack(
         result.passComplete = advance.passComplete;
         result.passChampion = advance.passChampion;
         result.planetChampion = advance.planetChampion;
+        result.unlockedSlots = advance.unlockedSlots;
+        result.unlockedCars = advance.unlockedCars;
 
         writeOriginalTournamentSelection(
             race, result.trackIndex, profile.player);
@@ -4868,6 +4982,10 @@ bool runOriginalTournamentProgressSmokeTest(std::string& error)
     race.trackCatalog = {
         {"Data/Map/World5/map15.r3dMap", 4U, "wtWorld5", 4U, 2U},
     };
+    race.tournamentPlanetIndex = 4U;
+    race.tournamentCarRewards = {{"reward-car", 2U, 0U, {}}};
+    race.tournamentSlotRewards = {
+        {"reward-slot", 2U, 0U, {}}};
     auto profile = makeOriginalDefaultProfileState();
     profile.player.currentPlanet = 4U;
     profile.player.currentPass = 2U;
@@ -4887,6 +5005,10 @@ bool runOriginalTournamentProgressSmokeTest(std::string& error)
     if (!finalAdvance.passComplete ||
         !finalAdvance.passChampion ||
         !finalAdvance.planetChampion ||
+        finalAdvance.unlockedCars !=
+            std::vector<std::string>{"reward-car"} ||
+        finalAdvance.unlockedSlots !=
+            std::vector<std::string>{"reward-slot"} ||
         profile.player.planets[4].state != 3U ||
         !completed(4U) || !completed(5U) ||
         originalFinishTransition(
@@ -4895,6 +5017,27 @@ bool runOriginalTournamentProgressSmokeTest(std::string& error)
     {
         error =
             "source final-planet completion/unlock transition mismatch";
+        return false;
+    }
+
+    Race navigationRace;
+    navigationRace.trackCatalog = {
+        {"Data/Map/World1/map1.r3dMap", 4U, "wtWorld1", 0U, 1U},
+        {"Data/Map/World2/map1.r3dMap", 4U, "wtWorld2", 1U, 1U},
+    };
+    auto navigationProfile = makeOriginalDefaultProfileState().player;
+    navigationProfile.planets[1] = {2U, 0U};
+    if (!changeOriginalTournamentPlanet(
+            navigationRace, 1U, navigationProfile) ||
+        navigationProfile.currentPlanet != 1U ||
+        navigationProfile.currentTrack != 0U ||
+        navigationProfile.currentPass != 1U ||
+        navigationProfile.planets[1].state != 0U ||
+        navigationProfile.planets[1].pass != 1U ||
+        resolveOriginalTournamentTrack(
+            navigationRace, navigationProfile) != 1U)
+    {
+        error = "source Tournament::ChangePlanet transition mismatch";
         return false;
     }
 

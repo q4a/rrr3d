@@ -88,13 +88,13 @@ const Planet::TrackMap& Planet::GetTrackMap() const noexcept
     return trackMap_;
 }
 
-void Planet::Unlock() noexcept
+void Planet::Unlock()
 {
     if (state_ == psUnavailable || state_ == psCompleted)
         SetState(psClosed);
 }
 
-bool Planet::Open() noexcept
+bool Planet::Open()
 {
     if (state_ == psUnavailable)
         return false;
@@ -104,7 +104,7 @@ bool Planet::Open() noexcept
     return true;
 }
 
-bool Planet::Complete() noexcept
+bool Planet::Complete()
 {
     if (state_ == psCompleted)
         return true;
@@ -114,7 +114,67 @@ bool Planet::Complete() noexcept
     return true;
 }
 
-void Planet::NextPass() noexcept
+void Planet::StartPass(int pass, PlayerState& player,
+                       bool campaign) const
+{
+    if (pass <= 0 || !player.computer)
+        return;
+
+    int playerId = player.id;
+    if (playerId > 5)
+    {
+        playerId = campaign ? (playerId - 1) % 4 + 2
+                            : (playerId - 1) % 5 + 1;
+    }
+    const auto* data = GetPlayer(playerId);
+    if (data == nullptr)
+        return;
+
+    if (pass > data->maxPass)
+        pass = data->maxPass;
+    player.car.clear();
+    player.slots.clear();
+    for (const auto& car : data->cars)
+    {
+        if (car.pass == pass)
+        {
+            player.car = car.record;
+            break;
+        }
+    }
+    if (!player.car.empty())
+    {
+        for (const auto& slot : data->slots)
+        {
+            if (slot.pass == pass)
+                player.slots.push_back(slot);
+        }
+    }
+    player.maximizeForSkirmish = !campaign && !player.car.empty();
+}
+
+void Planet::StartPass(int pass, std::vector<PlayerState>& players,
+                       bool campaign) const
+{
+    for (auto& player : players)
+        StartPass(pass, player, campaign);
+}
+
+void Planet::CompletePass(int pass)
+{
+    for (const auto& slot : slots_)
+    {
+        if (slot.pass == pass)
+            completedSlots_.push_back(slot.record);
+    }
+    for (const auto& car : cars_)
+    {
+        if (car.pass == pass)
+            completedCars_.push_back(car.record);
+    }
+}
+
+void Planet::NextPass()
 {
     SetPass(pass_ + 1);
     if (pass_ >= 3)
@@ -126,11 +186,12 @@ int Planet::GetPass() const noexcept
     return pass_;
 }
 
-void Planet::SetPass(int value) noexcept
+void Planet::SetPass(int value)
 {
-    // Original CompletePass/StartPass callbacks unlock inventory and apply
-    // AI loadouts.  Those systems have their own portable adapters; this
-    // source-rules class owns the identical state transition itself.
+    if (pass_ == value)
+        return;
+    if (pass_ >= 0)
+        CompletePass(pass_);
     pass_ = value;
 }
 
@@ -138,6 +199,8 @@ void Planet::Reset() noexcept
 {
     state_ = psUnavailable;
     pass_ = 0;
+    completedSlots_.clear();
+    completedCars_.clear();
 }
 
 std::uint32_t Planet::GetIndex() const noexcept
@@ -145,12 +208,28 @@ std::uint32_t Planet::GetIndex() const noexcept
     return index_;
 }
 
+int Planet::GetId() const noexcept
+{
+    const auto* boss = players_.empty() ? nullptr : &players_.front();
+    return boss == nullptr ? -1 : boss->id;
+}
+
+const std::string& Planet::GetName() const noexcept
+{
+    return name_;
+}
+
+void Planet::SetName(std::string value)
+{
+    name_ = std::move(value);
+}
+
 Planet::State Planet::GetState() const noexcept
 {
     return state_;
 }
 
-void Planet::SetState(State value) noexcept
+void Planet::SetState(State value)
 {
     if (state_ == value)
         return;
@@ -167,6 +246,8 @@ void Planet::Restore(State state, int pass) noexcept
     // runtime inventory callbacks, matching SnProfile::LoadTournament.
     state_ = state;
     pass_ = pass;
+    completedSlots_.clear();
+    completedCars_.clear();
 }
 
 const Planet::RequestPoints& Planet::GetRequestPoints() const noexcept
@@ -213,6 +294,95 @@ void Planet::SetPrices(Prices value)
     prices_ = std::move(value);
 }
 
+void Planet::InsertSlot(SlotData slot)
+{
+    if (!slot.record.empty())
+        slots_.push_back(std::move(slot));
+}
+
+void Planet::ClearSlots() noexcept
+{
+    slots_.clear();
+}
+
+void Planet::SetSlots(Slots value)
+{
+    slots_ = std::move(value);
+}
+
+const Planet::Slots& Planet::GetSlots() const noexcept
+{
+    return slots_;
+}
+
+void Planet::InsertCar(CarData car)
+{
+    if (!car.record.empty())
+        cars_.push_back(std::move(car));
+}
+
+void Planet::ClearCars() noexcept
+{
+    cars_.clear();
+}
+
+void Planet::SetCars(Cars value)
+{
+    cars_ = std::move(value);
+}
+
+const Planet::Cars& Planet::GetCars() const noexcept
+{
+    return cars_;
+}
+
+void Planet::InsertPlayer(PlayerData player)
+{
+    players_.push_back(std::move(player));
+}
+
+void Planet::ClearPlayers() noexcept
+{
+    players_.clear();
+}
+
+const Planet::PlayerData* Planet::GetPlayer(int id) const noexcept
+{
+    const auto found = std::find_if(
+        players_.begin(), players_.end(),
+        [id](const PlayerData& player) { return player.id == id; });
+    return found == players_.end() ? nullptr : &*found;
+}
+
+const Planet::PlayerData* Planet::GetPlayer(
+    const std::string& name) const noexcept
+{
+    const auto found = std::find_if(
+        players_.begin(), players_.end(),
+        [&name](const PlayerData& player) { return player.name == name; });
+    return found == players_.end() ? nullptr : &*found;
+}
+
+Planet::PlayerData Planet::GetBoss() const
+{
+    return players_.empty() ? PlayerData{} : players_.front();
+}
+
+const Planet::Players& Planet::GetPlayers() const noexcept
+{
+    return players_;
+}
+
+std::vector<std::string> Planet::TakeCompletedSlots() noexcept
+{
+    return std::move(completedSlots_);
+}
+
+std::vector<std::string> Planet::TakeCompletedCars() noexcept
+{
+    return std::move(completedCars_);
+}
+
 Tournament::Tournament(bool campaign) noexcept : campaign_(campaign) {}
 
 Planet& Tournament::AddPlanet()
@@ -239,15 +409,86 @@ const Planet* Tournament::GetPlanet(std::size_t index) const noexcept
     return index < planets_.size() ? &planets_[index] : nullptr;
 }
 
-bool Tournament::SetCurPlanet(std::size_t index) noexcept
+Planet* Tournament::NextPlanet(std::size_t index) noexcept
+{
+    return index + 1U < planets_.size() ? &planets_[index + 1U]
+                                        : nullptr;
+}
+
+Planet* Tournament::PrevPlanet(std::size_t index) noexcept
+{
+    return index > 0U && index <= planets_.size()
+               ? &planets_[index - 1U]
+               : nullptr;
+}
+
+Planet& Tournament::AddGamer()
+{
+    gamers_.emplace_back(static_cast<std::uint32_t>(gamers_.size()));
+    return gamers_.back();
+}
+
+void Tournament::ClearGamers() noexcept
+{
+    gamers_.clear();
+}
+
+Planet* Tournament::GetGamer(int gamerId) noexcept
+{
+    const auto found = std::find_if(
+        gamers_.begin(), gamers_.end(),
+        [gamerId](const Planet& gamer) {
+            return gamer.GetId() == gamerId;
+        });
+    return found == gamers_.end() ? nullptr : &*found;
+}
+
+const Planet::PlayerData* Tournament::GetPlayerData(int id) const noexcept
+{
+    for (const auto& gamer : gamers_)
+    {
+        if (const auto* player = gamer.GetPlayer(id))
+            return player;
+    }
+    const auto* planet = GetCurPlanet();
+    return planet == nullptr ? nullptr : planet->GetPlayer(id);
+}
+
+const Planet::PlayerData* Tournament::GetPlayerData(
+    const std::string& name) const noexcept
+{
+    for (const auto& gamer : gamers_)
+    {
+        if (const auto* player = gamer.GetPlayer(name))
+            return player;
+    }
+    const auto* planet = GetCurPlanet();
+    return planet == nullptr ? nullptr : planet->GetPlayer(name);
+}
+
+bool Tournament::SetCurPlanet(std::size_t index)
 {
     if (index >= planets_.size())
         return false;
+    if (hasCurPlanet_ && curPlanet_ == index)
+        return true;
     curPlanet_ = index;
     hasCurPlanet_ = true;
     trackList_.clear();
     curTrack_ = NextTrack(nullptr);
     return curTrack_ != nullptr;
+}
+
+bool Tournament::ChangePlanet(std::size_t index)
+{
+    auto* planet = GetPlanet(index);
+    if (planet == nullptr)
+        return false;
+    if (hasCurPlanet_ && curPlanet_ == index)
+        return true;
+    if (!planet->Open())
+        planet->SetPass(1);
+    return SetCurPlanet(index);
 }
 
 bool Tournament::SetCurTrack(std::size_t catalogIndex) noexcept
@@ -276,7 +517,7 @@ bool Tournament::SetCurTrack(std::size_t catalogIndex) noexcept
 }
 
 bool Tournament::Select(std::size_t planetIndex, int pass,
-                        std::size_t localTrack) noexcept
+                        std::size_t localTrack)
 {
     auto* planet = GetPlanet(planetIndex);
     if (planet == nullptr)
@@ -296,6 +537,16 @@ const Planet* Tournament::GetCurPlanet() const noexcept
     return hasCurPlanet_ ? GetPlanet(curPlanet_) : nullptr;
 }
 
+std::size_t Tournament::GetCurPlanetIndex() const noexcept
+{
+    return hasCurPlanet_ ? curPlanet_ : 0U;
+}
+
+Planet* Tournament::GetNextPlanet() noexcept
+{
+    return hasCurPlanet_ ? NextPlanet(curPlanet_) : nullptr;
+}
+
 const Planet::Track* Tournament::GetCurTrack() const noexcept
 {
     return curTrack_;
@@ -307,7 +558,7 @@ std::size_t Tournament::GetCurTrackIndex() const noexcept
 }
 
 const Planet::Track* Tournament::NextTrack(
-    const Planet::Track* track) noexcept
+    const Planet::Track* track)
 {
     const auto* planet = GetCurPlanet();
     if (planet == nullptr)
@@ -347,7 +598,7 @@ const Planet::Track* Tournament::NextTrack(
 }
 
 Tournament::Advance Tournament::CompleteTrack(
-    int points, std::uint32_t humanOrOpponentCount) noexcept
+    int points, std::uint32_t humanOrOpponentCount)
 {
     Advance result;
     auto* planet = hasCurPlanet_ ? GetPlanet(curPlanet_) : nullptr;
@@ -362,6 +613,8 @@ Tournament::Advance Tournament::CompleteTrack(
                 planet->GetPass(), points, humanOrOpponentCount))
         {
             planet->NextPass();
+            result.unlockedSlots = planet->TakeCompletedSlots();
+            result.unlockedCars = planet->TakeCompletedCars();
             result.passChampion = true;
             result.planetChampion =
                 planet->GetState() == Planet::psCompleted;
@@ -380,6 +633,8 @@ void Tournament::Reset() noexcept
 {
     for (auto& planet : planets_)
         planet.Reset();
+    for (auto& gamer : gamers_)
+        gamer.Reset();
     curTrack_ = nullptr;
     trackList_.clear();
     hasCurPlanet_ = false;

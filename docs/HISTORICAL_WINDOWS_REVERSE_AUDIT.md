@@ -485,6 +485,38 @@ commit. Сравнения выполнялись по явным commit IDs, ч
 полного объекта и связанные методы `Race`. Они должны подключаться к уже
 введённым классам, а не воспроизводиться новыми helper-функциями.
 
+### P2.2 — pass inventory, PlayerData и ChangePlanet — выполнено
+
+Следующий блок переносит структуры `Planet::SlotData`, `CarData`,
+`PlayerData` и исходные методы управления ими: `Insert/Clear/SetSlots`,
+`Insert/Clear/SetCars`, `Insert/ClearPlayers`, обе формы `GetPlayer`,
+`GetBoss` и `GetId`. `Tournament` дополнен `NextPlanet`, `PrevPlanet`,
+`ChangePlanet`, `GetNextPlanet`, gamer collection и приоритетным
+`GetPlayerData`.
+
+`Planet::SetPass` теперь исполняет исходную цепочку: при реальном изменении
+сначала вызывается `CompletePass` для старого pass, затем меняется номер.
+Благодаря этому `Unlock → Open` действительно завершает pass 0 и выдаёт
+начальные записи планеты, а `NextPass` выдаёт записи только что пройденного
+pass. `TournamentAdvance` сохраняет точные списки открытых car/slot records.
+
+AI roster больше не строится отдельным упрощённым XML-фильтром. Все
+`PlayerData`, машины и слоты сначала читаются из `tournamet.xml`, после чего
+активный loader вызывает перенесённый `Planet::StartPass`. Сохранены clamp по
+`maxPass`, очистка предыдущей конфигурации и Windows-перенумерация
+Computer6+ отдельно для campaign/skirmish.
+
+Hangar также больше не меняет `PlanetProgress` вручную: active menu вызывает
+source `Tournament::ChangePlanet`, включая правильную последовательность
+`Unlock/Open`, выбор первой трассы pass и обратную запись состояния в
+профиль. Regression проверяет закрытую/недоступную планету, pass-0 rewards,
+AI pass loadout, завершение финального pass и перенос наград через active
+`completeOriginalTournamentTrack`.
+
+Не перенесёнными внутри этого класса пока остаются weighted weather state
+при `SetCurTrack`, полная XML serialization самого library object и вызов
+`StartPass` для уже созданных runtime Player при сетевой смене состояния.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

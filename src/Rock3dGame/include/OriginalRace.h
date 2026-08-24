@@ -745,6 +745,14 @@ struct TrackCatalogEntry
     std::uint32_t racePass = 1;
 };
 
+struct TournamentReward
+{
+    std::string record;
+    std::uint32_t pass = 0U;
+    std::uint32_t charge = 0U;
+    std::string slotType;
+};
+
 struct Race
 {
     std::string levelPath;
@@ -773,6 +781,9 @@ struct Race
     std::array<std::uint32_t, 3> rewardMoney{};
     std::array<std::uint32_t, 3> rewardPoints{};
     std::vector<std::uint32_t> requiredPoints;
+    std::uint32_t tournamentPlanetIndex = 0U;
+    std::vector<TournamentReward> tournamentCarRewards;
+    std::vector<TournamentReward> tournamentSlotRewards;
     std::array<float, 2> touchBorderDamage{};
     std::array<float, 2> touchBorderDamageForce{};
     std::array<float, 2> touchCarDamage{};
@@ -799,6 +810,8 @@ struct TournamentAdvance
     bool passComplete = false;
     bool passChampion = false;
     bool planetChampion = false;
+    std::vector<std::string> unlockedSlots;
+    std::vector<std::string> unlockedCars;
 };
 
 inline constexpr std::uint32_t originalTournamentPlanetCount = 5U;
@@ -836,6 +849,9 @@ std::size_t resolveOriginalTournamentTrack(
     const Race& race, const PlayerProfile& profile) noexcept;
 void writeOriginalTournamentSelection(
     const Race& race, std::size_t trackIndex,
+    PlayerProfile& profile) noexcept;
+bool changeOriginalTournamentPlanet(
+    const Race& race, std::size_t planetIndex,
     PlayerProfile& profile) noexcept;
 int originalTournamentRequestPoints(
     const Race& race, std::uint32_t pass) noexcept;
