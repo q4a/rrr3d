@@ -953,6 +953,27 @@ Network, video и Steam явно выключены.
 - Следующим decomposition-блоком должен стать `AICar::PathState`/
   `ControlState`; это позволит убрать оставшиеся AI state arrays из сессии.
 
+### Source AICar path/control object block
+
+- `AICar::PathState` и `ControlState` теперь являются отдельным active
+  `source::AICar`, а не длинной формулой внутри `OriginalRaceSession::aiInput`.
+  Девять массивов track, lock, brake, blocking, back-moving и reset state
+  удалены из сессии.
+- Перенесены четыре source lane-search метода, `curTile/nextTile/curNode`,
+  five-unit last-node fallback, inner-corner lane target,
+  `ComputeTrackNormOff`, turn-brake hysteresis, `pi/128` steering dead zone,
+  blocked reverse/forward alternation и трёхсекундный reset.
+- `AISystem` lane-chain adapter теперь заполняет `PathState::lockTracks`;
+  `source::AICar` возвращает backend-neutral move/steer command, которую
+  существующая граница переводит в Jolt `VehicleInput`.
+- Terminal-node random selection использует callback и вызывает source RNG
+  только тогда, когда Windows действительно вызвал бы `GetRandomNode`.
+- Новый девятый CTest `OriginalAICarSmoke` независимо проверяет lane search,
+  corner braking, off-trace retention, blocking recovery и reset; полный
+  resource regression сохраняет AI attack/Hyper/mine/finish coverage.
+- Следующий source-class блок — `AICar::AttackState`; его retained targets,
+  random mine state и weapon orchestration пока остаются в session.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

@@ -1024,16 +1024,11 @@ void OriginalRaceSession::reset()
     hyperCooldown_.assign(race_.racers.size(), 0.0F);
     nextNetworkProjectileIds_.assign(race_.racers.size(), 1U);
     repairSeconds_.assign(race_.racers.size(), 0.0F);
-    stuckSeconds_.assign(race_.racers.size(), 0.0F);
-    aiBlockingSeconds_.assign(race_.racers.size(), 0.0F);
-    aiBackMovingSeconds_.assign(race_.racers.size(), 0.0F);
-    aiBrake_.assign(race_.racers.size(), false);
-    aiBlocking_.assign(race_.racers.size(), false);
-    aiBackMovingMode_.assign(race_.racers.size(), false);
-    aiBackMoving_.assign(race_.racers.size(), false);
+    aiCars_.clear();
+    aiCars_.reserve(race_.racers.size());
+    for (std::size_t index = 0U; index < race_.racers.size(); ++index)
+        aiCars_.emplace_back(sourceTrace_.GetTrackCount());
     aiMineRandom_.assign(race_.racers.size(), -1.0F);
-    aiTracks_.assign(race_.racers.size(), 0U);
-    aiLockedTracks_.assign(race_.racers.size(), {});
     aiFrontTargets_.assign(
         race_.racers.size(), RacerRuntime::invalidWeapon);
     aiBackTargets_.assign(
@@ -2124,32 +2119,6 @@ OriginalRaceSession::racerTraceNode(std::size_t racer) const noexcept
                                   : TraceNodeRef{};
 }
 
-OriginalRaceSession::TraceNodeRef OriginalRaceSession::aiTraceNode(
-    std::size_t racer,
-    const r3d::physics::VehicleState& vehicle) const
-{
-    if (racer >= racers_.size())
-        return {};
-    const auto& car = racers_[racer].car;
-    const auto current = car.GetLiveTileRef();
-    const auto last = car.GetLastNodeRef();
-    const auto* currentNode = car.GetLiveTile();
-    const auto* lastNode = car.GetLastNode();
-    if (lastNode == nullptr)
-        return current;
-    // Exact AICar::PathState fallback: retain lastNode if the live tile is
-    // missing, or if an unrelated tile appears while the car is still in
-    // lastNode with the source five-unit tolerance.
-    if (currentNode == nullptr ||
-        (lastNode->GetNext() != currentNode && lastNode != currentNode &&
-         lastNode->GetTile().IsContains(
-             vehicle.body.position, true, nullptr, 5.0F)))
-    {
-        return last;
-    }
-    return current;
-}
-
 float OriginalRaceSession::tracePathLength(std::size_t path) const
 {
     const auto* value = sourceTrace_.GetPath(path);
@@ -2296,9 +2265,8 @@ void OriginalRaceSession::updateProgress(
 void OriginalRaceSession::updateAiTracks(
     const std::vector<r3d::physics::VehicleState>& vehicles)
 {
-    constexpr std::uint32_t trackCount = 4U;
-    for (auto& tracks : aiLockedTracks_)
-        tracks.fill(false);
+    const std::uint32_t trackCount =
+        std::max(sourceTrace_.GetTrackCount(), 1U);
     struct AiTrackState
     {
         std::size_t racer = 0;
@@ -2328,6 +2296,7 @@ void OriginalRaceSession::updateAiTracks(
         TraceNodeRef traceNode = carState.GetLiveTileRef();
         if (!traceNode.valid())
             continue;
+        aiCars_[racer].path.ResetTracks();
         const auto& path = tracePathAt(traceNode.path);
         traceNode.node = std::min(traceNode.node, path.size() - 2U);
         const std::size_t nextNode = traceNode.node + 1U;
@@ -2361,7 +2330,6 @@ void OriginalRaceSession::updateAiTracks(
             {racer, traceNode.path, collisionNode, direction,
              vehicles[racer].body.position, lateral, radius,
              currentTrack});
-        aiTracks_[racer] = currentTrack;
     }
 
     auto tileStripContains = [&](const AiTrackState& source,
@@ -2449,8 +2417,8 @@ void OriginalRaceSession::updateAiTracks(
             {
                 if (otherState != chain[index])
                 {
-                    aiLockedTracks_[states[otherState].racer]
-                                   [selectedTrack] = true;
+                    aiCars_[states[otherState].racer]
+                        .path.LockTrack(selectedTrack);
                 }
             }
             if (previousState != states.size() &&
@@ -2458,8 +2426,8 @@ void OriginalRaceSession::updateAiTracks(
                     state.currentTrack &&
                 previousSelectedTrack > 0U)
             {
-                aiLockedTracks_[state.racer]
-                               [previousSelectedTrack - 1U] = true;
+                aiCars_[state.racer].path.LockTrack(
+                    previousSelectedTrack - 1U);
             }
             previousState = chain[index];
             previousSelectedTrack = selectedTrack;
@@ -2472,306 +2440,51 @@ r3d::physics::VehicleInput OriginalRaceSession::aiInput(
     std::size_t racer, const r3d::physics::VehicleState& vehicle,
     float seconds)
 {
-    if (racers_[racer].finished || racers_[racer].destroyed)
+    if (racer >= racers_.size() || racer >= aiCars_.size() ||
+        racers_[racer].finished || racers_[racer].destroyed)
         return {};
-    constexpr float steerAngleBias =
-        3.14159265358979323846F / 128.0F;
-    constexpr float maximumSpeedBlocking = 0.5F;
-    constexpr float maximumTimeBlocking = 1.0F;
 
-    const bool sourceTileMissing =
-        !racers_[racer].car.GetLiveTileRef().valid();
-    TraceNodeRef traceNode = aiTraceNode(racer, vehicle);
-    if (!traceNode.valid())
-    {
-        traceNode = {0U, std::clamp<std::size_t>(
-                              racers_[racer].nextPathNode > 0U
-                                  ? racers_[racer].nextPathNode - 1U
-                                  : 0U,
-                              0U, race_.tracePath.size() - 2U)};
-    }
-    const auto& path = tracePathAt(traceNode.path);
-    traceNode.node = std::min(traceNode.node, path.size() - 2U);
-    const std::size_t nextPathNode = traceNode.node + 1U;
-    const auto& target = tracePoint(traceNode.path, nextPathNode);
-    const auto& pathStart = tracePoint(traceNode.path, traceNode.node);
-    const Vec3 currentDirection =
-        normalized2(subtract(target.position, pathStart.position));
-    const TracePoint* following = &target;
-    Vec3 followingDirection = currentDirection;
-    if (nextPathNode + 1U < path.size())
-    {
-        following = &tracePoint(traceNode.path, nextPathNode + 1U);
-        followingDirection = normalized2(
-            subtract(following->position, target.position));
-    }
     const auto& racerDefinition = race_.racers[racer];
     const auto& vehicleDefinition =
         racerDefinition.hasConfiguredVehicle
             ? racerDefinition.configuredVehicle
             : race_.vehicles.at(racerDefinition.vehicle);
-    float directionArea =
-        5.0F + std::abs(vehicle.speed) *
-                   vehicleDefinition.physics.steeringControl * 10.0F;
     const Vec3 half = vehicleDefinition.physics.halfExtents;
-    const float carSize =
+    source::AICar::VehicleState sourceVehicle;
+    sourceVehicle.position = vehicle.body.position;
+    sourceVehicle.direction =
+        normalized2(forward(vehicle.body.rotation));
+    sourceVehicle.speed = vehicle.speed;
+    sourceVehicle.size =
         2.0F * std::sqrt(half.x * half.x + half.y * half.y +
                          half.z * half.z);
-    constexpr std::uint32_t trackCount = 4U;
-    std::uint32_t wantedTrack =
-        racer < aiTracks_.size() ? aiTracks_[racer] : 0U;
-    Vec3 movementStart = pathStart.position;
-    Vec3 movementEnd = target.position;
-    float movementStartWidth = pathStart.width;
-    float movementEndWidth = target.width;
-    Vec3 movementDirection = currentDirection;
-    const float turnAngle = std::acos(std::clamp(
-        dot2(currentDirection, followingDirection), -1.0F, 1.0F));
-    if (turnAngle > 3.14159265358979323846F / 12.0F)
-    {
-        const Vec3 middleDirection =
-            normalized2(add(currentDirection, followingDirection));
-        const bool turnLeft =
-            currentDirection.x * followingDirection.y -
-                currentDirection.y * followingDirection.x >
-            0.0F;
-        const Vec3 edgeNormal =
-            turnLeft
-                ? Vec3{-middleDirection.y, middleDirection.x, 0.0F}
-                : Vec3{middleDirection.y, -middleDirection.x, 0.0F};
-        const float halfAngleCosine = std::sqrt(std::max(
-            (1.0F + dot2(currentDirection, followingDirection)) *
-                0.5F,
-            0.000001F));
-        const float nodeRadius =
-            target.width * 0.5F / halfAngleCosine;
-        const Vec3 edgePoint = add(
-            target.position, multiply(edgeNormal, nodeRadius));
-        const float edgeDistance = dot2(
-            edgeNormal,
-            subtract(vehicle.body.position, edgePoint));
-        if (edgeDistance < carSize)
-        {
-            const float trackWidth =
-                target.width / static_cast<float>(trackCount);
-            const Vec3 targetPoint = subtract(
-                add(target.position,
-                    multiply(edgeNormal,
-                             trackWidth *
-                                 static_cast<float>(trackCount) *
-                                 0.5F)),
-                vehicle.body.position);
-            const float projection =
-                dot2(currentDirection, targetPoint);
-            if (projection < carSize)
-            {
-                movementStart = target.position;
-                movementEnd = following->position;
-                movementStartWidth = target.width;
-                movementEndWidth = following->width;
-                movementDirection = followingDirection;
-            }
-            else
-            {
-                directionArea = projection;
-                wantedTrack = turnLeft ? 0U : trackCount - 1U;
-            }
-        }
-    }
+    sourceVehicle.steeringControl =
+        vehicleDefinition.physics.steeringControl;
+    sourceVehicle.mapObject = true;
 
-    const auto& lockedTracks = aiLockedTracks_[racer];
-    const std::uint32_t currentTrack =
-        racer < aiTracks_.size() ? aiTracks_[racer] : 0U;
-    std::uint32_t selectedTrack = currentTrack;
-    if (wantedTrack != currentTrack)
-    {
-        const int increment =
-            wantedTrack > currentTrack ? 1 : -1;
-        for (std::uint32_t distance = 1U;
-             distance <= static_cast<std::uint32_t>(
-                 std::abs(static_cast<int>(wantedTrack) -
-                          static_cast<int>(currentTrack)));
-             ++distance)
-        {
-            const auto testTrack = static_cast<std::uint32_t>(
-                static_cast<int>(currentTrack) +
-                static_cast<int>(distance) * increment);
-            if (lockedTracks[testTrack])
-                break;
-            selectedTrack = testTrack;
-        }
-    }
-    if (selectedTrack == currentTrack && lockedTracks[currentTrack])
-    {
-        if (currentTrack > 0U && !lockedTracks[currentTrack - 1U])
-            selectedTrack = currentTrack - 1U;
-        else if (currentTrack + 1U < trackCount &&
-                 !lockedTracks[currentTrack + 1U])
-            selectedTrack = currentTrack + 1U;
-    }
-
-    Vec3 laneTarget = add(
-        vehicle.body.position,
-        multiply(movementDirection, directionArea));
-    const Vec3 segment =
-        subtract(movementEnd, movementStart);
-    const float segmentLength = std::max(length2(segment), 0.0001F);
-    const float segmentPart = std::clamp(
-        dot2(subtract(laneTarget, movementStart),
-             movementDirection) /
-            segmentLength,
-        0.0F, 1.0F);
-    const float pathWidth =
-        movementStartWidth +
-        (movementEndWidth - movementStartWidth) * segmentPart;
-    const float trackWidth =
-        pathWidth / static_cast<float>(trackCount);
-    const Vec3 pathNormal{
-        movementDirection.y, -movementDirection.x, 0.0F};
-    const float wantedLateral =
-        trackWidth *
-            (static_cast<float>(selectedTrack) + 0.5F) -
-        pathWidth * 0.5F;
-    const float currentLateral = dot2(
-        subtract(laneTarget, movementStart), pathNormal);
-    laneTarget = add(
-        laneTarget,
-        multiply(pathNormal, wantedLateral - currentLateral));
-    const Vec3 wanted = normalized2(
-        subtract(laneTarget, vehicle.body.position));
-    const Vec3 carForward = normalized2(forward(vehicle.body.rotation));
-    const float cross = carForward.x * wanted.y - carForward.y * wanted.x;
-    const float alignment =
-        std::clamp(dot2(carForward, wanted), -1.0F, 1.0F);
-    float steeringAngle = std::acos(alignment);
-    if (steeringAngle > steerAngleBias)
-        steeringAngle = cross > 0.0F ? steeringAngle : -steeringAngle;
-    else
-        steeringAngle = 0.0F;
-
-    // PathState selects curNode while the car is inside the current
-    // WayNode sphere; otherwise it brakes for nextTile.  Use that exact
-    // source node and its miter-normal distance instead of an approximation
-    // along the incoming segment.
-    auto nodeTurn = [&](std::size_t node) {
-        if (node == 0U || node + 1U >= path.size())
-            return 0.0F;
-        const Vec3 incoming = normalized2(subtract(
-            tracePoint(traceNode.path, node).position,
-            tracePoint(traceNode.path, node - 1U).position));
-        const Vec3 outgoing = normalized2(subtract(
-            tracePoint(traceNode.path, node + 1U).position,
-            tracePoint(traceNode.path, node).position));
-        return std::acos(std::clamp(
-            dot2(incoming, outgoing), -1.0F, 1.0F));
-    };
-    const float currentNodeTurn = nodeTurn(traceNode.node);
-    const float currentNodeRadius =
-        pathStart.width * 0.5F /
-        std::sqrt(std::max(
-            (1.0F + std::cos(currentNodeTurn)) * 0.5F,
-            0.000001F));
-    const bool insideCurrentNode =
-        length2(subtract(vehicle.body.position,
-                         pathStart.position)) < currentNodeRadius;
-    const std::size_t brakeNode =
-        insideCurrentNode ? traceNode.node : nextPathNode;
-    const float brakeTurnAngle = nodeTurn(brakeNode);
-    if (brakeTurnAngle > 3.14159265358979323846F / 12.0F)
-    {
-        const auto& brakePoint =
-            tracePoint(traceNode.path, brakeNode);
-        const Vec3 brakeIncoming = normalized2(subtract(
-            brakePoint.position,
-            tracePoint(traceNode.path, brakeNode - 1U).position));
-        const Vec3 brakeDirection = normalized2(subtract(
-            tracePoint(traceNode.path, brakeNode + 1U).position,
-            brakePoint.position));
-        const Vec3 middleDirection = normalized2(
-            add(brakeIncoming, brakeDirection));
-        const float normalDistance = dot2(
-            middleDirection,
-            subtract(vehicle.body.position, brakePoint.position));
-        const float brakeDistance =
-            -normalDistance + brakePoint.width;
-        const float rotation =
-            1.0F - std::max(dot2(carForward, brakeDirection), 0.0F);
-        const float demand =
-            vehicle.speed * vehicle.speed *
-            vehicleDefinition.physics.steeringControl *
-            vehicleDefinition.physics.steeringControl * rotation;
-        if (!aiBrake_[racer] && demand > 1.5F * brakeDistance)
-            aiBrake_[racer] = true;
-        else if (aiBrake_[racer] && demand < brakeDistance)
-            aiBrake_[racer] = false;
-    }
-    else
-    {
-        aiBrake_[racer] = false;
-    }
-
-    const bool belowBlockingSpeed =
-        std::abs(vehicle.speed) < maximumSpeedBlocking;
-    if (belowBlockingSpeed)
-    {
-        aiBlockingSeconds_[racer] += seconds;
-        if (aiBlockingSeconds_[racer] > maximumTimeBlocking)
-        {
-            aiBlockingSeconds_[racer] = 0.0F;
-            aiBlocking_[racer] = true;
-        }
-    }
-    else
-    {
-        aiBlockingSeconds_[racer] = 0.0F;
-        aiBlocking_[racer] = false;
-    }
-    // UpdateResetCar has its own timer and also advances while curTile is
-    // null, even if the car still has speed.  It must not set ControlState's
-    // blocking flag or force reverse while the car is moving.
-    if (belowBlockingSpeed || sourceTileMissing)
-        stuckSeconds_[racer] += seconds;
-    else
-        stuckSeconds_[racer] = 0.0F;
-
-    // AICar::ControlState does not wait passively for the three-second
-    // reset.  After one blocked second it alternates reverse and forward,
-    // reversing the steering angle while backing up.
-    if (!aiBackMovingMode_[racer])
-    {
-        aiBackMovingMode_[racer] = aiBlocking_[racer];
-        aiBackMoving_[racer] = aiBlocking_[racer];
-    }
-    if (aiBackMovingMode_[racer])
-    {
-        aiBackMovingSeconds_[racer] += seconds;
-        if (aiBackMovingSeconds_[racer] > maximumTimeBlocking ||
-            (aiBackMoving_[racer] &&
-             std::abs(steeringAngle) < steerAngleBias &&
-             aiBackMovingSeconds_[racer] >
-                 0.5F * maximumTimeBlocking))
-        {
-            aiBackMoving_[racer] = !aiBackMoving_[racer];
-            aiBackMovingSeconds_[racer] = 0.0F;
-            aiBackMovingMode_[racer] = aiBlocking_[racer];
-        }
-        if (aiBackMoving_[racer])
-            steeringAngle = -steeringAngle;
-    }
-
+    const auto command = aiCars_[racer].Update(
+        seconds, racers_[racer].car, sourceVehicle, true,
+        &sourceRandomUnit);
     r3d::physics::VehicleInput input;
     input.steering = clampSteering(
-        steeringAngle /
+        command.steeringAngle /
         std::max(vehicleDefinition.physics.steerAngle, 0.01F));
-    if (aiBrake_[racer])
-        input.brake = 1.0F;
-    else if (aiBackMoving_[racer])
-        input.reverse = 1.0F;
-    else
+    switch (command.move)
+    {
+    case source::AICar::MoveCarState::Accelerate:
         input.throttle = 1.0F;
+        break;
+    case source::AICar::MoveCarState::Brake:
+        input.brake = 1.0F;
+        break;
+    case source::AICar::MoveCarState::Reverse:
+        input.reverse = 1.0F;
+        break;
+    case source::AICar::MoveCarState::None:
+        break;
+    }
     return input;
 }
-
 void OriginalRaceSession::updatePlaces(
     const std::vector<r3d::physics::VehicleState>& vehicles)
 {
@@ -3027,7 +2740,6 @@ void OriginalRaceSession::queueRespawn(
 
     respawns_.push_back({racer, position, direction});
     previousPositions_[racer] = vehicles[racer].body.position;
-    stuckSeconds_[racer] = 0.0F;
     events_.push_back(
         {RaceEventKind::Respawn, racer, nodeIndex, position, 0.0F});
 }
@@ -4430,7 +4142,8 @@ void OriginalRaceSession::updateGameplay(
             (!networkGameplayEnabled_ ||
              (racer < networkOwnedRacers_.size() &&
               networkOwnedRacers_[racer])) &&
-            stuckSeconds_[racer] > 3.0F &&
+            racer < aiCars_.size() &&
+            aiCars_[racer].TakeResetCar() &&
             !racers_[racer].destroyed)
             queueRespawn(racer, vehicles);
     }
@@ -6010,7 +5723,8 @@ void OriginalRaceSession::updateGameplay(
                     (1.0F - summedPart) *
                         static_cast<float>(runtime.hyperCapacity),
                 0.0F);
-            if (safeDistance && !aiBrake_[racer] &&
+            if (safeDistance && racer < aiCars_.size() &&
+                !aiCars_[racer].path.brake &&
                 (runtime.hyperCapacity == 0U || ammunition > 0.0F))
                 activateHyper(racer);
         }

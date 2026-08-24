@@ -1,5 +1,6 @@
 #pragma once
 
+#include "OriginalAICar.h"
 #include "OriginalPlayer.h"
 #include "OriginalProfile.h"
 #include "OriginalRace.h"
@@ -413,9 +414,6 @@ private:
                                  std::size_t pathNode) const;
     void buildSourceTrace();
     TraceNodeRef racerTraceNode(std::size_t racer) const noexcept;
-    TraceNodeRef aiTraceNode(
-        std::size_t racer,
-        const r3d::physics::VehicleState& vehicle) const;
     float tracePathLength(std::size_t path) const;
     float lapPosition(
         std::size_t racer,
@@ -502,16 +500,8 @@ private:
     std::vector<float> hyperCooldown_;
     std::vector<std::uint32_t> nextNetworkProjectileIds_;
     std::vector<float> repairSeconds_;
-    std::vector<float> stuckSeconds_;
-    std::vector<float> aiBlockingSeconds_;
-    std::vector<float> aiBackMovingSeconds_;
-    std::vector<bool> aiBrake_;
-    std::vector<bool> aiBlocking_;
-    std::vector<bool> aiBackMovingMode_;
-    std::vector<bool> aiBackMoving_;
+    std::vector<source::AICar> aiCars_;
     std::vector<float> aiMineRandom_;
-    std::vector<std::uint32_t> aiTracks_;
-    std::vector<std::array<bool, 4>> aiLockedTracks_;
     std::vector<std::size_t> aiFrontTargets_;
     std::vector<std::size_t> aiBackTargets_;
     std::vector<Vec3> previousPositions_;

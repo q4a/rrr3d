@@ -630,6 +630,42 @@ branch lap и trace reset на реальных resource data.
 `ControlState`. Renderer-owned Player lights/materials и Jolt vehicle feedback
 остаются осознанными backend boundaries, а не заглушками.
 
+### P2.6 — AICar::PathState и ControlState — выполнено
+
+Из монолитного `OriginalRaceSession::aiInput` выделен компилируемый
+`source::AICar` в `OriginalAICar.h/.cpp`. Девять session-local массивов
+lane/control/reset state удалены; каждый участник теперь имеет собственные
+`PathState` и `ControlState`, как в `eff9338:AICar`.
+
+Прямо перенесены:
+
+- `FindFirst/LastUnlockTrack` и `FindFirst/LastSiblingUnlock`;
+- source `curTile/nextTile/curNode` lifecycle, включая удержание `lastNode`
+  вне trace с допуском 5 и выбор связанного WayPoint path;
+- `dirArea = 5 + abs(speed) * kSteerControl * 10`, внутренняя полоса перед
+  поворотом и `ComputeTrackNormOff`;
+- hysteresis торможения `1.5 * kBreak`/`1.0 * kBreak`;
+- `cSteerAngleBias = pi/128`, one-second blocking и исходное чередование
+  reverse/forward с инверсией steering при заднем ходе;
+- отдельный трёхсекундный `UpdateResetCar` timer, который также работает при
+  потере live `curTile`;
+- ленивый вызов source RNG только в реальной terminal-node ветке
+  `GetRandomNode`, поэтому обычный AI tick не сдвигает weapon/mine RNG.
+
+`AISystem::ComputeTracks` продолжает формировать collision chains в session,
+но теперь пишет `freeTracks/lockTracks` прямо в `AICar::PathState`.
+Jolt boundary получает только source-команду `Accelerate/Brake/Reverse/None`
+и исходный steering angle; backend не владеет AI state.
+
+Добавлен отдельный `OriginalAICarSmoke` для lane search, corner braking,
+off-trace fallback, blocking recovery и reset. Resource-based physics smoke
+дополнительно прогоняет существующие four-track, Hyper/brake, target-plane,
+reverse/reset и AI finish regressions на оригинальной карте.
+
+Следующий decomposition-блок — `AICar::AttackState`: front/back target,
+weapon readiness/range, Hyper и Mine state пока source-derived, но всё ещё
+координируются массивами и ветвями `OriginalRaceSession`.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
