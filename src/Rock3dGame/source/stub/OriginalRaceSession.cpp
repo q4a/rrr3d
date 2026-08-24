@@ -1039,6 +1039,7 @@ void OriginalRaceSession::reset()
     vehicleInputs_.assign(race_.racers.size(), {});
     weaponCooldown_.assign(race_.racers.size(), {});
     mineCooldown_.assign(race_.racers.size(), 0.0F);
+    mineShotAge_.assign(race_.racers.size(), 0.0F);
     hyperCooldown_.assign(race_.racers.size(), 0.0F);
     nextNetworkProjectileIds_.assign(race_.racers.size(), 1U);
     repairSeconds_.assign(race_.racers.size(), 0.0F);
@@ -2565,12 +2566,18 @@ void OriginalRaceSession::updateProgress(
             });
         runtime.place =
             static_cast<std::uint32_t>(finishedBefore + 1U);
-        const std::size_t reward =
-            std::min<std::size_t>(
-                runtime.place > 0 ? runtime.place - 1U : 0U,
-                race_.rewardMoney.size() - 1U);
-        runtime.rewardMoney = race_.rewardMoney[reward];
-        runtime.rewardPoints = race_.rewardPoints[reward];
+        if (runtime.place >= 1U &&
+            runtime.place <= race_.rewardMoney.size())
+        {
+            const std::size_t reward = runtime.place - 1U;
+            runtime.rewardMoney = race_.rewardMoney[reward];
+            runtime.rewardPoints = race_.rewardPoints[reward];
+        }
+        else
+        {
+            runtime.rewardMoney = 0U;
+            runtime.rewardPoints = 0U;
+        }
         vehicleInputs_[racer] = {};
         events_.push_back({RaceEventKind::Finish, racer, 0,
                            vehicle.body.position, runtime.finishTime});
@@ -3753,6 +3760,7 @@ void OriginalRaceSession::updateGameplay(
             cooldown = std::max(0.0F, cooldown - seconds);
         mineCooldown_[racer] =
             std::max(0.0F, mineCooldown_[racer] - seconds);
+        mineShotAge_[racer] += seconds;
         hyperCooldown_[racer] =
             std::max(0.0F, hyperCooldown_[racer] - seconds);
         if (runtime.destroyed)
@@ -4762,7 +4770,11 @@ void OriginalRaceSession::updateGameplay(
 
     if (!vehicles.empty())
     {
-        if (humanControl.reset && !racers_[0].destroyed)
+        // HumanPlayer::ResetCar accepts the command only while at least one
+        // wheel or the rigid body has contact.
+        if (humanControl.reset && !racers_[0].destroyed &&
+            (vehicles[0].contactCount > 0U ||
+             !vehicles[0].bodyContacts.empty()))
             queueRespawn(0, vehicles);
         previousPositions_[0] = vehicles[0].body.position;
     }
@@ -4862,15 +4874,19 @@ void OriginalRaceSession::updateGameplay(
     auto placeMine = [&](
         std::size_t owner, const Vec3* replicatedPosition = nullptr,
         std::uint32_t replicatedProjectileId = 0U,
-        bool networkReplicated = false) {
+        bool networkReplicated = false,
+        bool sourceReadinessOverride = false) {
         if (owner >= vehicles.size() || owner >= racers_.size() ||
             racers_[owner].destroyed ||
-            racers_[owner].mines == 0 ||
-            (!networkReplicated && mineCooldown_[owner] > 0.0F))
+            racers_[owner].mines == 0)
             return;
         const std::size_t weapon = racers_[owner].mineWeapon;
         if (weapon == RacerRuntime::invalidWeapon ||
             weapon >= race_.weapons.size())
+            return;
+        if (!networkReplicated && !sourceReadinessOverride &&
+            mineShotAge_[owner] <=
+                std::max(race_.weapons[weapon].shotDelay, 0.0F))
             return;
         const auto& projectiles = race_.weapons[weapon].projectiles;
         const auto* projectile =
@@ -4909,6 +4925,7 @@ void OriginalRaceSession::updateGameplay(
         --racers_[owner].mines;
         mineCooldown_[owner] =
             std::max(race_.weapons[weapon].shotDelay, 0.0F);
+        mineShotAge_[owner] = 0.0F;
         racers_[owner].mineLockSeconds = 0.4F;
         MineRuntime mine;
         mine.owner = owner;
@@ -4944,6 +4961,24 @@ void OriginalRaceSession::updateGameplay(
     };
     if (humanControl.useMine)
         placeMine(0);
+    if (!racers_.empty() && humanControl.mineHeld > 0.0F &&
+        racers_[0].mineWeapon != RacerRuntime::invalidWeapon &&
+        racers_[0].mineWeapon < race_.weapons.size())
+    {
+        const auto& mineWeapon =
+            race_.weapons[racers_[0].mineWeapon];
+        const bool maslo =
+            recordName(mineWeapon.record).find("maslo") !=
+            std::string::npos;
+        if (humanControl.mineAnalogBinding || maslo)
+        {
+            const float alpha =
+                std::clamp(humanControl.mineHeld, 0.0F, 1.0F);
+            const float sourceDelay = (1.0F - alpha) * 0.6F;
+            if (mineShotAge_[0] > sourceDelay)
+                placeMine(0, nullptr, 0U, false, true);
+        }
+    }
     auto activateHyper = [&](
         std::size_t owner, const Vec3* replicatedPosition = nullptr,
         std::uint32_t replicatedProjectileId = 0U,
@@ -5582,7 +5617,8 @@ void OriginalRaceSession::updateGameplay(
             {
                 runtime.shieldEffectSeconds = 0.0F;
                 runtime.shieldFadeInSeconds = 0.0F;
-                runtime.shieldFadeOutSeconds = -1.0F;
+                // ImmortalEffect::OnImmortalStatus(true) starts fade-in but
+                // intentionally leaves an existing fade-out active.
                 runtime.shieldDamageSeconds = -1.0F;
             }
             runtime.shieldSeconds = std::max(value, 0.0F);
@@ -5997,10 +6033,25 @@ void OriginalRaceSession::updateGameplay(
             static_cast<int>(PlayerProfile::weaponSlotCount))
     {
         auto& runtime = racers_.front();
-        const auto requested =
+        const auto requestedOrdinal =
             static_cast<std::size_t>(humanControl.fireWeaponSlot);
-        if (runtime.weaponSlots[requested] !=
-            RacerRuntime::invalidWeapon)
+        std::size_t requested = RacerRuntime::invalidWeapon;
+        std::size_t installedOrdinal = 0U;
+        for (std::size_t slot = 0U;
+             slot < runtime.weaponSlots.size(); ++slot)
+        {
+            if (runtime.weaponSlots[slot] ==
+                RacerRuntime::invalidWeapon)
+            {
+                continue;
+            }
+            if (installedOrdinal++ == requestedOrdinal)
+            {
+                requested = slot;
+                break;
+            }
+        }
+        if (requested != RacerRuntime::invalidWeapon)
         {
             const auto selected = runtime.selectedWeaponSlot;
             runtime.selectedWeaponSlot = requested;
@@ -6499,7 +6550,10 @@ void OriginalRaceSession::updateGameplay(
 void OriginalRaceSession::completeAchievement(
     std::size_t achievement)
 {
-    if (achievement >= race_.achievements.size() ||
+    // AchievmentCondition::CompleteIteration rejects completion once the
+    // finish timer has started, including its three-second presentation gap.
+    if (phase_ == RacePhase::Finished ||
+        achievement >= race_.achievements.size() ||
         achievement >= achievementIterations_.size())
         return;
     const auto& definition = race_.achievements[achievement];
@@ -6701,14 +6755,20 @@ void OriginalRaceSession::completeRemainingRacers(
     std::stable_sort(
         remaining.begin(), remaining.end(),
         [&](std::size_t first, std::size_t second) {
-            const float firstPlace =
-                first < vehicles.size()
-                    ? lapPosition(first, vehicles[first])
-                    : lastCorrectLapPosition(first);
-            const float secondPlace =
-                second < vehicles.size()
-                    ? lapPosition(second, vehicles[second])
-                    : lastCorrectLapPosition(second);
+            auto forcedPlace = [&](std::size_t racer) {
+                float place =
+                    racer < vehicles.size()
+                        ? lapPosition(racer, vehicles[racer])
+                        : lastCorrectLapPosition(racer);
+                if (racer < race_.racers.size() &&
+                    race_.racers[racer].human)
+                {
+                    place -= static_cast<float>(race_.lapCount + 1U);
+                }
+                return place;
+            };
+            const float firstPlace = forcedPlace(first);
+            const float secondPlace = forcedPlace(second);
             return firstPlace > secondPlace;
         });
     std::size_t completed = static_cast<std::size_t>(std::count_if(
@@ -6723,11 +6783,18 @@ void OriginalRaceSession::completeRemainingRacers(
         runtime.finishTime =
             elapsedSeconds_ + static_cast<float>(completed) * 0.001F;
         runtime.place = static_cast<std::uint32_t>(++completed);
-        const std::size_t reward = std::min<std::size_t>(
-            runtime.place > 0U ? runtime.place - 1U : 0U,
-            race_.rewardMoney.size() - 1U);
-        runtime.rewardMoney = race_.rewardMoney[reward];
-        runtime.rewardPoints = race_.rewardPoints[reward];
+        if (runtime.place >= 1U &&
+            runtime.place <= race_.rewardMoney.size())
+        {
+            const std::size_t reward = runtime.place - 1U;
+            runtime.rewardMoney = race_.rewardMoney[reward];
+            runtime.rewardPoints = race_.rewardPoints[reward];
+        }
+        else
+        {
+            runtime.rewardMoney = 0U;
+            runtime.rewardPoints = 0U;
+        }
         if (racer < vehicleInputs_.size())
             vehicleInputs_[racer] = {};
     }
@@ -6738,7 +6805,7 @@ void OriginalRaceSession::update(
     const std::vector<r3d::physics::VehicleState>& vehicles,
     const RaceControl& humanControl)
 {
-    seconds = std::clamp(seconds, 0.0F, 0.1F);
+    seconds = std::clamp(seconds, 0.0F, 7.0F / 60.0F);
     events_.clear();
     std::fill(vehicleInputs_.begin(), vehicleInputs_.end(),
               r3d::physics::VehicleInput{});
@@ -6924,6 +6991,10 @@ void OriginalRaceSession::update(
         else if (distance >
                  easingMinimumDistance[difficultyIndex])
         {
+            // Offline HumanPlayer does not enable the faster cheat.  The
+            // source installs it only for a started network human.
+            if (racer == 0U && !networkGameplayEnabled_)
+                continue;
             const float torqueScale =
                 cheatMinimumTorque[difficultyIndex] +
                 (cheatMaximumTorque[difficultyIndex] -
@@ -7060,6 +7131,32 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             session.vehicleInputs().empty() ||
             session.vehicleInputs().front().throttle < 0.9F)
             throw std::runtime_error("countdown/control transition failed");
+
+        input.reset = true;
+        vehicles[0].contactCount = 0U;
+        vehicles[0].bodyContacts.clear();
+        session.update(1.0F / 60.0F, vehicles, input);
+        const auto airborneReset = std::any_of(
+            session.events().begin(), session.events().end(),
+            [](const RaceEvent& event) {
+                return event.kind == RaceEventKind::Respawn &&
+                       event.racer == 0U;
+            });
+        vehicles[0].contactCount = 1U;
+        session.update(1.0F / 60.0F, vehicles, input);
+        const auto groundedReset = std::any_of(
+            session.events().begin(), session.events().end(),
+            [](const RaceEvent& event) {
+                return event.kind == RaceEventKind::Respawn &&
+                       event.racer == 0U;
+            });
+        input.reset = false;
+        vehicles[0].contactCount = 4U;
+        if (airborneReset || !groundedReset)
+        {
+            throw std::runtime_error(
+                "HumanPlayer::ResetCar contact gate mismatch");
+        }
 
         OriginalRaceSession networkCountdownSession(race);
         networkCountdownSession.synchronizeNetworkCountdown(0);
@@ -7841,13 +7938,13 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     1.0F / 60.0F,
                     fieldCheatVehicles, input);
                 if (fieldCheatSession.vehicleInputs()[0]
-                            .motorTorqueScale <= 1.0F ||
+                            .motorTorqueScale > 1.0001F ||
                     fieldCheatSession.vehicleInputs()[1]
                             .motorTorqueScale <= 1.0F)
                 {
                     throw std::runtime_error(
-                        "source Player::CheatUpdate full-field opponent "
-                        "selection failed");
+                        "source Player::CheatUpdate offline human/AI "
+                        "role selection failed");
                 }
             }
         }
@@ -8993,6 +9090,14 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 {
                     throw std::runtime_error(
                         "campaign AI did not finish and release AICar");
+                }
+                if (runtime.place > 3U &&
+                    (runtime.rewardMoney != 0U ||
+                     runtime.rewardPoints != 0U))
+                {
+                    throw std::runtime_error(
+                        "Race::OnLapPass awarded third-place reward to "
+                        "a lower place");
                 }
 
                 for (int frame = 0; frame < 4; ++frame)

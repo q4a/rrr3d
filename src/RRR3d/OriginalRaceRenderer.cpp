@@ -5919,16 +5919,24 @@ void OriginalRaceRenderer::renderFrame(
             }
         }
     }
-    // ActorManager::PullInRayTargetGroup does not cast from the camera
-    // position. It projects the player to the near plane and unprojects the
-    // same screen point, producing a ray parallel to the orthographic view
-    // direction. Casting from cameraPosition_ incorrectly included the
-    // isometric lead offset and missed large gpCullOpacity actors directly
-    // over the car.
+    // ActorManager::PullInRayTargetGroup projects the target onto the near
+    // plane and casts only from that point to the player.  Use the actual
+    // one-metre orthographic near plane instead of extending the segment
+    // behind the camera to the far distance.
+    const r3d::physics::Vec3 cameraToTarget{
+        rayTarget.x - cameraPosition_.x,
+        rayTarget.y - cameraPosition_.y,
+        rayTarget.z - cameraPosition_.z};
+    const float targetDepth =
+        cameraToTarget.x * cameraViewDirection_.x +
+        cameraToTarget.y * cameraViewDirection_.y +
+        cameraToTarget.z * cameraViewDirection_.z;
+    const float targetToNear = std::max(targetDepth - 1.0F, 0.0F);
     const r3d::physics::Vec3 rayStart{
-        rayTarget.x - cameraViewDirection_.x * 150.0F,
-        rayTarget.y - cameraViewDirection_.y * 150.0F,
-        rayTarget.z - cameraViewDirection_.z * 150.0F};
+        rayTarget.x - cameraViewDirection_.x * targetToNear,
+        rayTarget.y - cameraViewDirection_.y * targetToNear,
+        rayTarget.z - cameraViewDirection_.z * targetToNear};
+    const auto opacityViewProjection = viewProjection(camera);
     auto updateCullTime = [cullDelta](float& time, bool overlap) {
         constexpr float duration = 0.25F;
         if (overlap)
@@ -5943,13 +5951,17 @@ void OriginalRaceRenderer::renderFrame(
         const auto& instance = race.trackInstances[index];
         const auto& definition =
             race.trackDefinitions.at(instance.definition);
+        const auto bounds = objectBounds(
+            tracks_.at(instance.definition), definition.visualNodes,
+            instance.transform);
         const bool overlap =
             isometricCamera && definition.cullOpacity &&
             !vehicles.empty() &&
+            boundsVisible(
+                bounds, opacityViewProjection,
+                device.usesHomogeneousDepth()) &&
             lineIntersectsBoundsBeforeTarget(
-                objectBounds(tracks_.at(instance.definition),
-                             definition.visualNodes,
-                             instance.transform),
+                bounds,
                 rayStart, rayTarget, rayTargetSize);
         updateCullTime(trackCullOpacityTimes_[index], overlap);
     }
@@ -5964,13 +5976,17 @@ void OriginalRaceRenderer::renderFrame(
         const bool active =
             index >= decorationActive.size() ||
             decorationActive[index];
+        const auto bounds = objectBounds(
+            decorations_.at(instance.definition), definition.visualNodes,
+            instance.transform);
         const bool overlap =
             active && isometricCamera && definition.cullOpacity &&
             !vehicles.empty() &&
+            boundsVisible(
+                bounds, opacityViewProjection,
+                device.usesHomogeneousDepth()) &&
             lineIntersectsBoundsBeforeTarget(
-                objectBounds(decorations_.at(instance.definition),
-                             definition.visualNodes,
-                             instance.transform),
+                bounds,
                 rayStart, rayTarget, rayTargetSize);
         updateCullTime(
             decorationCullOpacityTimes_[index], overlap);

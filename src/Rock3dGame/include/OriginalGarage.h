@@ -138,7 +138,8 @@ OriginalGarageStats originalGarageStats(
 OriginalGarageStats originalGarageStats(
     const OriginalGarageCatalog& catalog,
     const OriginalGarageCar& car,
-    const PlayerProfile& player) noexcept;
+    const PlayerProfile& player,
+    bool armor4Opened = false) noexcept;
 
 bool originalRecordAchievementUnlocked(
     const ProfileState& profile, std::string_view record) noexcept;

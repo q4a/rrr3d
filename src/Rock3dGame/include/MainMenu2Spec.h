@@ -59,8 +59,11 @@ constexpr const char* commandName(Command command) noexcept
     return "Unknown";
 }
 
-inline constexpr float virtualWidth = 1920.0F;
-inline constexpr float virtualHeight = 1100.0F;
+// The Windows GUI manager projects directly into the active backbuffer
+// resolution. These values follow the SDL logical window size so Retina
+// drawable scaling does not shrink the source's fixed-pixel GUI metrics.
+inline float virtualWidth = 1920.0F;
+inline float virtualHeight = 1100.0F;
 inline constexpr float itemCenterOffsetX = 5.0F;
 inline constexpr float firstItemOffsetY = -100.0F;
 inline constexpr float itemSpacing = 53.0F;

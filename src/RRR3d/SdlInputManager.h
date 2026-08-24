@@ -19,6 +19,11 @@ class SdlInputManager
 {
   public:
 	static constexpr float stickDeadZone = 0.25F;
+	// XInput constants used by the Windows ControlManager.  Right-thumb
+	// bindings deliberately use the right threshold to become active but the
+	// left threshold for value normalization, matching its VirtualKey table.
+	static constexpr float sourceLeftStickDeadZone = 7849.0F / 32768.0F;
+	static constexpr float sourceRightStickDeadZone = 8689.0F / 32768.0F;
 	static constexpr float menuStickPressThreshold = 0.55F;
 	static constexpr float triggerDeadZone = 0.12F;
 

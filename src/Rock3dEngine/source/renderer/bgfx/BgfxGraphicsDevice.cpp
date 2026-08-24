@@ -320,6 +320,37 @@ public:
         bgfx::reset(width_, height_, reset_flags_);
     }
 
+    void configureQuality(std::uint32_t filtering,
+                          std::uint32_t multisampling) override
+    {
+        inherited_filter_flags_ = filtering == 0U
+            ? 0U
+            : static_cast<std::uint32_t>(
+                  BGFX_SAMPLER_MIN_ANISOTROPIC |
+                  BGFX_SAMPLER_MAG_ANISOTROPIC);
+
+        const std::uint32_t preserved =
+            reset_flags_ & ~(BGFX_RESET_MSAA_X2 | BGFX_RESET_MSAA_X4 |
+                             BGFX_RESET_MSAA_X8 | BGFX_RESET_MSAA_X16);
+        switch (multisampling)
+        {
+        case 1U:
+            reset_flags_ = preserved | BGFX_RESET_MSAA_X2;
+            break;
+        case 2U:
+            reset_flags_ = preserved | BGFX_RESET_MSAA_X4;
+            break;
+        case 3U:
+            reset_flags_ = preserved | BGFX_RESET_MSAA_X8;
+            break;
+        default:
+            reset_flags_ = preserved;
+            break;
+        }
+        if (initialized_)
+            bgfx::reset(width_, height_, reset_flags_);
+    }
+
     Shader createShader(ShaderBinary vertex, ShaderBinary fragment,
                         std::string_view name) override
     {
@@ -835,16 +866,13 @@ private:
             state |= BGFX_STATE_MSAA;
 
         bgfx::setTransform(transform.matrix.data());
-        auto samplerFlags = [](
+        auto samplerFlags = [&](
             MaterialState::TextureFilter filter,
             MaterialState::TextureAddress address) {
             const bool inheritedFilter =
                 filter == MaterialState::TextureFilter::Inherited;
-            const bool inheritedAddress =
-                address == MaterialState::TextureAddress::Inherited;
-            if (inheritedFilter && inheritedAddress)
-                return std::numeric_limits<std::uint32_t>::max();
-            std::uint32_t flags = 0U;
+            std::uint32_t flags =
+                inheritedFilter ? inherited_filter_flags_ : 0U;
             switch (filter)
             {
             case MaterialState::TextureFilter::Point:
@@ -1019,6 +1047,7 @@ private:
     std::uint32_t width_ = 0;
     std::uint32_t height_ = 0;
     std::uint32_t reset_flags_ = BGFX_RESET_NONE;
+    std::uint32_t inherited_filter_flags_ = 0U;
     bgfx::ViewId current_view_ = scene_view;
     SceneLighting scene_lighting_;
     RenderPassState pass_state_;

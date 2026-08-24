@@ -350,6 +350,10 @@ public:
 
     virtual bool initialize(const SwapChain& swapChain, std::string& error) = 0;
     virtual void resize(std::uint32_t width, std::uint32_t height) = 0;
+    // Applies Environment::SetFiltering/SetMultisampling equivalents. The
+    // indices are the serialized source option values exposed by MediaFrame.
+    virtual void configureQuality(std::uint32_t filtering,
+                                  std::uint32_t multisampling) = 0;
 
     virtual Shader createShader(ShaderBinary vertex, ShaderBinary fragment,
                                 std::string_view name) = 0;

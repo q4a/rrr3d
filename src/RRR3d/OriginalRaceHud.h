@@ -129,6 +129,8 @@ private:
         float alpha = 1.0F;
         float pointsAlpha = 0.0F;
         float scale = 1.0F;
+        float lastIndex = 0.0F;
+        float indexTime = -1.0F;
     };
 
     bool loadImage(r3d::renderer::GraphicsDevice& device,
@@ -231,7 +233,6 @@ private:
     std::string pointsName_ = "Points";
     std::vector<std::string> localizedRacerNames_;
     float uiSeconds_ = 0.0F;
-    std::size_t achievementSerial_ = 0;
     float finishStarted_ = -1.0F;
     bool finishVisible_ = false;
     bool campaign_ = true;

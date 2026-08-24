@@ -41,6 +41,25 @@ float applySignedDeadZone(float value, float dead_zone) noexcept
 	return std::copysign(std::min(scaled, 1.0F), value);
 }
 
+float applySourceStickDeadZone(float value, SDL_GamepadAxis axis) noexcept
+{
+	const float activation =
+	    axis == SDL_GAMEPAD_AXIS_RIGHTX ||
+	            axis == SDL_GAMEPAD_AXIS_RIGHTY
+	        ? SdlInputManager::sourceRightStickDeadZone
+	        : SdlInputManager::sourceLeftStickDeadZone;
+	const float magnitude = std::abs(value);
+	if (magnitude <= activation)
+		return 0.0F;
+	// Original right-thumb VirtualKey entries contain the left-thumb
+	// normalization threshold even though GetGamepadKeyState gates them with
+	// XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE.
+	const float scaled =
+	    (magnitude - SdlInputManager::sourceLeftStickDeadZone) /
+	    (1.0F - SdlInputManager::sourceLeftStickDeadZone);
+	return std::copysign(std::clamp(scaled, 0.0F, 1.0F), value);
+}
+
 float applyTriggerDeadZone(Sint16 value) noexcept
 {
 	const float normalized = std::clamp(static_cast<float>(value) / 32767.0F, 0.0F, 1.0F);
@@ -610,8 +629,8 @@ std::vector<ActionEvent> SdlInputManager::processEvent(const SDL_Event &event)
 		if (const auto found = gamepad_axis_actions_.find(axis);
 		    found != gamepad_axis_actions_.end())
 		{
-			const float signedValue = applySignedDeadZone(
-			    normalizeSignedAxis(event.gaxis.value), stickDeadZone);
+			const float signedValue = applySourceStickDeadZone(
+			    normalizeSignedAxis(event.gaxis.value), axis);
 			for (const auto &binding : found->second)
 			{
 				float value = binding.trigger

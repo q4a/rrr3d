@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <exception>
 #include <list>
 #include <limits>
@@ -526,7 +527,6 @@ void OriginalRaceHud::shutdown(GraphicsDevice& device) noexcept
     carLifeOverlays_ = {};
     notifications_.clear();
     achievementNotifications_.clear();
-    achievementSerial_ = 0U;
     localizedRacerNames_.clear();
     finishRows_ = {};
     uiSeconds_ = 0.0F;
@@ -983,7 +983,13 @@ void OriginalRaceHud::update(
                 image.height + points.height + 15.0F;
             const float quarter =
                 menu::virtualHeight * 0.25F;
-            switch (achievementSerial_++ % 8U)
+            // PlayerStateFrame::NewAchievment chooses a fresh source RNG
+            // position for every popup; repeated/skipped positions are
+            // therefore intentional.
+            const auto startPosition = static_cast<std::size_t>(
+                static_cast<double>(std::rand()) /
+                (static_cast<double>(RAND_MAX) + 1.0) * 8.0);
+            switch (startPosition)
             {
             case 0U:
                 notification.startX = -slotWidth * 2.0F;
@@ -1196,9 +1202,29 @@ void OriginalRaceHud::update(
             image.height + points.height + 15.0F;
         const float targetX =
             (100.0F + menu::virtualWidth) * 0.5F;
+        float stackIndex = static_cast<float>(index);
+        if (notification.indexTime < 0.0F &&
+            stackIndex != notification.lastIndex)
+        {
+            notification.indexTime = 0.0F;
+        }
+        if (notification.indexTime >= 0.0F)
+        {
+            notification.indexTime += seconds;
+            const float reindex = std::clamp(
+                notification.indexTime / 0.15F, 0.0F, 1.0F);
+            stackIndex = notification.lastIndex +
+                (stackIndex - notification.lastIndex) * reindex;
+            if (reindex >= 1.0F)
+            {
+                notification.lastIndex =
+                    static_cast<float>(index);
+                notification.indexTime = -1.0F;
+            }
+        }
         const float targetY =
             15.0F + image.height * 0.5F +
-            static_cast<float>(index) * slotHeight;
+            stackIndex * slotHeight;
         notification.x =
             notification.startX +
             (targetX - notification.startX) * fly;
@@ -1279,6 +1305,10 @@ void OriginalRaceHud::update(
                         worldY * viewProjection[5] +
                         worldZ * viewProjection[9] +
                         viewProjection[13];
+        const float z = worldX * viewProjection[2] +
+                        worldY * viewProjection[6] +
+                        worldZ * viewProjection[10] +
+                        viewProjection[14];
         const float w = worldX * viewProjection[3] +
                         worldY * viewProjection[7] +
                         worldZ * viewProjection[11] +
@@ -1290,7 +1320,7 @@ void OriginalRaceHud::update(
         // PlayerStateFrame keeps a point behind the camera on the edge of
         // the viewport while fading it.  It normalizes the projected vector
         // to sqrt(2), then clamps both coordinates to [-1, 1].
-        if (w <= 0.001F)
+        if (z < 0.0F)
         {
             const float length = std::sqrt(
                 projectedX * projectedX +
@@ -1893,7 +1923,8 @@ void OriginalRaceHud::draw(GraphicsDevice& device, Mesh quad,
         const float growth = 200.0F * countdownGrowthSeconds_;
         drawTintedAsset(
             device, quad, shader, image.texture,
-            image.width + growth, image.height + growth,
+            image.width * 0.5F + growth,
+            image.height * 0.5F + growth,
             menu::virtualWidth * 0.5F,
             menu::virtualHeight * 0.5F, 4.0F, pipeline,
             {1.0F, 1.0F, 1.0F, countdownAlpha_});

@@ -334,6 +334,7 @@ void loadRaceLibrary(const std::filesystem::path& path,
     auto* root = document.RootElement();
     state.profiles = splitList(value(root, "profiles"));
     state.networkProfiles = splitList(value(root, "netProfiles"));
+    state.lastProfile.clear();
     state.player.name.clear();
     if (const char* token = value(root, "lastProfile");
         token != nullptr && *token != '\0')
@@ -343,11 +344,15 @@ void loadRaceLibrary(const std::filesystem::path& path,
                 state.profiles.begin(), state.profiles.end(),
                 lastProfile) != state.profiles.end())
         {
+            state.lastProfile = lastProfile;
             state.player.name = lastProfile;
         }
     }
     if (state.player.name.empty() && !state.profiles.empty())
-        state.player.name = cleanFileName(state.profiles.front());
+    {
+        state.lastProfile = cleanFileName(state.profiles.front());
+        state.player.name = state.lastProfile;
+    }
     if (const char* token = value(root, "lastNetProfile"))
         state.lastNetworkProfile = cleanFileName(token);
     state.planetsCompleted.clear();
@@ -595,7 +600,10 @@ std::string makeOriginalProfileName(
         const std::string candidate =
             prefix + std::to_string(suffix);
         if (std::find(state.profiles.begin(), state.profiles.end(),
-                      candidate) == state.profiles.end())
+                      candidate) == state.profiles.end() &&
+            std::find(state.networkProfiles.begin(),
+                      state.networkProfiles.end(), candidate) ==
+                state.networkProfiles.end())
         {
             return candidate;
         }
@@ -603,14 +611,19 @@ std::string makeOriginalProfileName(
 }
 
 std::string beginOriginalChampionshipProfile(
-    ProfileState& state, std::string_view difficulty)
+    ProfileState& state, std::string_view difficulty, bool network)
 {
     const std::string name = makeOriginalProfileName(state);
     auto player = makeOriginalDefaultProfileState().player;
     player.name = name;
     player.difficulty = std::string(difficulty);
     state.player = std::move(player);
-    state.profiles.push_back(name);
+    auto& profiles = network ? state.networkProfiles : state.profiles;
+    profiles.push_back(name);
+    if (network)
+        state.lastNetworkProfile = name;
+    else
+        state.lastProfile = name;
     return name;
 }
 
@@ -753,6 +766,11 @@ bool runOriginalProfileFlowSmokeTest(std::string& error)
 {
     error.clear();
     auto state = makeOriginalDefaultProfileState();
+    if (state.tutorialStage != 0U)
+    {
+        error = "Race::_tutorialStage did not start at source stage zero";
+        return false;
+    }
     state.profiles = {"profile1", "profile3"};
     state.player.name = "profile1";
     state.player.money = 999U;
@@ -877,6 +895,39 @@ bool runOriginalProfileFlowSmokeTest(std::string& error)
     std::error_code fileError;
     std::filesystem::remove_all(smokeDirectory, fileError);
     OriginalProfileStore smokeStore(smokeDirectory);
+    auto networkState = state;
+    const auto networkName = beginOriginalChampionshipProfile(
+        networkState, "gdEasy", true);
+    networkState.player.money = 456U;
+    if (networkName != "profile4" ||
+        networkState.profiles != state.profiles ||
+        networkState.networkProfiles !=
+            std::vector<std::string>{"profile4"} ||
+        networkState.lastProfile != "profile2" ||
+        networkState.lastNetworkProfile != "profile4" ||
+        !smokeStore.save(networkState, error))
+    {
+        std::filesystem::remove_all(smokeDirectory, fileError);
+        if (error.empty())
+            error = "network/offline profile library separation failed";
+        return false;
+    }
+    std::string networkWarning;
+    auto reloadedNetwork = smokeStore.load(networkWarning);
+    if (!networkWarning.empty() ||
+        reloadedNetwork.lastProfile != "profile2" ||
+        reloadedNetwork.lastNetworkProfile != "profile4" ||
+        reloadedNetwork.player.name != "profile2" ||
+        !smokeStore.selectProfile(
+            reloadedNetwork, "profile4", error, true) ||
+        reloadedNetwork.player.name != "profile4" ||
+        reloadedNetwork.player.money != 456U)
+    {
+        std::filesystem::remove_all(smokeDirectory, fileError);
+        if (error.empty())
+            error = "network profile selection replaced offline cursor";
+        return false;
+    }
     auto deleteState = makeOriginalDefaultProfileState();
     if (!smokeStore.save(deleteState, error) ||
         !smokeStore.deleteProfile(
@@ -975,12 +1026,14 @@ ProfileState OriginalProfileStore::load(std::string& warning) const
 
 bool OriginalProfileStore::selectProfile(
     ProfileState& state, std::string_view name,
-    std::string& error) const
+    std::string& error, bool network) const
 {
     error.clear();
     const auto profileName = cleanFileName(std::string(name));
-    if (std::find(state.profiles.begin(), state.profiles.end(),
-                  profileName) == state.profiles.end())
+    const auto& profiles =
+        network ? state.networkProfiles : state.profiles;
+    if (std::find(profiles.begin(), profiles.end(), profileName) ==
+        profiles.end())
     {
         error = "unknown original profile: " + profileName;
         return false;
@@ -997,18 +1050,23 @@ bool OriginalProfileStore::selectProfile(
             (profileName + ".xml")),
         selected);
     state.player = std::move(selected);
+    if (network)
+        state.lastNetworkProfile = profileName;
+    else
+        state.lastProfile = profileName;
     return true;
 }
 
 bool OriginalProfileStore::deleteProfile(
     ProfileState& state, std::string_view name,
-    std::string& error) const
+    std::string& error, bool network) const
 {
     error.clear();
     const auto profileName = cleanFileName(std::string(name));
+    auto& profiles = network ? state.networkProfiles : state.profiles;
     const auto found = std::find(
-        state.profiles.begin(), state.profiles.end(), profileName);
-    if (found == state.profiles.end())
+        profiles.begin(), profiles.end(), profileName);
+    if (found == profiles.end())
     {
         error = "unknown original profile: " + profileName;
         return false;
@@ -1016,10 +1074,14 @@ bool OriginalProfileStore::deleteProfile(
 
     const bool deletingCurrent =
         state.player.name == profileName;
-    state.profiles.erase(found);
+    profiles.erase(found);
+    if (network && state.lastNetworkProfile == profileName)
+        state.lastNetworkProfile.clear();
+    if (!network && state.lastProfile == profileName)
+        state.lastProfile.clear();
     if (deletingCurrent)
     {
-        if (state.profiles.empty())
+        if (profiles.empty())
         {
             state.player = makeOriginalDefaultProfileState().player;
             state.player.name.clear();
@@ -1027,13 +1089,17 @@ bool OriginalProfileStore::deleteProfile(
         else
         {
             auto selected = makeOriginalDefaultProfileState().player;
-            selected.name = state.profiles.front();
+            selected.name = profiles.front();
             loadProfile(
                 loadPath(
                     std::filesystem::path("Profile") /
                     (cleanFileName(selected.name) + ".xml")),
                 selected);
             state.player = std::move(selected);
+            if (network)
+                state.lastNetworkProfile = state.player.name;
+            else
+                state.lastProfile = state.player.name;
         }
     }
     return save(state, error);
@@ -1110,16 +1176,28 @@ bool OriginalProfileStore::save(const ProfileState& state,
         state.player.name.empty()
             ? std::string{}
             : cleanFileName(state.player.name);
-    const bool hasCurrentProfile =
+    const bool hasOfflineProfile =
         !profileName.empty() &&
         std::find(
             state.profiles.begin(), state.profiles.end(),
             profileName) != state.profiles.end();
+    const bool hasNetworkProfile =
+        !profileName.empty() &&
+        std::find(
+            state.networkProfiles.begin(), state.networkProfiles.end(),
+            profileName) != state.networkProfiles.end();
+    const bool hasCurrentProfile =
+        hasOfflineProfile || hasNetworkProfile;
     append(*race, "profiles", joinList(state.profiles));
     append(*race, "netProfiles", joinList(state.networkProfiles));
-    if (hasCurrentProfile)
+    if (hasOfflineProfile)
         append(*race, "lastProfile", profileName);
-    if (!state.lastNetworkProfile.empty())
+    else if (!state.lastProfile.empty())
+        append(*race, "lastProfile",
+               cleanFileName(state.lastProfile));
+    if (hasNetworkProfile)
+        append(*race, "lastNetProfile", profileName);
+    else if (!state.lastNetworkProfile.empty())
         append(*race, "lastNetProfile",
                cleanFileName(state.lastNetworkProfile));
     std::vector<std::string> completed;

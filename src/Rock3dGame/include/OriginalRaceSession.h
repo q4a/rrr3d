@@ -95,7 +95,11 @@ struct RaceControl
     r3d::physics::VehicleInput driving;
     bool useWeapon = false;
     bool useAllWeapons = false;
+    // Digital gaMine is an edge; analog bindings (and Maslo) are evaluated
+    // continuously with the source alpha-dependent readiness delay.
     bool useMine = false;
+    float mineHeld = 0.0F;
+    bool mineAnalogBinding = false;
     bool useHyper = false;
     bool changeWeapon = false;
     int weaponChange = 1;
@@ -566,6 +570,9 @@ private:
     std::vector<std::array<float, PlayerProfile::weaponSlotCount>>
         weaponCooldown_;
     std::vector<float> mineCooldown_;
+    // Weapon::_shotTime grows from zero independently of the default shot
+    // delay and is also queried with the analog mine threshold.
+    std::vector<float> mineShotAge_;
     std::vector<float> hyperCooldown_;
     std::vector<std::uint32_t> nextNetworkProjectileIds_;
     std::vector<float> repairSeconds_;

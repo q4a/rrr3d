@@ -672,7 +672,8 @@ OriginalGarageStats originalGarageStats(
 OriginalGarageStats originalGarageStats(
     const OriginalGarageCatalog& catalog,
     const OriginalGarageCar& car,
-    const PlayerProfile& player) noexcept
+    const PlayerProfile& player,
+    bool armor4Opened) noexcept
 {
     auto result = originalGarageStats(catalog, car);
     result.armor = 0.0F;
@@ -685,6 +686,9 @@ OriginalGarageStats originalGarageStats(
             car.record))
     {
         result.armor = function->life;
+        if (armor4Opened &&
+            player.slots[armorIndex].record == workshopRecord("armor3"))
+            result.armor += 10.0F;
     }
 
     for (std::size_t slot = PlayerProfile::firstWeaponSlot;
@@ -915,7 +919,30 @@ bool selectOriginalGarageCar(const OriginalGarageCatalog& catalog,
     }
 
     if (championship)
-        profile.player.money -= car.cost;
+    {
+        std::uint64_t money = profile.player.money - car.cost;
+        for (std::size_t source = 0; source < oldSlots.size(); ++source)
+        {
+            const auto& oldSlot = oldSlots[source];
+            if (oldSlot.record.empty() ||
+                (oldCar != nullptr &&
+                 oldCar->placements[source].locked))
+            {
+                continue;
+            }
+            const bool retained = std::any_of(
+                newSlots.begin(), newSlots.end(),
+                [&](const ProfileSlot& slot) {
+                    return slot.record == oldSlot.record;
+                });
+            if (!retained)
+                money += originalWorkshopSellValue(
+                    catalog, oldSlot, true);
+        }
+        profile.player.money = static_cast<std::uint32_t>(
+            std::min<std::uint64_t>(
+                money, std::numeric_limits<std::uint32_t>::max()));
+    }
     profile.player.carChanged =
         championship && !profile.player.currentCar.empty();
     profile.player.currentCar = car.record;
@@ -1270,6 +1297,20 @@ bool runOriginalGarageSmokeTest(
             error = "original Garage::UpdateStats behavior mismatch";
             return false;
         }
+        auto armorPlayer = defaultProfile.player;
+        armorPlayer.slots[static_cast<std::size_t>(
+            GarageSlotType::Armor)].record = workshopRecord("armor3");
+        const auto standardArmorStats = originalGarageStats(
+            catalog, *marauder, armorPlayer, false);
+        const auto armor4Stats = originalGarageStats(
+            catalog, *marauder, armorPlayer, true);
+        if (std::abs(
+                armor4Stats.armor - standardArmorStats.armor - 10.0F) >
+            0.001F)
+        {
+            error = "source ArmorItem::CalcLife garage armor4 mismatch";
+            return false;
+        }
 
         ProfileState profile;
         for (auto& planet : profile.player.planets)
@@ -1355,6 +1396,26 @@ bool runOriginalGarageSmokeTest(
                 error =
                     "original WorkshopFrame discounted sale behavior "
                     "mismatch";
+            return false;
+        }
+
+        ProfileState carSwitchProfile;
+        for (auto& planet : carSwitchProfile.player.planets)
+            planet = {0U, 99U};
+        carSwitchProfile.player.currentCar = dirtdevil->record;
+        carSwitchProfile.player.money = marauder->cost;
+        carSwitchProfile.player.slots[7] = purchasedRocket;
+        const auto switchedRocketValue =
+            originalWorkshopSellValue(
+                catalog, purchasedRocket, true);
+        if (!selectOriginalGarageCar(
+                catalog, carSwitchProfile, *marauder, true, error) ||
+            carSwitchProfile.player.money != switchedRocketValue)
+        {
+            if (error.empty())
+                error =
+                    "Garage::BuyCar did not sell incompatible installed "
+                    "equipment";
             return false;
         }
         return true;

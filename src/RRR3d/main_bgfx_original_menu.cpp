@@ -856,6 +856,23 @@ Camera makeCamera(const GraphicsDevice& device)
 }
 
 #ifdef RRR3D_PHYSICS
+bool applyArmor4Presentation(
+    r3d::game::originalrace::OriginalGarageCatalog& catalog) noexcept
+{
+    const auto armor = std::find_if(
+        catalog.workshop.begin(), catalog.workshop.end(),
+        [](const auto& item) {
+            return recordName(item.record) == "armor3";
+        });
+    if (armor == catalog.workshop.end())
+        return false;
+    armor->name = "scArmor4";
+    armor->info = "scArmor4Info";
+    armor->meshPath = "Data/Upgrade/armor4.r3d";
+    armor->texturePath = "Data/Upgrade/armor4.dds";
+    return true;
+}
+
 r3d::physics::VehicleState makeGarageVehicleState(
     const r3d::game::originalrace::Vehicle& vehicle)
 {
@@ -961,30 +978,234 @@ makeWorkshopPresentationCamera(
     return result;
 }
 
-r3d::game::originalrace::PresentationCamera
-makeAutoObserverPresentationCamera(
-    const r3d::game::originalrace::PresentationCamera& source,
-    float seconds, float angularSpeed) noexcept
+struct SourceAutoObserverState
 {
-    auto result = source;
-    const float angle = seconds * angularSpeed;
+    r3d::game::originalrace::PresentationCamera source;
+    r3d::physics::Quat targetRotation{};
+    r3d::physics::Quat cameraRotation{};
+    float yaw = 0.0F;
+    float pitch = 0.0F;
+    float direction = 1.0F;
+    float idleSeconds = 3.0F;
+    float anchorX = 0.0F;
+    float anchorY = 0.0F;
+    float lastX = 0.0F;
+    float lastY = 0.0F;
+    bool initialized = false;
+    bool leftDown = false;
+    bool dragging = false;
+};
+
+r3d::physics::Quat normalizeObserverQuat(
+    const r3d::physics::Quat& value) noexcept
+{
+    const float length = std::sqrt(
+        value.x * value.x + value.y * value.y +
+        value.z * value.z + value.w * value.w);
+    if (length <= 0.000001F)
+        return {0.0F, 0.0F, 0.0F, 1.0F};
+    return {
+        value.x / length, value.y / length,
+        value.z / length, value.w / length};
+}
+
+r3d::physics::Quat multiplyObserverQuat(
+    const r3d::physics::Quat& left,
+    const r3d::physics::Quat& right) noexcept
+{
+    return normalizeObserverQuat({
+        left.w * right.x + left.x * right.w +
+            left.y * right.z - left.z * right.y,
+        left.w * right.y - left.x * right.z +
+            left.y * right.w + left.z * right.x,
+        left.w * right.z + left.x * right.y -
+            left.y * right.x + left.z * right.w,
+        left.w * right.w - left.x * right.x -
+            left.y * right.y - left.z * right.z});
+}
+
+r3d::physics::Quat observerAngleAxis(
+    float angle, const r3d::physics::Vec3& axis) noexcept
+{
+    const float length = std::sqrt(
+        axis.x * axis.x + axis.y * axis.y + axis.z * axis.z);
+    if (length <= 0.000001F)
+        return {0.0F, 0.0F, 0.0F, 1.0F};
+    const float sine = std::sin(angle * 0.5F) / length;
+    return normalizeObserverQuat({
+        axis.x * sine, axis.y * sine, axis.z * sine,
+        std::cos(angle * 0.5F)});
+}
+
+r3d::physics::Vec3 rotateObserverVector(
+    const r3d::physics::Vec3& value,
+    const r3d::physics::Quat& rotation) noexcept
+{
+    const r3d::physics::Vec3 q{rotation.x, rotation.y, rotation.z};
+    const r3d::physics::Vec3 twiceCross{
+        2.0F * (q.y * value.z - q.z * value.y),
+        2.0F * (q.z * value.x - q.x * value.z),
+        2.0F * (q.x * value.y - q.y * value.x)};
+    return {
+        value.x + rotation.w * twiceCross.x +
+            (q.y * twiceCross.z - q.z * twiceCross.y),
+        value.y + rotation.w * twiceCross.y +
+            (q.z * twiceCross.x - q.x * twiceCross.z),
+        value.z + rotation.w * twiceCross.z +
+            (q.x * twiceCross.y - q.y * twiceCross.x)};
+}
+
+r3d::physics::Quat slerpObserverQuat(
+    r3d::physics::Quat from, r3d::physics::Quat to,
+    float alpha) noexcept
+{
+    from = normalizeObserverQuat(from);
+    to = normalizeObserverQuat(to);
+    float dot = from.x * to.x + from.y * to.y +
+                from.z * to.z + from.w * to.w;
+    if (dot < 0.0F)
+    {
+        dot = -dot;
+        to = {-to.x, -to.y, -to.z, -to.w};
+    }
+    alpha = std::clamp(alpha, 0.0F, 1.0F);
+    if (dot > 0.9995F)
+    {
+        return normalizeObserverQuat({
+            from.x + (to.x - from.x) * alpha,
+            from.y + (to.y - from.y) * alpha,
+            from.z + (to.z - from.z) * alpha,
+            from.w + (to.w - from.w) * alpha});
+    }
+    const float angle = std::acos(std::clamp(dot, -1.0F, 1.0F));
     const float sine = std::sin(angle);
-    const float cosine = std::cos(angle);
+    const float fromWeight = std::sin((1.0F - alpha) * angle) / sine;
+    const float toWeight = std::sin(alpha * angle) / sine;
+    return normalizeObserverQuat({
+        from.x * fromWeight + to.x * toWeight,
+        from.y * fromWeight + to.y * toWeight,
+        from.z * fromWeight + to.z * toWeight,
+        from.w * fromWeight + to.w * toWeight});
+}
+
+void handleSourceAutoObserverPointer(
+    SourceAutoObserverState& state, const SDL_Event& event) noexcept
+{
+    if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+        event.button.button == SDL_BUTTON_LEFT)
+    {
+        state.leftDown = true;
+        state.dragging = false;
+        state.anchorX = state.lastX = event.button.x;
+        state.anchorY = state.lastY = event.button.y;
+        return;
+    }
+    if (event.type == SDL_EVENT_MOUSE_BUTTON_UP &&
+        event.button.button == SDL_BUTTON_LEFT)
+    {
+        state.leftDown = false;
+        state.dragging = false;
+        state.lastX = event.button.x;
+        state.lastY = event.button.y;
+        return;
+    }
+    if (event.type != SDL_EVENT_MOUSE_MOTION)
+        return;
+    if (!state.leftDown)
+    {
+        state.anchorX = state.lastX = event.motion.x;
+        state.anchorY = state.lastY = event.motion.y;
+        return;
+    }
+    const float fromAnchorX = event.motion.x - state.anchorX;
+    const float fromAnchorY = event.motion.y - state.anchorY;
+    if (!state.dragging &&
+        std::hypot(fromAnchorX, fromAnchorY) > 15.0F)
+    {
+        state.dragging = true;
+    }
+    if (state.dragging)
+    {
+        const float deltaX = event.motion.x - state.lastX;
+        const float deltaY = event.motion.y - state.lastY;
+        state.yaw += std::clamp(
+            deltaX * bx::kPi * 0.001F,
+            -bx::kPiHalf, bx::kPiHalf);
+        state.pitch += std::clamp(
+            -deltaY * bx::kPi * 0.001F,
+            -bx::kPiHalf, bx::kPiHalf);
+        state.idleSeconds = 0.0F;
+    }
+    state.lastX = event.motion.x;
+    state.lastY = event.motion.y;
+}
+
+r3d::game::originalrace::PresentationCamera
+updateSourceAutoObserver(
+    SourceAutoObserverState& state,
+    const r3d::game::originalrace::PresentationCamera& source,
+    float deltaTime, float angularSpeed, float stablePitch,
+    float minimumPitch, float maximumPitch,
+    float positiveYawClamp = 0.0F,
+    float negativeYawClamp = 0.0F) noexcept
+{
+    if (!state.initialized)
+    {
+        state.source = source;
+        state.targetRotation = source.rotation;
+        state.cameraRotation = source.rotation;
+        state.idleSeconds = 3.0F;
+        state.direction = 1.0F;
+        state.initialized = true;
+    }
+    if (!state.dragging)
+        state.idleSeconds += deltaTime;
+    if (state.idleSeconds >= 3.0F)
+    {
+        state.yaw += angularSpeed * state.direction * deltaTime;
+        state.pitch = 0.0F;
+    }
+    if (positiveYawClamp > 0.0F || negativeYawClamp > 0.0F)
+    {
+        if (state.yaw >= positiveYawClamp)
+        {
+            state.yaw = positiveYawClamp;
+            state.direction = -1.0F;
+        }
+        else if (state.yaw <= -negativeYawClamp)
+        {
+            state.yaw = -negativeYawClamp;
+            state.direction = 1.0F;
+        }
+    }
+    state.pitch = std::clamp(
+        state.pitch,
+        minimumPitch - stablePitch,
+        maximumPitch - stablePitch);
+    const auto yawRotation = observerAngleAxis(
+        state.yaw, {0.0F, 0.0F, 1.0F});
+    const auto yawedSource = multiplyObserverQuat(
+        yawRotation, state.source.rotation);
+    const auto localY = rotateObserverVector(
+        {0.0F, 1.0F, 0.0F}, yawedSource);
+    state.targetRotation = multiplyObserverQuat(
+        observerAngleAxis(state.pitch, localY), yawedSource);
+    state.cameraRotation = slerpObserverQuat(
+        state.cameraRotation, state.targetRotation,
+        6.0F * deltaTime);
+
+    const float distance = std::sqrt(
+        source.position.x * source.position.x +
+        source.position.y * source.position.y +
+        source.position.z * source.position.z);
+    const auto direction = rotateObserverVector(
+        {1.0F, 0.0F, 0.0F}, state.cameraRotation);
+    auto result = source;
+    result.rotation = state.cameraRotation;
     result.position = {
-        cosine * source.position.x - sine * source.position.y,
-        sine * source.position.x + cosine * source.position.y,
-        source.position.z};
-    const float halfSine = std::sin(angle * 0.5F);
-    const float halfCosine = std::cos(angle * 0.5F);
-    result.rotation = {
-        halfCosine * source.rotation.x -
-            halfSine * source.rotation.y,
-        halfCosine * source.rotation.y +
-            halfSine * source.rotation.x,
-        halfCosine * source.rotation.z +
-            halfSine * source.rotation.w,
-        halfCosine * source.rotation.w -
-            halfSine * source.rotation.z};
+        -direction.x * distance,
+        -direction.y * distance,
+        -direction.z * distance};
     return result;
 }
 #endif
@@ -1372,6 +1593,16 @@ int main(int argc, char** argv)
         rrr3d::platform::save_directory(), dataDirectory);
     std::string profileWarning;
     auto profileState = profileStore.load(profileWarning);
+    const auto achievementOpened =
+        [&](std::string_view name) {
+            const auto item = profileState.achievementItems.find(
+                std::string(name));
+            if (item == profileState.achievementItems.end())
+                return false;
+            const auto state = item->second.values.find("state");
+            return state != item->second.values.end() &&
+                   state->second == "asOpened";
+        };
     if (!profileWarning.empty())
         std::cerr << "Profile import warning: " << profileWarning << '\n';
     if (options->physicsSmokeTest)
@@ -1415,6 +1646,12 @@ int main(int argc, char** argv)
 #ifdef RRR3D_PHYSICS
         originalGarage.emplace(
             r3d::game::originalrace::loadOriginalGarage(*resources));
+        if (achievementOpened("armor4") &&
+            !applyArmor4Presentation(*originalGarage))
+        {
+            throw r3d::resource::ResourceError(
+                "armor4 reward requires the source armor3 workshop item");
+        }
         originalRace.emplace(r3d::game::originalrace::loadOriginalRace(
             *resources, selectedTrack, selectedCar));
         // The provenance/physics smoke has exact World1/map1 assertions and
@@ -1453,7 +1690,8 @@ int main(int argc, char** argv)
             originalRace->racers.front().name =
                 profileState.player.name;
         r3d::game::originalrace::applyOriginalPlayerProfile(
-            *originalRace, *resources, profileState.player);
+            *originalRace, *resources, profileState.player,
+            achievementOpened("armor4"));
         r3d::game::originalrace::writeOriginalTournamentSelection(
             *originalRace, selectedTrack, profileState.player);
         originalGarageScene.emplace(
@@ -1722,6 +1960,26 @@ int main(int argc, char** argv)
         SDL_Quit();
         return EXIT_FAILURE;
     }
+    int menuViewportWidth = 0;
+    int menuViewportHeight = 0;
+    if (!SDL_GetWindowSize(
+            window, &menuViewportWidth, &menuViewportHeight) ||
+        menuViewportWidth <= 0 || menuViewportHeight <= 0)
+    {
+        std::cerr << "Unable to obtain GUI viewport: " << SDL_GetError()
+                  << '\n';
+        SDL_DestroyWindow(window);
+#ifdef RRR3D_GAMEPAD_INPUT
+        input.shutdown();
+#endif
+        SDL_Quit();
+        return EXIT_FAILURE;
+    }
+    menu::virtualWidth = static_cast<float>(menuViewportWidth);
+    menu::virtualHeight = static_cast<float>(menuViewportHeight);
+    // Menu renders the shipped GUI/cursor.png itself. Keep the Cocoa arrow
+    // hidden so the source cursor is not doubled.
+    SDL_HideCursor();
 #ifdef RRR3D_VIDEO
     rrr3d::video::MacVideoPlayer videoPlayer(nativeWindow);
 #endif
@@ -1742,6 +2000,11 @@ int main(int argc, char** argv)
         SDL_Quit();
         return EXIT_FAILURE;
     }
+#ifdef RRR3D_PHYSICS
+    device->configureQuality(
+        profileState.config.quality.filtering,
+        profileState.config.quality.msaa);
+#endif
 
     constexpr std::array<Vertex, 4> quadVertices{{
         {-0.5F, -0.5F, 0.0F, 0xffffffffU, 0.0F, 0.0F},
@@ -2633,9 +2896,7 @@ int main(int argc, char** argv)
     };
     auto soundOptionsLabels = [&]() {
         return std::vector<std::string>{
-            localized(optionsDraftConfig.language == "russian"
-                              ? "svRussian"
-                              : "svEnglish"),
+            optionsDraftConfig.language,
             localized(
                     optionsDraftConfig.commentatorStyle == "russian"
                         ? "svRussian"
@@ -2735,7 +2996,8 @@ int main(int argc, char** argv)
         const auto stats =
             car != nullptr
                 ? r3d::game::originalrace::originalGarageStats(
-                      *originalGarage, *car, profileState.player)
+                      *originalGarage, *car, profileState.player,
+                      achievementOpened("armor4"))
                 : r3d::game::originalrace::OriginalGarageStats{};
         auto rounded = [](float value) {
             return std::to_string(
@@ -3711,6 +3973,8 @@ int main(int argc, char** argv)
         r3d::game::originalrace::RacerRuntime> angarRacerRuntime;
     std::vector<bool> angarDecorationActive{true, true};
     float garageSceneSeconds = 0.0F;
+    SourceAutoObserverState garageObserver;
+    SourceAutoObserverState angarObserver;
     std::cout << "Milestone 9 race: " << originalRace->levelPath << ", "
               << originalRace->lapCount << " laps, "
               << originalRace->trackInstances.size()
@@ -4002,8 +4266,6 @@ int main(int argc, char** argv)
     {
         r3d::audio::VoiceHandle voice = r3d::audio::invalidVoice;
         bool spatialProxyPlaying = false;
-        float lastSlip = 0.0F;
-        float silentSeconds = 0.0F;
     };
     struct ShotEffectAudio
     {
@@ -4193,6 +4455,47 @@ int main(int argc, char** argv)
         SDL_Quit();
         return EXIT_FAILURE;
     }
+    auto startRacerMotorAudio = [&](std::size_t racer) {
+        if (racer >= engineAudio.size() ||
+            racer >= originalRace->racers.size())
+            return;
+        auto& engine = engineAudio[racer];
+        audio.stop(engine.idleVoice);
+        audio.stop(engine.rpmVoice);
+        engine.currentRpm = 0.0F;
+        engine.spatialProxyPlaying = true;
+        r3d::audio::PlayOptions options;
+        options.bus = r3d::audio::Bus::Effects;
+        options.loop = true;
+        options.volume = racer == 0U ? 0.5F : 0.0F;
+        engine.idleVoice = audio.play(
+            engine.idle, options, audioError);
+        options.volume = racer == 0U ? 0.2F : 0.0F;
+        engine.rpmVoice = audio.play(
+            engine.rpm, options, audioError);
+        const auto& sourceRacer = originalRace->racers[racer];
+        const auto& vehicle =
+            sourceRacer.hasConfiguredVehicle
+                ? sourceRacer.configuredVehicle
+                : originalRace->vehicles.at(sourceRacer.vehicle);
+        wheelSlipVoices[racer].assign(
+            vehicle.physics.wheels.size(), WheelSlipAudio{});
+    };
+    auto stopRacerMotorAudio = [&](std::size_t racer) {
+        if (racer >= engineAudio.size())
+            return;
+        auto& engine = engineAudio[racer];
+        audio.stop(engine.idleVoice);
+        audio.stop(engine.rpmVoice);
+        engine.idleVoice = r3d::audio::invalidVoice;
+        engine.rpmVoice = r3d::audio::invalidVoice;
+        if (racer < wheelSlipVoices.size())
+        {
+            for (auto& voice : wheelSlipVoices[racer])
+                audio.stop(voice.voice);
+            wheelSlipVoices[racer].clear();
+        }
+    };
     auto startRaceAudio = [&]() {
         audio.setBusVolume(r3d::audio::Bus::Effects,
                            profileState.config.effectsVolume);
@@ -4214,27 +4517,7 @@ int main(int argc, char** argv)
         timedEffectAudio.clear();
         for (std::size_t racer = 0; racer < engineAudio.size();
              ++racer)
-        {
-            engineAudio[racer].currentRpm = 0.0F;
-            engineAudio[racer].spatialProxyPlaying = true;
-            r3d::audio::PlayOptions options;
-            options.bus = r3d::audio::Bus::Effects;
-            options.loop = true;
-            options.volume = racer == 0 ? 0.5F : 0.0F;
-            engineAudio[racer].idleVoice = audio.play(
-                engineAudio[racer].idle, options, audioError);
-            options.volume = racer == 0 ? 0.2F : 0.0F;
-            engineAudio[racer].rpmVoice = audio.play(
-                engineAudio[racer].rpm, options, audioError);
-            const auto& sourceRacer = originalRace->racers[racer];
-            const auto& vehicle =
-                sourceRacer.hasConfiguredVehicle
-                    ? sourceRacer.configuredVehicle
-                    : originalRace->vehicles.at(sourceRacer.vehicle);
-            wheelSlipVoices[racer].assign(
-                vehicle.physics.wheels.size(),
-                WheelSlipAudio{});
-        }
+            startRacerMotorAudio(racer);
     };
     auto stopRaceAudio = [&](bool advanceGameTrack = true) {
         for (auto& engine : engineAudio)
@@ -4321,6 +4604,7 @@ int main(int argc, char** argv)
     bool startOptionsMainTransitionObserved =
         !options->startOptionsSmokeTest;
     bool startOptionsReloadDialogPending = false;
+    bool optionsReloadDialogPending = false;
     std::uint32_t startOptionsSmokeStep = 0U;
     std::uint32_t startOptionsSmokeNextFrame = 1U;
 #endif
@@ -4342,6 +4626,12 @@ int main(int argc, char** argv)
     bool networkMatchStarted = false;
     bool networkRaceStarted = false;
     bool networkClientMatchEntered = false;
+    std::optional<r3d::game::originalrace::PlayerProfile>
+        networkHostOfflineProfile;
+    std::optional<r3d::game::originalrace::PlayerProfile>
+        networkClientOfflineProfile;
+    std::optional<r3d::game::originalrace::UserConfig>
+        networkClientLocalConfig;
     bool networkLocalCarSelected = true;
     float networkHostRaceGoSeconds = -1.0F;
     std::int32_t networkAppliedRaceGoStage = -1;
@@ -4535,6 +4825,9 @@ int main(int argc, char** argv)
     bool championshipMode = true;
     bool newTournamentProfile = false;
     std::uint64_t previousFrameTicks = SDL_GetTicksNS();
+    std::array<float, 15> sourceFrameDeltas{};
+    std::size_t sourceFrameDeltaCount = 0U;
+    std::size_t sourceFrameDeltaCursor = 0U;
     float finalMenuSeconds = 0.0F;
     std::array<bool, 9> finalSlidesObserved{};
     bool finalCreditsMotionObserved =
@@ -4694,9 +4987,16 @@ int main(int argc, char** argv)
         }
         return mainPage;
     };
+    auto activeProfileNames = [&]() -> std::vector<std::string>& {
+#ifdef RRR3D_NETWORK
+        if (networkHostRequested)
+            return profileState.networkProfiles;
+#endif
+        return profileState.profiles;
+    };
     auto refreshProfilePage = [&]() {
 #ifdef RRR3D_PHYSICS
-        auto profileLabels = profileState.profiles;
+        auto profileLabels = activeProfileNames();
         const auto maximumScroll =
             profileLabels.size() > 4U
                 ? profileLabels.size() - 4U
@@ -4750,9 +5050,9 @@ int main(int argc, char** argv)
             enableAll(tournamentPage);
 #ifdef RRR3D_PHYSICS
             tournamentPage.enabled[0] =
-                !profileState.profiles.empty();
+                !activeProfileNames().empty();
             tournamentPage.enabled[2] =
-                !profileState.profiles.empty();
+                !activeProfileNames().empty();
 #endif
             break;
         default:
@@ -4838,6 +5138,14 @@ int main(int argc, char** argv)
         if (leavingScreen == MenuScreen::Network)
         {
             networkHostRequested = false;
+            if (networkHostOfflineProfile)
+            {
+                profileState.player = *networkHostOfflineProfile;
+                networkHostOfflineProfile.reset();
+                championshipPlayerBeforeSkirmish.reset();
+                championshipMode = true;
+                refreshProfilePage();
+            }
             networkMatchStarted = false;
             networkRaceStarted = false;
             networkClientMatchEntered = false;
@@ -4951,6 +5259,7 @@ int main(int argc, char** argv)
     OriginalMovieCompletion originalMovieCompletion =
         OriginalMovieCompletion::None;
     bool originalMovieActive = false;
+    std::uint32_t originalMovieInputSuppressionFrames = 0U;
     bool videoFrameObserved = !options->videoSmokeTest;
     bool videoAudioObserved = !options->videoSmokeTest;
     bool videoCompletionObserved = !options->videoSmokeTest;
@@ -5034,6 +5343,9 @@ int main(int argc, char** argv)
             }
             originalMovieActive = true;
             originalMovieCompletion = completion;
+            // Video::Play calls World::ResetInput; the Windows main loop
+            // drops ordinary input until the reset survives three frames.
+            originalMovieInputSuppressionFrames = 3U;
             std::cout << "Original GameMode::PlayMovie: "
                       << sourceMovie << '\n';
             return true;
@@ -5141,7 +5453,8 @@ int main(int argc, char** argv)
     r3d::physics::VehicleInput raceInput;
     bool raceUseWeaponRequested = false;
     bool raceUseAllWeaponsRequested = false;
-    bool raceUseMine = false;
+    bool raceUseMineRequested = false;
+    bool raceMineAnalogBinding = false;
     bool raceUseHyper = false;
     bool raceChangeWeaponRequested = false;
     int raceWeaponChangeDirection = 1;
@@ -5244,6 +5557,7 @@ int main(int argc, char** argv)
     int angarPreviousPlanetIndex = -1;
     float angarDoorTime = -1.0F;
     float angarSceneSeconds = 0.0F;
+    float angarRedLampSeconds = 0.0F;
     bool angarTravelDialogVisible = false;
     bool angarTravelYesFocused = true;
     std::size_t angarTravelTarget = 0U;
@@ -5870,6 +6184,8 @@ int main(int argc, char** argv)
                 raceTournamentAdvance = advance;
                 selectedTrack = advance.trackIndex;
                 racePlanetChampion = advance.planetChampion;
+                if (advance.passComplete)
+                    weatherNightPassed = false;
                 raceProgressSaved = true;
                 std::cout
                     << "Original Tournament::CompleteTrack: track "
@@ -5881,6 +6197,15 @@ int main(int argc, char** argv)
             }
         }
         auto persistedState = profileState;
+#ifdef RRR3D_NETWORK
+        // Race::_snClientProfile is transient.  Network host rules and the
+        // received championship profile must never replace the client's
+        // offline PlayerProfile or locally configured match defaults.
+        if (networkClientOfflineProfile)
+            persistedState.player = *networkClientOfflineProfile;
+        if (networkClientLocalConfig)
+            persistedState.config = *networkClientLocalConfig;
+#endif
         if (championshipPlayerBeforeSkirmish)
         {
             persistedState =
@@ -6033,7 +6358,8 @@ int main(int argc, char** argv)
                 originalRace->racers.front().name =
                     profileState.player.name;
             r3d::game::originalrace::applyOriginalPlayerProfile(
-                *originalRace, *resources, profileState.player);
+                *originalRace, *resources, profileState.player,
+                achievementOpened("armor4"));
             r3d::game::originalrace::
                 writeOriginalTournamentSelection(
                     *originalRace, selectedTrack,
@@ -6402,7 +6728,8 @@ int main(int argc, char** argv)
         raceInput = {};
         raceUseWeaponRequested = false;
         raceUseAllWeaponsRequested = false;
-        raceUseMine = false;
+        raceUseMineRequested = false;
+        raceMineAnalogBinding = false;
         raceUseHyper = false;
         raceChangeWeaponRequested = false;
         raceWeaponChangeDirection = 1;
@@ -6485,7 +6812,7 @@ int main(int argc, char** argv)
         raceInput = {};
         raceUseWeaponRequested = false;
         raceUseAllWeaponsRequested = false;
-        raceUseMine = false;
+        raceUseMineRequested = false;
         raceUseHyper = false;
         raceChangeWeaponRequested = false;
         raceWeaponChangeDirection = 1;
@@ -6523,7 +6850,13 @@ int main(int argc, char** argv)
             localized("svHintExitRace"), localized("svYes"),
             localized("svNo"), menu::virtualWidth * 0.5F,
             menu::virtualHeight * 0.5F);
-        raceSession.setPaused(true);
+#ifdef RRR3D_NETWORK
+        // NetRace::Pause is intentionally inert in the original game.  The
+        // confirmation remains modal for local input, but the network world
+        // must continue to simulate behind it.
+        if (!networkMatchStarted)
+#endif
+            raceSession.setPaused(true);
         clearRaceControls();
         racePauseElapsedSnapshot = raceSession.elapsedSeconds();
         if (physicsWorld->vehicleCount() > 0U)
@@ -6589,6 +6922,8 @@ int main(int argc, char** argv)
 #else
         static_cast<void>(publishNetworkRaceExit);
 #endif
+        if (profileState.tutorialStage < 3U)
+            ++profileState.tutorialStage;
         saveRaceProfile();
         raceSession.setPaused(false);
         exitRaceDialogVisible = false;
@@ -6858,7 +7193,42 @@ int main(int argc, char** argv)
         renderedNetworkRevision =
             std::numeric_limits<std::uint64_t>::max();
         handledNetworkFailureRevision = 0U;
-        if (!restoreChampionshipProfile())
+        bool restoredNetworkProfile = false;
+        if (networkClientOfflineProfile)
+        {
+            profileState.player = *networkClientOfflineProfile;
+            networkClientOfflineProfile.reset();
+            restoredNetworkProfile = true;
+        }
+        else if (networkHostOfflineProfile)
+        {
+            profileState.player = *networkHostOfflineProfile;
+            networkHostOfflineProfile.reset();
+            restoredNetworkProfile = true;
+        }
+        if (networkClientLocalConfig)
+        {
+            profileState.config = *networkClientLocalConfig;
+            networkClientLocalConfig.reset();
+        }
+        if (restoredNetworkProfile)
+        {
+            championshipPlayerBeforeSkirmish.reset();
+            championshipMode = true;
+            selectedTrack =
+                r3d::game::originalrace::
+                    resolveOriginalTournamentTrack(
+                        *originalRace, profileState.player);
+            raceProgressSaved = false;
+            if (!reloadCurrentRace())
+            {
+                runtimeSmokeFailed = true;
+                running = false;
+                return;
+            }
+            refreshProfilePage();
+        }
+        else if (!restoreChampionshipProfile())
         {
             runtimeSmokeFailed = true;
             running = false;
@@ -7249,21 +7619,6 @@ int main(int argc, char** argv)
 #endif
         return true;
     };
-    auto moveGarageFocus = [&](int direction) {
-        constexpr std::size_t focusCount = 18U;
-        for (std::size_t step = 0U; step < focusCount; ++step)
-        {
-            menuSelection = direction < 0
-                                ? (menuSelection + focusCount - 1U) %
-                                      focusCount
-                                : (menuSelection + 1U) % focusCount;
-            if (menuSelection < 4U ||
-                garageColorAvailable(menuSelection - 4U))
-            {
-                return;
-            }
-        }
-    };
     auto gamerUnlocked = [&](std::size_t index) {
         if (index >= originalGarage->gamers.size() ||
             !r3d::game::originalrace::originalGamerUnlocked(
@@ -7645,7 +8000,8 @@ int main(int argc, char** argv)
         {
             const auto stats =
                 r3d::game::originalrace::originalGarageStats(
-                    *originalGarage, *car, profileState.player);
+                    *originalGarage, *car, profileState.player,
+                    achievementOpened("armor4"));
             auto statValue = [](float value) {
                 return std::to_string(
                     static_cast<int>(std::lround(value)));
@@ -8305,6 +8661,7 @@ int main(int argc, char** argv)
         profileState.player.currentPass =
             std::max<std::uint32_t>(progress.pass, 1U);
         profileState.player.currentTrack = 0U;
+        weatherNightPassed = false;
         selectedTrack =
             r3d::game::originalrace::resolveOriginalTournamentTrack(
                 *originalRace, profileState.player);
@@ -8555,6 +8912,11 @@ int main(int argc, char** argv)
             return true;
 
         const auto& match = networkSnapshot.models.match;
+        saveRaceProfile();
+        if (!networkClientOfflineProfile)
+            networkClientOfflineProfile = profileState.player;
+        if (!networkClientLocalConfig)
+            networkClientLocalConfig = profileState.config;
         championshipMode = match.mode == 0;
         profileState.config.upgradeMaxLevel = static_cast<std::uint32_t>(
             std::clamp(match.upgradeMaxLevel, 0, 2));
@@ -8569,7 +8931,12 @@ int main(int argc, char** argv)
         profileState.config.springBorders = match.springBorders;
         profileState.config.enableMineBug = match.enableMineBug;
 
-        auto decodedProfile = profileState.player;
+        // Race::NewProfile(..., netClient=true) enters the dedicated
+        // championshipClient SnProfile rather than the current local save.
+        auto decodedProfile =
+            r3d::game::originalrace::makeOriginalDefaultProfileState()
+                .player;
+        decodedProfile.name = "championshipClient";
         std::string error;
         if (!r3d::game::originalrace::
                 deserializeOriginalNetworkProfile(
@@ -8580,15 +8947,7 @@ int main(int argc, char** argv)
                       << error << '\n';
             return false;
         }
-        profileState.player.difficulty = decodedProfile.difficulty;
-        if (championshipMode)
-        {
-            profileState.player.carChanged = decodedProfile.carChanged;
-            profileState.player.minimumDifficulty =
-                decodedProfile.minimumDifficulty;
-            profileState.player.planets = decodedProfile.planets;
-            profileState.player.currentPass = decodedProfile.currentPass;
-        }
+        profileState.player = std::move(decodedProfile);
 
         const auto requestedPlanet =
             static_cast<std::uint32_t>(std::max(match.planet, 0));
@@ -8698,6 +9057,18 @@ int main(int argc, char** argv)
         }
         pixelWidth = pendingPixelWidth;
         pixelHeight = pendingPixelHeight;
+        int viewportWidth = 0;
+        int viewportHeight = 0;
+        if (!SDL_GetWindowSize(
+                window, &viewportWidth, &viewportHeight) ||
+            viewportWidth <= 0 || viewportHeight <= 0)
+        {
+            std::cerr << "Unable to resize GUI viewport: "
+                      << SDL_GetError() << '\n';
+            return false;
+        }
+        menu::virtualWidth = static_cast<float>(viewportWidth);
+        menu::virtualHeight = static_cast<float>(viewportHeight);
         device->resize(static_cast<std::uint32_t>(pixelWidth),
                        static_cast<std::uint32_t>(pixelHeight));
 #ifdef RRR3D_VIDEO
@@ -9197,6 +9568,9 @@ int main(int argc, char** argv)
             }
         }
         raceRenderer.resetCamera();
+        device->configureQuality(
+            profileState.config.quality.filtering,
+            profileState.config.quality.msaa);
         raceSession.setSpringBorders(
             profileState.config.springBorders);
         raceSession.setEnableMineBug(
@@ -9296,7 +9670,20 @@ int main(int argc, char** argv)
 #endif
         saveRaceProfile();
         bindingCaptureAction.reset();
-        backMenu();
+        if (profileState.config.language != previousConfig.language)
+        {
+            showInfoDialog(
+                localized("svWarning"),
+                localized("svHintNeedReload"),
+                localized("svOk"),
+                menu::virtualWidth * 0.5F,
+                menu::virtualHeight * 0.5F);
+            optionsReloadDialogPending = true;
+        }
+        else
+        {
+            backMenu();
+        }
     };
     auto cycleValue = [](std::uint32_t value,
                          std::uint32_t count, int direction) {
@@ -9495,10 +9882,11 @@ int main(int argc, char** argv)
             switch (menuSelection)
             {
             case 0:
-                optionsDraftConfig.language =
-                    optionsDraftConfig.language == "russian"
-                        ? "english"
-                        : "russian";
+                optionsDraftConfig.language = sourceLanguages[cycleValue(
+                    static_cast<std::uint32_t>(sourceListIndex(
+                        sourceLanguages, optionsDraftConfig.language)),
+                    static_cast<std::uint32_t>(sourceLanguages.size()),
+                    direction)];
                 break;
             case 1:
                 optionsDraftConfig.commentatorStyle =
@@ -9651,7 +10039,8 @@ int main(int argc, char** argv)
         raceInput = {};
         raceUseWeaponRequested = false;
         raceUseAllWeaponsRequested = false;
-        raceUseMine = false;
+        raceUseMineRequested = false;
+        raceMineAnalogBinding = false;
         raceUseHyper = false;
         raceChangeWeaponRequested = false;
         raceWeaponChangeDirection = 1;
@@ -9896,6 +10285,31 @@ int main(int argc, char** argv)
         }
     };
 #endif
+    auto drawOriginalCursor = [&](bool visible) {
+        if (!visible)
+            return;
+        float pointerX = 0.0F;
+        float pointerY = 0.0F;
+        SDL_GetMouseState(&pointerX, &pointerY);
+        int windowWidth = 0;
+        int windowHeight = 0;
+        if (!SDL_GetWindowSize(window, &windowWidth, &windowHeight) ||
+            windowWidth <= 0 || windowHeight <= 0)
+        {
+            return;
+        }
+        const float virtualX = pointerX * menu::virtualWidth /
+            static_cast<float>(windowWidth);
+        const float virtualY = pointerY * menu::virtualHeight /
+            static_cast<float>(windowHeight);
+        drawQuad(
+            *device, quad, shader, cursor,
+            static_cast<float>(model->cursorImage.width),
+            static_cast<float>(model->cursorImage.height),
+            virtualX + static_cast<float>(model->cursorImage.width) * 0.5F,
+            virtualY + static_cast<float>(model->cursorImage.height) * 0.5F,
+            1.0F, transparent);
+    };
 #if defined(RRR3D_AUDIO) && defined(RRR3D_GAMEPAD_INPUT)
     if (options->audioSmokeTest)
     {
@@ -10521,11 +10935,10 @@ int main(int argc, char** argv)
                     input.processEvent(event);
                 for (const auto& inputEvent : movieInputEvents)
                 {
-                    if (inputEvent.active && !inputEvent.repeated &&
-                        (inputEvent.action ==
-                             rrr3d::input::Action::MenuBack ||
-                         inputEvent.action ==
-                             rrr3d::input::Action::Pause))
+                    if (originalMovieInputSuppressionFrames == 0U &&
+                        inputEvent.active && !inputEvent.repeated &&
+                        inputEvent.action ==
+                            rrr3d::input::Action::Pause)
                     {
                         finishOriginalMovie();
                         break;
@@ -10540,21 +10953,18 @@ int main(int argc, char** argv)
                 event.type != SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED &&
                 event.type != SDL_EVENT_WINDOW_METAL_VIEW_RESIZED)
             {
-                bool skipIntro =
-                    event.type == SDL_EVENT_KEY_DOWN &&
-                    !event.key.repeat &&
-                    event.key.scancode == SDL_SCANCODE_ESCAPE;
+                bool skipIntro = false;
 #ifdef RRR3D_GAMEPAD_INPUT
                 const auto startupInputEvents =
                     input.processEvent(event);
-                skipIntro = skipIntro || std::any_of(
+                skipIntro = std::any_of(
                     startupInputEvents.begin(),
                     startupInputEvents.end(),
                     [](const rrr3d::input::ActionEvent& inputEvent) {
                         return inputEvent.active &&
                                !inputEvent.repeated &&
                                inputEvent.action ==
-                                   rrr3d::input::Action::MenuBack;
+                                   rrr3d::input::Action::Pause;
                     });
 #endif
                 if (skipIntro)
@@ -10655,7 +11065,19 @@ int main(int argc, char** argv)
                 if (gameplayInput)
                 {
 #ifdef RRR3D_GAMEPAD_INPUT
-                    static_cast<void>(input.processEvent(event));
+                    const auto chatInputEvents =
+                        input.processEvent(event);
+                    const bool pauseRequested = std::any_of(
+                        chatInputEvents.begin(),
+                        chatInputEvents.end(),
+                        [](const rrr3d::input::ActionEvent& inputEvent) {
+                            return inputEvent.active &&
+                                   !inputEvent.repeated &&
+                                   inputEvent.action ==
+                                       rrr3d::input::Action::Pause;
+                        });
+                    if (pauseRequested)
+                        openExitRaceDialog();
 #endif
                     // HumanPlayer::OnHandleInput returns before every race
                     // action while Menu::IsChatInputVisible is true.
@@ -10694,7 +11116,6 @@ int main(int argc, char** argv)
                     continue;
                 }
                 if (event.type == SDL_EVENT_KEY_DOWN &&
-                    !event.key.repeat &&
                     event.key.scancode == SDL_SCANCODE_BACKSPACE)
                 {
                     if (networkIpInput != "_" &&
@@ -10924,6 +11345,16 @@ int main(int argc, char** argv)
             bool pointerHandledOriginalOptions = false;
             bool workshopPointerSlotPlane = false;
 #ifdef RRR3D_PHYSICS
+            if (!inRace && !infoDialog.visible &&
+                !acceptDialogVisible())
+            {
+                if (menuStack.back() == MenuScreen::Garage)
+                    handleSourceAutoObserverPointer(
+                        garageObserver, event);
+                else if (menuStack.back() == MenuScreen::Planets)
+                    handleSourceAutoObserverPointer(
+                        angarObserver, event);
+            }
             std::optional<bool> pointerAcceptChoice;
             if (infoDialog.visible && infoDialog.dismissable &&
                 (event.type == SDL_EVENT_MOUSE_MOTION ||
@@ -11051,9 +11482,9 @@ int main(int argc, char** argv)
                     const float virtualY =
                         pointerY * menu::virtualHeight /
                         static_cast<float>(windowHeight);
-                    constexpr float planetRadius =
+                    const float planetRadius =
                         (menu::virtualHeight - 254.0F) * 0.5F;
-                    constexpr float planetX =
+                    const float planetX =
                         menu::virtualWidth * 0.5F - 25.0F;
                     const float leftX =
                         planetX - planetRadius - 40.0F + 3.0F -
@@ -11070,7 +11501,7 @@ int main(int argc, char** argv)
                         static_cast<float>(
                             gamersNextArrowSelectedImage.width) *
                             0.5F;
-                    constexpr float nextY =
+                    const float nextY =
                         menu::virtualHeight - 100.0F;
                     if (adjacentGamerIndex(gamerPlanetIndex, -1) &&
                         std::abs(virtualX - leftX) <= 62.0F &&
@@ -11132,7 +11563,7 @@ int main(int argc, char** argv)
                         menu::virtualHeight * 0.5F;
                         const auto visibleEnd = std::min(
                             profileGridScroll + 4U,
-                            profileState.profiles.size());
+                            activeProfileNames().size());
                         for (std::size_t index = profileGridScroll;
                              index < visibleEnd; ++index)
                         {
@@ -11194,7 +11625,7 @@ int main(int argc, char** argv)
                                 virtualY -
                                 (centerY + 120.0F)) <= 22.0F &&
                             profileGridScroll + 4U <
-                                profileState.profiles.size())
+                                activeProfileNames().size())
                         {
                             profileFocus = ProfileFocus::Down;
                             hoveredProfileControl = true;
@@ -12276,7 +12707,12 @@ int main(int argc, char** argv)
                         const auto networkAction =
                             networkFailureDialogAction;
 #endif
+                        const bool closeOptionsAfterReload =
+                            optionsReloadDialogPending;
+                        optionsReloadDialogPending = false;
                         hideInfoDialog();
+                        if (closeOptionsAfterReload)
+                            backMenu();
 #ifdef RRR3D_NETWORK
                         if (networkAction ==
                             NetworkFailureDialogAction::ExitMatch)
@@ -12426,7 +12862,16 @@ int main(int argc, char** argv)
                             raceUseAllWeaponsRequested = true;
                         break;
                     case rrr3d::input::Action::UseMine:
-                        raceUseMine = inputEvent.active;
+                        if (inputEvent.source ==
+                            rrr3d::input::Source::GamepadAxis)
+                        {
+                            raceMineAnalogBinding = true;
+                        }
+                        else if (inputEvent.active &&
+                                 !inputEvent.repeated)
+                        {
+                            raceUseMineRequested = true;
+                        }
                         break;
                     case rrr3d::input::Action::UseHyper:
                         raceUseHyper = inputEvent.active;
@@ -12574,7 +13019,7 @@ int main(int argc, char** argv)
                 if (menuStack.back() == MenuScreen::Profiles)
                 {
                     const auto profileCount =
-                        profileState.profiles.size();
+                        activeProfileNames().size();
                     const auto visibleEnd = std::min(
                         profileGridScroll + 4U, profileCount);
                     const bool canScrollUp =
@@ -12644,9 +13089,10 @@ int main(int argc, char** argv)
                                 std::string profileError;
                                 if (!profileStore.deleteProfile(
                                         profileState,
-                                        profileState.profiles[
+                                        activeProfileNames()[
                                             profileDeleteIndex],
-                                        profileError))
+                                        profileError,
+                                        networkHostRequested))
                                 {
                                     std::cerr
                                         << "ProfileFrame delete failed: "
@@ -12655,7 +13101,7 @@ int main(int argc, char** argv)
                                 else
                                 {
                                     refreshProfilePage();
-                                    if (!profileState.profiles.empty() &&
+                                    if (!activeProfileNames().empty() &&
                                         profileState.player.name !=
                                             previousProfile)
                                     {
@@ -12813,9 +13259,10 @@ int main(int argc, char** argv)
                             std::string profileError;
                             if (!profileStore.selectProfile(
                                     profileState,
-                                    profileState.profiles[
+                                    activeProfileNames()[
                                         profileFocusIndex],
-                                    profileError))
+                                    profileError,
+                                    networkHostRequested))
                             {
                                 std::cerr
                                     << "ProfileFrame load failed: "
@@ -12930,44 +13377,71 @@ int main(int argc, char** argv)
                     }
 
                     constexpr std::size_t garageFocusCount = 18U;
+                    const auto garageNeighbor =
+                        [&](std::size_t focus,
+                            rrr3d::input::Action action) -> std::size_t {
+                            const bool left = action ==
+                                rrr3d::input::Action::TurnLeft;
+                            const bool right = action ==
+                                rrr3d::input::Action::TurnRight;
+                            const bool up = action ==
+                                rrr3d::input::Action::MenuUp;
+                            if (focus == 0U)
+                                return std::size_t{1U};
+                            if (focus == 1U)
+                                return left ? 10U : right ? 17U
+                                     : up ? 2U : 0U;
+                            if (focus == 2U)
+                                return left ? 4U : right ? 3U : 1U;
+                            if (focus == 3U)
+                                return left ? 2U : right ? 11U : 1U;
+                            const bool leftGrid = focus < 11U;
+                            const std::size_t first = leftGrid ? 4U : 11U;
+                            const std::size_t last = first + 6U;
+                            if (left)
+                                return leftGrid ? 11U : 3U;
+                            if (right)
+                                return leftGrid ? 2U : 4U;
+                            if (up)
+                                return focus == first ? 1U : focus - 1U;
+                            return focus == last ? 1U : focus + 1U;
+                        };
                     if (inputEvent.action ==
-                        rrr3d::input::Action::MenuUp)
-                    {
-                        moveGarageFocus(-1);
-                        continue;
-                    }
-                    if (inputEvent.action ==
-                        rrr3d::input::Action::MenuDown)
-                    {
-                        moveGarageFocus(1);
-                        continue;
-                    }
-                    if (inputEvent.action ==
+                            rrr3d::input::Action::MenuUp ||
+                        inputEvent.action ==
+                            rrr3d::input::Action::MenuDown ||
+                        inputEvent.action ==
                             rrr3d::input::Action::TurnLeft ||
                         inputEvent.action ==
                             rrr3d::input::Action::TurnRight)
                     {
-                        if (!inputEvent.repeated &&
-                            !garageCarOrder.empty())
+                        for (std::size_t attempts = 0U;
+                             attempts < garageFocusCount; ++attempts)
                         {
-                            if (inputEvent.action ==
-                                    rrr3d::input::Action::
-                                        TurnLeft &&
-                                garageViewIndex > 0U)
-                            {
-                                --garageViewIndex;
-                            }
-                            else if (
-                                inputEvent.action ==
-                                    rrr3d::input::Action::
-                                        TurnRight &&
-                                garageViewIndex + 1U <
-                                    garageCarOrder.size())
-                            {
-                                ++garageViewIndex;
-                            }
-                            refreshGaragePage();
+                            menuSelection = garageNeighbor(
+                                menuSelection, inputEvent.action);
+                            if (menuSelection < 4U ||
+                                garageColorAvailable(menuSelection - 4U))
+                                break;
                         }
+                        continue;
+                    }
+                    if (!inputEvent.repeated &&
+                        (inputEvent.action ==
+                             rrr3d::input::Action::PreviousWeapon ||
+                         inputEvent.action ==
+                             rrr3d::input::Action::NextWeapon))
+                    {
+                        if (inputEvent.action ==
+                                rrr3d::input::Action::PreviousWeapon &&
+                            garageViewIndex > 0U)
+                            --garageViewIndex;
+                        else if (inputEvent.action ==
+                                     rrr3d::input::Action::NextWeapon &&
+                                 garageViewIndex + 1U <
+                                     garageCarOrder.size())
+                            ++garageViewIndex;
+                        refreshGaragePage();
                         continue;
                     }
                     if (inputEvent.repeated)
@@ -13150,54 +13624,68 @@ int main(int argc, char** argv)
                         }
                         continue;
                     }
-                    constexpr std::size_t workshopFocusCount = 23U;
                     if (inputEvent.action ==
-                        rrr3d::input::Action::MenuUp)
-                    {
-                        menuSelection =
-                            menuSelection == 0U
-                                ? workshopFocusCount - 1U
-                                : menuSelection - 1U;
-                        refreshWorkshopPage();
-                        continue;
-                    }
-                    if (inputEvent.action ==
-                        rrr3d::input::Action::MenuDown)
-                    {
-                        menuSelection =
-                            (menuSelection + 1U) %
-                            workshopFocusCount;
-                        refreshWorkshopPage();
-                        continue;
-                    }
-                    if (inputEvent.action ==
+                            rrr3d::input::Action::MenuUp ||
+                        inputEvent.action ==
+                            rrr3d::input::Action::MenuDown ||
+                        inputEvent.action ==
                             rrr3d::input::Action::TurnLeft ||
                         inputEvent.action ==
                             rrr3d::input::Action::TurnRight)
                     {
-                        if (!inputEvent.repeated)
+                        // WorkshopFrame registers Back plus ten slot controls;
+                        // goods and their scroll arrows remain mouse-only.
+                        constexpr std::size_t firstSlotFocus = 13U;
+                        if (menuSelection > 0U &&
+                            menuSelection < firstSlotFocus)
+                            menuSelection = 0U;
+                        const auto focusForSlot = [](std::size_t slot) {
+                            return firstSlotFocus + slot;
+                        };
+                        std::size_t lastWeapon = 6U;
+                        for (std::size_t slot = 6U; slot <= 9U; ++slot)
                         {
-                            const std::size_t rowCount =
-                                (workshopGoods.size() + 2U) / 3U;
-                            const std::size_t maximumScroll =
-                                rowCount > 4U ? rowCount - 4U : 0U;
-                            if (inputEvent.action ==
-                                    rrr3d::input::Action::TurnLeft &&
-                                workshopGoodScroll > 0U)
-                            {
-                                --workshopGoodScroll;
-                                hideWorkshopWeaponDialog();
-                            }
-                            else if (
-                                inputEvent.action ==
-                                    rrr3d::input::Action::TurnRight &&
-                                workshopGoodScroll < maximumScroll)
-                            {
-                                ++workshopGoodScroll;
-                                hideWorkshopWeaponDialog();
-                            }
-                            refreshWorkshopPage();
+                            if (!profileState.player.slots[slot].record.empty())
+                                lastWeapon = slot;
                         }
+                        const std::size_t slot = menuSelection == 0U
+                            ? std::size_t{2U}
+                            : menuSelection - firstSlotFocus;
+                        const bool left = inputEvent.action ==
+                            rrr3d::input::Action::TurnLeft;
+                        const bool right = inputEvent.action ==
+                            rrr3d::input::Action::TurnRight;
+                        const bool up = inputEvent.action ==
+                            rrr3d::input::Action::MenuUp;
+                        std::size_t next = slot;
+                        if (menuSelection == 0U)
+                            next = 2U;
+                        else if (slot == 2U)
+                            next = left || up ? 0U : right ? 3U
+                                                   : std::numeric_limits<std::size_t>::max();
+                        else if (slot == 3U)
+                            next = left ? 2U : right || up ? 5U
+                                                         : std::numeric_limits<std::size_t>::max();
+                        else if (slot == 5U)
+                            next = left || (!up && !right) ? 3U : 4U;
+                        else if (slot == 4U)
+                            next = right || (!up && !left) ? 5U : lastWeapon;
+                        else if (slot == 9U)
+                            next = left || up ? 8U : 4U;
+                        else if (slot >= 7U && slot <= 8U)
+                            next = left || up ? slot - 1U : slot + 1U;
+                        else if (slot == 6U)
+                            next = right ? 7U : 1U;
+                        else if (slot == 1U)
+                            next = left || (!up && !right) ? 0U : 6U;
+                        else if (slot == 0U)
+                            next = left || up ? 1U : 2U;
+                        menuSelection = next ==
+                                std::numeric_limits<std::size_t>::max()
+                            ? 0U
+                            : focusForSlot(next);
+                        hideWorkshopWeaponDialog();
+                        refreshWorkshopPage();
                         continue;
                     }
                     if (inputEvent.repeated)
@@ -13305,6 +13793,29 @@ int main(int argc, char** argv)
                                                     [pending]
                                                     .name)]
                                         .values["state"] = "asOpened";
+                                    if (originalAchievementVisuals[pending]
+                                            .name == "armor4")
+                                    {
+                                        std::string armorError;
+                                        const bool substituted =
+                                            applyArmor4Presentation(
+                                                *originalGarage);
+                                        workshopRenderer.shutdown(*device);
+                                        if (!substituted ||
+                                            !workshopRenderer.initialize(
+                                                *device, *resources,
+                                                *originalGarage,
+                                                *originalRace,
+                                                armorError))
+                                        {
+                                            std::cerr
+                                                << "Unable to apply source "
+                                                   "armor4 presentation: "
+                                                << armorError << '\n';
+                                            runtimeSmokeFailed = true;
+                                            running = false;
+                                        }
+                                    }
                                     saveRaceProfile();
                                     refreshAchievementsPage();
                                     std::cout
@@ -13615,6 +14126,16 @@ int main(int argc, char** argv)
                     continue;
                 }
                 auto& page = activeMenuPage();
+                if (menuStack.back() == MenuScreen::RaceMenu &&
+                    (inputEvent.action ==
+                         rrr3d::input::Action::MenuUp ||
+                     inputEvent.action ==
+                         rrr3d::input::Action::MenuDown))
+                {
+                    // RaceMainFrame's source NavElements contain no up/down
+                    // neighbors, so vertical input is intentionally inert.
+                    continue;
+                }
                 if (inputEvent.action ==
                     rrr3d::input::Action::MenuUp)
                 {
@@ -13653,19 +14174,29 @@ int main(int argc, char** argv)
                 {
                     if (!inputEvent.repeated)
                     {
-                        if (inputEvent.action ==
-                            rrr3d::input::Action::TurnLeft)
+                        const int direction =
+                            inputEvent.action ==
+                                    rrr3d::input::Action::TurnLeft
+                                ? -1
+                                : 1;
+                        for (std::size_t attempts = 0U;
+                             attempts < raceMenuIcons.size(); ++attempts)
                         {
-                            menuSelection =
-                                menuSelection == 0U
+                            if (direction < 0)
+                            {
+                                menuSelection = menuSelection == 0U
                                     ? raceMenuIcons.size() - 1U
                                     : menuSelection - 1U;
-                        }
-                        else
-                        {
-                            menuSelection =
-                                (menuSelection + 1U) %
-                                raceMenuIcons.size();
+                            }
+                            else
+                            {
+                                menuSelection =
+                                    (menuSelection + 1U) %
+                                    raceMenuIcons.size();
+                            }
+                            if (menuSelection < page.enabled.size() &&
+                                page.enabled[menuSelection])
+                                break;
                         }
                     }
                     continue;
@@ -13843,6 +14374,34 @@ int main(int argc, char** argv)
                     if (menuSelection == 0U)
                     {
 #ifdef RRR3D_PHYSICS
+                        // TournamentFrame::Continue uses lastNetProfile in
+                        // the Network stack and lastProfile offline.
+#ifdef RRR3D_NETWORK
+                        if (networkHostRequested)
+                        {
+                            const auto& profiles = activeProfileNames();
+                            const auto last = std::find(
+                                profiles.begin(), profiles.end(),
+                                profileState.lastNetworkProfile);
+                            const auto& selected =
+                                last != profiles.end()
+                                    ? *last
+                                    : profiles.front();
+                            saveRaceProfile();
+                            std::string profileError;
+                            if (!profileStore.selectProfile(
+                                    profileState, selected, profileError,
+                                    true) ||
+                                !reloadCurrentRace())
+                            {
+                                std::cerr
+                                    << "Unable to continue original network "
+                                       "profile: "
+                                    << profileError << '\n';
+                                break;
+                            }
+                        }
+#endif
                         showOriginalRaceMenu();
 #endif
                     }
@@ -13883,7 +14442,13 @@ int main(int argc, char** argv)
                             const auto created =
                                 r3d::game::originalrace::
                                     beginOriginalChampionshipProfile(
-                                        profileState, difficulty);
+                                        profileState, difficulty,
+#ifdef RRR3D_NETWORK
+                                        networkHostRequested
+#else
+                                        false
+#endif
+                                    );
                             selectedTrack = 0U;
                             newTournamentProfile = false;
                             refreshProfilePage();
@@ -13935,6 +14500,9 @@ int main(int argc, char** argv)
 #ifdef RRR3D_VIDEO
                     if (championshipMode &&
                         newTournamentProfile &&
+#ifdef RRR3D_NETWORK
+                        !networkHostRequested &&
+#endif
                         !profileState.config.disableVideo)
                     {
                         // DifficultyFrame::OnClick hides the menu, plays
@@ -13974,7 +14542,13 @@ int main(int argc, char** argv)
                         if (!profileStore.selectProfile(
                                 profileState,
                                 page.labels[menuSelection],
-                                profileError))
+                                profileError,
+#ifdef RRR3D_NETWORK
+                                networkHostRequested
+#else
+                                false
+#endif
+                                ))
                         {
                             std::cerr
                                 << "Unable to load original profile: "
@@ -14027,6 +14601,10 @@ int main(int argc, char** argv)
                         // ServerTypeFrame stores stLocal, then follows the
                         // ordinary GameMode flow. The listener is created by
                         // the later StartMatch boundary, not by this button.
+                        saveRaceProfile();
+                        if (!networkHostOfflineProfile)
+                            networkHostOfflineProfile =
+                                profileState.player;
                         networkHostRequested = true;
                         pushMenu(MenuScreen::GameMode);
                         std::cout
@@ -14342,6 +14920,11 @@ int main(int argc, char** argv)
             }
         }
 
+#ifdef RRR3D_VIDEO
+        if (originalMovieInputSuppressionFrames > 0U)
+            --originalMovieInputSuppressionFrames;
+#endif
+
         // A Cocoa fullscreen transition or a live resize may enqueue dozens
         // of pixel-size events. Recreate the bgfx backbuffer and the three
         // source render graphs only once, at the newest size, after input has
@@ -14394,10 +14977,22 @@ int main(int argc, char** argv)
 #endif
 
         const std::uint64_t currentFrameTicks = SDL_GetTicksNS();
-        float frameSeconds = std::clamp(
+        const float rawFrameSeconds = std::max(
             static_cast<float>(currentFrameTicks - previousFrameTicks) /
                 1000000000.0F,
-            0.0F, 0.1F);
+            0.0F);
+        sourceFrameDeltas[sourceFrameDeltaCursor] = rawFrameSeconds;
+        sourceFrameDeltaCursor =
+            (sourceFrameDeltaCursor + 1U) % sourceFrameDeltas.size();
+        sourceFrameDeltaCount = std::min(
+            sourceFrameDeltaCount + 1U, sourceFrameDeltas.size());
+        const float smoothedFrameSeconds = std::accumulate(
+            sourceFrameDeltas.begin(),
+            sourceFrameDeltas.begin() +
+                static_cast<std::ptrdiff_t>(sourceFrameDeltaCount),
+            0.0F) / static_cast<float>(sourceFrameDeltaCount);
+        float frameSeconds = std::clamp(
+            smoothedFrameSeconds, 0.0F, 7.0F / 60.0F);
         if (options->startupSmokeTest)
         {
             // Exercise the complete twelve-second source timeline without
@@ -14493,10 +15088,16 @@ int main(int argc, char** argv)
             // update.  Keeping only KEY_DOWN/KEY_UP events here lost an
             // already-held accelerator across menu/race, countdown, pause,
             // and focus transitions.
-            raceInput.throttle = input.heldValue(
-                rrr3d::input::Action::Accelerate);
-            raceInput.reverse = input.heldValue(
-                rrr3d::input::Action::Brake);
+            // HumanPlayer polls these actions into bools and gives gaAccel
+            // priority when both are held. Analog trigger bindings therefore
+            // become binary gas/brake commands in the source as well.
+            const bool accelerateHeld = input.heldValue(
+                rrr3d::input::Action::Accelerate) > 0.0F;
+            const bool reverseHeld = input.heldValue(
+                rrr3d::input::Action::Brake) > 0.0F;
+            raceInput.throttle = accelerateHeld ? 1.0F : 0.0F;
+            raceInput.reverse =
+                !accelerateHeld && reverseHeld ? 1.0F : 0.0F;
             raceInput.brake = 0.0F;
             raceInput.steering =
                 input.heldValue(rrr3d::input::Action::TurnLeft) -
@@ -14512,7 +15113,10 @@ int main(int argc, char** argv)
             control.driving = raceInput;
             control.useWeapon = raceUseWeaponRequested;
             control.useAllWeapons = raceUseAllWeaponsRequested;
-            control.useMine = raceUseMine;
+            control.useMine = raceUseMineRequested;
+            control.mineHeld = input.heldValue(
+                rrr3d::input::Action::UseMine);
+            control.mineAnalogBinding = raceMineAnalogBinding;
             control.useHyper = raceUseHyper;
             control.changeWeapon = raceChangeWeaponRequested;
             control.weaponChange = raceWeaponChangeDirection;
@@ -14914,6 +15518,7 @@ int main(int argc, char** argv)
                     raceSession.racers().front().life);
             raceUseWeaponRequested = false;
             raceUseAllWeaponsRequested = false;
+            raceUseMineRequested = false;
             raceChangeWeaponRequested = false;
             raceWeaponChangeDirection = 1;
             raceFireWeaponSlotRequested = -1;
@@ -15233,7 +15838,21 @@ int main(int argc, char** argv)
                     }
                     physicsWorld->setVehicleEnabled(
                         event.target, false);
+#ifdef RRR3D_AUDIO
+                    // SoundMotor belongs to the source Car. Its destructor
+                    // frees both loops as soon as the car is destroyed.
+                    stopRacerMotorAudio(event.target);
+#endif
                 }
+#ifdef RRR3D_AUDIO
+                if (event.kind ==
+                        r3d::game::originalrace::RaceEventKind::Respawn)
+                {
+                    // ResetCar creates a fresh car and therefore a fresh
+                    // SoundMotor instance.
+                    startRacerMotorAudio(event.racer);
+                }
+#endif
                 if (event.kind !=
                         r3d::game::originalrace::RaceEventKind::
                             DecorationDestroyed ||
@@ -15900,32 +16519,7 @@ int main(int argc, char** argv)
                                           0.0F)
                                 : 0.0F;
                         auto& voice = slipVoices[wheel];
-                        float slip = sourceSlip;
-                        if (sourceSlip > 0.0F)
-                        {
-                            voice.lastSlip = sourceSlip;
-                            voice.silentSeconds = 0.0F;
-                        }
-                        else
-                        {
-                            // PhysX supplied a stable wheel-contact stream to
-                            // PxWheelSlipEffect. Jolt can lose that contact for
-                            // a single fixed step on triangle seams; stopping
-                            // and rewinding SkidAsphalt for each such dropout
-                            // sounds like a stalled sample. Keep only an 80 ms
-                            // release tail, shorter than a perceptible new skid.
-                            constexpr float slipReleaseSeconds = 0.08F;
-                            voice.silentSeconds += frameSeconds;
-                            if (voice.voice !=
-                                    r3d::audio::invalidVoice &&
-                                voice.silentSeconds < slipReleaseSeconds)
-                            {
-                                slip = voice.lastSlip *
-                                    (1.0F - voice.silentSeconds /
-                                                slipReleaseSeconds);
-                            }
-                        }
-                        if (slip <= 0.0F)
+                        if (sourceSlip <= 0.0F)
                         {
                             if (voice.voice !=
                                 r3d::audio::invalidVoice)
@@ -15973,7 +16567,7 @@ int main(int argc, char** argv)
                                 voice.voice,
                                 wheelSpatial.gain *
                                     std::clamp(
-                                        slip * 4.0F, 0.0F, 1.0F) *
+                                        sourceSlip * 4.0F, 0.0F, 1.0F) *
                                     (slipSourceVolume !=
                                              engineSoundVolumes.end()
                                          ? slipSourceVolume->second
@@ -16440,7 +17034,10 @@ int main(int argc, char** argv)
         if (inRace)
         {
             const float raceRenderSeconds =
-                exitRaceDialogVisible ? 0.0F : frameSeconds;
+                raceSession.phase() ==
+                        r3d::game::originalrace::RacePhase::Paused
+                    ? 0.0F
+                    : frameSeconds;
             auto cameraStyle =
                 profileState.config.preferredCamera;
             if (options->raceRenderSmokeTest)
@@ -16488,6 +17085,7 @@ int main(int argc, char** argv)
 #ifdef RRR3D_AUDIO
             drawOriginalMusicDialog();
 #endif
+            drawOriginalCursor(exitRaceDialogVisible);
             device->endFrame();
             const auto& telemetry = device->renderTelemetry();
             for (std::size_t pass = 0;
@@ -16574,52 +17172,26 @@ int main(int argc, char** argv)
             gamersSceneSeconds += frameSeconds;
         if (drawingOriginalAngar)
         {
-            angarSceneSeconds += frameSeconds;
             const float redTime =
-                std::fmod(angarSceneSeconds, 3.0F);
+                std::fmod(angarRedLampSeconds, 3.0F);
             const float redIntensity = 0.7F * (
                 std::clamp(
                     (redTime - 1.5F) / 0.15F, 0.0F, 1.0F) -
                 std::clamp(
                     (redTime - 2.85F) / 0.15F, 0.0F, 1.0F));
             auto& redLamp = originalAngarScene->environment.lamps[1];
-            redLamp.enabled = redTime >= 1.5F;
             redLamp.color = {
                 redIntensity, 0.0F, 0.0F, redIntensity};
-            auto angarSourceCamera =
-                originalAngarScene->presentationCamera;
-            if (angarSceneSeconds >= 3.0F)
-            {
-                // CameraManager::csAutoObserver waits three seconds, then
-                // left-multiplies the source camera by dRotZ at pi/96 rad/s
-                // and recomputes position from the exact 50-unit target.
-                const float angle =
-                    (angarSceneSeconds - 3.0F) *
-                    bx::kPi / 96.0F;
-                const float sine = std::sin(angle);
-                const float cosine = std::cos(angle);
-                const auto base =
-                    originalAngarScene->presentationCamera;
-                angarSourceCamera.position = {
-                    cosine * base.position.x -
-                        sine * base.position.y,
-                    sine * base.position.x +
-                        cosine * base.position.y,
-                    base.position.z};
-                const float halfSine =
-                    std::sin(angle * 0.5F);
-                const float halfCosine =
-                    std::cos(angle * 0.5F);
-                angarSourceCamera.rotation = {
-                    halfCosine * base.rotation.x -
-                        halfSine * base.rotation.y,
-                    halfCosine * base.rotation.y +
-                        halfSine * base.rotation.x,
-                    halfCosine * base.rotation.z +
-                        halfSine * base.rotation.w,
-                    halfCosine * base.rotation.w -
-                        halfSine * base.rotation.z};
-            }
+            angarRedLampSeconds = redTime + frameSeconds;
+            redLamp.enabled = angarRedLampSeconds >= 1.5F;
+            angarSceneSeconds += frameSeconds;
+            const auto angarSourceCamera = updateSourceAutoObserver(
+                angarObserver,
+                originalAngarScene->presentationCamera,
+                frameSeconds, bx::kPi / 96.0F,
+                bx::toRad(65.0F), bx::toRad(45.0F),
+                bx::toRad(80.0F), bx::toRad(40.0F),
+                bx::toRad(30.0F));
             const auto angarCamera =
                 angarRenderer.makePresentationCamera(
                     *device, angarSourceCamera,
@@ -16743,10 +17315,13 @@ int main(int argc, char** argv)
                     ? makeWorkshopPresentationCamera(
                           originalGarageScene
                               ->presentationCamera)
-                    : makeAutoObserverPresentationCamera(
+                    : updateSourceAutoObserver(
+                          garageObserver,
                           originalGarageScene
                               ->presentationCamera,
-                          garageSceneSeconds, bx::kPi / 48.0F);
+                          frameSeconds, bx::kPi / 48.0F,
+                          bx::toRad(75.0F), bx::toRad(25.0F),
+                          bx::toRad(80.0F));
             const auto garageCamera =
                 garageRenderer.makePresentationCamera(
                     *device, presentationSourceCamera,
@@ -17038,12 +17613,13 @@ int main(int argc, char** argv)
         }
         else if (drawingOriginalProfiles)
         {
+            const auto& profileNames = activeProfileNames();
             profileFrameObserved =
                 profilePage.labels.size() ==
-                    profileState.profiles.size() + 1U &&
+                    profileNames.size() + 1U &&
                 profileGridScroll <=
-                    (profileState.profiles.size() > 4U
-                         ? profileState.profiles.size() - 4U
+                    (profileNames.size() > 4U
+                         ? profileNames.size() - 4U
                          : 0U);
             const float centerX =
                 menu::virtualWidth * 0.5F;
@@ -17051,7 +17627,7 @@ int main(int argc, char** argv)
                 menu::virtualHeight * 0.5F;
             const auto visibleEnd = std::min(
                 profileGridScroll + 4U,
-                profileState.profiles.size());
+                profileNames.size());
             for (std::size_t index = profileGridScroll;
                  index < visibleEnd; ++index)
             {
@@ -17115,7 +17691,7 @@ int main(int argc, char** argv)
                 profileGridScroll > 0U;
             const bool canScrollDown =
                 profileGridScroll + 4U <
-                profileState.profiles.size();
+                profileNames.size();
             auto drawProfileArrow =
                 [&](bool up, float y, bool enabled) {
                     const bool focused =
@@ -17542,11 +18118,11 @@ int main(int argc, char** argv)
                 menu::virtualWidth * 0.5F,
                 menu::virtualHeight * 0.5F, 65.0F, opaque);
 
-            constexpr float planetRadius =
+            const float planetRadius =
                 (menu::virtualHeight - 254.0F) * 0.5F;
-            constexpr float planetX =
+            const float planetX =
                 menu::virtualWidth * 0.5F - 25.0F;
-            constexpr float viewportSize =
+            const float viewportSize =
                 (planetRadius < 300.0F ? planetRadius : 300.0F) *
                 3.1F;
             if (gamerPlanetIndex < originalGarage->gamers.size())
@@ -18088,7 +18664,8 @@ int main(int argc, char** argv)
                 currentCar != nullptr
                     ? r3d::game::originalrace::originalGarageStats(
                           *originalGarage, *currentCar,
-                          profileState.player)
+                          profileState.player,
+                          achievementOpened("armor4"))
                     : r3d::game::originalrace::
                           OriginalGarageStats{};
             const std::array<float, 3> statProgress{
@@ -18689,7 +19266,8 @@ int main(int argc, char** argv)
                     : r3d::game::originalrace::
                           originalGarageStats(
                               *originalGarage, *currentCar,
-                              profileState.player);
+                              profileState.player,
+                              achievementOpened("armor4"));
             const r3d::game::originalrace::
                 OriginalWorkshopItem* previewItem = nullptr;
             r3d::game::originalrace::ProfileSlot previewProfileSlot;
@@ -18794,7 +19372,8 @@ int main(int argc, char** argv)
                     r3d::game::originalrace::
                         originalGarageStats(
                             *originalGarage, *currentCar,
-                            previewPlayer);
+                            previewPlayer,
+                            achievementOpened("armor4"));
             }
             const std::array<float, 3> baseProgress{
                 baseStats.damageProgress,
@@ -19691,7 +20270,7 @@ int main(int argc, char** argv)
                         raceSession.racers().begin(),
                         raceSession.racers().end(),
                         [](const auto& racer) {
-                            return !racer.disconnected && racer.finished;
+                            return racer.finished;
                     });
                     if (finishedCount >= 4)
                     {
@@ -19702,8 +20281,7 @@ int main(int argc, char** argv)
                         {
                             const auto& candidate =
                                 raceSession.racers()[racer];
-                            if (candidate.disconnected ||
-                                !candidate.finished)
+                            if (!candidate.finished)
                                 continue;
                             if (lastRacer == raceSession.racers().size() ||
                                 candidate.place >
@@ -19942,7 +20520,7 @@ int main(int argc, char** argv)
             else if (menuStack.back() == MenuScreen::Tournament)
             {
                 const bool hasProfiles =
-                    !profileState.profiles.empty();
+                    !activeProfileNames().empty();
                 tournamentFrameObserved =
                     activePage.labels.size() == 4U &&
                     activePage.enabled[0] == hasProfiles &&
@@ -20117,6 +20695,11 @@ int main(int argc, char** argv)
 #endif
 #ifdef RRR3D_AUDIO
         drawOriginalMusicDialog();
+#endif
+#ifdef RRR3D_PHYSICS
+        drawOriginalCursor(!infoDialog.visible);
+#else
+        drawOriginalCursor(true);
 #endif
         device->endFrame();
 #ifdef RRR3D_PHYSICS
@@ -20886,6 +21469,7 @@ int main(int argc, char** argv)
 #endif
     releaseResources();
     device.reset();
+    SDL_ShowCursor();
     SDL_DestroyWindow(window);
 #ifdef RRR3D_GAMEPAD_INPUT
     input.shutdown();

@@ -1,5 +1,7 @@
 build*
 !scripts/build_*.sh
+!resources/game-data/Data/World4/build.r3d
+!resources/game-data/Data/World4/Texture/build.dds
 cmake-build-*
 .DS_Store
 bin

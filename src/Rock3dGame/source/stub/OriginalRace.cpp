@@ -261,7 +261,8 @@ bool optionalBoolean(TiXmlElement* parent, std::string_view path,
 void applyMobilityLoadout(
     Vehicle& vehicle, TiXmlElement* workshop,
     const std::vector<RacerSlot>& loadout,
-    std::string_view difficulty, bool humanOrOpponent)
+    std::string_view difficulty, bool humanOrOpponent,
+    bool armor4Opened = false)
 {
     const float baseMaximumSpeed = vehicle.physics.maximumSpeed;
     const float baseTireSpring = vehicle.physics.tireSpring;
@@ -329,6 +330,11 @@ void applyMobilityLoadout(
 
         maximumTorque += optionalScalar(function, "maxTorque", 0.0F);
         maximumLife += optionalScalar(function, "life", 0.0F);
+        // ArmorItem::CheckArmor4 upgrades an installed armor3 only for the
+        // local Human/Opponent and contributes ten life before the source
+        // difficulty multiplier is applied.
+        if (armor4Opened && humanOrOpponent && itemName == "armor3")
+            maximumLife += 10.0F;
         maximumSpeed = std::max(
             maximumSpeed, optionalScalar(function, "maxSpeed", 0.0F));
         tireSpring += optionalScalar(function, "tireSpring", 0.0F);
@@ -4819,7 +4825,7 @@ bool runOriginalTournamentProgressSmokeTest(std::string& error)
 
 void applyOriginalPlayerProfile(
     Race& race, const resource::ResourceFileSystem& resources,
-    const PlayerProfile& profile)
+    const PlayerProfile& profile, bool armor4Opened)
 {
     if (race.racers.empty() ||
         race.racers.front().vehicle >= race.vehicles.size())
@@ -4933,7 +4939,7 @@ void applyOriginalPlayerProfile(
     human.loadout = humanLoadout;
     applyMobilityLoadout(human.configuredVehicle, workshop,
                          human.loadout, profile.difficulty,
-                         human.human);
+                         human.human, armor4Opened);
     race.vehicle = human.configuredVehicle;
 
     for (std::size_t index = 1; index < race.racers.size(); ++index)
@@ -5166,8 +5172,11 @@ r3d::physics::WorldDescription makePhysicsDescription(
                                       ": zero start direction");
     result.startDirection.x /= length;
     result.startDirection.y /= length;
-    const Vec3 lineDirection{-result.startDirection.y,
-                             result.startDirection.x, 0.0F};
+    // WayNode::Tile::ApplyChanges uses Vec2NormCW(dir), i.e. (y, -x).
+    // Keeping the same lateral normal preserves the Windows grid identity
+    // order instead of mirroring every row across the track centre line.
+    const Vec3 lineDirection{result.startDirection.y,
+                             -result.startDirection.x, 0.0F};
     std::vector<float> racerWidths;
     racerWidths.reserve(race.racers.size());
     for (const auto& racer : race.racers)
@@ -5344,7 +5353,48 @@ bool runOriginalRaceResourceSmokeTest(
                 "source Player::ApplyMobility cHumanArmorK role mismatch";
             return false;
         }
+        auto armorProfile = makeOriginalDefaultProfileState().player;
+        armorProfile.difficulty = "gdHard";
+        armorProfile.slots[2].record =
+            "world\\race\\workshopRoot\\workshop\\armor3";
+        auto standardArmorRace = race;
+        auto armor4Race = race;
+        applyOriginalPlayerProfile(
+            standardArmorRace, resources, armorProfile, false);
+        applyOriginalPlayerProfile(
+            armor4Race, resources, armorProfile, true);
+        if (standardArmorRace.racers.empty() ||
+            armor4Race.racers.empty() ||
+            std::abs(
+                armor4Race.racers.front()
+                        .configuredVehicle.maximumLife -
+                    standardArmorRace.racers.front()
+                        .configuredVehicle.maximumLife -
+                    15.0F) > 0.0001F)
+        {
+            error =
+                "ArmorItem::CheckArmor4 human hard-life bonus mismatch";
+            return false;
+        }
         const auto physics = makePhysicsDescription(race, resources);
+        if (physics.spawns.size() >= 2U)
+        {
+            const float firstToSecondX =
+                physics.spawns[1].position.x -
+                physics.spawns[0].position.x;
+            const float firstToSecondY =
+                physics.spawns[1].position.y -
+                physics.spawns[0].position.y;
+            const float clockwiseLateral =
+                firstToSecondX * physics.startDirection.y -
+                firstToSecondY * physics.startDirection.x;
+            if (clockwiseLateral <= 0.0F)
+            {
+                error =
+                    "WayNode::Tile clockwise start-grid order was mirrored";
+                return false;
+            }
+        }
         const auto playerWheel = resource::loadR3DMeshAsset(
             resources, race.vehicle.wheelMeshPath);
         const float playerWheelRadius = std::max(

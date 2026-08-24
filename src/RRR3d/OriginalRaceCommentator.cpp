@@ -363,7 +363,7 @@ void OriginalRaceCommentator::playNext(std::string& error)
 void OriginalRaceCommentator::progress(
     float seconds, std::string& error)
 {
-    if (!initialized_)
+    if (!initialized_ || paused_)
         return;
     const float elapsed = std::max(seconds, 0.0F);
     timeSeconds_ += elapsed;

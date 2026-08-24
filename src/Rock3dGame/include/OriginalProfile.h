@@ -132,6 +132,7 @@ struct ProfileState
     bool discreteVideoCardSerialized = false;
     PlayerProfile player;
     std::vector<std::string> profiles{"profile1"};
+    std::string lastProfile{"profile1"};
     std::vector<std::string> networkProfiles;
     std::string lastNetworkProfile;
     std::vector<std::uint32_t> planetsCompleted;
@@ -140,7 +141,9 @@ struct ProfileState
     std::map<std::string, AchievementConditionProfile>
         achievementConditions;
     std::map<std::string, std::uint32_t> achievementIterations;
-    std::uint32_t tutorialStage = 3;
+    // Race::_tutorialStage starts at zero. Race::ExitRace advances it until
+    // the three source tutorial stages have been completed.
+    std::uint32_t tutorialStage = 0;
 };
 
 // Deterministic copy of the defaults installed before original profile XML
@@ -155,7 +158,8 @@ ProfileState makeOriginalDefaultProfileState();
 std::string makeOriginalProfileName(
     const ProfileState& state, std::string_view base = "profile");
 std::string beginOriginalChampionshipProfile(
-    ProfileState& state, std::string_view difficulty);
+    ProfileState& state, std::string_view difficulty,
+    bool network = false);
 PlayerProfile makeOriginalSkirmishProfile(
     const ProfileState& state, std::string_view difficulty);
 // In-memory equivalent of Race::Profile::SaveGame used by NetRace::WriteMatch.
@@ -184,9 +188,9 @@ public:
 
     ProfileState load(std::string& warning) const;
     bool selectProfile(ProfileState& state, std::string_view name,
-                       std::string& error) const;
+                       std::string& error, bool network = false) const;
     bool deleteProfile(ProfileState& state, std::string_view name,
-                       std::string& error) const;
+                       std::string& error, bool network = false) const;
     bool save(const ProfileState& state, std::string& error) const;
 
     const std::filesystem::path& saveDirectory() const noexcept;

@@ -843,7 +843,7 @@ FinishTransition originalFinishTransition(
     bool campaign) noexcept;
 void applyOriginalPlayerProfile(
     Race& race, const resource::ResourceFileSystem& resources,
-    const PlayerProfile& profile);
+    const PlayerProfile& profile, bool armor4Opened = false);
 r3d::physics::WorldDescription makePhysicsDescription(
     const Race& race, const resource::ResourceFileSystem& resources);
 std::vector<DecorationDebrisDefinition> makeDecorationDestruction(
