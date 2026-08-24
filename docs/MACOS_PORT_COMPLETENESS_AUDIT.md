@@ -996,6 +996,23 @@ Network, video и Steam явно выключены.
   torpedo, Hyper, Mine и dispose regressions; resource race regression
   проверяет связку с projectile/Jolt/effect backend.
 
+### Source AISystem lane-chain block
+
+- `AISystem::ComputeTracks` теперь является отдельным active
+  `source::AISystem`; длинный session-local `AiTrackState`/`tileStripContains`
+  adapter и BFS удалены.
+- Система читает прямые `Player::CarState::GetLiveTile/GetCurNode` и
+  `WayNode::Tile`, сохраняет source insertion order, signed longitudinal
+  overlap, radius gates, chain merge, lateral stable sort и lane locking.
+- Историческая функция `lsl::ClampValue` перенесена буквально для случая
+  цепочки длиннее `cTrackCnt`; она намеренно не заменена на `std::clamp` с
+  недопустимым диапазоном.
+- `OriginalRaceSession` передаёт только non-owning записи с Jolt position и
+  resource-derived car radius. Переиспользуемый scratch buffer не выделяет
+  память в каждом кадре.
+- Прямой `OriginalAICarSmoke` проверяет ожидаемые lock masks цепочки из трёх
+  машин и обязательный reset полос у одиночной машины.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

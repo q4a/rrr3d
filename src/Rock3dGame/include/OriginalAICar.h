@@ -202,4 +202,29 @@ private:
     bool resetCar_ = false;
 };
 
+// Backend-neutral transcription of AISystem::ComputeTracks.  The original
+// system owned AIPlayer pointers and read their Player::CarState objects;
+// Entry keeps that non-owning relation without exposing Jolt vehicles to the
+// source class.
+class AISystem
+{
+public:
+    struct Entry
+    {
+        std::size_t racer = AICar::invalidIndex;
+        AICar* aiCar = nullptr;
+        const Player::CarState* car = nullptr;
+        TraceVec3 position{};
+        float radius = 0.0F;
+        bool active = true;
+    };
+
+    explicit AISystem(std::uint32_t trackCount = 4U) noexcept;
+    void Reset(std::uint32_t trackCount = 4U) noexcept;
+    void ComputeTracks(std::span<Entry> entries) const;
+
+private:
+    std::uint32_t trackCount_ = 4U;
+};
+
 } // namespace r3d::game::originalrace::source

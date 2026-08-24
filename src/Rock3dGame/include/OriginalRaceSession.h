@@ -500,6 +500,10 @@ private:
     std::vector<std::uint32_t> nextNetworkProjectileIds_;
     std::vector<float> repairSeconds_;
     std::vector<source::AICar> aiCars_;
+    source::AISystem aiSystem_{4U};
+    // Per-frame non-owning adapter reused by source::AISystem without
+    // reconstructing trace geometry in the session.
+    std::vector<source::AISystem::Entry> aiSystemEntriesScratch_;
     // Per-frame adapter snapshot reused without allocation. Retained target
     // ownership lives in source::AICar::AttackState, not in this buffer.
     std::vector<source::AICar::AttackTarget> aiAttackTargetsScratch_;

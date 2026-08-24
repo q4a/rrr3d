@@ -1,5 +1,6 @@
 #include "OriginalAICar.h"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <iostream>
@@ -206,6 +207,50 @@ int main()
         ai.attack.backTarget != source::AICar::invalidIndex)
         return 18;
 
-    std::cout << "original AICar path/control/attack source rules passed\n";
+    // AISystem::ComputeTracks uses the source WayNode geometry directly.
+    // Three longitudinally-overlapping cars form one ordered lane chain;
+    // an isolated fourth car is still reset but reserves no lane.
+    std::array<source::Player, 4> lanePlayers;
+    std::array<source::AICar, 4> laneCars{
+        source::AICar(4U), source::AICar(4U),
+        source::AICar(4U), source::AICar(4U)};
+    const std::array<source::TraceVec3, 4> lanePositions{{
+        {40.0F, 15.0F, 0.0F},
+        {42.0F, 5.0F, 0.0F},
+        {44.0F, -5.0F, 0.0F},
+        {70.0F, 0.0F, 0.0F}}};
+    std::array<source::AISystem::Entry, 4> laneEntries{};
+    for (std::size_t index = 0U; index < lanePlayers.size(); ++index)
+    {
+        lanePlayers[index].Reset(100.0F, 1U, &trace);
+        lanePlayers[index].car.Update(
+            trace, lanePositions[index], {1.0F, 0.0F, 0.0F},
+            20.0F, 1.0F / 60.0F);
+        laneEntries[index] = {
+            index, &laneCars[index], &lanePlayers[index].car,
+            lanePositions[index], 3.0F, true};
+    }
+    laneCars[3].path.LockTrack(0U);
+    source::AISystem aiSystem(4U);
+    aiSystem.ComputeTracks(laneEntries);
+    const auto isLocked = [&](std::size_t car, std::size_t track) {
+        return laneCars[car].path.lockTracks[track];
+    };
+    if (isLocked(0U, 0U) || !isLocked(0U, 1U) ||
+        !isLocked(0U, 2U) || isLocked(0U, 3U))
+        return 19;
+    if (!isLocked(1U, 0U) || isLocked(1U, 1U) ||
+        !isLocked(1U, 2U) || isLocked(1U, 3U))
+        return 20;
+    if (!isLocked(2U, 0U) || !isLocked(2U, 1U) ||
+        isLocked(2U, 2U) || isLocked(2U, 3U))
+        return 21;
+    if (std::any_of(
+            laneCars[3].path.lockTracks.begin(),
+            laneCars[3].path.lockTracks.end(),
+            [](bool locked) { return locked; }))
+        return 22;
+
+    std::cout << "original AICar path/control/attack/AISystem source rules passed\n";
     return 0;
 }

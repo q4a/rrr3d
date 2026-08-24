@@ -1027,6 +1027,9 @@ void OriginalRaceSession::reset()
     aiCars_.reserve(race_.racers.size());
     for (std::size_t index = 0U; index < race_.racers.size(); ++index)
         aiCars_.emplace_back(sourceTrace_.GetTrackCount());
+    aiSystem_.Reset(sourceTrace_.GetTrackCount());
+    aiSystemEntriesScratch_.clear();
+    aiSystemEntriesScratch_.reserve(race_.racers.size());
     aiAttackTargetsScratch_.assign(race_.racers.size(), {});
     previousPositions_.assign(race_.racers.size(), {});
     lastLeadPlace_ = 0.0F;
@@ -2262,23 +2265,10 @@ void OriginalRaceSession::updateProgress(
 void OriginalRaceSession::updateAiTracks(
     const std::vector<r3d::physics::VehicleState>& vehicles)
 {
-    const std::uint32_t trackCount =
-        std::max(sourceTrace_.GetTrackCount(), 1U);
-    struct AiTrackState
-    {
-        std::size_t racer = 0;
-        std::size_t path = 0;
-        std::size_t collisionNode = 0;
-        Vec3 direction{1.0F, 0.0F, 0.0F};
-        Vec3 position{};
-        float lateral = 0.0F;
-        float radius = 0.5F;
-        std::uint32_t currentTrack = 0U;
-    };
-    std::vector<AiTrackState> states;
-    states.reserve(vehicles.size());
+    aiSystemEntriesScratch_.clear();
     for (std::size_t racer = 1U;
-         racer < racers_.size() && racer < vehicles.size(); ++racer)
+         racer < racers_.size() && racer < vehicles.size() &&
+         racer < aiCars_.size(); ++racer)
     {
         if (race_.racers[racer].human ||
             (networkGameplayEnabled_ &&
@@ -2286,34 +2276,13 @@ void OriginalRaceSession::updateAiTracks(
               !networkOwnedRacers_[racer])) ||
             racers_[racer].destroyed || racers_[racer].finished)
             continue;
-        // AISystem::ComputeTracks only inserts AI players whose live
-        // CarState::curTile exists.  PathState may retain lastNode for
-        // steering, but that fallback must not reserve lanes off-trace.
         const auto& carState = racers_[racer].car;
-        TraceNodeRef traceNode = carState.GetLiveTileRef();
-        if (!traceNode.valid())
+        // AISystem::ComputeTracks only inserts AI players whose live
+        // CarState::curTile/mapObj exists. PathState's lastNode fallback is
+        // intentionally excluded from lane ownership.
+        if (carState.GetLiveTile() == nullptr ||
+            carState.GetCurNode() == nullptr)
             continue;
-        aiCars_[racer].path.ResetTracks();
-        const auto& path = tracePathAt(traceNode.path);
-        traceNode.node = std::min(traceNode.node, path.size() - 2U);
-        const std::size_t nextNode = traceNode.node + 1U;
-        const auto& previous = tracePoint(traceNode.path, traceNode.node);
-        const auto& next = tracePoint(traceNode.path, nextNode);
-        const Vec3 direction =
-            normalized2(subtract(next.position, previous.position));
-        const Vec3 normal{direction.y, -direction.x, 0.0F};
-        const Vec3 relative =
-            subtract(vehicles[racer].body.position, previous.position);
-        const float lateral = dot2(relative, normal);
-        const auto currentTrack = carState.GetTrack();
-        // Player::CarState::curNode switches to curTile->next while the car
-        // is inside the next WayNode sphere.  AISystem uses that node's
-        // infinite tile strip when building overlap chains at corners.
-        const auto currentNode = carState.GetCurNodeRef();
-        const std::size_t collisionNode =
-            currentNode.valid() && currentNode.path == traceNode.path
-                ? std::min(currentNode.node, path.size() - 2U)
-                : traceNode.node;
         const auto& source = race_.racers[racer];
         const auto& vehicleDefinition =
             source.hasConfiguredVehicle
@@ -2323,114 +2292,11 @@ void OriginalRaceSession::updateAiTracks(
         const float radius =
             std::sqrt(half.x * half.x + half.y * half.y +
                       half.z * half.z);
-        states.push_back(
-            {racer, traceNode.path, collisionNode, direction,
-             vehicles[racer].body.position, lateral, radius,
-             currentTrack});
+        aiSystemEntriesScratch_.push_back({
+            racer, &aiCars_[racer], &carState,
+            vehicles[racer].body.position, radius, true});
     }
-
-    auto tileStripContains = [&](const AiTrackState& source,
-                                 Vec3 position) {
-        const auto& start = tracePoint(
-            source.path, source.collisionNode);
-        const auto& end = tracePoint(
-            source.path, source.collisionNode + 1U);
-        const Vec3 direction = normalized2(
-            subtract(end.position, start.position));
-        const Vec3 relative = subtract(position, start.position);
-        const float segmentLength = std::max(
-            length2(subtract(end.position, start.position)),
-            0.0001F);
-        const float coordinate = std::clamp(
-            dot2(relative, direction) / segmentLength, 0.0F, 1.0F);
-        const float width =
-            start.width + (end.width - start.width) * coordinate;
-        const float pathZ =
-            start.position.z +
-            (end.position.z - start.position.z) * coordinate;
-        const Vec3 normal{direction.y, -direction.x, 0.0F};
-        // WayNode::Tile::IsContains(..., false) deliberately omits the two
-        // end planes while retaining lateral and Z bounds.
-        return std::abs(dot2(relative, normal)) < width * 0.5F &&
-               std::abs(pathZ - position.z) < width * 0.5F;
-    };
-
-    std::vector<bool> assigned(states.size(), false);
-    for (std::size_t first = 0; first < states.size(); ++first)
-    {
-        if (assigned[first])
-            continue;
-        std::vector<std::size_t> chain{first};
-        assigned[first] = true;
-        for (std::size_t link = 0; link < chain.size(); ++link)
-        {
-            const auto& source = states[chain[link]];
-            for (std::size_t candidate = 0;
-                 candidate < states.size(); ++candidate)
-            {
-                if (assigned[candidate])
-                    continue;
-                const float longitudinalDistance = std::abs(
-                    dot2(source.direction,
-                         subtract(states[candidate].position,
-                                  source.position)));
-                if (longitudinalDistance >
-                        states[candidate].radius + source.radius ||
-                    !tileStripContains(
-                        source, states[candidate].position))
-                    continue;
-                assigned[candidate] = true;
-                chain.push_back(candidate);
-            }
-        }
-        if (chain.size() < 2U)
-            continue;
-        std::stable_sort(
-            chain.begin(), chain.end(),
-            [&](std::size_t left, std::size_t right) {
-                return states[left].lateral <
-                       states[right].lateral;
-            });
-        std::uint32_t selectedTrack = 0U;
-        std::size_t previousState = states.size();
-        std::uint32_t previousSelectedTrack = 0U;
-        const auto occupied = static_cast<std::uint32_t>(
-            std::min<std::size_t>(chain.size(), trackCount));
-        for (std::size_t index = 0; index < chain.size(); ++index)
-        {
-            if (index > 0U && index % trackCount == 0U)
-                selectedTrack = 0U;
-            const auto& state = states[chain[index]];
-            const auto withinGroup =
-                static_cast<std::uint32_t>(index % trackCount);
-            const std::uint32_t maximumTrack =
-                trackCount - (occupied - withinGroup);
-            const std::uint32_t minimumTrack =
-                std::min(selectedTrack, trackCount - 1U);
-            selectedTrack = std::clamp(
-                state.currentTrack, minimumTrack,
-                std::max(minimumTrack, maximumTrack));
-            for (const auto otherState : chain)
-            {
-                if (otherState != chain[index])
-                {
-                    aiCars_[states[otherState].racer]
-                        .path.LockTrack(selectedTrack);
-                }
-            }
-            if (previousState != states.size() &&
-                states[previousState].currentTrack ==
-                    state.currentTrack &&
-                previousSelectedTrack > 0U)
-            {
-                aiCars_[state.racer].path.LockTrack(
-                    previousSelectedTrack - 1U);
-            }
-            previousState = chain[index];
-            previousSelectedTrack = selectedTrack;
-            ++selectedTrack;
-        }
-    }
+    aiSystem_.ComputeTracks(aiSystemEntriesScratch_);
 }
 
 r3d::physics::VehicleInput OriginalRaceSession::aiInput(

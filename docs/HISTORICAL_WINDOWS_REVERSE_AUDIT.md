@@ -701,6 +701,37 @@ records и projectile effects.
 lane-chain ownership либо `Weapon/Logic`; PhysX/D3D9 вызовы остаются
 осознанными Jolt/bgfx boundaries.
 
+### P2.8 — AISystem::ComputeTracks — выполнено
+
+Формирование цепочек машин и занятости полос вынесено из
+`OriginalRaceSession` в отдельный active `source::AISystem`. Удалена
+session-local аппроксимация по `TracePoint`, включая повторный расчёт ширины,
+высоты и направления плитки и отдельный BFS по машинам.
+
+Перенесены правила `eff9338:AIPlayer.cpp::AISystem::ComputeTracks`:
+
+- в список входят только живые AI с настоящим `CarState::curTile` и
+  `curNode`; off-trace fallback `PathState` полосу не занимает;
+- боковая сортировка вычисляется исходной clockwise-normal прямой текущей
+  плитки;
+- каждая пара проверяется один раз в source insertion order, причём
+  асимметрично через `curNode->Tile::IsContains(target, false)` первой машины;
+- продольное пересечение использует `trackNormLine`-эквивалент и сумму
+  source car radii;
+- связанные компоненты сливаются в chain, стабильно сортируются и блокируют
+  выбранную полосу у всех остальных машин;
+- сохранены `lsl::ClampValue` semantics, в том числе исторический случай
+  `lower > upper` для chain длиннее числа полос, и дополнительная блокировка
+  при одинаковой исходной полосе двух соседних машин;
+- `freeTracks/lockTracks` очищаются у каждого включённого AI даже при
+  отсутствии соседа, как в Windows.
+
+Сессия теперь только формирует переиспользуемый non-owning список из Jolt
+позиций и radii; вся trace/lane логика исполняется на прямом объектном графе
+`WayNode`. `OriginalAICarSmoke` проверяет точную трёхмашинную цепочку и очистку
+одиночного участника. Следующий крупный gameplay block — source `AIPlayer`
+lifecycle либо `Weapon/Logic` ownership.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

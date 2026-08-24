@@ -792,4 +792,161 @@ bool AICar::TakeResetCar() noexcept
     return result;
 }
 
+AISystem::AISystem(std::uint32_t trackCount) noexcept
+{
+    Reset(trackCount);
+}
+
+void AISystem::Reset(std::uint32_t trackCount) noexcept
+{
+    trackCount_ = std::max(trackCount, 1U);
+}
+
+void AISystem::ComputeTracks(std::span<Entry> entries) const
+{
+    struct Link
+    {
+        std::size_t entry = 0U;
+        float directionDistance = 0.0F;
+    };
+
+    std::vector<Link> links;
+    links.reserve(entries.size());
+    for (std::size_t entryIndex = 0U;
+         entryIndex < entries.size(); ++entryIndex)
+    {
+        auto& entry = entries[entryIndex];
+        if (!entry.active || entry.aiCar == nullptr ||
+            entry.car == nullptr ||
+            entry.car->GetLiveTile() == nullptr ||
+            entry.car->GetCurNode() == nullptr)
+        {
+            continue;
+        }
+
+        const WayNode* tile = entry.car->GetLiveTile();
+        const TraceVec2 direction = tile->GetTile().GetDir();
+        const TraceVec2 clockwiseNormal{direction.y, -direction.x};
+        links.push_back({
+            entryIndex,
+            lineDistance(clockwiseNormal, tile->GetPos2(),
+                         xy(entry.position))});
+        // AISystem clears lane availability for every inserted AICar before
+        // it builds any chain, including a car which has no neighbour.
+        entry.aiCar->path.ResetTracks();
+    }
+
+    if (links.size() < 2U)
+        return;
+
+    // The Windows Container removes each outer link after comparing it with
+    // all still-present links.  Preserve that ordered, asymmetric test: the
+    // first car's curNode tile decides whether the second car can join.
+    std::vector<std::size_t> parent(links.size());
+    for (std::size_t index = 0U; index < parent.size(); ++index)
+        parent[index] = index;
+    const auto findRoot = [&](std::size_t index) {
+        while (parent[index] != index)
+        {
+            parent[index] = parent[parent[index]];
+            index = parent[index];
+        }
+        return index;
+    };
+
+    for (std::size_t first = 0U; first < links.size(); ++first)
+    {
+        const Entry& sourceEntry = entries[links[first].entry];
+        const WayNode* currentNode = sourceEntry.car->GetCurNode();
+        const TraceVec2 direction =
+            sourceEntry.car->GetLiveTile()->GetTile().GetDir();
+        for (std::size_t second = first + 1U;
+             second < links.size(); ++second)
+        {
+            const Entry& targetEntry = entries[links[second].entry];
+            const float normalDistance = dot(
+                direction,
+                subtract(xy(targetEntry.position),
+                         xy(sourceEntry.position)));
+            const float combinedRadius =
+                sourceEntry.radius + targetEntry.radius;
+            const bool lowerRange =
+                normalDistance + combinedRadius > 0.0F;
+            const bool higherRange =
+                normalDistance - combinedRadius < 0.0F;
+            if (!lowerRange || !higherRange ||
+                !currentNode->GetTile().IsContains(
+                    targetEntry.position, false))
+            {
+                continue;
+            }
+
+            const std::size_t firstRoot = findRoot(first);
+            const std::size_t secondRoot = findRoot(second);
+            if (firstRoot != secondRoot)
+                parent[secondRoot] = firstRoot;
+        }
+    }
+
+    std::vector<std::vector<std::size_t>> chains(links.size());
+    for (std::size_t index = 0U; index < links.size(); ++index)
+        chains[findRoot(index)].push_back(index);
+
+    for (auto& chain : chains)
+    {
+        if (chain.size() < 2U)
+            continue;
+        std::stable_sort(
+            chain.begin(), chain.end(),
+            [&](std::size_t first, std::size_t second) {
+                return links[first].directionDistance <
+                       links[second].directionDistance;
+            });
+
+        const std::uint32_t occupiedTracks =
+            static_cast<std::uint32_t>(
+                std::min<std::size_t>(chain.size(), trackCount_));
+        std::uint32_t selectedTrack = 0U;
+        const Entry* previousEntry = nullptr;
+        std::uint32_t previousSelectedTrack = 0U;
+        for (std::size_t index = 0U; index < chain.size(); ++index)
+        {
+            Entry& entry = entries[links[chain[index]].entry];
+            const std::uint32_t lower =
+                std::min(selectedTrack, trackCount_ - 1U);
+            const std::uint32_t upper =
+                trackCount_ -
+                (occupiedTracks -
+                 static_cast<std::uint32_t>(index % trackCount_));
+            const std::uint32_t currentTrack =
+                std::min(entry.car->GetTrack(), trackCount_ - 1U);
+            // This is lsl::ClampValue rather than std::clamp: for chains
+            // longer than the lane count the source can pass lower > upper.
+            selectedTrack =
+                currentTrack > lower
+                    ? (currentTrack < upper ? currentTrack : upper)
+                    : lower;
+
+            for (const std::size_t other : chain)
+            {
+                Entry& otherEntry =
+                    entries[links[other].entry];
+                if (&otherEntry != &entry)
+                    otherEntry.aiCar->path.LockTrack(selectedTrack);
+            }
+            if (previousEntry != nullptr &&
+                previousEntry->car->GetTrack() ==
+                    entry.car->GetTrack() &&
+                previousSelectedTrack > 0U)
+            {
+                entry.aiCar->path.LockTrack(
+                    previousSelectedTrack - 1U);
+            }
+            previousEntry = &entry;
+            previousSelectedTrack = selectedTrack;
+            ++selectedTrack;
+        }
+    }
+}
+
 } // namespace r3d::game::originalrace::source
