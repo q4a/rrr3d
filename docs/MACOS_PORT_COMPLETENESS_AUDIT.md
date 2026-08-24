@@ -929,6 +929,30 @@ Network, video и Steam явно выключены.
   заменены Jolt requests, а `Player::CarState` будет следующим отдельным
   source-class блоком поверх уже перенесённого `source::Trace`.
 
+### Source Player::CarState object block
+
+- `Player::CarState` теперь является вложенным active source-классом и держит
+  raw references на стабильный `source::Trace` graph. Session-local массивы
+  current/last node, coordinate, inverse start, map position и maximum-speed
+  window полностью удалены.
+- `CarState::Update` выполняет Windows order: pose/direction, preferred-path
+  tile lookup, `curNode` sphere, linked `lastNode`, lap edge, last coordinate,
+  wrong-way и lost-control. `GetDist/GetLap/GetMapPos` больше не повторяются
+  helper-формулами в `OriginalRaceSession`.
+- AI lane occupation использует точные `CarState::track` и `curNode`, а не
+  повторно вычисляет оба значения приближённой segment geometry. Respawn,
+  Hyper/weapon progress, place/commentator state, HUD/minimap и debug overlay
+  также переведены на тот же объект.
+- Из сессии удалены `TraceTileProjection`, `findTraceTile`,
+  `linkedTraceTransition` и `traceDistance`; `source::Trace::NodeRef` получил
+  только equality для существующей boundary-идентификации.
+- Прямой `OriginalPlayerSmoke` проверяет main/alternate WayPath, удержание
+  map position вне trace, исходный 20-metre moveInverse и 80-unit
+  lost-control. Resource-based race smoke сохраняет checkpoint/lap/finish и
+  reset coverage.
+- Следующим decomposition-блоком должен стать `AICar::PathState`/
+  `ControlState`; это позволит убрать оставшиеся AI state arrays из сессии.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

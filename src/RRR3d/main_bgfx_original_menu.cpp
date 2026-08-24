@@ -16583,7 +16583,7 @@ int main(int argc, char** argv)
                         maximumRaceAiProgress[index] = std::max(
                             maximumRaceAiProgress[index],
                             static_cast<float>(
-                                raceSession.racers()[index].completedLaps) +
+                                raceSession.racers()[index].car.numLaps) +
                                 static_cast<float>(
                                     raceSession.racers()[index].nextPathNode) /
                                     static_cast<float>(std::max<std::size_t>(

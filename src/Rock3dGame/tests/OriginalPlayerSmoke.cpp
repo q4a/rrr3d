@@ -89,10 +89,79 @@ int main()
         source::Player::BonusCharge(10U, 0.0F) != 1U)
         return 12;
 
+    source::Trace trace(4U);
+    auto* first = trace.AddPoint(1U);
+    first->SetPos({0.0F, 0.0F, 0.0F});
+    first->SetSize(30.0F);
+    auto* second = trace.AddPoint(2U);
+    second->SetPos({100.0F, 0.0F, 0.0F});
+    second->SetSize(30.0F);
+    auto* third = trace.AddPoint(3U);
+    third->SetPos({200.0F, 0.0F, 0.0F});
+    third->SetSize(30.0F);
+    auto* branchMiddle = trace.AddPoint(4U);
+    branchMiddle->SetPos({100.0F, 100.0F, 0.0F});
+    branchMiddle->SetSize(30.0F);
+    auto* mainPath = trace.AddPath();
+    mainPath->Add(first);
+    mainPath->Add(second);
+    mainPath->Add(third);
+    auto* branchPath = trace.AddPath();
+    branchPath->Add(second);
+    branchPath->Add(branchMiddle);
+    branchPath->Add(third);
+
+    source::Player tracedPlayer;
+    tracedPlayer.Reset(100.0F, 1U, &trace);
+    const auto firstUpdate = tracedPlayer.car.Update(
+        trace, {40.0F, 0.0F, 0.0F}, {1.0F, 0.0F, 0.0F},
+        10.0F, 1.0F / 60.0F);
+    const auto firstMap = tracedPlayer.car.GetMapPos();
+    if (!firstUpdate.lastNodeChanged ||
+        firstUpdate.previousLast.valid() ||
+        firstUpdate.lastNode.path != 0U ||
+        tracedPlayer.car.GetPathIndex() != 0 ||
+        std::abs(firstMap.x - 40.0F) > 0.001F)
+        return 13;
+
+    tracedPlayer.car.Update(
+        trace, {75.0F, 0.0F, 0.0F}, {-1.0F, 0.0F, 0.0F},
+        10.0F, 1.0F / 60.0F);
+    const auto inverse = tracedPlayer.car.Update(
+        trace, {50.0F, 0.0F, 0.0F}, {-1.0F, 0.0F, 0.0F},
+        10.0F, 1.0F / 60.0F);
+    if (!inverse.moveInverseStarted || !tracedPlayer.car.moveInverse)
+        return 14;
+    tracedPlayer.car.Update(
+        trace, {55.0F, 0.0F, 0.0F}, {1.0F, 0.0F, 0.0F},
+        100.0F, 1.0F / 60.0F);
+    const auto lostControl = tracedPlayer.car.Update(
+        trace, {60.0F, 0.0F, 0.0F}, {1.0F, 0.0F, 0.0F},
+        10.0F, 1.0F / 60.0F);
+    if (tracedPlayer.car.moveInverse || !lostControl.lostControl)
+        return 15;
+
+    const auto branch = tracedPlayer.car.Update(
+        trace, {100.0F, 50.0F, 0.0F}, {0.0F, 1.0F, 0.0F},
+        10.0F, 1.0F / 60.0F);
+    if (!branch.lastNodeChanged || branch.lastNode.path != 1U ||
+        tracedPlayer.car.GetPathIndex() != 1)
+        return 16;
+    const auto lastMap = tracedPlayer.car.GetMapPos();
+    tracedPlayer.car.Update(
+        trace, {1000.0F, 1000.0F, 0.0F}, {1.0F, 0.0F, 0.0F},
+        10.0F, 1.0F / 60.0F);
+    const auto retainedMap = tracedPlayer.car.GetMapPos();
+    if (tracedPlayer.car.GetLiveTileRef().valid() ||
+        !tracedPlayer.car.GetLastNodeRef().valid() ||
+        std::abs(lastMap.x - retainedMap.x) > 0.001F ||
+        std::abs(lastMap.y - retainedMap.y) > 0.001F)
+        return 17;
+
     player.Disconnect();
     if (!player.disconnected || !player.destroyed || player.finished ||
         player.life != 0.0F)
-        return 13;
+        return 18;
 
     std::cout << "original Player source rules passed\n";
     return 0;

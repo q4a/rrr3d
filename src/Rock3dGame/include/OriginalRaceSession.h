@@ -404,36 +404,7 @@ public:
 
 private:
     bool legacyWindowsDebug_ = false;
-    struct TraceNodeRef
-    {
-        std::size_t path = RacerRuntime::invalidWeapon;
-        std::size_t node = RacerRuntime::invalidWeapon;
-
-        bool valid() const noexcept
-        {
-            return path != RacerRuntime::invalidWeapon &&
-                   node != RacerRuntime::invalidWeapon;
-        }
-
-        bool operator==(const TraceNodeRef& other) const noexcept
-        {
-            return path == other.path && node == other.node;
-        }
-
-        bool operator!=(const TraceNodeRef& other) const noexcept
-        {
-            return !(*this == other);
-        }
-    };
-
-    struct TraceTileProjection
-    {
-        TraceNodeRef node;
-        Vec3 direction{1.0F, 0.0F, 0.0F};
-        float coordinate = 0.0F;
-        float pathDistance = 0.0F;
-        bool contains = false;
-    };
+    using TraceNodeRef = source::Trace::NodeRef;
 
     const std::vector<std::uint32_t>& tracePathAt(
         std::size_t path) const;
@@ -441,19 +412,11 @@ private:
     const TracePoint& tracePoint(std::size_t path,
                                  std::size_t pathNode) const;
     void buildSourceTrace();
-    TraceTileProjection projectTraceTile(
-        std::size_t path, std::size_t segment, Vec3 position,
-        float widthError = 0.0F) const;
-    TraceTileProjection findTraceTile(
-        Vec3 position, TraceNodeRef preferred) const;
-    bool linkedTraceTransition(TraceNodeRef previous,
-                               TraceNodeRef current) const;
     TraceNodeRef racerTraceNode(std::size_t racer) const noexcept;
     TraceNodeRef aiTraceNode(
         std::size_t racer,
         const r3d::physics::VehicleState& vehicle) const;
     float tracePathLength(std::size_t path) const;
-    float traceDistance(TraceNodeRef node, float coordinate) const;
     float lapPosition(
         std::size_t racer,
         const r3d::physics::VehicleState& vehicle) const;
@@ -551,25 +514,7 @@ private:
     std::vector<std::array<bool, 4>> aiLockedTracks_;
     std::vector<std::size_t> aiFrontTargets_;
     std::vector<std::size_t> aiBackTargets_;
-    // Player::CarState retains both the tile physically occupied this frame
-    // and the last source-linked tile.  A path/node pair is required because
-    // shipped maps contain alternate WayPath branches that share endpoints.
-    std::vector<TraceNodeRef> currentTraceNodes_;
-    std::vector<TraceNodeRef> lastTraceNodes_;
-    std::vector<float> lastPathCoordinates_;
-    // Player::CarState::moveInverseStart stores source-path distance, not an
-    // orientation timer. A negative value means that reverse travel has not
-    // started on a valid trace tile.
-    std::vector<float> wrongWayStartDistances_;
-    // Player::CarState::GetMapPos projects onto curTile and retains the last
-    // valid tile position while the car is outside the trace corridor.
-    std::vector<Vec3> mapPositions_;
     std::vector<Vec3> previousPositions_;
-    // Player::CarState::Update keeps the fastest speed observed during the
-    // current one-second window and emits cPlayerLostControl for the exact
-    // source 80 m/s collapse condition.
-    std::vector<float> maximumSpeeds_;
-    std::vector<float> maximumSpeedSeconds_;
     // Race::OnLateProgress uses last-correct path positions to debounce
     // leader/third-place changes by 300 source units.
     float lastLeadPlace_ = 0.0F;

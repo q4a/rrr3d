@@ -594,6 +594,42 @@ headlights/color material остаются в bgfx renderer, а RockCar/PhysX в
 на Jolt boundary. Следующий Player-блок должен перенести `CarState` как класс
 и передать ему source Trace references, после чего можно отделять `AICar`.
 
+### P2.5 — Player::CarState и прямой Trace object graph — выполнено
+
+Следующий блок переносит вложенный `Player::CarState` из
+`eff9338:Player.cpp` непосредственно в `source::Player`. Семь параллельных
+массивов `OriginalRaceSession` удалены: current/last node, last coordinate,
+wrong-way start, map position и maximum-speed window теперь принадлежат одному
+объекту `Player::CarState`, как в Windows.
+
+Перенесены исходные методы и порядок `CarState::Update`:
+
+- `Trace::IsTileContains` с preferred current WayPath;
+- отдельные `curTile`, `curNode`, `lastNode` и source link acceptance через
+  общие `WayPoint`;
+- `GetPathIndex`, `IsMainPath`, `GetPathLength`, `GetDist`, `GetLap` и
+  `GetMapPos`;
+- переход круга только при возврате на первый node главного WayPath;
+- `moveInverseStart - GetDist() > 20` и очистка wrong-way на forward tile;
+- one-second maximum-speed window и исходный порог падения скорости 80;
+- lane index через `WayNode::Tile::ComputeTrackInd` и `curNode` sphere switch.
+
+Active HUD/debug/minimap, place sorting, commentator distance, AI lane
+occupancy/path fallback, AI weapon progress, Hyper turn distance и respawn
+теперь читают `Player::CarState`; прежние adapter-проекции
+`findTraceTile/projectTraceTile/traceDistance` удалены. Числовой `NodeRef`
+остаётся только стабильным идентификатором между source graph и существующим
+AI/serialization boundary.
+
+`OriginalPlayerSmoke` расширен независимой геометрией: main/alternate path,
+map projection/retention, 20-metre inverse threshold и lost-control. Полный
+встроенный race regression продолжает проверять checkpoint/lap/finish,
+branch lap и trace reset на реальных resource data.
+
+После P2.5 следующий крупный source-class блок — `AICar::PathState` и
+`ControlState`. Renderer-owned Player lights/materials и Jolt vehicle feedback
+остаются осознанными backend boundaries, а не заглушками.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

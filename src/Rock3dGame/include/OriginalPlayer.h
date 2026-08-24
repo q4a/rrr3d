@@ -1,5 +1,7 @@
 #pragma once
 
+#include "OriginalTrace.h"
+
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -56,7 +58,73 @@ public:
     static const std::array<float, 3> computerCheatMaximumTorque;
     static const std::array<float, 3> humanArmorScale;
 
-    void Reset(float newMaximumLife, std::uint32_t initialPlace) noexcept;
+    class CarState
+    {
+    public:
+        struct UpdateResult
+        {
+            Trace::NodeRef previousLast;
+            Trace::NodeRef currentTile;
+            Trace::NodeRef lastNode;
+            bool lastNodeChanged = false;
+            bool lapPassed = false;
+            bool moveInverseStarted = false;
+            bool lostControl = false;
+        };
+
+        void Reset(Trace* trace = nullptr) noexcept;
+        UpdateResult Update(Trace& trace,
+                            const TraceVec3& position,
+                            const TraceVec3& direction,
+                            float vehicleSpeed,
+                            float deltaTime);
+
+        WayNode* GetCurTile(bool lastCorrect = false) noexcept;
+        const WayNode* GetCurTile(bool lastCorrect = false) const noexcept;
+        WayNode* GetLiveTile() noexcept;
+        const WayNode* GetLiveTile() const noexcept;
+        WayNode* GetCurNode() noexcept;
+        const WayNode* GetCurNode() const noexcept;
+        WayNode* GetLastNode() noexcept;
+        const WayNode* GetLastNode() const noexcept;
+        Trace::NodeRef GetCurTileRef(bool lastCorrect = false) const noexcept;
+        Trace::NodeRef GetLiveTileRef() const noexcept;
+        Trace::NodeRef GetCurNodeRef() const noexcept;
+        Trace::NodeRef GetLastNodeRef() const noexcept;
+        std::int32_t GetPathIndex(bool lastCorrect = false) const noexcept;
+        bool IsMainPath(bool lastCorrect = false) const noexcept;
+        float GetPathLength(bool lastCorrect = false) const noexcept;
+        float GetDist(bool lastCorrect = false) const noexcept;
+        float GetLap(bool lastCorrect = false) const noexcept;
+        TraceVec3 GetMapPos() const noexcept;
+        float GetLastNodeCoordX() const noexcept;
+        std::uint32_t GetTrack() const noexcept;
+
+        std::uint32_t numLaps = 0U;
+        bool moveInverse = false;
+
+    private:
+        void SetCurTile(WayNode* value) noexcept;
+        void SetCurNode(WayNode* value) noexcept;
+        void SetLastNode(WayNode* value) noexcept;
+
+        Trace* trace_ = nullptr;
+        TraceVec3 position_{};
+        TraceVec3 direction_{1.0F, 0.0F, 0.0F};
+        float speed_ = 0.0F;
+        WayNode* curTile_ = nullptr;
+        WayNode* curNode_ = nullptr;
+        WayNode* lastNode_ = nullptr;
+        float lastNodeCoordX_ = 0.5F;
+        std::uint32_t track_ = 0U;
+        float moveInverseStart_ = -1.0F;
+        float maximumSpeed_ = 0.0F;
+        float maximumSpeedTime_ = 0.0F;
+        TraceVec3 fallbackMapPosition_{};
+    };
+
+    void Reset(float newMaximumLife, std::uint32_t initialPlace,
+               Trace* trace = nullptr) noexcept;
     void ReloadWeapons(std::size_t weaponDefinitionCount) noexcept;
     void SyncSelectedWeapon(std::size_t weaponDefinitionCount) noexcept;
 
@@ -87,7 +155,6 @@ public:
     static std::uint32_t BonusCharge(
         std::uint32_t maximumCharge, float value) noexcept;
 
-    std::uint32_t completedLaps = 0;
     std::size_t nextPathNode = 1;
     std::uint32_t place = 1;
     float life = 100.0F;
@@ -130,11 +197,11 @@ public:
     float shieldFadeOutSeconds = -1.0F;
     float shieldDamageSeconds = -1.0F;
     float finishTime = -1.0F;
-    bool wrongWay = false;
     bool finished = false;
     bool destroyed = false;
     bool disconnected = false;
     bool lowLife = false;
+    CarState car;
 };
 
 } // namespace r3d::game::originalrace::source

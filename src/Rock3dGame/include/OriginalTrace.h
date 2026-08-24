@@ -223,6 +223,14 @@ public:
         std::size_t node = static_cast<std::size_t>(-1);
 
         bool valid() const noexcept;
+        bool operator==(const NodeRef& other) const noexcept
+        {
+            return path == other.path && node == other.node;
+        }
+        bool operator!=(const NodeRef& other) const noexcept
+        {
+            return !(*this == other);
+        }
     };
 
     explicit Trace(std::uint32_t tracksCount = 4U) noexcept;

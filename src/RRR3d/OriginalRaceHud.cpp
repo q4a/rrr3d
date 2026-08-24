@@ -933,7 +933,7 @@ void OriginalRaceHud::update(
     setText(device, place_, placeNames_[placeIndex],
             30.0F, true, white);
     const std::uint32_t shownLap =
-        std::min(player.completedLaps + 1U, race.lapCount);
+        std::min(player.car.numLaps + 1U, race.lapCount);
     setText(device, lap_,
             lapName_ + " " + std::to_string(shownLap) + "/" +
                 std::to_string(race.lapCount),

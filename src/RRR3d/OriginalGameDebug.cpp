@@ -215,11 +215,12 @@ std::vector<std::string> OriginalGameDebug::lines(
         result.push_back(
             "Place " + std::to_string(racer.place) + "/" +
             std::to_string(race.racers.size()) + "  lap " +
-            std::to_string(racer.completedLaps) + "/" +
+            std::to_string(racer.car.numLaps) + "/" +
             std::to_string(race.lapCount) + "  next node " +
             std::to_string(racer.nextPathNode));
         result.push_back(
-            "Wrong way " + std::string(racer.wrongWay ? "YES" : "no") +
+            "Wrong way " +
+            std::string(racer.car.moveInverse ? "YES" : "no") +
             "  life " + floatText(racer.life) + "/" +
             floatText(racer.maximumLife) + "  resets " +
             std::to_string(vehicle.resetCount));
