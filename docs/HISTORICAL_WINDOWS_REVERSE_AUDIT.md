@@ -757,6 +757,37 @@ lifecycle либо `Weapon/Logic` ownership.
 enable/disable command gate. Следующий decomposition block — `Weapon/Logic`
 runtime ownership и удаление cooldown/charge coordination из сессии.
 
+### P2.10 — Weapon runtime и Logic::Shot readiness — выполнено
+
+Перенесён active `source::Weapon` с исходными `Desc`, `_shotTime`,
+`OnProgress`, `IsReadyShot(delay)`, `IsReadyShot()`, `IsMaslo` и успешным
+reset после `CreateShot`. Три несвязанных session-массива — cooldown четырёх
+обычных слотов, mine age и Hyper cooldown — заменены одним `WeaponRack` на
+участника.
+
+Исправлены обнаруженные расхождения с `eff9338:Weapon.cpp` и
+`Logic.cpp::Shot`:
+
+- readiness использует строгое `_shotTime > shotDelay`, а не countdown
+  `<= 0`;
+- weapon time растёт уже во время стартового countdown, поскольку Windows
+  `Weapon` остаётся зарегистрированным `GameObject` до начала управления;
+- timer и charge сбрасываются только после реально созданного projectile;
+- обычное оружие, Hyper и Mine используют один source lifecycle, включая
+  network-replicated shot commit;
+- аналоговая мина читает тот же `_shotTime` с `(1-alpha)*0.6`, а `maslo`
+  определяется по типу первого projectile (`ptMaslo`), не по имени record;
+- удалены выдуманные minimum cooldown 0.03 для игрока и 0.25 для AI. После
+  успешного выстрела все участники снова ждут только сериализованный
+  `Weapon::Desc::shotDelay`, как Windows;
+- AI readiness теперь напрямую спрашивает установленный source `Weapon`.
+
+Добавлен отдельный десятый CTest `OriginalWeaponSmoke`: strict boundary,
+failed-prepare retention, successful reset, `ptMaslo` и полный rack progress.
+Физическое создание projectile и эффекты остаются Jolt/bgfx boundary внутри
+сессии; следующий блок должен выносить `WeaponItem::Shot`/`Logic` execution,
+не дублируя эти backend-операции.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

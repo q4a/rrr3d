@@ -5,6 +5,7 @@
 #include "OriginalProfile.h"
 #include "OriginalRace.h"
 #include "OriginalTrace.h"
+#include "OriginalWeapon.h"
 
 #include <array>
 #include <cstddef>
@@ -491,12 +492,7 @@ private:
     std::vector<float> decorationLife_;
     std::vector<bool> bonusActive_;
     std::vector<std::size_t> bonusNetworkPendingContact_;
-    std::vector<std::array<float, PlayerProfile::weaponSlotCount>>
-        weaponCooldown_;
-    // Weapon::_shotTime grows from zero independently of the default shot
-    // delay and is also queried with the analog mine threshold.
-    std::vector<float> mineShotAge_;
-    std::vector<float> hyperCooldown_;
+    std::vector<source::WeaponRack> weaponRacks_;
     std::vector<std::uint32_t> nextNetworkProjectileIds_;
     std::vector<float> repairSeconds_;
     std::vector<source::AIPlayer> aiPlayers_;

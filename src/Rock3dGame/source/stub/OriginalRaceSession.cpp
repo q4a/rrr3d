@@ -1018,9 +1018,7 @@ void OriginalRaceSession::reset()
     finishSecondsRemaining_ = -1.0F;
     racers_.assign(race_.racers.size(), {});
     vehicleInputs_.assign(race_.racers.size(), {});
-    weaponCooldown_.assign(race_.racers.size(), {});
-    mineShotAge_.assign(race_.racers.size(), 0.0F);
-    hyperCooldown_.assign(race_.racers.size(), 0.0F);
+    weaponRacks_.assign(race_.racers.size(), {});
     nextNetworkProjectileIds_.assign(race_.racers.size(), 1U);
     repairSeconds_.assign(race_.racers.size(), 0.0F);
     aiPlayers_.clear();
@@ -1263,6 +1261,38 @@ void OriginalRaceSession::reset()
             }
         }
         racers_[index].SyncSelectedWeapon(race_.weapons.size());
+        auto configureWeapon = [&](source::Weapon& runtimeWeapon,
+                                   std::size_t weaponIndex) {
+            if (weaponIndex == RacerRuntime::invalidWeapon ||
+                weaponIndex >= race_.weapons.size())
+            {
+                runtimeWeapon.SetDesc(source::Weapon::Desc{});
+                runtimeWeapon.Reset();
+                return;
+            }
+            const auto& definition = race_.weapons[weaponIndex];
+            std::vector<std::uint32_t> projectileTypes;
+            projectileTypes.reserve(definition.projectiles.size());
+            for (const auto& projectile : definition.projectiles)
+                projectileTypes.push_back(projectile.type);
+            runtimeWeapon.SetDesc(
+                definition.shotDelay,
+                projectileTypes);
+            runtimeWeapon.Reset();
+        };
+        for (std::size_t slot = 0U;
+             slot < PlayerProfile::weaponSlotCount; ++slot)
+        {
+            configureWeapon(
+                weaponRacks_[index].primary[slot],
+                racers_[index].weaponSlots[slot]);
+        }
+        configureWeapon(
+            weaponRacks_[index].hyper,
+            racers_[index].hyperWeapon);
+        configureWeapon(
+            weaponRacks_[index].mine,
+            racers_[index].mineWeapon);
     }
     events_.push_back(
         {RaceEventKind::CountdownChanged, 0, 0, {}, 3.0F});
@@ -2964,11 +2994,6 @@ void OriginalRaceSession::updateGameplay(
             vehicleInputs_[racer].springLocked =
                 runtime.springLockSeconds > 0.0F;
         }
-        for (auto& cooldown : weaponCooldown_[racer])
-            cooldown = std::max(0.0F, cooldown - seconds);
-        mineShotAge_[racer] += seconds;
-        hyperCooldown_[racer] =
-            std::max(0.0F, hyperCooldown_[racer] - seconds);
         if (runtime.destroyed)
         {
             repairSeconds_[racer] = 0.0F;
@@ -4087,11 +4112,11 @@ void OriginalRaceSession::updateGameplay(
             return;
         const std::size_t weapon = racers_[owner].mineWeapon;
         if (weapon == RacerRuntime::invalidWeapon ||
-            weapon >= race_.weapons.size())
+            weapon >= race_.weapons.size() ||
+            owner >= weaponRacks_.size())
             return;
         if (!networkReplicated && !sourceReadinessOverride &&
-            mineShotAge_[owner] <=
-                std::max(race_.weapons[weapon].shotDelay, 0.0F))
+            !weaponRacks_[owner].mine.IsReadyShot())
             return;
         const auto& projectiles = race_.weapons[weapon].projectiles;
         const auto* projectile =
@@ -4128,7 +4153,7 @@ void OriginalRaceSession::updateGameplay(
                 networkProjectileId + 1U);
         }
         --racers_[owner].mines;
-        mineShotAge_[owner] = 0.0F;
+        weaponRacks_[owner].mine.OnShot();
         racers_[owner].mineLockSeconds = 0.4F;
         MineRuntime mine;
         mine.owner = owner;
@@ -4168,17 +4193,16 @@ void OriginalRaceSession::updateGameplay(
         racers_[0].mineWeapon != RacerRuntime::invalidWeapon &&
         racers_[0].mineWeapon < race_.weapons.size())
     {
-        const auto& mineWeapon =
-            race_.weapons[racers_[0].mineWeapon];
         const bool maslo =
-            recordName(mineWeapon.record).find("maslo") !=
-            std::string::npos;
+            !weaponRacks_.empty() &&
+            weaponRacks_[0].mine.IsMaslo();
         if (humanControl.mineAnalogBinding || maslo)
         {
             const float alpha =
                 std::clamp(humanControl.mineHeld, 0.0F, 1.0F);
             const float sourceDelay = (1.0F - alpha) * 0.6F;
-            if (mineShotAge_[0] > sourceDelay)
+            if (!weaponRacks_.empty() &&
+                weaponRacks_[0].mine.IsReadyShot(sourceDelay))
                 placeMine(0, nullptr, 0U, false, true);
         }
     }
@@ -4192,7 +4216,9 @@ void OriginalRaceSession::updateGameplay(
             racers_[owner].hyperWeapon ==
                 RacerRuntime::invalidWeapon ||
             racers_[owner].hyperWeapon >= race_.weapons.size() ||
-            (!networkReplicated && hyperCooldown_[owner] > 0.0F))
+            owner >= weaponRacks_.size() ||
+            (!networkReplicated &&
+             !weaponRacks_[owner].hyper.IsReadyShot()))
             return;
         const auto& weapon =
             race_.weapons[racers_[owner].hyperWeapon];
@@ -4225,8 +4251,7 @@ void OriginalRaceSession::updateGameplay(
                 nextNetworkProjectileIds_[owner],
                 networkProjectileId + 1U);
         }
-        hyperCooldown_[owner] =
-            std::max(weapon.shotDelay, 0.0F);
+        weaponRacks_[owner].hyper.OnShot();
         const Vec3 position = vehicles[owner].body.position;
         const float duration =
             projectile.minimumLife > 0.0F
@@ -4959,14 +4984,16 @@ void OriginalRaceSession::updateGameplay(
     }
 
     auto fireWeapon =
-        [&](std::size_t shooter, float minimumCooldown = 0.03F,
+        [&](std::size_t shooter,
             std::size_t requestedTarget =
                 RacerRuntime::invalidWeapon,
             const Vec3* replicatedOrigin = nullptr,
             std::uint32_t replicatedProjectileId = 0U,
             bool networkReplicated = false) {
         if (shooter >= vehicles.size() ||
-            shooter >= racers_.size() || racers_[shooter].finished ||
+            shooter >= racers_.size() ||
+            shooter >= weaponRacks_.size() ||
+            racers_[shooter].finished ||
             racers_[shooter].destroyed)
             return;
         auto& runtime = racers_[shooter];
@@ -4975,7 +5002,9 @@ void OriginalRaceSession::updateGameplay(
             runtime.selectedWeapon >= race_.weapons.size() ||
             runtime.selectedWeaponSlot >= runtime.weaponCharges.size() ||
             (!networkReplicated &&
-             weaponCooldown_[shooter][runtime.selectedWeaponSlot] > 0.0F) ||
+             !weaponRacks_[shooter]
+                  .primary[runtime.selectedWeaponSlot]
+                  .IsReadyShot()) ||
             runtime.weaponCharges[runtime.selectedWeaponSlot] == 0)
             return;
         const std::size_t firedSlot = runtime.selectedWeaponSlot;
@@ -4983,6 +5012,13 @@ void OriginalRaceSession::updateGameplay(
         const auto* weapon =
             &race_.weapons[firedWeapon];
         if (weapon->slot == WeaponSlot::Support)
+            return;
+        const bool projectileCreated = std::any_of(
+            weapon->projectiles.begin(), weapon->projectiles.end(),
+            [](const ProjectileDefinition& projectile) {
+                return !projectile.spawnOnParentDeath;
+            });
+        if (!projectileCreated)
             return;
         const std::uint32_t networkProjectileId =
             networkReplicated && replicatedProjectileId != 0U
@@ -4996,8 +5032,7 @@ void OriginalRaceSession::updateGameplay(
         }
         --runtime.weaponCharges[firedSlot];
         runtime.SyncSelectedWeapon(race_.weapons.size());
-        weaponCooldown_[shooter][firedSlot] =
-            std::max(weapon->shotDelay, minimumCooldown);
+        weaponRacks_[shooter].primary[firedSlot].OnShot();
         const Vec3 eventOrigin = weaponWorldTransform(
             shooter, firedWeapon, firedSlot).position;
         std::size_t target = racers_.size();
@@ -5304,7 +5339,7 @@ void OriginalRaceSession::updateGameplay(
             runtime.selectedWeaponSlot = slot;
             runtime.SyncSelectedWeapon(race_.weapons.size());
             fireWeapon(
-                shot.racer, 0.03F, shot.target, origin,
+                shot.racer, shot.target, origin,
                 shot.projectileId, true);
         }
         runtime.selectedWeaponSlot = selected;
@@ -5393,7 +5428,9 @@ void OriginalRaceSession::updateGameplay(
             state.maximumDistance = weapon.maximumDistance;
             state.capacity = runtime.weaponCapacity[slot];
             state.charge = runtime.weaponCharges[slot];
-            state.ready = weaponCooldown_[racer][slot] <= 0.0F;
+            state.ready =
+                racer < weaponRacks_.size() &&
+                weaponRacks_[racer].primary[slot].IsReadyShot();
             attackWeapons[attackWeaponCount++] = state;
         }
 
@@ -5419,8 +5456,8 @@ void OriginalRaceSession::updateGameplay(
         {
             context.mine.installed = true;
             context.mine.oil =
-                race_.weapons[runtime.mineWeapon].record.find("maslo") !=
-                std::string::npos;
+                racer < weaponRacks_.size() &&
+                weaponRacks_[racer].mine.IsMaslo();
             context.mine.capacity = runtime.mineCapacity;
             context.mine.charge = runtime.mines;
         }
@@ -5431,7 +5468,7 @@ void OriginalRaceSession::updateGameplay(
         {
             runtime.selectedWeaponSlot = decision.weaponSlot;
             runtime.SyncSelectedWeapon(race_.weapons.size());
-            fireWeapon(racer, 0.25F, decision.weaponTarget);
+            fireWeapon(racer, decision.weaponTarget);
         }
         if (decision.useHyper)
             activateHyper(racer);
@@ -5817,6 +5854,10 @@ void OriginalRaceSession::update(
               r3d::physics::VehicleInput{});
     if (phase_ == RacePhase::Paused)
         return;
+    // Weapon is a registered GameObject in Windows, so _shotTime advances
+    // during the visible countdown as well as during active racing.
+    for (auto& rack : weaponRacks_)
+        rack.OnProgress(seconds);
     for (auto& effect : effects_)
     {
         effect.seconds -= seconds;
@@ -10876,6 +10917,25 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             {
                 throw std::runtime_error(
                     "source network shot regression has no charged slot");
+            }
+            // synchronizeNetworkCountdown(4) intentionally jumps directly
+            // to cGoRace. In the real network flow Weapon::OnProgress has
+            // already accumulated time during cGoRaceWait/cGoRace1..3, so
+            // warm the local sender through its serialized strict delay.
+            const std::size_t shotWeapon =
+                shotSource.racers()[0].weaponSlots[shotSlot];
+            const float shotDelay =
+                shotWeapon < networkRace.weapons.size()
+                    ? networkRace.weapons[shotWeapon].shotDelay
+                    : 0.0F;
+            RaceControl warmupInput;
+            const int warmupFrames = std::max(
+                1, static_cast<int>(std::ceil(
+                       std::max(shotDelay, 0.0F) * 60.0F)) + 1);
+            for (int frame = 0; frame < warmupFrames; ++frame)
+            {
+                shotSource.update(
+                    1.0F / 60.0F, vehicles, warmupInput);
             }
             RaceControl shotInput;
             shotInput.fireWeaponSlot =

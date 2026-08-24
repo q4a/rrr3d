@@ -1028,6 +1028,25 @@ Network, video и Steam явно выключены.
 - Прямой smoke проверяет ownership, masks, disabled command и полное
   освобождение AICar state.
 
+### Source Weapon runtime block
+
+- Новый active `source::Weapon` переносит `Desc`, растущий `_shotTime`,
+  strict `IsReadyShot`, `IsMaslo` и reset только после успешного
+  `PrepareProj`. На каждого игрока создан source `WeaponRack` из четырёх
+  primary slots, Hyper и Mine.
+- Session arrays `weaponCooldown_`, `mineShotAge_`, `hyperCooldown_` удалены.
+  Weapon timers прогрессируют и во время countdown, но останавливаются на
+  pause, как зарегистрированные Windows `GameObject`.
+- Удалены synthetic 0.03/0.25 cooldown floors; player и AI используют только
+  сериализованный `shotDelay`. Это также устраняет искусственное ограничение
+  частоты атак AI.
+- Charge и timer меняются лишь после наличия live projectile; failed mine
+  track ray и failed Hyper wheel gate не расходуют выстрел.
+- Analog mine threshold и AI readiness используют тот же source timer;
+  `ptMaslo` определяется первым projectile type.
+- Новый `OriginalWeaponSmoke` доводит CTest-набор до десяти тестов и отдельно
+  проверяет strict time boundary и успешный/неуспешный shot commit.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity
