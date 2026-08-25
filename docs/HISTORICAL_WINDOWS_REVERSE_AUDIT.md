@@ -1495,6 +1495,29 @@ completed planets, полного human/car/color/economy/tournament/slot state,
 source-ключ `dfficulty`, absent `prefCamera` first-run semantics и временность
 `SkProfile`.
 
+### P2.46 — точный lifecycle и persistence `MusicCat` — выполнено
+
+Сверка с `GameMode::MusicCat` и `GameMode::DoStartRace/ExitRace/SaveConfig`
+подтвердила два активных расхождения. Portable game MusicCat извлекал первый
+элемент очереди уже при запуске приложения и при выходе из гонки выполнял
+`Pause+Next`; Windows загружает очередь без извлечения, вызывает `Play` только
+в `DoStartRace`, а в `ExitRace` делает только `Stop`. Кроме того, portable
+profile сохранял первоначальную строку playlist вместо фактически оставшейся
+очереди `_playList`.
+
+Инициализация и начало playback теперь разделены. Первый game track заранее
+декодируется в фоне без изменения очереди, извлекается ровно при старте гонки
+и начинается с PCM-кадра 0. Выход останавливает voice, но не продвигает
+playlist. Перед атомарной записью `user.xml` обе текущие очереди экспортируются
+обратно в `menuMusic/playList` и `gameMusic/playList`, как исходный `SaveUser`.
+Позиция аудио между запусками не сохраняется: runtime `.state` отключён и
+остаётся только изолированным M8 smoke-механизмом; Pause/Resume внутри одного
+процесса по-прежнему продолжает тот же трек.
+
+M8 audio smoke проверяет все три menu Ogg, shuffle, pause/resume, automatic и
+manual Next; M9 Metal regression дополнительно требует отсутствия выбранного
+game track до `StartRace` и нулевую позицию сразу после source `Play`.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

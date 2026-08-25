@@ -78,7 +78,7 @@ struct OriginalMenuMusic::Impl
 		music.setPlaylist(std::move(initialPlaylist));
 	}
 
-	bool initialize(std::string &error)
+	bool initialize(std::string &error, bool startPlayback)
 	{
 		if (initialized)
 		{
@@ -97,7 +97,8 @@ struct OriginalMenuMusic::Impl
 					stateWarning = std::move(restoreError);
 			}
 		}
-		if (!music.currentTrack() && !music.play())
+		playbackRequested = startPlayback;
+		if (playbackRequested && !music.currentTrack() && !music.play())
 		{
 			error = "Original menu MusicCat contains no tracks";
 			return false;
@@ -126,7 +127,7 @@ struct OriginalMenuMusic::Impl
 		{
 			voice = r3d::audio::invalidVoice;
 			trackStarted = false;
-			if (!music.paused())
+			if (playbackRequested && !music.paused())
 			{
 				if (!music.next())
 				{
@@ -191,6 +192,44 @@ struct OriginalMenuMusic::Impl
 			entry = {};
 		}
 		initialized = false;
+		playbackRequested = false;
+	}
+
+	bool play(std::string &error)
+	{
+		if (!initialized)
+		{
+			error = "Original menu music is not initialized";
+			return false;
+		}
+		if (voice != r3d::audio::invalidVoice)
+			audio.stop(voice);
+		voice = r3d::audio::invalidVoice;
+		trackStarted = false;
+		music.setPaused(false);
+		music.setPlaybackPosition(0, 0);
+		if (!music.play())
+		{
+			error = "Original menu MusicCat contains no playable tracks";
+			return false;
+		}
+		playbackRequested = true;
+		trimDecodedCache();
+		if (!writeState(error))
+			return false;
+		return startCurrent(error) && scheduleDecode(error);
+	}
+
+	void stop() noexcept
+	{
+		if (voice != r3d::audio::invalidVoice)
+			audio.stop(voice);
+		voice = r3d::audio::invalidVoice;
+		trackStarted = false;
+		playbackRequested = false;
+		music.setPaused(false);
+		music.setPlaybackPosition(0, currentTotalFrames());
+		trimDecodedCache();
 	}
 
 	bool pause(bool shouldPause, std::string &error)
@@ -208,6 +247,9 @@ struct OriginalMenuMusic::Impl
 			error = "Unable to change the original menu music pause state";
 			return false;
 		}
+		if (!shouldPause && playbackRequested &&
+		    (!startCurrent(error) || !scheduleDecode(error)))
+			return false;
 		return writeState(error);
 	}
 
@@ -228,6 +270,7 @@ struct OriginalMenuMusic::Impl
 			return false;
 		}
 		++transitions;
+		playbackRequested = true;
 		trimDecodedCache();
 		if (!writeState(error))
 			return false;
@@ -333,7 +376,7 @@ struct OriginalMenuMusic::Impl
 		// and severe slowdown after the background worker caught up.  The
 		// persistence smoke fixture deliberately keeps the eager policy so it
 		// can continue auditing every source container.
-		if (!candidate && (trackStarted || persistState))
+		if (!candidate && trackStarted)
 		{
 			for (auto track = music.playlist().rbegin(); track != music.playlist().rend(); ++track)
 			{
@@ -343,6 +386,16 @@ struct OriginalMenuMusic::Impl
 					break;
 				}
 			}
+		}
+		// GameMode::MusicCat does not pop the game playlist before
+		// DoStartRace.  Warm exactly that upcoming entry without changing the
+		// source queue or retaining the full game soundtrack in memory.
+		if (!candidate && !playbackRequested && !music.currentTrack() &&
+		    !music.playlist().empty())
+		{
+			const auto upcoming = music.playlist().back();
+			if (loaded[upcoming].state == LoadState::Unloaded)
+				candidate = upcoming;
 		}
 		if (!candidate && persistState)
 		{
@@ -408,7 +461,7 @@ struct OriginalMenuMusic::Impl
 
 	bool startCurrent(std::string &error)
 	{
-		if (trackStarted)
+		if (!playbackRequested || trackStarted)
 			return true;
 		const auto current = music.currentTrack();
 		if (!current || loaded[*current].state != LoadState::Loaded)
@@ -501,6 +554,7 @@ struct OriginalMenuMusic::Impl
 	bool persistState = true;
 	bool initialized = false;
 	bool trackStarted = false;
+	bool playbackRequested = false;
 };
 
 OriginalMenuMusic::OriginalMenuMusic(r3d::audio::AudioBackend &audio,
@@ -527,9 +581,9 @@ OriginalMenuMusic::~OriginalMenuMusic()
 	shutdown();
 }
 
-bool OriginalMenuMusic::initialize(std::string &error)
+bool OriginalMenuMusic::initialize(std::string &error, bool startPlayback)
 {
-	return impl_->initialize(error);
+	return impl_->initialize(error, startPlayback);
 }
 
 bool OriginalMenuMusic::update(std::string &error)
@@ -540,6 +594,16 @@ bool OriginalMenuMusic::update(std::string &error)
 void OriginalMenuMusic::shutdown() noexcept
 {
 	impl_->shutdown();
+}
+
+bool OriginalMenuMusic::play(std::string &error)
+{
+	return impl_->play(error);
+}
+
+void OriginalMenuMusic::stop() noexcept
+{
+	impl_->stop();
 }
 
 bool OriginalMenuMusic::pause(bool paused, std::string &error)
@@ -610,6 +674,11 @@ std::size_t OriginalMenuMusic::loadedTrackCount() const noexcept
 std::uint64_t OriginalMenuMusic::transitionCount() const noexcept
 {
 	return impl_->transitions;
+}
+
+const std::vector<std::size_t> &OriginalMenuMusic::playlist() const noexcept
+{
+	return impl_->music.playlist();
 }
 
 const r3d::game::MusicCatTrack *OriginalMenuMusic::track(std::size_t index) const noexcept

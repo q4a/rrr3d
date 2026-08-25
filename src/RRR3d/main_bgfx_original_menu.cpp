@@ -666,6 +666,18 @@ std::vector<std::size_t> musicPlaylist(std::string_view source,
     }
     return result;
 }
+
+std::string musicPlaylistString(const std::vector<std::size_t>& playlist)
+{
+    std::string result;
+    for (const auto track : playlist)
+    {
+        if (!result.empty())
+            result.push_back(',');
+        result += std::to_string(track);
+    }
+    return result;
+}
 #endif
 
 std::optional<Options> parseOptions(int argc, char** argv)
@@ -4205,8 +4217,10 @@ int main(int argc, char** argv)
         false, musicTracks(originalaudio::gameTracks),
         musicPlaylist(profileState.config.gameMusicPlaylist,
                       originalaudio::gameTracks.size()));
-    if (!gameMusic.initialize(audioError) ||
-        !gameMusic.pause(true, audioError))
+    // Windows GameMode only loads the game playlist here.  Its first entry is
+    // consumed later by DoStartRace::_gameMusic->Play(), not while the menu is
+    // starting.
+    if (!gameMusic.initialize(audioError, false))
     {
         std::cerr << "Original game MusicCat initialization failed: "
                   << audioError << '\n';
@@ -4224,6 +4238,10 @@ int main(int argc, char** argv)
         SDL_Quit();
         return EXIT_FAILURE;
     }
+    const bool gameMusicDeferredSelectionObserved =
+        !gameMusic.currentTrack().has_value();
+    bool gameMusicZeroStartObserved =
+        !options->raceRenderSmokeTest;
 #endif
 
     enum class OriginalMusicDialogSource
@@ -4275,9 +4293,11 @@ int main(int argc, char** argv)
             OriginalMusicDialogSource::Menu, lastMenuMusicTrack);
     }
 
-    std::cout << "Original MusicCat: background decode, shuffled playlist, "
-                 "auto Next, pause/resume, state "
-              << musicStatePath << "\nOriginal menu tracks:";
+    std::cout << "Original MusicCat: background decode, source playlist, "
+                 "auto Next and in-process pause/resume";
+    if (options->audioSmokeTest)
+        std::cout << ", isolated test state " << musicStatePath;
+    std::cout << "\nOriginal menu tracks:";
     for (const auto& track : originalaudio::menuTracks)
         std::cout << " [" << track.band << " - " << track.name
                   << ": Data/" << track.path << ']';
@@ -4600,8 +4620,16 @@ int main(int argc, char** argv)
         stopAllRaceLoops();
         audio.setBusVolume(r3d::audio::Bus::Effects,
                            profileState.config.effectsVolume);
-        music.pause(true, audioError);
-        gameMusic.pause(false, audioError);
+        if (!music.pause(true, audioError) ||
+            !gameMusic.play(audioError))
+        {
+            std::cerr << "Original DoStartRace music transition failed: "
+                      << audioError << '\n';
+        }
+        gameMusicZeroStartObserved =
+            gameMusicZeroStartObserved ||
+            (gameMusic.currentTrack().has_value() &&
+             gameMusic.currentPositionFrames() == 0U);
         lastGameMusicTrack = gameMusic.currentTrack();
         showOriginalMusicInfo(
             OriginalMusicDialogSource::Game, lastGameMusicTrack);
@@ -4620,7 +4648,7 @@ int main(int argc, char** argv)
              ++racer)
             startRacerMotorAudio(racer);
     };
-    auto stopRaceAudio = [&](bool advanceGameTrack = true) {
+    auto stopRaceAudio = [&]() {
         stopAllRaceLoops();
         for (const auto& source : shotEffectAudio)
             audio.stop(source.voice);
@@ -4633,9 +4661,9 @@ int main(int argc, char** argv)
         timedEffectAudio.clear();
         commentator.stop();
         commentator.pause(true);
-        gameMusic.pause(true, audioError);
-        if (advanceGameTrack)
-            gameMusic.next(audioError);
+        // GameMode::ExitRace calls Stop rather than Pause+Next.  The next
+        // playlist entry remains untouched until the following DoStartRace.
+        gameMusic.stop();
         music.pause(false, audioError);
     };
 #endif
@@ -6294,6 +6322,15 @@ int main(int argc, char** argv)
                     << '\n';
             }
         }
+#ifdef RRR3D_AUDIO
+        // GameMode::SaveConfig serializes the remaining MusicCat queues.  Do
+        // this before every atomic user.xml write so a clean launch continues
+        // the source shuffle order, but never resumes a PCM cursor mid-track.
+        profileState.config.menuMusicPlaylist =
+            musicPlaylistString(music.playlist());
+        profileState.config.gameMusicPlaylist =
+            musicPlaylistString(gameMusic.playlist());
+#endif
         auto persistedState = profileState;
 #ifdef RRR3D_NETWORK
         // Race::_snClientProfile is transient.  Network host rules and the
@@ -6321,7 +6358,7 @@ int main(int argc, char** argv)
         try
         {
 #ifdef RRR3D_AUDIO
-            stopRaceAudio(false);
+            stopRaceAudio();
 #endif
             raceHud.shutdown(*device);
             raceRenderer.shutdown(*device);
@@ -21803,6 +21840,8 @@ int main(int argc, char** argv)
 #ifdef RRR3D_AUDIO
                     !raceMusicDialogObserved ||
                     !raceLoopTeardownObserved ||
+                    !gameMusicDeferredSelectionObserved ||
+                    !gameMusicZeroStartObserved ||
 #endif
                     !racePauseDialogObserved ||
                     !racePauseResumeObserved ||
@@ -21871,6 +21910,9 @@ int main(int argc, char** argv)
                         << raceMusicDialogObserved
                         << ", raceLoopTeardown="
                         << raceLoopTeardownObserved
+                        << ", gameMusicSourceLifecycle="
+                        << gameMusicDeferredSelectionObserved << '/'
+                        << gameMusicZeroStartObserved
 #endif
                         << ", pause="
                         << racePauseDialogObserved << '/'
@@ -21960,7 +22002,8 @@ int main(int argc, char** argv)
                         << minimumRacePlayerLife << "), "
                            "source HudMenu pause/accept/frozen-world, "
 #ifdef RRR3D_AUDIO
-                           "authoritative SoundMotor/wheel-loop teardown, "
+                           "authoritative SoundMotor/wheel-loop teardown and "
+                           "source MusicCat deferred zero-frame start, "
 #endif
                            "source UserChat Enter/input/history/fade, "
                            "source GameModeFrame/TournamentFrame layout, "
@@ -22040,7 +22083,7 @@ int main(int argc, char** argv)
 
 #ifdef RRR3D_AUDIO
 #ifdef RRR3D_PHYSICS
-    stopRaceAudio(false);
+    stopRaceAudio();
     commentator.shutdown();
     gameMusic.shutdown();
     for (const auto& [path, sound] : engineSounds)

@@ -2033,3 +2033,16 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   проверяются через общий список, как Windows `FindProfile`.
 - Расширенный disk regression меняет и возвращает все группы config,
   tournament/player и achievement полей.
+
+### Source MusicCat lifecycle/persistence follow-up
+
+- Game MusicCat больше не выбирает трек при запуске приложения: первый
+  playlist entry только прогревается фоновым decoder и извлекается исходным
+  `Play` при `DoStartRace` с позиции 0.
+- `ExitRace` теперь повторяет Windows `Stop`, не выполняя прежний придуманный
+  `Pause+Next`; следующая гонка сама извлекает следующий элемент.
+- `GameMode::SaveConfig`-эквивалент записывает фактически оставшиеся menu/game
+  очереди в `user.xml`. PCM cursor остаётся только in-process Pause/Resume и
+  не восстанавливается между запусками обычной игры.
+- M8 audio и 240-frame M9 Metal regressions подтверждают обе очереди, все три
+  menu-трека, автоматический Next и deferred zero-frame game start.

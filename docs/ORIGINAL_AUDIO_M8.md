@@ -124,14 +124,14 @@ resample synchronously. The implementation remains bounded to 512 MiB per
 sound. A future streaming/ring-buffer backend can replace this policy without
 changing `MusicCat`.
 
-`PlayOptions::startFrame` and `voicePositionFrames` preserve the mixer cursor.
-Pause freezes the active voice without discarding it; resume continues from
-that cursor. The current track, remaining shuffled playlist, RNG state,
-pause flag and frame position are atomically written to
-`~/Library/Application Support/RRR3d/menu-music.state` on transitions,
-pause/resume, clean shutdown and periodically during playback. A catalog
-fingerprint and strict range/duplicate validation reject stale or corrupt
-state.
+`PlayOptions::startFrame` and `voicePositionFrames` preserve the mixer cursor
+inside the running process. Pause freezes the active voice without discarding
+it; resume continues from that cursor. Normal gameplay follows
+`GameMode::MusicCat::SaveUser`: only the remaining menu/game playlist is
+written to `user.xml`, while the current track and PCM frame are deliberately
+not restored on a later launch. The complete `.state` round-trip, catalog
+fingerprint and corrupt-state validation remain enabled only for the isolated
+M8 smoke fixture.
 
 ## Resource coverage
 

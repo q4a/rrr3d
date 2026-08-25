@@ -37,10 +37,16 @@ class OriginalMenuMusic
 	OriginalMenuMusic(const OriginalMenuMusic &) = delete;
 	OriginalMenuMusic &operator=(const OriginalMenuMusic &) = delete;
 
-	bool initialize(std::string &error);
+	// GameMode starts menu music during initialization, but does not consume a
+	// game-music playlist entry until DoStartRace.  The second form preserves
+	// that source lifetime while still allowing the first track to decode in
+	// the background.
+	bool initialize(std::string &error, bool startPlayback = true);
 	bool update(std::string &error);
 	void shutdown() noexcept;
 
+	bool play(std::string &error);
+	void stop() noexcept;
 	bool pause(bool paused, std::string &error);
 	bool next(std::string &error);
 	bool seekCurrent(std::uint64_t mixerFrame, std::string &error);
@@ -55,6 +61,7 @@ class OriginalMenuMusic
 	bool backgroundDecodeActive() const noexcept;
 	std::size_t loadedTrackCount() const noexcept;
 	std::uint64_t transitionCount() const noexcept;
+	const std::vector<std::size_t> &playlist() const noexcept;
 	const r3d::game::MusicCatTrack *track(std::size_t index) const noexcept;
 	const r3d::audio::SoundInfo *trackInfo(std::size_t index) const noexcept;
 
