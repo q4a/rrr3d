@@ -91,6 +91,44 @@ const r3d::game::originalrace::Vehicle& activeVehicleDefinition(
                : race.vehicles.at(descriptor.vehicle);
 }
 
+const r3d::game::originalrace::ProjectileDefinition*
+runtimeProjectileDefinition(
+    const r3d::game::originalrace::Race& race,
+    const r3d::game::originalrace::ProjectileRuntime& projectile) noexcept
+{
+    if (projectile.weaponDescription != nullptr &&
+        projectile.descriptionProjectile <
+            projectile.weaponDescription->projectiles.size())
+    {
+        return &projectile.weaponDescription
+                    ->projectiles[projectile.descriptionProjectile];
+    }
+    if (projectile.weapon >= race.weapons.size() ||
+        projectile.projectile >=
+            race.weapons[projectile.weapon].projectiles.size())
+        return nullptr;
+    return &race.weapons[projectile.weapon]
+                .projectiles[projectile.projectile];
+}
+
+const r3d::game::originalrace::ProjectileDefinition*
+runtimeProjectileDefinition(
+    const r3d::game::originalrace::Race& race,
+    const r3d::game::originalrace::MineRuntime& mine) noexcept
+{
+    if (mine.weaponDescription != nullptr &&
+        mine.descriptionProjectile <
+            mine.weaponDescription->projectiles.size())
+    {
+        return &mine.weaponDescription
+                    ->projectiles[mine.descriptionProjectile];
+    }
+    if (mine.weapon >= race.weapons.size() ||
+        mine.projectile >= race.weapons[mine.weapon].projectiles.size())
+        return nullptr;
+    return &race.weapons[mine.weapon].projectiles[mine.projectile];
+}
+
 std::vector<StaticMeshVertex> vertices(
     const r3d::resource::R3DMeshAsset& mesh)
 {
@@ -5338,9 +5376,11 @@ void OriginalRaceRenderer::draw(
             projectile.projectile >=
                 projectiles_[projectile.weapon].size())
             continue;
-        const auto& definition =
-            race.weapons[projectile.weapon]
-                .projectiles[projectile.projectile];
+        const auto* runtimeDefinition = runtimeProjectileDefinition(
+            race, projectile);
+        if (runtimeDefinition == nullptr)
+            continue;
+        const auto& definition = *runtimeDefinition;
         const auto& asset =
             projectiles_[projectile.weapon][projectile.projectile].visual;
         // ptDrobilka's primary model is created lazily by DrobilkaContact;
@@ -5415,8 +5455,11 @@ void OriginalRaceRenderer::draw(
                 race.weapons[mine.weapon].projectiles.size() ||
             mine.projectile >= projectiles_[mine.weapon].size())
             continue;
-        const auto& definition =
-            race.weapons[mine.weapon].projectiles[mine.projectile];
+        const auto* runtimeDefinition = runtimeProjectileDefinition(
+            race, mine);
+        if (runtimeDefinition == nullptr)
+            continue;
+        const auto& definition = *runtimeDefinition;
         const auto& assets =
             projectiles_[mine.weapon][mine.projectile];
         const ObjectAsset* asset = &assets.visual;

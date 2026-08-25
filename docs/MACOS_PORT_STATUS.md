@@ -2012,3 +2012,13 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   death projectiles.
 - Regression с post-bind заменой descriptor подтверждает, что новый projectile
   получает item-owned speed `77`, maxDist `321` и damage `9.25`.
+
+### Immutable fired-projectile descriptor follow-up
+
+- `ProjectileRuntime` и `MineRuntime` сохраняют immutable handle на
+  item-owned descriptor, соответствующий копии `Proj::Desc` в Windows.
+- Update/contact/death/MineRip и renderer больше не перечитывают gameplay
+  параметры из mutable slot или static race catalog после выстрела.
+- Общий handle не копирует visual graph для каждого projectile; regression
+  меняет live descriptor и доказывает, что уже созданный снаряд сохраняет
+  прежние speed/maxDist/damage.

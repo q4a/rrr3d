@@ -16,6 +16,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <memory>
 #include <map>
 #include <string>
 #include <string_view>
@@ -281,6 +282,8 @@ struct MineRuntime
     std::size_t damageOwner = RacerRuntime::invalidWeapon;
     std::size_t weapon = 0;
     std::size_t projectile = 0;
+    source::Weapon::DescHandle weaponDescription;
+    std::size_t descriptionProjectile = 0;
     std::uint8_t visualVariant = 0;
     Vec3 position;
     Quat rotation;
@@ -312,6 +315,11 @@ struct ProjectileRuntime
     std::size_t damageOwner = RacerRuntime::invalidWeapon;
     std::size_t weapon = 0;
     std::size_t projectile = 0;
+    // Proj stores the descriptor copied at PrepareProj time. Sharing the
+    // immutable WeaponItem snapshot preserves that lifetime without copying
+    // the heavy renderer definitions for every fast projectile.
+    source::Weapon::DescHandle weaponDescription;
+    std::size_t descriptionProjectile = 0;
     std::size_t mountSlot = 0;
     Vec3 position;
     Vec3 direction{1.0F, 0.0F, 0.0F};

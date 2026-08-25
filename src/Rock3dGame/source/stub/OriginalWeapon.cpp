@@ -683,7 +683,12 @@ std::uint64_t ShotEffect::GetShotCount() const noexcept
     return shotCount_;
 }
 
-Weapon::Weapon(const Desc& desc) : desc_(desc) {}
+Weapon::Weapon() : desc_(std::make_shared<Desc>()) {}
+
+Weapon::Weapon(const Desc& desc)
+    : desc_(std::make_shared<Desc>(desc))
+{
+}
 
 const ProjectileDefinition& Weapon::Desc::Front() const noexcept
 {
@@ -716,13 +721,13 @@ bool Weapon::IsReadyShot(float delay) const noexcept
 
 bool Weapon::IsReadyShot() const noexcept
 {
-    return IsReadyShot(desc_.shotDelay);
+    return IsReadyShot(desc_->shotDelay);
 }
 
 bool Weapon::IsMaslo() const noexcept
 {
-    return !desc_.projectiles.empty() &&
-           desc_.Front().type == masloProjectileType;
+    return !desc_->projectiles.empty() &&
+           desc_->Front().type == masloProjectileType;
 }
 
 void Weapon::OnShot(bool projectileCreated) noexcept
@@ -741,35 +746,50 @@ void Weapon::OnProjectilePrepared() noexcept
 
 const Weapon::Desc& Weapon::GetDesc() const noexcept
 {
+    return *desc_;
+}
+
+Weapon::DescHandle Weapon::GetDescHandle() const noexcept
+{
     return desc_;
 }
 
 void Weapon::SetDesc(const Desc& value)
 {
-    desc_ = value;
+    desc_ = std::make_shared<Desc>(value);
+}
+
+void Weapon::SetDescHandle(DescHandle value) noexcept
+{
+    if (value != nullptr)
+        desc_ = std::move(value);
 }
 
 void Weapon::SetDesc(
     float shotDelay,
     std::span<const std::uint32_t> projectileTypes)
 {
-    desc_.shotDelay = shotDelay;
-    desc_.projectiles.clear();
-    desc_.projectiles.reserve(projectileTypes.size());
+    Desc description;
+    description.shotDelay = shotDelay;
+    description.projectiles.reserve(projectileTypes.size());
     for (const auto type : projectileTypes)
     {
         ProjectileDefinition projectile;
         projectile.type = type;
-        desc_.projectiles.push_back(std::move(projectile));
+        description.projectiles.push_back(std::move(projectile));
     }
+    SetDesc(description);
 }
 
 void Weapon::SetDesc(
     float shotDelay,
     std::span<const ProjectileDefinition> projectiles)
 {
-    desc_.shotDelay = shotDelay;
-    desc_.projectiles.assign(projectiles.begin(), projectiles.end());
+    Desc description;
+    description.shotDelay = shotDelay;
+    description.projectiles.assign(
+        projectiles.begin(), projectiles.end());
+    SetDesc(description);
 }
 
 const ShotEffect& Weapon::GetShotEffect() const noexcept
@@ -800,7 +820,7 @@ void WeaponItem::OnCreateCar() noexcept
 {
     carAttached_ = true;
     if (weapon_ != nullptr)
-        weapon_->SetDesc(weaponDesc_);
+        weapon_->SetDescHandle(weaponDesc_);
 }
 
 void WeaponItem::OnDestroyCar() noexcept
@@ -820,7 +840,9 @@ void WeaponItem::Bind(
     chargeStep_ = chargeStep;
     damage_ = damage;
     chargeCost_ = chargeCost;
-    weaponDesc_ = weapon != nullptr ? weapon->GetDesc() : Weapon::Desc{};
+    weaponDesc_ = weapon != nullptr
+                      ? weapon->GetDescHandle()
+                      : std::make_shared<Weapon::Desc>();
 }
 
 bool WeaponItem::Shot(bool projectileCreated, int newCharge) noexcept
@@ -917,7 +939,7 @@ float WeaponItem::GetDamage(bool statisticsDamage) const noexcept
 {
     (void)statisticsDamage;
     float damage = 0.0F;
-    for (const auto& projectile : weaponDesc_.projectiles)
+    for (const auto& projectile : weaponDesc_->projectiles)
         damage += projectile.damage;
     return damage;
 }
@@ -941,14 +963,14 @@ void WeaponItem::SetChargeCost(int value) noexcept
 
 const Weapon::Desc& WeaponItem::GetWpnDesc() const noexcept
 {
-    return weaponDesc_;
+    return *weaponDesc_;
 }
 
 void WeaponItem::SetWpnDesc(const Weapon::Desc& value)
 {
-    weaponDesc_ = value;
+    weaponDesc_ = std::make_shared<Weapon::Desc>(value);
     if (carAttached_ && weapon_ != nullptr)
-        weapon_->SetDesc(weaponDesc_);
+        weapon_->SetDescHandle(weaponDesc_);
 }
 
 Weapon* WeaponItem::GetWeapon() const noexcept
@@ -959,7 +981,7 @@ Weapon* WeaponItem::GetWeapon() const noexcept
 Weapon::Desc WeaponItem::GetDesc() const
 {
     const auto* weapon = GetWeapon();
-    return weapon != nullptr ? weapon->GetDesc() : weaponDesc_;
+    return weapon != nullptr ? weapon->GetDesc() : *weaponDesc_;
 }
 
 DroidItem::DroidItem() noexcept : WeaponItem(SlotType::Droid) {}

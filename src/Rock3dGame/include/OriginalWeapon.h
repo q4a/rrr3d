@@ -6,6 +6,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <span>
 #include <vector>
 
@@ -276,7 +277,9 @@ public:
         const ProjectileDefinition& Front() const noexcept;
     };
 
-    Weapon() = default;
+    using DescHandle = std::shared_ptr<const Desc>;
+
+    Weapon();
     explicit Weapon(const Desc& desc);
 
     void Reset() noexcept;
@@ -292,7 +295,9 @@ public:
     void OnProjectilePrepared() noexcept;
 
     const Desc& GetDesc() const noexcept;
+    DescHandle GetDescHandle() const noexcept;
     void SetDesc(const Desc& value);
+    void SetDescHandle(DescHandle value) noexcept;
     void SetDesc(float shotDelay,
                  std::span<const std::uint32_t> projectileTypes);
     void SetDesc(float shotDelay,
@@ -300,7 +305,7 @@ public:
     const ShotEffect& GetShotEffect() const noexcept;
 
 private:
-    Desc desc_;
+    DescHandle desc_;
     float shotTime_ = 0.0F;
     ShotEffect shotEffect_;
 };
@@ -369,7 +374,8 @@ private:
     std::uint32_t chargeStep_ = 1U;
     float damage_ = 0.0F;
     int chargeCost_ = 0;
-    Weapon::Desc weaponDesc_;
+    Weapon::DescHandle weaponDesc_ =
+        std::make_shared<Weapon::Desc>();
 };
 
 class HyperItem final : public WeaponItem

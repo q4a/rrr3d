@@ -14,6 +14,40 @@ namespace r3d::game::originalrace
 namespace
 {
 
+const ProjectileDefinition* runtimeProjectileDefinition(
+    const Race& race, const ProjectileRuntime& projectile) noexcept
+{
+    if (projectile.weaponDescription != nullptr &&
+        projectile.descriptionProjectile <
+            projectile.weaponDescription->projectiles.size())
+    {
+        return &projectile.weaponDescription
+                    ->projectiles[projectile.descriptionProjectile];
+    }
+    if (projectile.weapon >= race.weapons.size() ||
+        projectile.projectile >=
+            race.weapons[projectile.weapon].projectiles.size())
+        return nullptr;
+    return &race.weapons[projectile.weapon]
+                .projectiles[projectile.projectile];
+}
+
+const ProjectileDefinition* runtimeProjectileDefinition(
+    const Race& race, const MineRuntime& mine) noexcept
+{
+    if (mine.weaponDescription != nullptr &&
+        mine.descriptionProjectile <
+            mine.weaponDescription->projectiles.size())
+    {
+        return &mine.weaponDescription
+                    ->projectiles[mine.descriptionProjectile];
+    }
+    if (mine.weapon >= race.weapons.size() ||
+        mine.projectile >= race.weapons[mine.weapon].projectiles.size())
+        return nullptr;
+    return &race.weapons[mine.weapon].projectiles[mine.projectile];
+}
+
 Vec3 subtract(Vec3 first, Vec3 second)
 {
     return {first.x - second.x, first.y - second.y, first.z - second.z};
@@ -1565,14 +1599,13 @@ void OriginalRaceSession::releaseRacerProjectileReferences(
         const bool senderIsWeapon = projectile.owner == racer;
         const bool senderIsTarget = projectile.target == racer;
         bool linkedToWeapon = false;
-        if (senderIsWeapon && projectile.weapon < race_.weapons.size() &&
-            projectile.projectile <
-                race_.weapons[projectile.weapon].projectiles.size())
+        if (senderIsWeapon)
         {
-            linkedToWeapon = source::Proj::GetTypeRules(
-                race_.weapons[projectile.weapon]
-                    .projectiles[projectile.projectile].type)
-                                 .linkedToWeapon;
+            const auto* definition = runtimeProjectileDefinition(
+                race_, projectile);
+            linkedToWeapon = definition != nullptr &&
+                source::Proj::GetTypeRules(definition->type)
+                    .linkedToWeapon;
         }
         const auto result = source::Proj::OnDestroy(
             senderIsWeapon, linkedToWeapon, senderIsTarget);
@@ -3259,19 +3292,16 @@ void OriginalRaceSession::updateGameplay(
     auto spawnProjectileImpact =
         [&](ProjectileRuntime& projectile, const Vec3& position,
             std::size_t targetRacer) {
-            if (projectile.weapon >= race_.weapons.size() ||
-                projectile.projectile >=
-                    race_.weapons[projectile.weapon]
-                        .projectiles.size())
+            const auto* definition = runtimeProjectileDefinition(
+                race_, projectile);
+            if (definition == nullptr ||
+                projectile.weapon >= race_.weapons.size())
                 return;
-            const auto& definition =
-                race_.weapons[projectile.weapon]
-                    .projectiles[projectile.projectile];
             const bool hasDeathEffect =
-                !definition.deathEffect.visual.record.empty() ||
-                !definition.deathEffect.visual.visualNodes.empty() ||
-                !definition.deathEffect.visual.particleEmitters.empty() ||
-                !definition.deathEffect.visual.soundPaths.empty();
+                !definition->deathEffect.visual.record.empty() ||
+                !definition->deathEffect.visual.visualNodes.empty() ||
+                !definition->deathEffect.visual.particleEmitters.empty() ||
+                !definition->deathEffect.visual.soundPaths.empty();
             const auto deathPlan = hasDeathEffect
                 ? projectile.deathEffect.OnDeath(
                       true, targetRacer < vehicles.size(),
@@ -3338,33 +3368,33 @@ void OriginalRaceSession::updateGameplay(
                             : RacerRuntime::invalidWeapon);
                     effects_.push_back(std::move(impact));
                 };
-            addVisual(definition.secondaryVisual, 1U);
-            addVisual(definition.tertiaryVisual, 2U);
+            addVisual(definition->secondaryVisual, 1U);
+            addVisual(definition->tertiaryVisual, 2U);
             if (deathPlan.createEffect)
             {
-                addVisual(definition.deathEffect.visual, 3U,
-                          definition.deathEffect.position,
-                          definition.deathEffect.ignoreRotation,
+                addVisual(definition->deathEffect.visual, 3U,
+                          definition->deathEffect.position,
+                          definition->deathEffect.ignoreRotation,
                           deathPlan.targetChild);
             }
 
             if (!deathPlan.createEffect ||
-                definition.deathProjectile ==
+                definition->deathProjectile ==
                     ProjectileDefinition::invalidProjectile ||
-                definition.deathProjectile >=
+                definition->deathProjectile >=
                     race_.weapons[projectile.weapon]
                         .projectiles.size())
                 return;
             const auto& spawned =
                 race_.weapons[projectile.weapon]
-                    .projectiles[definition.deathProjectile];
+                    .projectiles[definition->deathProjectile];
             if (spawned.type != 20U)
                 return;
             MineRuntime crater;
             crater.owner = projectile.owner;
             crater.damageOwner = projectile.damageOwner;
             crater.weapon = projectile.weapon;
-            crater.projectile = definition.deathProjectile;
+            crater.projectile = definition->deathProjectile;
             crater.position = add(position, spawned.position);
             crater.damage = spawned.damage;
             crater.maximumLife = sampleSourceRange(
@@ -3379,14 +3409,13 @@ void OriginalRaceSession::updateGameplay(
 
     for (auto& projectile : projectiles_)
     {
-        if (!projectile.active ||
-            projectile.weapon >= race_.weapons.size() ||
-            projectile.projectile >=
-                race_.weapons[projectile.weapon].projectiles.size())
+        if (!projectile.active)
             continue;
-        const auto& projectileDefinition =
-            race_.weapons[projectile.weapon]
-                .projectiles[projectile.projectile];
+        const auto* runtimeDefinition = runtimeProjectileDefinition(
+            race_, projectile);
+        if (runtimeDefinition == nullptr)
+            continue;
+        const auto& projectileDefinition = *runtimeDefinition;
         projectile.ageSeconds += seconds;
         if (projectile.attached)
         {
@@ -4198,7 +4227,8 @@ void OriginalRaceSession::updateGameplay(
                 ? static_cast<int>(item->GetCurCharge()) - 1
                 : -1;
         const auto* liveWeapon = item->GetWeapon();
-        const auto& projectiles = liveWeapon->GetDesc().projectiles;
+        const auto description = liveWeapon->GetDescHandle();
+        const auto& projectiles = description->projectiles;
         const auto* projectile =
             projectiles.empty() ? nullptr : &projectiles.front();
         if (projectile == nullptr)
@@ -4244,6 +4274,8 @@ void OriginalRaceSession::updateGameplay(
         mine.owner = owner;
         mine.damageOwner = owner;
         mine.weapon = weapon;
+        mine.weaponDescription = description;
+        mine.descriptionProjectile = 0U;
         const auto sourceProjectile = std::find_if(
             race_.weapons[weapon].projectiles.begin(),
             race_.weapons[weapon].projectiles.end(),
@@ -4335,7 +4367,8 @@ void OriginalRaceSession::updateGameplay(
                 ? static_cast<int>(item->GetCurCharge()) - 1
                 : -1;
         const auto* liveWeapon = item->GetWeapon();
-        const auto& projectiles = liveWeapon->GetDesc().projectiles;
+        const auto description = liveWeapon->GetDescHandle();
+        const auto& projectiles = description->projectiles;
         if (projectiles.empty())
         {
             racers_[owner].Shot(
@@ -4422,6 +4455,8 @@ void OriginalRaceSession::updateGameplay(
             runtimeProjectile.damageOwner = owner;
             runtimeProjectile.weapon =
                 racers_[owner].hyperWeapon;
+            runtimeProjectile.weaponDescription = description;
+            runtimeProjectile.descriptionProjectile = 0U;
             const auto& sourceProjectiles =
                 race_.weapons[racers_[owner].hyperWeapon].projectiles;
             const auto sourceProjectile = std::find_if(
@@ -4483,12 +4518,11 @@ void OriginalRaceSession::updateGameplay(
 
     std::vector<MineRuntime> spawnedMines;
     auto spawnMineDeathEffect = [&](const MineRuntime& mine) {
-        if (mine.weapon >= race_.weapons.size() ||
-            mine.projectile >=
-                race_.weapons[mine.weapon].projectiles.size())
+        const auto* runtimeDefinition = runtimeProjectileDefinition(
+            race_, mine);
+        if (runtimeDefinition == nullptr)
             return;
-        const auto& definition =
-            race_.weapons[mine.weapon].projectiles[mine.projectile];
+        const auto& definition = *runtimeDefinition;
         const DeathEffectDefinition* death =
             &definition.deathEffect;
         std::uint8_t deathVariant = 3U;
@@ -4706,9 +4740,14 @@ void OriginalRaceSession::updateGameplay(
         }
         if (mine.type == 12U)
         {
-            const auto& projectile =
-                race_.weapons[mine.weapon]
-                    .projectiles.at(mine.projectile);
+            const auto* runtimeDefinition = runtimeProjectileDefinition(
+                race_, mine);
+            if (runtimeDefinition == nullptr)
+            {
+                deactivateMine(mine);
+                continue;
+            }
+            const auto& projectile = *runtimeDefinition;
             if (source::Proj::MineRipUpdate(
                     mine.seconds, projectile.angularSpeed, false))
             {
@@ -5186,8 +5225,9 @@ void OriginalRaceSession::updateGameplay(
         if (weapon->slot == WeaponSlot::Support)
             return;
         const auto* liveWeapon = item->GetWeapon();
+        const auto shotDescription = liveWeapon->GetDescHandle();
         const auto& itemProjectiles =
-            liveWeapon->GetDesc().projectiles;
+            shotDescription->projectiles;
         const bool projectileCreated = !itemProjectiles.empty();
         const int newCharge =
             networkReplicated
@@ -5299,6 +5339,9 @@ void OriginalRaceSession::updateGameplay(
                 runtimeProjectile.damageOwner = shooter;
                 runtimeProjectile.weapon = firedWeapon;
                 runtimeProjectile.projectile = backendProjectileIndex;
+                runtimeProjectile.weaponDescription = shotDescription;
+                runtimeProjectile.descriptionProjectile =
+                    projectileIndex;
                 runtimeProjectile.mountSlot = firedSlot;
                 runtimeProjectile.position = projectileOrigin;
                 runtimeProjectile.direction = sourceDirection;
@@ -5341,6 +5384,9 @@ void OriginalRaceSession::updateGameplay(
                 runtimeProjectile.damageOwner = shooter;
                 runtimeProjectile.weapon = firedWeapon;
                 runtimeProjectile.projectile = backendProjectileIndex;
+                runtimeProjectile.weaponDescription = shotDescription;
+                runtimeProjectile.descriptionProjectile =
+                    projectileIndex;
                 runtimeProjectile.mountSlot = firedSlot;
                 runtimeProjectile.position = projectileOrigin;
                 runtimeProjectile.direction = launchDirection;
@@ -9146,6 +9192,41 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 {
                     throw std::runtime_error(
                         "source WeaponItem full WpnDesc shot ownership "
+                        "failed");
+                }
+                const auto firedDescription =
+                    firedProjectile->weaponDescription;
+                if (firedDescription == nullptr ||
+                    firedProjectile->descriptionProjectile >=
+                        firedDescription->projectiles.size())
+                {
+                    throw std::runtime_error(
+                        "source projectile descriptor snapshot missing");
+                }
+                auto replacementDescription =
+                    descriptorItem->GetWpnDesc();
+                auto& replacementProjectile =
+                    replacementDescription.projectiles.front();
+                replacementProjectile.speed = 5.0F;
+                replacementProjectile.maximumDistance = 6.0F;
+                replacementProjectile.damage = 1.0F;
+                descriptorItem->SetWpnDesc(replacementDescription);
+                const auto replacementHandle =
+                    descriptorItem->GetWeapon()->GetDescHandle();
+                const auto& retainedProjectile =
+                    firedDescription->projectiles[
+                        firedProjectile->descriptionProjectile];
+                if (firedDescription == replacementHandle ||
+                    std::abs(retainedProjectile.speed - 77.0F) >
+                        0.001F ||
+                    std::abs(
+                        retainedProjectile.maximumDistance - 321.0F) >
+                        0.001F ||
+                    std::abs(retainedProjectile.damage - 9.25F) >
+                        0.001F)
+                {
+                    throw std::runtime_error(
+                        "source projectile descriptor snapshot lifetime "
                         "failed");
                 }
             }

@@ -1448,6 +1448,28 @@ speed `77`, maxDist `321` и damage `9.25`; resource-копия при этом 
 Это закрывает прежний формальный перенос descriptor, при котором getters
 были source-подобными, а сам выстрел продолжал обходить owner.
 
+### P2.44 — lifetime копии `Proj::Desc` — выполнено
+
+В Windows `Weapon::CreateShot/PrepareProj` передаёт конкретный `Proj::Desc`
+создаваемому объекту: уже летящий снаряд не должен начать читать новый
+descriptor после замены предмета или повторного `SetWpnDesc`. После P2.43
+portable runtime корректно создавал снаряд из slot-owned данных, но update,
+death/MineRip и renderer ещё возвращались к static resource-каталогу по
+индексу — то есть lifetime исходной копии оставался неперенесённым.
+
+`WeaponItem` и live `Weapon` теперь разделяют immutable descriptor handle,
+который фиксируется в `ProjectileRuntime/MineRuntime` при подготовке. Все
+gameplay и visual branches читают этот снимок до уничтожения объекта. Для
+generated death projectile сохранён static source-index fallback, поскольку
+он не входит в workshop `_wpnDesc`. Общий handle намеренно исключает глубокую
+копию object/particle/effect graph для каждого быстрого projectile и тем самым
+не создаёт новый источник просадки FPS.
+
+Integrated regression после первого выстрела устанавливает в предмет другое
+описание (`5/6/1`) и проверяет, что старый runtime сохраняет отдельный handle
+и первоначальные `77/321/9.25`. Полная Debug-сборка, 13 offline tests,
+resource audit, map1 Jolt physics и 240-frame Metal race smoke проходят.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

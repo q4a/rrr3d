@@ -1399,6 +1399,18 @@ Network, video и Steam явно выключены.
 - Integrated regression меняет только item descriptor после binding и
   проверяет реальные speed/maxDist/damage созданного projectile.
 
+### Proj::Desc snapshot lifetime
+
+- Как и Windows `Proj`, каждый уже подготовленный projectile/mine удерживает
+  то описание, с которым был создан: последующий `SetWpnDesc`, замена слота
+  или уничтожение машины не меняют его движение, damage, collision и effects.
+- Снимок immutable и разделяется между снарядами одного выстрела. Это
+  сохраняет source lifetime без глубокой покадровой копии тяжёлых visual и
+  particle records; static race catalog остаётся только GPU/index bridge.
+- Session lifecycle, MineRip/death branches и bgfx renderer читают один
+  snapshot. Regression заменяет live item descriptor после выстрела и
+  подтверждает сохранение прежних `77/321/9.25` у летящего projectile.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity
