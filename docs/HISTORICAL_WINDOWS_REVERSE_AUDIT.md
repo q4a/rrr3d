@@ -1946,6 +1946,24 @@ backend мог пропустить требуемый source snap и поздн
 delta при одновременно превышенном graph delta и требует точную установку
 сетевого quaternion.
 
+### P2.68 — `SoundMotor`/`PxWheelSlipEffect` Source3d lifecycle — выполнено
+
+Прямая сверка `Source3d::Play`, `Source3d::ApplyX3dEffect`,
+`EventEffect::OnProgress` и `PxWheelSlipEffect::OnProgress` выявила два
+расхождения application adapter. Engine voice при создании считался уже
+запущенным, хотя Windows только выделяет `Proxy` и запускает его строго внутри
+30 м; поэтому источник, впервые появившийся в зоне 30..45 м, обходил исходную
+гистерезисную границу. Начальное состояние proxy теперь stopped, после чего
+общая source-формула 30/45 м решает start/stop.
+
+Звук скольжения также ошибочно следовал за `NxWheelContactData::contactPoint`.
+Источник использует эту координату только для визуального следа/дыма, а
+`EventEffect` каждый кадр ставит `Source3d` в world position объекта
+`CarWheel`. Portable emitter теперь получает вычисленную Jolt-позу колеса;
+визуальный эффект по-прежнему остаётся в точке контакта. Это устраняет
+дрожание и прерывание tyre loop от нестабильного contact sample, не меняя
+исходные slip thresholds 0.4/0.7 и множитель громкости 4.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

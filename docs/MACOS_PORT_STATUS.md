@@ -2230,3 +2230,13 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   затем primary mounts выше `weaponMaxLevel` удаляются в исходном порядке.
 - Пересчитанная mobility-конфигурация поступает в Jolt spawn; human и remote
   opponent loadouts остаются профильными/сетевыми.
+
+### Source race Source3d emitter follow-up
+
+- Motor proxy теперь создаётся остановленным и начинает backend playback
+  только внутри исходного `distScaler=30`; диапазон 30..45 м остаётся
+  stop-lag, а не стартовой зоной.
+- `PxWheelSlipEffect` сохраняет исходное разделение координат: след/дым
+  создаётся в contact point, звук следует за world position объекта колеса.
+- RPM lag, idle/RPM mix, slip thresholds 0.4/0.7, volume multiplier 4 и
+  плоское затухание 30/45 м остались прямыми переносами Windows-кода.

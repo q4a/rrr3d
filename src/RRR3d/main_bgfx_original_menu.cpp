@@ -4567,7 +4567,7 @@ int main(int argc, char** argv)
         r3d::audio::VoiceHandle idleVoice = r3d::audio::invalidVoice;
         r3d::audio::VoiceHandle rpmVoice = r3d::audio::invalidVoice;
         r3d::game::originalrace::source::SoundMotor behavior;
-        bool spatialProxyPlaying = true;
+        bool spatialProxyPlaying = false;
     };
     struct WheelSlipAudio
     {
@@ -4822,7 +4822,11 @@ int main(int argc, char** argv)
                 stopRaceLoopVoice(voice.voice);
         }
         engine.behavior.Reset();
-        engine.spatialProxyPlaying = true;
+        // Source3d::Play allocates its Proxy, but ApplyX3dEffect starts that
+        // Proxy only while the emitter is strictly inside distScaler.  Keep
+        // the backend voice allocated and initially paused so emitters born
+        // in the 30..45 m stop-lag band do not start prematurely.
+        engine.spatialProxyPlaying = false;
         r3d::audio::PlayOptions options;
         options.bus = r3d::audio::Bus::Effects;
         options.loop = true;
@@ -17305,6 +17309,7 @@ int main(int argc, char** argv)
                     auto& slipVoices = wheelSlipVoices[racer];
                     const auto wheelCount = std::min(
                         {raceVehicles[racer].wheelContacts.size(),
+                         raceVehicles[racer].wheels.size(),
                          definition.wheelSlipEffects.size(),
                          definition.wheelSlipSounds.size(),
                          slipVoices.size()});
@@ -17330,8 +17335,13 @@ int main(int argc, char** argv)
                             }
                             continue;
                         }
+                        // PxWheelSlipEffect places its visual child at the
+                        // PhysX contact point, but EventEffect::OnProgress
+                        // moves the Source3d to the owner CarWheel GameObject.
+                        // Preserve that split: the sound follows the wheel,
+                        // not a noisy road-contact sample.
                         const auto& wheelPosition =
-                            contact.position;
+                            raceVehicles[racer].wheels[wheel].position;
                         const float wheelDx =
                             wheelPosition.x - listener.x;
                         const float wheelDy =
