@@ -80,6 +80,7 @@ Image loadOriginalImage(const resource::ResourceFileSystem& resources,
 // ResourceManager/MainMenu2 code. No portable menu.cfg or replacement bitmap
 // font participates in this path.
 Model loadOriginalMainMenu(const resource::ResourceFileSystem& resources,
+                           const originalgamedata::Catalog& gameData,
                            std::string language);
 
 } // namespace r3d::game::mainmenu2

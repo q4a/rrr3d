@@ -1636,6 +1636,24 @@ serialized language останавливает инициализацию с т�
 Resource regression отдельно фиксирует missing key, explicit empty `svNull`
 и доступный `svStartMatch`.
 
+### P2.53 — единый `GameMode::LoadGameData` catalog — выполнено
+
+Обратный аудит полного `GameMode::LoadGameData` показал, что Windows одним
+reader-ом последовательно загружает `languages`, `commentators`, `menuMusic`,
+`gameMusic` и `commentator`. Portable runtime после предыдущих переносов
+разбирал тот же `game.xml` независимыми `OriginalGameData` и
+`OriginalAudioSpec` loaders, а `OriginalMainMenu` внутри выполнял ещё одно
+скрытое чтение language catalog. Значения совпадали, но ownership/call order
+не соответствовали исходному классу и позволяли loaders расходиться.
+
+Оба serialized `MusicCat::LoadGame` списка теперь являются частью единого
+`OriginalGameData::Catalog`. Основной runtime выполняет один полный parse и
+передаёт тот же catalog MainMenu, MusicDialog, menu/game MusicCat и
+commentator. Дублирующий TinyXML music parser удалён; старый audio entry point
+оставлен лишь совместимым делегатом для изолированного конструктора. Проверка
+3 menu + 11 game tracks теперь проверяет данные того же объекта, что и 6
+languages, 2 styles и 37 comments.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

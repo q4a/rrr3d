@@ -80,6 +80,21 @@ int parsePrimaryId(std::string_view value, std::string_view language)
     return result;
 }
 
+int parseInteger(std::string_view value, std::string_view source,
+                 std::string_view field)
+{
+    int result = 0;
+    const auto parsed = std::from_chars(
+        value.data(), value.data() + value.size(), result);
+    if (parsed.ec != std::errc{} ||
+        parsed.ptr != value.data() + value.size())
+    {
+        throw resource::ResourceError(
+            std::string(source) + ": invalid " + std::string(field));
+    }
+    return result;
+}
+
 std::string trim(std::string value)
 {
     while (!value.empty() &&
@@ -134,6 +149,52 @@ CommentatorBusyAction parseBusy(const TiXmlElement* parent,
         return CommentatorBusyAction::Replace;
     throw resource::ResourceError(
         std::string(source) + ": invalid busy action " + value);
+}
+
+std::vector<MusicCatTrack> loadMusicTracks(
+    const resource::ResourceFileSystem& resources,
+    const TiXmlElement* root, const char* catalogName)
+{
+    const std::string catalogSource =
+        std::string("game.xml/") + catalogName;
+    const auto* catalog =
+        requiredChild(root, catalogName, "game.xml");
+    const auto* tracks =
+        requiredChild(catalog, "tracks", catalogSource);
+    std::vector<MusicCatTrack> result;
+    for (auto* entry = tracks->FirstChildElement(); entry != nullptr;
+         entry = entry->NextSiblingElement())
+    {
+        const std::string source =
+            catalogSource + "/" + entry->Value();
+        const auto* item = requiredChild(entry, "item", source);
+        const char* path = item->Attribute("item");
+        if (path == nullptr || *path == '\0')
+        {
+            throw resource::ResourceError(
+                source + ": track has no serialized item reference");
+        }
+        MusicCatTrack track;
+        track.path = path;
+        track.name = requiredText(entry, "name", source);
+        track.band = requiredText(entry, "band", source);
+        track.group = parseInteger(
+            trim(requiredText(entry, "group", source)), source,
+            "group");
+        const std::string dataPath = "Data\\" + track.path;
+        if (!resources.exists(dataPath))
+        {
+            throw resource::ResourceError(
+                source + ": missing " + dataPath);
+        }
+        result.push_back(std::move(track));
+    }
+    if (result.empty())
+    {
+        throw resource::ResourceError(
+            catalogSource + ": empty track catalog");
+    }
+    return result;
 }
 
 void appendUtf8(std::string& result, std::uint32_t codePoint)
@@ -281,6 +342,9 @@ Catalog loadOriginalGameDataCatalog(
         throw resource::ResourceError(
             "game.xml/commentators contains no styles");
     }
+
+    result.music.menu = loadMusicTracks(resources, root, "menuMusic");
+    result.music.game = loadMusicTracks(resources, root, "gameMusic");
 
     const auto* commentator =
         requiredChild(root, "commentator", "game.xml");

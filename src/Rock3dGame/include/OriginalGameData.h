@@ -1,5 +1,7 @@
 #pragma once
 
+#include "MusicCat.h"
+
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -64,16 +66,23 @@ struct Commentator
     std::map<std::string, CommentatorComment> comments;
 };
 
+struct MusicCatalog
+{
+    std::vector<MusicCatTrack> menu;
+    std::vector<MusicCatTrack> game;
+};
+
 struct Catalog
 {
     std::vector<Language> languages;
     std::vector<std::string> commentatorStyles;
+    MusicCatalog music;
     Commentator commentator;
 };
 
-// Mirrors GameMode::LoadGameData for languages, commentator styles and the
-// complete Commentator::LoadGame table. Language/style order is significant
-// because both OptionsMenu and StartOptionsMenu use vector indices directly.
+// Mirrors the complete GameMode::LoadGameData call: languages, commentator
+// styles, both MusicCat::LoadGame catalogs and Commentator::LoadGame.
+// Language/style/track order is serialized gameplay state and is significant.
 Catalog loadOriginalGameDataCatalog(
     const resource::ResourceFileSystem& resources);
 

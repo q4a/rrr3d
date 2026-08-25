@@ -1692,10 +1692,10 @@ int main(int argc, char** argv)
                 activeLanguage);
         }
         model.emplace(
-            menu::loadOriginalMainMenu(*resources, activeLanguage));
+            menu::loadOriginalMainMenu(
+                *resources, originalGameDataCatalog, activeLanguage));
 #ifdef RRR3D_AUDIO
-        originalMusicCatalog =
-            originalaudio::loadOriginalMusicCatalog(*resources);
+        originalMusicCatalog = originalGameDataCatalog.music;
 #endif
 #ifdef RRR3D_PHYSICS
         originalGarage.emplace(
@@ -1787,7 +1787,11 @@ int main(int argc, char** argv)
               << originalGameDataCatalog.languages.size()
               << " languages, "
               << originalGameDataCatalog.commentatorStyles.size()
-              << " commentator styles\n";
+              << " commentator styles, "
+              << originalGameDataCatalog.music.menu.size()
+              << " menu and "
+              << originalGameDataCatalog.music.game.size()
+              << " game music tracks\n";
 #ifdef RRR3D_AUDIO
     std::cout << "Serialized MusicCat catalog: "
               << originalMusicCatalog.menu.size() << " menu, "

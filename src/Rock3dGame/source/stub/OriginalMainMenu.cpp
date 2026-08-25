@@ -243,7 +243,7 @@ Image loadImage(const resource::ResourceFileSystem& resources,
 }
 
 originalgamedata::Language languageDefinition(
-    const resource::ResourceFileSystem& resources,
+    const originalgamedata::Catalog& gameData,
     std::string& language)
 {
     std::transform(language.begin(), language.end(), language.begin(),
@@ -252,10 +252,8 @@ originalgamedata::Language languageDefinition(
                    });
     if (language.empty())
         language = "english";
-    const auto catalog =
-        originalgamedata::loadOriginalGameDataCatalog(resources);
     const auto* selected =
-        originalgamedata::findLanguage(catalog, language);
+        originalgamedata::findLanguage(gameData, language);
     if (selected == nullptr)
     {
         throw resource::ResourceError(
@@ -368,6 +366,7 @@ Image loadOriginalImage(const resource::ResourceFileSystem& resources,
 }
 
 Model loadOriginalMainMenu(const resource::ResourceFileSystem& resources,
+                           const originalgamedata::Catalog& gameData,
                            std::string language)
 {
     Model model;
@@ -375,7 +374,7 @@ Model loadOriginalMainMenu(const resource::ResourceFileSystem& resources,
     validateGuiResources(resources, catalog, model.audit);
 
     const auto selectedLanguage =
-        languageDefinition(resources, language);
+        languageDefinition(gameData, language);
     auto strings = originalgamedata::loadOriginalStringLibrary(
         resources, selectedLanguage);
     model.language = std::move(language);

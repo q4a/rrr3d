@@ -1,6 +1,7 @@
 #pragma once
 
 #include "MusicCat.h"
+#include "OriginalGameData.h"
 
 #include <array>
 #include <vector>
@@ -66,16 +67,11 @@ inline constexpr float defaultMusicVolume = 1.2F;
 inline constexpr float defaultEffectsVolume = 0.8F;
 inline constexpr float defaultVoiceVolume = 1.2F;
 
-struct MusicCatalog
-{
-	std::vector<MusicCatTrack> menu;
-	std::vector<MusicCatTrack> game;
-};
+using MusicCatalog = originalgamedata::MusicCatalog;
 
-// GameMode::LoadGameData -> MusicCat::LoadGame reads the shipped game.xml
-// before normal playback.  ResetGameData's hard-coded metadata above is only
-// the missing-file recovery path and is not authoritative for the retail
-// resources.
+// Compatibility entry point for isolated audio users. The active game loads
+// this from the shared OriginalGameData Catalog, matching one Windows
+// GameMode::LoadGameData pass over game.xml.
 MusicCatalog loadOriginalMusicCatalog(
 	const resource::ResourceFileSystem &resources);
 

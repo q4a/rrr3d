@@ -2111,3 +2111,13 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   Придуманные английские network/player fallback удалены; verification
   фиксирует фактическое отсутствие `svHintLeaversWillBeRemoved` в shipped
   localization вместо маскировки дефекта ресурсов.
+
+### Unified GameMode game-data catalog follow-up
+
+- Один `OriginalGameData::Catalog` повторяет полный порядок
+  `GameMode::LoadGameData`: languages, commentator styles, menu/game
+  `MusicCat::LoadGame` и Commentator table.
+- Active startup больше не разбирает `game.xml` отдельно для меню и музыки;
+  MainMenu, MusicDialog, обе очереди и commentator получают один owner.
+- Независимый TinyXML parser из `OriginalAudioSpec.cpp` удалён; compatibility
+  API делегирует общему loader и не содержит второй интерпретации формата.
