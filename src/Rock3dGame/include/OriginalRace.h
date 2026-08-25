@@ -501,6 +501,18 @@ enum class WeaponSlot
     Support,
 };
 
+// Slot::Type values serialized by workshop.xml for all WeaponItem-derived
+// records. Keeping the exact class identity is required because Droid and
+// Reflector behavior is selected by type, not by non-zero parameter fields.
+enum class WeaponItemType : std::uint8_t
+{
+    Hyper = 5U,
+    Mine = 6U,
+    Weapon = 7U,
+    Droid = 8U,
+    Reflector = 9U,
+};
+
 struct NestedProjectileDefinition
 {
     bool valid = false;
@@ -568,6 +580,7 @@ struct WeaponDefinition
     std::string record;
     std::string name;
     WeaponSlot slot = WeaponSlot::Primary;
+    WeaponItemType itemType = WeaponItemType::Weapon;
     VisualNode visual;
     std::vector<ProjectileDefinition> projectiles;
     float damage = 0.0F;

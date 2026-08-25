@@ -105,6 +105,67 @@ int main()
     if (!dryMinePlan.humanShotEvent || dryMinePlan.shotCount != 0U)
         return 16;
 
-    std::cout << "original Weapon/WeaponItem/Logic source rules passed\n";
+    std::uint32_t droidCharge = 0U;
+    source::DroidItem droid(
+        &rack.primary[0], 1U, 1U, &droidCharge, 17.0F, 1.0F);
+    float life = 80.0F;
+    droid.OnCreateCar();
+    if (!droid.IsProgressRegistered() ||
+        droid.GetRepairValue() != 17.0F ||
+        droid.OnProgress(1.0F, life, 100.0F, false) != 0.0F ||
+        life != 80.0F)
+        return 17;
+    const float healed = droid.OnProgress(
+        0.001F, life, 100.0F, false);
+    // The serialized repairValue is deliberately ignored by Windows
+    // DroidItem::OnProgress, which calls Healt(5.0f).
+    if (healed != 5.0F || life != 85.0F)
+        return 18;
+    droid.OnDestroyCar();
+    if (droid.IsProgressRegistered() ||
+        droid.OnProgress(2.0F, life, 100.0F, false) != 0.0F ||
+        life != 85.0F)
+        return 19;
+    droid.OnCreateCar();
+    if (droid.GetRepairTime() != 0.0F)
+        return 20;
+
+    source::PlayerItemRack supportRack;
+    std::uint32_t firstReflectorCharge = 0U;
+    std::uint32_t secondReflectorCharge = 0U;
+    supportRack.BindReflector(
+        2U, &rack.primary[2], 1U, 1U,
+        &secondReflectorCharge, 0.9F);
+    supportRack.BindReflector(
+        0U, &rack.primary[0], 1U, 1U,
+        &firstReflectorCharge, 0.4F);
+    if (supportRack.GetType(0U) !=
+            source::PlayerItemRack::Type::Reflector ||
+        supportRack.GetReflector(0U) == nullptr ||
+        std::abs(supportRack.Reflect(100.0F) - 60.0F) > 0.001F)
+        return 21;
+
+    std::uint32_t secondDroidCharge = 0U;
+    supportRack.Reset();
+    supportRack.BindDroid(
+        0U, &rack.primary[0], 1U, 1U,
+        &droidCharge, 5.0F, 1.0F);
+    supportRack.BindDroid(
+        1U, &rack.primary[1], 1U, 1U,
+        &secondDroidCharge, 5.0F, 1.0F);
+    supportRack.OnCreateCar();
+    life = 80.0F;
+    if (supportRack.OnProgress(
+            1.001F, life, 100.0F, false) != 10.0F ||
+        life != 90.0F)
+        return 22;
+    supportRack.OnDestroyCar();
+    if (supportRack.OnProgress(
+            2.0F, life, 100.0F, false) != 0.0F ||
+        life != 90.0F)
+        return 23;
+
+    std::cout << "original Weapon/WeaponItem/Droid/Reflector/Logic "
+                 "source rules passed\n";
     return 0;
 }

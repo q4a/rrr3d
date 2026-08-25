@@ -1019,9 +1019,9 @@ void OriginalRaceSession::reset()
     racers_.assign(race_.racers.size(), {});
     vehicleInputs_.assign(race_.racers.size(), {});
     weaponRacks_.assign(race_.racers.size(), {});
+    playerItemRacks_.assign(race_.racers.size(), {});
     humanPlayer_.SetCurWeapon(0);
     nextNetworkProjectileIds_.assign(race_.racers.size(), 1U);
-    repairSeconds_.assign(race_.racers.size(), 0.0F);
     aiPlayers_.clear();
     aiPlayers_.reserve(race_.racers.size());
     for (std::size_t index = 0U; index < race_.racers.size(); ++index)
@@ -1294,6 +1294,40 @@ void OriginalRaceSession::reset()
         configureWeapon(
             weaponRacks_[index].mine,
             racers_[index].mineWeapon);
+        auto& itemRack = playerItemRacks_[index];
+        itemRack.Reset();
+        for (std::size_t slot = 0U;
+             slot < PlayerProfile::weaponSlotCount; ++slot)
+        {
+            const std::size_t weaponIndex =
+                racers_[index].weaponSlots[slot];
+            if (weaponIndex == RacerRuntime::invalidWeapon ||
+                weaponIndex >= race_.weapons.size())
+            {
+                continue;
+            }
+            const auto& definition = race_.weapons[weaponIndex];
+            if (definition.itemType == WeaponItemType::Droid)
+            {
+                itemRack.BindDroid(
+                    slot, &weaponRacks_[index].primary[slot],
+                    definition.maximumCharge,
+                    racers_[index].weaponCapacity[slot],
+                    &racers_[index].weaponCharges[slot],
+                    definition.repairValue,
+                    definition.repairPeriod);
+            }
+            else if (definition.itemType == WeaponItemType::Reflector)
+            {
+                itemRack.BindReflector(
+                    slot, &weaponRacks_[index].primary[slot],
+                    definition.maximumCharge,
+                    racers_[index].weaponCapacity[slot],
+                    &racers_[index].weaponCharges[slot],
+                    definition.reflectValue);
+            }
+        }
+        itemRack.OnCreateCar();
     }
     events_.push_back(
         {RaceEventKind::CountdownChanged, 0, 0, {}, 3.0F});
@@ -1418,27 +1452,9 @@ std::size_t OriginalRaceSession::findWeapon(
 float OriginalRaceSession::damageAfterSupport(
     std::size_t racer, float damage, bool touchDamage) const noexcept
 {
-    if (touchDamage || racer >= racers_.size())
+    if (touchDamage || racer >= playerItemRacks_.size())
         return damage;
-    float result = damage;
-    for (const auto weaponIndex : racers_[racer].weaponSlots)
-    {
-        if (weaponIndex == RacerRuntime::invalidWeapon ||
-            weaponIndex >= race_.weapons.size())
-            continue;
-        const auto& weapon = race_.weapons[weaponIndex];
-        if (weapon.slot == WeaponSlot::Support &&
-            weapon.reflectValue > 0.0F)
-        {
-            result *= std::clamp(
-                1.0F - weapon.reflectValue, 0.0F, 1.0F);
-            // Logic::Damage asks Player::GetSlotInst(stReflector), which
-            // returns the first installed reflector rather than stacking
-            // every matching support slot.
-            break;
-        }
-    }
-    return result;
+    return playerItemRacks_[racer].Reflect(damage);
 }
 
 void OriginalRaceSession::setNetworkGameplayRole(
@@ -1458,6 +1474,8 @@ bool OriginalRaceSession::disconnectNetworkRacer(
 
     auto& runtime = racers_[racer];
     runtime.Disconnect();
+    if (racer < playerItemRacks_.size())
+        playerItemRacks_[racer].OnDestroyCar();
     if (racer < vehicleInputs_.size())
         vehicleInputs_[racer] = {};
     if (racer < networkOwnedRacers_.size())
@@ -1973,6 +1991,14 @@ OriginalRaceSession::vehicleInputs() const noexcept
 const std::vector<RacerRuntime>& OriginalRaceSession::racers() const noexcept
 {
     return racers_;
+}
+
+const source::PlayerItemRack* OriginalRaceSession::playerItems(
+    std::size_t racer) const noexcept
+{
+    return racer < playerItemRacks_.size()
+               ? &playerItemRacks_[racer]
+               : nullptr;
 }
 
 Vec3 OriginalRaceSession::mapPosition(std::size_t racer) const noexcept
@@ -2663,6 +2689,8 @@ void OriginalRaceSession::destroyRacer(
     auto& runtime = racers_[racer];
     // Player::OnDeath/OnDestroy begins the exact cTimeRestoreCar lifecycle.
     runtime.Destroy();
+    if (racer < playerItemRacks_.size())
+        playerItemRacks_[racer].OnDestroyCar();
     if (racer < vehicleInputs_.size())
         vehicleInputs_[racer] = {};
     if (damageType == DamageType::DeathPlane)
@@ -2776,6 +2804,11 @@ void OriginalRaceSession::updateGameplay(
         if (restore == source::PlayerRestoreStep::QueueRespawn)
         {
             queueRespawn(racer, vehicles);
+        }
+        else if (restore == source::PlayerRestoreStep::ActivateCar &&
+                 racer < playerItemRacks_.size())
+        {
+            playerItemRacks_[racer].OnCreateCar();
         }
     }
     auto directWeaponWorldTransform =
@@ -2954,37 +2987,15 @@ void OriginalRaceSession::updateGameplay(
         }
         if (runtime.destroyed)
         {
-            repairSeconds_[racer] = 0.0F;
             runtime.lowLife = false;
             runtime.lowLifeEffectSeconds = 0.0F;
             continue;
         }
-        const WeaponDefinition* repair = nullptr;
-        for (const auto weaponIndex : runtime.weaponSlots)
+        if (racer < playerItemRacks_.size())
         {
-            if (weaponIndex == RacerRuntime::invalidWeapon ||
-                weaponIndex >= race_.weapons.size())
-                continue;
-            const auto& candidate = race_.weapons[weaponIndex];
-            if (candidate.slot == WeaponSlot::Support &&
-                candidate.repairPeriod > 0.0F)
-            {
-                repair = &candidate;
-                break;
-            }
-        }
-        if (repair == nullptr ||
-            runtime.life >= runtime.maximumLife)
-        {
-            repairSeconds_[racer] = 0.0F;
-        }
-        else if ((repairSeconds_[racer] += seconds) >
-                 repair->repairPeriod)
-        {
-            repairSeconds_[racer] -= repair->repairPeriod;
-            runtime.life = std::min(
-                runtime.maximumLife,
-                runtime.life + 5.0F);
+            playerItemRacks_[racer].OnProgress(
+                seconds, runtime.life, runtime.maximumLife,
+                runtime.destroyed);
         }
         const auto& sourceRacer = race_.racers[racer];
         const auto& vehicleDefinition =
@@ -6269,6 +6280,87 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 point(0).position;
             vehicles[index].body.position.z += 2.0F;
             vehicles[index].contactCount = 4;
+        }
+        const auto droidDefinition = std::find_if(
+            race.weapons.begin(), race.weapons.end(),
+            [](const WeaponDefinition& weapon) {
+                return weapon.itemType == WeaponItemType::Droid;
+            });
+        const auto reflectorDefinition = std::find_if(
+            race.weapons.begin(), race.weapons.end(),
+            [](const WeaponDefinition& weapon) {
+                return weapon.itemType == WeaponItemType::Reflector;
+            });
+        if (droidDefinition == race.weapons.end() ||
+            reflectorDefinition == race.weapons.end() ||
+            droidDefinition->record != "droid" ||
+            reflectorDefinition->record != "reflector" ||
+            std::abs(droidDefinition->repairPeriod - 5.0F) > 0.001F ||
+            std::abs(droidDefinition->repairValue - 5.0F) > 0.001F ||
+            std::abs(reflectorDefinition->reflectValue - 0.4F) > 0.001F)
+        {
+            throw std::runtime_error(
+                "source DroidItem/ReflectorItem workshop types were not "
+                "loaded");
+        }
+        {
+            OriginalRaceSession supportSession(race, true);
+            PlayerProfile supportProfile;
+            auto& droidSlot = supportProfile.slots[
+                PlayerProfile::firstWeaponSlot];
+            droidSlot.record = "droid";
+            droidSlot.charge = 1U;
+            droidSlot.hasCharge = true;
+            auto& reflectorSlot = supportProfile.slots[
+                PlayerProfile::firstWeaponSlot + 1U];
+            reflectorSlot.record = "reflector";
+            reflectorSlot.charge = 1U;
+            reflectorSlot.hasCharge = true;
+            supportSession.applyPlayerProfile(supportProfile);
+            const auto* items = supportSession.playerItems(0U);
+            if (items == nullptr ||
+                items->GetType(0U) !=
+                    source::PlayerItemRack::Type::Droid ||
+                items->GetType(1U) !=
+                    source::PlayerItemRack::Type::Reflector ||
+                std::abs(items->Reflect(100.0F) - 60.0F) > 0.001F)
+            {
+                throw std::runtime_error(
+                    "source Player physical support slots were not bound");
+            }
+
+            auto supportVehicles = vehicles;
+            for (std::size_t index = 1U;
+                 index < supportVehicles.size(); ++index)
+            {
+                supportVehicles[index].body.position.x +=
+                    static_cast<float>(index) * 100.0F;
+            }
+            const float maximumLife =
+                supportSession.racers().front().maximumLife;
+            supportSession.applyNetworkPlayerDamage(
+                0U, supportVehicles.size() > 1U ? 1U : 0U,
+                supportVehicles.front().body.position, 20.0F,
+                DamageType::Simple, supportVehicles.front());
+            const float damagedLife =
+                supportSession.racers().front().life;
+            if (std::abs(damagedLife - (maximumLife - 20.0F)) > 0.001F)
+            {
+                throw std::runtime_error(
+                    "source DroidItem smoke damage setup failed");
+            }
+            RaceControl supportInput;
+            for (int frame = 0; frame < 44; ++frame)
+            {
+                supportSession.update(
+                    7.0F / 60.0F, supportVehicles, supportInput);
+            }
+            if (std::abs(supportSession.racers().front().life -
+                         (damagedLife + 5.0F)) > 0.001F)
+            {
+                throw std::runtime_error(
+                    "source DroidItem registered progress did not heal");
+            }
         }
         RaceControl input;
         input.driving.throttle = 1.0F;

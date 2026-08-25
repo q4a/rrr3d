@@ -1079,6 +1079,25 @@ Network, video и Steam явно выключены.
 - Новый одиннадцатый `OriginalHumanPlayerSmoke` проверяет selection owner,
   direct ordinal, границы переключения и driving priority.
 
+### Source DroidItem/ReflectorItem physical-slot block
+
+- `workshop.xml` сохраняет исходный `Slot::Type` как `WeaponItemType`:
+  Hyper=5, Mine=6, Weapon=7, Droid=8, Reflector=9. Support behavior больше
+  не определяется по ненулевым полям описания.
+- Active `source::DroidItem` переносит car create/destroy progress
+  registration, strict `time > repairPeriod`, reset таймера при полном
+  здоровье/death и исходный literal `Healt(5.0f)`. Сериализованный
+  `repairValue` сохранён, хотя Windows branch его не использует.
+- Active `source::ReflectorItem` переносит clamped коэффициент урона.
+  `Logic::Damage`-adapter обходит touch damage и применяет только первый
+  физический слот типа Reflector, как `Player::GetSlotInst(stReflector)`.
+- `source::PlayerItemRack` владеет четырьмя physical weapon slots каждого
+  гонщика. Несколько Droid имеют независимые таймеры; death, respawn и
+  disconnect вызывают исходный item lifecycle.
+- Session-local `repairSeconds_`, description scan и ручной reflector math
+  удалены. Unit smoke и resource race smoke проверяют реальные записи
+  `droid`/`reflector`, профильную установку, 40% отражение и active healing.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

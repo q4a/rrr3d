@@ -93,6 +93,112 @@ private:
     int chargeCost_ = 0;
 };
 
+// Exact gameplay-owned portion of Player::DroidItem. The serialized
+// repairValue is retained for source/profile parity, although the Windows
+// OnProgress implementation heals by the literal 5.0f value.
+class DroidItem : public WeaponItem
+{
+public:
+    DroidItem() = default;
+    DroidItem(Weapon* weapon, std::uint32_t maximumCharge,
+              std::uint32_t countCharge,
+              std::uint32_t* currentCharge,
+              float repairValue = 5.0F,
+              float repairPeriod = 1.0F) noexcept;
+
+    void Bind(Weapon* weapon, std::uint32_t maximumCharge,
+              std::uint32_t countCharge,
+              std::uint32_t* currentCharge,
+              float repairValue, float repairPeriod) noexcept;
+    void OnCreateCar() noexcept;
+    void OnDestroyCar() noexcept;
+    float OnProgress(float deltaTime, float& life,
+                     float maximumLife, bool death) noexcept;
+
+    float GetRepairValue() const noexcept;
+    void SetRepairValue(float value) noexcept;
+    float GetRepairPeriod() const noexcept;
+    void SetRepairPeriod(float value) noexcept;
+    float GetRepairTime() const noexcept;
+    bool IsProgressRegistered() const noexcept;
+
+private:
+    float repairValue_ = 5.0F;
+    float repairPeriod_ = 1.0F;
+    float time_ = 0.0F;
+    bool progressRegistered_ = false;
+};
+
+// Exact gameplay-owned portion of Player::ReflectorItem. Logic::Damage
+// decides whether touch damage bypasses it; this object owns only the source
+// coefficient and clamped reflection formula.
+class ReflectorItem : public WeaponItem
+{
+public:
+    ReflectorItem() = default;
+    ReflectorItem(Weapon* weapon, std::uint32_t maximumCharge,
+                  std::uint32_t countCharge,
+                  std::uint32_t* currentCharge,
+                  float reflectValue = 0.25F) noexcept;
+
+    void Bind(Weapon* weapon, std::uint32_t maximumCharge,
+              std::uint32_t countCharge,
+              std::uint32_t* currentCharge,
+              float reflectValue) noexcept;
+    float GetReflectValue() const noexcept;
+    void SetReflectValue(float value) noexcept;
+    float Reflect(float damage) const noexcept;
+
+private:
+    float reflectValue_ = 0.25F;
+};
+
+// Player owns four physical stWeapon slots. Until the renderer/physics Slot
+// actor hierarchy itself replaces the adapter, this owner keeps the original
+// polymorphic DroidItem/ReflectorItem identity and lifecycle per physical
+// slot. Multiple droids progress independently; GetSlotInst(stReflector)
+// semantics select the first reflector in slot order.
+class PlayerItemRack
+{
+public:
+    static constexpr std::size_t slotCount = 4U;
+
+    enum class Type : std::uint8_t
+    {
+        None,
+        Droid,
+        Reflector,
+    };
+
+    void Reset() noexcept;
+    void BindDroid(std::size_t slot, Weapon* weapon,
+                   std::uint32_t maximumCharge,
+                   std::uint32_t countCharge,
+                   std::uint32_t* currentCharge,
+                   float repairValue, float repairPeriod) noexcept;
+    void BindReflector(std::size_t slot, Weapon* weapon,
+                       std::uint32_t maximumCharge,
+                       std::uint32_t countCharge,
+                       std::uint32_t* currentCharge,
+                       float reflectValue) noexcept;
+    void OnCreateCar() noexcept;
+    void OnDestroyCar() noexcept;
+    float OnProgress(float deltaTime, float& life,
+                     float maximumLife, bool death) noexcept;
+    float Reflect(float damage) const noexcept;
+
+    Type GetType(std::size_t slot) const noexcept;
+    DroidItem* GetDroid(std::size_t slot) noexcept;
+    const DroidItem* GetDroid(std::size_t slot) const noexcept;
+    ReflectorItem* GetReflector(std::size_t slot) noexcept;
+    const ReflectorItem* GetReflector(std::size_t slot) const noexcept;
+
+private:
+    std::array<Type, slotCount> types_{};
+    std::array<DroidItem, slotCount> droids_{};
+    std::array<ReflectorItem, slotCount> reflectors_{};
+};
+
 // Slot selection from Logic::Shot.  Slot order deliberately matches the
 // Windows ShotSlots packet: Hyper, Mine, Weapon1..Weapon4.
 class Logic

@@ -2989,6 +2989,7 @@ void loadWeapons(const resource::ResourceFileSystem& resources,
         WeaponDefinition weapon;
         weapon.record = entry->Value();
         weapon.name = text(item, "name", "workshop.xml/weapon");
+        weapon.itemType = static_cast<WeaponItemType>(type);
         weapon.slot = type == 5U
                           ? WeaponSlot::Hyper
                           : (type == 6U ? WeaponSlot::Mine

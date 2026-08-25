@@ -387,6 +387,8 @@ public:
     const std::vector<r3d::physics::VehicleInput>& vehicleInputs() const
         noexcept;
     const std::vector<RacerRuntime>& racers() const noexcept;
+    const source::PlayerItemRack* playerItems(
+        std::size_t racer) const noexcept;
     Vec3 mapPosition(std::size_t racer) const noexcept;
     const std::vector<bool>& decorationActive() const noexcept;
     const std::vector<float>& decorationLife() const noexcept;
@@ -495,9 +497,9 @@ private:
     std::vector<bool> bonusActive_;
     std::vector<std::size_t> bonusNetworkPendingContact_;
     std::vector<source::WeaponRack> weaponRacks_;
+    std::vector<source::PlayerItemRack> playerItemRacks_;
     source::HumanPlayer humanPlayer_;
     std::vector<std::uint32_t> nextNetworkProjectileIds_;
-    std::vector<float> repairSeconds_;
     std::vector<source::AIPlayer> aiPlayers_;
     source::AISystem aiSystem_{4U};
     // Per-frame non-owning adapter reused by source::AISystem without

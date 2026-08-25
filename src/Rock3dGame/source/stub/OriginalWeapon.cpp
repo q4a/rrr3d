@@ -190,6 +190,242 @@ Weapon::Desc WeaponItem::GetDesc() const
     return weapon_ != nullptr ? weapon_->GetDesc() : Weapon::Desc{};
 }
 
+DroidItem::DroidItem(
+    Weapon* weapon, std::uint32_t maximumCharge,
+    std::uint32_t countCharge, std::uint32_t* currentCharge,
+    float repairValue, float repairPeriod) noexcept
+{
+    Bind(weapon, maximumCharge, countCharge, currentCharge,
+         repairValue, repairPeriod);
+}
+
+void DroidItem::Bind(
+    Weapon* weapon, std::uint32_t maximumCharge,
+    std::uint32_t countCharge, std::uint32_t* currentCharge,
+    float repairValue, float repairPeriod) noexcept
+{
+    WeaponItem::Bind(
+        weapon, maximumCharge, countCharge, currentCharge);
+    repairValue_ = repairValue;
+    repairPeriod_ = repairPeriod;
+    time_ = 0.0F;
+    progressRegistered_ = false;
+}
+
+void DroidItem::OnCreateCar() noexcept
+{
+    time_ = 0.0F;
+    progressRegistered_ = true;
+}
+
+void DroidItem::OnDestroyCar() noexcept
+{
+    // The source unregisters the progress event here. _time is reset by the
+    // next OnCreateCar, not by OnDestroyCar itself.
+    progressRegistered_ = false;
+}
+
+float DroidItem::OnProgress(
+    float deltaTime, float& life, float maximumLife, bool death) noexcept
+{
+    if (!progressRegistered_)
+        return 0.0F;
+    if (life >= maximumLife || death)
+    {
+        time_ = 0.0F;
+        return 0.0F;
+    }
+    if ((time_ += deltaTime) > repairPeriod_)
+    {
+        time_ -= repairPeriod_;
+        const float previousLife = life;
+        // Player.cpp intentionally uses a literal rather than _repairValue.
+        life = std::min(maximumLife, life + 5.0F);
+        return life - previousLife;
+    }
+    return 0.0F;
+}
+
+float DroidItem::GetRepairValue() const noexcept
+{
+    return repairValue_;
+}
+
+void DroidItem::SetRepairValue(float value) noexcept
+{
+    repairValue_ = value;
+}
+
+float DroidItem::GetRepairPeriod() const noexcept
+{
+    return repairPeriod_;
+}
+
+void DroidItem::SetRepairPeriod(float value) noexcept
+{
+    repairPeriod_ = value;
+}
+
+float DroidItem::GetRepairTime() const noexcept
+{
+    return time_;
+}
+
+bool DroidItem::IsProgressRegistered() const noexcept
+{
+    return progressRegistered_;
+}
+
+ReflectorItem::ReflectorItem(
+    Weapon* weapon, std::uint32_t maximumCharge,
+    std::uint32_t countCharge, std::uint32_t* currentCharge,
+    float reflectValue) noexcept
+{
+    Bind(weapon, maximumCharge, countCharge, currentCharge,
+         reflectValue);
+}
+
+void ReflectorItem::Bind(
+    Weapon* weapon, std::uint32_t maximumCharge,
+    std::uint32_t countCharge, std::uint32_t* currentCharge,
+    float reflectValue) noexcept
+{
+    WeaponItem::Bind(
+        weapon, maximumCharge, countCharge, currentCharge);
+    reflectValue_ = reflectValue;
+}
+
+float ReflectorItem::GetReflectValue() const noexcept
+{
+    return reflectValue_;
+}
+
+void ReflectorItem::SetReflectValue(float value) noexcept
+{
+    reflectValue_ = value;
+}
+
+float ReflectorItem::Reflect(float damage) const noexcept
+{
+    return damage * std::clamp(1.0F - reflectValue_, 0.0F, 1.0F);
+}
+
+void PlayerItemRack::Reset() noexcept
+{
+    types_.fill(Type::None);
+    droids_.fill(DroidItem{});
+    reflectors_.fill(ReflectorItem{});
+}
+
+void PlayerItemRack::BindDroid(
+    std::size_t slot, Weapon* weapon,
+    std::uint32_t maximumCharge, std::uint32_t countCharge,
+    std::uint32_t* currentCharge, float repairValue,
+    float repairPeriod) noexcept
+{
+    if (slot >= slotCount)
+        return;
+    types_[slot] = Type::Droid;
+    droids_[slot].Bind(
+        weapon, maximumCharge, countCharge, currentCharge,
+        repairValue, repairPeriod);
+    reflectors_[slot] = ReflectorItem{};
+}
+
+void PlayerItemRack::BindReflector(
+    std::size_t slot, Weapon* weapon,
+    std::uint32_t maximumCharge, std::uint32_t countCharge,
+    std::uint32_t* currentCharge, float reflectValue) noexcept
+{
+    if (slot >= slotCount)
+        return;
+    types_[slot] = Type::Reflector;
+    reflectors_[slot].Bind(
+        weapon, maximumCharge, countCharge, currentCharge,
+        reflectValue);
+    droids_[slot] = DroidItem{};
+}
+
+void PlayerItemRack::OnCreateCar() noexcept
+{
+    for (std::size_t slot = 0U; slot < slotCount; ++slot)
+    {
+        if (types_[slot] == Type::Droid)
+            droids_[slot].OnCreateCar();
+    }
+}
+
+void PlayerItemRack::OnDestroyCar() noexcept
+{
+    for (std::size_t slot = 0U; slot < slotCount; ++slot)
+    {
+        if (types_[slot] == Type::Droid)
+            droids_[slot].OnDestroyCar();
+    }
+}
+
+float PlayerItemRack::OnProgress(
+    float deltaTime, float& life, float maximumLife, bool death) noexcept
+{
+    float healed = 0.0F;
+    for (std::size_t slot = 0U; slot < slotCount; ++slot)
+    {
+        if (types_[slot] == Type::Droid)
+        {
+            healed += droids_[slot].OnProgress(
+                deltaTime, life, maximumLife, death);
+        }
+    }
+    return healed;
+}
+
+float PlayerItemRack::Reflect(float damage) const noexcept
+{
+    for (std::size_t slot = 0U; slot < slotCount; ++slot)
+    {
+        if (types_[slot] == Type::Reflector)
+            return reflectors_[slot].Reflect(damage);
+    }
+    return damage;
+}
+
+PlayerItemRack::Type PlayerItemRack::GetType(
+    std::size_t slot) const noexcept
+{
+    return slot < slotCount ? types_[slot] : Type::None;
+}
+
+DroidItem* PlayerItemRack::GetDroid(std::size_t slot) noexcept
+{
+    return slot < slotCount && types_[slot] == Type::Droid
+               ? &droids_[slot]
+               : nullptr;
+}
+
+const DroidItem* PlayerItemRack::GetDroid(
+    std::size_t slot) const noexcept
+{
+    return slot < slotCount && types_[slot] == Type::Droid
+               ? &droids_[slot]
+               : nullptr;
+}
+
+ReflectorItem* PlayerItemRack::GetReflector(
+    std::size_t slot) noexcept
+{
+    return slot < slotCount && types_[slot] == Type::Reflector
+               ? &reflectors_[slot]
+               : nullptr;
+}
+
+const ReflectorItem* PlayerItemRack::GetReflector(
+    std::size_t slot) const noexcept
+{
+    return slot < slotCount && types_[slot] == Type::Reflector
+               ? &reflectors_[slot]
+               : nullptr;
+}
+
 bool Logic::ShotPlan::Get(SlotType type) const noexcept
 {
     return slots[static_cast<std::size_t>(type)];

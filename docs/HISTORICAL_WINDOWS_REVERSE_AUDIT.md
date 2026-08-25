@@ -836,6 +836,44 @@ HUD-selected slot проходят через один `HumanPlayer` owner. До
 одиннадцатый CTest `OriginalHumanPlayerSmoke` для input priority, bounded
 selection, sparse direct ordinal и exhausted-ammo reset.
 
+### P2.13 — DroidItem/ReflectorItem и physical slot ownership — выполнено
+
+Перенесены active `source::DroidItem` и `source::ReflectorItem` как
+наследники уже перенесённого `WeaponItem`. `workshop.xml` теперь сохраняет
+исходный `Slot::Type` (`5..9`) в `WeaponItemType`, поэтому runtime отличает
+`stDroid` и `stReflector` по сериализованному классу, а не по косвенному
+признаку `repairPeriod > 0` или `reflectValue > 0`.
+
+Сохранены точные особенности `eff9338:Player.cpp`:
+
+- `DroidItem::OnCreateCar` обнуляет `_time` и регистрирует progress, а
+  `OnDestroyCar` только снимает регистрацию; новый car снова начинает с
+  нулевого таймера;
+- сравнение периода строгое: лечение происходит при
+  `(_time += deltaTime) > repairPeriod`;
+- поле `repairValue` загружается и доступно, но оригинальный active branch
+  вызывает `Healt(5.0f)` буквально; это историческое расхождение поля и
+  исполнения сохранено;
+- каждый установленный Droid имеет независимый таймер и несколько Droid
+  последовательно лечат машину, как отдельные зарегистрированные объекты;
+- `ReflectorItem::Reflect` использует
+  `damage * ClampValue(1-reflectValue, 0, 1)`;
+- `Logic::Damage` пропускает touch damage и выбирает первый физический слот
+  типа `stReflector`, не суммируя отражатели и не проверяя ненулевой
+  коэффициент.
+
+Добавлен `source::PlayerItemRack`, который хранит тип и lifecycle четырёх
+физических `stWeapon1..4` слотов каждого гонщика. Инициализация профиля,
+death/release, двухсекундный respawn/create и network disconnect теперь
+проходят через этот owner. Из сессии удалены `repairSeconds_`, поиск первого
+repair description и ручной расчёт отражения по `WeaponDefinition`.
+
+Расширенный `OriginalWeaponSmoke` проверяет strict period, literal heal,
+progress registration, несколько Droid и first-reflector rule. Resource race
+smoke дополнительно загружает реальные `droid`/`reflector` из упакованного
+`workshop.xml`, устанавливает их через `PlayerProfile`, проверяет 0.4
+reflector и фактическое лечение через active session update.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
