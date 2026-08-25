@@ -2207,3 +2207,12 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   Windows.
 - Tournament regression проверяет champion-next, unavailable non-next и
   already-current branches, включая сохранённые state/pass значения.
+
+### Source skirmish computer-loadout follow-up
+
+- `Planet::StartPass` снова применяет к computer players исходный
+  `Garage::MaxUpgradeCar` с уровнем из GameMode options.
+- У всех установленных weapon items восстанавливается максимальный боезапас,
+  затем primary mounts выше `weaponMaxLevel` удаляются в исходном порядке.
+- Пересчитанная mobility-конфигурация поступает в Jolt spawn; human и remote
+  opponent loadouts остаются профильными/сетевыми.

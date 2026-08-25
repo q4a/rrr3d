@@ -917,6 +917,13 @@ FinishTransition originalFinishTransition(
 void applyOriginalPlayerProfile(
     Race& race, const resource::ResourceFileSystem& resources,
     const PlayerProfile& profile, bool armor4Opened = false);
+// Planet::StartPass applies Garage::MaxUpgradeCar and weaponMaxLevel only to
+// source computer players in rmSkirmish.  Human and network-opponent loadouts
+// are already owned by their profile/network model and remain untouched.
+void applyOriginalSkirmishComputerConfig(
+    Race& race, const OriginalGarageCatalog& garage,
+    std::uint32_t upgradeMaxLevel, std::uint32_t weaponMaxLevel,
+    std::string_view difficulty);
 r3d::physics::WorldDescription makePhysicsDescription(
     const Race& race, const resource::ResourceFileSystem& resources);
 std::vector<DecorationDebrisDefinition> makeDecorationDestruction(

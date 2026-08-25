@@ -1801,6 +1801,23 @@ Helper теперь сначала восстанавливает текущие
 `psUnavailable` с исходным recovery-pass 1; повторный выбор текущей планеты не
 меняет её state. Regression фиксирует все три ветви и champion-переход.
 
+### P2.61 — `Planet::StartPass` skirmish loadout — выполнено
+
+Прямое сравнение `GameMode::StartMatch`, `Race::CreatePlayers` и
+`Planet::StartPass` подтвердило, что portable roster создавал нужное число
+соперников, но оставлял им campaign-комплектацию текущего прохода. В Windows
+каждый компьютер skirmish после установки исходной машины/слотов проходит
+`Garage::MaxUpgradeCar`: четыре mobility-слота заменяются уровнем
+`upgradeMaxLevel`, весь установленный боезапас заполняется до максимума, а
+primary weapon mounts выше `weaponMaxLevel` очищаются.
+
+Перенесён тот же порядок на записи `garage.xml`/`workshop.xml`, после чего
+configured vehicle AI пересчитывается через уже перенесённый
+`Player::ApplyMobility`. Human и сетевые opponent-id не затрагиваются.
+Resource regression проверяет уровень всех четырёх апгрейдов, удаление
+Weapon2..4 при лимите 1, полный боезапас Hyper/Mine/weapon и неизменность
+человеческой комплектации.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

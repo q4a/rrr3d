@@ -5171,6 +5171,89 @@ void applyOriginalPlayerProfile(
     }
 }
 
+void applyOriginalSkirmishComputerConfig(
+    Race& race, const OriginalGarageCatalog& garage,
+    std::uint32_t upgradeMaxLevel, std::uint32_t weaponMaxLevel,
+    std::string_view difficulty)
+{
+    static constexpr std::array<std::string_view,
+                                static_cast<std::size_t>(
+                                    GarageSlotType::Count)>
+        slotTypes{
+            "stWheel", "stTruba", "stArmor", "stMotor", "stHyper",
+            "stMine", "stWeapon1", "stWeapon2", "stWeapon3",
+            "stWeapon4"};
+    const auto maximumUpgrade = static_cast<int>(
+        std::min<std::uint32_t>(upgradeMaxLevel, 2U));
+    const auto primaryMountCount =
+        std::min<std::uint32_t>(weaponMaxLevel, 4U);
+
+    for (auto& racer : race.racers)
+    {
+        // Player::IsComputer tests the low byte of the source id.  A remote
+        // cHuman uses cOpponentBit and must keep its network loadout.
+        if ((racer.playerId & source::Player::computerMask) == 0 ||
+            racer.vehicle >= race.vehicles.size())
+        {
+            continue;
+        }
+        const auto& baseVehicle = race.vehicles[racer.vehicle];
+        const auto* car = garage.findCar(baseVehicle.record);
+        if (car == nullptr)
+            continue;
+
+        for (std::size_t index = 0U; index < 4U; ++index)
+        {
+            const auto type = static_cast<GarageSlotType>(index);
+            const auto* upgrade = originalWorkshopUpgradeItem(
+                garage, *car, type, maximumUpgrade);
+            if (upgrade == nullptr)
+                continue;
+            const auto slot = std::find_if(
+                racer.loadout.begin(), racer.loadout.end(),
+                [&](const RacerSlot& value) {
+                    return value.type == slotTypes[index];
+                });
+            if (slot != racer.loadout.end())
+                slot->record = upgrade->record;
+            else
+                racer.loadout.push_back(
+                    {upgrade->record, std::string(slotTypes[index]), 0U});
+        }
+
+        // Garage::UpgradeCar(..., true) refills every installed WeaponItem,
+        // including Hyper and Mine, before StartPass removes disabled primary
+        // mounts.  Preserve that source order and its maximum-charge values.
+        for (auto& slot : racer.loadout)
+        {
+            const auto* item = garage.findItem(slot.record);
+            if (item != nullptr && item->maximumCharge > 0U)
+                slot.charge = item->maximumCharge;
+        }
+        racer.loadout.erase(
+            std::remove_if(
+                racer.loadout.begin(), racer.loadout.end(),
+                [&](const RacerSlot& slot) {
+                    for (std::size_t index = 0U; index < 4U; ++index)
+                    {
+                        if (slot.type == slotTypes[
+                                             static_cast<std::size_t>(
+                                                 GarageSlotType::Weapon1) +
+                                             index])
+                            return index >= primaryMountCount;
+                    }
+                    return false;
+                }),
+            racer.loadout.end());
+
+        racer.configuredVehicle = baseVehicle;
+        racer.hasConfiguredVehicle = true;
+        applyMobilityLoadout(
+            racer.configuredVehicle, race.workshop, racer.loadout,
+            difficulty, false);
+    }
+}
+
 std::vector<DecorationDebrisDefinition> makeDecorationDestruction(
     const Race& race, const resource::ResourceFileSystem& resources,
     std::size_t instanceIndex)
@@ -5458,6 +5541,7 @@ bool runOriginalRaceResourceSmokeTest(
     try
     {
         const auto workshop = loadOriginalWorkshop(resources);
+        const auto garage = loadOriginalGarage(resources);
         if (race.workshop.size() != workshop.size() ||
             race.workshop.empty())
         {
@@ -5657,6 +5741,72 @@ bool runOriginalRaceResourceSmokeTest(
         {
             error =
                 "source Player::ApplyMobility cHumanArmorK role mismatch";
+            return false;
+        }
+        auto skirmishRace = race;
+        const auto humanLoadout = skirmishRace.racers.front().loadout;
+        applyOriginalSkirmishComputerConfig(
+            skirmishRace, garage, 1U, 1U, "gdHard");
+        const bool humanUntouched =
+            skirmishRace.racers.front().loadout.size() ==
+                humanLoadout.size() &&
+            std::equal(
+                skirmishRace.racers.front().loadout.begin(),
+                skirmishRace.racers.front().loadout.end(),
+                humanLoadout.begin(),
+                [](const RacerSlot& left, const RacerSlot& right) {
+                    return left.record == right.record &&
+                           left.type == right.type &&
+                           left.charge == right.charge;
+                });
+        const bool computerConfigMatches = std::all_of(
+            skirmishRace.racers.begin() + 1U,
+            skirmishRace.racers.end(),
+            [&](const Racer& racer) {
+                if ((racer.playerId & source::Player::computerMask) == 0 ||
+                    racer.vehicle >= skirmishRace.vehicles.size())
+                    return true;
+                const auto* car = garage.findCar(
+                    skirmishRace.vehicles[racer.vehicle].record);
+                if (car == nullptr || !racer.hasConfiguredVehicle)
+                    return false;
+                for (std::size_t index = 0U; index < 4U; ++index)
+                {
+                    const auto type = static_cast<GarageSlotType>(index);
+                    const auto* expected = originalWorkshopUpgradeItem(
+                        garage, *car, type, 1);
+                    if (expected == nullptr)
+                        continue;
+                    const auto slot = std::find_if(
+                        racer.loadout.begin(), racer.loadout.end(),
+                        [&](const RacerSlot& value) {
+                            return value.type ==
+                                       std::array<std::string_view, 4>{
+                                           "stWheel", "stTruba", "stArmor",
+                                           "stMotor"}[index] &&
+                                   value.record == expected->record;
+                        });
+                    if (slot == racer.loadout.end())
+                        return false;
+                }
+                for (const auto& slot : racer.loadout)
+                {
+                    if (slot.type == "stWeapon2" ||
+                        slot.type == "stWeapon3" ||
+                        slot.type == "stWeapon4")
+                        return false;
+                    const auto* item = garage.findItem(slot.record);
+                    if (item != nullptr && item->maximumCharge > 0U &&
+                        slot.charge != item->maximumCharge)
+                        return false;
+                }
+                return true;
+            });
+        if (!humanUntouched || !computerConfigMatches)
+        {
+            error =
+                "source Planet::StartPass skirmish computer configuration "
+                "mismatch";
             return false;
         }
         auto armorProfile = makeOriginalDefaultProfileState().player;

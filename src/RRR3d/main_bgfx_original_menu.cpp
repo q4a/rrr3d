@@ -6719,6 +6719,15 @@ int main(int argc, char** argv)
                         std::max<std::size_t>(
                             skirmishRacers, 1U));
                 }
+                // Planet::StartPass invokes Garage::MaxUpgradeCar for every
+                // computer created in skirmish, then removes primary weapon
+                // mounts above GameMode::_weaponMaxLevel.
+                r3d::game::originalrace::
+                    applyOriginalSkirmishComputerConfig(
+                        *originalRace, *originalGarage,
+                        profileState.config.upgradeMaxLevel,
+                        profileState.config.weaponMaxLevel,
+                        profileState.player.difficulty);
             }
             *physicsDescription =
                 r3d::game::originalrace::makePhysicsDescription(
