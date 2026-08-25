@@ -4,10 +4,32 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <vector>
 
 namespace r3d::game::originalrace::source
 {
+
+class Player;
+
+// Gameplay-owned flags and Player block transitions from
+// Race::StartRace/GoRace/ExitRace. World, renderer and physics teardown stay
+// at their platform boundaries, but the human start brake is source state.
+class RaceRunState
+{
+public:
+    void Reset() noexcept;
+    bool StartRace(std::span<Player> players, Player* human) noexcept;
+    void GoRace(Player* human) noexcept;
+    bool ExitRace() noexcept;
+
+    bool IsStartRace() const noexcept;
+    bool IsRaceGo() const noexcept;
+
+private:
+    bool startRace_ = false;
+    bool goRace_ = false;
+};
 
 // Backend-neutral transcription of Race::Result.  The source Race owns this
 // data after Player::pickedMoney has been reset; HUD, network and campaign

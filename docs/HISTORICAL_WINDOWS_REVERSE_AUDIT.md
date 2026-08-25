@@ -918,6 +918,26 @@ Main передаёт реальное состояние `UserChat::inputVisibl
 только source-filtered control. Прямой HumanPlayer regression покрывает все
 ветви; 13 CTest, map1 physics и 240-frame Metal/Jolt smoke проходят.
 
+### P2.16 — Race::StartRace/GoRace runtime state — выполнено
+
+Перенесён active `source::RaceRunState`, владеющий `_startRace`, `_goRace` и
+Player block-переходами `Race::StartRace/GoRace/ExitRace`. Аудит подтвердил
+существенное расхождение: portable countdown обнулял throttle, но не выполнял
+`human->ResetBlock(true)`. Поэтому Jolt-машина четыре секунды оставалась без
+полного тормоза и могла смещаться на стартовой решётке под уклоном, контактом
+или residual velocity.
+
+Теперь `StartRace` снимает старые block/finished состояния у всего состава и
+ставит Human в block. `Player::OnProgress` на каждой offline/network
+countdown-стадии выдаёт исходный `mcBrake`; `GoRace` снимает block ровно на
+зелёном сигнале. `DEBUG_PX` сохраняет немедленный StartRace→GoRace, а
+network stage 4 использует тот же owner. `ExitRace` сбрасывает source run
+flags, оставляя Jolt/bgfx teardown backend-слою.
+
+Unit regression покрывает повторный start, go и exit; integrated smoke
+проверяет полный brake и block на offline/network countdown и снятие на
+cGoRace. 13 CTest, map1 physics и 240-frame Metal/Jolt smoke проходят.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

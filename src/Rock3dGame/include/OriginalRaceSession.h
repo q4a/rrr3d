@@ -573,6 +573,7 @@ private:
     std::map<std::string, std::uint32_t>
         initialAchievementIterations_;
     source::AchievmentModel achievementModel_;
+    source::RaceRunState raceRunState_;
     source::RaceLifecycle raceLifecycle_;
     source::RacePlaceModel racePlaceModel_;
     bool campaign_ = true;

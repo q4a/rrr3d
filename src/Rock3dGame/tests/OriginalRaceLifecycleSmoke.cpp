@@ -1,4 +1,5 @@
 #include "OriginalRaceLifecycle.h"
+#include "OriginalPlayer.h"
 
 #include <array>
 #include <algorithm>
@@ -8,6 +9,28 @@ namespace source = r3d::game::originalrace::source;
 
 int main()
 {
+    std::array<source::Player, 2U> runPlayers{};
+    for (auto& player : runPlayers)
+    {
+        player.Reset(80.0F, 1U);
+        player.CreateCar(true);
+        player.SetFinished(true, 1.0F);
+    }
+    source::RaceRunState run;
+    if (!run.StartRace(runPlayers, &runPlayers.front()) ||
+        !run.IsStartRace() || run.IsRaceGo() ||
+        !runPlayers.front().IsBlock() ||
+        runPlayers.back().IsBlock() ||
+        runPlayers.front().finished || runPlayers.back().finished ||
+        run.StartRace(runPlayers, &runPlayers.front()))
+        return 9;
+    run.GoRace(&runPlayers.front());
+    if (!run.IsRaceGo() || runPlayers.front().IsBlock())
+        return 10;
+    if (!run.ExitRace() || run.IsStartRace() || run.IsRaceGo() ||
+        run.ExitRace())
+        return 11;
+
     const std::array<std::uint32_t, 3> money{100U, 60U, 30U};
     const std::array<std::uint32_t, 3> points{10U, 6U, 3U};
     source::RaceLifecycle race;

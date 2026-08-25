@@ -1832,3 +1832,14 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   существующий car и wheel либо body contact. Main передаёт реальный
   `UserChat::inputVisible`; 13/13 CTest, map1 physics и 240-frame Metal smoke
   проходят.
+
+### Source Race start/go state follow-up
+
+- Добавлен active `source::RaceRunState` для исходных `_startRace/_goRace` и
+  `Race::StartRace/GoRace/ExitRace` player transitions.
+- Исправлено подтверждённое физическое расхождение старта: Human теперь имеет
+  `ResetBlock(true)` на всех четырёх секундах offline/network countdown, и
+  `Player::OnProgress` подаёт полный brake вместо свободного качения Jolt-car.
+- `GoRace` снимает block на зелёном сигнале; `DEBUG_PX` делает это немедленно,
+  network — на stage 4. Unit и integrated countdown regressions, 13/13 CTest,
+  map1 physics и 240-frame Metal smoke проходят.

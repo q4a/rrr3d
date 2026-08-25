@@ -1,9 +1,60 @@
 #include "OriginalRaceLifecycle.h"
 
+#include "OriginalPlayer.h"
+
 #include <algorithm>
 
 namespace r3d::game::originalrace::source
 {
+
+void RaceRunState::Reset() noexcept
+{
+    startRace_ = false;
+    goRace_ = false;
+}
+
+bool RaceRunState::StartRace(
+    std::span<Player> players, Player* human) noexcept
+{
+    if (startRace_)
+        return false;
+    startRace_ = true;
+    goRace_ = false;
+    for (auto& player : players)
+    {
+        player.SetFinished(false);
+        player.ResetBlock(false);
+    }
+    if (human != nullptr)
+        human->ResetBlock(true);
+    return true;
+}
+
+void RaceRunState::GoRace(Player* human) noexcept
+{
+    goRace_ = true;
+    if (human != nullptr)
+        human->ResetBlock(false);
+}
+
+bool RaceRunState::ExitRace() noexcept
+{
+    goRace_ = false;
+    if (!startRace_)
+        return false;
+    startRace_ = false;
+    return true;
+}
+
+bool RaceRunState::IsStartRace() const noexcept
+{
+    return startRace_;
+}
+
+bool RaceRunState::IsRaceGo() const noexcept
+{
+    return goRace_;
+}
 
 void RaceLifecycle::Reset() noexcept
 {

@@ -1142,6 +1142,7 @@ void OriginalRaceSession::reset()
     achievementModel_.SetCampaign(campaign_);
     campaignRewardsApplied_ = false;
     raceLifecycle_.Reset();
+    raceRunState_.Reset();
     for (std::size_t index = 0; index < racers_.size(); ++index)
     {
         const auto& sourceRacer = race_.racers[index];
@@ -1384,6 +1385,14 @@ void OriginalRaceSession::reset()
         }
         itemRack.OnCreateCar();
     }
+    source::Player* human =
+        !racers_.empty() && !race_.racers.empty() &&
+                race_.racers.front().human
+            ? &racers_.front()
+            : nullptr;
+    raceRunState_.StartRace(racers_, human);
+    if (legacyWindowsDebug_)
+        raceRunState_.GoRace(human);
     events_.push_back(
         {RaceEventKind::CountdownChanged, 0, 0, {}, 3.0F});
 }
@@ -1998,6 +2007,15 @@ void OriginalRaceSession::synchronizeNetworkCountdown(
         phaseBeforePause_ = targetPhase;
     else
         phase_ = targetPhase;
+    if (stage == 4)
+    {
+        source::Player* human =
+            !racers_.empty() && !race_.racers.empty() &&
+                    race_.racers.front().human
+                ? &racers_.front()
+                : nullptr;
+        raceRunState_.GoRace(human);
+    }
 
     const int display = stage <= 1 ? 3 : 4 - stage;
     countdownSeconds_ = static_cast<float>(display);
@@ -5913,6 +5931,7 @@ void OriginalRaceSession::completeRaceForExit(
     // The renderer/Jolt teardown remains outside this source gameplay owner.
     completeRemainingRacers(vehicles);
     updatePlaces(vehicles);
+    raceRunState_.ExitRace();
     phase_ = RacePhase::Finished;
     phaseBeforePause_ = phase_;
     finishSecondsRemaining_ = 0.0F;
@@ -6045,6 +6064,12 @@ void OriginalRaceSession::update(
         }
         if (countdownSeconds_ <= 0.0F)
         {
+            source::Player* human =
+                !racers_.empty() && !race_.racers.empty() &&
+                        race_.racers.front().human
+                    ? &racers_.front()
+                    : nullptr;
+            raceRunState_.GoRace(human);
             phase_ = RacePhase::Racing;
         }
         return;
@@ -6283,13 +6308,15 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
         if (windowsDebugSession.countdownStage() != 4 ||
             windowsDebugSession.countdownSeconds() != 0.0F ||
             windowsDebugSession.phase() != RacePhase::Racing ||
+            windowsDebugSession.racers().front().IsBlock() ||
             windowsDebugSession.vehicleInputs().front().throttle < 0.9F)
         {
             throw std::runtime_error(
                 "Windows DEBUG_PX immediate cGoRace was not preserved");
         }
         if (session.countdownStage() != 0 ||
-            session.countdownSeconds() != 4.0F)
+            session.countdownSeconds() != 4.0F ||
+            !session.racers().front().IsBlock())
         {
             throw std::runtime_error(
                 "offline cGoRaceWait source stage was not initialized");
@@ -6298,7 +6325,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             session.update(0.1F, vehicles, input);
         if (session.countdownStage() != 1 ||
             session.phase() != RacePhase::Countdown ||
-            session.vehicleInputs().front().throttle != 0.0F)
+            session.vehicleInputs().front().throttle != 0.0F ||
+            session.vehicleInputs().front().brake < 0.9F ||
+            !session.racers().front().IsBlock())
         {
             throw std::runtime_error(
                 "offline cGoRace1 source stage was not applied");
@@ -6324,6 +6353,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
         session.update(0.1F, vehicles, input);
         if (session.countdownStage() != 4 ||
             session.phase() != RacePhase::Racing ||
+            session.racers().front().IsBlock() ||
             session.vehicleInputs().front().throttle < 0.9F)
         {
             throw std::runtime_error(
@@ -6335,6 +6365,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             session.update(1.0F / 60.0F, vehicles, input);
         if (session.phase() != RacePhase::Racing ||
             session.vehicleInputs().empty() ||
+            session.racers().front().IsBlock() ||
             session.vehicleInputs().front().throttle < 0.9F)
             throw std::runtime_error("countdown/control transition failed");
 
@@ -6408,6 +6439,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
         if (networkCountdownSession.phase() != RacePhase::Countdown ||
             networkCountdownSession.countdownSeconds() != 3.0F ||
             networkCountdownSession.vehicleInputs().empty() ||
+            !networkCountdownSession.racers().front().IsBlock() ||
+            networkCountdownSession.vehicleInputs().front().brake <
+                0.9F ||
             networkCountdownSession.vehicleInputs().front().throttle !=
                 0.0F)
         {
@@ -6426,6 +6460,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             1.0F / 60.0F, vehicles, input);
         if (networkCountdownSession.phase() != RacePhase::Racing ||
             networkCountdownSession.countdownSeconds() != 0.0F ||
+            networkCountdownSession.racers().front().IsBlock() ||
             networkCountdownSession.vehicleInputs().front().throttle <
                 0.9F)
         {
