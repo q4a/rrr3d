@@ -49,6 +49,7 @@ else()
     if(RRR3D_BUILD_ORIGINAL_MENU)
         list(APPEND _rrr3d_portable_game_sources
             source/stub/OriginalGameObject.cpp
+            source/stub/OriginalAchievmentModel.cpp
             source/stub/OriginalGameCar.cpp
             source/stub/OriginalLogic.cpp
             source/stub/OriginalMainMenu.cpp
@@ -61,6 +62,7 @@ else()
             source/stub/OriginalUserChat.cpp
             source/stub/OriginalWeapon.cpp
             include/OriginalGameObject.h
+            include/OriginalAchievmentModel.h
             include/OriginalGameCar.h
             include/OriginalLogic.h
             include/OriginalMainMenu.h
@@ -103,6 +105,18 @@ else()
 endif()
 
 if(NOT WIN32 AND RRR3D_BUILD_ORIGINAL_MENU)
+    add_executable(rrr3d_original_achievment_smoke
+        tests/OriginalAchievmentSmoke.cpp
+    )
+    target_link_libraries(rrr3d_original_achievment_smoke PRIVATE
+        ${PROJECT_NAME}
+    )
+    rrr3d_set_common_target_options(rrr3d_original_achievment_smoke)
+    add_test(
+        NAME rrr3d_original_achievment_smoke
+        COMMAND rrr3d_original_achievment_smoke
+    )
+
     add_executable(rrr3d_original_user_chat_smoke
         tests/OriginalUserChatSmoke.cpp
     )

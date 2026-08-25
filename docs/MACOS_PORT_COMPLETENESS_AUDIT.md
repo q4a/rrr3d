@@ -1174,6 +1174,20 @@ Network, video и Steam явно выключены.
   death-plane restart, полностью blocked search и неизменный fallback;
   resource physics smoke продолжает проверять active map reset.
 
+### Source damage events / AchievmentModel ownership block
+
+- `GameObject` теперь владеет исходными dispatch points `cPlayerDamage` и
+  `cPlayerKill`; `Player::OnDeath` формирует Overboard/DeathMine/Death в
+  Windows-порядке. Session больше не создаёт synthetic Kill для любого
+  уничтожения машины.
+- Девять `AchievmentCondition` и их persistent/race-local state перенесены в
+  отдельный active `source::AchievmentModel`. В session остался только
+  backend adapter событий и выдача HUD-события завершённого условия.
+- Подтверждённое отклонение финального круга исправлено: LapBreak может
+  завершиться на последнем `cRacePassLap` до finish transition. При этом
+  исходная NULL-data ветвь `cRaceFinish` для LapPass не заменяется придуманным
+  player finish event.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

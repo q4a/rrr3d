@@ -1640,3 +1640,34 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   `Player::GetLastNode`; invented fallback по `nextPathNode` удалён. Unit
   regression покрывает variable-width trace, initial death-plane restart и
   blocked search, resource physics smoke — реальный reset на map1.
+
+### Source GameObject damage-event ownership follow-up
+
+- `cPlayerDamage` и `cPlayerKill` больше не конструируются race-session
+  вручную. `GameObject::Damage` рассылает их в исходных точках: Damage после
+  listener callbacks, Kill после перехода в death и до `Player::OnDeath`.
+- Восстановлена смертельная последовательность Windows:
+  `Damage -> Kill -> Overboard/DeathMine -> Death`. Для mine нет ложного
+  Kill, а death-plane сохраняет трёхсекундного touch attacker только в
+  `cPlayerDeath`.
+- `Player::TakeBonus` снова владеет `bonus->Death()` и выполняет его до
+  изменения денег, здоровья, бессмертия или зарядов. Listener regression
+  фиксирует этот порядок.
+
+### Source AchievmentModel owner block
+
+- Все девять `AchievmentCondition` вынесены из монолитного
+  `OriginalRaceSession` в active `source::AchievmentModel`: состояние
+  условий, SpeedKill timer, iterations, campaign multiplier, first-kill и
+  reset lifecycle теперь принадлежат исходному классу.
+- Race-session только переводит уже source-owned игровые события в
+  backend-neutral `EventData`. Damage сохраняет sender/target orientation,
+  а TouchKill теперь потребляет `cPlayerDeath`, как Windows, не synthetic
+  Kill death-plane marker.
+- Сохранена фактическая ветвь исходника: `Race::OnLapPass` отправляет
+  `cRaceFinish` с NULL data, поэтому общий human-data guard класса LapPass
+  отвергает его. Одновременно final-lap LapBreak обрабатывается до перехода
+  модели в finish state, а не теряется из-за прежнего session-флага.
+- Отдельный unit smoke покрывает классы 1–9, timeout, persistence,
+  difficulty scoring и NULL finish event; 12 non-network CTest, resource,
+  map1 physics и 240-frame Metal/Jolt smoke проходят.

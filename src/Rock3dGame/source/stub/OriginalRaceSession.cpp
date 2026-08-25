@@ -1150,25 +1150,16 @@ void OriginalRaceSession::reset()
     pendingNetworkShots_.clear();
     pendingNetworkBonuses_.clear();
     pendingNetworkMineContacts_.clear();
-    achievementPoints_ = initialAchievementPoints_;
-    achievementIterations_.assign(race_.achievements.size(), 0U);
-    achievementConditionCounters_.assign(
-        race_.achievements.size(), 0U);
-    achievementConditionTotals_.assign(
-        race_.achievements.size(), 0U);
-    achievementConditionTimers_.assign(
-        race_.achievements.size(), 0.0F);
-    achievementGlobalKills_ = 0U;
-    achievementPreviousLapPlace_ = 0U;
+    const float achievementMultiplier =
+        initialPlayerProfile_.difficulty == "gdHard"
+            ? 1.5F
+            : initialPlayerProfile_.difficulty == "gdNormal" ? 1.2F
+                                                               : 1.0F;
+    achievementModel_.Configure(
+        &race_.achievements, initialAchievementPoints_,
+        initialAchievementIterations_, achievementMultiplier);
+    achievementModel_.SetCampaign(campaign_);
     campaignRewardsApplied_ = false;
-    for (std::size_t index = 0;
-         index < race_.achievements.size(); ++index)
-    {
-        const auto found = initialAchievementIterations_.find(
-            race_.achievements[index].name);
-        if (found != initialAchievementIterations_.end())
-            achievementIterations_[index] = found->second;
-    }
     for (std::size_t index = 0; index < racers_.size(); ++index)
     {
         const auto& sourceRacer = race_.racers[index];
@@ -1462,41 +1453,27 @@ void OriginalRaceSession::applyAchievementProfile(
     initialAchievementPoints_ = profile.achievementPoints;
     initialAchievementIterations_ =
         profile.achievementIterations;
-    achievementPoints_ = initialAchievementPoints_;
-    achievementMultiplier_ =
+    const float achievementMultiplier =
         profile.player.difficulty == "gdHard"
             ? 1.5F
             : profile.player.difficulty == "gdNormal" ? 1.2F : 1.0F;
-    achievementIterations_.assign(race_.achievements.size(), 0U);
-    for (std::size_t index = 0;
-         index < race_.achievements.size(); ++index)
-    {
-        const auto found = initialAchievementIterations_.find(
-            race_.achievements[index].name);
-        if (found != initialAchievementIterations_.end())
-            achievementIterations_[index] = found->second;
-    }
+    achievementModel_.Configure(
+        &race_.achievements, initialAchievementPoints_,
+        initialAchievementIterations_, achievementMultiplier);
+    achievementModel_.SetCampaign(campaign_);
 }
 
 void OriginalRaceSession::setCampaign(bool campaign) noexcept
 {
     campaign_ = campaign;
+    achievementModel_.SetCampaign(campaign);
 }
 
 void OriginalRaceSession::writeAchievementProfile(
     ProfileState& profile) const
 {
-    profile.achievementPoints = achievementPoints_;
-    profile.achievementIterations.clear();
-    for (std::size_t index = 0;
-         index < race_.achievements.size() &&
-         index < achievementIterations_.size();
-         ++index)
-    {
-        profile.achievementIterations[
-            race_.achievements[index].name] =
-            achievementIterations_[index];
-    }
+    profile.achievementPoints = achievementModel_.GetPoints();
+    profile.achievementIterations = achievementModel_.GetIterations();
 }
 
 void OriginalRaceSession::setEnableMineBug(bool enabled) noexcept
@@ -5786,194 +5763,89 @@ void OriginalRaceSession::updateGameplay(
     }
 }
 
-void OriginalRaceSession::completeAchievement(
-    std::size_t achievement)
-{
-    // AchievmentCondition::CompleteIteration rejects completion once the
-    // finish timer has started, including its three-second presentation gap.
-    if (phase_ == RacePhase::Finished ||
-        achievement >= race_.achievements.size() ||
-        achievement >= achievementIterations_.size())
-        return;
-    const auto& definition = race_.achievements[achievement];
-    if (++achievementIterations_[achievement] <
-        definition.iterationCount)
-        return;
-    achievementIterations_[achievement] = 0U;
-    // AchievmentCondition::Complete passes the serialized reward to
-    // AchievmentModel::AddPoints.  That method ignores it in skirmish and
-    // applies the profile difficulty multiplier in championship.
-    if (campaign_)
-    {
-        achievementPoints_ += static_cast<std::uint32_t>(
-            std::floor(static_cast<float>(definition.reward) *
-                       achievementMultiplier_));
-    }
-    events_.push_back(
-        {RaceEventKind::Achievement, 0, achievement, {},
-         static_cast<float>(definition.reward)});
-}
-
 void OriginalRaceSession::updateAchievements(float seconds)
 {
-    for (std::size_t index = 0;
-         index < race_.achievements.size(); ++index)
+    const std::size_t sourceEventCount = events_.size();
+    std::vector<source::AchievmentEvent> sourceEvents;
+    sourceEvents.reserve(sourceEventCount);
+    for (std::size_t index = 0U; index < sourceEventCount; ++index)
     {
-        if (race_.achievements[index].classId != 2U)
-            continue;
-        auto& timer = achievementConditionTimers_[index];
-        if (timer > 0.0F && (timer -= seconds) <= 0.0F)
+        const auto& event = events_[index];
+        source::AchievmentEvent sourceEvent;
+        switch (event.kind)
         {
-            timer = 0.0F;
-            achievementConditionCounters_[index] = 0U;
+        case RaceEventKind::Bonus:
+            if (event.target >= race_.bonuses.size())
+                continue;
+            sourceEvent.kind = source::AchievmentEventKind::Bonus;
+            sourceEvent.playerId = event.racer;
+            sourceEvent.bonusKind = race_.bonuses[event.target].kind;
+            {
+                const auto& sourceRecord =
+                    race_.bonuses[event.target].record;
+                sourceEvent.bonusTotalCount =
+                    static_cast<std::uint32_t>(std::count_if(
+                        race_.bonuses.begin(), race_.bonuses.end(),
+                        [&](const BonusInstance& bonus) {
+                            return bonus.record == sourceRecord;
+                        }));
+            }
+            break;
+        case RaceEventKind::Kill:
+            if (!event.killCredit)
+                continue;
+            sourceEvent.kind = source::AchievmentEventKind::Kill;
+            sourceEvent.playerId = event.racer;
+            sourceEvent.targetPlayerId = event.target;
+            sourceEvent.damageType = event.damageType;
+            break;
+        case RaceEventKind::Damage:
+            sourceEvent.kind = source::AchievmentEventKind::Damage;
+            sourceEvent.playerId = event.target;
+            sourceEvent.targetPlayerId = event.racer;
+            sourceEvent.value = event.value;
+            sourceEvent.damageType = event.damageType;
+            break;
+        case RaceEventKind::Lap:
+            sourceEvent.kind = source::AchievmentEventKind::Lap;
+            sourceEvent.playerId = event.racer;
+            break;
+        case RaceEventKind::RaceFinish:
+            sourceEvent.kind = source::AchievmentEventKind::RaceFinish;
+            sourceEvent.hasPlayer = false;
+            break;
+        case RaceEventKind::Death:
+            sourceEvent.kind = source::AchievmentEventKind::Death;
+            sourceEvent.playerId = event.racer;
+            sourceEvent.targetPlayerId = event.target;
+            sourceEvent.damageType = event.damageType;
+            break;
+        default:
+            continue;
         }
+        sourceEvents.push_back(sourceEvent);
     }
 
-    const std::size_t sourceEventCount = events_.size();
-    for (std::size_t eventIndex = 0;
-         eventIndex < sourceEventCount; ++eventIndex)
+    source::AchievmentRaceState raceState;
+    raceState.lapCount = race_.lapCount;
+    raceState.playerCount = static_cast<std::uint32_t>(std::count_if(
+        racers_.begin(), racers_.end(),
+        [](const RacerRuntime& racer) {
+            return !racer.disconnected;
+        }));
+    if (!racers_.empty())
     {
-        const RaceEvent event = events_[eventIndex];
-        const bool humanKill =
-            event.kind == RaceEventKind::Kill &&
-            event.killCredit && event.racer == 0U;
-        const bool humanDeath =
-            event.kind == RaceEventKind::Death && event.racer == 0U;
-        const bool humanLap =
-            event.kind == RaceEventKind::Lap && event.racer == 0U;
-        const bool humanFinish =
-            event.kind == RaceEventKind::Finish && event.racer == 0U;
-
-        for (std::size_t index = 0;
-             index < race_.achievements.size(); ++index)
-        {
-            const auto& definition = race_.achievements[index];
-            auto& counter = achievementConditionCounters_[index];
-            switch (definition.classId)
-            {
-            case 1U:
-                if (event.kind == RaceEventKind::Bonus &&
-                    event.racer == 0U &&
-                    event.target < race_.bonuses.size() &&
-                    race_.bonuses[event.target].kind ==
-                        definition.bonusKind)
-                {
-                    auto& total =
-                        achievementConditionTotals_[index];
-                    if (total == 0U)
-                    {
-                        const auto& sourceRecord =
-                            race_.bonuses[event.target].record;
-                        total = static_cast<std::uint32_t>(
-                            std::count_if(
-                                race_.bonuses.begin(),
-                                race_.bonuses.end(),
-                                [&](const BonusInstance& bonus) {
-                                    return bonus.record ==
-                                           sourceRecord;
-                                }));
-                    }
-                    if (total > 0U && ++counter >= total)
-                    {
-                        counter = 0U;
-                        completeAchievement(index);
-                    }
-                }
-                break;
-            case 2U:
-                if (humanKill)
-                {
-                    if (++counter >=
-                        std::max(definition.killsNumber, 1U))
-                    {
-                        counter = 0U;
-                        achievementConditionTimers_[index] = 0.0F;
-                        completeAchievement(index);
-                    }
-                    else
-                    {
-                        achievementConditionTimers_[index] =
-                            definition.killsTime;
-                    }
-                }
-                break;
-            case 3U:
-                if (humanKill &&
-                    ++counter >=
-                        std::max(definition.killsNumber, 1U))
-                {
-                    counter = 0U;
-                    completeAchievement(index);
-                }
-                break;
-            case 4U:
-                if (humanLap && !racers_.empty() &&
-                    racers_.front().place == 1U)
-                    ++counter;
-                if (humanFinish && counter >= race_.lapCount)
-                {
-                    counter = 0U;
-                    completeAchievement(index);
-                }
-                break;
-            case 5U:
-                if ((event.kind == RaceEventKind::Damage &&
-                     event.target == 0U && event.value > 0.0F) ||
-                    humanDeath)
-                    ++counter;
-                if (humanLap && !racers_.empty())
-                {
-                    if (counter == 0U &&
-                        racers_.front().car.numLaps == 1U)
-                        completeAchievement(index);
-                    counter = 0U;
-                }
-                break;
-            case 6U:
-                if (humanLap && !racers_.empty())
-                {
-                    const auto newPlace = racers_.front().place;
-                    if (racers_.front().car.numLaps >=
-                            race_.lapCount &&
-                        static_cast<int>(achievementPreviousLapPlace_) -
-                                static_cast<int>(newPlace) >=
-                            static_cast<int>(std::count_if(
-                                racers_.begin(), racers_.end(),
-                                [](const RacerRuntime& candidate) {
-                                    return !candidate.disconnected;
-                                })) - 1)
-                        completeAchievement(index);
-                }
-                break;
-            case 7U:
-                if (humanDeath)
-                    ++counter;
-                if (humanLap && !racers_.empty() &&
-                    racers_.front().car.numLaps ==
-                        race_.lapCount - 1U &&
-                    counter == 0U)
-                    completeAchievement(index);
-                break;
-            case 8U:
-                if (humanKill && achievementGlobalKills_ == 0U)
-                    completeAchievement(index);
-                break;
-            case 9U:
-                if (event.kind == RaceEventKind::Death &&
-                    event.racer != 0U && event.target == 0U &&
-                    (event.damageType == DamageType::Touch ||
-                     event.damageType == DamageType::DeathPlane))
-                    completeAchievement(index);
-                break;
-            default:
-                break;
-            }
-        }
-        if (event.kind == RaceEventKind::Kill &&
-            event.killCredit)
-            ++achievementGlobalKills_;
-        if (humanLap && !racers_.empty())
-            achievementPreviousLapPlace_ = racers_.front().place;
+        raceState.humanPlace = racers_.front().place;
+        raceState.humanLaps = racers_.front().car.numLaps;
+    }
+    for (const std::size_t achievement : achievementModel_.Process(
+             seconds, sourceEvents, raceState))
+    {
+        if (achievement >= race_.achievements.size())
+            continue;
+        events_.push_back(
+            {RaceEventKind::Achievement, 0U, achievement, {},
+             static_cast<float>(race_.achievements[achievement].reward)});
     }
 }
 

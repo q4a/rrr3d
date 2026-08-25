@@ -1,6 +1,7 @@
 #pragma once
 
 #include "OriginalAICar.h"
+#include "OriginalAchievmentModel.h"
 #include "OriginalGameObject.h"
 #include "OriginalHumanPlayer.h"
 #include "OriginalLogic.h"
@@ -500,7 +501,6 @@ private:
         DamageType damageType, bool synchronizeState,
         float targetLife, bool death, bool networkReplicated);
     void updateAchievements(float seconds);
-    void completeAchievement(std::size_t achievement);
     void completeRemainingRacers(
         const std::vector<r3d::physics::VehicleState>& vehicles);
     void completeRacer(
@@ -569,14 +569,7 @@ private:
     std::uint32_t initialAchievementPoints_ = 0;
     std::map<std::string, std::uint32_t>
         initialAchievementIterations_;
-    std::uint32_t achievementPoints_ = 0;
-    std::vector<std::uint32_t> achievementIterations_;
-    std::vector<std::uint32_t> achievementConditionCounters_;
-    std::vector<std::uint32_t> achievementConditionTotals_;
-    std::vector<float> achievementConditionTimers_;
-    std::uint32_t achievementGlobalKills_ = 0;
-    std::uint32_t achievementPreviousLapPlace_ = 0;
-    float achievementMultiplier_ = 1.2F;
+    source::AchievmentModel achievementModel_;
     bool campaign_ = true;
     bool campaignRewardsApplied_ = false;
     bool enableMineBug_ = true;
