@@ -535,6 +535,7 @@ void Player::Destroy() noexcept
     energyDamageEffect.Reset();
     immortalEffect.Reset();
     slowEffect.Reset();
+    gameCar.Reset();
     Immortal(0.0F);
     touchAttacker = undefinedPlayerId;
     touchAttributionSeconds = 0.0F;
@@ -569,6 +570,7 @@ void Player::Disconnect() noexcept
     energyDamageEffect.Reset();
     immortalEffect.Reset();
     slowEffect.Reset();
+    gameCar.Reset();
     restoreSeconds = 0.0F;
     Immortal(0.0F);
     touchAttacker = undefinedPlayerId;

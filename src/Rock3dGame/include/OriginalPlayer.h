@@ -1,6 +1,7 @@
 #pragma once
 
 #include "OriginalGameObject.h"
+#include "OriginalGameCar.h"
 #include "OriginalTrace.h"
 
 #include <array>
@@ -205,9 +206,6 @@ public:
     std::uint32_t rewardMoney = 0;
     std::uint32_t rewardPoints = 0;
     float speedBoostSeconds = 0.0F;
-    float clutchSeconds = 0.0F;
-    float mineLockSeconds = 0.0F;
-    float springLockSeconds = 0.0F;
     float restoreSeconds = 0.0F;
     float finishTime = -1.0F;
     bool finished = false;
@@ -216,6 +214,7 @@ public:
     DamageEffect energyDamageEffect{DamageType::Energy, 0.5F};
     ImmortalEffect immortalEffect;
     SlowEffect slowEffect;
+    GameCar gameCar;
     CarState car;
 };
 

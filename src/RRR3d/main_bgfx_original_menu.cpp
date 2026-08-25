@@ -16494,7 +16494,8 @@ int main(int argc, char** argv)
                 {
                     physicsWorld->setWheelTractionEnabled(
                         racer,
-                        raceSession.racers()[racer].clutchSeconds <= 0.0F);
+                        !raceSession.racers()[racer]
+                             .gameCar.IsClutchLocked());
                     if (raceSession.racers()[racer]
                             .slowEffect.IsEffectMaked())
                     {

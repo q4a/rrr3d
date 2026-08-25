@@ -2925,16 +2925,11 @@ void OriginalRaceSession::updateGameplay(
                 {racer,
                  subtract(wanted, vehicles[racer].linearVelocity)});
         }
-        runtime.clutchSeconds =
-            std::max(0.0F, runtime.clutchSeconds - seconds);
-        runtime.mineLockSeconds =
-            std::max(0.0F, runtime.mineLockSeconds - seconds);
-        runtime.springLockSeconds =
-            std::max(0.0F, runtime.springLockSeconds - seconds);
+        runtime.gameCar.OnProgress(seconds);
         if (racer < vehicleInputs_.size())
         {
             vehicleInputs_[racer].springLocked =
-                runtime.springLockSeconds > 0.0F;
+                runtime.gameCar.IsSpringLocked();
         }
         if (runtime.destroyed)
             continue;
@@ -3119,7 +3114,7 @@ void OriginalRaceSession::updateGameplay(
                     r3d::physics::CollisionSurface::TrackBorder ||
                 std::abs(contact.normal.z) >= 0.5F)
                 continue;
-            racers_[racer].clutchSeconds = 0.0F;
+            racers_[racer].gameCar.CancelClutch();
             float forcePart = 0.0F;
             const float damage = damageFromContact(
                 race_.touchBorderDamage, race_.touchBorderDamageForce,
@@ -4143,7 +4138,7 @@ void OriginalRaceSession::updateGameplay(
                 nextNetworkProjectileIds_[owner],
                 networkProjectileId + 1U);
         }
-        racers_[owner].mineLockSeconds = 0.4F;
+        racers_[owner].gameCar.LockMine(0.4F);
         MineRuntime mine;
         mine.owner = owner;
         mine.weapon = weapon;
@@ -4281,7 +4276,7 @@ void OriginalRaceSession::updateGameplay(
                  rotate(
                      vehicles[owner].body.rotation,
                      {0.0F, 0.0F, projectile.speed})});
-            racers_[owner].springLockSeconds = 1.5F;
+            racers_[owner].gameCar.LockSpring();
             if (owner < vehicleInputs_.size())
                 vehicleInputs_[owner].springLocked = true;
         }
@@ -4415,12 +4410,15 @@ void OriginalRaceSession::updateGameplay(
              vehicles[racer].linearVelocity.y,
              vehicles[racer].linearVelocity.z},
             damage, arming,
-            racers_[racer].mineLockSeconds > 0.0F,
-            racers_[racer].clutchSeconds > 0.0F,
+            racers_[racer].gameCar.IsMineLocked(),
+            racers_[racer].gameCar.IsClutchLocked(),
             clutchImmune(racer));
         if (!sourceResult.lockClutch)
             return false;
-        racers_[racer].clutchSeconds = 0.38F;
+        if (!racers_[racer].gameCar.LockClutch(
+                sourceResult.clutchStrength,
+                clutchImmune(racer)))
+            return false;
         const auto& vehicleDefinition =
             race_.racers[racer].hasConfiguredVehicle
                 ? race_.racers[racer].configuredVehicle
@@ -4432,7 +4430,8 @@ void OriginalRaceSession::updateGameplay(
             vehicles[racer].body.rotation.w};
         Vec3 localMomentum = rotate(
             inverseRotation, vehicles[racer].angularMomentum);
-        localMomentum.z = sourceResult.clutchStrength *
+        localMomentum.z = racers_[racer].gameCar
+                              .ConsumeClutchStrength() *
                           std::max(
                               vehicleDefinition.physics.mass, 0.0F);
         angularMomentumRequests_.push_back(
@@ -4632,7 +4631,7 @@ void OriginalRaceSession::updateGameplay(
                 racer == mine.owner &&
                 mine.seconds < 0.25F;
             const bool targetMineLocked =
-                racers_[racer].mineLockSeconds > 0.0F;
+                racers_[racer].gameCar.IsMineLocked();
             bool sourceContactLocked = false;
             if (mine.type == 10U)
             {
@@ -4751,7 +4750,7 @@ void OriginalRaceSession::updateGameplay(
             return false;
         const auto& bonus = race_.bonuses[bonusIndex];
         if (bonus.kind != BonusKind::MineHazard ||
-            (enableMineBug_ && racers_[racer].mineLockSeconds > 0.0F))
+            (enableMineBug_ && racers_[racer].gameCar.IsMineLocked()))
             return false;
         const auto& racerDefinition = race_.racers[racer];
         const auto& vehicleDefinition =
@@ -4978,7 +4977,7 @@ void OriginalRaceSession::updateGameplay(
             if (bonus.kind == BonusKind::MineHazard)
             {
                 if (enableMineBug_ &&
-                    runtime.mineLockSeconds > 0.0F)
+                    runtime.gameCar.IsMineLocked())
                     continue;
                 if (networkGameplayEnabled_)
                 {
@@ -9010,8 +9009,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 std::abs(requests.front().delta.z - 17.0F) >
                     0.001F ||
                 springSession.racers().front().hyperCharge != 0U ||
-                springSession.racers().front().springLockSeconds <
-                    1.49F ||
+                springSession.racers().front()
+                        .gameCar.GetSpringTime() < 1.49F ||
                 !springSession.vehicleInputs().front().springLocked)
             {
                 throw std::runtime_error(
@@ -10672,8 +10671,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 contactSession.racers()[1].life >=
                     lifeBefore ||
                 !hasVerticalImpulse ||
-                contactSession.racers()[0]
-                        .mineLockSeconds <= 0.0F)
+                !contactSession.racers()[0]
+                     .gameCar.IsMineLocked())
             {
                 throw std::runtime_error(
                     "source MineContact early non-owner contact/impulse "
@@ -10765,7 +10764,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             if (!earlyMomentum.empty() ||
                 oilSession.mines().size() != 1U ||
                 !oilLockedClutch ||
-                oilSession.racers()[0].clutchSeconds <= 0.0F)
+                !oilSession.racers()[0]
+                     .gameCar.IsClutchLocked())
             {
                 throw std::runtime_error(
                     "source Maslo arming/mine-lock/clutch lifecycle "

@@ -49,6 +49,7 @@ else()
     if(RRR3D_BUILD_ORIGINAL_MENU)
         list(APPEND _rrr3d_portable_game_sources
             source/stub/OriginalGameObject.cpp
+            source/stub/OriginalGameCar.cpp
             source/stub/OriginalLogic.cpp
             source/stub/OriginalMainMenu.cpp
             source/stub/OriginalAICar.cpp
@@ -60,6 +61,7 @@ else()
             source/stub/OriginalUserChat.cpp
             source/stub/OriginalWeapon.cpp
             include/OriginalGameObject.h
+            include/OriginalGameCar.h
             include/OriginalLogic.h
             include/OriginalMainMenu.h
             include/OriginalAICar.h
@@ -172,6 +174,19 @@ if(NOT WIN32 AND RRR3D_BUILD_ORIGINAL_MENU)
     add_test(
         NAME rrr3d_original_game_object_smoke
         COMMAND rrr3d_original_game_object_smoke
+    )
+
+    add_executable(rrr3d_original_game_car_smoke
+        tests/OriginalGameCarSmoke.cpp
+    )
+    target_link_libraries(rrr3d_original_game_car_smoke PRIVATE
+        ${PROJECT_NAME}
+    )
+    rrr3d_set_common_target_options(
+        rrr3d_original_game_car_smoke)
+    add_test(
+        NAME rrr3d_original_game_car_smoke
+        COMMAND rrr3d_original_game_car_smoke
     )
 
     add_executable(rrr3d_original_ai_car_smoke
