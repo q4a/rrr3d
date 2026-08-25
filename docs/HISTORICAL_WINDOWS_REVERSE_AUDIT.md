@@ -1616,6 +1616,26 @@ serialized language останавливает инициализацию с т�
 `svOpen`/`svRequestPoints`/`svClosed`/`svCompleted`. Геометрия иконок и
 отсутствие подписей `RaceMainFrame` не менялись.
 
+### P2.52 — полный владелец `ResourceManager::StringLibrary` — выполнено
+
+Общий parser P2.50 переносил только `StringLibrary::Load`, оставляя результат
+обычным `unordered_map`. MainMenu, HUD и network dialogs затем независимо
+реализовывали lookup/fallback. Это было реальным source-разрывом: HUD
+сохранял придуманные английские defaults при пустом значении, сетевой диалог
+подставлял собственную английскую фразу, а MainMenu возвращал пустую строку
+для `svNull`. Windows `StringLibrary::Get` во всех трёх случаях возвращает
+сам id, если запись отсутствует или пуста; `Has` считает пустую запись
+отсутствующей.
+
+Введён единый platform-independent `StringLibrary` с исходными `Get`/`Set`/
+`Has` semantics и `std::map` ownership. `OriginalMainMenu::Model`, весь
+активный `localized()` path и `OriginalRaceHud` используют только его.
+Удалены английские fallback `Player` и `Players who left will be removed`:
+последнего текста нет ни в одном из шести поставляемых language files, поэтому
+оригинальная Windows-сборка показывает id `svHintLeaversWillBeRemoved`.
+Resource regression отдельно фиксирует missing key, explicit empty `svNull`
+и доступный `svStartMatch`.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

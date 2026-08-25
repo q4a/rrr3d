@@ -1796,6 +1796,23 @@ int main(int argc, char** argv)
 
     if (options->verifyResources)
     {
+        const auto& sourceStrings = model->localizedStrings;
+        const bool sourceStringLibraryValid =
+            sourceStrings.has("svPlayer") &&
+            sourceStrings.has("svStartMatch") &&
+            !sourceStrings.has("svNull") &&
+            sourceStrings.get("svNull") == "svNull" &&
+            !sourceStrings.has("svHintLeaversWillBeRemoved") &&
+            sourceStrings.get("svHintLeaversWillBeRemoved") ==
+                "svHintLeaversWillBeRemoved" &&
+            sourceStrings.get("rrr3dMissingStringRegression") ==
+                "rrr3dMissingStringRegression";
+        if (!sourceStringLibraryValid)
+        {
+            std::cerr << "Source StringLibrary Get/Has semantics differ "
+                         "from the shipped Windows data\n";
+            return EXIT_FAILURE;
+        }
         const auto& languages = originalGameDataCatalog.languages;
         const auto& commentators =
             originalGameDataCatalog.commentatorStyles;
@@ -2753,11 +2770,7 @@ int main(int argc, char** argv)
         std::vector<bool> enabled;
     };
     auto localized = [&](std::string_view key) {
-        const auto found =
-            model->localizedStrings.find(std::string(key));
-        return found == model->localizedStrings.end()
-                   ? std::string(key)
-                   : found->second;
+        return model->localizedStrings.get(key);
     };
     auto labels = [&](std::initializer_list<const char*> keys) {
         std::vector<std::string> output;
@@ -6002,8 +6015,6 @@ int main(int argc, char** argv)
             if (name.empty())
             {
                 name = localized("svPlayer");
-                if (name == "svPlayer")
-                    name = "Player";
                 name += " " + std::to_string(player.netSlot);
             }
             visual.name = createText(
@@ -7777,12 +7788,9 @@ int main(int argc, char** argv)
             {
                 networkLeaverStartDialogVisible = true;
                 networkLeaverStartYesFocused = true;
-                auto message = localized(
-                    "svHintLeaversWillBeRemoved");
-                if (message == "svHintLeaversWillBeRemoved")
-                    message = "Players who left will be removed";
                 showAcceptDialog(
-                    message, localized("svYes"), localized("svNo"),
+                    localized("svHintLeaversWillBeRemoved"),
+                    localized("svYes"), localized("svNo"),
                     menu::virtualWidth * 0.5F,
                     menu::virtualHeight * 0.5F);
                 return;

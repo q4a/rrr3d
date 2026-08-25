@@ -382,11 +382,10 @@ Model loadOriginalMainMenu(const resource::ResourceFileSystem& resources,
     model.audit.localizedStrings = strings.size();
     for (const char* key : itemStringKeys)
     {
-        const auto entry = strings.find(key);
-        if (entry == strings.end())
+        if (!strings.has(key))
             throw resource::ResourceError("Localized string is missing: " +
                                           std::string(key));
-        model.items.push_back(entry->second);
+        model.items.push_back(strings.get(key));
     }
     model.versionText = version;
 

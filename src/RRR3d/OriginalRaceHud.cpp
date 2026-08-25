@@ -78,15 +78,6 @@ void drawTintedAsset(
                 pipeline, {}, material);
 }
 
-std::string localizedValue(
-                           const r3d::game::originalgamedata::
-                               StringLibrary& strings,
-                           std::string_view key)
-{
-    const auto found = strings.find(std::string(key));
-    return found == strings.end() ? std::string{} : found->second;
-}
-
 std::string formatNamePlace(std::string format, std::uint32_t place,
                             std::string_view name)
 {
@@ -368,36 +359,20 @@ bool OriginalRaceHud::initialize(
         const auto localization =
             r3d::game::originalgamedata::loadOriginalStringLibrary(
                 resources, *selectedLanguage);
-        if (const auto value = localizedValue(localization, "svLap");
-            !value.empty())
-            lapName_ = value;
-        if (const auto value =
-                localizedValue(localization, "svNamePlaceMarker");
-            !value.empty())
-            namePlaceFormat_ = value;
-        if (const auto value = localizedValue(localization, "svPrice");
-            !value.empty())
-            priceName_ = value;
-        if (const auto value = localizedValue(localization, "svMoney");
-            !value.empty())
-            moneyName_ = value;
-        if (const auto value = localizedValue(localization, "svPoints");
-            !value.empty())
-            pointsName_ = value;
+        lapName_ = localization.get("svLap");
+        namePlaceFormat_ = localization.get("svNamePlaceMarker");
+        priceName_ = localization.get("svPrice");
+        moneyName_ = localization.get("svMoney");
+        pointsName_ = localization.get("svPoints");
         for (std::size_t index = 0; index < placeNames_.size(); ++index)
         {
-            const auto value = localizedValue(
-                localization, "svPlace" + std::to_string(index + 1U));
-            if (!value.empty())
-                placeNames_[index] = value;
+            placeNames_[index] = localization.get(
+                "svPlace" + std::to_string(index + 1U));
         }
         localizedRacerNames_.reserve(race.racers.size());
         for (const auto& racer : race.racers)
-        {
-            auto name = localizedValue(localization, racer.name);
             localizedRacerNames_.push_back(
-                name.empty() ? racer.name : std::move(name));
-        }
+                localization.get(racer.name));
         for (const auto& identity : race.playerIdentities)
         {
             if (originalrace::findOriginalPlayerIdentity(
@@ -405,10 +380,8 @@ bool OriginalRaceHud::initialize(
                 continue;
             if (localizedGamerNames_.contains(identity.id))
                 continue;
-            auto name = localizedValue(localization, identity.name);
             localizedGamerNames_.emplace(
-                identity.id,
-                name.empty() ? identity.name : std::move(name));
+                identity.id, localization.get(identity.name));
         }
     }
     catch (const std::exception& exception)

@@ -2101,3 +2101,13 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - Навигация и diagnostic trace используют поставляемые `svStartMatch` и
   `svCasePlanet`; сам `RaceMainFrame`, как Windows, продолжает рисовать семь
   icon-only кнопок без текстовых подписей.
+
+### Source StringLibrary owner follow-up
+
+- `ResourceManager::StringLibrary` перенесён как общий owner с точными
+  `Get`/`Set`/`Has` semantics; MainMenu, HUD и dialogs больше не выполняют
+  собственные варианты lookup/fallback.
+- Пустой `svNull` и отсутствующий key возвращают сам id, как Windows.
+  Придуманные английские network/player fallback удалены; verification
+  фиксирует фактическое отсутствие `svHintLeaversWillBeRemoved` в shipped
+  localization вместо маскировки дефекта ресурсов.

@@ -351,6 +351,30 @@ const Language* findLanguage(const Catalog& catalog,
     return nullptr;
 }
 
+std::size_t StringLibrary::size() const noexcept
+{
+    return strings_.size();
+}
+
+std::string StringLibrary::get(std::string_view id) const
+{
+    const auto found = strings_.find(id);
+    if (found != strings_.end() && !found->second.empty())
+        return found->second;
+    return std::string(id);
+}
+
+void StringLibrary::set(std::string id, std::string value)
+{
+    strings_[std::move(id)] = std::move(value);
+}
+
+bool StringLibrary::has(std::string_view id) const
+{
+    const auto found = strings_.find(id);
+    return found != strings_.end() && !found->second.empty();
+}
+
 StringLibrary loadOriginalStringLibrary(
     const resource::ResourceFileSystem& resources,
     const Language& language)
@@ -394,7 +418,7 @@ StringLibrary loadOriginalStringLibrary(
             token.replace(escapedNewline, 2U, 1U, '\n');
             ++escapedNewline;
         }
-        strings[id] = std::move(token);
+        strings.set(std::move(id), std::move(token));
         id.clear();
     }
     return strings;

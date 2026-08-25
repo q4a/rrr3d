@@ -1,10 +1,11 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 #include <vector>
 
 namespace r3d::resource
@@ -79,8 +80,20 @@ Catalog loadOriginalGameDataCatalog(
 const Language* findLanguage(const Catalog& catalog,
                              std::string_view name) noexcept;
 
-using StringLibrary =
-    std::unordered_map<std::string, std::string>;
+// Platform-independent ownership and lookup semantics of the original
+// ResourceManager::StringLibrary.  The Windows class returns the id itself
+// when a key is absent or explicitly mapped to an empty string.
+class StringLibrary
+{
+public:
+    std::size_t size() const noexcept;
+    std::string get(std::string_view id) const;
+    void set(std::string id, std::string value);
+    bool has(std::string_view id) const;
+
+private:
+    std::map<std::string, std::string, std::less<>> strings_;
+};
 
 // Literal ResourceManager::StringLibrary::Load token-stream behavior over
 // the shipped UTF-16LE files, including its malformed-line recovery and
