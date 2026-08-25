@@ -1375,6 +1375,18 @@ Network, video и Steam явно выключены.
 - Regression проверяет, что live выстрелы и reload не мутируют входную
   staging-копию, включая failed replicated shot с явным `newCharge`.
 
+### Source WeaponItem projectile descriptor owner
+
+- Перенесён исходный `_wpnDesc`: каждый непосредственный projectile хранит
+  type, speed, maxDist и damage; `SetWpnDesc` применяется к live Weapon, а
+  detached `GetDesc` возвращает сохранённое описание предмета.
+- `GetDamage(bool)` суммирует projectile damage. Старое serialized поле
+  `damage`, помеченное Windows-кодом как invalid, больше не подменяет эту
+  статистику; death-effect spawned projectiles корректно исключены.
+- Загружается `chargeCost`; AI attack/Hyper/Mine descriptor fields читаются
+  из установленного item. Реальные bulletGun/rifleWeapon и lifecycle
+  descriptor apply покрыты resource и integrated regressions.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

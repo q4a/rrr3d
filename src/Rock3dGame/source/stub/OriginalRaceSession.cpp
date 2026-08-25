@@ -1350,13 +1350,19 @@ void OriginalRaceSession::reset()
                 return;
             }
             const auto& definition = race_.weapons[weaponIndex];
-            std::vector<std::uint32_t> projectileTypes;
-            projectileTypes.reserve(definition.projectiles.size());
+            std::vector<source::Weapon::ProjectileDesc> projectiles;
+            projectiles.reserve(definition.projectiles.size());
             for (const auto& projectile : definition.projectiles)
-                projectileTypes.push_back(projectile.type);
+            {
+                if (projectile.spawnOnParentDeath)
+                    continue;
+                projectiles.push_back(
+                    {projectile.type, projectile.speed,
+                     projectile.maximumDistance, projectile.damage});
+            }
             runtimeWeapon.SetDesc(
                 definition.shotDelay,
-                projectileTypes);
+                projectiles);
             runtimeWeapon.Reset();
         };
         auto& weaponRack = racers_[index].GetWeaponRack();
@@ -5589,19 +5595,22 @@ void OriginalRaceSession::updateGameplay(
             {
                 continue;
             }
-            const auto& weapon = race_.weapons[weaponIndex];
+            const auto* item = primaryItems[slot];
+            if (item == nullptr)
+                continue;
+            const auto* liveWeapon = item->GetWeapon();
+            if (liveWeapon == nullptr)
+                continue;
+            const auto& description = liveWeapon->GetDesc();
+            const auto& projectile = description.Front();
             source::AICar::AttackWeapon state;
             state.slot = slot;
-            state.projectileType = weapon.projectileType;
-            state.maximumDistance = weapon.maximumDistance;
-            const auto* item = primaryItems[slot];
-            state.capacity =
-                item != nullptr ? item->GetCntCharge() : 0U;
-            state.charge =
-                item != nullptr ? item->GetCurCharge() : 0U;
-            state.ready =
-                runtime.GetWeaponRack().primary[slot].IsReadyShot(
-                    std::max(weapon.shotDelay, 0.25F));
+            state.projectileType = projectile.type;
+            state.maximumDistance = projectile.maximumDistance;
+            state.capacity = item->GetCntCharge();
+            state.charge = item->GetCurCharge();
+            state.ready = liveWeapon->IsReadyShot(
+                std::max(description.shotDelay, 0.25F));
             attackWeapons[attackWeaponCount++] = state;
         }
 
@@ -5617,25 +5626,32 @@ void OriginalRaceSession::updateGameplay(
             runtime.hyperWeapon < race_.weapons.size())
         {
             const auto* item = runtime.GetHyperWeaponItem();
-            context.hyper.installed = true;
-            context.hyper.projectileSpeed =
-                race_.weapons[runtime.hyperWeapon].projectileSpeed;
-            context.hyper.capacity =
-                item != nullptr ? item->GetCntCharge() : 0U;
-            context.hyper.charge =
-                item != nullptr ? item->GetCurCharge() : 0U;
+            const auto* liveWeapon =
+                item != nullptr ? item->GetWeapon() : nullptr;
+            context.hyper.installed = liveWeapon != nullptr;
+            if (liveWeapon != nullptr)
+            {
+                context.hyper.projectileSpeed =
+                    liveWeapon->GetDesc().Front().speed;
+                context.hyper.capacity = item->GetCntCharge();
+                context.hyper.charge = item->GetCurCharge();
+            }
         }
         if (runtime.mineWeapon != RacerRuntime::invalidWeapon &&
             runtime.mineWeapon < race_.weapons.size())
         {
             const auto* item = runtime.GetMineWeaponItem();
-            context.mine.installed = true;
-            context.mine.oil =
-                runtime.GetWeaponRack().mine.IsMaslo();
-            context.mine.capacity =
-                item != nullptr ? item->GetCntCharge() : 0U;
-            context.mine.charge =
-                item != nullptr ? item->GetCurCharge() : 0U;
+            const auto* liveWeapon =
+                item != nullptr ? item->GetWeapon() : nullptr;
+            context.mine.installed = liveWeapon != nullptr;
+            if (liveWeapon != nullptr)
+            {
+                context.mine.oil =
+                    liveWeapon->GetDesc().Front().type ==
+                    source::AutoProj::masloType;
+                context.mine.capacity = item->GetCntCharge();
+                context.mine.charge = item->GetCurCharge();
+            }
         }
 
         const auto decision = aiPlayers_[racer].UpdateAttack(
@@ -9052,6 +9068,42 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 profileSlot.hasCharge = true;
             }
             weaponSession.applyPlayerProfile(weaponProfile);
+            const auto installedItems =
+                weaponSession.racers().front().GetPrimaryWeaponItems();
+            for (std::size_t slot = 0U; slot < 2U; ++slot)
+            {
+                const auto* item = installedItems[slot];
+                const auto& definition = *primaryWeapons[slot];
+                const float expectedDamage = std::accumulate(
+                    definition.projectiles.begin(),
+                    definition.projectiles.end(), 0.0F,
+                    [](float value,
+                       const ProjectileDefinition& projectile) {
+                        return projectile.spawnOnParentDeath
+                                   ? value
+                                   : value + projectile.damage;
+                    });
+                const auto expectedProjectileCount =
+                    static_cast<std::size_t>(std::count_if(
+                        definition.projectiles.begin(),
+                        definition.projectiles.end(),
+                        [](const ProjectileDefinition& projectile) {
+                            return !projectile.spawnOnParentDeath;
+                        }));
+                if (item == nullptr || item->GetWeapon() == nullptr ||
+                    item->GetChargeCost() != definition.chargeCost ||
+                    item->GetWpnDesc().projectiles.size() !=
+                        expectedProjectileCount ||
+                    std::abs(item->GetDamage(true) - expectedDamage) >
+                        0.001F ||
+                    item->GetDesc().Front().type !=
+                        definition.projectiles.front().type)
+                {
+                    throw std::runtime_error(
+                        "source WeaponItem WpnDesc/damage/chargeCost binding "
+                        "failed");
+                }
+            }
             RaceControl weaponInput;
             for (int frame = 0; frame < 250; ++frame)
                 weaponSession.update(

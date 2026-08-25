@@ -685,6 +685,12 @@ std::uint64_t ShotEffect::GetShotCount() const noexcept
 
 Weapon::Weapon(const Desc& desc) : desc_(desc) {}
 
+const Weapon::ProjectileDesc& Weapon::Desc::Front() const noexcept
+{
+    static const ProjectileDesc empty;
+    return projectiles.empty() ? empty : projectiles.front();
+}
+
 void Weapon::Reset() noexcept
 {
     shotTime_ = 0.0F;
@@ -715,8 +721,8 @@ bool Weapon::IsReadyShot() const noexcept
 
 bool Weapon::IsMaslo() const noexcept
 {
-    return !desc_.projectileTypes.empty() &&
-           desc_.projectileTypes.front() == masloProjectileType;
+    return !desc_.projectiles.empty() &&
+           desc_.Front().type == masloProjectileType;
 }
 
 void Weapon::OnShot(bool projectileCreated) noexcept
@@ -748,8 +754,18 @@ void Weapon::SetDesc(
     std::span<const std::uint32_t> projectileTypes)
 {
     desc_.shotDelay = shotDelay;
-    desc_.projectileTypes.assign(
-        projectileTypes.begin(), projectileTypes.end());
+    desc_.projectiles.clear();
+    desc_.projectiles.reserve(projectileTypes.size());
+    for (const auto type : projectileTypes)
+        desc_.projectiles.push_back({type});
+}
+
+void Weapon::SetDesc(
+    float shotDelay,
+    std::span<const ProjectileDesc> projectiles)
+{
+    desc_.shotDelay = shotDelay;
+    desc_.projectiles.assign(projectiles.begin(), projectiles.end());
 }
 
 const ShotEffect& Weapon::GetShotEffect() const noexcept
@@ -779,6 +795,8 @@ const WeaponItem* WeaponItem::IsWeaponItem() const noexcept
 void WeaponItem::OnCreateCar() noexcept
 {
     carAttached_ = true;
+    if (weapon_ != nullptr)
+        weapon_->SetDesc(weaponDesc_);
 }
 
 void WeaponItem::OnDestroyCar() noexcept
@@ -798,6 +816,7 @@ void WeaponItem::Bind(
     chargeStep_ = chargeStep;
     damage_ = damage;
     chargeCost_ = chargeCost;
+    weaponDesc_ = weapon != nullptr ? weapon->GetDesc() : Weapon::Desc{};
 }
 
 bool WeaponItem::Shot(bool projectileCreated, int newCharge) noexcept
@@ -890,16 +909,19 @@ void WeaponItem::SetChargeStep(std::uint32_t value) noexcept
     chargeStep_ = value;
 }
 
-float WeaponItem::GetDamage() const noexcept
+float WeaponItem::GetDamage(bool statisticsDamage) const noexcept
 {
-    return damage_;
+    (void)statisticsDamage;
+    float damage = 0.0F;
+    for (const auto& projectile : weaponDesc_.projectiles)
+        damage += projectile.damage;
+    return damage;
 }
 
 void WeaponItem::SetDamage(float value) noexcept
 {
-    // Kept for serialized source compatibility. Player.cpp::GetDamage uses
-    // projectile descriptors for statistics; gameplay projectile damage is
-    // likewise read from WeaponDefinition rather than this legacy field.
+    // Player.cpp labels the serialized field invalid. GetDamage sums the
+    // projectile descriptors, exactly as the Windows implementation does.
     damage_ = value;
 }
 
@@ -913,6 +935,18 @@ void WeaponItem::SetChargeCost(int value) noexcept
     chargeCost_ = value;
 }
 
+const Weapon::Desc& WeaponItem::GetWpnDesc() const noexcept
+{
+    return weaponDesc_;
+}
+
+void WeaponItem::SetWpnDesc(const Weapon::Desc& value)
+{
+    weaponDesc_ = value;
+    if (carAttached_ && weapon_ != nullptr)
+        weapon_->SetDesc(weaponDesc_);
+}
+
 Weapon* WeaponItem::GetWeapon() const noexcept
 {
     return carAttached_ ? weapon_ : nullptr;
@@ -920,9 +954,8 @@ Weapon* WeaponItem::GetWeapon() const noexcept
 
 Weapon::Desc WeaponItem::GetDesc() const
 {
-    // Windows returns the serialized _wpnDesc while its live child actor is
-    // detached. The portable rack owns that same description permanently.
-    return weapon_ != nullptr ? weapon_->GetDesc() : Weapon::Desc{};
+    const auto* weapon = GetWeapon();
+    return weapon != nullptr ? weapon->GetDesc() : weaponDesc_;
 }
 
 DroidItem::DroidItem() noexcept : WeaponItem(SlotType::Droid) {}

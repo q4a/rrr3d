@@ -1991,3 +1991,14 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   изменяется после binding, что исключает прежнее расхождение владельцев.
 - Weapon, Player, lifecycle и integrated race regressions проверяют shot,
   failed replicated `newCharge`, reload и detached/attached lifecycle.
+
+### Source WeaponItem `_wpnDesc` follow-up
+
+- Восстановлен Player-owned полный descriptor непосредственных projectiles:
+  type/speed/maxDist/damage, `GetWpnDesc/SetWpnDesc` и применение к Weapon при
+  создании машины.
+- `GetDamage` теперь суммирует projectile damage, как Windows, вместо чтения
+  помеченного исходником invalid поля. Workshop `chargeCost` также загружается.
+- AI получает характеристики primary/Hyper/Mine из live Slot item; resource,
+  unit и integrated race regressions подтверждают реальные значения
+  bulletGun/rifleWeapon и car lifecycle.

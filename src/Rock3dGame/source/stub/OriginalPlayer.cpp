@@ -615,7 +615,8 @@ void Player::BindWeaponItems(
         const auto& definition = definitions[definitionIndex];
         item->Bind(
             weapon, definition.maximumCharge, countCharge,
-            currentCharge, definition.chargeStep, definition.damage);
+            currentCharge, definition.chargeStep, definition.damage,
+            definition.chargeCost);
     };
 
     for (std::size_t slot = 0U; slot < weaponSlotCount; ++slot)
@@ -646,6 +647,9 @@ void Player::BindWeaponItems(
                 definition.maximumCharge, weaponCapacity[slot],
                 &weaponCharges[slot], definition.reflectValue);
         }
+        item->SetChargeStep(definition.chargeStep);
+        item->SetDamage(definition.damage);
+        item->SetChargeCost(definition.chargeCost);
     }
     bind(ensureItem(PlayerSlotType::Hyper, hyperWeapon),
          &weaponRack_.hyper, hyperWeapon, hyperCapacity, &hyperCharge);

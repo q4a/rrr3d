@@ -57,8 +57,11 @@ int main()
         return 6;
 
     source::WeaponRack rack;
-    rack.primary[2].SetDesc(
-        0.2F, std::span<const std::uint32_t>{});
+    const std::array<source::Weapon::ProjectileDesc, 2U>
+        itemProjectiles{{
+            {0U, 40.0F, 300.0F, 6.0F},
+            {0U, 40.0F, 300.0F, 6.5F}}};
+    rack.primary[2].SetDesc(0.2F, itemProjectiles);
     rack.hyper.SetDesc(
         0.3F, std::span<const std::uint32_t>{});
     rack.mine.SetDesc(0.4F, projectiles);
@@ -106,9 +109,26 @@ int main()
     item.SetChargeCost(125);
     if (item.GetMaxCharge() != 9U || item.GetCntCharge() != 5U ||
         item.GetCurCharge() != 3U || item.GetChargeStep() != 3U ||
-        std::abs(item.GetDamage() - 13.5F) > 0.0001F ||
+        std::abs(item.GetDamage() - 12.5F) > 0.0001F ||
         item.GetChargeCost() != 125 || charge != 2U)
         return 11;
+
+    source::Weapon::Desc replacementDescription;
+    replacementDescription.shotDelay = 0.75F;
+    replacementDescription.projectiles = {
+        {2U, 60.0F, 500.0F, 8.0F},
+        {2U, 60.0F, 500.0F, 5.5F}};
+    item.SetWpnDesc(replacementDescription);
+    if (item.GetWpnDesc().projectiles.size() != 2U ||
+        item.GetDesc().Front().type != 2U ||
+        std::abs(item.GetDamage(true) - 13.5F) > 0.0001F)
+        return 11;
+    item.OnCreateCar();
+    if (rack.primary[2].GetDesc().Front().type != 2U ||
+        std::abs(rack.primary[2].GetDesc().shotDelay - 0.75F) >
+            0.0001F)
+        return 11;
+    item.OnDestroyCar();
 
     // maxCharge==0 is the original infinite-ammunition sentinel.  It must
     // still create a shot at currentCharge==0 and clamp the decrement to 0.

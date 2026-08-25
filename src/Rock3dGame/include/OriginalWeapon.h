@@ -267,10 +267,20 @@ private:
 class Weapon
 {
 public:
+    struct ProjectileDesc
+    {
+        std::uint32_t type = 0U;
+        float speed = 0.0F;
+        float maximumDistance = 0.0F;
+        float damage = 0.0F;
+    };
+
     struct Desc
     {
         float shotDelay = 0.0F;
-        std::vector<std::uint32_t> projectileTypes;
+        std::vector<ProjectileDesc> projectiles;
+
+        const ProjectileDesc& Front() const noexcept;
     };
 
     Weapon() = default;
@@ -292,6 +302,8 @@ public:
     void SetDesc(const Desc& value);
     void SetDesc(float shotDelay,
                  std::span<const std::uint32_t> projectileTypes);
+    void SetDesc(float shotDelay,
+                 std::span<const ProjectileDesc> projectiles);
     const ShotEffect& GetShotEffect() const noexcept;
 
 private:
@@ -346,10 +358,12 @@ public:
     void SetCurCharge(std::uint32_t value) noexcept;
     std::uint32_t GetChargeStep() const noexcept;
     void SetChargeStep(std::uint32_t value) noexcept;
-    float GetDamage() const noexcept;
+    float GetDamage(bool statisticsDamage = false) const noexcept;
     void SetDamage(float value) noexcept;
     int GetChargeCost() const noexcept;
     void SetChargeCost(int value) noexcept;
+    const Weapon::Desc& GetWpnDesc() const noexcept;
+    void SetWpnDesc(const Weapon::Desc& value);
     Weapon* GetWeapon() const noexcept;
     Weapon::Desc GetDesc() const;
 
@@ -362,6 +376,7 @@ private:
     std::uint32_t chargeStep_ = 1U;
     float damage_ = 0.0F;
     int chargeCost_ = 0;
+    Weapon::Desc weaponDesc_;
 };
 
 class HyperItem final : public WeaponItem

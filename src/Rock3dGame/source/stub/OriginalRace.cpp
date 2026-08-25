@@ -2973,6 +2973,8 @@ void loadWeapons(const resource::ResourceFileSystem& resources,
             optionalUnsigned(item, "cntCharge", 1U);
         weapon.chargeStep =
             optionalUnsigned(item, "chargeStep", 1U);
+        weapon.chargeCost = static_cast<int>(
+            optionalUnsigned(item, "chargeCost", 0U));
         weapon.shotDelay =
             optionalScalar(item, "shotDelay", 0.1F);
         weapon.repairPeriod =
@@ -6066,6 +6068,9 @@ bool runOriginalRaceResourceSmokeTest(
         const auto* mortar = weaponNamed("mortira");
         const bool bulletShotMatchesSource =
             bulletGun != nullptr &&
+            bulletGun->chargeCost == 2750 &&
+            !bulletGun->projectiles.empty() &&
+            near(bulletGun->projectiles.front().damage, 6.0F) &&
             recordEndsWith(
                 bulletGun->shotEffect.visual.record, "shotEff1") &&
             bulletGun->shotEffect.soundPaths.size() == 1U &&
@@ -6103,6 +6108,11 @@ bool runOriginalRaceResourceSmokeTest(
                 -0.3F);
         const bool anonymousIncludeMatchesSource =
             rifleWeapon != nullptr &&
+            rifleWeapon->chargeCost == 9000 &&
+            rifleWeapon->projectiles.size() >= 2U &&
+            near(rifleWeapon->projectiles[0].damage +
+                     rifleWeapon->projectiles[1].damage,
+                 12.0F) &&
             !rifleWeapon->projectiles.empty() &&
             std::any_of(
                 rifleWeapon->projectiles.front()

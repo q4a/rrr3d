@@ -1401,6 +1401,30 @@ Mine, ShotAll, network-shot, selected-weapon и regression paths. Публичн
 обратно. Regression отдельно доказывает эту границу и повторяет исходные
 `Get/SetCurCharge` semantics у подключённого и отключённого автомобиля.
 
+### P2.42 — WeaponItem `_wpnDesc` и projectile-derived stats — выполнено
+
+Следующее прямое сравнение выявило ещё один упрощённый owner: portable
+`Weapon::Desc` сохранял только типы снарядов и delay, а `WeaponItem::GetDamage`
+возвращал отдельное serialized `damage`. В оригинальном `Player.cpp`
+`WeaponItem` владеет полным `_wpnDesc`, применяет его к дочернему `Weapon` в
+`OnCreateCar`, а `GetDamage` суммирует `damage` каждого `Proj::Desc`; поле
+`_damage` прямо помечено исходником как invalid.
+
+Portable descriptor теперь содержит source-relevant `type`, `speed`,
+`maxDist` и `damage` каждого непосредственного projectile. Восстановлены
+`GetWpnDesc/SetWpnDesc`, detached fallback `GetDesc`, применение descriptor
+при car lifecycle и точная сумма projectile damage (параметр `statDmg` в
+исходнике также ничего не меняет — соответствующая ветка закомментирована).
+Death-effect projectiles не попадают в item descriptor, поскольку Windows
+создаёт их из поведения модели, а не из workshop `projList`.
+
+Одновременно восстановлена загрузка `chargeCost` из `workshop.xml`. AI
+primary/Hyper/Mine context теперь получает type/range/speed/oil и readiness
+из установленного `WeaponItem/Weapon`, а не из параллельного
+`WeaponDefinition`. Resource и integrated regressions проверяют реальные
+`bulletGun` (`6`, `2750`) и `rifleWeapon` (`6+6`, `9000`), descriptor apply и
+detached/attached поведение.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

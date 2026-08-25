@@ -602,6 +602,7 @@ struct WeaponDefinition
     std::uint32_t maximumCharge = 0;
     std::uint32_t reloadCharge = 0;
     std::uint32_t chargeStep = 1;
+    int chargeCost = 0;
     float shotDelay = 0.1F;
     float repairPeriod = 0.0F;
     float repairValue = 0.0F;
