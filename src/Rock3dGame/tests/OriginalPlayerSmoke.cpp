@@ -48,6 +48,9 @@ int main()
         player.weaponCharges[3] != 2U ||
         player.hyperCharge != 2U || player.mines != 4U)
         return 5;
+    player.OnLapPass(maximumCharges.size());
+    if (player.car.numLaps != 1U || player.weaponCharges[0] != 6U)
+        return 27;
 
     player.life = 50.0F;
     player.TakeMedpack(7.5F);

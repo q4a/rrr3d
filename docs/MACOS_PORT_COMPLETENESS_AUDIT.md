@@ -1188,6 +1188,22 @@ Network, video и Steam явно выключены.
   исходная NULL-data ветвь `cRaceFinish` для LapPass не заменяется придуманным
   player finish event.
 
+### Source Race lifecycle owner
+
+- `Player::OnLapPass`, `Race::OnLapPass` и обе формы `Race::CompleteRace`
+  перенесены в active source owners. Новый `RaceLifecycle` владеет списком
+  результатов, planet rewards, picked money и сортировкой оставшихся машин;
+  session применяет решения к Jolt/renderer/network adapters.
+- Удалена synthetic рассылка `cRacePassLap` компьютерным игрокам. Она
+  расходилась с `Player::IsHuman()` и могла ошибочно двигать achievement/HUD
+  state. События 1/2/3/last и их исходный if/else-if порядок проверяются
+  отдельным regression.
+- Восстановлена редко видимая Windows-ветвь гонки без Human: последний AI
+  отправляет `cRaceFinish`. Finish UI и network serialization теперь читают
+  захваченный `Race::Result`, а не уже сброшенный `Player::pickMoney`.
+- Проверка: 13/13 non-network CTest, original resource verifier и полный
+  map1 Jolt physics smoke.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

@@ -196,6 +196,7 @@ public:
 
     void Reset(float newMaximumLife, std::uint32_t initialPlace,
                Trace* trace = nullptr) noexcept;
+    void OnLapPass(std::size_t weaponDefinitionCount) noexcept;
     void ReloadWeapons(std::size_t weaponDefinitionCount) noexcept;
     void SyncSelectedWeapon(std::size_t weaponDefinitionCount) noexcept;
 

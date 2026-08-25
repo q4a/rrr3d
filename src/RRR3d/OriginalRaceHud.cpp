@@ -1497,16 +1497,22 @@ void OriginalRaceHud::update(
             }
             output.racer = order[row];
             const auto& runtime = session.racers()[output.racer];
+            const auto* sourceResult =
+                session.resultForRacer(output.racer);
             const auto place =
                 std::min<std::size_t>(
                     runtime.place > 0 ? runtime.place - 1U : row,
                     race.rewardMoney.size() - 1U);
             const auto rewardMoney =
-                runtime.rewardMoney > 0
+                sourceResult != nullptr
+                    ? sourceResult->money
+                    : runtime.rewardMoney > 0
                     ? runtime.rewardMoney
                     : race.rewardMoney[place];
             const auto rewardPoints =
-                runtime.rewardPoints > 0
+                sourceResult != nullptr
+                    ? sourceResult->points
+                    : runtime.rewardPoints > 0
                     ? runtime.rewardPoints
                     : race.rewardPoints[place];
             const auto& name =
@@ -1516,8 +1522,11 @@ void OriginalRaceHud::update(
             setText(device, output.name, name, 30.0F, true,
                     {233, 167, 63, 255});
             std::string value = std::to_string(rewardMoney);
-            if (runtime.pickedMoney > 0)
-                value += " + " + std::to_string(runtime.pickedMoney);
+            const auto pickedMoney =
+                sourceResult != nullptr ? sourceResult->pickedMoney
+                                        : runtime.pickedMoney;
+            if (pickedMoney > 0)
+                value += " + " + std::to_string(pickedMoney);
             value += "\n" + std::to_string(rewardPoints);
             setText(device, output.value, std::move(value), 30.0F,
                     true, {132, 188, 67, 255});

@@ -7024,13 +7024,23 @@ int main(int argc, char** argv)
             if (racer.disconnected)
                 continue;
             r3d::game::originalnetwork::NetworkRaceResult result;
+            const auto* sourceResult =
+                raceSession.resultForRacer(index);
             result.playerModelId = networkRaceModelOrder[index];
             result.playerPoints = toSourceInt(racer.points);
             result.playerMoney = toSourceInt(racer.money);
-            result.money = toSourceInt(racer.rewardMoney);
-            result.pickedMoney = toSourceInt(racer.pickedMoney);
-            result.place = racer.place;
-            result.points = toSourceInt(racer.rewardPoints);
+            result.money = toSourceInt(
+                sourceResult != nullptr ? sourceResult->money
+                                        : racer.rewardMoney);
+            result.pickedMoney = toSourceInt(
+                sourceResult != nullptr ? sourceResult->pickedMoney
+                                        : racer.pickedMoney);
+            result.place = sourceResult != nullptr
+                               ? sourceResult->place
+                               : racer.place;
+            result.points = toSourceInt(
+                sourceResult != nullptr ? sourceResult->points
+                                        : racer.rewardPoints);
             results.push_back(result);
         }
         return results;
@@ -10106,6 +10116,8 @@ int main(int argc, char** argv)
             for (const auto racer : order)
             {
                 const auto& result = raceSession.racers()[racer];
+                const auto* sourceResult =
+                    raceSession.resultForRacer(racer);
                 const auto& definition = originalRace->racers[racer];
                 finishRows.emplace_back();
                 auto& row = finishRows.back();
@@ -10116,11 +10128,16 @@ int main(int argc, char** argv)
                     menu::Rgba8{233U, 167U, 63U, 255U},
                     resolvedFont);
                 std::string rewardMoney =
-                    std::to_string(result.rewardMoney);
-                if (result.pickedMoney > 0U)
+                    std::to_string(
+                        sourceResult != nullptr ? sourceResult->money
+                                                : result.rewardMoney);
+                const auto pickedMoney =
+                    sourceResult != nullptr ? sourceResult->pickedMoney
+                                            : result.pickedMoney;
+                if (pickedMoney > 0U)
                 {
                     rewardMoney +=
-                        " + " + std::to_string(result.pickedMoney);
+                        " + " + std::to_string(pickedMoney);
                 }
                 row.rewardMoney = createText(
                     *device, rewardMoney,
@@ -10128,7 +10145,10 @@ int main(int argc, char** argv)
                     menu::Rgba8{132U, 188U, 67U, 255U},
                     resolvedFont);
                 row.rewardPoints = createText(
-                    *device, std::to_string(result.rewardPoints),
+                    *device,
+                    std::to_string(
+                        sourceResult != nullptr ? sourceResult->points
+                                                : result.rewardPoints),
                     menu::headerFontHeight, false,
                     menu::Rgba8{132U, 188U, 67U, 255U},
                     resolvedFont);

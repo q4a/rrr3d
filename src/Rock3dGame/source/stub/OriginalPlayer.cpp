@@ -323,6 +323,12 @@ void Player::Reset(float newMaximumLife,
     car.Reset(trace);
 }
 
+void Player::OnLapPass(std::size_t weaponDefinitionCount) noexcept
+{
+    ++car.numLaps;
+    ReloadWeapons(weaponDefinitionCount);
+}
+
 void Player::ReloadWeapons(
     std::size_t weaponDefinitionCount) noexcept
 {

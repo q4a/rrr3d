@@ -56,6 +56,7 @@ else()
             source/stub/OriginalAICar.cpp
             source/stub/OriginalHumanPlayer.cpp
             source/stub/OriginalPlayer.cpp
+            source/stub/OriginalRaceLifecycle.cpp
             source/stub/OriginalSlot.cpp
             source/stub/OriginalTrace.cpp
             source/stub/OriginalTournament.cpp
@@ -69,6 +70,7 @@ else()
             include/OriginalAICar.h
             include/OriginalHumanPlayer.h
             include/OriginalPlayer.h
+            include/OriginalRaceLifecycle.h
             include/OriginalSlot.h
             include/OriginalTrace.h
             include/OriginalTournament.h
@@ -115,6 +117,19 @@ if(NOT WIN32 AND RRR3D_BUILD_ORIGINAL_MENU)
     add_test(
         NAME rrr3d_original_achievment_smoke
         COMMAND rrr3d_original_achievment_smoke
+    )
+
+    add_executable(rrr3d_original_race_lifecycle_smoke
+        tests/OriginalRaceLifecycleSmoke.cpp
+    )
+    target_link_libraries(rrr3d_original_race_lifecycle_smoke PRIVATE
+        ${PROJECT_NAME}
+    )
+    rrr3d_set_common_target_options(
+        rrr3d_original_race_lifecycle_smoke)
+    add_test(
+        NAME rrr3d_original_race_lifecycle_smoke
+        COMMAND rrr3d_original_race_lifecycle_smoke
     )
 
     add_executable(rrr3d_original_user_chat_smoke

@@ -8,6 +8,7 @@
 #include "OriginalPlayer.h"
 #include "OriginalProfile.h"
 #include "OriginalRace.h"
+#include "OriginalRaceLifecycle.h"
 #include "OriginalTrace.h"
 #include "OriginalWeapon.h"
 
@@ -413,6 +414,9 @@ public:
     const std::vector<r3d::physics::VehicleInput>& vehicleInputs() const
         noexcept;
     const std::vector<RacerRuntime>& racers() const noexcept;
+    const std::vector<source::RaceResult>& results() const noexcept;
+    const source::RaceResult* resultForRacer(
+        std::size_t racer) const noexcept;
     const source::PlayerItemRack* playerItems(
         std::size_t racer) const noexcept;
     Vec3 mapPosition(std::size_t racer) const noexcept;
@@ -503,10 +507,8 @@ private:
     void updateAchievements(float seconds);
     void completeRemainingRacers(
         const std::vector<r3d::physics::VehicleState>& vehicles);
-    void completeRacer(
-        std::size_t racer, std::uint32_t place,
-        std::uint32_t rewardMoney, std::uint32_t rewardPoints,
-        float finishTime) noexcept;
+    void completeRacer(const source::RaceResult& result,
+                       float finishTime) noexcept;
     void applyCampaignRewards() noexcept;
 
     const Race& race_;
@@ -570,6 +572,7 @@ private:
     std::map<std::string, std::uint32_t>
         initialAchievementIterations_;
     source::AchievmentModel achievementModel_;
+    source::RaceLifecycle raceLifecycle_;
     bool campaign_ = true;
     bool campaignRewardsApplied_ = false;
     bool enableMineBug_ = true;

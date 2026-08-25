@@ -1671,3 +1671,23 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - Отдельный unit smoke покрывает классы 1–9, timeout, persistence,
   difficulty scoring и NULL finish event; 12 non-network CTest, resource,
   map1 physics и 240-frame Metal/Jolt smoke проходят.
+
+### Source Race::OnLapPass/CompleteRace owner block
+
+- `Player::OnLapPass` снова сам увеличивает `CarState::numLaps` и полностью
+  перезаряжает source slots перед делегированием в Race. Session больше не
+  повторяет эти две операции вручную.
+- Добавлен active `source::RaceLifecycle`, владеющий эквивалентом
+  `Race::_results`, назначением мест/planet reward, `voiceNameDur=1.5`,
+  сортировкой незавершивших машин и исходным порядком событий
+  Lead/Second/Third/Last, RaceFinish, PassLap, LastLap.
+- Исправлено подтверждённое отклонение: `cRacePassLap` теперь создаётся только
+  для локального Human, а не для каждого AI. AI-only гонка завершает race,
+  когда финишировал весь её фактический состав, как ветвь
+  `GetPlayerById(cHuman) == NULL` в Windows.
+- `pickMoney` захватывается в `RaceResult`, после чего сбрасывается у Player.
+  Finish HUD, FinishMenu, network results и campaign settlement читают
+  source-owned result, поэтому сумма не теряется и не начисляется дважды.
+- Новый unit smoke проверяет event order, отсутствующие события средних мест,
+  AI-only completion и принудительную сортировку Human/Opponent после AI.
+  13 non-network CTest, resource verifier и полный map1 physics smoke проходят.
