@@ -144,6 +144,10 @@ private:
     void buildMiniMap(
         r3d::renderer::GraphicsDevice& device,
         const r3d::game::originalrace::Race& race);
+    std::string racerName(
+        const r3d::game::originalrace::Race& race,
+        const r3d::game::originalrace::OriginalRaceSession& session,
+        std::size_t racer) const;
 
     ImageAsset placeFrame_;
     ImageAsset lifeBack_;

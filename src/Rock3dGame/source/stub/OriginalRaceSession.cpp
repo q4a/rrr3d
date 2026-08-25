@@ -1611,6 +1611,17 @@ bool OriginalRaceSession::disconnectNetworkRacer(
     return true;
 }
 
+bool OriginalRaceSession::synchronizePlayerPresentation(
+    std::size_t racer, int gamerId,
+    const std::array<float, 4>& color) noexcept
+{
+    if (racer >= racers_.size())
+        return false;
+    racers_[racer].SetGamerId(gamerId);
+    racers_[racer].SetColor(color);
+    return true;
+}
+
 void OriginalRaceSession::pushDamageEvent(
     std::size_t target, std::size_t attacker, const Vec3& position,
     float damage, DamageType damageType, bool networkReplicated)
@@ -6560,6 +6571,20 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
         }
 
         OriginalRaceSession networkCountdownSession(race);
+        const std::array<float, 4> synchronizedColor{
+            0.15F, 0.35F, 0.55F, 1.0F};
+        if (!networkCountdownSession.synchronizePlayerPresentation(
+                0U, 23, synchronizedColor) ||
+            networkCountdownSession.racers()[0].GetGamerId() != 23 ||
+            networkCountdownSession.racers()[0].GetColor() !=
+                synchronizedColor ||
+            networkCountdownSession.synchronizePlayerPresentation(
+                networkCountdownSession.racers().size(), 24,
+                synchronizedColor))
+        {
+            throw std::runtime_error(
+                "NetPlayer runtime gamer/color owner mismatch");
+        }
         networkCountdownSession.synchronizeNetworkCountdown(0);
         for (int frame = 0; frame < 300; ++frame)
         {

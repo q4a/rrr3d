@@ -15533,10 +15533,13 @@ int main(int argc, char** argv)
                                    networkRaceModelOrder[index];
                         });
                     if (player == networkSnapshot.models.players.end() ||
-                        player->owner)
+                        !raceSession.synchronizePlayerPresentation(
+                            index, player->gamerId, player->color))
                     {
                         continue;
                     }
+                    if (player->owner)
+                        continue;
                     auto& appliedRevision =
                         networkAppliedVehicleRevisions[player->modelId];
                     if (player->vehicle.receivedRevision == 0U ||

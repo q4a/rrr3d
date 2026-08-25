@@ -389,6 +389,11 @@ public:
     void setNetworkGameplayRole(bool enabled, bool host,
                                 std::vector<bool> ownedRacers);
     bool disconnectNetworkRacer(std::size_t racer) noexcept;
+    // NetPlayer::OnSetGamerId/OnSetColor mutate the active Player, not the
+    // immutable descriptor used to construct its backend actors.
+    bool synchronizePlayerPresentation(
+        std::size_t racer, int gamerId,
+        const std::array<float, 4>& color) noexcept;
     NetworkDamageResult applyNetworkPlayerDamage(
         std::size_t target, std::size_t attacker, Vec3 position,
         float value, DamageType damageType,

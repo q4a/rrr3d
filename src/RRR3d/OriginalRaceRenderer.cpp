@@ -4934,10 +4934,14 @@ void OriginalRaceRenderer::draw(
                 ? race.racers[racer].configuredVehicle
                 : race.vehicles[vehicleIndex];
         const auto& state = vehicles[racer];
+        const auto& sourceColor =
+            racer < racerRuntime.size()
+                ? racerRuntime[racer].GetColor()
+                : race.racers[racer].color;
         if (!drawObject(
                 vehicleBodies_[racer], definition.bodyVisuals, state.body,
                 r3d::game::originalrace::GraphOrder::Default,
-                false, 1.0F, &race.racers[racer].color))
+                false, 1.0F, &sourceColor))
         {
             continue;
         }
@@ -4962,7 +4966,7 @@ void OriginalRaceRenderer::draw(
                     lightingForQuality(animatedAsset.lighting,
                                        activeLightQuality_),
                     DrawLayer::All, &node,
-                    1.0F, &race.racers[racer].color,
+                    1.0F, &sourceColor,
                     sourceTextureOffset);
             }
         }
@@ -5003,7 +5007,7 @@ void OriginalRaceRenderer::draw(
                     lightingForQuality(animatedAsset.lighting,
                                        activeLightQuality_),
                     DrawLayer::All, &node, 1.0F,
-                    &race.racers[racer].color);
+                    &sourceColor);
             }
         }
         if (racer < racerRuntime.size())

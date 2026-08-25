@@ -1895,3 +1895,16 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   нетронутыми по исходному коду.
 - Integrated smoke проверяет mute и restore вместе с уже существующей
   проверкой неподвижного автомобиля и замороженного race time.
+
+### Source Player runtime presentation follow-up
+
+- Подтверждён и удалён parallel presentation state: кузов машины,
+  track/cushion visuals, mini-map, kill notification, opponent label и
+  FinishMenu больше не читают устаревшие name/color из `Race::Racer`, если
+  существует active `Player`.
+- `NetPlayer::OnSetGamerId/OnSetColor` теперь отображаются в runtime session
+  перед применением remote vehicle snapshot. Это возвращает исходную
+  семантику `Player::GetName/GetColor` и одинаковое отображение владельца и
+  удалённых участников.
+- Resource descriptor сохранён как fallback и владелец статических assets;
+  unit/session regression проверяет gamer id, цвет и неверный slot.

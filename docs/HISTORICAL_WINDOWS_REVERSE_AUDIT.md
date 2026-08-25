@@ -1066,6 +1066,23 @@ volume при resume. Music и Voice не приглушаются, точно �
 Session и integrated renderer smoke проверяют frozen countdown/world,
 effects mute и восстановление громкости.
 
+### P2.24 — Player runtime presentation owner — выполнено
+
+Подтвердилось, что после переноса `Player::SetColor`, `SetGamerId` и
+сетевого имени часть portable consumers продолжала читать исходный
+`Race::Racer` descriptor. Из-за этого изменение цвета через
+`NetPlayer::OnSetColor` не доходило до кузова, гусениц, подушек и точки
+мини-карты, а kill/opponent/finish HUD мог показывать tournament token вместо
+активного network name.
+
+Renderer и HUD теперь, как Windows-код, читают presentation state из active
+`Player`. Network snapshot сначала применяет gamer id и цвет ко всем
+соответствующим Player, включая локального владельца, и только затем
+синхронизирует физику remote машин. Неизменяемый descriptor остаётся только
+fallback для отсутствующего runtime slot и владельцем выбранных при загрузке
+ресурсных assets. Session regression проверяет перенос gamer id/цвета и
+границу индекса; 13 non-network CTest и integrated Metal/Jolt smoke проходят.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

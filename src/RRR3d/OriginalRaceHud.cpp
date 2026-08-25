@@ -555,6 +555,31 @@ void OriginalRaceHud::setText(GraphicsDevice& device, TextAsset& output,
     output.height = static_cast<float>(bitmap.height);
 }
 
+std::string OriginalRaceHud::racerName(
+    const originalrace::Race& race,
+    const originalrace::OriginalRaceSession& session,
+    std::size_t racer) const
+{
+    if (racer < session.racers().size())
+    {
+        const auto& player = session.racers()[racer];
+        // Player::GetName gives NetPlayer::_netName priority. A service name
+        // is already display text and must not be replaced by the localized
+        // tournament token cached when HUD resources were initialized.
+        if (!player.GetNetName().empty())
+            return player.GetNetName();
+        if (racer < race.racers.size() &&
+            player.GetName() != race.racers[racer].name)
+            return player.GetName();
+    }
+    if (racer < localizedRacerNames_.size())
+        return localizedRacerNames_[racer];
+    if (racer < session.racers().size())
+        return session.racers()[racer].GetName();
+    return racer < race.racers.size() ? race.racers[racer].name
+                                      : std::string{};
+}
+
 void OriginalRaceHud::buildMiniMap(GraphicsDevice& device,
                                    const originalrace::Race& race)
 {
@@ -1092,10 +1117,7 @@ void OriginalRaceHud::update(
             notification.x = playerKill_.width * 0.5F;
             notification.y = 255.0F;
             notification.targetX = notification.x + 30.0F;
-            const auto& name =
-                event.target < localizedRacerNames_.size()
-                    ? localizedRacerNames_[event.target]
-                    : race.racers[event.target].name;
+            const auto name = racerName(race, session, event.target);
             setText(device, notification.label, name, 24.0F, false,
                     {214, 214, 214, 255});
             notifications_.insert(notifications_.begin(),
@@ -1282,7 +1304,9 @@ void OriginalRaceHud::update(
             {mapOriginX_ + (position.x - mapMinimumX_) * mapScale_,
              mapOriginY_ + (mapMaximumY_ - position.y) * mapScale_,
              0.0F,
-             race.racers[index].color});
+             index < session.racers().size()
+                 ? session.racers()[index].GetColor()
+                 : race.racers[index].color});
     }
 
     std::vector<std::size_t> opponentRacers;
@@ -1401,10 +1425,7 @@ void OriginalRaceHud::update(
     {
         auto& label = opponentLabels_[index];
         const std::size_t racerIndex = opponentRacers[index];
-        const auto& name =
-            racerIndex < localizedRacerNames_.size()
-                ? localizedRacerNames_[racerIndex]
-                : race.racers[racerIndex].name;
+        const auto name = racerName(race, session, racerIndex);
         const auto& runtime = session.racers()[racerIndex];
         setText(device, label.name,
                 formatNamePlace(namePlaceFormat_, runtime.place, name),
@@ -1523,10 +1544,7 @@ void OriginalRaceHud::update(
                     : runtime.rewardPoints > 0
                     ? runtime.rewardPoints
                     : race.rewardPoints[place];
-            const auto& name =
-                output.racer < localizedRacerNames_.size()
-                    ? localizedRacerNames_[output.racer]
-                    : race.racers[output.racer].name;
+            const auto name = racerName(race, session, output.racer);
             setText(device, output.name, name, 30.0F, true,
                     {233, 167, 63, 255});
             std::string value = std::to_string(rewardMoney);
