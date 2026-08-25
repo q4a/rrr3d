@@ -6501,7 +6501,7 @@ int main(int argc, char** argv)
             std::cerr << "Unable to save original GameMode config: "
                       << configError << '\n';
     };
-    auto saveRaceProfile = [&]() {
+    auto applyRaceProfileState = [&]() {
         if (!raceSession.racers().empty())
         {
             raceSession.writePlayerProfile(profileState.player);
@@ -6531,7 +6531,13 @@ int main(int argc, char** argv)
                 selectedTrack = advance.trackIndex;
                 racePlanetChampion = advance.planetChampion;
                 if (advance.passComplete)
+                {
+                    // Race::CompleteRace resets points on the complete
+                    // active PlayerList after Tournament::CompleteTrack.
+                    // This must precede NetRace::ExitRace serialization.
+                    raceSession.resetTournamentPassPoints();
                     weatherNightPassed = false;
+                }
                 raceProgressSaved = true;
                 std::cout
                     << "Original Tournament::CompleteTrack: track "
@@ -6542,6 +6548,9 @@ int main(int argc, char** argv)
                     << '\n';
             }
         }
+    };
+    auto saveRaceProfile = [&]() {
+        applyRaceProfileState();
         const auto persistedState = makePersistedProfileState();
         std::string profileError;
         if (!profileStore.save(persistedState, profileError))
@@ -6947,13 +6956,10 @@ int main(int argc, char** argv)
             const auto planet =
                 originalRace->trackCatalog[selectedTrack].planetIndex;
             match.planet = static_cast<std::int32_t>(planet);
-            match.track = static_cast<std::int32_t>(std::count_if(
-                originalRace->trackCatalog.begin(),
-                originalRace->trackCatalog.begin() +
-                    static_cast<std::ptrdiff_t>(selectedTrack),
-                [planet](const auto& entry) {
-                    return entry.planetIndex == planet;
-                }));
+            match.track = static_cast<std::int32_t>(
+                r3d::game::originalrace::
+                    originalTournamentTrackIndexInPlanet(
+                        *originalRace, selectedTrack));
         }
         match.weather = static_cast<std::int32_t>(
             originalRace->environment.weather);
@@ -7359,8 +7365,12 @@ int main(int argc, char** argv)
         {
             std::string error;
             if (!networkSession.exitRace(
-                    networkSnapshot.models.match.track,
-                    networkSnapshot.models.match.weather,
+                    static_cast<std::int32_t>(
+                        r3d::game::originalrace::
+                            originalTournamentTrackIndexInPlanet(
+                                *originalRace, selectedTrack)),
+                    static_cast<std::int32_t>(
+                        originalRace->environment.weather),
                     collectNetworkRaceResults(), error))
             {
                 std::cerr << "Original NetRace::ExitRace failed: "
@@ -10402,6 +10412,14 @@ int main(int argc, char** argv)
         finishLastVoiceDispatched = false;
         if (persistProgress)
             saveRaceProfile();
+        else if (!options->finishMenuSmokeTest)
+        {
+            // NetRace::OnExitRace calls GameMode::ExitRace(false, results):
+            // the received championship profile advances in memory and all
+            // active Player points reset at a pass boundary, but the client
+            // deliberately does not save that transient host-owned state.
+            applyRaceProfileState();
+        }
 #ifdef RRR3D_AUDIO
         // GameMode::ExitRace always stops the race commentator/audio before
         // Menu::ExitRaceGoFinish, on both the host and a receiving client.
@@ -17345,36 +17363,42 @@ int main(int argc, char** argv)
             maximumRaceSmokeContacts = std::max(
                 maximumRaceSmokeContacts,
                 physicsWorld->vehicle(humanRacer).contactCount);
-#ifdef RRR3D_NETWORK
-            if (networkMatchStarted && networkHostRequested &&
-                networkRaceStarted && !networkRaceExitApplied &&
-                raceSession.finishPresentationReady())
-            {
-                std::string error;
-                if (!networkSession.exitRace(
-                        networkSnapshot.models.match.track,
-                        networkSnapshot.models.match.weather,
-                        collectNetworkRaceResults(), error))
-                {
-                    std::cerr << "Original NetRace::ExitRace failed: "
-                              << error << '\n';
-                    runtimeSmokeFailed = true;
-                    running = false;
-                }
-                else
-                {
-                    networkRaceExitApplied = true;
-                    networkRaceStarted = false;
-                    refreshNetworkRuntimePages();
-                }
-            }
-#endif
             if (!raceSession.racers().empty() &&
                 raceSession.finishPresentationReady())
             {
 #ifdef RRR3D_NETWORK
                 showFinishMenu(
                     !networkMatchStarted || networkHostRequested);
+                // NetRace::ExitRace calls GameMode::ExitRace and
+                // ExitRaceGoFinish before serializing the RPC.  At this
+                // point Tournament::CompleteTrack has advanced selectedTrack
+                // and reset pass points, so publish those resulting values.
+                if (networkMatchStarted && networkHostRequested &&
+                    networkRaceStarted && !networkRaceExitApplied)
+                {
+                    std::string error;
+                    if (!networkSession.exitRace(
+                            static_cast<std::int32_t>(
+                                r3d::game::originalrace::
+                                    originalTournamentTrackIndexInPlanet(
+                                        *originalRace, selectedTrack)),
+                            static_cast<std::int32_t>(
+                                originalRace->environment.weather),
+                            collectNetworkRaceResults(), error))
+                    {
+                        std::cerr
+                            << "Original NetRace::ExitRace failed: "
+                            << error << '\n';
+                        runtimeSmokeFailed = true;
+                        running = false;
+                    }
+                    else
+                    {
+                        networkRaceExitApplied = true;
+                        networkRaceStarted = false;
+                        refreshNetworkRuntimePages();
+                    }
+                }
 #else
                 showFinishMenu(true);
 #endif

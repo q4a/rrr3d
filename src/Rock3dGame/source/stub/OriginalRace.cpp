@@ -4772,6 +4772,21 @@ std::size_t resolveOriginalTournamentTrack(
     return 0U;
 }
 
+std::uint32_t originalTournamentTrackIndexInPlanet(
+    const Race& race, std::size_t trackIndex) noexcept
+{
+    if (trackIndex >= race.trackCatalog.size())
+        return 0U;
+    const auto planet = race.trackCatalog[trackIndex].planetIndex;
+    return static_cast<std::uint32_t>(std::count_if(
+        race.trackCatalog.begin(),
+        race.trackCatalog.begin() +
+            static_cast<std::ptrdiff_t>(trackIndex),
+        [planet](const TrackCatalogEntry& entry) {
+            return entry.planetIndex == planet;
+        }));
+}
+
 void writeOriginalTournamentSelection(
     const Race& race, std::size_t trackIndex,
     PlayerProfile& profile) noexcept
@@ -5043,7 +5058,20 @@ bool runOriginalTournamentProgressSmokeTest(std::string& error)
         {"Data/Map/World1/map1.r3dMap", 4U, "wtWorld1", 0U, 1U},
         {"Data/Map/World2/map1.r3dMap", 4U, "wtWorld2", 1U, 1U},
         {"Data/Map/World3/map1.r3dMap", 4U, "wtWorld3", 2U, 1U},
+        {"Data/Map/World2/map2.r3dMap", 4U, "wtWorld2", 1U, 1U},
     };
+    if (originalTournamentTrackIndexInPlanet(
+            navigationRace, 0U) != 0U ||
+        originalTournamentTrackIndexInPlanet(
+            navigationRace, 1U) != 0U ||
+        originalTournamentTrackIndexInPlanet(
+            navigationRace, 3U) != 1U ||
+        originalTournamentTrackIndexInPlanet(
+            navigationRace, 99U) != 0U)
+    {
+        error = "source Tournament::GetCurTrackIndex mapping mismatch";
+        return false;
+    }
     auto navigationProfile = makeOriginalDefaultProfileState().player;
     navigationProfile.planets[1] = {2U, 0U};
     if (!changeOriginalTournamentPlanet(

@@ -440,6 +440,10 @@ public:
     // destructor has already removed that Player from the list.
     std::uint32_t humanOrOpponentCount() const noexcept;
     std::uint32_t totalHumanOrOpponentPoints() const noexcept;
+    // Race::CompleteRace clears every remaining Player's accumulated pass
+    // points whenever Tournament::CompleteTrack reaches the end of a pass,
+    // whether that pass succeeds or fails.
+    void resetTournamentPassPoints() noexcept;
     const std::vector<source::RaceResult>& results() const noexcept;
     const source::RaceResult* resultForRacer(
         std::size_t racer) const noexcept;

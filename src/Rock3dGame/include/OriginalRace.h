@@ -900,6 +900,10 @@ Race loadOriginalAngarScene(
     const resource::ResourceFileSystem& resources);
 std::size_t resolveOriginalTournamentTrack(
     const Race& race, const PlayerProfile& profile) noexcept;
+// Tournament::GetCurTrackIndex is planet-local even though the portable
+// catalog uses one global index across all planets.
+std::uint32_t originalTournamentTrackIndexInPlanet(
+    const Race& race, std::size_t trackIndex) noexcept;
 void writeOriginalTournamentSelection(
     const Race& race, std::size_t trackIndex,
     PlayerProfile& profile) noexcept;

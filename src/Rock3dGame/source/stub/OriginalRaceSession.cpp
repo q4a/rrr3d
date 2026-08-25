@@ -2226,6 +2226,17 @@ std::uint32_t OriginalRaceSession::totalHumanOrOpponentPoints() const noexcept
         total, std::numeric_limits<std::uint32_t>::max()));
 }
 
+void OriginalRaceSession::resetTournamentPassPoints() noexcept
+{
+    for (auto& racer : racers_)
+    {
+        // A disconnected portable tombstone represents a Player already
+        // removed by NetPlayer::~NetPlayer and is not in Race::_playerList.
+        if (!racer.disconnected)
+            racer.SetPoints(0U);
+    }
+}
+
 const std::vector<source::RaceResult>&
 OriginalRaceSession::results() const noexcept
 {
@@ -6608,6 +6619,16 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 throw std::runtime_error(
                     "disposed NetPlayer remained in source tournament "
                     "totals");
+            }
+            reorderedSession.resetTournamentPassPoints();
+            if (reorderedSession.humanOrOpponentCount() != 1U ||
+                reorderedSession.totalHumanOrOpponentPoints() != 0U ||
+                reorderedRacers[0].GetPoints() != 235U ||
+                reorderedRacers[1].GetPoints() != 0U)
+            {
+                throw std::runtime_error(
+                    "source pass completion did not clear active Player "
+                    "points exactly once");
             }
         }
 

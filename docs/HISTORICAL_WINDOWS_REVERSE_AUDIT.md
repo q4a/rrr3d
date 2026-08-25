@@ -1859,6 +1859,26 @@ portable storage ещё удерживается до смены сцены. Fin
 точный повышенный порог 300 очков, вклад удалённого Opponent и исключение
 отключившегося игрока.
 
+### P2.64 — порядок сетевого `NetRace::ExitRace` — выполнено
+
+Прямая сверка `NetRace::ExitRace`, `NetRace::OnExitRace` и
+`Race::CompleteRace` выявила, что portable host отправлял RPC до выполнения
+`GameMode::ExitRace`: в пакет попадали старый track и ещё не сброшенные очки
+завершённого прохода. Поле track дополнительно ошибочно бралось из прежнего
+network snapshot как глобальный catalog index, хотя Windows сериализует
+planet-local `Tournament::GetCurTrackIndex` уже после
+`Tournament::CompleteTrack`.
+
+Host теперь сначала завершает и ранжирует гонку, применяет награды и переход
+турнира, сбрасывает очки всех оставшихся в `Race::_playerList` игроков на
+границе прохода и только затем публикует новый planet-local track, текущую
+погоду и результаты. Disconnected tombstones не сбрасываются, поскольку
+исходный `NetPlayer` к этому моменту уже удалён из списка. Receiving client,
+как и Windows `OnExitRace`, выполняет тот же tournament transition в
+транзиентном network profile, но не сохраняет host-owned состояние в свой
+offline профиль. Regression фиксирует planet-local mapping, исключение
+удалённого игрока и точный сброс очков активных Human/Opponent.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
