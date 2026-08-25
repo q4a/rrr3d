@@ -82,6 +82,54 @@ int main()
         destructible.OnProgress(0.0F))
         return 15;
 
-    std::cout << "original GameObject/DestrObj source rules passed\n";
+    source::GameObject effectOwner;
+    effectOwner.ResetGameObject(100.0F);
+    source::LowLifePoints lowLife;
+    effectOwner.SetLife(34.0F);
+    const auto lowLifeStart = lowLife.OnProgress(effectOwner, 0.1F);
+    if (!lowLifeStart.activated || !lowLife.IsEffectMaked() ||
+        std::abs(lowLife.GetEffectSeconds() - 0.1F) > 0.0001F)
+        return 16;
+    if (lowLife.OnProgress(effectOwner, 0.1F).activated)
+        return 17;
+    effectOwner.Healt(100.0F);
+    if (!lowLife.OnProgress(effectOwner, 0.1F).released ||
+        lowLife.IsEffectMaked())
+        return 18;
+
+    source::DamageEffect energyDamage(original::DamageType::Energy);
+    if (energyDamage.OnDamage(original::DamageType::Simple) ||
+        !energyDamage.OnDamage(original::DamageType::Energy) ||
+        energyDamage.OnDamage(original::DamageType::Energy))
+        return 19;
+    energyDamage.OnProgress(0.5F);
+    if (!energyDamage.IsEffectMaked())
+        return 20;
+    energyDamage.OnProgress(0.001F);
+    if (energyDamage.IsEffectMaked())
+        return 21;
+
+    source::ImmortalEffect shieldEffect;
+    shieldEffect.OnImmortalStatus(true);
+    if (!shieldEffect.IsEffectMaked() ||
+        shieldEffect.GetFadeInTime() != 0.0F ||
+        shieldEffect.GetScale() != 0.0F)
+        return 22;
+    shieldEffect.OnProgress(0.1F);
+    shieldEffect.OnDamage();
+    if (std::abs(shieldEffect.GetScale() - 0.2F) > 0.0001F ||
+        std::abs(shieldEffect.GetDamageAlpha() - 3.5F) > 0.0001F)
+        return 23;
+    shieldEffect.OnImmortalStatus(false);
+    shieldEffect.OnProgress(0.25F);
+    if (std::abs(shieldEffect.GetScale() - 0.5F) > 0.0001F)
+        return 24;
+    shieldEffect.OnProgress(0.25F);
+    if (shieldEffect.IsEffectMaked() ||
+        shieldEffect.GetEffectSeconds() != 0.0F)
+        return 25;
+
+    std::cout << "original GameObject/DestrObj/effect behavior source "
+                 "rules passed\n";
     return 0;
 }

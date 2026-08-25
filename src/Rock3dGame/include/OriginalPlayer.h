@@ -63,6 +63,13 @@ public:
     static const std::array<float, 3> humanEasingMaximumDistance;
     static const std::array<float, 3> humanEasingMinimumSpeed;
     static const std::array<float, 3> humanEasingMaximumSpeed;
+
+    struct BehaviorProgressResult
+    {
+        GameObject::ProgressResult gameObject;
+        bool lowLifeActivated = false;
+        bool lowLifeReleased = false;
+    };
     static const std::array<float, 3> computerCheatMinimumTorque;
     static const std::array<float, 3> computerCheatMaximumTorque;
     static const std::array<float, 3> humanArmorScale;
@@ -148,6 +155,9 @@ public:
         PlayerBonusType type, float value,
         const std::vector<std::uint32_t>& maximumCharges,
         float randomUnit) noexcept;
+    BehaviorProgressResult ProgressBehaviors(
+        float deltaTime, float lowLifeLevel) noexcept;
+    bool OnDamageBehaviors(DamageType damageType) noexcept;
 
     void SetFinished(bool value, float time = -1.0F) noexcept;
     void Complete(std::uint32_t resultPlace,
@@ -199,15 +209,12 @@ public:
     float mineLockSeconds = 0.0F;
     float springLockSeconds = 0.0F;
     float restoreSeconds = 0.0F;
-    float lowLifeEffectSeconds = 0.0F;
-    float shieldEffectSeconds = 0.0F;
-    float shieldFadeInSeconds = -1.0F;
-    float shieldFadeOutSeconds = -1.0F;
-    float shieldDamageSeconds = -1.0F;
     float finishTime = -1.0F;
     bool finished = false;
     bool disconnected = false;
-    bool lowLife = false;
+    LowLifePoints lowLifePoints;
+    DamageEffect energyDamageEffect{DamageType::Energy, 0.5F};
+    ImmortalEffect immortalEffect;
     CarState car;
 };
 

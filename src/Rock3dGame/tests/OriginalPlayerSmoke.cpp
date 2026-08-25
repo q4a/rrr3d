@@ -60,7 +60,7 @@ int main()
     player.TakeImmortal(4.5F);
     if (player.pickedMoney != 19U ||
         std::abs(player.shieldSeconds - 4.5F) > 0.001F ||
-        player.shieldFadeInSeconds != 0.0F)
+        player.immortalEffect.GetFadeInTime() != 0.0F)
         return 8;
 
     player.Complete(1U, 100U, 20U, 10.0F);

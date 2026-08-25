@@ -377,15 +377,10 @@ PlayerBonusResult Player::TakeMedpack(float value) noexcept
 
 PlayerBonusResult Player::TakeImmortal(float value) noexcept
 {
-    if (!IsTimedImmortal())
-    {
-        shieldEffectSeconds = 0.0F;
-        shieldFadeInSeconds = 0.0F;
-        // ImmortalEffect::OnImmortalStatus(true) does not clear a running
-        // fade-out, but it does clear the damage flash timer.
-        shieldDamageSeconds = -1.0F;
-    }
+    const bool onStatus = !IsTimedImmortal();
     Immortal(std::max(value, 0.0F));
+    if (onStatus)
+        immortalEffect.OnImmortalStatus(true);
     return {PlayerBonusSlot::None, invalidWeapon,
             static_cast<std::uint32_t>(shieldSeconds)};
 }
@@ -465,6 +460,30 @@ PlayerBonusResult Player::TakeBonus(
     return {};
 }
 
+Player::BehaviorProgressResult Player::ProgressBehaviors(
+    float deltaTime, float lowLifeLevel) noexcept
+{
+    BehaviorProgressResult result;
+    result.gameObject = GameObject::OnProgress(deltaTime);
+    if (result.gameObject.immortalityEnded)
+        immortalEffect.OnImmortalStatus(false);
+    energyDamageEffect.OnProgress(deltaTime);
+    immortalEffect.OnProgress(deltaTime);
+    lowLifePoints.SetLifeLevel(lowLifeLevel);
+    const auto lowLife = lowLifePoints.OnProgress(*this, deltaTime);
+    result.lowLifeActivated = lowLife.activated;
+    result.lowLifeReleased = lowLife.released;
+    return result;
+}
+
+bool Player::OnDamageBehaviors(DamageType damageType) noexcept
+{
+    // GameObject dispatches listeners for every damage message, including a
+    // hit absorbed by immortality.
+    immortalEffect.OnDamage();
+    return energyDamageEffect.OnDamage(damageType);
+}
+
 void Player::SetFinished(bool value, float time) noexcept
 {
     finished = value;
@@ -509,13 +528,10 @@ void Player::Destroy() noexcept
 {
     SetLife(0.0F);
     Death();
-    lowLife = false;
-    lowLifeEffectSeconds = 0.0F;
+    lowLifePoints.Reset(lowLifePoints.GetLifeLevel());
+    energyDamageEffect.Reset();
+    immortalEffect.Reset();
     Immortal(0.0F);
-    shieldEffectSeconds = 0.0F;
-    shieldFadeInSeconds = -1.0F;
-    shieldFadeOutSeconds = -1.0F;
-    shieldDamageSeconds = -1.0F;
     touchAttacker = undefinedPlayerId;
     touchAttributionSeconds = 0.0F;
     restoreSeconds = restoreCarSeconds;
@@ -545,13 +561,11 @@ void Player::Disconnect() noexcept
     SetFinished(false);
     SetLife(0.0F);
     Death();
-    lowLife = false;
+    lowLifePoints.Reset(lowLifePoints.GetLifeLevel());
+    energyDamageEffect.Reset();
+    immortalEffect.Reset();
     restoreSeconds = 0.0F;
     Immortal(0.0F);
-    shieldEffectSeconds = 0.0F;
-    shieldFadeInSeconds = -1.0F;
-    shieldFadeOutSeconds = -1.0F;
-    shieldDamageSeconds = -1.0F;
     touchAttacker = undefinedPlayerId;
     touchAttributionSeconds = 0.0F;
 }

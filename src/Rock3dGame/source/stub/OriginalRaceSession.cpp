@@ -1522,51 +1522,6 @@ void OriginalRaceSession::pushDamageEvent(
     event.damageType = damageType;
     event.networkReplicated = networkReplicated;
     events_.push_back(std::move(event));
-    if (target >= racers_.size())
-        return;
-
-    auto& runtime = racers_[target];
-    // GameObject::Damage dispatches OnDamage even while immortal (the
-    // applied life delta is zero), and ImmortalEffect keeps listening until
-    // its fade-out object is freed.
-    if (runtime.shieldSeconds > 0.0F ||
-        runtime.shieldFadeInSeconds >= 0.0F ||
-        runtime.shieldFadeOutSeconds >= 0.0F)
-    {
-        runtime.shieldDamageSeconds = 0.0F;
-    }
-    if (damageType != DamageType::Energy ||
-        target >= race_.racers.size())
-        return;
-
-    // DataBase::LoadCar attaches one dtEnergy DamageEffect to each car.
-    // EventEffect::MakeEffect does not replace or restart the active
-    // 0.5-second damageEnergy<car> child.
-    const bool alreadyActive = std::any_of(
-        effects_.begin(), effects_.end(),
-        [&](const RaceEffect& effect) {
-            return effect.kind == RaceEventKind::VehicleEnergyDamage &&
-                   effect.racer == target;
-        });
-    if (alreadyActive)
-        return;
-    const auto& sourceRacer = race_.racers[target];
-    const auto& vehicleDefinition =
-        sourceRacer.hasConfiguredVehicle
-            ? sourceRacer.configuredVehicle
-            : race_.vehicles.at(sourceRacer.vehicle);
-    const auto& visual = vehicleDefinition.energyDamageEffect;
-    if (visual.visualNodes.empty() && visual.particleEmitters.empty())
-        return;
-    RaceEffect effect;
-    effect.kind = RaceEventKind::VehicleEnergyDamage;
-    effect.racer = target;
-    effect.origin = position;
-    const auto timing = sourceEffectTiming(visual, 0.5F);
-    effect.totalSeconds = timing.visibleSeconds;
-    effect.seconds = effect.totalSeconds;
-    effect.emissionEndSeconds = timing.emissionSeconds;
-    effects_.push_back(std::move(effect));
 }
 
 bool OriginalRaceSession::applyRacerDamageInternal(
@@ -1633,6 +1588,33 @@ bool OriginalRaceSession::applyRacerDamageInternal(
               damageType)
         : source::Logic::Damage(
               runtime, attacker, incoming, damageType);
+    // Listener dispatch belongs after GameObject::Damage. In particular, a
+    // non-authoritative Windows client waits for the host packet and must not
+    // start local shield/damage effects for its outbound request.
+    const bool makeEnergyEffect =
+        runtime.OnDamageBehaviors(damageType);
+    if (makeEnergyEffect && target < race_.racers.size())
+    {
+        const auto& sourceRacer = race_.racers[target];
+        const auto& vehicleDefinition =
+            sourceRacer.hasConfiguredVehicle
+                ? sourceRacer.configuredVehicle
+                : race_.vehicles.at(sourceRacer.vehicle);
+        const auto& visual = vehicleDefinition.energyDamageEffect;
+        if (!visual.visualNodes.empty() ||
+            !visual.particleEmitters.empty())
+        {
+            RaceEffect effect;
+            effect.kind = RaceEventKind::VehicleEnergyDamage;
+            effect.racer = target;
+            effect.origin = position;
+            const auto timing = sourceEffectTiming(visual, 0.5F);
+            effect.totalSeconds = timing.visibleSeconds;
+            effect.seconds = effect.totalSeconds;
+            effect.emissionEndSeconds = timing.emissionSeconds;
+            effects_.push_back(std::move(effect));
+        }
+    }
     if (!damageResult.death)
     {
         if (damageEvent < events_.size())
@@ -2921,37 +2903,13 @@ void OriginalRaceSession::updateGameplay(
     for (std::size_t racer = 0; racer < racers_.size(); ++racer)
     {
         auto& runtime = racers_[racer];
-        const bool shieldWasActive = runtime.IsTimedImmortal();
-        runtime.OnProgress(seconds);
-        if (runtime.shieldFadeInSeconds >= 0.0F)
-        {
-            runtime.shieldFadeInSeconds += seconds;
-            if (runtime.shieldFadeInSeconds >= 0.5F)
-                runtime.shieldFadeInSeconds = -1.0F;
-        }
-        if (runtime.shieldDamageSeconds >= 0.0F)
-        {
-            runtime.shieldDamageSeconds += seconds;
-            if (runtime.shieldDamageSeconds >= 0.25F)
-                runtime.shieldDamageSeconds = -1.0F;
-        }
-        if (shieldWasActive && runtime.shieldSeconds <= 0.0F)
-            runtime.shieldFadeOutSeconds = 0.0F;
-        if (runtime.shieldSeconds > 0.0F ||
-            runtime.shieldFadeOutSeconds >= 0.0F)
-        {
-            runtime.shieldEffectSeconds += seconds;
-        }
-        if (runtime.shieldFadeOutSeconds >= 0.0F)
-        {
-            runtime.shieldFadeOutSeconds += seconds;
-            if (runtime.shieldFadeOutSeconds >= 0.5F)
-            {
-                runtime.shieldEffectSeconds = 0.0F;
-                runtime.shieldFadeOutSeconds = -1.0F;
-                runtime.shieldDamageSeconds = -1.0F;
-            }
-        }
+        const auto& sourceRacer = race_.racers[racer];
+        const auto& vehicleDefinition =
+            sourceRacer.hasConfiguredVehicle
+                ? sourceRacer.configuredVehicle
+                : race_.vehicles.at(sourceRacer.vehicle);
+        const auto behaviorProgress = runtime.ProgressBehaviors(
+            seconds, vehicleDefinition.lowLifeLevel);
         runtime.speedBoostSeconds =
             std::max(0.0F, runtime.speedBoostSeconds - seconds);
         runtime.slowSeconds =
@@ -2973,44 +2931,21 @@ void OriginalRaceSession::updateGameplay(
                 runtime.springLockSeconds > 0.0F;
         }
         if (runtime.destroyed)
-        {
-            runtime.lowLife = false;
-            runtime.lowLifeEffectSeconds = 0.0F;
             continue;
-        }
         if (racer < playerItemRacks_.size())
         {
             playerItemRacks_[racer].OnProgress(
                 seconds, runtime.life, runtime.maximumLife,
                 runtime.destroyed);
         }
-        const auto& sourceRacer = race_.racers[racer];
-        const auto& vehicleDefinition =
-            sourceRacer.hasConfiguredVehicle
-                ? sourceRacer.configuredVehicle
-                : race_.vehicles.at(sourceRacer.vehicle);
-        const bool lowLife =
-            runtime.maximumLife > 0.0F && runtime.life > 0.0F &&
-            runtime.life / runtime.maximumLife <
-                vehicleDefinition.lowLifeLevel;
-        if (lowLife)
+        if (behaviorProgress.lowLifeActivated)
         {
-            runtime.lowLifeEffectSeconds += seconds;
-            if (!runtime.lowLife)
-            {
-                runtime.lowLife = true;
-                events_.push_back(
-                    {RaceEventKind::LowLife, racer, 0U,
-                     racer < vehicles.size()
-                         ? vehicles[racer].body.position
-                         : Vec3{},
-                     runtime.life / runtime.maximumLife});
-            }
-        }
-        else
-        {
-            runtime.lowLife = false;
-            runtime.lowLifeEffectSeconds = 0.0F;
+            events_.push_back(
+                {RaceEventKind::LowLife, racer, 0U,
+                 racer < vehicles.size()
+                     ? vehicles[racer].body.position
+                     : Vec3{},
+                 runtime.life / runtime.maximumLife});
         }
     }
 
@@ -7970,11 +7905,12 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     return event.kind == RaceEventKind::LowLife &&
                            event.racer == 0U;
                 });
-            if (!lowLifeSession.racers().front().lowLife ||
+            if (!lowLifeSession.racers().front()
+                     .lowLifePoints.IsEffectMaked() ||
                 lowLifeSession.racers().front().destroyed ||
                 lowLifeSession.racers().front().life <= 0.0F ||
-                lowLifeSession.racers().front().lowLifeEffectSeconds <=
-                    0.0F ||
+                lowLifeSession.racers().front()
+                        .lowLifePoints.GetEffectSeconds() <= 0.0F ||
                 !hasLowLifeEvent)
             {
                 throw std::runtime_error(
@@ -8035,9 +7971,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 1.0F / 60.0F, shieldVehicles, shieldInput);
             const auto& picked = shieldSession.racers().front();
             if (std::abs(picked.shieldSeconds - 10.0F) > 0.001F ||
-                picked.shieldEffectSeconds != 0.0F ||
-                picked.shieldFadeInSeconds != 0.0F ||
-                picked.shieldFadeOutSeconds >= 0.0F)
+                picked.immortalEffect.GetEffectSeconds() != 0.0F ||
+                picked.immortalEffect.GetFadeInTime() != 0.0F ||
+                picked.immortalEffect.GetFadeOutTime() >= 0.0F)
             {
                 throw std::runtime_error(
                     "source ImmortalEffect activation transition failed");
@@ -8064,10 +8000,12 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             const auto& damaged = shieldSession.racers().front();
             if (damaged.life != lifeBeforeShieldDamage ||
                 !hasImmortalDamage ||
-                damaged.shieldDamageSeconds != 0.0F ||
-                std::abs(damaged.shieldFadeInSeconds - 0.1F) >
+                damaged.immortalEffect.GetDamageTime() != 0.0F ||
+                std::abs(
+                    damaged.immortalEffect.GetFadeInTime() - 0.1F) >
                     0.001F ||
-                std::abs(damaged.shieldEffectSeconds - 0.1F) >
+                std::abs(
+                    damaged.immortalEffect.GetEffectSeconds() - 0.1F) >
                     0.001F)
             {
                 throw std::runtime_error(
@@ -8086,23 +8024,23 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             }
             const auto& fading = shieldSession.racers().front();
             if (fading.shieldSeconds != 0.0F ||
-                fading.shieldFadeOutSeconds < 0.0F ||
-                fading.shieldFadeOutSeconds >= 0.5F ||
-                fading.shieldEffectSeconds <= 0.0F)
+                fading.immortalEffect.GetFadeOutTime() < 0.0F ||
+                fading.immortalEffect.GetFadeOutTime() >= 0.5F ||
+                fading.immortalEffect.GetEffectSeconds() <= 0.0F)
             {
                 throw std::runtime_error(
                     "source ImmortalEffect fade-out did not start");
             }
             while (shieldSession.racers().front()
-                       .shieldFadeOutSeconds >= 0.0F &&
+                       .immortalEffect.GetFadeOutTime() >= 0.0F &&
                    expirySteps++ < 120U)
             {
                 shieldSession.update(
                     0.1F, shieldVehicles, shieldInput);
             }
             const auto& faded = shieldSession.racers().front();
-            if (faded.shieldFadeOutSeconds >= 0.0F ||
-                faded.shieldEffectSeconds != 0.0F)
+            if (faded.immortalEffect.GetFadeOutTime() >= 0.0F ||
+                faded.immortalEffect.GetEffectSeconds() != 0.0F)
             {
                 throw std::runtime_error(
                     "source ImmortalEffect fade-out did not free effect");
@@ -8162,7 +8100,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     }));
             if (!deathSession.racers().front().destroyed ||
                 deathSession.racers().front().life != 0.0F ||
-                deathSession.racers().front().lowLife ||
+                deathSession.racers().front()
+                    .lowLifePoints.IsEffectMaked() ||
                 !deathSession.takeRespawns().empty() ||
                 sourceVehicle.deathEffects.size() != 2U ||
                 sourceDeathEffectCount !=

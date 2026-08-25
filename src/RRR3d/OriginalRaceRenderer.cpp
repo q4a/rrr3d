@@ -5159,7 +5159,7 @@ void OriginalRaceRenderer::draw(
         }
         if (racer < racerRuntime.size() &&
             racer < vehicleLowLifeEffects_.size() &&
-            racerRuntime[racer].lowLife)
+            racerRuntime[racer].lowLifePoints.IsEffectMaked())
         {
             r3d::physics::Transform local;
             local.position = definition.lowLifeEffectPosition;
@@ -5167,7 +5167,7 @@ void OriginalRaceRenderer::draw(
                 vehicleLowLifeEffects_[racer],
                 definition.lowLifeEffect,
                 compose(state.body, local),
-                racerRuntime[racer].lowLifeEffectSeconds,
+                racerRuntime[racer].lowLifePoints.GetEffectSeconds(),
                 state.linearVelocity);
         }
     }
@@ -5518,46 +5518,29 @@ void OriginalRaceRenderer::draw(
             racer >= vehicleShieldScales_.size())
             continue;
         const auto& runtime = racerRuntime[racer];
-        if (runtime.shieldSeconds <= 0.0F &&
-            runtime.shieldFadeOutSeconds < 0.0F)
+        if (!runtime.immortalEffect.IsEffectMaked())
             continue;
         const auto& sourceRacer = race.racers[racer];
         const auto& definition =
             sourceRacer.hasConfiguredVehicle
                 ? sourceRacer.configuredVehicle
                 : race.vehicles.at(sourceRacer.vehicle);
-        float fade = 1.0F;
-        if (runtime.shieldFadeInSeconds >= 0.0F)
-        {
-            fade = std::clamp(
-                runtime.shieldFadeInSeconds / 0.5F, 0.0F, 1.0F);
-        }
-        else if (runtime.shieldFadeOutSeconds >= 0.0F)
-        {
-            fade = 1.0F -
-                   std::clamp(
-                       runtime.shieldFadeOutSeconds / 0.5F,
-                       0.0F, 1.0F);
-        }
+        const float fade = runtime.immortalEffect.GetScale();
         r3d::physics::Transform shield = vehicles[racer].body;
         shield.scale = {
             shield.scale.x * vehicleShieldScales_[racer].x * fade,
             shield.scale.y * vehicleShieldScales_[racer].y * fade,
             shield.scale.z * vehicleShieldScales_[racer].z * fade};
-        float damageAlpha = 1.0F;
-        if (runtime.shieldDamageSeconds >= 0.0F)
-        {
-            const float damageFrame = std::clamp(
-                runtime.shieldDamageSeconds / 0.25F, 0.0F, 1.0F);
-            damageAlpha = 1.0F + 2.5F * (1.0F - damageFrame);
-        }
+        const float damageAlpha =
+            runtime.immortalEffect.GetDamageAlpha();
         const std::array<float, 4> shieldTint{
             1.0F, 1.0F, 1.0F, damageAlpha};
         drawObject(
             vehicleShieldEffects_[racer],
             definition.shieldEffect.visualNodes, shield,
             definition.shieldEffect.graphOrder, false, 1.0F,
-            &shieldTint, runtime.shieldEffectSeconds);
+            &shieldTint,
+            runtime.immortalEffect.GetEffectSeconds());
     }
 
     if (race.environment.rain && !vehicles.empty() &&

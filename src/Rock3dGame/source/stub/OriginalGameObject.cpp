@@ -194,4 +194,235 @@ bool DestrObj::HasPendingDestruction() const noexcept
     return checkDestruction_;
 }
 
+LowLifePoints::LowLifePoints(float lifeLevel) noexcept
+{
+    Reset(lifeLevel);
+}
+
+void LowLifePoints::Reset(float lifeLevel) noexcept
+{
+    lifeLevel_ = lifeLevel;
+    effectSeconds_ = 0.0F;
+    effectMaked_ = false;
+}
+
+LowLifePoints::ProgressResult LowLifePoints::OnProgress(
+    const GameObject& gameObject, float deltaTime) noexcept
+{
+    ProgressResult result;
+    const float maximumLife = gameObject.GetMaxLife();
+    const float life = gameObject.GetLife();
+    const bool lowLife =
+        gameObject.GetLiveState() != GameObject::LiveState::Death &&
+        maximumLife > 0.0F && life > 0.0F &&
+        life / maximumLife < lifeLevel_;
+    if (lowLife)
+    {
+        if (!effectMaked_)
+        {
+            effectMaked_ = true;
+            result.activated = true;
+        }
+        effectSeconds_ += deltaTime;
+    }
+    else if (effectMaked_)
+    {
+        effectMaked_ = false;
+        effectSeconds_ = 0.0F;
+        result.released = true;
+    }
+    return result;
+}
+
+float LowLifePoints::GetLifeLevel() const noexcept
+{
+    return lifeLevel_;
+}
+
+void LowLifePoints::SetLifeLevel(float value) noexcept
+{
+    lifeLevel_ = value;
+}
+
+bool LowLifePoints::IsEffectMaked() const noexcept
+{
+    return effectMaked_;
+}
+
+float LowLifePoints::GetEffectSeconds() const noexcept
+{
+    return effectSeconds_;
+}
+
+DamageEffect::DamageEffect(
+    DamageType damageType, float maximumTimeLife) noexcept
+    : damageType_(damageType), maximumTimeLife_(maximumTimeLife)
+{
+}
+
+void DamageEffect::Reset() noexcept
+{
+    effectSeconds_ = 0.0F;
+    effectMaked_ = false;
+}
+
+bool DamageEffect::OnDamage(DamageType damageType) noexcept
+{
+    if (damageType_ != damageType)
+        return false;
+    const bool created = !effectMaked_;
+    if (created)
+    {
+        effectMaked_ = true;
+        effectSeconds_ = 0.0F;
+    }
+    return created;
+}
+
+void DamageEffect::OnProgress(float deltaTime) noexcept
+{
+    if (!effectMaked_)
+        return;
+    effectSeconds_ += deltaTime;
+    if (maximumTimeLife_ > 0.0F &&
+        effectSeconds_ > maximumTimeLife_)
+    {
+        effectSeconds_ = 0.0F;
+        effectMaked_ = false;
+    }
+}
+
+DamageType DamageEffect::GetDamageType() const noexcept
+{
+    return damageType_;
+}
+
+void DamageEffect::SetDamageType(DamageType value) noexcept
+{
+    damageType_ = value;
+}
+
+bool DamageEffect::IsEffectMaked() const noexcept
+{
+    return effectMaked_;
+}
+
+float DamageEffect::GetEffectSeconds() const noexcept
+{
+    return effectSeconds_;
+}
+
+void ImmortalEffect::Reset() noexcept
+{
+    fadeInTime_ = -1.0F;
+    fadeOutTime_ = -1.0F;
+    damageTime_ = -1.0F;
+    effectSeconds_ = 0.0F;
+    effectMaked_ = false;
+}
+
+void ImmortalEffect::OnImmortalStatus(bool status) noexcept
+{
+    if (status)
+    {
+        // EventEffect::MakeEffect keeps an existing fading actor. The source
+        // deliberately does not cancel fadeOutTime_ when a new shield starts.
+        effectMaked_ = true;
+        fadeInTime_ = 0.0F;
+    }
+    else
+    {
+        fadeOutTime_ = 0.0F;
+    }
+}
+
+void ImmortalEffect::OnDamage() noexcept
+{
+    if (effectMaked_)
+        damageTime_ = 0.0F;
+}
+
+void ImmortalEffect::OnProgress(float deltaTime) noexcept
+{
+    if (effectMaked_ && damageTime_ >= 0.0F)
+    {
+        const float alpha = std::clamp(
+            damageTime_ / damageSeconds, 0.0F, 1.0F);
+        if (alpha >= 1.0F)
+            damageTime_ = -1.0F;
+        else
+            damageTime_ += deltaTime;
+    }
+    if (effectMaked_ && fadeInTime_ >= 0.0F)
+    {
+        fadeInTime_ += deltaTime;
+        if (fadeInTime_ / fadeSeconds >= 1.0F)
+            fadeInTime_ = -1.0F;
+    }
+    if (effectMaked_ && fadeOutTime_ >= 0.0F)
+    {
+        fadeOutTime_ += deltaTime;
+        if (fadeOutTime_ / fadeSeconds >= 1.0F)
+        {
+            fadeOutTime_ = -1.0F;
+            damageTime_ = -1.0F;
+            effectSeconds_ = 0.0F;
+            effectMaked_ = false;
+        }
+    }
+    if (effectMaked_)
+        effectSeconds_ += deltaTime;
+}
+
+bool ImmortalEffect::IsEffectMaked() const noexcept
+{
+    return effectMaked_;
+}
+
+float ImmortalEffect::GetEffectSeconds() const noexcept
+{
+    return effectSeconds_;
+}
+
+float ImmortalEffect::GetFadeInTime() const noexcept
+{
+    return fadeInTime_;
+}
+
+float ImmortalEffect::GetFadeOutTime() const noexcept
+{
+    return fadeOutTime_;
+}
+
+float ImmortalEffect::GetDamageTime() const noexcept
+{
+    return damageTime_;
+}
+
+float ImmortalEffect::GetScale() const noexcept
+{
+    // OnProgress applies fade-in first and fade-out second, so an overlapping
+    // fade-out owns the final actor scale exactly as in GameBase.cpp.
+    if (fadeOutTime_ >= 0.0F)
+    {
+        return 1.0F - std::clamp(
+            fadeOutTime_ / fadeSeconds, 0.0F, 1.0F);
+    }
+    if (fadeInTime_ >= 0.0F)
+    {
+        return std::clamp(
+            fadeInTime_ / fadeSeconds, 0.0F, 1.0F);
+    }
+    return 1.0F;
+}
+
+float ImmortalEffect::GetDamageAlpha() const noexcept
+{
+    if (damageTime_ < 0.0F)
+        return 1.0F;
+    const float alpha = std::clamp(
+        damageTime_ / damageSeconds, 0.0F, 1.0F);
+    return 1.0F + 2.5F * (1.0F - alpha);
+}
+
 } // namespace r3d::game::originalrace::source

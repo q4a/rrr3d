@@ -116,5 +116,82 @@ private:
     bool checkDestruction_ = false;
 };
 
+// Backend-neutral state owned by the original GameBase behavior classes.
+// Effect actors/sounds remain renderer and audio adapters, but their state
+// machines live here instead of being reconstructed in RaceSession.
+class LowLifePoints
+{
+public:
+    struct ProgressResult
+    {
+        bool activated = false;
+        bool released = false;
+    };
+
+    LowLifePoints(float lifeLevel = 0.35F) noexcept;
+    void Reset(float lifeLevel = 0.35F) noexcept;
+    ProgressResult OnProgress(
+        const GameObject& gameObject, float deltaTime) noexcept;
+
+    float GetLifeLevel() const noexcept;
+    void SetLifeLevel(float value) noexcept;
+    bool IsEffectMaked() const noexcept;
+    float GetEffectSeconds() const noexcept;
+
+private:
+    float lifeLevel_ = 0.35F;
+    float effectSeconds_ = 0.0F;
+    bool effectMaked_ = false;
+};
+
+class DamageEffect
+{
+public:
+    explicit DamageEffect(
+        DamageType damageType = DamageType::Simple,
+        float maximumTimeLife = 0.5F) noexcept;
+    void Reset() noexcept;
+    bool OnDamage(DamageType damageType) noexcept;
+    void OnProgress(float deltaTime) noexcept;
+
+    DamageType GetDamageType() const noexcept;
+    void SetDamageType(DamageType value) noexcept;
+    bool IsEffectMaked() const noexcept;
+    float GetEffectSeconds() const noexcept;
+
+private:
+    DamageType damageType_ = DamageType::Simple;
+    float maximumTimeLife_ = 0.5F;
+    float effectSeconds_ = 0.0F;
+    bool effectMaked_ = false;
+};
+
+class ImmortalEffect
+{
+public:
+    static constexpr float fadeSeconds = 0.5F;
+    static constexpr float damageSeconds = 0.25F;
+
+    void Reset() noexcept;
+    void OnImmortalStatus(bool status) noexcept;
+    void OnDamage() noexcept;
+    void OnProgress(float deltaTime) noexcept;
+
+    bool IsEffectMaked() const noexcept;
+    float GetEffectSeconds() const noexcept;
+    float GetFadeInTime() const noexcept;
+    float GetFadeOutTime() const noexcept;
+    float GetDamageTime() const noexcept;
+    float GetScale() const noexcept;
+    float GetDamageAlpha() const noexcept;
+
+private:
+    float fadeInTime_ = -1.0F;
+    float fadeOutTime_ = -1.0F;
+    float damageTime_ = -1.0F;
+    float effectSeconds_ = 0.0F;
+    bool effectMaked_ = false;
+};
+
 } // namespace source
 } // namespace r3d::game::originalrace
