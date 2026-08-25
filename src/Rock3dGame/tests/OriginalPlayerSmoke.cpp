@@ -139,6 +139,24 @@ int main()
 
     const std::vector<std::uint32_t> maximumCharges{
         10U, 8U, 6U, 4U, 3U, 2U};
+    std::vector<r3d::game::originalrace::WeaponDefinition>
+        playerWeaponDefinitions(maximumCharges.size());
+    for (std::size_t index = 0U;
+         index < playerWeaponDefinitions.size(); ++index)
+    {
+        playerWeaponDefinitions[index].maximumCharge =
+            maximumCharges[index];
+        playerWeaponDefinitions[index].reloadCharge =
+            maximumCharges[index];
+    }
+    player.BindWeaponItems(playerWeaponDefinitions);
+    const auto firstWeaponItems = player.GetPrimaryWeaponItems();
+    const auto secondWeaponItems = player.GetPrimaryWeaponItems();
+    if (&firstWeaponItems[0] != &secondWeaponItems[0] ||
+        firstWeaponItems[0].GetCurCharge() != 1U ||
+        player.GetHyperWeaponItem().GetCurCharge() != 0U ||
+        player.GetMineWeaponItem().GetCurCharge() != 1U)
+        return 64;
     const auto hyper = player.TakeAmmunition(
         0.5F, maximumCharges, 0.0F);
     if (hyper.slot != source::PlayerBonusSlot::Hyper ||

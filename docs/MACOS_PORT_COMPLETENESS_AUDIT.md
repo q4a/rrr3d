@@ -1334,6 +1334,19 @@ Network, video и Steam явно выключены.
   Droid/empty/Reflector и class lookup, resource audit — наличие полного
   workshop catalog в active Race.
 
+### Source persistent Player WeaponItem owner
+
+- Четыре primary `WeaponItem`, Hyper и Mine теперь постоянно принадлежат
+  active Player, как предметы физических `Player::_slot[]` в Windows.
+- Bind после окончательного loadout связывает каждый предмет с тем же
+  Player-owned `Weapon`, profile-backed charge и исходными maximum/count/
+  step/damage полями; Droid/Reflector настраиваются в той же операции.
+- Human selection, Shot/ShotAll, AI, mine/hyper, network replication и
+  `Player::ReloadWeapons` больше не создают временные `WeaponItem` wrappers в
+  session. Readiness, cooldown и charge transaction читают единый объект.
+- Player/lifecycle regressions проверяют устойчивую identity, общий charge
+  storage и исходный reload через постоянные items.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

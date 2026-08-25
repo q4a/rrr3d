@@ -18,6 +18,7 @@
 namespace r3d::game::originalrace
 {
 struct Vehicle;
+struct WeaponDefinition;
 }
 
 namespace r3d::game::originalrace::source
@@ -296,6 +297,14 @@ public:
     void OnLapPass(std::size_t weaponDefinitionCount) noexcept;
     void ReloadWeapons(std::size_t weaponDefinitionCount) noexcept;
     void SyncSelectedWeapon(std::size_t weaponDefinitionCount) noexcept;
+    void BindWeaponItems(
+        std::span<const WeaponDefinition> definitions) noexcept;
+    std::span<WeaponItem> GetPrimaryWeaponItems() noexcept;
+    std::span<const WeaponItem> GetPrimaryWeaponItems() const noexcept;
+    WeaponItem& GetHyperWeaponItem() noexcept;
+    const WeaponItem& GetHyperWeaponItem() const noexcept;
+    WeaponItem& GetMineWeaponItem() noexcept;
+    const WeaponItem& GetMineWeaponItem() const noexcept;
     bool Shot(WeaponItem& item, bool projectileCreated,
               bool mineSlot, std::uint32_t projectileId,
               int newCharge = -1) noexcept;
@@ -456,6 +465,12 @@ private:
     std::uint32_t nextBonusProjectileId_ = 1U;
     PlayerSlotRack slotRack_;
     WeaponRack weaponRack_;
+    // Windows Slot owns the WeaponItem for stHyper, stMine and every
+    // stWeapon position. Keep those items persistent inside Player as well;
+    // the session only provides backend Weapon instances and definitions.
+    std::array<WeaponItem, weaponSlotCount> primaryWeaponItems_{};
+    WeaponItem hyperWeaponItem_;
+    WeaponItem mineWeaponItem_;
     PlayerItemRack itemRack_;
 };
 

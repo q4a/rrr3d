@@ -547,30 +547,100 @@ void Player::OnLapPass(std::size_t weaponDefinitionCount) noexcept
 void Player::ReloadWeapons(
     std::size_t weaponDefinitionCount) noexcept
 {
-    for (std::size_t slot = 0U; slot < weaponCharges.size(); ++slot)
-    {
-        if (weaponSlots[slot] != invalidWeapon &&
-            weaponSlots[slot] < weaponDefinitionCount)
+    // Player.cpp iterates the six physical weapon Slots and reloads their
+    // resident WeaponItem objects. The portable Player now has the same
+    // ownership, so no temporary charge-only wrappers are required.
+    hyperWeaponItem_.Reload();
+    mineWeaponItem_.Reload();
+    for (auto& item : primaryWeaponItems_)
+        item.Reload();
+    SyncSelectedWeapon(weaponDefinitionCount);
+}
+
+void Player::BindWeaponItems(
+    std::span<const WeaponDefinition> definitions) noexcept
+{
+    auto bind = [&](WeaponItem& item, Weapon* weapon,
+                    std::size_t definitionIndex,
+                    std::uint32_t countCharge,
+                    std::uint32_t* currentCharge) {
+        if (definitionIndex == invalidWeapon ||
+            definitionIndex >= definitions.size())
         {
-            WeaponItem item(
-                nullptr, 0U, weaponCapacity[slot],
-                &weaponCharges[slot]);
-            item.Reload();
+            item.Bind(nullptr, 0U, 0U, nullptr);
+            return;
+        }
+        const auto& definition = definitions[definitionIndex];
+        item.Bind(
+            weapon, definition.maximumCharge, countCharge,
+            currentCharge, definition.chargeStep, definition.damage);
+    };
+
+    for (std::size_t slot = 0U; slot < primaryWeaponItems_.size(); ++slot)
+    {
+        bind(primaryWeaponItems_[slot], &weaponRack_.primary[slot],
+             weaponSlots[slot], weaponCapacity[slot],
+             &weaponCharges[slot]);
+    }
+    bind(hyperWeaponItem_, &weaponRack_.hyper, hyperWeapon,
+         hyperCapacity, &hyperCharge);
+    bind(mineWeaponItem_, &weaponRack_.mine, mineWeapon,
+         mineCapacity, &mines);
+
+    itemRack_.Reset();
+    for (std::size_t slot = 0U; slot < primaryWeaponItems_.size(); ++slot)
+    {
+        const std::size_t definitionIndex = weaponSlots[slot];
+        if (definitionIndex == invalidWeapon ||
+            definitionIndex >= definitions.size())
+            continue;
+        const auto& definition = definitions[definitionIndex];
+        if (definition.itemType == WeaponItemType::Droid)
+        {
+            itemRack_.BindDroid(
+                slot, &weaponRack_.primary[slot],
+                definition.maximumCharge, weaponCapacity[slot],
+                &weaponCharges[slot], definition.repairValue,
+                definition.repairPeriod);
+        }
+        else if (definition.itemType == WeaponItemType::Reflector)
+        {
+            itemRack_.BindReflector(
+                slot, &weaponRack_.primary[slot],
+                definition.maximumCharge, weaponCapacity[slot],
+                &weaponCharges[slot], definition.reflectValue);
         }
     }
-    if (hyperWeapon != invalidWeapon &&
-        hyperWeapon < weaponDefinitionCount)
-    {
-        WeaponItem item(nullptr, 0U, hyperCapacity, &hyperCharge);
-        item.Reload();
-    }
-    if (mineWeapon != invalidWeapon &&
-        mineWeapon < weaponDefinitionCount)
-    {
-        WeaponItem item(nullptr, 0U, mineCapacity, &mines);
-        item.Reload();
-    }
-    SyncSelectedWeapon(weaponDefinitionCount);
+}
+
+std::span<WeaponItem> Player::GetPrimaryWeaponItems() noexcept
+{
+    return primaryWeaponItems_;
+}
+
+std::span<const WeaponItem> Player::GetPrimaryWeaponItems() const noexcept
+{
+    return primaryWeaponItems_;
+}
+
+WeaponItem& Player::GetHyperWeaponItem() noexcept
+{
+    return hyperWeaponItem_;
+}
+
+const WeaponItem& Player::GetHyperWeaponItem() const noexcept
+{
+    return hyperWeaponItem_;
+}
+
+WeaponItem& Player::GetMineWeaponItem() noexcept
+{
+    return mineWeaponItem_;
+}
+
+const WeaponItem& Player::GetMineWeaponItem() const noexcept
+{
+    return mineWeaponItem_;
 }
 
 void Player::SyncSelectedWeapon(

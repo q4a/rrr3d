@@ -1251,6 +1251,26 @@ Reflector. Portable rack схлопывал все такие записи в о
 `Player::ApplyMobility`, а не напрямую через rack-helper. Regression
 проверяет одновременно Droid в Weapon1, пустой Weapon2 и Reflector в Weapon3.
 
+### P2.35 — persistent Player WeaponItem owner — выполнено
+
+Подтвердилась следующая потеря исходного ownership: несмотря на перенос
+`WeaponRack`, `OriginalRaceSession::updateGameplay` всё ещё конструировал
+новый временный `WeaponItem` для каждой readiness-проверки и каждого
+primary/hyper/mine выстрела. `Player::ReloadWeapons` создавал ещё один набор
+charge-only wrappers. В Windows один `WeaponItem` постоянно живёт внутри
+каждого физического `Slot`, а `HumanPlayer`, `Logic`, network shot и lap reload
+обращаются именно к этому объекту.
+
+Active `Player` теперь постоянно хранит четыре primary `WeaponItem`, Hyper и
+Mine, связывает их с собственными `WeaponRack` и charge storage после
+формирования loadout и одновременно настраивает производные
+Droid/Reflector. `ReloadWeapons`, Human selection/ShotAll, AI, mine, hyper и
+сетевые shot transactions используют эти же экземпляры; три фабричные
+лямбды, создававшие временные предметы в горячем пути сессии, удалены.
+Player regression проверяет устойчивую identity объектов и то, что изменения
+заряда через bonus/reload видны тому же экземпляру; lifecycle regression
+теперь также связывает реальные WeaponItem до `Race::StartRace`.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

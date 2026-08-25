@@ -1,5 +1,6 @@
 #include "OriginalRaceLifecycle.h"
 #include "OriginalPlayer.h"
+#include "OriginalRace.h"
 
 #include <array>
 #include <algorithm>
@@ -52,6 +53,10 @@ int main()
         return 21;
 
     std::array<source::Player, 2U> runPlayers{};
+    std::array<r3d::game::originalrace::WeaponDefinition, 1U>
+        runWeaponDefinitions{};
+    runWeaponDefinitions[0].maximumCharge = 4U;
+    runWeaponDefinitions[0].reloadCharge = 4U;
     for (auto& player : runPlayers)
     {
         player.Reset(80.0F, 1U);
@@ -60,6 +65,7 @@ int main()
         player.weaponSlots[0] = 0U;
         player.weaponCapacity[0] = 4U;
         player.weaponCharges[0] = 1U;
+        player.BindWeaponItems(runWeaponDefinitions);
     }
     runPlayers.front().SetId(source::Player::humanId);
     runPlayers.back().SetId(1);
