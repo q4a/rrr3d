@@ -21708,12 +21708,21 @@ int main(int argc, char** argv)
                     expectedCompetitiveAi > 0U ? 1U : 0U;
                 const auto expectedHeadlightCount =
                     static_cast<std::uint32_t>(
-                        originalRace->racers.size() +
-                        std::count_if(
-                            originalRace->racers.begin(),
-                            originalRace->racers.end(),
-                            [](const auto& racer) {
-                                return racer.human;
+                        std::accumulate(
+                            raceSession.racers().begin(),
+                            raceSession.racers().end(), 0U,
+                            [](std::uint32_t count,
+                               const auto& racer) {
+                                using Player =
+                                    r3d::game::originalrace::source::Player;
+                                return count +
+                                    (racer.GetHeadLight() ==
+                                             Player::HeadLightMode::Two
+                                         ? 2U
+                                         : racer.GetHeadLight() ==
+                                                   Player::HeadLightMode::One
+                                               ? 1U
+                                               : 0U);
                             }));
                 if (expectsReflection)
                     renderGraphComplete =

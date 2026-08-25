@@ -443,6 +443,26 @@ bool Player::IsHumanOrOpponent() const noexcept
     return IsHuman() || IsOpponent();
 }
 
+Player::HeadLightMode Player::GetHeadLight() const noexcept
+{
+    return headLight_;
+}
+
+void Player::SetHeadlight(HeadLightMode value) noexcept
+{
+    headLight_ = value;
+}
+
+bool Player::GetReflScene() const noexcept
+{
+    return reflScene_;
+}
+
+void Player::SetReflScene(bool value) noexcept
+{
+    reflScene_ = value;
+}
+
 void Player::CreateCar(bool newRace) noexcept
 {
     car.OnCreateCar(newRace);

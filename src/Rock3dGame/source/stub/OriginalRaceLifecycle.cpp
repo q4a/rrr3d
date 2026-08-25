@@ -14,7 +14,8 @@ void RaceRunState::Reset() noexcept
 }
 
 bool RaceRunState::StartRace(
-    std::span<Player> players, Player* human) noexcept
+    std::span<Player> players, Player* human,
+    bool night, std::size_t weaponDefinitionCount) noexcept
 {
     if (startRace_)
         return false;
@@ -22,6 +23,13 @@ bool RaceRunState::StartRace(
     goRace_ = false;
     for (auto& player : players)
     {
+        player.SetHeadlight(
+            night
+                ? (player.IsHuman()
+                       ? Player::HeadLightMode::Two
+                       : Player::HeadLightMode::One)
+                : Player::HeadLightMode::None);
+        player.ReloadWeapons(weaponDefinitionCount);
         player.SetFinished(false);
         player.ResetBlock(false);
     }
@@ -44,7 +52,10 @@ bool RaceRunState::ExitRace(std::span<Player> players) noexcept
         return false;
     startRace_ = false;
     for (auto& player : players)
+    {
+        player.SetHeadlight(Player::HeadLightMode::None);
         player.FreeCar(true);
+    }
     return true;
 }
 

@@ -140,6 +140,13 @@ public:
     static constexpr std::uint32_t cheatEnableSlower = 1U << 0U;
     static constexpr std::uint32_t cheatEnableFaster = 1U << 1U;
 
+    enum class HeadLightMode : std::uint8_t
+    {
+        None,
+        One,
+        Two,
+    };
+
     struct CheatPlayerView
     {
         std::size_t playerId = 0U;
@@ -262,6 +269,10 @@ public:
     bool IsComputer() const noexcept;
     bool IsOpponent() const noexcept;
     bool IsHumanOrOpponent() const noexcept;
+    HeadLightMode GetHeadLight() const noexcept;
+    void SetHeadlight(HeadLightMode value) noexcept;
+    bool GetReflScene() const noexcept;
+    void SetReflScene(bool value) noexcept;
     void CreateCar(bool newRace) noexcept;
     void FreeCar(bool freeState) noexcept;
     void OnLapPass(std::size_t weaponDefinitionCount) noexcept;
@@ -386,6 +397,8 @@ private:
     std::string name_;
     std::string netName_;
     std::array<float, 4> color_{1.0F, 1.0F, 1.0F, 1.0F};
+    HeadLightMode headLight_ = HeadLightMode::None;
+    bool reflScene_ = true;
     bool energyDamageEffectCreated_ = false;
     std::vector<PlayerGameEvent> gameEvents_;
     std::vector<std::uint32_t> bonusProjectileIds_;

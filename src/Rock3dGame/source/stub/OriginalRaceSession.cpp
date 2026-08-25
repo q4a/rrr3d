@@ -1400,11 +1400,19 @@ void OriginalRaceSession::reset()
         racers_.begin(), racers_.end(),
         [](const source::Player& player) { return player.IsHuman(); });
     if (humanPosition != racers_.end())
+    {
         humanRacer_ = static_cast<std::size_t>(
             humanPosition - racers_.begin());
+        // HumanPlayer's constructor disables gpReflScene only for the local
+        // owner. Remote NetPlayer opponents retain the Player default.
+        humanPosition->SetReflScene(false);
+    }
     source::Player* human =
         humanPosition == racers_.end() ? nullptr : &*humanPosition;
-    raceRunState_.StartRace(racers_, human);
+    raceRunState_.StartRace(
+        racers_, human,
+        race_.environment.weather == Weather::Night,
+        race_.weapons.size());
     if (legacyWindowsDebug_)
         raceRunState_.GoRace(human);
     events_.push_back(

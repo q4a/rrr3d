@@ -15,14 +15,25 @@ int main()
         player.Reset(80.0F, 1U);
         player.CreateCar(true);
         player.SetFinished(true, 1.0F);
+        player.weaponSlots[0] = 0U;
+        player.weaponCapacity[0] = 4U;
+        player.weaponCharges[0] = 1U;
     }
+    runPlayers.front().SetId(source::Player::humanId);
+    runPlayers.back().SetId(1);
     source::RaceRunState run;
-    if (!run.StartRace(runPlayers, &runPlayers.front()) ||
+    if (!run.StartRace(runPlayers, &runPlayers.front(), true, 1U) ||
         !run.IsStartRace() || run.IsRaceGo() ||
         !runPlayers.front().IsBlock() ||
         runPlayers.back().IsBlock() ||
         runPlayers.front().finished || runPlayers.back().finished ||
-        run.StartRace(runPlayers, &runPlayers.front()))
+        runPlayers.front().GetHeadLight() !=
+            source::Player::HeadLightMode::Two ||
+        runPlayers.back().GetHeadLight() !=
+            source::Player::HeadLightMode::One ||
+        runPlayers.front().weaponCharges[0] != 4U ||
+        runPlayers.back().weaponCharges[0] != 4U ||
+        run.StartRace(runPlayers, &runPlayers.front(), true, 1U))
         return 9;
     run.GoRace(&runPlayers.front());
     if (!run.IsRaceGo() || runPlayers.front().IsBlock())
@@ -32,6 +43,10 @@ int main()
     if (!run.ExitRace(runPlayers) || run.IsStartRace() || run.IsRaceGo() ||
         runPlayers.front().car.numLaps != 0U ||
         runPlayers.back().car.numLaps != 0U ||
+        runPlayers.front().GetHeadLight() !=
+            source::Player::HeadLightMode::None ||
+        runPlayers.back().GetHeadLight() !=
+            source::Player::HeadLightMode::None ||
         run.ExitRace(runPlayers))
         return 11;
 

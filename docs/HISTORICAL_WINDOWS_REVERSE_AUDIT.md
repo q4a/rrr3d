@@ -1003,6 +1003,25 @@ Regression переставляет локального Human в slot 1, ост
 13 non-network CTest, resource verifier, map1 physics и 240-frame Metal/Jolt
 render smoke проходят.
 
+### P2.20 — Player visual state и полный Race::StartRace owner — выполнено
+
+Перенесены оставшиеся независимые от D3D9 поля и переходы исходного
+`Player`: `HeadLightMode`, `Get/SetHeadlight`, `Get/SetReflScene`. Ранее bgfx
+сам угадывал две фары и исключение машины из cube reflection по
+`Race::Racer::human`; это обходило active Player и давало неверный результат
+при изменённом сетевом порядке/владельце.
+
+`RaceRunState::StartRace` теперь выполняет исходные `ReloadWeapons` и
+назначение `hlmTwo/hlmOne/hlmNone` по погоде и `Player::IsHuman()`.
+Локальный `HumanPlayer` устанавливает `reflScene=false`, тогда как remote
+opponents сохраняют исходное значение `true`; `ExitRace` снимает фары до
+`FreeCar(true)`. Renderer только отображает это состояние через bgfx/Metal.
+
+Тот же runtime Human теперь задаёт цель isometric cull-opacity и центр
+теневых каскадов, а не `vehicles.front()`. Regression проверяет режимы фар,
+reflection flag, стартовую перезарядку и exit teardown. 13 non-network CTest,
+resource verifier, map1 physics и 240-frame Metal/Jolt render smoke проходят.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

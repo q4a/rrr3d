@@ -22,6 +22,14 @@ int main()
         player.GetName() != "Network Tyler" ||
         std::abs(player.GetColor()[2] - 0.4F) > 0.001F)
         return 41;
+    if (player.GetHeadLight() != source::Player::HeadLightMode::None ||
+        !player.GetReflScene())
+        return 45;
+    player.SetHeadlight(source::Player::HeadLightMode::Two);
+    player.SetReflScene(false);
+    if (player.GetHeadLight() != source::Player::HeadLightMode::Two ||
+        player.GetReflScene())
+        return 46;
     player.SetNetName({});
     if (player.GetName() != "Tyler")
         return 42;

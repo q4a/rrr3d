@@ -19,7 +19,9 @@ class RaceRunState
 {
 public:
     void Reset() noexcept;
-    bool StartRace(std::span<Player> players, Player* human) noexcept;
+    bool StartRace(
+        std::span<Player> players, Player* human,
+        bool night, std::size_t weaponDefinitionCount) noexcept;
     void GoRace(Player* human) noexcept;
     bool ExitRace(std::span<Player> players) noexcept;
 

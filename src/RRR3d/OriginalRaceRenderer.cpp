@@ -3410,10 +3410,10 @@ void OriginalRaceRenderer::draw(
         ++lampIndex;
     }
 
-    // Race::SetWheater calls Player::SetHeadlight(hlmTwo) for the human and
-    // hlmOne for every AI in ewNight.  Recreate the source child-light
-    // transforms here so the spots follow the physics bodies rather than
-    // leaving only the decorative flare sprites visible.
+    // Race::StartRace calls Player::SetHeadlight(hlmTwo) for the local
+    // human and hlmOne for every other Player in ewNight. Recreate the
+    // child-light transforms here so the spots follow the physics bodies
+    // rather than leaving only the decorative flare sprites visible.
     if (race.environment.weather ==
         r3d::game::originalrace::Weather::Night)
     {
@@ -3426,8 +3426,20 @@ void OriginalRaceRenderer::draw(
              lampIndex < SceneLighting::maximumSpotLights;
              ++racerIndex)
         {
-            const bool human = race.racers[racerIndex].human;
-            const std::size_t headlightCount = human ? 2U : 1U;
+            const auto headLight =
+                racerIndex < racerRuntime.size()
+                    ? racerRuntime[racerIndex].GetHeadLight()
+                    : r3d::game::originalrace::source::Player::
+                          HeadLightMode::None;
+            const std::size_t headlightCount =
+                headLight == r3d::game::originalrace::source::Player::
+                                 HeadLightMode::Two
+                    ? 2U
+                    : headLight ==
+                              r3d::game::originalrace::source::Player::
+                                  HeadLightMode::One
+                          ? 1U
+                          : 0U;
             for (std::size_t headlight = 0;
                  headlight < headlightCount &&
                  lampIndex < SceneLighting::maximumSpotLights;
@@ -4910,7 +4922,8 @@ void OriginalRaceRenderer::draw(
             continue;
         // HumanPlayer disables gpReflScene on the source car. AI cars remain
         // in the cube map, and every car remains eligible for gpReflWater.
-        if (environmentReflectionPass && race.racers[racer].human)
+        if (environmentReflectionPass && racer < racerRuntime.size() &&
+            !racerRuntime[racer].GetReflScene())
             continue;
         const auto vehicleIndex = race.racers[racer].vehicle;
         if (vehicleIndex >= race.vehicles.size() ||
@@ -6154,41 +6167,50 @@ void OriginalRaceRenderer::renderFrame(
             : 0.0F;
     const bool isometricCamera =
         std::abs(camera.projection[15]) > 0.5F;
+    const auto humanPosition = std::find_if(
+        racerRuntime.begin(), racerRuntime.end(),
+        [](const auto& player) { return player.IsHuman(); });
+    const std::size_t humanRacer =
+        humanPosition == racerRuntime.end()
+            ? racerRuntime.size()
+            : static_cast<std::size_t>(
+                  humanPosition - racerRuntime.begin());
+    const bool hasHumanVehicle =
+        humanRacer < vehicles.size() &&
+        humanRacer < race.racers.size() &&
+        humanRacer < vehicleBodies_.size();
     r3d::physics::Vec3 rayTarget{};
     float rayTargetSize = 0.0F;
-    if (!vehicles.empty())
+    if (hasHumanVehicle)
     {
-        rayTarget = vehicles.front().body.position;
-        if (!race.racers.empty() && !vehicleBodies_.empty())
+        rayTarget = vehicles[humanRacer].body.position;
+        const auto vehicleIndex = race.racers[humanRacer].vehicle;
+        if (vehicleIndex < race.vehicles.size())
         {
-            const auto vehicleIndex = race.racers.front().vehicle;
-            if (vehicleIndex < race.vehicles.size())
+            const auto& vehicle =
+                race.racers[humanRacer].hasConfiguredVehicle
+                    ? race.racers[humanRacer].configuredVehicle
+                    : race.vehicles[vehicleIndex];
+            const auto bounds = objectBounds(
+                vehicleBodies_[humanRacer], vehicle.bodyVisuals,
+                vehicles[humanRacer].body);
+            if (bounds.valid)
             {
-                const auto& vehicle =
-                    race.racers.front().hasConfiguredVehicle
-                        ? race.racers.front().configuredVehicle
-                        : race.vehicles[vehicleIndex];
-                const auto bounds = objectBounds(
-                    vehicleBodies_.front(), vehicle.bodyVisuals,
-                    vehicles.front().body);
-                if (bounds.valid)
-                {
-                    const float x =
-                        bounds.maximum.x - bounds.minimum.x;
-                    const float y =
-                        bounds.maximum.y - bounds.minimum.y;
-                    const float z =
-                        bounds.maximum.z - bounds.minimum.z;
-                    rayTargetSize = std::sqrt(x * x + y * y + z * z);
-                }
-                if (rayTargetSize <= 0.0001F)
-                {
-                    const auto& half = vehicle.physics.halfExtents;
-                    rayTargetSize =
-                        2.0F * std::sqrt(
-                            half.x * half.x + half.y * half.y +
-                            half.z * half.z);
-                }
+                const float x =
+                    bounds.maximum.x - bounds.minimum.x;
+                const float y =
+                    bounds.maximum.y - bounds.minimum.y;
+                const float z =
+                    bounds.maximum.z - bounds.minimum.z;
+                rayTargetSize = std::sqrt(x * x + y * y + z * z);
+            }
+            if (rayTargetSize <= 0.0001F)
+            {
+                const auto& half = vehicle.physics.halfExtents;
+                rayTargetSize =
+                    2.0F * std::sqrt(
+                        half.x * half.x + half.y * half.y +
+                        half.z * half.z);
             }
         }
     }
@@ -6229,7 +6251,7 @@ void OriginalRaceRenderer::renderFrame(
             instance.transform);
         const bool overlap =
             isometricCamera && definition.cullOpacity &&
-            !vehicles.empty() &&
+            hasHumanVehicle &&
             boundsVisible(
                 bounds, opacityViewProjection,
                 device.usesHomogeneousDepth()) &&
@@ -6254,7 +6276,7 @@ void OriginalRaceRenderer::renderFrame(
             instance.transform);
         const bool overlap =
             active && isometricCamera && definition.cullOpacity &&
-            !vehicles.empty() &&
+            hasHumanVehicle &&
             boundsVisible(
                 bounds, opacityViewProjection,
                 device.usesHomogeneousDepth()) &&
@@ -6326,8 +6348,8 @@ void OriginalRaceRenderer::renderFrame(
         reflectedCamera(camera, race.environment.surfaceHeight);
 
     r3d::physics::Vec3 renderCenter{};
-    if (!vehicles.empty())
-        renderCenter = vehicles.front().body.position;
+    if (hasHumanVehicle)
+        renderCenter = vehicles[humanRacer].body.position;
     else if (!race.tracePoints.empty())
         renderCenter = race.tracePoints.front().position;
     const auto sourceSunRay = normalize(rotate(
