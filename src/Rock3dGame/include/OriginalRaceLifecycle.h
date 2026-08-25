@@ -92,4 +92,54 @@ private:
     std::vector<RaceResult> results_;
 };
 
+struct RacePlacePlayer
+{
+    std::size_t playerId = 0U;
+    bool disconnected = false;
+    bool finished = false;
+    std::uint32_t place = 0U;
+    float lap = 0.0F;
+    float lastCorrectLap = 0.0F;
+    float lastCorrectPathLength = 1.0F;
+    bool lastCorrectMainPath = false;
+};
+
+enum class RacePlaceEventKind : std::uint8_t
+{
+    LeadChanged,
+    ThirdChanged,
+    LastFar,
+    Domination,
+    ThirdFar,
+};
+
+struct RacePlaceEvent
+{
+    RacePlaceEventKind kind = RacePlaceEventKind::LeadChanged;
+    std::size_t playerId = 0U;
+    std::size_t otherPlayerId = 0U;
+};
+
+struct RacePlaceUpdate
+{
+    std::vector<std::size_t> order;
+    std::vector<RacePlaceEvent> events;
+};
+
+// Portable owner of Race::_playerPlaceList and Race::OnLateProgress. It keeps
+// the previous ordered list because source lead/third events compare pointers
+// from the preceding late-progress pass, not the mutable Player::place field.
+class RacePlaceModel
+{
+public:
+    void Reset() noexcept;
+    RacePlaceUpdate Update(const std::vector<RacePlacePlayer>& players,
+                           bool hasResults);
+
+private:
+    std::vector<std::size_t> order_;
+    float lastLeadPlace_ = 0.0F;
+    float lastThirdPlace_ = 0.0F;
+};
+
 } // namespace r3d::game::originalrace::source

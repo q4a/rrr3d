@@ -1083,8 +1083,7 @@ void OriginalRaceSession::reset()
     aiSystemEntriesScratch_.reserve(race_.racers.size());
     aiAttackTargetsScratch_.assign(race_.racers.size(), {});
     previousPositions_.assign(race_.racers.size(), {});
-    lastLeadPlace_ = 0.0F;
-    lastThirdPlace_ = 0.0F;
+    racePlaceModel_.Reset();
     decorationActive_.assign(race_.decorationInstances.size(), true);
     decorationLife_.clear();
     decorationLife_.reserve(race_.decorationInstances.size());
@@ -2554,142 +2553,67 @@ r3d::physics::VehicleInput OriginalRaceSession::aiInput(
 void OriginalRaceSession::updatePlaces(
     const std::vector<r3d::physics::VehicleState>& vehicles)
 {
-    const auto oldLeaderFound = std::find_if(
-        racers_.begin(), racers_.end(),
-        [](const RacerRuntime& racer) {
-            return !racer.disconnected && racer.place == 1U;
-        });
-    const std::size_t oldLeader =
-        oldLeaderFound == racers_.end()
-            ? 0U
-            : static_cast<std::size_t>(oldLeaderFound - racers_.begin());
-    const auto oldThirdFound = std::find_if(
-        racers_.begin(), racers_.end(),
-        [](const RacerRuntime& racer) {
-            return !racer.disconnected && racer.place == 3U;
-        });
-    const std::size_t oldThird =
-        oldThirdFound == racers_.end()
-            ? RacerRuntime::invalidWeapon
-            : static_cast<std::size_t>(oldThirdFound - racers_.begin());
-    std::vector<std::size_t> order;
-    order.reserve(racers_.size());
+    std::vector<source::RacePlacePlayer> players;
+    players.reserve(racers_.size());
     for (std::size_t racer = 0U; racer < racers_.size(); ++racer)
     {
-        if (!racers_[racer].disconnected)
-            order.push_back(racer);
-    }
-    auto score = [&](std::size_t racer) {
         const auto& runtime = racers_[racer];
-        if (runtime.finished)
-            return 100000.0F - runtime.finishTime;
-        if (racer >= vehicles.size())
-            return static_cast<float>(runtime.car.numLaps);
-        // Race::OnLateProgress orders Player::CarState::GetLap(), which is
-        // normalized against the currently occupied WayPath (including a
-        // branch), rather than an invented main-path checkpoint index.
-        return lapPosition(racer, vehicles[racer]);
-    };
-    std::stable_sort(order.begin(), order.end(),
-                     [&](std::size_t first, std::size_t second) {
-                         return score(first) > score(second);
-                     });
-    for (std::size_t place = 0; place < order.size(); ++place)
-        racers_[order[place]].place =
+        source::RacePlacePlayer player;
+        player.playerId = racer;
+        player.disconnected = runtime.disconnected;
+        player.finished = runtime.finished;
+        player.place = runtime.place;
+        player.lap =
+            racer < vehicles.size()
+                ? lapPosition(racer, vehicles[racer])
+                : runtime.car.GetLap();
+        player.lastCorrectLap = lastCorrectLapPosition(racer);
+        player.lastCorrectPathLength =
+            std::max(runtime.car.GetPathLength(true), 1.0F);
+        player.lastCorrectMainPath = runtime.car.IsMainPath(true);
+        players.push_back(player);
+    }
+
+    const auto sourceUpdate = racePlaceModel_.Update(
+        players, !raceLifecycle_.GetResults().empty());
+    for (std::size_t place = 0; place < sourceUpdate.order.size(); ++place)
+        racers_[sourceUpdate.order[place]].place =
             static_cast<std::uint32_t>(place + 1U);
     std::uint32_t disconnectedPlace =
-        static_cast<std::uint32_t>(order.size() + 1U);
+        static_cast<std::uint32_t>(sourceUpdate.order.size() + 1U);
     for (auto& racer : racers_)
     {
         if (racer.disconnected)
             racer.place = disconnectedPlace++;
     }
-
-    if (order.empty())
-        return;
-    const bool hasResults = std::any_of(
-        racers_.begin(), racers_.end(),
-        [](const RacerRuntime& racer) {
-            return !racer.disconnected && racer.finished;
-        });
-    auto onMainPath = [&](std::size_t racer) {
-        return racer < racers_.size() &&
-               racers_[racer].car.IsMainPath(true);
-    };
-    auto eventPosition = [&](std::size_t racer) {
-        return racer < vehicles.size()
-                   ? vehicles[racer].body.position
-                   : Vec3{};
-    };
-    const float mainPathLength = std::max(tracePathLength(0U), 1.0F);
-    const std::size_t leader = order.front();
-    if (leader != oldLeader && onMainPath(leader) && onMainPath(oldLeader))
+    for (const auto& sourceEvent : sourceUpdate.events)
     {
-        const float newLeadPlace = lastCorrectLapPosition(leader);
-        if (mainPathLength * (newLeadPlace - lastLeadPlace_) > 300.0F &&
-            !hasResults)
+        RaceEventKind kind = RaceEventKind::LeadChanged;
+        switch (sourceEvent.kind)
         {
-            events_.push_back({RaceEventKind::LeadChanged, leader,
-                               oldLeader, eventPosition(leader),
-                               newLeadPlace});
+        case source::RacePlaceEventKind::LeadChanged:
+            kind = RaceEventKind::LeadChanged;
+            break;
+        case source::RacePlaceEventKind::ThirdChanged:
+            kind = RaceEventKind::ThirdChanged;
+            break;
+        case source::RacePlaceEventKind::LastFar:
+            kind = RaceEventKind::LastFar;
+            break;
+        case source::RacePlaceEventKind::Domination:
+            kind = RaceEventKind::Domination;
+            break;
+        case source::RacePlaceEventKind::ThirdFar:
+            kind = RaceEventKind::ThirdFar;
+            break;
         }
-        lastLeadPlace_ = newLeadPlace;
-    }
-    if (order.size() >= 3U)
-    {
-        const std::size_t third = order[2U];
-        if (oldThird != RacerRuntime::invalidWeapon && third != oldThird &&
-            onMainPath(third) && onMainPath(oldThird))
-        {
-            const float newThirdPlace = lastCorrectLapPosition(third);
-            if (mainPathLength * (newThirdPlace - lastThirdPlace_) >
-                    300.0F &&
-                !hasResults)
-            {
-                events_.push_back({RaceEventKind::ThirdChanged, third,
-                                   oldThird, eventPosition(third),
-                                   newThirdPlace});
-            }
-            lastThirdPlace_ = newThirdPlace;
-        }
-    }
-    if (order.size() >= 2U)
-    {
-        const std::size_t last = order.back();
-        const std::size_t nextLast = order[order.size() - 2U];
-        if (onMainPath(last) && onMainPath(nextLast) &&
-            mainPathLength *
-                    (lastCorrectLapPosition(nextLast) -
-                     lastCorrectLapPosition(last)) >
-                70.0F)
-        {
-            events_.push_back({RaceEventKind::LastFar, last, nextLast,
-                               eventPosition(last), 0.0F});
-        }
-        const std::size_t second = order[1U];
-        if (!hasResults && onMainPath(leader) && onMainPath(second) &&
-            mainPathLength *
-                    (lastCorrectLapPosition(leader) -
-                     lastCorrectLapPosition(second)) >
-                70.0F)
-        {
-            events_.push_back({RaceEventKind::Domination, leader, second,
-                               eventPosition(leader), 0.0F});
-        }
-    }
-    if (order.size() >= 3U)
-    {
-        const std::size_t second = order[1U];
-        const std::size_t third = order[2U];
-        if (!hasResults && onMainPath(second) && onMainPath(third) &&
-            mainPathLength *
-                    (lastCorrectLapPosition(second) -
-                     lastCorrectLapPosition(third)) >
-                70.0F)
-        {
-            events_.push_back({RaceEventKind::ThirdFar, third, second,
-                               eventPosition(third), 0.0F});
-        }
+        const auto racer = sourceEvent.playerId;
+        const Vec3 position =
+            racer < vehicles.size()
+                ? vehicles[racer].body.position
+                : Vec3{};
+        events_.push_back(
+            {kind, racer, sourceEvent.otherPlayerId, position, 0.0F});
     }
 }
 

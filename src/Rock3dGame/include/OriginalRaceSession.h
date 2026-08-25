@@ -552,10 +552,6 @@ private:
     // ownership lives in source::AICar::AttackState, not in this buffer.
     std::vector<source::AICar::AttackTarget> aiAttackTargetsScratch_;
     std::vector<Vec3> previousPositions_;
-    // Race::OnLateProgress uses last-correct path positions to debounce
-    // leader/third-place changes by 300 source units.
-    float lastLeadPlace_ = 0.0F;
-    float lastThirdPlace_ = 0.0F;
     std::vector<RaceEvent> events_;
     std::vector<RaceEffect> effects_;
     std::vector<MineRuntime> mines_;
@@ -573,6 +569,7 @@ private:
         initialAchievementIterations_;
     source::AchievmentModel achievementModel_;
     source::RaceLifecycle raceLifecycle_;
+    source::RacePlaceModel racePlaceModel_;
     bool campaign_ = true;
     bool campaignRewardsApplied_ = false;
     bool enableMineBug_ = true;

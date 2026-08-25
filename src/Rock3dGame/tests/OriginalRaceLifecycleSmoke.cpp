@@ -1,6 +1,7 @@
 #include "OriginalRaceLifecycle.h"
 
 #include <array>
+#include <algorithm>
 #include <vector>
 
 namespace source = r3d::game::originalrace::source;
@@ -71,6 +72,62 @@ int main()
         last.events[0].kind != source::RaceLifecycleEventKind::SecondFinish ||
         last.events[1].kind != source::RaceLifecycleEventKind::RaceFinish)
         return 5;
+
+    source::RacePlaceModel places;
+    std::vector<source::RacePlacePlayer> placePlayers(3U);
+    for (std::size_t index = 0U; index < placePlayers.size(); ++index)
+    {
+        placePlayers[index].playerId = index;
+        placePlayers[index].lastCorrectMainPath = true;
+        placePlayers[index].lastCorrectPathLength = 100.0F;
+    }
+    placePlayers[0].finished = true;
+    placePlayers[0].place = 2U;
+    placePlayers[0].lap = 100.0F;
+    placePlayers[1].finished = true;
+    placePlayers[1].place = 1U;
+    placePlayers[1].lap = 0.0F;
+    placePlayers[2].finished = true;
+    placePlayers[2].place = 3U;
+    placePlayers[2].lap = 200.0F;
+    auto placeUpdate = places.Update(placePlayers, true);
+    if (placeUpdate.order != std::vector<std::size_t>{1U, 0U, 2U})
+        return 6;
+
+    places.Reset();
+    for (auto& player : placePlayers)
+    {
+        player.finished = false;
+        player.place = 0U;
+    }
+    placePlayers[0].lap = placePlayers[0].lastCorrectLap = 3.9F;
+    placePlayers[1].lap = placePlayers[1].lastCorrectLap = 2.0F;
+    placePlayers[2].lap = placePlayers[2].lastCorrectLap = 1.0F;
+    places.Update(placePlayers, false);
+    placePlayers[1].lap = placePlayers[1].lastCorrectLap = 4.0F;
+    placeUpdate = places.Update(placePlayers, false);
+    const auto leadChanged = std::find_if(
+        placeUpdate.events.begin(), placeUpdate.events.end(),
+        [](const source::RacePlaceEvent& event) {
+            return event.kind ==
+                       source::RacePlaceEventKind::LeadChanged &&
+                   event.playerId == 1U && event.otherPlayerId == 0U;
+        });
+    if (leadChanged == placeUpdate.events.end())
+        return 7;
+
+    // Race::DelPlayer clears _playerPlaceList. A changed active roster must
+    // not report a synthetic lead swap against the disconnected tombstone.
+    placePlayers[1].disconnected = true;
+    placePlayers[2].lap = placePlayers[2].lastCorrectLap = 8.0F;
+    placeUpdate = places.Update(placePlayers, false);
+    if (std::any_of(
+            placeUpdate.events.begin(), placeUpdate.events.end(),
+            [](const source::RacePlaceEvent& event) {
+                return event.kind ==
+                       source::RacePlaceEventKind::LeadChanged;
+            }))
+        return 8;
 
     return 0;
 }

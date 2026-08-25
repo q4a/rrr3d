@@ -1691,3 +1691,23 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - Новый unit smoke проверяет event order, отсутствующие события средних мест,
   AI-only completion и принудительную сортировку Human/Opponent после AI.
   13 non-network CTest, resource verifier и полный map1 physics smoke проходят.
+
+### Source Race::OnLateProgress place owner block
+
+- Перенесён отдельный `source::RacePlaceModel`, владеющий эквивалентом
+  `Race::_playerPlaceList`, прошлым Leader/Third и точной state machine
+  `Race::OnLateProgress`. Session теперь только подаёт source `CarState::GetLap`
+  и применяет вычисленные места/события к HUD и Commentator.
+- Исправлено фактическое расхождение сетевого финиша: прежний score
+  `100000-finishTime` перезаписывал authoritative `Result::place`, особенно
+  когда все принятые результаты имели одинаковое локальное finish time.
+  Завершившие игроки теперь сортируются строго по сохранённому place, как
+  Windows comparator.
+- LeadChanged/ThirdChanged используют предыдущий упорядоченный список, а не
+  поиск по уже изменяемому полю `Player::place`. Thresholds 300/70 и запрет
+  Lead/Third/Domination после первого Result находятся в source owner.
+- Tombstone удалённого network racer приводит к очистке предыдущего place
+  list, повторяя `Race::DelPlayer`; ложная реплика о смене лидера против уже
+  удалённого участника больше не возникает.
+- Unit regression покрывает authoritative finish ordering, lead swap и
+  roster removal. 13/13 non-network CTest и полный map1 physics smoke проходят.

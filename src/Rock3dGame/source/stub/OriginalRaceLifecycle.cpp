@@ -147,4 +147,152 @@ const std::vector<RaceResult>& RaceLifecycle::GetResults() const noexcept
     return results_;
 }
 
+void RacePlaceModel::Reset() noexcept
+{
+    order_.clear();
+    lastLeadPlace_ = 0.0F;
+    lastThirdPlace_ = 0.0F;
+}
+
+RacePlaceUpdate RacePlaceModel::Update(
+    const std::vector<RacePlacePlayer>& players, bool hasResults)
+{
+    RacePlaceUpdate output;
+    std::vector<std::size_t> activeIds;
+    activeIds.reserve(players.size());
+    for (const auto& player : players)
+    {
+        if (!player.disconnected)
+            activeIds.push_back(player.playerId);
+    }
+
+    // Race::DelPlayer clears _playerPlaceList. The portable roster retains a
+    // disconnected tombstone for stable renderer/network indices, so detect
+    // the equivalent membership change here.
+    if (!order_.empty())
+    {
+        auto previousIds = order_;
+        std::sort(previousIds.begin(), previousIds.end());
+        auto currentIds = activeIds;
+        std::sort(currentIds.begin(), currentIds.end());
+        if (previousIds != currentIds)
+            order_.clear();
+    }
+
+    const auto findPlayer = [&](std::size_t id) -> const RacePlacePlayer* {
+        const auto found = std::find_if(
+            players.begin(), players.end(),
+            [id](const RacePlacePlayer& player) {
+                return player.playerId == id && !player.disconnected;
+            });
+        return found == players.end() ? nullptr : &*found;
+    };
+    const RacePlacePlayer* lastLeader =
+        order_.empty() ? nullptr : findPlayer(order_.front());
+    const RacePlacePlayer* lastThird =
+        order_.size() < 3U ? nullptr : findPlayer(order_[2U]);
+
+    output.order = std::move(activeIds);
+    std::sort(
+        output.order.begin(), output.order.end(),
+        [&](std::size_t firstId, std::size_t secondId) {
+            const auto* first = findPlayer(firstId);
+            const auto* second = findPlayer(secondId);
+            if (first == nullptr || second == nullptr)
+                return first != nullptr;
+            if (first->finished && second->finished)
+                return first->place < second->place;
+            if (first->finished != second->finished)
+                return first->finished;
+            return first->lap > second->lap;
+        });
+
+    const auto at = [&](std::size_t index) -> const RacePlacePlayer* {
+        return index < output.order.size()
+                   ? findPlayer(output.order[index])
+                   : nullptr;
+    };
+    const auto* leader = at(0U);
+    const auto* second = at(1U);
+    const auto* third = at(2U);
+    const auto* nextLast =
+        output.order.size() >= 2U
+            ? at(output.order.size() - 2U)
+            : nullptr;
+    const auto* last =
+        output.order.size() >= 2U
+            ? at(output.order.size() - 1U)
+            : nullptr;
+
+    if (leader != nullptr && lastLeader != nullptr &&
+        leader->playerId != lastLeader->playerId &&
+        leader->lastCorrectMainPath &&
+        lastLeader->lastCorrectMainPath)
+    {
+        const float newLeadPlace = leader->lastCorrectLap;
+        if (leader->lastCorrectPathLength *
+                    (newLeadPlace - lastLeadPlace_) >
+                300.0F &&
+            !hasResults)
+        {
+            output.events.push_back(
+                {RacePlaceEventKind::LeadChanged, leader->playerId,
+                 lastLeader->playerId});
+        }
+        lastLeadPlace_ = newLeadPlace;
+    }
+    if (third != nullptr && lastThird != nullptr &&
+        third->playerId != lastThird->playerId &&
+        third->lastCorrectMainPath &&
+        lastThird->lastCorrectMainPath)
+    {
+        const float newThirdPlace = third->lastCorrectLap;
+        if (third->lastCorrectPathLength *
+                    (newThirdPlace - lastThirdPlace_) >
+                300.0F &&
+            !hasResults)
+        {
+            output.events.push_back(
+                {RacePlaceEventKind::ThirdChanged, third->playerId,
+                 lastThird->playerId});
+        }
+        lastThirdPlace_ = newThirdPlace;
+    }
+    if (last != nullptr && nextLast != nullptr &&
+        last->lastCorrectMainPath && nextLast->lastCorrectMainPath &&
+        last->lastCorrectPathLength *
+                (nextLast->lastCorrectLap - last->lastCorrectLap) >
+            70.0F)
+    {
+        output.events.push_back(
+            {RacePlaceEventKind::LastFar, last->playerId,
+             nextLast->playerId});
+    }
+    if (leader != nullptr && second != nullptr &&
+        leader->lastCorrectMainPath && second->lastCorrectMainPath &&
+        leader->lastCorrectPathLength *
+                (leader->lastCorrectLap - second->lastCorrectLap) >
+            70.0F &&
+        !hasResults)
+    {
+        output.events.push_back(
+            {RacePlaceEventKind::Domination, leader->playerId,
+             second->playerId});
+    }
+    if (second != nullptr && third != nullptr &&
+        second->lastCorrectMainPath && third->lastCorrectMainPath &&
+        third->lastCorrectPathLength *
+                (second->lastCorrectLap - third->lastCorrectLap) >
+            70.0F &&
+        !hasResults)
+    {
+        output.events.push_back(
+            {RacePlaceEventKind::ThirdFar, third->playerId,
+             second->playerId});
+    }
+
+    order_ = output.order;
+    return output;
+}
+
 } // namespace r3d::game::originalrace::source

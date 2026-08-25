@@ -1204,6 +1204,19 @@ Network, video и Steam явно выключены.
 - Проверка: 13/13 non-network CTest, original resource verifier и полный
   map1 Jolt physics smoke.
 
+### Source Race place/late-progress owner
+
+- `Race::OnLateProgress` больше не является session-side imitation. Active
+  `RacePlaceModel` хранит прежний `_playerPlaceList`, сортирует finished по
+  source `place`, остальных по `CarState::GetLap`, переназначает места и
+  выдаёт LeadChanged/ThirdChanged/LastFar/Domination/ThirdFar.
+- Подтвердился баг сетевых результатов: surrogate `100000-finishTime` мог
+  уничтожить полученный по сети порядок мест. Он удалён; regression подаёт
+  одинаковое время с порядком 2/1/3 и требует source order 1/2/3.
+- Membership change очищает previous list, как `Race::DelPlayer`, поэтому
+  disconnect не становится выдуманной сменой лидера. Thresholds и
+  result-suppression перенесены без изменения.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity
