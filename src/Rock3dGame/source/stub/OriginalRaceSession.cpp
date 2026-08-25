@@ -1055,6 +1055,7 @@ void OriginalRaceSession::reset()
     networkGameplayEnabled_ = false;
     networkGameplayHost_ = false;
     debugHumanAiControl_ = false;
+    humanRacer_ = RacerRuntime::invalidWeapon;
     networkOwnedRacers_.clear();
     elapsedSeconds_ = 0.0F;
     finishSecondsRemaining_ = -1.0F;
@@ -1398,6 +1399,9 @@ void OriginalRaceSession::reset()
     const auto humanPosition = std::find_if(
         racers_.begin(), racers_.end(),
         [](const source::Player& player) { return player.IsHuman(); });
+    if (humanPosition != racers_.end())
+        humanRacer_ = static_cast<std::size_t>(
+            humanPosition - racers_.begin());
     source::Player* human =
         humanPosition == racers_.end() ? nullptr : &*humanPosition;
     raceRunState_.StartRace(racers_, human);
@@ -1417,9 +1421,9 @@ void OriginalRaceSession::applyPlayerProfile(
 void OriginalRaceSession::writePlayerProfile(
     PlayerProfile& profile) const
 {
-    if (racers_.empty())
+    if (humanRacer_ >= racers_.size())
         return;
-    const auto& runtime = racers_.front();
+    const auto& runtime = racers_[humanRacer_];
     profile.money = runtime.money;
     profile.points = runtime.points;
     auto writeWeapon = [&](std::size_t profileSlot,
@@ -2121,6 +2125,11 @@ const std::vector<RacerRuntime>& OriginalRaceSession::racers() const noexcept
     return racers_;
 }
 
+std::size_t OriginalRaceSession::humanRacer() const noexcept
+{
+    return humanRacer_;
+}
+
 const std::vector<source::RaceResult>&
 OriginalRaceSession::results() const noexcept
 {
@@ -2529,7 +2538,7 @@ OriginalRaceSession::progressPlayers(
             racer < aiPlayers_.size() &&
                     racers_[racer].IsComputer()
                 ? aiPlayers_[racer].GetCheat()
-                : (racer == 0U && networkGameplayEnabled_
+                : (runtime.IsHuman() && networkGameplayEnabled_
                        ? source::Player::cheatEnableFaster
                        : source::Player::cheatDisabled);
         results[racer] = runtime.OnProgress(
@@ -2572,7 +2581,7 @@ void OriginalRaceSession::updateAiTracks(
     const std::vector<r3d::physics::VehicleState>& vehicles)
 {
     aiSystemEntriesScratch_.clear();
-    for (std::size_t racer = 1U;
+    for (std::size_t racer = 0U;
          racer < racers_.size() && racer < vehicles.size() &&
          racer < aiPlayers_.size(); ++racer)
     {
@@ -3946,15 +3955,16 @@ void OriginalRaceSession::updateGameplay(
             }),
         projectiles_.end());
 
-    if (!vehicles.empty())
+    if (humanRacer_ < vehicles.size() && humanRacer_ < racers_.size())
     {
         if (humanControl.reset &&
             source::HumanPlayer::ResetCar(
-                !racers_[0].destroyed,
-                vehicles[0].contactCount > 0U,
-                !vehicles[0].bodyContacts.empty()))
-            queueRespawn(0, vehicles);
-        previousPositions_[0] = vehicles[0].body.position;
+                !racers_[humanRacer_].destroyed,
+                vehicles[humanRacer_].contactCount > 0U,
+                !vehicles[humanRacer_].bodyContacts.empty()))
+            queueRespawn(humanRacer_, vehicles);
+        previousPositions_[humanRacer_] =
+            vehicles[humanRacer_].body.position;
     }
     for (std::size_t racer = 0;
          racer < vehicles.size() && racer < racers_.size(); ++racer)
@@ -3982,7 +3992,7 @@ void OriginalRaceSession::updateGameplay(
             racer, vehicles[racer].body.position,
             vehicles[racer], true);
     }
-    for (std::size_t racer = 1;
+    for (std::size_t racer = 0U;
          racer < vehicles.size() && racer < racers_.size(); ++racer)
     {
         if (racers_[racer].IsComputer() &&
@@ -4121,11 +4131,11 @@ void OriginalRaceSession::updateGameplay(
             definition.chargeStep, definition.damage);
     };
     auto emitHumanShot = [&](const source::Logic::ShotPlan& plan) {
-        if (!plan.humanShotEvent || racers_.empty())
+        if (!plan.humanShotEvent || humanRacer_ >= racers_.size())
             return;
         RaceEvent event;
         event.kind = RaceEventKind::HumanShot;
-        event.racer = 0U;
+        event.racer = humanRacer_;
         events_.push_back(std::move(event));
     };
 
@@ -4133,10 +4143,10 @@ void OriginalRaceSession::updateGameplay(
         std::array<source::WeaponItem,
                    PlayerProfile::weaponSlotCount> result{};
         for (std::size_t slot = 0U; slot < result.size(); ++slot)
-            result[slot] = primaryWeaponItem(0U, slot);
+            result[slot] = primaryWeaponItem(humanRacer_, slot);
         return result;
     };
-    if (!racers_.empty() && humanControl.weaponSlot >= 0 &&
+    if (humanRacer_ < racers_.size() && humanControl.weaponSlot >= 0 &&
         humanControl.weaponSlot <
             static_cast<int>(PlayerProfile::weaponSlotCount))
     {
@@ -4147,18 +4157,18 @@ void OriginalRaceSession::updateGameplay(
         {
             humanPlayer_.SetCurWeapon(
                 static_cast<int>(slot));
-            racers_[0].selectedWeaponSlot = slot;
-            racers_[0].SyncSelectedWeapon(race_.weapons.size());
+            racers_[humanRacer_].selectedWeaponSlot = slot;
+            racers_[humanRacer_].SyncSelectedWeapon(race_.weapons.size());
         }
     }
-    if (humanControl.changeWeapon && !racers_.empty())
+    if (humanControl.changeWeapon && humanRacer_ < racers_.size())
     {
         auto items = humanPrimaryItems();
         humanPlayer_.ChangeWeapon(
             humanControl.weaponChange, items);
-        racers_[0].selectedWeaponSlot = static_cast<std::size_t>(
+        racers_[humanRacer_].selectedWeaponSlot = static_cast<std::size_t>(
             std::max(humanPlayer_.GetCurWeapon(), 0));
-        racers_[0].SyncSelectedWeapon(race_.weapons.size());
+        racers_[humanRacer_].SyncSelectedWeapon(race_.weapons.size());
     }
 
     auto placeMine = [&](
@@ -4255,33 +4265,33 @@ void OriginalRaceSession::updateGameplay(
     };
     if (humanControl.useMine)
     {
-        auto item = mineWeaponItem(0U);
+        auto item = mineWeaponItem(humanRacer_);
         const auto plan = source::Logic::Shot(
             item.IsInstalled() ? &item : nullptr,
             source::Logic::SlotType::Mine, true);
         emitHumanShot(plan);
         if (plan.Get(source::Logic::SlotType::Mine))
-            placeMine(0U, nullptr, 0U, false, true);
+            placeMine(humanRacer_, nullptr, 0U, false, true);
     }
-    if (!racers_.empty() && humanControl.mineHeld > 0.0F &&
-        racers_[0].mineWeapon != RacerRuntime::invalidWeapon &&
-        racers_[0].mineWeapon < race_.weapons.size())
+    if (humanRacer_ < racers_.size() && humanControl.mineHeld > 0.0F &&
+        racers_[humanRacer_].mineWeapon != RacerRuntime::invalidWeapon &&
+        racers_[humanRacer_].mineWeapon < race_.weapons.size())
     {
         const bool maslo =
-            !weaponRacks_.empty() &&
-            weaponRacks_[0].mine.IsMaslo();
+            humanRacer_ < weaponRacks_.size() &&
+            weaponRacks_[humanRacer_].mine.IsMaslo();
         if (humanControl.mineAnalogBinding || maslo)
         {
             const float alpha =
                 std::clamp(humanControl.mineHeld, 0.0F, 1.0F);
             const float sourceDelay = (1.0F - alpha) * 0.6F;
-            if (!weaponRacks_.empty() &&
-                weaponRacks_[0].mine.IsReadyShot(sourceDelay))
+            if (humanRacer_ < weaponRacks_.size() &&
+                weaponRacks_[humanRacer_].mine.IsReadyShot(sourceDelay))
             {
                 source::Logic::ShotPlan humanShot;
                 humanShot.humanShotEvent = true;
                 emitHumanShot(humanShot);
-                placeMine(0, nullptr, 0U, false, true);
+                placeMine(humanRacer_, nullptr, 0U, false, true);
             }
         }
     }
@@ -4427,12 +4437,12 @@ void OriginalRaceSession::updateGameplay(
     };
     if (humanControl.useHyper)
     {
-        auto item = hyperWeaponItem(0U);
+        auto item = hyperWeaponItem(humanRacer_);
         const auto plan = source::Logic::Shot(
             item.IsInstalled() ? &item : nullptr,
             source::Logic::SlotType::Hyper, true);
         if (plan.Get(source::Logic::SlotType::Hyper))
-            activateHyper(0U);
+            activateHyper(humanRacer_);
     }
 
     std::vector<MineRuntime> spawnedMines;
@@ -5389,9 +5399,9 @@ void OriginalRaceSession::updateGameplay(
             std::move(networkCoordinates);
         events_.push_back(std::move(shotEvent));
     };
-    if (humanControl.useWeapon && !racers_.empty())
+    if (humanControl.useWeapon && humanRacer_ < racers_.size())
     {
-        auto& runtime = racers_.front();
+        auto& runtime = racers_[humanRacer_];
         auto items = humanPrimaryItems();
         humanPlayer_.SetCurWeapon(
             static_cast<int>(runtime.selectedWeaponSlot));
@@ -5411,7 +5421,7 @@ void OriginalRaceSession::updateGameplay(
             emitHumanShot(plan);
             if (plan.Get(slotType))
             {
-                fireWeapon(0U, RacerRuntime::invalidWeapon,
+                fireWeapon(humanRacer_, RacerRuntime::invalidWeapon,
                            nullptr, 0U, false, true);
                 if (item.GetCurCharge() == 0U)
                 {
@@ -5423,11 +5433,12 @@ void OriginalRaceSession::updateGameplay(
             }
         }
     }
-    if (humanControl.fireWeaponSlot >= 0 && !racers_.empty() &&
+    if (humanControl.fireWeaponSlot >= 0 &&
+        humanRacer_ < racers_.size() &&
         humanControl.fireWeaponSlot <
             static_cast<int>(PlayerProfile::weaponSlotCount))
     {
-        auto& runtime = racers_.front();
+        auto& runtime = racers_[humanRacer_];
         const auto requestedOrdinal =
             static_cast<std::size_t>(humanControl.fireWeaponSlot);
         auto items = humanPrimaryItems();
@@ -5439,7 +5450,7 @@ void OriginalRaceSession::updateGameplay(
             const auto selected = runtime.selectedWeaponSlot;
             runtime.selectedWeaponSlot = requested;
             runtime.SyncSelectedWeapon(race_.weapons.size());
-            auto item = primaryWeaponItem(0U, requested);
+            auto item = primaryWeaponItem(humanRacer_, requested);
             const auto slotType =
                 static_cast<source::Logic::SlotType>(
                     static_cast<std::size_t>(
@@ -5449,15 +5460,15 @@ void OriginalRaceSession::updateGameplay(
                 slotType, true);
             emitHumanShot(plan);
             if (plan.Get(slotType))
-                fireWeapon(0U, RacerRuntime::invalidWeapon,
+                fireWeapon(humanRacer_, RacerRuntime::invalidWeapon,
                            nullptr, 0U, false, true);
             runtime.selectedWeaponSlot = selected;
             runtime.SyncSelectedWeapon(race_.weapons.size());
         }
     }
-    if (humanControl.useAllWeapons && !racers_.empty())
+    if (humanControl.useAllWeapons && humanRacer_ < racers_.size())
     {
-        auto& runtime = racers_.front();
+        auto& runtime = racers_[humanRacer_];
         const auto selected = runtime.selectedWeaponSlot;
         auto items = humanPrimaryItems();
         const auto plan = source::Logic::ShotAll(items, true);
@@ -5473,7 +5484,7 @@ void OriginalRaceSession::updateGameplay(
                 continue;
             runtime.selectedWeaponSlot = slot;
             runtime.SyncSelectedWeapon(race_.weapons.size());
-            fireWeapon(0U, RacerRuntime::invalidWeapon,
+            fireWeapon(humanRacer_, RacerRuntime::invalidWeapon,
                        nullptr, 0U, false, true);
         }
         runtime.selectedWeaponSlot = selected;
@@ -5549,7 +5560,7 @@ void OriginalRaceSession::updateGameplay(
         state.size = state.radius * 2.0F;
         attackTargets[target] = state;
     }
-    for (std::size_t racer = 1U;
+    for (std::size_t racer = 0U;
          racer < racers_.size() && racer < vehicles.size(); ++racer)
     {
         auto& runtime = racers_[racer];
@@ -5828,10 +5839,10 @@ void OriginalRaceSession::updateAchievements(float seconds)
         [](const RacerRuntime& racer) {
             return !racer.disconnected;
         }));
-    if (!racers_.empty())
+    if (humanRacer_ < racers_.size())
     {
-        raceState.humanPlace = racers_.front().place;
-        raceState.humanLaps = racers_.front().car.numLaps;
+        raceState.humanPlace = racers_[humanRacer_].place;
+        raceState.humanLaps = racers_[humanRacer_].car.numLaps;
     }
     for (const std::size_t achievement : achievementModel_.Process(
              seconds, sourceEvents, raceState))
@@ -5839,7 +5850,7 @@ void OriginalRaceSession::updateAchievements(float seconds)
         if (achievement >= race_.achievements.size())
             continue;
         events_.push_back(
-            {RaceEventKind::Achievement, 0U, achievement, {},
+            {RaceEventKind::Achievement, humanRacer_, achievement, {},
              static_cast<float>(race_.achievements[achievement].reward)});
     }
 }
@@ -6127,11 +6138,11 @@ void OriginalRaceSession::update(
 
     RaceControl sourceHumanControl = humanControl;
     const bool humanCarPresent =
-        !racers_.empty() && !vehicles.empty() &&
-        !racers_.front().destroyed &&
-        !racers_.front().disconnected;
+        humanRacer_ < racers_.size() && humanRacer_ < vehicles.size() &&
+        !racers_[humanRacer_].destroyed &&
+        !racers_[humanRacer_].disconnected;
     const auto humanGate = source::HumanPlayer::EvaluateControl(
-        racers_.empty() || racers_.front().IsBlock(),
+        humanRacer_ >= racers_.size() || racers_[humanRacer_].IsBlock(),
         humanCarPresent, humanControl.chatMode,
         debugHumanAiControl_);
     if (!humanGate.driving)
@@ -6153,16 +6164,17 @@ void OriginalRaceSession::update(
     }
 
     elapsedSeconds_ += seconds;
-    if (!vehicleInputs_.empty() && !racers_.front().finished)
+    if (humanRacer_ < vehicleInputs_.size() &&
+        humanRacer_ < racers_.size() && !racers_[humanRacer_].finished)
     {
-        vehicleInputs_[0] = sourceHumanControl.driving;
-        if (racers_[0].speedBoostSeconds > 0.0F)
-            vehicleInputs_[0].throttle = 1.0F;
+        vehicleInputs_[humanRacer_] = sourceHumanControl.driving;
+        if (racers_[humanRacer_].speedBoostSeconds > 0.0F)
+            vehicleInputs_[humanRacer_].throttle = 1.0F;
     }
     const auto playerProgress = progressPlayers(seconds, vehicles);
 
     updateAiTracks(vehicles);
-    for (std::size_t racer = 1;
+    for (std::size_t racer = 0U;
          racer < racers_.size() && racer < vehicles.size(); ++racer)
     {
         if (racers_[racer].IsComputer() &&
@@ -6176,15 +6188,18 @@ void OriginalRaceSession::update(
                 aiInput(racer, vehicles[racer], seconds);
         }
     }
-    if (debugHumanAiControl_ && !vehicleInputs_.empty() &&
-        !aiPlayers_.empty() && aiPlayers_.front().HasCar() &&
-        !racers_.front().finished && !racers_.front().destroyed &&
-        !vehicles.empty())
+    if (debugHumanAiControl_ && humanRacer_ < vehicleInputs_.size() &&
+        humanRacer_ < aiPlayers_.size() &&
+        aiPlayers_[humanRacer_].HasCar() &&
+        !racers_[humanRacer_].finished &&
+        !racers_[humanRacer_].destroyed &&
+        humanRacer_ < vehicles.size())
     {
         // AIDebug F7 flips AICar::_enbAI for the human car. Reuse the same
         // portable AICar path controller as opponents instead of creating a
         // synthetic racer or a second physics vehicle.
-        vehicleInputs_[0] = aiInput(0U, vehicles.front(), seconds);
+        vehicleInputs_[humanRacer_] =
+            aiInput(humanRacer_, vehicles[humanRacer_], seconds);
     }
 
     for (std::size_t racer = 0U;
@@ -6214,8 +6229,8 @@ void OriginalRaceSession::update(
 void OriginalRaceSession::setDebugHumanAiControl(bool enabled) noexcept
 {
     debugHumanAiControl_ = enabled;
-    if (!aiPlayers_.empty())
-        aiPlayers_.front().SetEnabled(enabled);
+    if (humanRacer_ < aiPlayers_.size())
+        aiPlayers_[humanRacer_].SetEnabled(enabled);
 }
 
 bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
@@ -6404,6 +6419,61 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             session.racers().front().IsBlock() ||
             session.vehicleInputs().front().throttle < 0.9F)
             throw std::runtime_error("countdown/control transition failed");
+
+        {
+            // NetRace keeps the canonical network roster order.  The local
+            // HumanPlayer pointer therefore does not have to occupy slot 0.
+            // Exercise the source Player ID/role lookup directly so gameplay,
+            // HUD, camera and profile ownership cannot regress to front().
+            Race reorderedRace = race;
+            if (reorderedRace.racers.size() < 2U)
+            {
+                throw std::runtime_error(
+                    "human owner regression needs two racers");
+            }
+            std::swap(
+                reorderedRace.racers[0], reorderedRace.racers[1]);
+            reorderedRace.racers[0].human = true;
+            reorderedRace.racers[0].playerId =
+                2 << source::Player::opponentBit;
+            reorderedRace.racers[0].netSlot = 2U;
+            reorderedRace.racers[0].netName = "remote-owner-test";
+            reorderedRace.racers[1].human = true;
+            reorderedRace.racers[1].playerId =
+                source::Player::humanId;
+            reorderedRace.racers[1].netSlot =
+                source::Player::defaultNetSlot;
+
+            OriginalRaceSession reorderedSession(reorderedRace, true);
+            RaceControl reorderedInput;
+            reorderedInput.driving.throttle = 1.0F;
+            reorderedSession.update(
+                1.0F / 60.0F, vehicles, reorderedInput);
+            if (reorderedSession.humanRacer() != 1U ||
+                reorderedSession.vehicleInputs().size() < 2U ||
+                reorderedSession.vehicleInputs()[1].throttle < 0.9F ||
+                reorderedSession.vehicleInputs()[0].throttle != 0.0F ||
+                !reorderedSession.racers()[1].IsHuman() ||
+                !reorderedSession.racers()[0].IsOpponent())
+            {
+                throw std::runtime_error(
+                    "source HumanPlayer owner still depended on racer 0");
+            }
+
+            auto& reorderedRacers =
+                const_cast<std::vector<RacerRuntime>&>(
+                    reorderedSession.racers());
+            reorderedRacers[1].money = 4321U;
+            reorderedRacers[1].points = 765U;
+            PlayerProfile reorderedProfile;
+            reorderedSession.writePlayerProfile(reorderedProfile);
+            if (reorderedProfile.money != 4321U ||
+                reorderedProfile.points != 765U)
+            {
+                throw std::runtime_error(
+                    "source HumanPlayer profile owner used racer 0");
+            }
+        }
 
         {
             OriginalRaceSession exitSession(race);

@@ -96,6 +96,7 @@ private:
     std::map<std::string, Comment> comments_;
     std::map<std::string, r3d::audio::SoundHandle> loadedSounds_;
     std::deque<r3d::audio::SoundHandle> queue_;
+    std::size_t humanRacer_ = static_cast<std::size_t>(-1);
     r3d::audio::VoiceHandle voice_ = r3d::audio::invalidVoice;
     float globalDelaySeconds_ = 0.0F;
     float timeSeconds_ = 0.0F;

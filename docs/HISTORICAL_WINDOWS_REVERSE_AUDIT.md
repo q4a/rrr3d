@@ -981,6 +981,28 @@ map bonus/decoration instances. Jolt actor/bgfx scene остаются backend
 car nodes, AI и object graph после первого/повторного exit. 13 CTest, map1
 physics и 300-frame FinishMenu smoke проходят.
 
+### P2.19 — HumanPlayer runtime owner — выполнено
+
+Устранено оставшееся portable-предположение, что локальный `HumanPlayer`
+всегда находится в `racers[0]`. В оригинальном Windows-коде владельцем служит
+указатель `Race::HumanPlayer`, а в сетевой гонке canonical roster может
+поместить локальный descriptor не в первый slot. Session теперь один раз
+находит владельца по source `Player::IsHuman()`/`cHuman` ID и использует его
+для input, reset/respawn, оружия, мин, hyper, achievement state, записи
+профиля и debug AI control.
+
+HUD, commentator, камера, listener/spatial audio, race telemetry, finish и
+network publication теперь получают тот же runtime owner. AI-циклы и smoke
+метрики проходят весь roster и фильтруют `Player::IsComputer()`, поэтому
+remote opponents больше не принимаются ни за локального игрока, ни за AI.
+Debug overlay также показывает физику, ввод и vehicle definition именно
+локальной машины.
+
+Regression переставляет локального Human в slot 1, оставляет remote opponent
+в slot 0 и проверяет маршрутизацию управления и сохранение money/points.
+13 non-network CTest, resource verifier, map1 physics и 240-frame Metal/Jolt
+render smoke проходят.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

@@ -417,6 +417,7 @@ public:
     const std::vector<r3d::physics::VehicleInput>& vehicleInputs() const
         noexcept;
     const std::vector<RacerRuntime>& racers() const noexcept;
+    std::size_t humanRacer() const noexcept;
     const std::vector<source::RaceResult>& results() const noexcept;
     const source::RaceResult* resultForRacer(
         std::size_t racer) const noexcept;
@@ -533,6 +534,7 @@ private:
     bool networkGameplayEnabled_ = false;
     bool networkGameplayHost_ = false;
     std::vector<bool> networkOwnedRacers_;
+    std::size_t humanRacer_ = RacerRuntime::invalidWeapon;
     std::vector<RacerRuntime> racers_;
     std::vector<r3d::physics::VehicleInput> vehicleInputs_;
     std::vector<bool> decorationActive_;

@@ -4568,9 +4568,12 @@ int main(int argc, char** argv)
         r3d::audio::PlayOptions options;
         options.bus = r3d::audio::Bus::Effects;
         options.loop = true;
-        options.volume = racer == 0U ? 0.5F : 0.0F;
+        const bool localHuman =
+            racer < raceSession.racers().size() &&
+            raceSession.racers()[racer].IsHuman();
+        options.volume = localHuman ? 0.5F : 0.0F;
         engine.idleVoice = playRaceLoop(engine.idle, options);
-        options.volume = racer == 0U ? 0.2F : 0.0F;
+        options.volume = localHuman ? 0.2F : 0.0F;
         engine.rpmVoice = playRaceLoop(engine.rpm, options);
         const auto& sourceRacer = originalRace->racers[racer];
         const auto& vehicle =
@@ -6263,8 +6266,10 @@ int main(int argc, char** argv)
         {
             raceSession.writePlayerProfile(profileState.player);
             raceSession.writeAchievementProfile(profileState);
+            const auto humanRacer = raceSession.humanRacer();
             if (championshipMode &&
-                raceSession.racers().front().finished &&
+                humanRacer < raceSession.racers().size() &&
+                raceSession.racers()[humanRacer].finished &&
                 !raceProgressSaved)
             {
                 const auto completedTrack = selectedTrack;
@@ -6628,9 +6633,11 @@ int main(int argc, char** argv)
                 std::string(recordName(source.record));
             state.slots[index].chargeCount = source.charge;
         }
-        if (!raceVehicles.empty())
+        const auto humanRacer = raceSession.humanRacer();
+        if (humanRacer < raceVehicles.size() &&
+            humanRacer < originalRace->racers.size())
         {
-            const auto& vehicle = raceVehicles.front();
+            const auto& vehicle = raceVehicles[humanRacer];
             state.vehicle.position = {
                 vehicle.body.position.x, vehicle.body.position.y,
                 vehicle.body.position.z};
@@ -6638,9 +6645,9 @@ int main(int argc, char** argv)
                 vehicle.body.rotation.x, vehicle.body.rotation.y,
                 vehicle.body.rotation.z, vehicle.body.rotation.w};
             float mass = originalRace->vehicle.physics.mass;
-            if (!originalRace->racers.empty())
+            if (humanRacer < originalRace->racers.size())
             {
-                const auto& racer = originalRace->racers.front();
+                const auto& racer = originalRace->racers[humanRacer];
                 const auto& source = racer.hasConfiguredVehicle
                                          ? racer.configuredVehicle
                                          : originalRace->vehicles.at(
@@ -6970,12 +6977,13 @@ int main(int argc, char** argv)
         raceResetRequested = false;
     };
     auto closeExitRaceDialog = [&]() {
+        const auto humanRacer = raceSession.humanRacer();
         if (options->raceRenderSmokeTest &&
             racePauseElapsedSnapshot >= 0.0F &&
-            physicsWorld->vehicleCount() > 0U)
+            humanRacer < physicsWorld->vehicleCount())
         {
             const auto currentPosition =
-                physicsWorld->vehicle().body.position;
+                physicsWorld->vehicle(humanRacer).body.position;
             const float dx = currentPosition.x -
                              racePausePositionSnapshot.x;
             const float dy = currentPosition.y -
@@ -7009,9 +7017,10 @@ int main(int argc, char** argv)
             raceSession.setPaused(true);
         clearRaceControls();
         racePauseElapsedSnapshot = raceSession.elapsedSeconds();
-        if (physicsWorld->vehicleCount() > 0U)
+        const auto humanRacer = raceSession.humanRacer();
+        if (humanRacer < physicsWorld->vehicleCount())
             racePausePositionSnapshot =
-                physicsWorld->vehicle().body.position;
+                physicsWorld->vehicle(humanRacer).body.position;
         racePauseDialogObserved = true;
     };
     std::function<void(bool)> showFinishMenu;
@@ -10205,7 +10214,8 @@ int main(int argc, char** argv)
                       << exception.what() << '\n';
             runtimeSmokeFailed = true;
         }
-        const auto& player = raceSession.racers().front();
+        const auto humanRacer = raceSession.humanRacer();
+        const auto& player = raceSession.racers().at(humanRacer);
         inRace = false;
         raceInput = {};
         raceUseWeaponRequested = false;
@@ -15707,6 +15717,7 @@ int main(int argc, char** argv)
             }
 #endif
             raceSession.update(frameSeconds, raceVehicles, control);
+            const auto humanRacer = raceSession.humanRacer();
 #ifdef RRR3D_NETWORK
             if (networkMatchStarted)
             {
@@ -15808,9 +15819,10 @@ int main(int argc, char** argv)
                     }
                 }
             }
-            if (networkMatchStarted &&
-                !raceSession.racers().empty() &&
-                raceSession.racers().front().finished &&
+            const bool localHumanFinished =
+                humanRacer < raceSession.racers().size() &&
+                raceSession.racers()[humanRacer].finished;
+            if (networkMatchStarted && localHumanFinished &&
                 !networkLocalFinishPublished)
             {
                 std::string error;
@@ -15830,8 +15842,7 @@ int main(int argc, char** argv)
             }
             if (networkMatchStarted && networkHostRequested &&
                 !networkHostFinishTimerStarted &&
-                !raceSession.racers().empty() &&
-                raceSession.racers().front().finished)
+                localHumanFinished)
             {
                 const bool allHumansFinished =
                     !networkSnapshot.models.players.empty() &&
@@ -15850,10 +15861,10 @@ int main(int argc, char** argv)
             }
 #endif
             if (options->raceRenderSmokeTest &&
-                !raceSession.racers().empty())
+                humanRacer < raceSession.racers().size())
                 minimumRacePlayerLife = std::min(
                     minimumRacePlayerLife,
-                    raceSession.racers().front().life);
+                    raceSession.racers()[humanRacer].life);
             raceUseWeaponRequested = false;
             raceUseAllWeaponsRequested = false;
             raceUseMineRequested = false;
@@ -16118,7 +16129,7 @@ int main(int argc, char** argv)
                 if (options->raceRenderSmokeTest &&
                     event.kind ==
                         r3d::game::originalrace::RaceEventKind::Kill &&
-                    event.target == 0U)
+                    event.target == humanRacer)
                     racePlayerDestroyedObserved = true;
                 if (event.kind ==
                         r3d::game::originalrace::RaceEventKind::Kill &&
@@ -16218,10 +16229,10 @@ int main(int argc, char** argv)
                 }
             }
 #ifdef RRR3D_AUDIO
-            if (!raceVehicles.empty())
+            if (humanRacer < raceVehicles.size())
             {
                 const auto listener =
-                    raceVehicles.front().body.position;
+                    raceVehicles[humanRacer].body.position;
                 auto playSpatial =
                     [&](r3d::audio::SoundHandle sound,
                         const r3d::physics::Vec3& source) {
@@ -16636,11 +16647,13 @@ int main(int argc, char** argv)
                 auto vehicleInputs = raceSession.vehicleInputs();
                 if (options->raceRenderSmokeTest)
                 {
-                    for (std::size_t index = 1U;
+                    for (std::size_t index = 0U;
                          index < vehicleInputs.size() &&
                          index < raceVehicles.size() &&
                          index < raceSession.racers().size(); ++index)
                     {
+                        if (!raceSession.racers()[index].IsComputer())
+                            continue;
                         raceAiThrottleFrames[index] +=
                             vehicleInputs[index].throttle > 0.5F ? 1U : 0U;
                         raceAiBrakeFrames[index] +=
@@ -16714,8 +16727,9 @@ int main(int argc, char** argv)
                      index < physicsWorld->vehicleCount(); ++index)
                 {
                     raceVehicles[index] = physicsWorld->vehicle(index);
-                    if (options->raceRenderSmokeTest && index > 0U &&
-                        index < raceSession.racers().size())
+                    if (options->raceRenderSmokeTest &&
+                        index < raceSession.racers().size() &&
+                        raceSession.racers()[index].IsComputer())
                     {
                         maximumRaceAiSpeeds[index] = std::max(
                             maximumRaceAiSpeeds[index],
@@ -16845,10 +16859,10 @@ int main(int argc, char** argv)
             }
             raceElapsedSeconds = raceSession.elapsedSeconds();
 #ifdef RRR3D_AUDIO
-            if (!raceVehicles.empty())
+            if (humanRacer < raceVehicles.size())
             {
                 const auto& listener =
-                    raceVehicles.front().body.position;
+                    raceVehicles[humanRacer].body.position;
                 const bool audioPaused =
                     raceSession.phase() ==
                     r3d::game::originalrace::RacePhase::Paused;
@@ -16997,15 +17011,15 @@ int main(int argc, char** argv)
             maximumRaceSmokeSpeed = std::max(
                 maximumRaceSmokeSpeed,
                 std::sqrt(
-                    physicsWorld->vehicle().linearVelocity.x *
-                        physicsWorld->vehicle().linearVelocity.x +
-                    physicsWorld->vehicle().linearVelocity.y *
-                        physicsWorld->vehicle().linearVelocity.y +
-                    physicsWorld->vehicle().linearVelocity.z *
-                        physicsWorld->vehicle().linearVelocity.z));
+                    physicsWorld->vehicle(humanRacer).linearVelocity.x *
+                        physicsWorld->vehicle(humanRacer).linearVelocity.x +
+                    physicsWorld->vehicle(humanRacer).linearVelocity.y *
+                        physicsWorld->vehicle(humanRacer).linearVelocity.y +
+                    physicsWorld->vehicle(humanRacer).linearVelocity.z *
+                        physicsWorld->vehicle(humanRacer).linearVelocity.z));
             maximumRaceSmokeContacts = std::max(
                 maximumRaceSmokeContacts,
-                physicsWorld->vehicle().contactCount);
+                physicsWorld->vehicle(humanRacer).contactCount);
 #ifdef RRR3D_NETWORK
             if (networkMatchStarted && networkHostRequested &&
                 networkRaceStarted && !networkRaceExitApplied &&
@@ -17445,6 +17459,7 @@ int main(int argc, char** argv)
         }
         if (inRace)
         {
+            const auto humanRacer = raceSession.humanRacer();
             gameDebug.updateFrame(frameSeconds);
             const float raceRenderSeconds =
                 raceSession.phase() ==
@@ -17499,7 +17514,7 @@ int main(int argc, char** argv)
                     cameraStyle, forward, right, raceRenderSeconds);
             }
             const auto raceCamera = raceRenderer.makeCamera(
-                *device, physicsWorld->vehicle(),
+                *device, physicsWorld->vehicle(humanRacer),
                 static_cast<std::uint32_t>(pixelWidth),
                 static_cast<std::uint32_t>(pixelHeight),
                 cameraStyle,
@@ -21651,38 +21666,43 @@ int main(int argc, char** argv)
                 const bool expectsHeadlights =
                     originalRace->environment.weather ==
                         r3d::game::originalrace::Weather::Night;
-                const std::size_t competitiveAiCount =
-                    static_cast<std::size_t>(std::count_if(
-                        maximumRaceAiSpeeds.begin() +
-                            std::min<std::size_t>(
-                                1U, maximumRaceAiSpeeds.size()),
-                        maximumRaceAiSpeeds.end(),
-                        [](float speed) { return speed >= 25.0F; }));
-                const std::size_t progressingAiCount =
-                    static_cast<std::size_t>(std::count_if(
-                        maximumRaceAiProgress.begin() +
-                            std::min<std::size_t>(
-                                1U, maximumRaceAiProgress.size()),
-                        maximumRaceAiProgress.end(),
-                        [](float progress) { return progress >= 0.5F; }));
+                std::size_t competitiveAiCount = 0U;
+                std::size_t progressingAiCount = 0U;
+                std::size_t sourceAiCount = 0U;
+                for (std::size_t racer = 0U;
+                     racer < raceSession.racers().size(); ++racer)
+                {
+                    if (!raceSession.racers()[racer].IsComputer())
+                        continue;
+                    ++sourceAiCount;
+                    if (racer < maximumRaceAiSpeeds.size() &&
+                        maximumRaceAiSpeeds[racer] >= 25.0F)
+                        ++competitiveAiCount;
+                    if (racer < maximumRaceAiProgress.size() &&
+                        maximumRaceAiProgress[racer] >= 0.5F)
+                        ++progressingAiCount;
+                }
                 const std::size_t expectedCompetitiveAi =
                     options->smokeFrames >= 1800U &&
                             originalRace->levelPath ==
                                 "Data/Map/World1/map1.r3dMap" &&
-                            maximumRaceAiSpeeds.size() > 1U
+                            sourceAiCount > 0U
                         ? std::min<std::size_t>(
-                              3U, maximumRaceAiSpeeds.size() - 1U)
+                              3U, sourceAiCount)
                         : 0U;
+                const auto humanRacer = raceSession.humanRacer();
                 const std::size_t aheadAiCount =
-                    raceSession.racers().empty()
+                    humanRacer >= raceSession.racers().size()
                         ? 0U
                         : static_cast<std::size_t>(std::count_if(
-                              raceSession.racers().begin() + 1U,
+                              raceSession.racers().begin(),
                               raceSession.racers().end(),
                               [&](const auto& racer) {
-                                  return !racer.disconnected &&
+                                  return !racer.IsHuman() &&
+                                         !racer.disconnected &&
                                          racer.place <
-                                             raceSession.racers().front().place;
+                                             raceSession.racers()[humanRacer]
+                                                 .place;
                               }));
                 const std::size_t expectedAheadAi =
                     expectedCompetitiveAi > 0U ? 1U : 0U;

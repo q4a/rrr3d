@@ -920,11 +920,13 @@ void OriginalRaceHud::update(
     const std::vector<r3d::physics::VehicleState>& vehicles,
     const Camera& camera, float seconds)
 {
-    if (session.racers().empty() || vehicles.empty())
+    const std::size_t humanRacer = session.humanRacer();
+    if (humanRacer >= session.racers().size() ||
+        humanRacer >= vehicles.size())
         return;
     seconds = std::clamp(seconds, 0.0F, 0.1F);
     uiSeconds_ += seconds;
-    const auto& player = session.racers().front();
+    const auto& player = session.racers()[humanRacer];
     const auto white = menu::Rgba8{255, 255, 255, 255};
 
     const auto placeIndex = std::min<std::size_t>(
@@ -1035,7 +1037,8 @@ void OriginalRaceHud::update(
                 achievementNotifications_.begin(), notification);
         }
         else if (event.kind == originalrace::RaceEventKind::Bonus &&
-            event.racer == 0 && event.target < race.bonuses.size())
+            event.racer == humanRacer &&
+            event.target < race.bonuses.size())
         {
             PickNotification notification;
             notification.kind = race.bonuses[event.target].kind;
@@ -1080,7 +1083,7 @@ void OriginalRaceHud::update(
         }
         else if (event.kind == originalrace::RaceEventKind::Kill &&
                  event.killCredit &&
-                 event.racer == 0 &&
+                 event.racer == humanRacer &&
                  event.target < race.racers.size())
         {
             PickNotification notification;
@@ -1110,12 +1113,12 @@ void OriginalRaceHud::update(
             std::size_t overlay = carLifeOverlays_.size();
             std::size_t racer = event.racer;
             float duration = 0.0F;
-            if (event.racer == 0)
+            if (event.racer == humanRacer)
             {
                 overlay = 0;
                 duration = 1.5F;
             }
-            else if (event.target == 0)
+            else if (event.target == humanRacer)
             {
                 overlay = 1;
                 duration = 4.0F;
@@ -1282,10 +1285,15 @@ void OriginalRaceHud::update(
              race.racers[index].color});
     }
 
-    const std::size_t opponentCount =
-        std::min(vehicles.size(), race.racers.size()) > 0
-            ? std::min(vehicles.size(), race.racers.size()) - 1U
-            : 0U;
+    std::vector<std::size_t> opponentRacers;
+    const std::size_t visibleRacers =
+        std::min({vehicles.size(), race.racers.size(),
+                  session.racers().size()});
+    opponentRacers.reserve(visibleRacers > 0U ? visibleRacers - 1U : 0U);
+    for (std::size_t racer = 0U; racer < visibleRacers; ++racer)
+        if (racer != humanRacer)
+            opponentRacers.push_back(racer);
+    const std::size_t opponentCount = opponentRacers.size();
     opponentLabels_.resize(opponentCount);
     std::array<float, 16> viewProjection{};
     bx::mtxMul(viewProjection.data(), camera.view.data(),
@@ -1392,12 +1400,12 @@ void OriginalRaceHud::update(
     for (std::size_t index = 0; index < opponentCount; ++index)
     {
         auto& label = opponentLabels_[index];
-        const std::size_t racerIndex = index + 1U;
+        const std::size_t racerIndex = opponentRacers[index];
         const auto& name =
             racerIndex < localizedRacerNames_.size()
                 ? localizedRacerNames_[racerIndex]
                 : race.racers[racerIndex].name;
-        const auto& runtime = session.racers()[index + 1U];
+        const auto& runtime = session.racers()[racerIndex];
         setText(device, label.name,
                 formatNamePlace(namePlaceFormat_, runtime.place, name),
                 15.0F, true, white);
@@ -1436,8 +1444,8 @@ void OriginalRaceHud::update(
     std::stable_sort(
         labelOrder.begin(), labelOrder.end(),
         [&](std::size_t first, std::size_t second) {
-            return session.racers()[first + 1U].place >
-                   session.racers()[second + 1U].place;
+            return session.racers()[opponentRacers[first]].place >
+                   session.racers()[opponentRacers[second]].place;
         });
     for (std::size_t order = 0; order < labelOrder.size(); ++order)
     {

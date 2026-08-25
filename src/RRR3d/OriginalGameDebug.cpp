@@ -46,10 +46,12 @@ std::string floatText(float value, int precision = 2)
 }
 
 const r3d::physics::VehicleDescription& vehicleDescription(
-    const r3d::physics::WorldDescription& physics)
+    const r3d::physics::WorldDescription& physics,
+    std::size_t racer)
 {
-    return physics.spawns.empty() ? physics.vehicle
-                                  : physics.spawns.front().vehicle;
+    return racer < physics.spawns.size()
+               ? physics.spawns[racer].vehicle
+               : physics.vehicle;
 }
 
 } // namespace
@@ -193,18 +195,20 @@ std::vector<std::string> OriginalGameDebug::lines(
         "FPS " + floatText(fps, 1) + "  frame " +
         floatText(smoothedFrameSeconds_ * 1000.0F, 2) + " ms");
 
-    if (vehicles.empty() || session.racers().empty())
+    const std::size_t humanRacer = session.humanRacer();
+    if (humanRacer >= vehicles.size() ||
+        humanRacer >= session.racers().size())
     {
         result.push_back("No active source vehicle/session state");
         return result;
     }
 
-    const auto& vehicle = vehicles.front();
-    const auto& racer = session.racers().front();
-    const auto& input = session.vehicleInputs().empty()
+    const auto& vehicle = vehicles[humanRacer];
+    const auto& racer = session.racers()[humanRacer];
+    const auto& input = humanRacer >= session.vehicleInputs().size()
                             ? r3d::physics::VehicleInput{}
-                            : session.vehicleInputs().front();
-    const auto& description = vehicleDescription(physics);
+                            : session.vehicleInputs()[humanRacer];
+    const auto& description = vehicleDescription(physics, humanRacer);
 
     if (page_ == 0U)
     {

@@ -231,6 +231,7 @@ void OriginalRaceCommentator::reset()
     if (!initialized_)
         return;
     stop();
+    humanRacer_ = invalidPlayer;
     timeSeconds_ = 0.0F;
     silenceSeconds_ = 0.0F;
     for (auto& [name, comment] : comments_)
@@ -258,7 +259,7 @@ OriginalRaceCommentator::generate(Comment& comment, std::size_t racer)
     for (const auto& voice : comment.voices)
     {
         if (voice.sound != r3d::audio::invalidSound &&
-            (!voice.humanOnly || racer == 0U))
+            (!voice.humanOnly || racer == humanRacer_))
             totalWeight += voice.weight;
     }
     const float selectedWeight = totalWeight * randomUnit();
@@ -266,7 +267,7 @@ OriginalRaceCommentator::generate(Comment& comment, std::size_t racer)
     for (const auto& voice : comment.voices)
     {
         if (voice.sound == r3d::audio::invalidSound ||
-            (voice.humanOnly && racer != 0U))
+            (voice.humanOnly && racer != humanRacer_))
             continue;
         if (selectedWeight >= accumulatedWeight &&
             selectedWeight <= accumulatedWeight + voice.weight)
@@ -383,6 +384,7 @@ void OriginalRaceCommentator::update(
     using namespace r3d::game::originalrace;
     if (!initialized_)
         return;
+    humanRacer_ = session.humanRacer();
     for (const auto& event : session.events())
     {
         std::string_view name;
@@ -466,6 +468,16 @@ void OriginalRaceCommentator::finishPlace(
 {
     if (!initialized_)
         return;
+    const auto human = std::find_if(
+        race.racers.begin(), race.racers.end(),
+        [](const auto& player) {
+            return player.playerId ==
+                   r3d::game::originalrace::source::Player::humanId;
+        });
+    humanRacer_ = human == race.racers.end()
+                      ? static_cast<std::size_t>(-1)
+                      : static_cast<std::size_t>(
+                            human - race.racers.begin());
     std::string_view name = "playerFinishLast";
     if (place == 1U)
         name = "playerFinishFirst";
