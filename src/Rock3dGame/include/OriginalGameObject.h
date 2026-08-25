@@ -124,6 +124,43 @@ public:
     bool OnContact(GameObject* target) const noexcept;
 };
 
+// GameBase.h::ResurrectObj intercepts the first Death notification, revives
+// the effect GameObject and lets its backend adapter detach the actor from an
+// owning include list while preserving its world transform.  A second Death
+// is final.
+class ResurrectObj
+{
+public:
+    void Reset() noexcept;
+    bool OnDeath(GameObject& owner) noexcept;
+    bool IsResurrect() const noexcept;
+
+private:
+    bool resurrect_ = false;
+};
+
+// FxSystemWaitingEnd enters particle fading on the intercepted death and
+// issues the final GameObject::Death only after all already emitted particles
+// have expired. Particle counting itself remains a renderer boundary.
+class FxSystemWaitingEnd : public ResurrectObj
+{
+public:
+    struct ProgressResult
+    {
+        bool beginFading = false;
+        bool finalDeath = false;
+    };
+
+    void Reset() noexcept;
+    ProgressResult OnDeath(GameObject& owner) noexcept;
+    ProgressResult OnProgress(
+        GameObject& owner, std::size_t liveParticles) noexcept;
+    bool IsFading() const noexcept;
+
+private:
+    bool fading_ = false;
+};
+
 // Backend-neutral state owned by the original GameBase behavior classes.
 // Effect actors/sounds remain renderer and audio adapters, but their state
 // machines live here instead of being reconstructed in RaceSession.

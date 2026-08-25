@@ -204,6 +204,56 @@ bool TouchDeath::OnContact(GameObject* target) const noexcept
     return target != nullptr && target->Death(DamageType::DeathPlane);
 }
 
+void ResurrectObj::Reset() noexcept
+{
+    resurrect_ = false;
+}
+
+bool ResurrectObj::OnDeath(GameObject& owner) noexcept
+{
+    if (resurrect_)
+        return false;
+    resurrect_ = true;
+    owner.Resc();
+    return true;
+}
+
+bool ResurrectObj::IsResurrect() const noexcept
+{
+    return resurrect_;
+}
+
+void FxSystemWaitingEnd::Reset() noexcept
+{
+    ResurrectObj::Reset();
+    fading_ = false;
+}
+
+FxSystemWaitingEnd::ProgressResult FxSystemWaitingEnd::OnDeath(
+    GameObject& owner) noexcept
+{
+    ProgressResult result;
+    result.beginFading = ResurrectObj::OnDeath(owner);
+    if (result.beginFading)
+        fading_ = true;
+    return result;
+}
+
+FxSystemWaitingEnd::ProgressResult FxSystemWaitingEnd::OnProgress(
+    GameObject& owner, std::size_t liveParticles) noexcept
+{
+    ProgressResult result;
+    if (!IsResurrect() || liveParticles != 0U || owner.destroyed)
+        return result;
+    result.finalDeath = owner.Death();
+    return result;
+}
+
+bool FxSystemWaitingEnd::IsFading() const noexcept
+{
+    return fading_;
+}
+
 LowLifePoints::LowLifePoints(float lifeLevel) noexcept
 {
     Reset(lifeLevel);

@@ -50,6 +50,7 @@ struct EffectTiming
 {
     float emissionSeconds = 0.0F;
     float visibleSeconds = 0.0F;
+    bool waitForParticleEnd = false;
 };
 
 EffectTiming sourceEffectTiming(const ObjectDefinition& definition,
@@ -65,6 +66,7 @@ EffectTiming sourceEffectTiming(const ObjectDefinition& definition,
     {
         if (!emitter.waitForParticleEnd)
             continue;
+        result.waitForParticleEnd = true;
         const float emissionEnd =
             emitter.emissionDuration > 0.0F
                 ? emitter.emissionDuration
@@ -79,6 +81,17 @@ EffectTiming sourceEffectTiming(const ObjectDefinition& definition,
             result.visibleSeconds, lastBirth + particleLife);
     }
     return result;
+}
+
+void applySourceEffectTiming(RaceEffect& effect,
+                             const EffectTiming& timing)
+{
+    effect.totalSeconds = timing.visibleSeconds;
+    effect.seconds = timing.visibleSeconds;
+    effect.emissionEndSeconds = timing.emissionSeconds;
+    effect.waitForParticleEnd = timing.waitForParticleEnd;
+    effect.effectOwner.ResetGameObject(-1.0F);
+    effect.waitingEnd.Reset();
 }
 
 Vec3 cross(Vec3 first, Vec3 second)
@@ -1609,9 +1622,7 @@ bool OriginalRaceSession::applyRacerDamageInternal(
             effect.racer = target;
             effect.origin = position;
             const auto timing = sourceEffectTiming(visual, 0.5F);
-            effect.totalSeconds = timing.visibleSeconds;
-            effect.seconds = effect.totalSeconds;
-            effect.emissionEndSeconds = timing.emissionSeconds;
+            applySourceEffectTiming(effect, timing);
             effects_.push_back(std::move(effect));
         }
     }
@@ -2725,9 +2736,7 @@ void OriginalRaceSession::destroyRacer(
         effect.kind = RaceEventKind::VehicleDestroyed;
         effect.origin = add(vehicle.body.position, source.position);
         effect.target = add(effect.origin, {1.0F, 0.0F, 0.0F});
-        effect.totalSeconds = timing.visibleSeconds;
-        effect.seconds = effect.totalSeconds;
-        effect.emissionEndSeconds = timing.emissionSeconds;
+        applySourceEffectTiming(effect, timing);
         effect.ignoreRotation = source.ignoreRotation;
         effect.racer = racer;
         effect.vehicleEffect = index;
@@ -3091,6 +3100,9 @@ void OriginalRaceSession::updateGameplay(
                     created.ageSeconds = 0.0F;
                     created.emissionEndSeconds =
                         sourceContactRelease;
+                    created.waitForParticleEnd = true;
+                    created.effectOwner.ResetGameObject(-1.0F);
+                    created.waitingEnd.Reset();
                     effects_.push_back(std::move(created));
                     effect = std::prev(effects_.end());
                 }
@@ -3238,10 +3250,7 @@ void OriginalRaceSession::updateGameplay(
                     impact.origin = effectOrigin;
                     impact.target =
                         add(impact.origin, projectile.direction);
-                    impact.seconds = timing.visibleSeconds;
-                    impact.totalSeconds = timing.visibleSeconds;
-                    impact.emissionEndSeconds =
-                        timing.emissionSeconds;
+                    applySourceEffectTiming(impact, timing);
                     impact.weapon = projectile.weapon;
                     impact.projectile = projectile.projectile;
                     impact.visualVariant = variant;
@@ -3369,14 +3378,15 @@ void OriginalRaceSession::updateGameplay(
                 projectile.position,
                 multiply(projectile.direction,
                          sourceRay ? projectile.impactDistance : 0.0F));
-            effects_.push_back(
-                {RaceEventKind::WeaponFired, projectile.position, end,
-                 std::max(seconds, 0.03F),
-                 std::max(seconds, 0.03F), projectile.weapon,
-                 projectile.projectile, 0U,
-                 RacerRuntime::invalidWeapon, false,
-                 RacerRuntime::invalidWeapon,
-                 RacerRuntime::invalidWeapon, {}});
+            RaceEffect fired;
+            fired.kind = RaceEventKind::WeaponFired;
+            fired.origin = projectile.position;
+            fired.target = end;
+            fired.seconds = std::max(seconds, 0.03F);
+            fired.totalSeconds = fired.seconds;
+            fired.weapon = projectile.weapon;
+            fired.projectile = projectile.projectile;
+            effects_.push_back(std::move(fired));
             if (sourceRay &&
                 rayHit.vehicle < vehicles.size() &&
                 rayHit.vehicle < racers_.size())
@@ -3666,14 +3676,15 @@ void OriginalRaceSession::updateGameplay(
                 projectile.reflectionCooldown = 0.1F;
             }
         }
-        effects_.push_back(
-            {RaceEventKind::WeaponFired, previous,
-             projectile.position, std::max(seconds, 0.03F),
-             std::max(seconds, 0.03F), projectile.weapon,
-             projectile.projectile, 0U,
-             RacerRuntime::invalidWeapon, false,
-             RacerRuntime::invalidWeapon,
-             RacerRuntime::invalidWeapon, {}});
+        RaceEffect fired;
+        fired.kind = RaceEventKind::WeaponFired;
+        fired.origin = previous;
+        fired.target = projectile.position;
+        fired.seconds = std::max(seconds, 0.03F);
+        fired.totalSeconds = fired.seconds;
+        fired.weapon = projectile.weapon;
+        fired.projectile = projectile.projectile;
+        effects_.push_back(std::move(fired));
 
         Transform projectileTransform;
         projectileTransform.position = projectile.position;
@@ -3985,9 +3996,7 @@ void OriginalRaceSession::updateGameplay(
                        {1.0F, 0.0F, 0.0F}));
             const auto timing = sourceEffectTiming(
                 source.visual, source.duration);
-            effect.totalSeconds = timing.visibleSeconds;
-            effect.seconds = timing.visibleSeconds;
-            effect.emissionEndSeconds = timing.emissionSeconds;
+            applySourceEffectTiming(effect, timing);
             effect.weapon = weapon;
             effect.ignoreRotation = source.ignoreRotation;
             effects_.push_back(std::move(effect));
@@ -4386,9 +4395,7 @@ void OriginalRaceSession::updateGameplay(
         impact.kind = RaceEventKind::ProjectileImpact;
         impact.origin = add(mine.position, death->position);
         impact.target = add(impact.origin, {0.0F, 0.0F, 1.0F});
-        impact.totalSeconds = timing.visibleSeconds;
-        impact.seconds = impact.totalSeconds;
-        impact.emissionEndSeconds = timing.emissionSeconds;
+        applySourceEffectTiming(impact, timing);
         impact.weapon = mine.weapon;
         impact.projectile = mine.projectile;
         impact.visualVariant = deathVariant;
@@ -4732,9 +4739,7 @@ void OriginalRaceSession::updateGameplay(
             bonus.deathEffect.position);
         impact.target = add(
             bonus.transform.position, {0.0F, 0.0F, 2.0F});
-        impact.totalSeconds = timing.visibleSeconds;
-        impact.seconds = impact.totalSeconds;
-        impact.emissionEndSeconds = timing.emissionSeconds;
+        applySourceEffectTiming(impact, timing);
         impact.weapon = race_.weapons.size();
         impact.bonus = bonusIndex;
         impact.ignoreRotation =
@@ -5244,14 +5249,16 @@ void OriginalRaceSession::updateGameplay(
                     projectileDecoration,
                     std::max(projectile.damage, 0.0F), shooter);
             }
-            effects_.push_back(
-                {RaceEventKind::WeaponFired, projectileOrigin, end,
-                 (rayProjectile || attachedProjectile) ? 0.12F : 0.03F,
-                 (rayProjectile || attachedProjectile) ? 0.12F : 0.03F,
-                 firedWeapon, projectileIndex, 0U,
-                 RacerRuntime::invalidWeapon, false,
-                 RacerRuntime::invalidWeapon,
-                 RacerRuntime::invalidWeapon, {}});
+            RaceEffect fired;
+            fired.kind = RaceEventKind::WeaponFired;
+            fired.origin = projectileOrigin;
+            fired.target = end;
+            fired.seconds =
+                (rayProjectile || attachedProjectile) ? 0.12F : 0.03F;
+            fired.totalSeconds = fired.seconds;
+            fired.weapon = firedWeapon;
+            fired.projectile = projectileIndex;
+            effects_.push_back(std::move(fired));
             pushShotEffect(
                 shooter, firedWeapon, firedSlot,
                 weaponWorldTransform(
@@ -5929,10 +5936,45 @@ void OriginalRaceSession::update(
     {
         effect.seconds -= seconds;
         effect.ageSeconds += seconds;
+        if (effect.waitForParticleEnd &&
+            !effect.waitingEnd.IsResurrect() &&
+            effect.emissionEndSeconds >= 0.0F &&
+            effect.ageSeconds > effect.emissionEndSeconds)
+        {
+            effect.effectOwner.Death();
+            const auto transition =
+                effect.waitingEnd.OnDeath(effect.effectOwner);
+            if (transition.beginFading &&
+                effect.parentRacer < vehicles.size())
+            {
+                // ResurrectObj::Resurrect removes a child MapObj from its
+                // include list and reinserts it into the world while keeping
+                // the current world pose. Preserve that source transition at
+                // the backend-neutral RaceEffect boundary.
+                effect.transform = compose(
+                    vehicles[effect.parentRacer].body,
+                    effect.transform);
+                effect.origin = effect.transform.position;
+                effect.target = add(
+                    effect.origin,
+                    rotate(effect.transform.rotation,
+                           {1.0F, 0.0F, 0.0F}));
+                effect.detachedSourceVelocity =
+                    vehicles[effect.parentRacer].linearVelocity;
+                effect.parentRacer = RacerRuntime::invalidWeapon;
+            }
+        }
+        if (effect.waitForParticleEnd && effect.seconds <= 0.0F)
+            effect.waitingEnd.OnProgress(effect.effectOwner, 0U);
     }
     effects_.erase(
         std::remove_if(effects_.begin(), effects_.end(),
                        [](const RaceEffect& effect) {
+                           if (effect.waitForParticleEnd)
+                           {
+                               return effect.waitingEnd.IsResurrect() &&
+                                      effect.effectOwner.destroyed;
+                           }
                            return effect.seconds <= 0.0F;
                        }),
         effects_.end());

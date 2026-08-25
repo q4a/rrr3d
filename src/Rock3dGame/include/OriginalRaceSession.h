@@ -254,6 +254,12 @@ struct RaceEffect
     std::uint8_t contactIndex = 0;
     float ageSeconds = 0.0F;
     float emissionEndSeconds = -1.0F;
+    // FxSystemWaitingEnd owns the two-stage source lifetime. The renderer
+    // supplies the equivalent particle-end boundary through totalSeconds.
+    source::GameObject effectOwner;
+    source::FxSystemWaitingEnd waitingEnd;
+    bool waitForParticleEnd = false;
+    Vec3 detachedSourceVelocity;
 };
 
 struct MineRuntime

@@ -161,6 +161,25 @@ int main()
         touchDeath.OnContact(&falling))
         return 30;
 
+    source::GameObject particleOwner;
+    particleOwner.ResetGameObject(-1.0F);
+    source::FxSystemWaitingEnd waitingEnd;
+    if (!particleOwner.Death() ||
+        !waitingEnd.OnDeath(particleOwner).beginFading ||
+        particleOwner.destroyed || !waitingEnd.IsResurrect())
+        return 32;
+    if (waitingEnd.OnDeath(particleOwner).beginFading ||
+        waitingEnd.OnProgress(particleOwner, 3U).finalDeath ||
+        particleOwner.destroyed)
+        return 33;
+    if (!waitingEnd.OnProgress(particleOwner, 0U).finalDeath ||
+        !particleOwner.destroyed ||
+        waitingEnd.OnProgress(particleOwner, 0U).finalDeath)
+        return 34;
+    waitingEnd.Reset();
+    if (waitingEnd.IsResurrect() || waitingEnd.IsFading())
+        return 35;
+
     std::cout << "original GameObject/DestrObj/effect behavior source "
                  "rules passed\n";
     return 0;

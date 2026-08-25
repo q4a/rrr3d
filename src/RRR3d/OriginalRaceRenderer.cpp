@@ -5481,6 +5481,7 @@ void OriginalRaceRenderer::draw(
                 else
                 {
                     parent.position = effect.origin;
+                    parentVelocity = effect.detachedSourceVelocity;
                     if (!effect.ignoreRotation)
                     {
                         parent.rotation = directionRotation(
