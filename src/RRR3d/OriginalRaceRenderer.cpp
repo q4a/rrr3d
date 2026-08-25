@@ -2824,8 +2824,8 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
     vehicleShieldEffects_.clear();
     vehicleShieldScales_.clear();
     vehicleDeathEffects_.clear();
-    vehicleTrackAnimationOffsets_.clear();
-    vehicleCushionAnimationAngles_.clear();
+    vehicleTrackAnimations_.clear();
+    vehicleCushionAnimations_.clear();
     wheelSmokeStartTimes_.clear();
     wheelSmokeEndTimes_.clear();
     vehicleAnimationUpdateSeconds_ = -1.0F;
@@ -4865,7 +4865,7 @@ void OriginalRaceRenderer::draw(
         }
         if (!refractionPass &&
             racer < vehicleTrackVisuals_.size() &&
-            racer < vehicleTrackAnimationOffsets_.size())
+            racer < vehicleTrackAnimations_.size())
         {
             const auto& animatedAsset =
                 vehicleTrackVisuals_[racer];
@@ -4873,7 +4873,7 @@ void OriginalRaceRenderer::draw(
                 animatedAsset.nodes.size(),
                 definition.trackVisuals.size());
             const float sourceTextureOffset =
-                1.0F - vehicleTrackAnimationOffsets_[racer];
+                vehicleTrackAnimations_[racer].GetTextureOffset();
             for (std::size_t index = 0; index < count; ++index)
             {
                 const auto& node = definition.trackVisuals[index];
@@ -4890,7 +4890,7 @@ void OriginalRaceRenderer::draw(
         }
         if (!refractionPass &&
             racer < vehicleCushionVisuals_.size() &&
-            racer < vehicleCushionAnimationAngles_.size())
+            racer < vehicleCushionAnimations_.size())
         {
             const auto& animatedAsset =
                 vehicleCushionVisuals_[racer];
@@ -4898,7 +4898,7 @@ void OriginalRaceRenderer::draw(
                 animatedAsset.nodes.size(),
                 definition.cushionVisuals.size());
             const float angle =
-                vehicleCushionAnimationAngles_[racer];
+                vehicleCushionAnimations_[racer].GetAngle();
             const float halfAngle = angle * 0.5F;
             for (std::size_t index = 0; index < count; ++index)
             {
@@ -5755,13 +5755,13 @@ void OriginalRaceRenderer::drawShadowCasters(
             }
         }
         if (racer < vehicleCushionVisuals_.size() &&
-            racer < vehicleCushionAnimationAngles_.size())
+            racer < vehicleCushionAnimations_.size())
         {
             const auto count = std::min(
                 vehicleCushionVisuals_[racer].nodes.size(),
                 definition.cushionVisuals.size());
             const float halfAngle =
-                vehicleCushionAnimationAngles_[racer] * 0.5F;
+                vehicleCushionAnimations_[racer].GetAngle() * 0.5F;
             for (std::size_t index = 0; index < count; ++index)
             {
                 const auto& node = definition.cushionVisuals[index];
@@ -5866,13 +5866,17 @@ void OriginalRaceRenderer::renderFrame(
         elapsedSeconds < vehicleAnimationUpdateSeconds_;
     if (resetVehicleAnimation)
     {
-        vehicleTrackAnimationOffsets_.assign(vehicles.size(), 0.0F);
-        vehicleCushionAnimationAngles_.assign(vehicles.size(), 0.0F);
+        vehicleTrackAnimations_.assign(
+            vehicles.size(),
+            r3d::game::originalrace::source::GusenizaAnim{});
+        vehicleCushionAnimations_.assign(
+            vehicles.size(),
+            r3d::game::originalrace::source::PodushkaAnim{});
     }
     else
     {
-        vehicleTrackAnimationOffsets_.resize(vehicles.size(), 0.0F);
-        vehicleCushionAnimationAngles_.resize(vehicles.size(), 0.0F);
+        vehicleTrackAnimations_.resize(vehicles.size());
+        vehicleCushionAnimations_.resize(vehicles.size());
     }
     const float vehicleAnimationDelta =
         resetVehicleAnimation
@@ -5908,15 +5912,10 @@ void OriginalRaceRenderer::renderFrame(
         // GameCar::GetLeadWheelSpeed suppresses axle jitter below 0.1 m/s.
         if (std::abs(leadWheelSpeed) <= 0.1F)
             leadWheelSpeed = 0.0F;
-        auto& trackOffset = vehicleTrackAnimationOffsets_[racer];
-        trackOffset -= leadWheelSpeed * vehicleAnimationDelta / 5.0F;
-        trackOffset -= std::floor(trackOffset);
-        auto& cushionAngle = vehicleCushionAnimationAngles_[racer];
-        cushionAngle = std::fmod(
-            cushionAngle +
-                3.14159265358979323846F * vehicleAnimationDelta *
-                    leadWheelSpeed * 0.1F,
-            6.28318530717958647692F);
+        vehicleTrackAnimations_[racer].OnProgress(
+            vehicleAnimationDelta, leadWheelSpeed);
+        vehicleCushionAnimations_[racer].OnProgress(
+            vehicleAnimationDelta, leadWheelSpeed);
     }
     vehicleAnimationUpdateSeconds_ = elapsedSeconds;
 

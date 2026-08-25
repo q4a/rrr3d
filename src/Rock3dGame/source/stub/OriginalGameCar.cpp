@@ -193,4 +193,44 @@ bool PxWheelSlipEffect::IsEffectMaked() const noexcept
     return effectMaked_;
 }
 
+void GusenizaAnim::Reset() noexcept
+{
+    xAnimationOffset_ = 0.0F;
+}
+
+float GusenizaAnim::OnProgress(
+    float deltaTime, float leadWheelSpeed) noexcept
+{
+    xAnimationOffset_ -=
+        leadWheelSpeed * deltaTime / trackLength;
+    xAnimationOffset_ -= std::floor(xAnimationOffset_);
+    return GetTextureOffset();
+}
+
+float GusenizaAnim::GetTextureOffset() const noexcept
+{
+    return 1.0F - xAnimationOffset_;
+}
+
+void PodushkaAnim::Reset() noexcept
+{
+    angle_ = 0.0F;
+}
+
+float PodushkaAnim::OnProgress(
+    float deltaTime, float leadWheelSpeed) noexcept
+{
+    if (std::abs(leadWheelSpeed) > minimumWheelSpeed)
+    {
+        constexpr float pi = 3.14159265358979323846F;
+        angle_ += pi * deltaTime * leadWheelSpeed * 0.1F;
+    }
+    return angle_;
+}
+
+float PodushkaAnim::GetAngle() const noexcept
+{
+    return angle_;
+}
+
 } // namespace r3d::game::originalrace::source

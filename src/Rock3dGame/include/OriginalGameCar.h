@@ -104,4 +104,30 @@ private:
     bool effectMaked_ = false;
 };
 
+class GusenizaAnim
+{
+public:
+    static constexpr float trackLength = 5.0F;
+
+    void Reset() noexcept;
+    float OnProgress(float deltaTime, float leadWheelSpeed) noexcept;
+    float GetTextureOffset() const noexcept;
+
+private:
+    float xAnimationOffset_ = 0.0F;
+};
+
+class PodushkaAnim
+{
+public:
+    static constexpr float minimumWheelSpeed = 1.0F;
+
+    void Reset() noexcept;
+    float OnProgress(float deltaTime, float leadWheelSpeed) noexcept;
+    float GetAngle() const noexcept;
+
+private:
+    float angle_ = 0.0F;
+};
+
 } // namespace r3d::game::originalrace::source

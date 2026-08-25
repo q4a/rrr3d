@@ -79,7 +79,30 @@ int main()
         !released.stopSound || slip.IsEffectMaked())
         return 14;
 
+    source::GusenizaAnim tracks;
+    if (tracks.GetTextureOffset() != 1.0F ||
+        std::abs(tracks.OnProgress(0.5F, 5.0F) - 0.5F) >
+            0.0001F ||
+        std::abs(tracks.OnProgress(0.5F, -5.0F) - 1.0F) >
+            0.0001F)
+        return 15;
+    tracks.Reset();
+    if (tracks.GetTextureOffset() != 1.0F)
+        return 16;
+
+    source::PodushkaAnim cushion;
+    if (cushion.OnProgress(1.0F, 1.0F) != 0.0F ||
+        std::abs(cushion.OnProgress(1.0F, 2.0F) -
+                 0.2F * 3.14159265358979323846F) > 0.0001F)
+        return 17;
+    const float angle = cushion.GetAngle();
+    if (cushion.OnProgress(1.0F, -0.5F) != angle)
+        return 18;
+    cushion.Reset();
+    if (cushion.GetAngle() != 0.0F)
+        return 19;
+
     std::cout << "original GameCar lock, SoundMotor and wheel-slip "
-                 "rules passed\n";
+                 "animation rules passed\n";
     return 0;
 }

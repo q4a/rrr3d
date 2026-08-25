@@ -255,8 +255,10 @@ private:
     std::vector<std::uint32_t> wheelTrailResetCounts_;
     std::vector<std::vector<float>> wheelSmokeStartTimes_;
     std::vector<std::vector<float>> wheelSmokeEndTimes_;
-    std::vector<float> vehicleTrackAnimationOffsets_;
-    std::vector<float> vehicleCushionAnimationAngles_;
+    std::vector<r3d::game::originalrace::source::GusenizaAnim>
+        vehicleTrackAnimations_;
+    std::vector<r3d::game::originalrace::source::PodushkaAnim>
+        vehicleCushionAnimations_;
     // ActorManager::RayUser fade timers for original gpCullOpacity actors.
     std::vector<float> trackCullOpacityTimes_;
     std::vector<float> decorationCullOpacityTimes_;
