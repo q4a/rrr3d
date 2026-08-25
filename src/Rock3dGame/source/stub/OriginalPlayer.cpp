@@ -377,10 +377,7 @@ PlayerBonusResult Player::TakeMedpack(float value) noexcept
 
 PlayerBonusResult Player::TakeImmortal(float value) noexcept
 {
-    const bool onStatus = !IsTimedImmortal();
     Immortal(std::max(value, 0.0F));
-    if (onStatus)
-        immortalEffect.OnImmortalStatus(true);
     return {PlayerBonusSlot::None, invalidWeapon,
             static_cast<std::uint32_t>(shieldSeconds)};
 }
@@ -465,8 +462,6 @@ Player::BehaviorProgressResult Player::ProgressBehaviors(
 {
     BehaviorProgressResult result;
     result.gameObject = GameObject::OnProgress(deltaTime);
-    if (result.gameObject.immortalityEnded)
-        immortalEffect.OnImmortalStatus(false);
     energyDamageEffect.OnProgress(deltaTime);
     immortalEffect.OnProgress(deltaTime);
     lowLifePoints.SetLifeLevel(lowLifeLevel);
@@ -479,12 +474,27 @@ Player::BehaviorProgressResult Player::ProgressBehaviors(
     return result;
 }
 
-bool Player::OnDamageBehaviors(DamageType damageType) noexcept
+bool Player::ConsumeEnergyDamageEffectCreated() noexcept
 {
-    // GameObject dispatches listeners for every damage message, including a
-    // hit absorbed by immortality.
+    const bool result = energyDamageEffectCreated_;
+    energyDamageEffectCreated_ = false;
+    return result;
+}
+
+void Player::OnDamageEvent(
+    float value, DamageType damageType) noexcept
+{
+    (void)value;
+    // Behaviors are GameObjListeners in the source and receive even damage
+    // absorbed by timed or permanent immortality.
     immortalEffect.OnDamage();
-    return energyDamageEffect.OnDamage(damageType);
+    energyDamageEffectCreated_ =
+        energyDamageEffect.OnDamage(damageType);
+}
+
+void Player::OnImmortalStatusEvent(bool status) noexcept
+{
+    immortalEffect.OnImmortalStatus(status);
 }
 
 void Player::SetFinished(bool value, float time) noexcept

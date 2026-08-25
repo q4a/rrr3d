@@ -1609,3 +1609,18 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   проверяет точный `min(life + value, maxLife)`, уничтожение pickup и событие
   HUD/achievement; сетевой enum `Money/Charge/Medpack/Immortal = 0/1/2/3`
   сохранён без изменений.
+
+### Source GameObject listener/behavior dispatch follow-up
+
+- Добавлен исходный `GameObjListener` lifecycle: уникальная non-owning
+  регистрация, безопасная рассылка по snapshot, `OnDamage`, `OnDeath`,
+  `OnLowLife` и отдельный финальный `OnDestroy`.
+- Порядок Windows-кода сохранён: authoritative life записывается до damage
+  callbacks, touch attribution меняется после них, death callbacks получают
+  исходный `DamageType` и target. Копирование объекта очищает listener links.
+- `Player` теперь доставляет damage/immortality своим `ImmortalEffect` и
+  `EnergyDamageEffect` через GameObject event overrides. Ручной параллельный
+  вызов из race session удалён, поэтому behavior не может сработать дважды.
+- `LowLifePoints` рассылает `OnLowLife` перед первым source effect, а окончание
+  timed immortality автоматически рассылает status=false. Два unit smoke и
+  integrated physics smoke покрывают активные переходы.

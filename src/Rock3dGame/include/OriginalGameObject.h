@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <vector>
 
 namespace r3d::game::originalrace
 {
@@ -19,6 +20,23 @@ enum class DamageType : std::uint8_t
 
 namespace source
 {
+
+class GameObject;
+
+// Backend-neutral GameObjListener. Reference counting belongs to the legacy
+// lsl owner; portable listeners are non-owning and retain the source callback
+// order and one-registration rule.
+class GameObjectListener
+{
+public:
+    virtual ~GameObjectListener() = default;
+    virtual void OnDestroy(GameObject&) noexcept {}
+    virtual void OnDeath(
+        GameObject&, DamageType, GameObject*) noexcept {}
+    virtual void OnDamage(
+        GameObject&, float, DamageType) noexcept {}
+    virtual void OnLowLife(GameObject&) noexcept {}
+};
 
 // Gameplay-owned part of GameObject. Graph/PhysX actors and listener
 // dispatch remain backend boundaries, while lifetime, immortality, damage,
@@ -54,6 +72,11 @@ public:
     };
 
     GameObject() = default;
+    GameObject(const GameObject& other) noexcept;
+    GameObject& operator=(const GameObject& other) noexcept;
+    GameObject(GameObject&& other) noexcept;
+    GameObject& operator=(GameObject&& other) noexcept;
+    virtual ~GameObject() = default;
 
     void ResetGameObject(float maximumLifeValue) noexcept;
     ProgressResult OnProgress(float deltaTime) noexcept;
@@ -63,9 +86,19 @@ public:
     DamageResult Damage(std::size_t senderPlayerId, float value,
                         float newLife, bool death,
                         DamageType damageType) noexcept;
-    bool Death(DamageType damageType = DamageType::Simple) noexcept;
+    virtual bool Death(
+        DamageType damageType = DamageType::Simple,
+        GameObject* target = nullptr) noexcept;
     bool Resc() noexcept;
     void Healt(float value) noexcept;
+    void LowLife() noexcept;
+
+    bool InsertListener(GameObjectListener* value) noexcept;
+    bool RemoveListener(GameObjectListener* value) noexcept;
+    void ClearListenerList() noexcept;
+    std::size_t GetListenerCount() const noexcept;
+    bool DestroyObject() noexcept;
+    bool IsObjectDestroyed() const noexcept;
 
     void SetImmortalFlag(bool value) noexcept;
     bool GetImmortalFlag() const noexcept;
@@ -95,6 +128,19 @@ public:
     float touchAttributionSeconds = 0.0F;
     bool immortalFlag = false;
     bool destroyed = false;
+
+protected:
+    virtual void OnDestroyEvent() noexcept {}
+    virtual void OnDeathEvent(
+        DamageType, GameObject*) noexcept {}
+    virtual void OnDamageEvent(float, DamageType) noexcept {}
+    virtual void OnLowLifeEvent() noexcept {}
+    virtual void OnImmortalStatusEvent(bool) noexcept {}
+
+private:
+    void SendDeath(DamageType damageType, GameObject* target) noexcept;
+    std::vector<GameObjectListener*> listeners_;
+    bool objectDestroyed_ = false;
 };
 
 // GameObject.cpp::SetPosSync/SetRotSync and the second correction channel
@@ -183,7 +229,8 @@ public:
                         float newLife, bool death,
                         DamageType damageType) noexcept;
     bool Death(
-        DamageType damageType = DamageType::Simple) noexcept;
+        DamageType damageType = DamageType::Simple,
+        GameObject* target = nullptr) noexcept override;
     bool OnProgress(float deltaTime) noexcept;
     bool HasPendingDestruction() const noexcept;
 
@@ -350,7 +397,7 @@ public:
     LowLifePoints(float lifeLevel = 0.35F) noexcept;
     void Reset(float lifeLevel = 0.35F) noexcept;
     ProgressResult OnProgress(
-        const GameObject& gameObject, float deltaTime) noexcept;
+        GameObject& gameObject, float deltaTime) noexcept;
 
     float GetLifeLevel() const noexcept;
     void SetLifeLevel(float value) noexcept;

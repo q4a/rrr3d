@@ -1720,7 +1720,7 @@ bool OriginalRaceSession::applyRacerDamageInternal(
     // non-authoritative Windows client waits for the host packet and must not
     // start local shield/damage effects for its outbound request.
     const bool makeEnergyEffect =
-        runtime.OnDamageBehaviors(damageType);
+        runtime.ConsumeEnergyDamageEffectCreated();
     if (makeEnergyEffect && target < race_.racers.size())
     {
         const auto& sourceRacer = race_.racers[target];

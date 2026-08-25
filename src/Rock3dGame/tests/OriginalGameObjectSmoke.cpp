@@ -2,9 +2,48 @@
 
 #include <cmath>
 #include <iostream>
+#include <vector>
 
 namespace original = r3d::game::originalrace;
 namespace source = r3d::game::originalrace::source;
+
+namespace
+{
+
+struct TrackingListener final : source::GameObjectListener
+{
+    std::vector<int> order;
+    float lifeAtDamage = 0.0F;
+    source::GameObject* deathTarget = nullptr;
+
+    void OnDestroy(source::GameObject&) noexcept override
+    {
+        order.push_back(4);
+    }
+
+    void OnDeath(
+        source::GameObject&, original::DamageType,
+        source::GameObject* target) noexcept override
+    {
+        order.push_back(2);
+        deathTarget = target;
+    }
+
+    void OnDamage(
+        source::GameObject& sender, float,
+        original::DamageType) noexcept override
+    {
+        order.push_back(1);
+        lifeAtDamage = sender.GetLife();
+    }
+
+    void OnLowLife(source::GameObject&) noexcept override
+    {
+        order.push_back(3);
+    }
+};
+
+} // namespace
 
 int main()
 {
@@ -124,6 +163,36 @@ int main()
             frameSync.OnFrame(originPose, 0.2F).position.x - 1.0F) >
             0.0001F)
         return 53;
+
+    source::GameObject listened;
+    listened.ResetGameObject(20.0F);
+    TrackingListener listener;
+    if (!listened.InsertListener(&listener) ||
+        listened.InsertListener(&listener) ||
+        listened.GetListenerCount() != 1U)
+        return 54;
+    listened.Damage(1U, 5.0F, original::DamageType::Energy);
+    if (listener.order != std::vector<int>{1} ||
+        std::abs(listener.lifeAtDamage - 15.0F) > 0.0001F)
+        return 55;
+    listened.Damage(1U, 20.0F, original::DamageType::Simple);
+    if (listener.order != std::vector<int>({1, 1, 2}) ||
+        listener.deathTarget != nullptr)
+        return 56;
+    listened.Resc();
+    listened.LowLife();
+    source::GameObject deathTarget;
+    if (!listened.Death(
+            original::DamageType::DeathPlane, &deathTarget) ||
+        listener.order != std::vector<int>({1, 1, 2, 3, 2}) ||
+        listener.deathTarget != &deathTarget ||
+        !listened.DestroyObject() || listened.DestroyObject() ||
+        listener.order.back() != 4)
+        return 57;
+    if (!listened.RemoveListener(&listener) ||
+        listened.RemoveListener(&listener) ||
+        listened.GetListenerCount() != 0U)
+        return 58;
 
     source::DestrObj destructible;
     destructible.ResetGameObject(10.0F);

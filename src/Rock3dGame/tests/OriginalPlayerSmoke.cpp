@@ -62,6 +62,15 @@ int main()
         std::abs(player.shieldSeconds - 4.5F) > 0.001F ||
         player.immortalEffect.GetFadeInTime() != 0.0F)
         return 8;
+    const float immortalLife = player.life;
+    player.Damage(1U, 5.0F, r3d::game::originalrace::DamageType::Energy);
+    if (player.life != immortalLife ||
+        player.immortalEffect.GetDamageTime() != 0.0F ||
+        !player.ConsumeEnergyDamageEffectCreated())
+        return 21;
+    player.Damage(1U, 5.0F, r3d::game::originalrace::DamageType::Energy);
+    if (player.ConsumeEnergyDamageEffectCreated())
+        return 22;
 
     player.Complete(1U, 100U, 20U, 10.0F);
     if (!player.finished || player.place != 1U ||

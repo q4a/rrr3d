@@ -113,6 +113,41 @@ float shortestSignedAngle(float angle) noexcept
 
 } // namespace
 
+GameObject::GameObject(const GameObject& other) noexcept
+{
+    *this = other;
+}
+
+GameObject& GameObject::operator=(const GameObject& other) noexcept
+{
+    if (this == &other)
+        return *this;
+    life = other.life;
+    maximumLife = other.maximumLife;
+    timeLife = other.timeLife;
+    maximumTimeLife = other.maximumTimeLife;
+    shieldSeconds = other.shieldSeconds;
+    touchAttacker = other.touchAttacker;
+    touchAttributionSeconds = other.touchAttributionSeconds;
+    immortalFlag = other.immortalFlag;
+    destroyed = other.destroyed;
+    objectDestroyed_ = other.objectDestroyed_;
+    // GameObject::Assign does not copy the legacy listener container. Its
+    // entries point at behaviors owned by the concrete source object.
+    listeners_.clear();
+    return *this;
+}
+
+GameObject::GameObject(GameObject&& other) noexcept
+{
+    *this = other;
+}
+
+GameObject& GameObject::operator=(GameObject&& other) noexcept
+{
+    return *this = static_cast<const GameObject&>(other);
+}
+
 void GameObject::ResetGameObject(float maximumLifeValue) noexcept
 {
     maximumLife = maximumLifeValue;
@@ -124,6 +159,7 @@ void GameObject::ResetGameObject(float maximumLifeValue) noexcept
     touchAttributionSeconds = 0.0F;
     immortalFlag = false;
     destroyed = false;
+    objectDestroyed_ = false;
 }
 
 GameObject::ProgressResult GameObject::OnProgress(
@@ -138,6 +174,7 @@ GameObject::ProgressResult GameObject::OnProgress(
         {
             shieldSeconds = 0.0F;
             result.immortalityEnded = true;
+            OnImmortalStatusEvent(false);
         }
     }
     if (touchAttributionSeconds > 0.0F &&
@@ -178,6 +215,16 @@ GameObject::DamageResult GameObject::Damage(
     if (!result.wasLive)
         return result;
 
+    // GameObject::Damage dispatches listeners immediately after assigning
+    // authoritative life, before touch attribution and death events.
+    OnDamageEvent(value, damageType);
+    const auto damageListeners = listeners_;
+    for (auto* listener : damageListeners)
+    {
+        if (listener != nullptr)
+            listener->OnDamage(*this, value, damageType);
+    }
+
     if (senderPlayerId != undefinedPlayerId &&
         damageType == DamageType::Touch)
     {
@@ -196,10 +243,12 @@ GameObject::DamageResult GameObject::Damage(
     result.death = true;
     result.killCredit = senderPlayerId != undefinedPlayerId &&
                         damageType != DamageType::Mine;
+    SendDeath(damageType, nullptr);
     return result;
 }
 
-bool GameObject::Death(DamageType damageType) noexcept
+bool GameObject::Death(
+    DamageType damageType, GameObject* target) noexcept
 {
     if (destroyed)
         return false;
@@ -207,6 +256,7 @@ bool GameObject::Death(DamageType damageType) noexcept
     // TouchDeath relies on that distinction so an earlier car contact can
     // still be attributed when the victim crosses the death plane.
     destroyed = true;
+    SendDeath(damageType, target);
     return true;
 }
 
@@ -225,12 +275,93 @@ void GameObject::Healt(float value) noexcept
     life = std::min(life + value, maximumLife);
 }
 
+void GameObject::LowLife() noexcept
+{
+    OnLowLifeEvent();
+    const auto lowLifeListeners = listeners_;
+    for (auto* listener : lowLifeListeners)
+    {
+        if (listener != nullptr)
+            listener->OnLowLife(*this);
+    }
+}
+
+bool GameObject::InsertListener(GameObjectListener* value) noexcept
+{
+    if (value == nullptr ||
+        std::find(listeners_.begin(), listeners_.end(), value) !=
+            listeners_.end())
+    {
+        return false;
+    }
+    listeners_.push_back(value);
+    return true;
+}
+
+bool GameObject::RemoveListener(GameObjectListener* value) noexcept
+{
+    const auto found = std::find(
+        listeners_.begin(), listeners_.end(), value);
+    if (found == listeners_.end())
+        return false;
+    listeners_.erase(found);
+    return true;
+}
+
+void GameObject::ClearListenerList() noexcept
+{
+    listeners_.clear();
+}
+
+std::size_t GameObject::GetListenerCount() const noexcept
+{
+    return listeners_.size();
+}
+
+bool GameObject::DestroyObject() noexcept
+{
+    if (objectDestroyed_)
+        return false;
+    objectDestroyed_ = true;
+    OnDestroyEvent();
+    const auto destroyListeners = listeners_;
+    for (auto* listener : destroyListeners)
+    {
+        if (listener != nullptr)
+            listener->OnDestroy(*this);
+    }
+    return true;
+}
+
+bool GameObject::IsObjectDestroyed() const noexcept
+{
+    return objectDestroyed_;
+}
+
+void GameObject::SendDeath(
+    DamageType damageType, GameObject* target) noexcept
+{
+    OnDeathEvent(damageType, target);
+    const auto deathListeners = listeners_;
+    for (auto* listener : deathListeners)
+    {
+        if (listener != nullptr)
+            listener->OnDeath(*this, damageType, target);
+    }
+}
+
 void GameObject::SetImmortalFlag(bool value) noexcept
 {
     immortalFlag = value;
 }
 bool GameObject::GetImmortalFlag() const noexcept { return immortalFlag; }
-void GameObject::Immortal(float time) noexcept { shieldSeconds = time; }
+void GameObject::Immortal(float time) noexcept
+{
+    const bool turnOn = shieldSeconds <= 0.0F && time > 0.0F;
+    shieldSeconds = time;
+    if (turnOn)
+        OnImmortalStatusEvent(true);
+}
 bool GameObject::IsImmortal() const noexcept
 {
     return maximumLife < 0.0F || shieldSeconds > 0.0F || immortalFlag;
@@ -465,9 +596,10 @@ GameObject::DamageResult DestrObj::Damage(
     return result;
 }
 
-bool DestrObj::Death(DamageType damageType) noexcept
+bool DestrObj::Death(
+    DamageType damageType, GameObject* target) noexcept
 {
-    const bool died = GameObject::Death(damageType);
+    const bool died = GameObject::Death(damageType, target);
     checkDestruction_ = checkDestruction_ || died;
     return died;
 }
@@ -720,7 +852,7 @@ void LowLifePoints::Reset(float lifeLevel) noexcept
 }
 
 LowLifePoints::ProgressResult LowLifePoints::OnProgress(
-    const GameObject& gameObject, float deltaTime) noexcept
+    GameObject& gameObject, float deltaTime) noexcept
 {
     ProgressResult result;
     const float maximumLife = gameObject.GetMaxLife();
@@ -731,6 +863,8 @@ LowLifePoints::ProgressResult LowLifePoints::OnProgress(
         life / maximumLife < lifeLevel_;
     if (lowLife)
     {
+        if (!eventEffect_.IsEffectMaked())
+            gameObject.LowLife();
         if (eventEffect_.MakeEffect())
         {
             result.activated = true;

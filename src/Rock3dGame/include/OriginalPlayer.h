@@ -168,7 +168,7 @@ public:
     BehaviorProgressResult ProgressBehaviors(
         float deltaTime, float lowLifeLevel,
         float linearSpeed) noexcept;
-    bool OnDamageBehaviors(DamageType damageType) noexcept;
+    bool ConsumeEnergyDamageEffectCreated() noexcept;
 
     void SetFinished(bool value, float time = -1.0F) noexcept;
     void Complete(std::uint32_t resultPlace,
@@ -229,6 +229,13 @@ public:
     SlowEffect slowEffect;
     GameCar gameCar;
     CarState car;
+
+protected:
+    void OnDamageEvent(float value, DamageType damageType) noexcept override;
+    void OnImmortalStatusEvent(bool status) noexcept override;
+
+private:
+    bool energyDamageEffectCreated_ = false;
 };
 
 } // namespace r3d::game::originalrace::source

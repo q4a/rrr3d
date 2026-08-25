@@ -1130,6 +1130,28 @@ Network, video и Steam явно выключены.
 - `OriginalGameObjectSmoke` проверяет первый кадр после snap, source rates,
   strict пятиединичную границу и второй position-sync channel.
 
+### Source GameObject listener/behavior-dispatch block
+
+- Перенесён backend-neutral контракт `GameObjListener` и исходные операции
+  `InsertListener`, `RemoveListener`, `ClearListenerList`: listener не
+  регистрируется дважды, container остаётся non-owning, а dispatch работает
+  по snapshot списка и допускает удаление listener из собственного callback.
+- `GameObject::Damage` снова сначала записывает авторитетный `newLife`, затем
+  вызывает object/behavior и внешние `OnDamage`, после этого обновляет touch
+  attribution и только затем рассылает `OnDeath`. Прямой `Death` сохраняет
+  target и уже существующую touch attribution, как Windows source.
+- `Player` больше не запускает `ImmortalEffect` и `EnergyDamageEffect`
+  вручную из `OriginalRaceSession`. Оба behavior получают damage и смену
+  immortality через виртуальный GameObject event graph; одноразовое создание
+  energy effect лишь считывается session adapter для визуального события.
+- Восстановлены отдельный final `DestroyObject`/`OnDestroy`, автоматический
+  `OnImmortalStatus(false)` при окончании таймера и `OnLowLife` перед первым
+  `LowLifePoints::MakeEffect`. Копирование/сброс игрового объекта не переносит
+  ссылки на behavior/listener другого экземпляра.
+- `OriginalGameObjectSmoke` фиксирует порядок callbacks, уже присвоенную life,
+  target death, low-life, одноразовый destroy и удаление listener;
+  `OriginalPlayerSmoke` проверяет автоматические immortal/energy callbacks.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity
