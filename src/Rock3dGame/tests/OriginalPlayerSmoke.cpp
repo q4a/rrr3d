@@ -179,6 +179,69 @@ int main()
         std::abs(lastMap.y - retainedMap.y) > 0.001F)
         return 17;
 
+    source::Trace resetTrace(4U);
+    auto* resetFirst = resetTrace.AddPoint(11U);
+    resetFirst->SetPos({0.0F, 0.0F, 0.0F});
+    resetFirst->SetSize(8.0F);
+    auto* resetSecond = resetTrace.AddPoint(12U);
+    resetSecond->SetPos({100.0F, 0.0F, 0.0F});
+    resetSecond->SetSize(24.0F);
+    auto* resetThird = resetTrace.AddPoint(13U);
+    resetThird->SetPos({200.0F, 0.0F, 0.0F});
+    resetThird->SetSize(8.0F);
+    auto* resetPath = resetTrace.AddPath();
+    resetPath->Add(resetFirst);
+    resetPath->Add(resetSecond);
+    resetPath->Add(resetThird);
+
+    source::Player resetPlayer;
+    resetPlayer.Reset(100.0F, 1U, &resetTrace);
+    resetPlayer.car.Update(
+        resetTrace, {75.0F, 0.0F, 2.0F}, {1.0F, 0.0F, 0.0F},
+        10.0F, 1.0F / 60.0F);
+    std::vector<source::TraceVec3> resetRays;
+    const auto resetPose = resetPlayer.ResetCar(
+        [&](const source::TraceVec3& origin) {
+            resetRays.push_back(origin);
+            return source::ResetCarRayKind::TrackPlane;
+        });
+    // ResetCar uses the retained coordinate and the midpoint trace height,
+    // not the height at each of the 0/-2/+2 longitudinal samples.
+    if (!resetPose.valid || resetPose.node.path != 0U ||
+        resetPose.node.node != 0U || resetRays.size() != 3U ||
+        std::abs(resetPose.position.x - 75.0F) > 0.001F ||
+        std::abs(resetPose.position.z - 4.0F) > 0.001F ||
+        std::abs(resetRays[1].x - 73.0F) > 0.001F ||
+        std::abs(resetRays[2].x - 77.0F) > 0.001F)
+        return 23;
+
+    std::size_t blockedRays = 0U;
+    const auto blockedPose = resetPlayer.ResetCar(
+        [&](const source::TraceVec3&) {
+            ++blockedRays;
+            return source::ResetCarRayKind::Blocked;
+        });
+    // Every attempted location is blocked. Windows retains the original
+    // first fallback; it does not return the last failed six-metre step.
+    if (!blockedPose.valid || blockedRays != 5U ||
+        std::abs(blockedPose.position.x - 75.0F) > 0.001F)
+        return 24;
+
+    source::Player deathPlaneResetPlayer;
+    deathPlaneResetPlayer.Reset(100.0F, 1U, &resetTrace);
+    std::size_t deathPlaneRays = 0U;
+    const auto deathPlanePose = deathPlaneResetPlayer.ResetCar(
+        [&](const source::TraceVec3&) {
+            return deathPlaneRays++ == 0U
+                       ? source::ResetCarRayKind::DeathPlane
+                       : source::ResetCarRayKind::TrackPlane;
+        });
+    if (!deathPlanePose.valid || deathPlaneRays != 4U ||
+        deathPlanePose.node.node != 0U ||
+        std::abs(deathPlanePose.position.x) > 0.001F ||
+        std::abs(deathPlanePose.position.z - 4.0F) > 0.001F)
+        return 25;
+
     player.Disconnect();
     if (!player.disconnected || !player.destroyed || player.finished ||
         player.life != 0.0F)

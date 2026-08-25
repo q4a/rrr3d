@@ -195,6 +195,19 @@ const WayNode* Player::CarState::GetLastNode() const noexcept
     return lastNode_;
 }
 
+WayNode* Player::CarState::EnsureLastNode() noexcept
+{
+    // Player::GetLastNode initializes an absent reset anchor from the first
+    // node of the main path.  It does not guess from the next checkpoint.
+    if (lastNode_ == nullptr && trace_ != nullptr)
+    {
+        auto* path = trace_->GetPath(0U);
+        if (path != nullptr)
+            SetLastNode(path->GetFirst());
+    }
+    return lastNode_;
+}
+
 Trace::NodeRef Player::CarState::GetCurTileRef(
     bool lastCorrect) const noexcept
 {
@@ -568,6 +581,100 @@ PlayerRestoreStep Player::ProgressRestore(float seconds) noexcept
     SetLife(maximumLife);
     restoreSeconds = -1.0F;
     return PlayerRestoreStep::QueueRespawn;
+}
+
+ResetCarPose Player::ResetCar(const ResetCarRayCast& rayCast)
+{
+    ResetCarPose result;
+    WayNode* node = car.EnsureLastNode();
+    if (node == nullptr || node->GetNext() == nullptr)
+        return result;
+
+    float distance = node->GetTile().ComputeLength(
+        std::clamp(car.GetLastNodeCoordX(), 0.0F, 1.0F));
+    constexpr std::array<float, 3> offsets{0.0F, -2.0F, 2.0F};
+    bool initialDeathPlane = false;
+
+    for (int attempt = 0; attempt < 5; ++attempt)
+    {
+        bool found = false;
+        TraceVec3 candidatePosition{};
+        TraceVec3 candidateDirection{1.0F, 0.0F, 0.0F};
+        int sample = 0;
+        while (sample < static_cast<int>(offsets.size()))
+        {
+            const auto& tile = node->GetTile();
+            const float coordinate = tile.ComputeCoordX(
+                distance + offsets[static_cast<std::size_t>(sample)]);
+            TraceVec3 rayPosition = tile.GetPoint(coordinate);
+            // The Windows code deliberately samples the tile height at its
+            // midpoint for all three longitudinal rays.  Using the current
+            // coordinate moves the ray origin on tapered trace tiles.
+            rayPosition.z += tile.ComputeHeight(0.5F) * 0.5F;
+            const auto tileDirection = tile.GetDir();
+            const TraceVec3 direction{
+                tileDirection.x, tileDirection.y, 0.0F};
+
+            if (attempt == 0 && sample == 0)
+            {
+                result.valid = true;
+                result.position = rayPosition;
+                result.direction = direction;
+                if (const auto* trace = node->GetPath()->GetTrace())
+                    result.node = trace->GetNodeRef(node);
+            }
+            if (sample == 0)
+            {
+                candidatePosition = rayPosition;
+                candidateDirection = direction;
+            }
+
+            const ResetCarRayKind hit =
+                rayCast ? rayCast(rayPosition) : ResetCarRayKind::None;
+            if (!initialDeathPlane && attempt == 0 && sample == 0 &&
+                (hit == ResetCarRayKind::None ||
+                 hit == ResetCarRayKind::DeathPlane))
+            {
+                // ResetCar restarts the same three samples at the beginning
+                // of the tile after the initial position lies over a hole.
+                initialDeathPlane = true;
+                distance = 0.0F;
+                sample = 0;
+                continue;
+            }
+            if (hit != ResetCarRayKind::TrackPlane &&
+                hit != ResetCarRayKind::OwnCar)
+            {
+                break;
+            }
+            if (sample == static_cast<int>(offsets.size()) - 1)
+            {
+                found = true;
+                result.position = candidatePosition;
+                result.direction = candidateDirection;
+                if (const auto* trace = node->GetPath()->GetTrace())
+                    result.node = trace->GetNodeRef(node);
+            }
+            ++sample;
+        }
+        if (found)
+            break;
+
+        const float previousDistance = distance - 6.0F;
+        if (previousDistance < 0.0F)
+        {
+            if (node->GetPrev() == nullptr)
+                break;
+            node = node->GetPrev();
+            distance = std::max(
+                node->GetTile().GetDirLength() + previousDistance, 0.0F);
+        }
+        else
+        {
+            distance = previousDistance;
+        }
+    }
+    return result;
 }
 
 void Player::Disconnect() noexcept

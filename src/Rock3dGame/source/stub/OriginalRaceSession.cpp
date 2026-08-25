@@ -844,18 +844,9 @@ WorldRayHit raycastWorld(
     return result;
 }
 
-enum class ResetRayKind
-{
-    None,
-    TrackPlane,
-    DeathPlane,
-    OwnVehicle,
-    Blocked,
-};
-
 struct ResetRayHit
 {
-    ResetRayKind kind = ResetRayKind::None;
+    source::ResetCarRayKind kind = source::ResetCarRayKind::None;
     float distance = std::numeric_limits<float>::max();
 };
 
@@ -870,7 +861,7 @@ ResetRayHit raycastResetWorld(
     // Map::Map installs an infinite +Z TouchDeath plane at world Z=0.
     if (origin.z >= 0.0F)
     {
-        result.kind = ResetRayKind::DeathPlane;
+        result.kind = source::ResetCarRayKind::DeathPlane;
         result.distance = origin.z;
     }
     for (std::size_t meshIndex = 0;
@@ -916,8 +907,8 @@ ResetRayHit raycastResetWorld(
             result.kind =
                 mesh.surface ==
                         r3d::physics::CollisionSurface::TrackPlane
-                    ? ResetRayKind::TrackPlane
-                    : ResetRayKind::Blocked;
+                    ? source::ResetCarRayKind::TrackPlane
+                    : source::ResetCarRayKind::Blocked;
         }
     }
     for (std::size_t vehicle = 0;
@@ -944,8 +935,8 @@ ResetRayHit raycastResetWorld(
         }
         result.distance = distance;
         result.kind =
-            vehicle == ownVehicle ? ResetRayKind::OwnVehicle
-                                  : ResetRayKind::Blocked;
+            vehicle == ownVehicle ? source::ResetCarRayKind::OwnCar
+                                  : source::ResetCarRayKind::Blocked;
     }
     return result;
 }
@@ -2689,115 +2680,24 @@ void OriginalRaceSession::queueRespawn(
 {
     if (racer >= racers_.size() || racer >= vehicles.size())
         return;
-    const auto& runtime = racers_[racer];
-    TraceNodeRef traceNode = runtime.car.GetLastNodeRef();
-    if (!traceNode.valid())
-        traceNode = racerTraceNode(racer);
-    if (!traceNode.valid())
-    {
-        traceNode = {0U, std::min<std::size_t>(
-                              runtime.nextPathNode > 0U
-                                  ? runtime.nextPathNode - 1U
-                                  : 0U,
-                              race_.tracePath.size() - 2U)};
-    }
-    const auto* path = sourceTrace_.GetPath(traceNode.path);
-    if (path == nullptr || path->GetCount() < 2U)
+    auto& runtime = racers_[racer];
+    const auto reset = runtime.ResetCar(
+        [&](const source::TraceVec3& position) {
+            return raycastResetWorld(
+                       race_, decorationActive_, vehicles, racers_,
+                       racer, position)
+                .kind;
+        });
+    if (!reset.valid)
         return;
-    std::size_t nodeIndex =
-        std::min<std::size_t>(traceNode.node, path->GetCount() - 2U);
-    auto segmentLength = [&](std::size_t node) {
-        const auto* sourceNode = path->GetNode(node);
-        return sourceNode != nullptr
-                   ? std::max(sourceNode->GetTile().GetDirLength(),
-                              0.0001F)
-                   : 0.0001F;
-    };
-    float distance =
-        segmentLength(nodeIndex) *
-        std::clamp(runtime.car.GetLastNodeCoordX(), 0.0F, 1.0F);
-    constexpr std::array<float, 3> offsets{
-        0.0F, -2.0F, 2.0F};
-    bool initialDeathPlane = false;
-    Vec3 position{};
-    Vec3 direction{1.0F, 0.0F, 0.0F};
 
-    for (int attempt = 0; attempt < 5; ++attempt)
-    {
-        bool found = false;
-        int sample = 0;
-        while (sample < static_cast<int>(offsets.size()))
-        {
-            const auto* sourceNode = path->GetNode(nodeIndex);
-            if (sourceNode == nullptr)
-                break;
-            const auto& sourceTile = sourceNode->GetTile();
-            const float length = segmentLength(nodeIndex);
-            const float coordinate = std::clamp(
-                (distance + offsets[static_cast<std::size_t>(sample)]) /
-                    length,
-                0.0F, 1.0F);
-            const auto sourceDirection = sourceTile.GetDir();
-            const Vec3 tileDirection{
-                sourceDirection.x, sourceDirection.y, 0.0F};
-            const float width = sourceTile.ComputeWidth(coordinate);
-            Vec3 rayPosition = sourceTile.GetPoint(coordinate);
-            rayPosition.z += width * 0.25F;
-
-            if (attempt == 0 && sample == 0)
-            {
-                position = rayPosition;
-                direction = tileDirection;
-            }
-            if (sample == 0)
-            {
-                position = rayPosition;
-                direction = tileDirection;
-            }
-
-            const ResetRayHit hit = raycastResetWorld(
-                race_, decorationActive_, vehicles, racers_, racer,
-                rayPosition);
-            if (!initialDeathPlane && attempt == 0 && sample == 0 &&
-                (hit.kind == ResetRayKind::None ||
-                 hit.kind == ResetRayKind::DeathPlane))
-            {
-                initialDeathPlane = true;
-                distance = 0.0F;
-                sample = 0;
-                continue;
-            }
-            if (hit.kind != ResetRayKind::TrackPlane &&
-                hit.kind != ResetRayKind::OwnVehicle)
-            {
-                break;
-            }
-            if (sample == static_cast<int>(offsets.size()) - 1)
-                found = true;
-            ++sample;
-        }
-        if (found)
-            break;
-
-        const float previousDistance = distance - 6.0F;
-        if (previousDistance < 0.0F)
-        {
-            if (nodeIndex == 0U)
-                break;
-            --nodeIndex;
-            distance = std::max(
-                segmentLength(nodeIndex) + previousDistance, 0.0F);
-        }
-        else
-        {
-            distance = previousDistance;
-        }
-    }
-
-    respawns_.push_back({racer, position, direction});
+    respawns_.push_back(
+        {racer, reset.position, reset.direction});
     previousPositions_[racer] = vehicles[racer].body.position;
     events_.push_back(
-        {RaceEventKind::Respawn, racer, nodeIndex, position, 0.0F});
+        {RaceEventKind::Respawn, racer,
+         reset.node.valid() ? reset.node.node : 0U,
+         reset.position, 0.0F});
 }
 
 void OriginalRaceSession::destroyRacer(

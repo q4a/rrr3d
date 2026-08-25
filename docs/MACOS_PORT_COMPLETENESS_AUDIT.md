@@ -93,7 +93,7 @@ Windows target не компилируется.
 | Bonus/mine/crater contacts | `Proj::ComputeAABB`, `MineContact`, `MasloContact`, `MineRipUpdate` | source AABB/OBB, lock/contact state и nested-projectile runtime | Частично | Удалены сферы и hardcode осколков; source boxes, 0.25/0.4 lock rules, `ptMineProton`, impulse, oil clutch, nested lifetime/death effects перенесены. Динамика осколков остаётся адаптацией к Jolt, не численной копией PhysX |
 | Mine placement | `Proj::MinePrepare` PhysX track raycast | source triangle raycast в `OriginalRaceSession` | Перенесено | Используются serialized `proj.pos`, ray `+2/-Z`, только `TrackPlane`, `max(-AABB.min.z, 0.01)`, hit normal; miss не расходует заряд |
 | Countdown/checkpoints/laps/place | `GameMode::GoRace`, `Race.cpp`, `Trace.cpp`, `Player.cpp` | `OriginalRaceSession.cpp`, `OriginalRaceHud.cpp`, `OriginalRaceRenderer.cpp` | Частично | Перенесены отдельный `cGoRaceWait`, четыре односекундных перехода, исходные `tablo0..tablo4`, блокировка управления и переключение четырёх submesh семафора red/yellow/green; основная гонка работает. State machine всё ещё portable, все special race modes/edge cases не сопоставлены |
-| Reset/respawn | `Player::OnProgress`, `ResetCar`, map `TouchDeath` | source tile-coordinate/multi-ray requests + death/restore lifecycle | Перенесено с backend-адаптацией | Death plane уничтожает любую машину, сохраняет 3-second touch attribution и ждёт source 2 seconds; `ResetCar` хранит `lastNodeCoordX`, проверяет source `0/-2/+2` rays, до пяти раз отступает на 6 м и переходит на предыдущий tile. PhysX closest-shape заменён тем же запросом к portable collision data |
+| Reset/respawn | `Player::OnProgress`, `ResetCar`, map `TouchDeath` | active `source::Player::ResetCar` + Jolt ray-query adapter | Перенесено с backend-адаптацией | Death plane уничтожает любую машину, сохраняет 3-second touch attribution и ждёт source 2 seconds; `Player` хранит `lastNodeCoordX`, проверяет source `0/-2/+2` rays, до пяти раз отступает на 6 м и переходит на предыдущий tile. PhysX closest-shape заменён тем же запросом к portable collision data |
 | AI | `AICar.cpp`, `AIPlayer.cpp`, `Player::CheatUpdate` | source-derived path/control/attack states в session | Перенесено с backend-адаптацией | Перенесены four-track chain/lock masks, `ComputeTrackInd`, `edgeLine/edgeNorm`, turn braking, blocked recovery/reset, retained targets, line/Z shot gates, range/ammo/random/readiness, hyper, mines и difficulty rubber-banding. Неигровая debug visualization исключена, secret-path branch в Windows закомментирован |
 | Weapons/projectiles | `Weapon.cpp`, `Player.cpp`, `Logic.cpp` | source type-switch runtime в `OriginalRaceSession` | Перенесено с backend-адаптацией | Сопоставлены все enum types 0–24 и все активные workshop/projectile records: source boxes/rays, forces, timing, groups, homing, attached/ray weapons, mines, nested projectiles, `ptHyper`, `ptSpring` и death effects; rigid-body solver остаётся Jolt |
 | Weapon shot effects | `Weapon::CreateShot`, `ShotEffect`, serialized `ctWeapon` behaviors | `mapObj` → behavior type 10 → source effect graph | Перенесено | Effect record, local position, ignore-rotation и effective nested lifetime читаются из `db.xml`; отдельный `WeaponShotEffect` создаётся один раз для каждого созданного projectile |
@@ -1151,6 +1151,28 @@ Network, video и Steam явно выключены.
 - `OriginalGameObjectSmoke` фиксирует порядок callbacks, уже присвоенную life,
   target death, low-life, одноразовый destroy и удаление listener;
   `OriginalPlayerSmoke` проверяет автоматические immortal/energy callbacks.
+
+### Source Player::ResetCar ownership/correctness block
+
+- Полный поиск точки восстановления перенесён из
+  `OriginalRaceSession::queueRespawn` в active `source::Player::ResetCar`.
+  Player теперь сам владеет `GetLastNode` fallback, сохранённой tile
+  coordinate, последовательностью `0/-2/+2`, пятью попытками с шагом 6 и
+  переходом через `WayNode::GetPrev`; session передаёт только результат
+  Jolt/world raycast и исполняет готовую pose.
+- Подтвердилось числовое расхождение: старый adapter поднимал каждый ray на
+  `ComputeHeight(currentCoordinate)/2`, тогда как Windows использует
+  `ComputeHeight(0.5)/2` для всех samples. На сужающейся/расширяющейся tile
+  это меняло ближайший collision shape.
+- Подтвердилась lifecycle-ошибка: неуспешная попытка перезаписывала итоговую
+  pose своим sample 0. Если все пять мест заняты, машина получала последнюю
+  заведомо заблокированную позицию; source сохраняет первоначальный fallback
+  и меняет pose только после прохождения всей тройки rays.
+- Удалён отсутствующий в source fallback через session `nextPathNode`: при
+  пустом `lastNode` Windows выбирает первый node главного path.
+  `OriginalPlayerSmoke` проверяет variable-width tile, все три rays,
+  death-plane restart, полностью blocked search и неизменный fallback;
+  resource physics smoke продолжает проверять active map reset.
 
 ## Очередь дальнейшего переноса
 

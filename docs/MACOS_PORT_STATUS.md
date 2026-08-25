@@ -1624,3 +1624,19 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - `LowLifePoints` рассылает `OnLowLife` перед первым source effect, а окончание
   timed immortality автоматически рассылает status=false. Два unit smoke и
   integrated physics smoke покрывают активные переходы.
+
+### Source Player::ResetCar owner/fallback follow-up
+
+- Алгоритм `Player::ResetCar` вынесен из race-session adapter в active
+  `source::Player`: `GetLastNode`, сохранённая coordinate, rays `0/-2/+2`,
+  максимум пять шагов назад по 6 единиц и переход на предыдущую tile теперь
+  исполняются одним исходным owner. Session оставляет только world/Jolt
+  ray-query и применение возвращённого transform.
+- Исправлены два подтверждённых расхождения. Ray origin использует source
+  `ComputeHeight(0.5)/2`, а не высоту в текущей coordinate. Полностью
+  неуспешный поиск сохраняет первоначальную fallback pose и больше не
+  телепортирует машину в последнюю заведомо заблокированную точку.
+- При отсутствующем `lastNode` выбирается первый node main path, как
+  `Player::GetLastNode`; invented fallback по `nextPathNode` удалён. Unit
+  regression покрывает variable-width trace, initial death-plane restart и
+  blocked search, resource physics smoke — реальный reset на map1.

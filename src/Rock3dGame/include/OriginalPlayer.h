@@ -7,6 +7,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <limits>
 #include <vector>
 
@@ -52,6 +53,30 @@ enum class PlayerBlockMove : std::uint8_t
     Coast,
     Brake,
 };
+
+// Backend result of the downward PhysX query made by Player::ResetCar.
+// The source accepts the track plane and the player's own car, rejects every
+// other shape, and treats a missing hit like the global death plane on the
+// first sample.
+enum class ResetCarRayKind : std::uint8_t
+{
+    None,
+    TrackPlane,
+    DeathPlane,
+    OwnCar,
+    Blocked,
+};
+
+struct ResetCarPose
+{
+    bool valid = false;
+    Trace::NodeRef node;
+    TraceVec3 position;
+    TraceVec3 direction{1.0F, 0.0F, 0.0F};
+};
+
+using ResetCarRayCast =
+    std::function<ResetCarRayKind(const TraceVec3&)>;
 
 // Portable transcription of the gameplay-owned portion of Player.  Renderer
 // actor ownership and the PhysX RockCar pointer remain backend boundaries,
@@ -113,6 +138,7 @@ public:
         const WayNode* GetCurNode() const noexcept;
         WayNode* GetLastNode() noexcept;
         const WayNode* GetLastNode() const noexcept;
+        WayNode* EnsureLastNode() noexcept;
         Trace::NodeRef GetCurTileRef(bool lastCorrect = false) const noexcept;
         Trace::NodeRef GetLiveTileRef() const noexcept;
         Trace::NodeRef GetCurNodeRef() const noexcept;
@@ -181,6 +207,7 @@ public:
 
     void Destroy() noexcept;
     PlayerRestoreStep ProgressRestore(float seconds) noexcept;
+    ResetCarPose ResetCar(const ResetCarRayCast& rayCast);
     void Disconnect() noexcept;
     void ResetBlock(bool block) noexcept;
     bool IsBlock() const noexcept;
