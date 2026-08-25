@@ -1121,6 +1121,7 @@ void OriginalRaceSession::reset()
         race_.bonuses.size(), RacerRuntime::invalidWeapon);
     events_.clear();
     effects_.clear();
+    pairContactEffect_.Reset(race_.contactSoundPaths.size());
     mines_.clear();
     projectiles_.clear();
     respawns_.clear();
@@ -3013,9 +3014,16 @@ void OriginalRaceSession::updateGameplay(
     // actor pair, and OnProgress releases a missing point after 0.1 seconds.
     // spark2 then waits for its already emitted particles (maximum life 0.7)
     // before disappearing.
-    constexpr float sourceContactForce = 10000.0F;
-    constexpr float sourceContactRelease = 0.1F;
     constexpr float sourceContactParticleLife = 0.7F;
+    const auto pairContactKey = [](
+        std::size_t racer,
+        r3d::physics::CollisionSurface surface,
+        std::uint32_t actor) {
+        return source::PairPxContactEffect::Key{
+            static_cast<std::uint64_t>(racer),
+            (static_cast<std::uint64_t>(surface) << 32U) |
+                static_cast<std::uint64_t>(actor)};
+    };
     for (std::size_t racer = 0;
          !legacyWindowsDebug_ && racer < vehicles.size() &&
          racer < racers_.size(); ++racer)
@@ -3024,60 +3032,61 @@ void OriginalRaceSession::updateGameplay(
             continue;
         for (const auto& contact : vehicles[racer].bodyContacts)
         {
-            if (contact.frictionForce <= sourceContactForce ||
-                (contact.surface ==
+            if (contact.surface ==
                      r3d::physics::CollisionSurface::Vehicle &&
-                 contact.otherVehicle < racer))
+                contact.otherVehicle < racer)
             {
                 continue;
             }
-            std::array<Vec3, 2> points{};
+            std::array<source::PairPxContactEffect::Point, 2> points{};
             std::size_t pointCount = std::min<std::size_t>(
                 contact.points.size(), points.size());
             for (std::size_t index = 0; index < pointCount; ++index)
-                points[index] = contact.points[index];
+            {
+                points[index] = {
+                    contact.points[index].x,
+                    contact.points[index].y,
+                    contact.points[index].z};
+            }
             if (pointCount == 0U)
             {
-                points[0] = contact.hasPoint
-                                ? contact.point
-                                : vehicles[racer].body.position;
+                const Vec3 point = contact.hasPoint
+                    ? contact.point
+                    : vehicles[racer].body.position;
+                points[0] = {point.x, point.y, point.z};
                 pointCount = 1U;
             }
-            const auto activePair = std::find_if(
-                effects_.begin(), effects_.end(),
-                [&](const RaceEffect& effect) {
-                    return effect.kind == RaceEventKind::ContactImpact &&
-                           effect.racer == racer &&
-                           effect.contactSurface == contact.surface &&
-                           effect.contactActor == contact.otherActor &&
-                           effect.emissionEndSeconds >= effect.ageSeconds;
-                });
-            if (activePair == effects_.end())
+            const auto contactResult = pairContactEffect_.OnContact(
+                pairContactKey(
+                    racer, contact.surface, contact.otherActor),
+                contact.frictionForce, false, false,
+                std::span<const source::PairPxContactEffect::Point>{
+                    points.data(), pointCount},
+                sourceRandomUnit());
+            if (!contactResult.accepted)
+                continue;
+            if (contactResult.pairCreated &&
+                contactResult.playSound &&
+                contactResult.sound < race_.contactSoundPaths.size())
             {
                 // PairPxContactEffect::GetOrCreateContact selects one Sound
                 // with floor(size * Random()) and keeps that Source3d until
                 // the actor-pair node is released. This differs subtly from
                 // the RAND_MAX+1 RandomRange used by EventEffect sound lists.
-                if (!race_.contactSoundPaths.empty())
-                {
-                    const auto soundIndex = std::min(
-                        static_cast<std::size_t>(
-                            static_cast<float>(
-                                race_.contactSoundPaths.size()) *
-                            sourceRandomUnit()),
-                        race_.contactSoundPaths.size() - 1U);
-                    RaceEvent sound;
-                    sound.kind = RaceEventKind::EffectSound;
-                    sound.racer = racer;
-                    sound.position = points[0];
-                    sound.soundPath =
-                        race_.contactSoundPaths[soundIndex];
-                    sound.soundContactActor = contact.otherActor;
-                    sound.soundContactSurface = contact.surface;
-                    events_.push_back(std::move(sound));
-                }
+                RaceEvent sound;
+                sound.kind = RaceEventKind::EffectSound;
+                sound.racer = racer;
+                sound.position = {
+                    contactResult.points.front().point.x,
+                    contactResult.points.front().point.y,
+                    contactResult.points.front().point.z};
+                sound.soundPath = race_.contactSoundPaths[
+                    contactResult.sound];
+                sound.soundContactActor = contact.otherActor;
+                sound.soundContactSurface = contact.surface;
+                events_.push_back(std::move(sound));
             }
-            for (std::size_t index = 0; index < pointCount; ++index)
+            for (const auto& point : contactResult.points)
             {
                 auto effect = std::find_if(
                     effects_.begin(), effects_.end(),
@@ -3087,9 +3096,7 @@ void OriginalRaceSession::updateGameplay(
                                value.racer == racer &&
                                value.contactSurface == contact.surface &&
                                value.contactActor == contact.otherActor &&
-                               value.contactIndex == index &&
-                               value.emissionEndSeconds >=
-                                   value.ageSeconds;
+                               value.contactIndex == point.slot;
                     });
                 if (effect == effects_.end())
                 {
@@ -3098,30 +3105,54 @@ void OriginalRaceSession::updateGameplay(
                     created.racer = racer;
                     created.contactSurface = contact.surface;
                     created.contactActor = contact.otherActor;
-                    created.contactIndex =
-                        static_cast<std::uint8_t>(index);
+                    created.contactIndex = point.slot;
                     created.totalSeconds =
-                        sourceContactRelease +
+                        source::PairPxContactEffect::
+                            contactReleaseSeconds +
                         sourceContactParticleLife;
                     created.seconds = created.totalSeconds;
                     created.ageSeconds = 0.0F;
                     created.emissionEndSeconds =
-                        sourceContactRelease;
+                        source::PairPxContactEffect::
+                            contactReleaseSeconds;
                     created.waitForParticleEnd = true;
                     created.effectOwner.ResetGameObject(-1.0F);
                     created.waitingEnd.Reset();
                     effects_.push_back(std::move(created));
                     effect = std::prev(effects_.end());
                 }
-                effect->origin = points[index];
-                effect->target = add(points[index], contact.normal);
+                effect->origin = {
+                    point.point.x, point.point.y, point.point.z};
+                effect->target = add(effect->origin, contact.normal);
                 effect->seconds =
-                    sourceContactRelease +
+                    source::PairPxContactEffect::
+                        contactReleaseSeconds +
                     sourceContactParticleLife;
                 effect->emissionEndSeconds =
-                    effect->ageSeconds + sourceContactRelease;
+                    effect->ageSeconds +
+                    source::PairPxContactEffect::
+                        contactReleaseSeconds;
             }
         }
+    }
+    for (const auto& released : pairContactEffect_.OnProgress(seconds))
+    {
+        const auto effect = std::find_if(
+            effects_.begin(), effects_.end(),
+            [&](const RaceEffect& value) {
+                if (value.kind != RaceEventKind::ContactImpact ||
+                    value.contactIndex != released.slot)
+                    return false;
+                return pairContactKey(
+                           value.racer, value.contactSurface,
+                           value.contactActor) == released.key;
+            });
+        if (effect == effects_.end() ||
+            effect->waitingEnd.IsResurrect())
+            continue;
+        effect->emissionEndSeconds = effect->ageSeconds;
+        effect->effectOwner.Death();
+        effect->waitingEnd.OnDeath(effect->effectOwner);
     }
 
     for (std::size_t racer = 0;
@@ -6022,6 +6053,7 @@ void OriginalRaceSession::update(
             events_.push_back(std::move(sound));
         }
         if (effect.waitForParticleEnd &&
+            effect.kind != RaceEventKind::ContactImpact &&
             !effect.waitingEnd.IsResurrect() &&
             effect.emissionEndSeconds >= 0.0F &&
             effect.ageSeconds > effect.emissionEndSeconds)

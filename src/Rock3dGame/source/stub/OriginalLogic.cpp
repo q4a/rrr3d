@@ -1,9 +1,126 @@
 #include "OriginalLogic.h"
 
 #include <algorithm>
+#include <cmath>
 
 namespace r3d::game::originalrace::source
 {
+
+bool PairPxContactEffect::Key::operator<(
+    const Key& other) const noexcept
+{
+    return actor1 == other.actor1 ? actor2 < other.actor2
+                                  : actor1 < other.actor1;
+}
+
+void PairPxContactEffect::Reset(std::size_t soundCount) noexcept
+{
+    contacts_.clear();
+    soundCount_ = soundCount;
+}
+
+PairPxContactEffect::ContactResult PairPxContactEffect::OnContact(
+    Key key, float frictionForce, bool firstShapeIsWheel,
+    bool secondShapeIsWheel, std::span<const Point> points,
+    float randomUnit)
+{
+    ContactResult result;
+    if (frictionForce <= minimumFrictionForce || firstShapeIsWheel ||
+        secondShapeIsWheel)
+    {
+        return result;
+    }
+
+    result.accepted = true;
+    auto [nodeIterator, inserted] = contacts_.try_emplace(key);
+    auto& node = nodeIterator->second;
+    result.pairCreated = inserted;
+    if (inserted && soundCount_ > 0U)
+    {
+        const float unit = std::clamp(randomUnit, 0.0F, 1.0F);
+        node.sound = std::min(
+            static_cast<std::size_t>(
+                static_cast<float>(soundCount_) * unit),
+            soundCount_ - 1U);
+    }
+    result.sound = node.sound;
+
+    result.points.reserve(std::min(points.size(), maximumPoints));
+    for (const auto& point : points)
+    {
+        if (node.last == node.contacts.size())
+        {
+            if (node.contacts.size() >= maximumPoints)
+                break;
+            node.contacts.emplace_back();
+        }
+        auto& contact = node.contacts[node.last];
+        const bool createdEffect = !contact.effect;
+        contact.effect = true;
+        contact.point = point;
+        contact.time = 0.0F;
+        result.points.push_back(
+            {key, point, static_cast<std::uint8_t>(node.last),
+             createdEffect});
+        ++node.last;
+    }
+    result.playSound = node.sound != invalidSound &&
+                       !result.points.empty();
+    return result;
+}
+
+std::vector<PairPxContactEffect::Release>
+PairPxContactEffect::OnProgress(float deltaTime)
+{
+    std::vector<Release> released;
+    for (auto nodeIterator = contacts_.begin();
+         nodeIterator != contacts_.end();)
+    {
+        auto& node = nodeIterator->second;
+        std::size_t eraseBegin = node.last;
+        for (std::size_t index = node.last;
+             index < node.contacts.size(); ++index)
+        {
+            auto& contact = node.contacts[index];
+            contact.time += deltaTime;
+            if (contact.time > contactReleaseSeconds)
+            {
+                if (contact.effect)
+                {
+                    released.push_back(
+                        {nodeIterator->first,
+                         static_cast<std::uint8_t>(index), true});
+                }
+            }
+            else
+            {
+                eraseBegin = index + 1U;
+            }
+        }
+        if (eraseBegin < node.contacts.size())
+            node.contacts.erase(
+                node.contacts.begin() +
+                    static_cast<std::ptrdiff_t>(eraseBegin),
+                node.contacts.end());
+        node.last = 0U;
+        if (node.contacts.empty())
+            nodeIterator = contacts_.erase(nodeIterator);
+        else
+            ++nodeIterator;
+    }
+    return released;
+}
+
+std::size_t PairPxContactEffect::GetPairCount() const noexcept
+{
+    return contacts_.size();
+}
+
+std::size_t PairPxContactEffect::GetContactCount(Key key) const noexcept
+{
+    const auto found = contacts_.find(key);
+    return found == contacts_.end() ? 0U : found->second.contacts.size();
+}
 
 bool Logic::ShotPlan::Get(SlotType type) const noexcept
 {

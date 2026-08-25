@@ -263,6 +263,61 @@ int main()
             false, false, false, true).lockClutch)
         return 32;
 
+    source::PairPxContactEffect contacts;
+    contacts.Reset(3U);
+    const source::PairPxContactEffect::Key contactKey{4U, 9U};
+    const std::array<source::PairPxContactEffect::Point, 3U>
+        contactPoints{{{1.0F, 2.0F, 3.0F},
+                       {4.0F, 5.0F, 6.0F},
+                       {7.0F, 8.0F, 9.0F}}};
+    if (contacts.OnContact(
+            contactKey, 10000.0F, false, false,
+            contactPoints, 0.5F).accepted ||
+        contacts.OnContact(
+            contactKey, 10001.0F, true, false,
+            contactPoints, 0.5F).accepted)
+        return 33;
+    const auto firstContact = contacts.OnContact(
+        contactKey, 10001.0F, false, false,
+        contactPoints, 1.0F);
+    if (!firstContact.accepted || !firstContact.pairCreated ||
+        !firstContact.playSound || firstContact.sound != 2U ||
+        firstContact.points.size() != 2U ||
+        !firstContact.points[0].createdEffect ||
+        !firstContact.points[1].createdEffect ||
+        contacts.GetPairCount() != 1U ||
+        contacts.GetContactCount(contactKey) != 2U)
+        return 34;
+    if (!contacts.OnProgress(0.1F).empty())
+        return 35;
+    const std::array<source::PairPxContactEffect::Point, 1U>
+        onePoint{{{10.0F, 11.0F, 12.0F}}};
+    const auto refreshed = contacts.OnContact(
+        contactKey, 10001.0F, false, false, onePoint, 0.0F);
+    if (refreshed.pairCreated || refreshed.points.size() != 1U ||
+        refreshed.points.front().createdEffect ||
+        refreshed.sound != 2U)
+        return 36;
+    if (!contacts.OnProgress(0.001F).empty() ||
+        contacts.GetContactCount(contactKey) != 2U)
+        return 37;
+    const auto tailReleased = contacts.OnProgress(0.1F);
+    if (tailReleased.size() != 1U ||
+        tailReleased.front().slot != 1U ||
+        contacts.GetContactCount(contactKey) != 1U)
+        return 38;
+    contacts.OnContact(
+        contactKey, 10001.0F, false, false, onePoint, 0.0F);
+    if (!contacts.OnProgress(0.1F).empty())
+        return 39;
+    if (!contacts.OnProgress(0.1F).empty())
+        return 40;
+    const auto finalReleased = contacts.OnProgress(0.001F);
+    if (finalReleased.size() != 1U ||
+        finalReleased.front().slot != 0U ||
+        contacts.GetPairCount() != 0U)
+        return 41;
+
     std::cout << "original Weapon/Proj/WeaponItem/Droid/Reflector/Logic "
                  "source rules passed\n";
     return 0;
