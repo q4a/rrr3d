@@ -1930,6 +1930,22 @@ host. Runtime теперь спрашивает эти условия у `Origin
 за счёт удаления модели. Loopback regression отдельно фиксирует обе разные
 границы и запрещает client-side принятие host-решения.
 
+### P2.67 — `NetPlayer::ResponseStream` graph authority — выполнено
+
+Повторная сверка активного receive path выявила, что исходный код вычисляет
+rotation delta от `GameCar::GetGrActor().GetRot()`, а не от физического actor.
+Portable `GameObjectFrameSync` делал это правильно, но результат терялся:
+Jolt backend самостоятельно повторял проверку `pi/24` уже относительно body.
+Во время незавершённого визуального сглаживания две позы различаются, поэтому
+backend мог пропустить требуемый source snap и позднее показать резкий доворот.
+
+Решение игрового graph-слоя теперь явно проходит через physics boundary.
+Также application adapter проверяет фактический `Player::GetFinished()` перед
+применением новой revision, как исходный `ResponseStream`, а не полагается
+только на более поздний сетевой флаг. Physics regression фиксирует малый body
+delta при одновременно превышенном graph delta и требует точную установку
+сетевого quaternion.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

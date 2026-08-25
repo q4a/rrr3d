@@ -15886,6 +15886,15 @@ int main(int argc, char** argv)
                     }
                     if (player->owner)
                         continue;
+                    // NetPlayer::ResponseStream tests Player::GetFinished(),
+                    // not only its replicated _raceFinish flag.  The local
+                    // race state can reach the finish first; never let a late
+                    // UDP pose move that already-finished car again.
+                    if (index < raceSession.racers().size() &&
+                        raceSession.racers()[index].GetFinished())
+                    {
+                        continue;
+                    }
                     auto& appliedRevision =
                         networkAppliedVehicleRevisions[player->modelId];
                     if (player->vehicle.receivedRevision == 0U ||
@@ -15905,7 +15914,8 @@ int main(int argc, char** argv)
                         physicsWorld->vehicle(index).body;
                     const auto& graphPose =
                         raceRenderVehicles[index].body;
-                    networkVehicleFrameSync[index].OnNetworkPose(
+                    const auto networkCorrection =
+                        networkVehicleFrameSync[index].OnNetworkPose(
                         {physicsPose.position.x,
                          physicsPose.position.y,
                          physicsPose.position.z},
@@ -15937,7 +15947,8 @@ int main(int argc, char** argv)
                          player->vehicle.linearMomentum[2]},
                         {player->vehicle.angularMomentum[0],
                          player->vehicle.angularMomentum[1],
-                         player->vehicle.angularMomentum[2]});
+                         player->vehicle.angularMomentum[2]},
+                        networkCorrection.snapRotation);
                     raceVehicles[index] =
                         physicsWorld->vehicle(index);
                     appliedRevision = player->vehicle.receivedRevision;

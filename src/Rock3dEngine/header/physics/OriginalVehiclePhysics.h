@@ -278,10 +278,13 @@ public:
                                     Vec3 momentum) noexcept = 0;
     // Active NetPlayer::ResponseStream receive path: snap position beyond
     // four source units, bias momentum for smaller divergence, snap a
-    // sufficiently divergent rotation, then install both momenta.
+    // sufficiently divergent graph rotation, then install both momenta.
+    // The game layer passes the graph comparison because an earlier visual
+    // correction can leave it intentionally different from the Jolt body.
     virtual void synchronizeNetworkVehicle(
         std::size_t index, Vec3 position, Quat rotation,
-        Vec3 linearMomentum, Vec3 angularMomentum) noexcept = 0;
+        Vec3 linearMomentum, Vec3 angularMomentum,
+        bool graphRotationRequiresSnap = false) noexcept = 0;
     virtual void setWheelTractionEnabled(std::size_t index,
                                          bool enabled) noexcept = 0;
     virtual void clampLinearSpeed(std::size_t index,

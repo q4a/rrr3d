@@ -1581,6 +1581,20 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - Loopback требует неизменную revision между snapshot без transport dispatch
   и её увеличение после следующего фактически принятого состояния.
 
+### Source NetPlayer graph-rotation authority follow-up
+
+- Устранено расхождение между `NetPlayer::ResponseStream` и Jolt-границей.
+  Windows сравнивает сетевой quaternion с текущим `GameCar` graph actor,
+  тогда как Jolt-адаптер повторно сравнивал его с physics body и мог отменить
+  уже принятое игровым слоем решение о snap. Теперь результат исходного
+  порога `pi/24` явно передаётся в physics backend.
+- Поздний UDP pose больше не применяется, если локальный `Player` уже
+  финишировал, даже когда replicated `_raceFinish` ещё не дошёл. Это точно
+  повторяет проверку `!_player->GetFinished()` до изменения машины.
+- Physics smoke покрывает случай, когда graph actor требует snap, а новая
+  разница физического кузова меньше `pi/24`; Jolt обязан сохранить решение
+  `GameObject/NetPlayer`, а не пересчитать его по другой позе.
+
 ### Source Player::ApplyMobility armor-role follow-up
 
 - Удалено portable-отклонение, из-за которого коэффициент

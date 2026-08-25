@@ -821,7 +821,8 @@ public:
 
     void synchronizeNetworkVehicle(
         std::size_t index, Vec3 position, Quat rotation,
-        Vec3 linearMomentum, Vec3 angularMomentum) noexcept override
+        Vec3 linearMomentum, Vec3 angularMomentum,
+        bool graphRotationRequiresSnap) noexcept override
     {
         if (index >= vehicles_.size() || !vehicles_[index].enabled)
             return;
@@ -866,7 +867,7 @@ public:
             linearMomentum.y += positionDifference.y * correction;
             linearMomentum.z += positionDifference.z * correction;
         }
-        if (rotationDifference >
+        if (graphRotationRequiresSnap || rotationDifference >
             3.14159265358979323846F / 24.0F)
         {
             bodies.SetRotation(
@@ -2282,6 +2283,30 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
     {
         error = "NetPlayer far-position snap did not match the source "
                 "four-unit threshold";
+        return false;
+    }
+    // NetPlayer compares the received rotation with GameCar's graph actor,
+    // not with the PhysX body.  While a previous graph correction is still
+    // being consumed, that comparison can cross pi/24 even when the next
+    // authoritative body delta is smaller.  The game layer must be able to
+    // carry that source decision through the Jolt boundary unchanged.
+    constexpr float forcedNetworkYaw = networkYaw + 0.1F;
+    const Quat forcedNetworkRotation{
+        0.0F, 0.0F, std::sin(forcedNetworkYaw * 0.5F),
+        std::cos(forcedNetworkYaw * 0.5F)};
+    networkWorld->synchronizeNetworkVehicle(
+        0U, farSynchronized.body.position, forcedNetworkRotation, {}, {},
+        true);
+    const auto forcedRotation = networkWorld->vehicle();
+    const float forcedRotationDot = std::abs(
+        forcedRotation.body.rotation.x * forcedNetworkRotation.x +
+        forcedRotation.body.rotation.y * forcedNetworkRotation.y +
+        forcedRotation.body.rotation.z * forcedNetworkRotation.z +
+        forcedRotation.body.rotation.w * forcedNetworkRotation.w);
+    if (forcedRotationDot < 0.999F)
+    {
+        error = "NetPlayer graph-rotation snap decision was lost at the "
+                "Jolt boundary";
         return false;
     }
     world->setWheelTractionEnabled(0U, false);
