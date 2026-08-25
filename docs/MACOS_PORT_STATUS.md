@@ -2093,3 +2093,11 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - Russian Metal smoke печатает и отображает `Круг`/`Награда`; все player,
   place, money/points и finish-format keys берутся из той же выбранной
   сериализованной language library.
+
+### RaceMenu command localization follow-up
+
+- Удалены оставшиеся придуманные английские identity labels `Start race` и
+  `Planets` из active RaceMenu/Angar path.
+- Навигация и diagnostic trace используют поставляемые `svStartMatch` и
+  `svCasePlanet`; сам `RaceMainFrame`, как Windows, продолжает рисовать семь
+  icon-only кнопок без текстовых подписей.

@@ -3201,8 +3201,8 @@ int main(int argc, char** argv)
         creditsPage = createPage(labels({"svBack"}));
 #ifdef RRR3D_PHYSICS
         raceMenuPage = createPage(
-            {"Start race", localized("svWorkshop"),
-             localized("svGarage"), "Planets",
+            {localized("svStartMatch"), localized("svWorkshop"),
+             localized("svGarage"), localized("svCasePlanet"),
              localized("svRewards"), localized("svOptions"),
              localized("svExit")});
         gamersNamePage = createStyledPage(
@@ -3256,7 +3256,7 @@ int main(int argc, char** argv)
             {" "}, menu::smallFontHeight, raceTextColor,
             menu::selectedTextColor);
         planetsPage = createPage(
-            {"Planets", localized("svBack")});
+            {localized("svCasePlanet"), localized("svBack")});
         angarInfoPage = createStyledPage(
             {" ", " ", " "}, menu::smallFontHeight,
             menu::Rgba8{118, 206, 242, 255},
