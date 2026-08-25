@@ -249,6 +249,30 @@ Transform compose(const Transform& parent, const Transform& local)
     return result;
 }
 
+Transform relativeTransform(
+    const Transform& parent, const Transform& world)
+{
+    const Quat inverseRotation{
+        -parent.rotation.x, -parent.rotation.y,
+        -parent.rotation.z, parent.rotation.w};
+    const Vec3 unscaled = rotate(
+        inverseRotation, subtract(world.position, parent.position));
+    const auto divide = [](float value, float scale) {
+        return std::abs(scale) > 0.000001F ? value / scale : value;
+    };
+    Transform result;
+    result.position = {
+        divide(unscaled.x, parent.scale.x),
+        divide(unscaled.y, parent.scale.y),
+        divide(unscaled.z, parent.scale.z)};
+    result.scale = {
+        divide(world.scale.x, parent.scale.x),
+        divide(world.scale.y, parent.scale.y),
+        divide(world.scale.z, parent.scale.z)};
+    result.rotation = multiply(inverseRotation, world.rotation);
+    return result;
+}
+
 Vec3 transformPoint(const Transform& transform, Vec3 point)
 {
     return add(
@@ -3971,8 +3995,6 @@ void OriginalRaceSession::updateGameplay(
             effect.kind = RaceEventKind::WeaponShotEffect;
             effect.transform = compose(
                 weaponTransform, local);
-            if (source.ignoreRotation)
-                effect.transform.rotation = {};
             effect.origin = effect.transform.position;
             effect.target = add(
                 effect.origin,
@@ -3983,6 +4005,16 @@ void OriginalRaceSession::updateGameplay(
             applySourceEffectTiming(effect, timing);
             effect.weapon = weapon;
             effect.ignoreRotation = source.ignoreRotation;
+            if (owner < vehicles.size())
+            {
+                // ShotEffect::EffectDesc::child attaches the spawned actor
+                // to the Weapon GameObject.  Store the equivalent car-local
+                // pose so it follows the mount until ResurrectObj detaches
+                // a waiting particle system at the end of emission.
+                effect.transform = relativeTransform(
+                    vehicles[owner].body, effect.transform);
+                effect.parentRacer = owner;
+            }
             attachSourceLifeEffect(
                 effect, source.visual.soundPaths, owner, owner);
             effects_.push_back(std::move(effect));

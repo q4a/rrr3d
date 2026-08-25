@@ -23,11 +23,13 @@ int main()
         return 3;
 
     weapon.OnShot(false);
-    if (!weapon.IsReadyShot())
+    if (!weapon.IsReadyShot() ||
+        weapon.GetShotEffect().GetShotCount() != 0U)
         return 4;
     weapon.OnShot(true);
     if (weapon.IsReadyShot() ||
-        std::abs(weapon.GetShotTime()) > 0.0001F)
+        std::abs(weapon.GetShotTime()) > 0.0001F ||
+        weapon.GetShotEffect().GetShotCount() != 1U)
         return 5;
 
     source::WeaponRack rack;

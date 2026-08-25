@@ -81,11 +81,27 @@ Proj::ContactResult Proj::MasloContact(
     return result;
 }
 
+void ShotEffect::Reset() noexcept
+{
+    shotCount_ = 0U;
+}
+
+void ShotEffect::OnShot() noexcept
+{
+    ++shotCount_;
+}
+
+std::uint64_t ShotEffect::GetShotCount() const noexcept
+{
+    return shotCount_;
+}
+
 Weapon::Weapon(const Desc& desc) : desc_(desc) {}
 
 void Weapon::Reset() noexcept
 {
     shotTime_ = 0.0F;
+    shotEffect_.Reset();
 }
 
 void Weapon::OnProgress(float deltaTime) noexcept
@@ -120,7 +136,10 @@ void Weapon::OnShot(bool projectileCreated) noexcept
 {
     // Weapon::CreateShot resets _shotTime only after PrepareProj succeeds.
     if (projectileCreated)
+    {
         shotTime_ = 0.0F;
+        shotEffect_.OnShot();
+    }
 }
 
 const Weapon::Desc& Weapon::GetDesc() const noexcept
@@ -140,6 +159,11 @@ void Weapon::SetDesc(
     desc_.shotDelay = shotDelay;
     desc_.projectileTypes.assign(
         projectileTypes.begin(), projectileTypes.end());
+}
+
+const ShotEffect& Weapon::GetShotEffect() const noexcept
+{
+    return shotEffect_;
 }
 
 WeaponItem::WeaponItem(

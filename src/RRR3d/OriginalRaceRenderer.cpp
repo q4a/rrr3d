@@ -5419,11 +5419,22 @@ void OriginalRaceRenderer::draw(
                 if (!definition.visualNodes.empty() ||
                     !definition.particleEmitters.empty())
                 {
+                    auto parent = effect.transform;
+                    r3d::physics::Vec3 parentVelocity =
+                        effect.detachedSourceVelocity;
+                    if (effect.parentRacer < vehicles.size())
+                    {
+                        parent = compose(
+                            vehicles[effect.parentRacer].body,
+                            effect.transform);
+                        parentVelocity =
+                            vehicles[effect.parentRacer].linearVelocity;
+                    }
                     drawDefinition(
                         weaponShotEffects_[effect.weapon], definition,
-                        effect.transform,
+                        parent,
                         effect.totalSeconds - effect.seconds,
-                        r3d::physics::Vec3{}, nullptr, 1.0F,
+                        parentVelocity, nullptr, 1.0F,
                         effectEmissionEnd);
                 }
             }

@@ -41,6 +41,20 @@ public:
         bool clutchImmune) noexcept;
 };
 
+// GameBase.cpp::ShotEffect receives one OnShot callback only after
+// Weapon::PrepareProj succeeds. The backend may create a child visual and a
+// Source3d, but this owner preserves the callback lifetime per weapon actor.
+class ShotEffect
+{
+public:
+    void Reset() noexcept;
+    void OnShot() noexcept;
+    std::uint64_t GetShotCount() const noexcept;
+
+private:
+    std::uint64_t shotCount_ = 0U;
+};
+
 // Backend-neutral transcription of the original Weapon timer and Desc
 // ownership. Projectile preparation remains at the Jolt/bgfx session
 // boundary; readiness and successful-shot lifetime belong here.
@@ -68,10 +82,12 @@ public:
     void SetDesc(const Desc& value);
     void SetDesc(float shotDelay,
                  std::span<const std::uint32_t> projectileTypes);
+    const ShotEffect& GetShotEffect() const noexcept;
 
 private:
     Desc desc_;
     float shotTime_ = 0.0F;
+    ShotEffect shotEffect_;
 };
 
 // Backend-neutral transcription of Player::WeaponItem.  The Windows object

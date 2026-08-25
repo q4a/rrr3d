@@ -4322,6 +4322,7 @@ int main(int argc, char** argv)
         std::size_t source = 0;
         std::string path;
         r3d::physics::Vec3 position;
+        r3d::physics::Vec3 followOffset;
         r3d::audio::SoundHandle sound = r3d::audio::invalidSound;
         r3d::audio::VoiceHandle voice = r3d::audio::invalidVoice;
         bool spatialProxyPlaying = false;
@@ -16212,10 +16213,34 @@ int main(int argc, char** argv)
                             if (active == shotEffectAudio.end() &&
                                 sound != r3d::audio::invalidSound)
                             {
-                                shotEffectAudio.push_back(
-                                    {event.racer, event.soundSource,
-                                     event.soundPath, event.position,
-                                     sound});
+                                ShotEffectAudio source;
+                                source.owner = event.racer;
+                                source.source = event.soundSource;
+                                source.path = event.soundPath;
+                                source.position = event.position;
+                                source.sound = sound;
+                                if (source.owner < raceVehicles.size())
+                                {
+                                    const auto& body = raceVehicles[
+                                        source.owner].body;
+                                    const r3d::physics::Quat inverse{
+                                        -body.rotation.x,
+                                        -body.rotation.y,
+                                        -body.rotation.z,
+                                        body.rotation.w};
+                                    source.followOffset = rotateRaceVector(
+                                        inverse,
+                                        {event.position.x - body.position.x,
+                                         event.position.y - body.position.y,
+                                         event.position.z - body.position.z});
+                                    if (std::abs(body.scale.x) > 0.000001F)
+                                        source.followOffset.x /= body.scale.x;
+                                    if (std::abs(body.scale.y) > 0.000001F)
+                                        source.followOffset.y /= body.scale.y;
+                                    if (std::abs(body.scale.z) > 0.000001F)
+                                        source.followOffset.z /= body.scale.z;
+                                }
+                                shotEffectAudio.push_back(std::move(source));
                             }
                         }
                         else if (event.soundLifetimeSeconds > 0.0F)
@@ -16274,8 +16299,19 @@ int main(int argc, char** argv)
                     // EventEffect::OnProgress moves all initialized
                     // ShotEffect sources with their owning weapon/car.
                     if (source->owner < raceVehicles.size())
-                        source->position =
-                            raceVehicles[source->owner].body.position;
+                    {
+                        const auto& body =
+                            raceVehicles[source->owner].body;
+                        const auto offset = rotateRaceVector(
+                            body.rotation,
+                            {source->followOffset.x * body.scale.x,
+                             source->followOffset.y * body.scale.y,
+                             source->followOffset.z * body.scale.z});
+                        source->position = {
+                            body.position.x + offset.x,
+                            body.position.y + offset.y,
+                            body.position.z + offset.z};
+                    }
                     const float dx = source->position.x - listener.x;
                     const float dy = source->position.y - listener.y;
                     const float dz = source->position.z - listener.z;
