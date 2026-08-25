@@ -3450,6 +3450,35 @@ Vehicle loadVehicle(const resource::ResourceFileSystem& resources,
     }
     if (vehicle.wheels.size() != 4)
         throw resource::ResourceError(source + ": expected four wheels");
+
+    // Player::ComputeCarBBSize asks the car graph actor for its transformed
+    // local AABB and uses the diagonal length. The body VisualNodes are the
+    // backend-neutral form of that actor; collision dimensions are not an
+    // equivalent source for this value.
+    ObjectDefinition carActor;
+    carActor.visualNodes = result.bodyVisuals;
+    const LocalBounds bounds = objectLocalBounds(resources, carActor);
+    if (bounds.valid)
+    {
+        const Vec3 dimensions{
+            bounds.maximum.x - bounds.minimum.x,
+            bounds.maximum.y - bounds.minimum.y,
+            bounds.maximum.z - bounds.minimum.z};
+        result.boundingSize = std::max(
+            std::sqrt(dimensions.x * dimensions.x +
+                      dimensions.y * dimensions.y +
+                      dimensions.z * dimensions.z),
+            0.001F);
+    }
+    else
+    {
+        const Vec3 half = vehicle.halfExtents;
+        result.boundingSize = std::max(
+            2.0F * std::sqrt(half.x * half.x + half.y * half.y +
+                             half.z * half.z),
+            0.001F);
+    }
+    result.boundingRadius = result.boundingSize * 0.5F;
     return result;
 }
 
@@ -6705,6 +6734,9 @@ bool runOriginalRaceResourceSmokeTest(
             !near(physics.vehicle.torqueEfficiency, 0.805F) ||
             !near(physics.vehicle.restBrakeTorque, 400.0F) ||
             !near(physics.vehicle.maximumSpeed, 42.0F) ||
+            race.vehicle.boundingSize <= 0.0F ||
+            !near(race.vehicle.boundingRadius,
+                  race.vehicle.boundingSize * 0.5F) ||
             !near(physics.vehicle.airbornePitchAcceleration, 0.523599F) ||
             !near(physics.vehicle.clampRollAngle, 0.261799F) ||
             !near(physics.vehicle.clampPitchAngle, 0.523599F) ||

@@ -1922,3 +1922,17 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   замены Player storage, исключая dangling owner state.
 - Player, AIPlayer, offline session и network-role regressions подтверждают
   source masks и teardown.
+
+### Source Player::ComputeCarBBSize follow-up
+
+- Удалены три AI-аппроксимации размера машины по collision half-extents.
+  Оригинал использует диагональ transformed visual AABB `GrActor`, поэтому
+  collision shape не является эквивалентным источником.
+- Resource loader вычисляет visual `boundingSize/boundingRadius` из mesh
+  bounds всех body nodes с их source transforms; active `Player::CarState`
+  хранит эти значения через весь create/restore lifecycle.
+- `AISystem::ComputeTracks`, path/control и `AICar::AttackState` теперь читают
+  один Player-owned size/radius. Это возвращает исходные интервалы lane
+  blocking, удержания цели и обгона независимо от формы Jolt backend body.
+- Resource, Player и integrated session regressions проверяют формулу и
+  передачу значения каждой configured vehicle.

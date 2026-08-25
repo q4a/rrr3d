@@ -10,12 +10,16 @@ int main()
 {
     source::Player player;
     player.Reset(80.0F, 3U);
+    player.car.SetSize(7.5F);
     player.ConfigureIdentity(
         source::Player::humanId, 7, 3U, "Tyler", "Network Tyler",
         {0.2F, 0.3F, 0.4F, 1.0F});
     if (player.life != 80.0F || player.maximumLife != 80.0F ||
         player.place != 3U || player.finished || player.destroyed)
         return 1;
+    if (std::abs(player.car.GetSize() - 7.5F) > 0.001F ||
+        std::abs(player.car.GetRadius() - 3.75F) > 0.001F)
+        return 51;
     if (!player.IsHuman() || player.IsComputer() || player.IsOpponent() ||
         player.GetId() != source::Player::humanId ||
         player.GetGamerId() != 7 || player.GetNetSlot() != 3U ||

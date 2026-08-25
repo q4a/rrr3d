@@ -1150,6 +1150,7 @@ void OriginalRaceSession::reset()
             sourceRacer.netSlot, sourceRacer.name,
             sourceRacer.netName, sourceRacer.color);
         racers_[index].CreateCar(true);
+        racers_[index].car.SetSize(vehicle.boundingSize);
         for (std::size_t weaponIndex = 0;
              weaponIndex < race_.weapons.size(); ++weaponIndex)
         {
@@ -2618,20 +2619,12 @@ void OriginalRaceSession::updateAiTracks(
         if (carState.GetLiveTile() == nullptr ||
             carState.GetCurNode() == nullptr)
             continue;
-        const auto& source = race_.racers[racer];
-        const auto& vehicleDefinition =
-            source.hasConfiguredVehicle
-                ? source.configuredVehicle
-                : race_.vehicles.at(source.vehicle);
-        const Vec3 half = vehicleDefinition.physics.halfExtents;
-        const float radius =
-            std::sqrt(half.x * half.x + half.y * half.y +
-                      half.z * half.z);
         if (auto* aiCar = aiPlayers_[racer].GetCar())
         {
             aiSystemEntriesScratch_.push_back({
                 racer, aiCar, &carState,
-                vehicles[racer].body.position, radius, true});
+                vehicles[racer].body.position,
+                carState.GetRadius(), true});
         }
     }
     aiSystem_.ComputeTracks(aiSystemEntriesScratch_);
@@ -2650,7 +2643,6 @@ r3d::physics::VehicleInput OriginalRaceSession::aiInput(
         racerDefinition.hasConfiguredVehicle
             ? racerDefinition.configuredVehicle
             : race_.vehicles.at(racerDefinition.vehicle);
-    const Vec3 half = vehicleDefinition.physics.halfExtents;
     source::AICar::VehicleState sourceVehicle;
     sourceVehicle.position = vehicle.body.position;
     sourceVehicle.direction =
@@ -2658,9 +2650,7 @@ r3d::physics::VehicleInput OriginalRaceSession::aiInput(
     sourceVehicle.direction3 =
         normalized3(forward(vehicle.body.rotation));
     sourceVehicle.speed = vehicle.speed;
-    sourceVehicle.size =
-        2.0F * std::sqrt(half.x * half.x + half.y * half.y +
-                         half.z * half.z);
+    sourceVehicle.size = racers_[racer].car.GetSize();
     sourceVehicle.steeringControl =
         vehicleDefinition.physics.steeringControl;
     sourceVehicle.mapObject = true;
@@ -5567,17 +5557,8 @@ void OriginalRaceSession::updateGameplay(
             !racers_[target].disconnected;
         if (target < vehicles.size())
             state.position = vehicles[target].body.position;
-        const auto& racerDefinition = race_.racers[target];
-        const auto& vehicleDefinition =
-            racerDefinition.hasConfiguredVehicle
-                ? racerDefinition.configuredVehicle
-                : race_.vehicles.at(racerDefinition.vehicle);
-        const Vec3 half = vehicleDefinition.physics.halfExtents;
-        state.radius = std::max(
-            std::sqrt(half.x * half.x + half.y * half.y +
-                      half.z * half.z),
-            0.5F);
-        state.size = state.radius * 2.0F;
+        state.radius = racers_[target].car.GetRadius();
+        state.size = racers_[target].car.GetSize();
         attackTargets[target] = state;
     }
     for (std::size_t racer = 0U;
@@ -5602,7 +5583,6 @@ void OriginalRaceSession::updateGameplay(
             racerDefinition.hasConfiguredVehicle
                 ? racerDefinition.configuredVehicle
                 : race_.vehicles.at(racerDefinition.vehicle);
-        const Vec3 half = vehicleDefinition.physics.halfExtents;
         source::AICar::VehicleState sourceVehicle;
         sourceVehicle.position = vehicles[racer].body.position;
         sourceVehicle.direction =
@@ -5610,10 +5590,7 @@ void OriginalRaceSession::updateGameplay(
         sourceVehicle.direction3 =
             normalized3(forward(vehicles[racer].body.rotation));
         sourceVehicle.speed = vehicles[racer].speed;
-        sourceVehicle.size =
-            2.0F * std::sqrt(
-                half.x * half.x + half.y * half.y +
-                half.z * half.z);
+        sourceVehicle.size = runtime.car.GetSize();
         sourceVehicle.steeringControl =
             vehicleDefinition.physics.steeringControl;
         sourceVehicle.mapObject = true;
@@ -6258,6 +6235,24 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 "source RandomRange/Player::TakeBonus formula failed");
         }
         OriginalRaceSession session(race);
+        for (std::size_t racer = 0U;
+             racer < session.racers().size(); ++racer)
+        {
+            const auto& definition = race.racers[racer];
+            const auto& vehicle = definition.hasConfiguredVehicle
+                ? definition.configuredVehicle
+                : race.vehicles.at(definition.vehicle);
+            if (std::abs(
+                    session.racers()[racer].car.GetSize() -
+                    vehicle.boundingSize) > 0.001F ||
+                std::abs(
+                    session.racers()[racer].car.GetRadius() -
+                    vehicle.boundingRadius) > 0.001F)
+            {
+                throw std::runtime_error(
+                    "Player::ComputeCarBBSize visual bounds owner mismatch");
+            }
+        }
         auto point = [&](std::size_t pathNode) -> const TracePoint& {
             const std::uint32_t id = race.tracePath.at(pathNode);
             const auto found = std::find_if(

@@ -467,6 +467,10 @@ struct Vehicle
     std::string bodyMeshPath;
     std::string wheelMeshPath;
     std::string texturePath;
+    // Player::ComputeCarBBSize uses the transformed visual actor AABB, not
+    // the PhysX/Jolt collision box. AI lane and attack rules consume these.
+    float boundingSize = 1.0F;
+    float boundingRadius = 0.5F;
     std::string idleSoundPath;
     std::string rpmSoundPath;
     std::array<float, 2> rpmVolumeRange{0.0F, 1.0F};

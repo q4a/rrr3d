@@ -216,6 +216,9 @@ public:
         float GetDist(bool lastCorrect = false) const noexcept;
         float GetLap(bool lastCorrect = false) const noexcept;
         float GetSpeed() const noexcept;
+        void SetSize(float value) noexcept;
+        float GetSize() const noexcept;
+        float GetRadius() const noexcept;
         TraceVec3 GetPosition() const noexcept;
         TraceVec3 GetDirection3() const noexcept;
         TraceVec3 GetMapPos() const noexcept;
@@ -237,6 +240,8 @@ public:
         TraceVec3 direction_{1.0F, 0.0F, 0.0F};
         TraceVec3 direction3_{1.0F, 0.0F, 0.0F};
         float speed_ = 0.0F;
+        float size_ = 0.0F;
+        float radius_ = 0.0F;
         WayNode* curTile_ = nullptr;
         WayNode* curNode_ = nullptr;
         WayNode* lastNode_ = nullptr;

@@ -1099,6 +1099,22 @@ Human, но не для authoritative remote Opponent, и `Player::OnProgress` �
 читает собственную маску. Unit regressions проверяют assign/release owner;
 network regression — отсутствие AI/cheat у Human и Opponent.
 
+### P2.26 — Player::ComputeCarBBSize visual bounds — выполнено
+
+Подтвердился ещё один physics/AI surrogate: portable session вычисляла
+`CarState::size/radius` из диагонали Jolt/PhysX collision half-extents в трёх
+разных местах. Windows `Player::ComputeCarBBSize` вместо этого берёт
+`GrActor::GetLocalAABB(false)`, применяет scale визуального actor и сохраняет
+диагональ/половину диагонали в `Player::CarState` при создании машины.
+
+Vehicle loader теперь вычисляет backend-neutral эквивалент из полного набора
+body `VisualNode` mesh bounds и их source transforms. Размер и radius
+передаются active `CarState` один раз при `CreateCar`; `AISystem` lane chains,
+`AICar::VehicleState` и attack target retention читают этот owner state.
+Три повторных collision-box формулы удалены. Resource regression проверяет
+валидный visual AABB, Player regression — size/radius relation, session
+regression — соответствие каждой configured vehicle.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

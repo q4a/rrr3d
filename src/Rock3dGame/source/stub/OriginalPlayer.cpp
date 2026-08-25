@@ -66,6 +66,8 @@ void Player::CarState::Reset(Trace* trace) noexcept
     direction_ = {1.0F, 0.0F, 0.0F};
     direction3_ = {1.0F, 0.0F, 0.0F};
     speed_ = 0.0F;
+    size_ = 0.0F;
+    radius_ = 0.0F;
     curTile_ = nullptr;
     curNode_ = nullptr;
     lastNode_ = nullptr;
@@ -315,6 +317,22 @@ float Player::CarState::GetLap(bool lastCorrect) const noexcept
 float Player::CarState::GetSpeed() const noexcept
 {
     return speed_;
+}
+
+void Player::CarState::SetSize(float value) noexcept
+{
+    size_ = std::max(value, 0.0F);
+    radius_ = size_ * 0.5F;
+}
+
+float Player::CarState::GetSize() const noexcept
+{
+    return size_;
+}
+
+float Player::CarState::GetRadius() const noexcept
+{
+    return radius_;
 }
 
 TraceVec3 Player::CarState::GetPosition() const noexcept
