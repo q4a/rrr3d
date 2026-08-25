@@ -5643,82 +5643,6 @@ int main(int argc, char** argv)
 #ifdef RRR3D_PHYSICS
     std::optional<std::string> bindingCaptureAction;
     bool bindingCaptureGamepad = false;
-    auto originalKeyName = [](SDL_Scancode scancode) {
-        switch (scancode)
-        {
-        case SDL_SCANCODE_UP:
-            return std::string("Up Arrow");
-        case SDL_SCANCODE_DOWN:
-            return std::string("Down Arrow");
-        case SDL_SCANCODE_LEFT:
-            return std::string("Left Arrow");
-        case SDL_SCANCODE_RIGHT:
-            return std::string("Right Arrow");
-        case SDL_SCANCODE_RETURN:
-        case SDL_SCANCODE_KP_ENTER:
-            return std::string("Enter");
-        default:
-            return std::string(SDL_GetScancodeName(scancode));
-        }
-    };
-    auto originalGamepadButtonName = [](SDL_GamepadButton button)
-        -> std::optional<std::string> {
-        switch (button)
-        {
-        case SDL_GAMEPAD_BUTTON_SOUTH:
-            return "A";
-        case SDL_GAMEPAD_BUTTON_EAST:
-            return "B";
-        case SDL_GAMEPAD_BUTTON_WEST:
-            return "X";
-        case SDL_GAMEPAD_BUTTON_NORTH:
-            return "Y";
-        case SDL_GAMEPAD_BUTTON_DPAD_UP:
-            return "DPad Up";
-        case SDL_GAMEPAD_BUTTON_DPAD_DOWN:
-            return "DPad Down";
-        case SDL_GAMEPAD_BUTTON_DPAD_LEFT:
-            return "DPad Left";
-        case SDL_GAMEPAD_BUTTON_DPAD_RIGHT:
-            return "DPad Right";
-        case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER:
-            return "Left Shoulder";
-        case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER:
-            return "Right Shoulder";
-        case SDL_GAMEPAD_BUTTON_LEFT_STICK:
-            return "L.Thumb Press";
-        case SDL_GAMEPAD_BUTTON_RIGHT_STICK:
-            return "R.Thumb Press";
-        case SDL_GAMEPAD_BUTTON_BACK:
-            return "Back";
-        case SDL_GAMEPAD_BUTTON_START:
-            return "Start";
-        default:
-            return std::nullopt;
-        }
-    };
-    auto originalGamepadAxisName = [](SDL_GamepadAxis axis, Sint16 value)
-        -> std::optional<std::string> {
-        if (axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER && value > 15000)
-            return "Left Trigger";
-        if (axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER && value > 15000)
-            return "Right Trigger";
-        if (std::abs(static_cast<int>(value)) < 20000)
-            return std::nullopt;
-        switch (axis)
-        {
-        case SDL_GAMEPAD_AXIS_LEFTX:
-            return value < 0 ? "L.Thumb Left" : "L.Thumb Right";
-        case SDL_GAMEPAD_AXIS_LEFTY:
-            return value < 0 ? "L.Thumb Up" : "L.Thumb Down";
-        case SDL_GAMEPAD_AXIS_RIGHTX:
-            return value < 0 ? "R.Thumb Left" : "R.Thumb Right";
-        case SDL_GAMEPAD_AXIS_RIGHTY:
-            return value < 0 ? "R.Thumb Up" : "R.Thumb Down";
-        default:
-            return std::nullopt;
-        }
-    };
 #endif
 #ifdef RRR3D_PHYSICS
     bool inRace = false;
@@ -11756,21 +11680,24 @@ int main(int argc, char** argv)
                     if (!bindingCaptureGamepad)
                     {
                         bindingName =
-                            originalKeyName(event.key.scancode);
+                            rrr3d::input::originalKeyboardBindingName(
+                                event.key.scancode);
                     }
                 }
                 else if (bindingCaptureGamepad &&
                          event.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN)
                 {
                     consumedCaptureEvent = true;
-                    bindingName = originalGamepadButtonName(
+                    bindingName =
+                        rrr3d::input::originalGamepadButtonBindingName(
                         static_cast<SDL_GamepadButton>(
                             event.gbutton.button));
                 }
                 else if (bindingCaptureGamepad &&
                          event.type == SDL_EVENT_GAMEPAD_AXIS_MOTION)
                 {
-                    bindingName = originalGamepadAxisName(
+                    bindingName =
+                        rrr3d::input::originalGamepadAxisBindingName(
                         static_cast<SDL_GamepadAxis>(event.gaxis.axis),
                         event.gaxis.value);
                     consumedCaptureEvent = bindingName.has_value();

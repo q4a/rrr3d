@@ -8,12 +8,22 @@
 #include <cstddef>
 #include <cstdint>
 #include <map>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <vector>
 
 namespace rrr3d::input
 {
+
+// SDL platform boundary for the source ControlManager VirtualKey table.
+// Capture names are the exact strings persisted by Windows user.xml.
+std::optional<std::string> originalKeyboardBindingName(
+    SDL_Scancode scancode);
+std::optional<std::string> originalGamepadButtonBindingName(
+    SDL_GamepadButton button);
+std::optional<std::string> originalGamepadAxisBindingName(
+    SDL_GamepadAxis axis, Sint16 value);
 
 class SdlInputManager
 {

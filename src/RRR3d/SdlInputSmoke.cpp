@@ -117,12 +117,31 @@ bool waitForButton(SDL_Gamepad *gamepad, SDL_GamepadButton button, bool expected
 
 bool runSdlInputSmokeTest(SdlInputManager &input, std::string &error)
 {
+	if (originalKeyboardBindingName(SDL_SCANCODE_BACKSPACE) !=
+	        std::optional<std::string>("X") ||
+	    originalKeyboardBindingName(SDL_SCANCODE_ESCAPE) !=
+	        std::optional<std::string>("Escape") ||
+	    originalKeyboardBindingName(SDL_SCANCODE_LSHIFT).has_value() ||
+	    originalGamepadButtonBindingName(SDL_GAMEPAD_BUTTON_BACK) !=
+	        std::optional<std::string>("Back") ||
+	    originalGamepadAxisBindingName(SDL_GAMEPAD_AXIS_LEFTX, 7850) !=
+	        std::optional<std::string>("L.Thumb Right") ||
+	    originalGamepadAxisBindingName(SDL_GAMEPAD_AXIS_RIGHTX, 7850)
+	        .has_value() ||
+	    originalGamepadAxisBindingName(SDL_GAMEPAD_AXIS_RIGHT_TRIGGER,
+	                                   3855) !=
+	        std::optional<std::string>("Right Trigger"))
+	{
+		error = "source VirtualKey capture table/threshold mapping failed";
+		return false;
+	}
 	input.applyKeyboardBindings({
 	    {"gaAccel", "Up Arrow"},
 	    {"gaBreak", "Down Arrow"},
 	    {"gaWheelLeft", "Left Arrow"},
 	    {"gaWheelRight", "Right Arrow"},
 	    {"gaDebug1", "F1"},
+	    {"gaDebug2", "Back"},
 	});
 	input.applyGamepadBindings({
 	    {"gaAccel", "A"},
@@ -173,6 +192,21 @@ bool runSdlInputSmokeTest(SdlInputManager &input, std::string &error)
 	if (!contains(actions, Action::Debug1, Source::Keyboard, true))
 	{
 		error = "original gaDebug1/F1 keyboard mapping failed";
+		return false;
+	}
+
+	// GetVirtualKeyFromName("Back") is not a keyboard table match and
+	// canonicalizes to the first character B. B is the source vkButtonB
+	// entry, which has no keyboard state handler; it must not become the
+	// invented Backspace alias used by the old SDL adapter.
+	event = {};
+	event.key.type = SDL_EVENT_KEY_DOWN;
+	event.key.down = true;
+	event.key.scancode = SDL_SCANCODE_BACKSPACE;
+	actions = input.processEvent(event);
+	if (contains(actions, Action::Debug2, Source::Keyboard, true))
+	{
+		error = "keyboard Back was incorrectly treated as Backspace";
 		return false;
 	}
 

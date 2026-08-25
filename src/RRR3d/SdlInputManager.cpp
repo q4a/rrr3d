@@ -1,5 +1,7 @@
 #include "SdlInputManager.h"
 
+#include "OriginalControlBindings.h"
+
 #include <SDL3/SDL.h>
 
 #include <algorithm>
@@ -88,21 +90,34 @@ constexpr std::array<Action, 32> allActions = {
 
 SDL_Scancode legacyScancode(const std::string &name) noexcept
 {
-	if (name == "None")
+	const std::string canonical =
+	    r3d::game::originalcontrol::canonicalVirtualKeyName(
+	        r3d::game::originalcontrol::ControllerType::Keyboard, name);
+	if (canonical == "None")
 		return SDL_SCANCODE_UNKNOWN;
-	if (name == "Up Arrow")
+	if (canonical == "Up Arrow")
 		return SDL_SCANCODE_UP;
-	if (name == "Down Arrow")
+	if (canonical == "Down Arrow")
 		return SDL_SCANCODE_DOWN;
-	if (name == "Left Arrow")
+	if (canonical == "Left Arrow")
 		return SDL_SCANCODE_LEFT;
-	if (name == "Right Arrow")
+	if (canonical == "Right Arrow")
 		return SDL_SCANCODE_RIGHT;
-	if (name == "Enter")
+	if (canonical == "Enter")
 		return SDL_SCANCODE_RETURN;
-	if (name == "Back")
+	if (canonical == "Escape")
+		return SDL_SCANCODE_ESCAPE;
+	if (canonical == "Space")
+		return SDL_SCANCODE_SPACE;
+	// Windows maps VK_BACK to the keyboard table's vkButtonX entry. The
+	// persisted name is therefore "X", not "Backspace". A and B are table
+	// entries without keyboard state handlers and remain inactive after a
+	// source-compatible reload.
+	if (canonical == "X")
 		return SDL_SCANCODE_BACKSPACE;
-	const auto scancode = SDL_GetScancodeFromName(name.c_str());
+	if (canonical == "A" || canonical == "B")
+		return SDL_SCANCODE_UNKNOWN;
+	const auto scancode = SDL_GetScancodeFromName(canonical.c_str());
 	return scancode;
 }
 
@@ -237,6 +252,126 @@ std::optional<ParsedAxis> gamepadAxis(std::string_view name) noexcept
 
 } // namespace
 
+std::optional<std::string> originalKeyboardBindingName(
+    SDL_Scancode scancode)
+{
+	switch (scancode)
+	{
+	case SDL_SCANCODE_LEFT:
+		return "Left Arrow";
+	case SDL_SCANCODE_RIGHT:
+		return "Right Arrow";
+	case SDL_SCANCODE_UP:
+		return "Up Arrow";
+	case SDL_SCANCODE_DOWN:
+		return "Down Arrow";
+	case SDL_SCANCODE_BACKSPACE:
+		return "X";
+	case SDL_SCANCODE_SPACE:
+		return "Space";
+	case SDL_SCANCODE_ESCAPE:
+		return "Escape";
+	case SDL_SCANCODE_RETURN:
+	case SDL_SCANCODE_KP_ENTER:
+		return "Enter";
+	case SDL_SCANCODE_F1:
+		return "F1";
+	case SDL_SCANCODE_F2:
+		return "F2";
+	case SDL_SCANCODE_F3:
+		return "F3";
+	case SDL_SCANCODE_F4:
+		return "F4";
+	case SDL_SCANCODE_F5:
+		return "F5";
+	case SDL_SCANCODE_F6:
+		return "F6";
+	case SDL_SCANCODE_F7:
+		return "F7";
+	default:
+		break;
+	}
+	const std::string name = SDL_GetScancodeName(scancode);
+	if (name.size() == 1U &&
+	    ((name.front() >= 'A' && name.front() <= 'Z') ||
+	     (name.front() >= '0' && name.front() <= '9')))
+	{
+		return name;
+	}
+	return std::nullopt;
+}
+
+std::optional<std::string> originalGamepadButtonBindingName(
+    SDL_GamepadButton button)
+{
+	switch (button)
+	{
+	case SDL_GAMEPAD_BUTTON_SOUTH:
+		return "A";
+	case SDL_GAMEPAD_BUTTON_EAST:
+		return "B";
+	case SDL_GAMEPAD_BUTTON_WEST:
+		return "X";
+	case SDL_GAMEPAD_BUTTON_NORTH:
+		return "Y";
+	case SDL_GAMEPAD_BUTTON_DPAD_UP:
+		return "DPad Up";
+	case SDL_GAMEPAD_BUTTON_DPAD_DOWN:
+		return "DPad Down";
+	case SDL_GAMEPAD_BUTTON_DPAD_LEFT:
+		return "DPad Left";
+	case SDL_GAMEPAD_BUTTON_DPAD_RIGHT:
+		return "DPad Right";
+	case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER:
+		return "Left Shoulder";
+	case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER:
+		return "Right Shoulder";
+	case SDL_GAMEPAD_BUTTON_LEFT_STICK:
+		return "L.Thumb Press";
+	case SDL_GAMEPAD_BUTTON_RIGHT_STICK:
+		return "R.Thumb Press";
+	case SDL_GAMEPAD_BUTTON_BACK:
+		return "Back";
+	case SDL_GAMEPAD_BUTTON_START:
+		return "Start";
+	default:
+		return std::nullopt;
+	}
+}
+
+std::optional<std::string> originalGamepadAxisBindingName(
+    SDL_GamepadAxis axis, Sint16 value)
+{
+	constexpr Sint16 triggerThreshold =
+	    static_cast<Sint16>((30 * 32767) / 255);
+	if (axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER &&
+	    value > triggerThreshold)
+		return "Left Trigger";
+	if (axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER &&
+	    value > triggerThreshold)
+		return "Right Trigger";
+	const int threshold =
+	    axis == SDL_GAMEPAD_AXIS_RIGHTX ||
+	            axis == SDL_GAMEPAD_AXIS_RIGHTY
+	        ? 8689
+	        : 7849;
+	if (std::abs(static_cast<int>(value)) <= threshold)
+		return std::nullopt;
+	switch (axis)
+	{
+	case SDL_GAMEPAD_AXIS_LEFTX:
+		return value < 0 ? "L.Thumb Left" : "L.Thumb Right";
+	case SDL_GAMEPAD_AXIS_LEFTY:
+		return value < 0 ? "L.Thumb Up" : "L.Thumb Down";
+	case SDL_GAMEPAD_AXIS_RIGHTX:
+		return value < 0 ? "R.Thumb Left" : "R.Thumb Right";
+	case SDL_GAMEPAD_AXIS_RIGHTY:
+		return value < 0 ? "R.Thumb Up" : "R.Thumb Down";
+	default:
+		return std::nullopt;
+	}
+}
+
 SdlInputManager::~SdlInputManager()
 {
 	shutdown();
@@ -309,9 +444,13 @@ void SdlInputManager::applyGamepadBindings(
 	for (const auto &[name, key] : bindings)
 	{
 		const auto action = gameAction(name);
-		if (!action || key == "None")
+		const std::string canonical =
+		    r3d::game::originalcontrol::canonicalVirtualKeyName(
+		        r3d::game::originalcontrol::ControllerType::Gamepad,
+		        key);
+		if (!action || canonical == "None")
 			continue;
-		if (const auto button = gamepadButton(key))
+		if (const auto button = gamepadButton(canonical))
 		{
 			auto &actions = gamepad_button_actions_[*button];
 			if (std::find(actions.begin(), actions.end(), *action) ==
@@ -319,7 +458,7 @@ void SdlInputManager::applyGamepadBindings(
 				actions.push_back(*action);
 			continue;
 		}
-		if (const auto axis = gamepadAxis(key))
+		if (const auto axis = gamepadAxis(canonical))
 		{
 			auto &actions = gamepad_axis_actions_[axis->axis];
 			const auto duplicate = std::find_if(

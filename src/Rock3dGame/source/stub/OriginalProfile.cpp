@@ -1,5 +1,7 @@
 #include "OriginalProfile.h"
 
+#include "OriginalControlBindings.h"
+
 #include <tinyxml.h>
 
 #include <algorithm>
@@ -134,48 +136,12 @@ void installOriginalMobilityDefaults(PlayerProfile& profile)
 
 void installOriginalDefaults(ProfileState& state)
 {
-    state.config.keyboardControls = {
-        {"gaAccel", "Up Arrow"},       {"gaBreak", "Down Arrow"},
-        {"gaWheelLeft", "Left Arrow"}, {"gaWheelRight", "Right Arrow"},
-        {"gaShot", "W"},               {"gaShot1", "1"},
-        {"gaShot2", "2"},              {"gaShot3", "3"},
-        {"gaShot4", "4"},              {"gaShotAll", "Space"},
-        {"gaHyper", "Q"},              {"gaMine", "E"},
-        {"gaWeaponDown", "None"},       {"gaWeaponUp", "None"},
-        {"gaViewSwitch", "C"},          {"gaAction", "Enter"},
-        {"gaEscape", "Escape"},         {"gaResetCar", "R"},
-        {"gaDebug1", "F1"},             {"gaDebug2", "F2"},
-        {"gaDebug3", "F3"},             {"gaDebug4", "F4"},
-        {"gaDebug5", "F5"},             {"gaDebug6", "F6"},
-        {"gaDebug7", "F7"},
-    };
-    state.config.gamepadControls = {
-        {"gaAccel", "A"},
-        {"gaBreak", "B"},
-        {"gaWheelLeft", "DPad Left"},
-        {"gaWheelRight", "DPad Right"},
-        {"gaShot", "X"},
-        {"gaShot1", "None"},
-        {"gaShot2", "None"},
-        {"gaShot3", "None"},
-        {"gaShot4", "None"},
-        {"gaShotAll", "Y"},
-        {"gaHyper", "Left Trigger"},
-        {"gaMine", "Right Trigger"},
-        {"gaWeaponDown", "Left Shoulder"},
-        {"gaWeaponUp", "Right Shoulder"},
-        {"gaViewSwitch", "R.Thumb Press"},
-        {"gaAction", "A"},
-        {"gaEscape", "Start"},
-        {"gaResetCar", "Back"},
-        {"gaDebug1", "None"},
-        {"gaDebug2", "None"},
-        {"gaDebug3", "None"},
-        {"gaDebug4", "None"},
-        {"gaDebug5", "None"},
-        {"gaDebug6", "None"},
-        {"gaDebug7", "None"},
-    };
+    state.config.keyboardControls =
+        originalcontrol::makeDefaultBindings(
+            originalcontrol::ControllerType::Keyboard);
+    state.config.gamepadControls =
+        originalcontrol::makeDefaultBindings(
+            originalcontrol::ControllerType::Gamepad);
 
     state.player.planets.front() = {0, 1};
     installOriginalMobilityDefaults(state.player);
@@ -185,17 +151,23 @@ void installOriginalDefaults(ProfileState& state)
 }
 
 void readControlMap(TiXmlNode* controls, const char* controller,
+                    originalcontrol::ControllerType controllerType,
                     std::map<std::string, std::string>& output)
 {
     auto* root = child(controls, controller);
     if (root == nullptr)
         return;
-    output.clear();
-    for (auto* item = root->FirstChildElement(); item != nullptr;
-         item = item->NextSiblingElement())
+    // GameMode::LoadGameOpt visits the fixed cGameActionStr table and only
+    // overwrites values that are present. It never clears constructor
+    // defaults and ignores unknown XML children.
+    for (const auto action : originalcontrol::gameActionTable())
     {
-        if (item->GetText() != nullptr)
-            output[item->Value()] = item->GetText();
+        if (const char* serialized = value(root, action.data()))
+        {
+            output[std::string(action)] =
+                originalcontrol::canonicalVirtualKeyName(
+                    controllerType, serialized);
+        }
     }
 }
 
@@ -294,8 +266,10 @@ void loadConfig(const std::filesystem::path& path, UserConfig& config,
         parseFloat(value(root, "cameraDistance"), config.cameraDistance),
         0.6F, 2.5F);
     readControlMap(child(root, "controls"), "ctKeyboard",
+                   originalcontrol::ControllerType::Keyboard,
                    config.keyboardControls);
     readControlMap(child(root, "controls"), "ctGamepad",
+                   originalcontrol::ControllerType::Gamepad,
                    config.gamepadControls);
     if (const char* token = value(child(root, "menuMusic"), "playList"))
         config.menuMusicPlaylist = token;
@@ -587,12 +561,26 @@ bool saveAtomic(TiXmlDocument& document,
 
 void appendControls(
     TiXmlNode& controls, const char* name,
+    originalcontrol::ControllerType controllerType,
     const std::map<std::string, std::string>& bindings)
 {
     auto* controller = new TiXmlElement(name);
     controls.LinkEndChild(controller);
-    for (const auto& [action, key] : bindings)
-        append(*controller, action.c_str(), key);
+    const auto defaults =
+        originalcontrol::makeDefaultBindings(controllerType);
+    // GameMode::SaveGameOpt writes cGameActionStr order, not std::map's
+    // alphabetic order, and always emits all actions from ControlManager.
+    for (const auto action : originalcontrol::gameActionTable())
+    {
+        const auto binding = bindings.find(std::string(action));
+        const auto fallback = defaults.find(std::string(action));
+        const std::string& key = binding != bindings.end()
+                                     ? binding->second
+                                     : fallback->second;
+        append(*controller, action.data(),
+               originalcontrol::canonicalVirtualKeyName(
+                   controllerType, key));
+    }
 }
 
 TiXmlElement* appendReference(TiXmlNode& parent, const char* name,
@@ -818,9 +806,51 @@ bool runOriginalProfileFlowSmokeTest(std::string& error)
     error.clear();
     auto state = makeOriginalDefaultProfileState();
     if (state.tutorialStage != 0U || state.languageSerialized ||
-        state.commentatorStyleSerialized)
+        state.commentatorStyleSerialized ||
+        state.config.keyboardControls.size() !=
+            originalcontrol::gameActionCount ||
+        state.config.gamepadControls.size() !=
+            originalcontrol::gameActionCount ||
+        state.config.keyboardControls.at("gaShotAll") != "Space" ||
+        state.config.keyboardControls.at("gaEscape") != "Escape" ||
+        state.config.gamepadControls.at("gaViewSwitch") !=
+            "R.Thumb Press" ||
+        originalcontrol::virtualKeyTable(
+            originalcontrol::ControllerType::Gamepad)[22]
+                .alphaThreshold != 7849U ||
+        originalcontrol::canonicalVirtualKeyName(
+            originalcontrol::ControllerType::Keyboard, "None") !=
+            "None" ||
+        originalcontrol::canonicalVirtualKeyName(
+            originalcontrol::ControllerType::Keyboard, "Unknown") !=
+            "U" ||
+        originalcontrol::canonicalVirtualKeyName(
+            originalcontrol::ControllerType::Keyboard, "") != "None")
     {
-        error = "source defaults confused absent serialized config fields";
+        error =
+            "source ControlManager tables/defaults or absent config "
+            "fields diverged";
+        return false;
+    }
+
+    TiXmlDocument partialControls;
+    partialControls.Parse(
+        "<controls><ctKeyboard><gaAccel>Down Arrow</gaAccel>"
+        "<gaShot>Unknown key</gaShot><invented>F7</invented>"
+        "</ctKeyboard></controls>");
+    auto partialBindings = state.config.keyboardControls;
+    readControlMap(
+        partialControls.RootElement(), "ctKeyboard",
+        originalcontrol::ControllerType::Keyboard, partialBindings);
+    if (partialBindings.size() != originalcontrol::gameActionCount ||
+        partialBindings.at("gaAccel") != "Down Arrow" ||
+        partialBindings.at("gaShot") != "U" ||
+        partialBindings.at("gaBreak") != "Down Arrow" ||
+        partialBindings.find("invented") != partialBindings.end())
+    {
+        error =
+            "partial controls XML did not overlay constructor defaults "
+            "with GetVirtualKeyFromName semantics";
         return false;
     }
     state.planetsCompleted.clear();
@@ -1331,8 +1361,10 @@ bool OriginalProfileStore::save(const ProfileState& state,
     auto* controls = new TiXmlElement("controls");
     config->LinkEndChild(controls);
     appendControls(*controls, "ctKeyboard",
+                   originalcontrol::ControllerType::Keyboard,
                    state.config.keyboardControls);
     appendControls(*controls, "ctGamepad",
+                   originalcontrol::ControllerType::Gamepad,
                    state.config.gamepadControls);
     auto* menuMusic = new TiXmlElement("menuMusic");
     config->LinkEndChild(menuMusic);

@@ -1674,6 +1674,27 @@ boundary отображает macOS preferred locale на все шесть ship
 serialized. Profile и resource regressions проверяют absent/present state,
 locale fallback и Russian/French commentator branches.
 
+### P2.55 — `ControlManager` VirtualKey/config ownership — выполнено
+
+Обратная сверка `ControlManager.cpp`, `GameMode::LoadGameOpt/SaveGameOpt` и
+`ControlsFrame` выявила, что portable path вручную повторял имена клавиш в
+трёх местах. Кроме риска расхождения это уже давало реальные ошибки:
+частичный `ctKeyboard`/`ctGamepad` в `user.xml` очищал все constructor
+defaults, неизвестные XML children ошибочно сохранялись как actions,
+клавиатурный `Back` был придуманным alias для Backspace, а захват стиков и
+триггеров использовал пороги 20000/15000 вместо XInput 7849/8689 и 30/255.
+
+Введён единый platform-independent owner точных таблиц
+`cVirtualKeyInfo[2][29]`, `cGameActionStr[25]` и constructor bindings.
+Профиль теперь накладывает только 25 известных сериализованных actions на
+defaults, пропуски сохраняют исходные значения, а unknown/empty key проходит
+буквальную семантику `GetVirtualKeyFromName` (первый символ/`None`). Save path
+снова пишет все actions в порядке `cGameActionStr`. SDL boundary получает из
+того же контракта точные Windows display names, special keyboard mapping и
+XInput thresholds; `ControlsFrame` больше не содержит собственной таблицы.
+`None` подтверждён как буквальное имя `cVirtualKeyEnd`, поэтому удаление
+binding не локализуется.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

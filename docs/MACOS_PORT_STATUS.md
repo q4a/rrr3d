@@ -2133,3 +2133,16 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - `lcRussian -> russian`, иначе `english`, иначе первый style повторяет
   `AutodetectCommentatorStyle`; обычный `SaveConfig` фиксирует выбранные
   значения в `user.xml`.
+
+### Source ControlManager/config follow-up
+
+- Точные 29 keyboard/gamepad `VirtualKeyInfo`, 25 `GameAction` и оба набора
+  constructor defaults имеют одного portable owner вместо ручных таблиц в
+  профиле, SDL adapter и ControlsFrame.
+- Частичный controls XML теперь, как `GameMode::LoadGameOpt`, накладывается на
+  defaults и игнорирует unknown actions; save пишет все actions в исходном
+  порядке и канонизирует `GetVirtualKeyFromName`/`None` semantics.
+- Захват D-pad/buttons/thumb directions/triggers сохраняет Windows-имена и
+  использует XInput thresholds 7849/8689 и 30/255. Удалён несовместимый
+  keyboard `Back -> Backspace` alias; источник использует `Escape` для
+  `vkBack`, а Backspace сериализует через keyboard `vkButtonX` как `X`.
