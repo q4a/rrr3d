@@ -1540,6 +1540,29 @@ M8 вывод теперь подтверждает `Frantick - Peter Gunn Theme
 `Frantick - Bad to the Bone` и `The Ventures - Peter Gunn Theme`. Полные M8
 audio и M9 Metal прогоны проходят с сериализованным каталогом.
 
+### P2.48 — serialized languages/commentators и `StringLibrary::Load` — выполнено
+
+Продолжение аудита `GameMode::LoadGameData` подтвердило ещё один разрыв того
+же типа. Portable UI вручную повторял шесть имён языков и два стиля диктора,
+но `OriginalMainMenu` разрешал загружать только English/Russian. Windows
+читает порядок, `file`, `locale`, `charset` и `primId` каждого языка, а также
+порядок commentator styles непосредственно из поставляемого `game.xml`;
+оба stepper используют индексы этих векторов.
+
+Добавлен общий platform-independent каталог этих записей с проверкой XML и
+всех шести language files. `StartOptionsMenu` и обычный Sound/Network tab
+теперь получают значения из каталога; прежнее бинарное переключение диктора
+и hard-coded language array удалены. MainMenu2 загружает именно сериализованный
+`Language::file`, поэтому Portuguese, French, Spain и German являются такими
+же рабочими путями, как English/Russian.
+
+При прогоне всех локализаций обнаружилась важная особенность данных: во
+French `scMaslo` отсутствует закрывающая кавычка. Windows
+`StringLibrary::Load` не отвергает файл, а читает token stream до следующей
+кавычки. Portable parser теперь буквально повторяет эту семантику, включая
+последнее значение duplicate id и `\\n` replacement. Resource regression
+проверяет точные 6/2 records, metadata и успешную загрузку каждого языка.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

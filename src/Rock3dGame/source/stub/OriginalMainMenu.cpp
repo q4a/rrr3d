@@ -1,5 +1,7 @@
 #include "OriginalMainMenu.h"
 
+#include "OriginalGameData.h"
+
 #include "resource/R3DMeshAsset.h"
 #include "resource/ResourceFileSystem.h"
 
@@ -319,40 +321,51 @@ std::unordered_map<std::string, std::string> loadStringLibrary(
 {
     const auto decoded = decodeUtf16Le(resources.readBinary(path), path);
     std::unordered_map<std::string, std::string> strings;
-    std::istringstream lines(decoded);
-    std::string line;
-    std::size_t lineNumber = 0;
-    while (std::getline(lines, line))
+    std::istringstream stream(decoded);
+    std::string id;
+    while (stream)
     {
-        ++lineNumber;
-        if (!line.empty() && line.back() == '\r')
-            line.pop_back();
-        if (line.empty())
+        std::string token;
+        stream >> token;
+        if (token.empty())
             continue;
 
-        const auto keyEnd = line.find_first_of(" \t");
-        const auto quoteBegin = line.find('"', keyEnd);
-        const auto quoteEnd = line.find_last_of('"');
-        if (keyEnd == std::string::npos || quoteBegin == std::string::npos ||
-            quoteEnd == quoteBegin)
+        if (token.front() != '"')
         {
-            throw resource::ResourceError(
-                std::string(path) + ":" + std::to_string(lineNumber) +
-                ": malformed localized string");
+            id = std::move(token);
+            continue;
         }
-        const std::string key = line.substr(0, keyEnd);
-        std::string value =
-            line.substr(quoteBegin + 1, quoteEnd - quoteBegin - 1);
+
+        // Literal StringLibrary::Load token-stream semantics.  In
+        // particular, the shipped French scMaslo record lacks its closing
+        // quote; the Windows loader consumes up to the next quote instead of
+        // rejecting the complete localization file.
+        token.erase(0, 1);
+        const auto quote = token.find('"');
+        if (quote != std::string::npos)
+        {
+            token.erase(quote, 1);
+        }
+        else
+        {
+            char value = '\0';
+            while (stream.get(value) && value != '"')
+                token.push_back(value);
+        }
+        if (id.empty())
+            continue;
+
         std::size_t escapedNewline = 0;
-        while ((escapedNewline = value.find("\\n", escapedNewline)) !=
+        while ((escapedNewline = token.find("\\n", escapedNewline)) !=
                std::string::npos)
         {
-            value.replace(escapedNewline, 2, 1, '\n');
+            token.replace(escapedNewline, 2, 1, '\n');
             ++escapedNewline;
         }
         // The legacy StringLibrary::Set uses map assignment, so the last
         // duplicate definition wins (russian.txt contains one intentionally).
-        strings[key] = std::move(value);
+        strings[id] = std::move(token);
+        id.clear();
     }
     return strings;
 }
@@ -366,22 +379,16 @@ std::string languagePath(const resource::ResourceFileSystem& resources,
                    });
     if (language.empty())
         language = "english";
-    if (language != "english" && language != "russian")
-    {
-        throw resource::ResourceError(
-            "Milestone 6 language must be english or russian");
-    }
-
-    const std::string file = "Data/" + language + ".txt";
-    const auto gameDefinition = resources.readText("game.xml");
-    const std::string legacyFile = "Data\\" + language + ".txt";
-    if (gameDefinition.find("<" + language + ">") == std::string::npos ||
-        gameDefinition.find(legacyFile) == std::string::npos)
+    const auto catalog =
+        originalgamedata::loadOriginalGameDataCatalog(resources);
+    const auto* selected =
+        originalgamedata::findLanguage(catalog, language);
+    if (selected == nullptr)
     {
         throw resource::ResourceError(
             "game.xml does not declare requested language: " + language);
     }
-    return file;
+    return selected->file;
 }
 
 } // namespace

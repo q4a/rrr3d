@@ -2056,3 +2056,16 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   game shuffle использует все 11 сериализованных записей и их группы.
 - Loader проверяет ссылки на Ogg; resource audit фиксирует точные 3/11 counts
   и ключевые metadata, M8/M9 regressions используют этот же каталог.
+
+### Serialized GameMode language/commentator follow-up
+
+- `GameMode::LoadGameData`-совместимый loader читает из `game.xml` все шесть
+  languages с `file/locale/charset/primId` и оба commentator styles в
+  исходном порядке.
+- StartOptions и SoundOptions больше не используют вручную повторённые
+  массивы; stepper и profile values индексируют один загруженный каталог.
+- MainMenu2 поддерживает English, Russian, Portuguese, French, Spain и German.
+  Parser повторяет token semantics Windows `StringLibrary::Load`, включая
+  незакрытую `scMaslo` во французском поставляемом файле.
+- Resource verification успешно выполнена отдельно для всех шести языков и
+  проверяет точные 6/2 records и их source metadata.

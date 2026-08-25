@@ -22,8 +22,8 @@ duplicated in a separately invented menu.
 ```text
 resources/game-data
   -> ResourceFileSystem (legacy backslash normalization + exact-case checks)
-  -> game.xml language declaration
-  -> Data/{language}.txt (legacy UTF-16LE StringLibrary semantics)
+  -> game.xml serialized Language record
+  -> its Data/{language}.txt (legacy UTF-16LE StringLibrary token semantics)
   -> MainMenu2Spec string keys
   -> CoreText/Verdana text textures
   -> MainMenu2Spec GUI paths
@@ -33,8 +33,10 @@ resources/game-data
 ```
 
 `menu/menu.cfg` and `ui/font5x7.txt` are not read by this target. The displayed
-labels come from the game's shipped localization files. Duplicate string IDs
-use the original `StringLibrary::Set` rule: the last value wins.
+labels come from all six shipped localization files. Duplicate string IDs use
+the original `StringLibrary::Set` rule: the last value wins. The token parser
+also deliberately preserves the source behavior for the unterminated French
+`scMaslo` value instead of rejecting the full file.
 
 The static main state uses:
 
@@ -61,11 +63,12 @@ Before opening a window the target validates:
 - every original `Data/GUI` PNG/DDS with bimg;
 - every original `Data/GUI` R3D with the shared strict R3D decoder;
 - the selected UTF-16LE localization file and required MainMenu2 keys;
-- `game.xml`'s declaration of the selected language.
+- the selected language's serialized `file`, `locale`, `charset` and `primId`
+  in `game.xml`, plus the complete six-language/two-commentator order.
 
 The current copied data set reports 1,196 files / 553,107,397 bytes, 248 GUI
-images, four GUI meshes and 339 localized strings for both Russian and
-English.
+images and four GUI meshes. The exact localized-string count varies with the
+shipped language file and its original token-stream parsing behavior.
 
 ## Build and verification
 
@@ -74,6 +77,10 @@ cmake --preset macos-arm64-m6
 cmake --build --preset macos-arm64-m6 -j 8
 build/macos-arm64-m6/Debug/RRR3d --language=russian --verify-resources
 build/macos-arm64-m6/Debug/RRR3d --language=english --verify-resources
+build/macos-arm64-m6/Debug/RRR3d --language=portuguese --verify-resources
+build/macos-arm64-m6/Debug/RRR3d --language=french --verify-resources
+build/macos-arm64-m6/Debug/RRR3d --language=spain --verify-resources
+build/macos-arm64-m6/Debug/RRR3d --language=german --verify-resources
 build/macos-arm64-m6/Debug/RRR3d --language=russian --smoke-test-frames=120
 ```
 

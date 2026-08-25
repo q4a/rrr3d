@@ -30,12 +30,14 @@ else()
     set(_rrr3d_portable_game_sources
         source/stub/MusicCat.cpp
         source/stub/OriginalAudioSpec.cpp
+        source/stub/OriginalGameData.cpp
         source/stub/PortableGame.cpp
         include/InputActions.h
         include/MusicCat.h
         include/PortableGame.h
         include/PortableInput.h
         include/OriginalAudioSpec.h
+        include/OriginalGameData.h
         include/MainMenu2Spec.h
         include/Rock3dGame.h
         include/IWorld.h

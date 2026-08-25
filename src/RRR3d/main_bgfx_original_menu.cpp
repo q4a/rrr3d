@@ -1,5 +1,6 @@
 #include "CoreTextRasterizer.h"
 #include "OriginalAudioSpec.h"
+#include "OriginalGameData.h"
 #include "OriginalMainMenu.h"
 #ifdef RRR3D_NETWORK
 #include "OriginalNetwork.h"
@@ -77,6 +78,7 @@ namespace
 using namespace r3d::renderer;
 namespace menu = r3d::game::mainmenu2;
 namespace originalaudio = r3d::game::originalaudio;
+namespace originalgamedata = r3d::game::originalgamedata;
 
 constexpr int initialWidth = 1280;
 constexpr int initialHeight = 733;
@@ -1559,7 +1561,8 @@ int main(int argc, char** argv)
     if (!options)
     {
         std::cerr << "Usage: RRR3d [--data-dir=PATH] "
-                     "[--language=english|russian] [--verify-resources] "
+                     "[--language=english|russian|portuguese|french|spain|german] "
+                     "[--verify-resources] "
                      "[--smoke-test-frames=N] "
                      "[--startup-smoke-test] "
                      "[--final-menu-smoke-test]"
@@ -1616,6 +1619,7 @@ int main(int argc, char** argv)
     std::optional<r3d::resource::ResourceFileSystem> resources;
     std::optional<menu::Model> model;
     std::string activeLanguage = options->language;
+    originalgamedata::Catalog originalGameDataCatalog;
 #ifdef RRR3D_AUDIO
     originalaudio::MusicCatalog originalMusicCatalog;
 #endif
@@ -1678,6 +1682,15 @@ int main(int argc, char** argv)
     try
     {
         resources.emplace(dataDirectory);
+        originalGameDataCatalog =
+            originalgamedata::loadOriginalGameDataCatalog(*resources);
+        if (originalgamedata::findLanguage(
+                originalGameDataCatalog, activeLanguage) == nullptr)
+        {
+            throw r3d::resource::ResourceError(
+                "game.xml does not declare requested language: " +
+                activeLanguage);
+        }
         model.emplace(
             menu::loadOriginalMainMenu(*resources, activeLanguage));
 #ifdef RRR3D_AUDIO
@@ -1770,6 +1783,11 @@ int main(int argc, char** argv)
               << model->audit.guiImages << " GUI images, "
               << model->audit.guiMeshes << " GUI meshes, "
               << model->audit.localizedStrings << " localized strings\n";
+    std::cout << "Serialized GameMode catalog: "
+              << originalGameDataCatalog.languages.size()
+              << " languages, "
+              << originalGameDataCatalog.commentatorStyles.size()
+              << " commentator styles\n";
 #ifdef RRR3D_AUDIO
     std::cout << "Serialized MusicCat catalog: "
               << originalMusicCatalog.menu.size() << " menu, "
@@ -1778,6 +1796,38 @@ int main(int argc, char** argv)
 
     if (options->verifyResources)
     {
+        const auto& languages = originalGameDataCatalog.languages;
+        const auto& commentators =
+            originalGameDataCatalog.commentatorStyles;
+        const bool sourceGameDataCatalogValid =
+            languages.size() == 6U &&
+            languages[0].name == "english" &&
+            languages[0].file == "Data\\english.txt" &&
+            languages[0].locale == "english" &&
+            languages[0].charset ==
+                originalgamedata::LanguageCharset::EastEurope &&
+            languages[0].primaryId == 9 &&
+            languages[1].name == "russian" &&
+            languages[1].charset ==
+                originalgamedata::LanguageCharset::Russian &&
+            languages[1].primaryId == 25 &&
+            languages[2].name == "portuguese" &&
+            languages[2].primaryId == 22 &&
+            languages[3].name == "french" &&
+            languages[3].primaryId == 12 &&
+            languages[4].name == "spain" &&
+            languages[4].locale == "spanish" &&
+            languages[4].primaryId == 10 &&
+            languages[5].name == "german" &&
+            languages[5].primaryId == 7 &&
+            commentators == std::vector<std::string>{
+                "russian", "english"};
+        if (!sourceGameDataCatalogValid)
+        {
+            std::cerr << "Serialized game.xml language/commentator catalog "
+                         "does not match the shipped Windows data\n";
+            return EXIT_FAILURE;
+        }
 #ifdef RRR3D_AUDIO
         const bool sourceMusicCatalogValid =
             originalMusicCatalog.menu.size() == 3U &&
@@ -2847,13 +2897,14 @@ int main(int argc, char** argv)
     for (const auto& mode : originalDisplayModes)
         std::cout << ' ' << mode.first << 'x' << mode.second;
     std::cout << '\n';
-    // Literal order from Data/game.xml, consumed by
-    // StartOptionsMenu::StartOptionsMenu.
-    constexpr std::array<std::string_view, 6> sourceLanguages{
-        "english", "russian", "portuguese", "french", "spain",
-        "german"};
-    constexpr std::array<std::string_view, 2> sourceCommentators{
-        "russian", "english"};
+    // GameMode::LoadGameData order, consumed directly by the source
+    // OptionsMenu and StartOptionsMenu steppers.
+    std::vector<std::string> sourceLanguages;
+    sourceLanguages.reserve(originalGameDataCatalog.languages.size());
+    for (const auto& language : originalGameDataCatalog.languages)
+        sourceLanguages.push_back(language.name);
+    const auto& sourceCommentators =
+        originalGameDataCatalog.commentatorStyles;
     auto sourceListIndex = [](const auto& values,
                               std::string_view selected) {
         const auto found =
@@ -2977,10 +3028,7 @@ int main(int argc, char** argv)
     auto soundOptionsLabels = [&]() {
         return std::vector<std::string>{
             optionsDraftConfig.language,
-            localized(
-                    optionsDraftConfig.commentatorStyle == "russian"
-                        ? "svRussian"
-                        : "svEnglish"),
+            optionsDraftConfig.commentatorStyle,
             volumeName(optionsDraftConfig.musicVolume),
             volumeName(optionsDraftConfig.effectsVolume),
             volumeName(optionsDraftConfig.voiceVolume),
@@ -10156,9 +10204,13 @@ int main(int argc, char** argv)
                 break;
             case 1:
                 optionsDraftConfig.commentatorStyle =
-                    optionsDraftConfig.commentatorStyle == "russian"
-                        ? "english"
-                        : "russian";
+                    sourceCommentators[cycleValue(
+                        static_cast<std::uint32_t>(sourceListIndex(
+                            sourceCommentators,
+                            optionsDraftConfig.commentatorStyle)),
+                        static_cast<std::uint32_t>(
+                            sourceCommentators.size()),
+                        direction)];
                 break;
             case 2:
                 optionsDraftConfig.musicVolume =
