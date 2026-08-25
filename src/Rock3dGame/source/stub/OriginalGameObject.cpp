@@ -285,6 +285,54 @@ bool EventEffect::IsEffectMaked() const noexcept
     return effectMaked_;
 }
 
+DeathEffect::DeathEffect(bool effectPhysicsIgnoreSenderCar,
+                         bool targetChild) noexcept
+{
+    Reset(effectPhysicsIgnoreSenderCar, targetChild);
+}
+
+void DeathEffect::Reset(bool effectPhysicsIgnoreSenderCar,
+                        bool targetChild) noexcept
+{
+    EventEffect::Reset();
+    effectPhysicsIgnoreSenderCar_ = effectPhysicsIgnoreSenderCar;
+    targetChild_ = targetChild;
+}
+
+DeathEffect::SpawnResult DeathEffect::OnDeath(
+    bool logicAvailable, bool hasTarget,
+    bool senderIsWeaponProjectile) noexcept
+{
+    SpawnResult result;
+    if (!logicAvailable || !MakeEffect())
+        return result;
+    result.createEffect = true;
+    result.targetChild = targetChild_ && hasTarget;
+    result.ignoreSenderCar =
+        effectPhysicsIgnoreSenderCar_ && senderIsWeaponProjectile;
+    return result;
+}
+
+bool DeathEffect::GetEffectPxIgnoreSenderCar() const noexcept
+{
+    return effectPhysicsIgnoreSenderCar_;
+}
+
+void DeathEffect::SetEffectPxIgnoreSenderCar(bool value) noexcept
+{
+    effectPhysicsIgnoreSenderCar_ = value;
+}
+
+bool DeathEffect::GetTargetChild() const noexcept
+{
+    return targetChild_;
+}
+
+void DeathEffect::SetTargetChild(bool value) noexcept
+{
+    targetChild_ = value;
+}
+
 void LifeEffect::Reset() noexcept
 {
     EventEffect::Reset();

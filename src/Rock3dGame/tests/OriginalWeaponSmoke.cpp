@@ -29,8 +29,12 @@ int main()
     weapon.OnShot(true);
     if (weapon.IsReadyShot() ||
         std::abs(weapon.GetShotTime()) > 0.0001F ||
-        weapon.GetShotEffect().GetShotCount() != 1U)
+        weapon.GetShotEffect().GetShotCount() != 0U)
         return 5;
+    weapon.OnProjectilePrepared();
+    weapon.OnProjectilePrepared();
+    if (weapon.GetShotEffect().GetShotCount() != 2U)
+        return 6;
 
     source::WeaponRack rack;
     rack.primary[2].SetDesc(
@@ -41,11 +45,11 @@ int main()
     rack.OnProgress(0.5F);
     if (!rack.primary[2].IsReadyShot() ||
         !rack.hyper.IsReadyShot() || !rack.mine.IsReadyShot())
-        return 6;
+        return 7;
     rack.Reset();
     if (rack.primary[2].IsReadyShot() ||
         rack.hyper.IsReadyShot() || rack.mine.IsReadyShot())
-        return 7;
+        return 8;
 
     std::uint32_t charge = 2U;
     source::WeaponItem item(

@@ -178,6 +178,38 @@ private:
     bool effectMaked_ = false;
 };
 
+// Backend-neutral transcription of GameBase::DeathEffect.  The caller owns
+// the transform/actor boundary; this class owns the original one-live-effect
+// rule and decides the two PhysX-era relationship flags at the death event.
+class DeathEffect : public EventEffect
+{
+public:
+    struct SpawnResult
+    {
+        bool createEffect = false;
+        bool targetChild = false;
+        bool ignoreSenderCar = false;
+    };
+
+    DeathEffect() = default;
+    DeathEffect(bool effectPhysicsIgnoreSenderCar,
+                bool targetChild) noexcept;
+
+    void Reset(bool effectPhysicsIgnoreSenderCar = false,
+               bool targetChild = false) noexcept;
+    SpawnResult OnDeath(bool logicAvailable, bool hasTarget,
+                        bool senderIsWeaponProjectile) noexcept;
+
+    bool GetEffectPxIgnoreSenderCar() const noexcept;
+    void SetEffectPxIgnoreSenderCar(bool value) noexcept;
+    bool GetTargetChild() const noexcept;
+    void SetTargetChild(bool value) noexcept;
+
+private:
+    bool effectPhysicsIgnoreSenderCar_ = false;
+    bool targetChild_ = false;
+};
+
 class LifeEffect : public EventEffect
 {
 public:

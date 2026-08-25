@@ -77,6 +77,10 @@ public:
     bool IsReadyShot() const noexcept;
     bool IsMaslo() const noexcept;
     void OnShot(bool projectileCreated = true) noexcept;
+    // Weapon::CreateShot dispatches Behaviors::OnShot separately for every
+    // projectile accepted by PrepareProj.  Keep this separate from the
+    // WeaponItem transaction because one trigger may create several actors.
+    void OnProjectilePrepared() noexcept;
 
     const Desc& GetDesc() const noexcept;
     void SetDesc(const Desc& value);

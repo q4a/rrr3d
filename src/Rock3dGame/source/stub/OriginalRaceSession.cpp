@@ -3198,7 +3198,7 @@ void OriginalRaceSession::updateGameplay(
         }
     }
     auto spawnProjectileImpact =
-        [&](const ProjectileRuntime& projectile, const Vec3& position,
+        [&](ProjectileRuntime& projectile, const Vec3& position,
             std::size_t targetRacer) {
             if (projectile.weapon >= race_.weapons.size() ||
                 projectile.projectile >=
@@ -3208,6 +3208,16 @@ void OriginalRaceSession::updateGameplay(
             const auto& definition =
                 race_.weapons[projectile.weapon]
                     .projectiles[projectile.projectile];
+            const bool hasDeathEffect =
+                !definition.deathEffect.visual.record.empty() ||
+                !definition.deathEffect.visual.visualNodes.empty() ||
+                !definition.deathEffect.visual.particleEmitters.empty() ||
+                !definition.deathEffect.visual.soundPaths.empty();
+            const auto deathPlan = hasDeathEffect
+                ? projectile.deathEffect.OnDeath(
+                      true, targetRacer < vehicles.size(),
+                      projectile.owner < vehicles.size())
+                : source::DeathEffect::SpawnResult{};
             auto addVisual =
                 [&](const ObjectDefinition& visual,
                     std::uint8_t variant, Vec3 offset = {},
@@ -3271,12 +3281,16 @@ void OriginalRaceSession::updateGameplay(
                 };
             addVisual(definition.secondaryVisual, 1U);
             addVisual(definition.tertiaryVisual, 2U);
-            addVisual(definition.deathEffect.visual, 3U,
-                      definition.deathEffect.position,
-                      definition.deathEffect.ignoreRotation,
-                      definition.deathEffect.targetChild);
+            if (deathPlan.createEffect)
+            {
+                addVisual(definition.deathEffect.visual, 3U,
+                          definition.deathEffect.position,
+                          definition.deathEffect.ignoreRotation,
+                          deathPlan.targetChild);
+            }
 
-            if (definition.deathProjectile ==
+            if (!deathPlan.createEffect ||
+                definition.deathProjectile ==
                     ProjectileDefinition::invalidProjectile ||
                 definition.deathProjectile >=
                     race_.weapons[projectile.weapon]
@@ -3299,8 +3313,7 @@ void OriginalRaceSession::updateGameplay(
             crater.type = spawned.type;
             crater.impulseSpeed = spawned.speed;
             crater.ignoreOwnerCollision =
-                definition.deathEffect
-                    .effectPhysicsIgnoreSenderCar;
+                deathPlan.ignoreSenderCar;
             mines_.push_back(crater);
         };
 
@@ -3535,7 +3548,12 @@ void OriginalRaceSession::updateGameplay(
             // GameObject::OnProgress expires only after _timeLife becomes
             // strictly greater than _maxTimeLife.
             if (projectile.lifeSeconds < 0.0F)
+            {
+                spawnProjectileImpact(
+                    projectile, projectile.position,
+                    RacerRuntime::invalidWeapon);
                 projectile.active = false;
+            }
             if (projectileDefinition.type == 15U &&
                 projectile.owner < racers_.size() &&
                 projectile.mountSlot <
@@ -3965,6 +3983,26 @@ void OriginalRaceSession::updateGameplay(
             const ProjectileDefinition& projectile) {
             if (weapon >= race_.weapons.size())
                 return;
+            if (owner < weaponRacks_.size())
+            {
+                source::Weapon* sourceWeapon = nullptr;
+                if (soundSource < PlayerProfile::weaponSlotCount)
+                {
+                    sourceWeapon =
+                        &weaponRacks_[owner].primary[soundSource];
+                }
+                else if (soundSource == PlayerProfile::weaponSlotCount)
+                {
+                    sourceWeapon = &weaponRacks_[owner].hyper;
+                }
+                else if (soundSource ==
+                         PlayerProfile::weaponSlotCount + 1U)
+                {
+                    sourceWeapon = &weaponRacks_[owner].mine;
+                }
+                if (sourceWeapon != nullptr)
+                    sourceWeapon->OnProjectilePrepared();
+            }
             const auto& source = race_.weapons[weapon].shotEffect;
             // Weapon::CreateShot calls Behaviors::OnShot once for every
             // projectile which PrepareProj accepted. ShotEffect then uses
@@ -4345,6 +4383,9 @@ void OriginalRaceSession::updateGameplay(
             runtimeProjectile.lifeSeconds = duration;
             runtimeProjectile.attached = true;
             runtimeProjectile.directWeapon = true;
+            runtimeProjectile.deathEffect.Reset(
+                projectile.deathEffect.effectPhysicsIgnoreSenderCar,
+                projectile.deathEffect.targetChild);
             projectiles_.push_back(runtimeProjectile);
         }
         RaceEvent hyperEvent;
@@ -5192,6 +5233,9 @@ void OriginalRaceSession::updateGameplay(
                     projectile.minimumLife,
                     projectile.maximumLife);
                 runtimeProjectile.attached = true;
+                runtimeProjectile.deathEffect.Reset(
+                    projectile.deathEffect.effectPhysicsIgnoreSenderCar,
+                    projectile.deathEffect.targetChild);
                 projectiles_.push_back(runtimeProjectile);
             }
             else if (!rayProjectile)
@@ -5234,6 +5278,9 @@ void OriginalRaceSession::updateGameplay(
                         projectile.maximumLife));
                 runtimeProjectile.ballistic =
                     projectile.type == 19U;
+                runtimeProjectile.deathEffect.Reset(
+                    projectile.deathEffect.effectPhysicsIgnoreSenderCar,
+                    projectile.deathEffect.targetChild);
                 if (projectile.type == 2U ||
                     projectile.type == 21U)
                 {

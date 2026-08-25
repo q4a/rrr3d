@@ -199,6 +199,27 @@ int main()
     if (lifeEffect.HasPlayed() || !lifeEffect.OnProgress(true))
         return 39;
 
+    source::DeathEffect deathEffect(true, true);
+    if (deathEffect.OnDeath(false, true, true).createEffect ||
+        deathEffect.IsEffectMaked())
+        return 40;
+    const auto attachedDeath = deathEffect.OnDeath(true, true, true);
+    if (!attachedDeath.createEffect || !attachedDeath.targetChild ||
+        !attachedDeath.ignoreSenderCar ||
+        !deathEffect.IsEffectMaked())
+        return 41;
+    if (deathEffect.OnDeath(true, true, true).createEffect)
+        return 42;
+    deathEffect.OnDestroyEffect();
+    const auto worldDeath = deathEffect.OnDeath(true, false, false);
+    if (!worldDeath.createEffect || worldDeath.targetChild ||
+        worldDeath.ignoreSenderCar)
+        return 43;
+    deathEffect.Reset(false, false);
+    if (deathEffect.GetEffectPxIgnoreSenderCar() ||
+        deathEffect.GetTargetChild() || deathEffect.IsEffectMaked())
+        return 44;
+
     std::cout << "original GameObject/DestrObj/effect behavior source "
                  "rules passed\n";
     return 0;

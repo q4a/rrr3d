@@ -329,6 +329,9 @@ struct ProjectileRuntime
     // after the projectile has separated once instead of ignoring the owner
     // for its entire lifetime.
     bool ownerCollisionArmed = false;
+    // The source behavior belongs to this concrete projectile actor.  It
+    // permits one distinguished death effect and carries target/pair flags.
+    source::DeathEffect deathEffect;
     bool active = true;
 };
 

@@ -136,10 +136,14 @@ void Weapon::OnShot(bool projectileCreated) noexcept
 {
     // Weapon::CreateShot resets _shotTime only after PrepareProj succeeds.
     if (projectileCreated)
-    {
         shotTime_ = 0.0F;
-        shotEffect_.OnShot();
-    }
+}
+
+void Weapon::OnProjectilePrepared() noexcept
+{
+    // Behaviors::OnShot is inside Weapon::CreateShot's projectile loop in
+    // the Windows source, after each successful PrepareProj call.
+    shotEffect_.OnShot();
 }
 
 const Weapon::Desc& Weapon::GetDesc() const noexcept
