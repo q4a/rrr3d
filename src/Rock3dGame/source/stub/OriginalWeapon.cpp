@@ -405,6 +405,88 @@ Proj::ImpulseContactResult Proj::ImpulseContact(
     return result;
 }
 
+float Proj::PrepareMaximumLife(
+    float speed, float maximumDistance,
+    float sampledMinimumLife) noexcept
+{
+    const float travelLife =
+        speed > 0.0F ? maximumDistance / speed : 0.0F;
+    return std::max(travelLife, sampledMinimumLife);
+}
+
+Proj::LaserUpdateResult Proj::LaserUpdate(
+    float maximumDistance, bool hit, float hitDistance,
+    float deltaTime, float damage, bool distort,
+    float timeLife, float maximumTimeLife) noexcept
+{
+    LaserUpdateResult result;
+    result.distance = maximumDistance;
+    if (hit)
+    {
+        result.distance = std::min(hitDistance, maximumDistance);
+        if (result.distance < maximumDistance)
+        {
+            result.damage = deltaTime * damage;
+            result.applyDamage = true;
+        }
+    }
+    result.textureScale = result.distance / 10.0F;
+    if (distort)
+    {
+        const float lifeAlpha = std::clamp(
+            timeLife / maximumTimeLife, 0.0F, 1.0F);
+        const float fadeIn = std::clamp(
+            lifeAlpha / 0.5F * 1.5F + 0.5F, 0.0F, 2.0F);
+        const float fadeOut = std::clamp(
+            (lifeAlpha - 0.6F) / 0.4F * 2.0F,
+            0.0F, 2.0F);
+        result.beamWidthScale = fadeIn - fadeOut;
+    }
+    return result;
+}
+
+Proj::ContinuousContactResult Proj::FireContact(
+    bool hasTarget, float damage, float deltaTime) noexcept
+{
+    ContinuousContactResult result;
+    if (hasTarget)
+        result.damage = damage * deltaTime;
+    return result;
+}
+
+Proj::ContinuousContactResult Proj::DrobilkaContact(
+    bool hasTarget, float damage, float deltaTime) noexcept
+{
+    return FireContact(hasTarget, damage, deltaTime);
+}
+
+Proj::ContinuousContactResult Proj::SonarContact(
+    bool hasTarget, Vec3 linearVelocity, float mass,
+    float damage, float deltaTime) noexcept
+{
+    auto result = FireContact(hasTarget, damage, deltaTime);
+    if (!hasTarget)
+        return result;
+    result.impulse = {
+        linearVelocity.x * mass,
+        linearVelocity.y * mass,
+        linearVelocity.z * mass};
+    result.applyImpulse = true;
+    return result;
+}
+
+Proj::SpringPrepareResult Proj::SpringPrepare(
+    bool hasCar, bool wheelsContact, float speed) noexcept
+{
+    SpringPrepareResult result;
+    if (!hasCar || !wheelsContact)
+        return result;
+    result.localVelocityChange = {0.0F, 0.0F, speed};
+    result.prepared = true;
+    result.lockSpring = true;
+    return result;
+}
+
 void ShotEffect::Reset() noexcept
 {
     shotCount_ = 0U;

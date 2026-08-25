@@ -3441,10 +3441,18 @@ void OriginalRaceSession::updateGameplay(
                           projectile.owner, rayOrigin,
                           projectile.direction, maximumDistance)
                     : WorldRayHit{};
+            const auto laserUpdate = sourceRay
+                ? source::Proj::LaserUpdate(
+                      maximumDistance, rayHit.hit, rayHit.distance,
+                      seconds, projectileDefinition.damage,
+                      projectileDefinition.type == 3U,
+                      projectile.ageSeconds,
+                      projectile.maximumLifeSeconds)
+                : source::Proj::LaserUpdateResult{};
             projectile.impactDistance =
-                sourceRay && rayHit.hit
-                    ? rayHit.distance
-                    : (sourceRay ? maximumDistance : 0.0F);
+                sourceRay ? laserUpdate.distance : 0.0F;
+            projectile.beamWidthScale =
+                sourceRay ? laserUpdate.beamWidthScale : 1.0F;
             const Vec3 end = add(
                 projectile.position,
                 multiply(projectile.direction,
@@ -3459,15 +3467,14 @@ void OriginalRaceSession::updateGameplay(
             fired.projectile = projectile.projectile;
             effects_.push_back(std::move(fired));
             if (sourceRay &&
+                laserUpdate.applyDamage &&
                 rayHit.vehicle < vehicles.size() &&
                 rayHit.vehicle < racers_.size())
             {
                 const std::size_t target = rayHit.vehicle;
                 applyRacerDamage(
                     target, projectile.owner, end,
-                    std::max(
-                        projectileDefinition.damage * seconds,
-                        0.0F),
+                    std::max(laserUpdate.damage, 0.0F),
                     sourceProjectileDamageType(
                         projectileDefinition.type));
                 if (projectileDefinition.type == 18U &&
@@ -3486,6 +3493,7 @@ void OriginalRaceSession::updateGameplay(
                 }
             }
             else if (sourceRay &&
+                     laserUpdate.applyDamage &&
                      rayHit.decoration < decorationActive_.size())
             {
                 // RaycastClosestShape reports one concrete PhysX actor.  Do
@@ -3493,9 +3501,7 @@ void OriginalRaceSession::updateGameplay(
                 // damage a different decoration behind the actual hit.
                 damageDecoration(
                     rayHit.decoration,
-                    std::max(
-                        projectileDefinition.damage * seconds,
-                        0.0F),
+                    std::max(laserUpdate.damage, 0.0F),
                     projectile.owner);
             }
             else if (sourceContact)
@@ -3565,13 +3571,19 @@ void OriginalRaceSession::updateGameplay(
                         continue;
                     const Vec3 contactPoint =
                         closestPoint(targetBox, projectileBox.center);
+                    const auto contact =
+                        projectileDefinition.type == 15U
+                            ? source::Proj::DrobilkaContact(
+                                  true, projectileDefinition.damage,
+                                  seconds)
+                            : source::Proj::FireContact(
+                                  true, projectileDefinition.damage,
+                                  seconds);
                     refreshDrobilkaContact(contactPoint);
                     applyRacerDamage(
                         target, projectile.owner,
                         contactPoint,
-                        std::max(
-                            projectileDefinition.damage * seconds,
-                            0.0F),
+                        std::max(contact.damage, 0.0F),
                         DamageType::Simple);
                 }
                 Vec3 decorationContact;
@@ -3587,8 +3599,14 @@ void OriginalRaceSession::updateGameplay(
                     refreshDrobilkaContact(decorationContact);
                 }
             }
-            const float decorationDamage = std::max(
-                projectileDefinition.damage * seconds, 0.0F);
+            const auto decorationContact =
+                projectileDefinition.type == 15U
+                    ? source::Proj::DrobilkaContact(
+                          true, projectileDefinition.damage, seconds)
+                    : source::Proj::FireContact(
+                          true, projectileDefinition.damage, seconds);
+            const float decorationDamage =
+                std::max(decorationContact.damage, 0.0F);
             if (sourceContact &&
                      projectileDefinition.type != 15U)
             {
@@ -3598,7 +3616,8 @@ void OriginalRaceSession::updateGameplay(
             }
             // GameObject::OnProgress expires only after _timeLife becomes
             // strictly greater than _maxTimeLife.
-            if (projectile.lifeSeconds < 0.0F)
+            if (projectile.maximumLifeSeconds > 0.0F &&
+                projectile.ageSeconds > projectile.maximumLifeSeconds)
             {
                 spawnProjectileImpact(
                     projectile, projectile.position,
@@ -3795,7 +3814,14 @@ void OriginalRaceSession::updateGameplay(
             const float sourceDamage =
                 projectileDefinition.type == 21U
                     ? impulseContact.damage
-                    : projectile.damage;
+                    : (sonarContact
+                           ? source::Proj::SonarContact(
+                                 true, sourceVec(projectile.velocity),
+                                 projectileDefinition.mass,
+                                 projectileDefinition.damage,
+                                 seconds)
+                                 .damage
+                           : projectile.damage);
             applyRacerDamage(
                 target, projectile.owner, contactPoint,
                 std::max(
@@ -3806,10 +3832,13 @@ void OriginalRaceSession::updateGameplay(
                     projectileDefinition.type));
             if (sonarContact)
             {
+                const auto contact = source::Proj::SonarContact(
+                    true, sourceVec(projectile.velocity),
+                    projectileDefinition.mass,
+                    projectileDefinition.damage, seconds);
                 const float targetMass =
                     std::max(vehicleDefinition.physics.mass, 1.0F);
-                const Vec3 impulse = multiply(
-                    projectile.velocity, projectileDefinition.mass);
+                const Vec3 impulse = runtimeVec(contact.impulse);
                 velocityRequests_.push_back(
                     {target, multiply(impulse, 1.0F / targetMass)});
                 // AddContactForce(..., NX_IMPULSE) also applies the
@@ -3935,7 +3964,8 @@ void OriginalRaceSession::updateGameplay(
             projectile.active = false;
         }
         if (projectile.active &&
-            projectile.lifeSeconds < 0.0F)
+            projectile.maximumLifeSeconds > 0.0F &&
+            projectile.ageSeconds > projectile.maximumLifeSeconds)
         {
             spawnProjectileImpact(
                 projectile, projectile.position,
@@ -4334,12 +4364,17 @@ void OriginalRaceSession::updateGameplay(
             racerDefinition.hasConfiguredVehicle
                 ? racerDefinition.configuredVehicle
                 : race_.vehicles.at(racerDefinition.vehicle);
+        source::Proj::SpringPrepareResult springPreparation;
         if (projectile.type == 17U)
         {
             const auto wheelCount =
                 vehicleDefinition.physics.wheels.size();
-            if (wheelCount == 0U ||
-                vehicles[owner].contactCount < wheelCount)
+            springPreparation = source::Proj::SpringPrepare(
+                true,
+                wheelCount > 0U &&
+                    vehicles[owner].contactCount >= wheelCount,
+                projectile.speed);
+            if (!springPreparation.prepared)
             {
                 item.Shot(false, newCharge);
                 return;
@@ -4358,20 +4393,21 @@ void OriginalRaceSession::updateGameplay(
                 networkProjectileId + 1U);
         }
         const Vec3 position = vehicles[owner].body.position;
-        const float duration =
-            projectile.minimumLife > 0.0F
-                ? sampleSourceRange(
-                      projectile.minimumLife,
-                      projectile.maximumLife)
-                : (projectile.type == 17U ? 0.5F : 2.0F);
+        const float sampledMinimumLife = sampleSourceRange(
+            projectile.minimumLife, projectile.maximumLife);
+        const float duration = source::Proj::PrepareMaximumLife(
+            projectile.speed, projectile.maximumDistance,
+            sampledMinimumLife);
         if (projectile.type == 17U)
         {
             velocityRequests_.push_back(
                 {owner,
                  rotate(
                      vehicles[owner].body.rotation,
-                     {0.0F, 0.0F, projectile.speed})});
-            racers_[owner].gameCar.LockSpring();
+                     runtimeVec(
+                         springPreparation.localVelocityChange))});
+            if (springPreparation.lockSpring)
+                racers_[owner].gameCar.LockSpring();
             if (owner < vehicleInputs_.size())
                 vehicleInputs_[owner].springLocked = true;
         }
@@ -4409,6 +4445,7 @@ void OriginalRaceSession::updateGameplay(
             runtimeProjectile.rotation =
                 projectileTransform.rotation;
             runtimeProjectile.lifeSeconds = duration;
+            runtimeProjectile.maximumLifeSeconds = duration;
             runtimeProjectile.attached = true;
             runtimeProjectile.directWeapon = true;
             runtimeProjectile.deathEffect.Reset(
@@ -5266,9 +5303,15 @@ void OriginalRaceSession::updateGameplay(
                 runtimeProjectile.damage = projectile.damage;
                 runtimeProjectile.angularSpeed =
                     projectile.angularSpeed;
-                runtimeProjectile.lifeSeconds = sampleSourceRange(
+                const float sampledMinimumLife = sampleSourceRange(
                     projectile.minimumLife,
                     projectile.maximumLife);
+                runtimeProjectile.maximumLifeSeconds =
+                    source::Proj::PrepareMaximumLife(
+                        projectile.speed, projectile.maximumDistance,
+                        sampledMinimumLife);
+                runtimeProjectile.lifeSeconds =
+                    runtimeProjectile.maximumLifeSeconds;
                 runtimeProjectile.attached = true;
                 runtimeProjectile.deathEffect.Reset(
                     projectile.deathEffect.effectPhysicsIgnoreSenderCar,
@@ -5297,14 +5340,14 @@ void OriginalRaceSession::updateGameplay(
                 runtimeProjectile.damage = projectile.damage;
                 runtimeProjectile.angularSpeed =
                     projectile.angularSpeed;
-                runtimeProjectile.lifeSeconds = std::max(
-                    projectile.speed > 0.0F
-                        ? projectile.maximumDistance /
-                              projectile.speed
-                        : 0.0F,
-                    sampleSourceRange(
-                        projectile.minimumLife,
-                        projectile.maximumLife));
+                const float sampledMinimumLife = sampleSourceRange(
+                    projectile.minimumLife, projectile.maximumLife);
+                runtimeProjectile.maximumLifeSeconds =
+                    source::Proj::PrepareMaximumLife(
+                        projectile.speed, projectile.maximumDistance,
+                        sampledMinimumLife);
+                runtimeProjectile.lifeSeconds =
+                    runtimeProjectile.maximumLifeSeconds;
                 runtimeProjectile.ballistic =
                     projectile.type == 19U;
                 runtimeProjectile.deathEffect.Reset(

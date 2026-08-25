@@ -389,6 +389,48 @@ int main()
             true, true, false, 0U, 12.0F).applyDamage)
         return 55;
 
+    if (source::Proj::PrepareMaximumLife(
+            10.0F, 100.0F, 12.0F) != 12.0F ||
+        source::Proj::PrepareMaximumLife(
+            10.0F, 100.0F, 2.0F) != 10.0F ||
+        source::Proj::PrepareMaximumLife(
+            0.0F, 100.0F, 0.0F) != 0.0F)
+        return 56;
+    const auto laser = source::Proj::LaserUpdate(
+        100.0F, true, 80.0F, 0.5F, 10.0F,
+        true, 2.0F, 4.0F);
+    const auto maximumRangeLaser = source::Proj::LaserUpdate(
+        100.0F, true, 100.0F, 0.5F, 10.0F,
+        false, 2.0F, 4.0F);
+    if (laser.distance != 80.0F || laser.damage != 5.0F ||
+        !laser.applyDamage || laser.beamWidthScale != 2.0F ||
+        laser.textureScale != 8.0F ||
+        maximumRangeLaser.applyDamage)
+        return 57;
+    const auto fireContact = source::Proj::FireContact(
+        true, 8.0F, 0.25F);
+    const auto drobilkaContact = source::Proj::DrobilkaContact(
+        true, 12.0F, 0.25F);
+    const auto sonarContact = source::Proj::SonarContact(
+        true, {3.0F, 0.0F, 0.0F}, 2.0F,
+        8.0F, 0.25F);
+    if (fireContact.damage != 2.0F ||
+        drobilkaContact.damage != 3.0F ||
+        sonarContact.damage != 2.0F ||
+        !sonarContact.applyImpulse ||
+        sonarContact.impulse.x != 6.0F ||
+        source::Proj::SonarContact(
+            false, {3.0F, 0.0F, 0.0F}, 2.0F,
+            8.0F, 0.25F).applyImpulse)
+        return 58;
+    const auto springPrepared = source::Proj::SpringPrepare(
+        true, true, 17.0F);
+    if (!springPrepared.prepared || !springPrepared.lockSpring ||
+        springPrepared.localVelocityChange.z != 17.0F ||
+        source::Proj::SpringPrepare(
+            true, false, 17.0F).prepared)
+        return 59;
+
     source::PairPxContactEffect contacts;
     contacts.Reset(3U);
     const source::PairPxContactEffect::Key contactKey{4U, 9U};

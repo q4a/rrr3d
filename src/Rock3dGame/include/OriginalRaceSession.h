@@ -317,7 +317,9 @@ struct ProjectileRuntime
     float angularSpeed = 0.0F;
     float homingDelay = 0.0F;
     float lifeSeconds = 0.0F;
+    float maximumLifeSeconds = 0.0F;
     float ageSeconds = 0.0F;
+    float beamWidthScale = 1.0F;
     float reflectionCooldown = 0.0F;
     // Proj::RocketUpdate stores its current clearance above TrackPlane in
     // _vec1.z and only lowers it when the terrain rises into the projectile.

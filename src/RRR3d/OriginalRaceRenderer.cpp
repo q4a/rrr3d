@@ -5270,20 +5270,8 @@ void OriginalRaceRenderer::draw(
             parent.position.z +=
                 projectile.direction.z * distance * 0.5F;
             parent.scale.x = distance;
-            if (definition.type == 3U &&
-                definition.minimumLife > 0.0F)
-            {
-                const float alphaTime = std::clamp(
-                    projectile.ageSeconds / definition.minimumLife,
-                    0.0F, 1.0F);
-                const float fadeIn = std::clamp(
-                    alphaTime / 0.5F * 1.5F + 0.5F,
-                    0.0F, 2.0F);
-                const float fadeOut = std::clamp(
-                    (alphaTime - 0.6F) / 0.4F * 2.0F,
-                    0.0F, 2.0F);
-                parent.scale.y = fadeIn - fadeOut;
-            }
+            if (definition.type == 3U)
+                parent.scale.y = projectile.beamWidthScale;
         }
         drawDefinition(
             asset, definition.visual, parent,

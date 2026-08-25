@@ -89,6 +89,29 @@ public:
         bool destroy = false;
     };
 
+    struct LaserUpdateResult
+    {
+        float distance = 0.0F;
+        float damage = 0.0F;
+        float beamWidthScale = 1.0F;
+        float textureScale = 0.0F;
+        bool applyDamage = false;
+    };
+
+    struct ContinuousContactResult
+    {
+        Vec3 impulse;
+        float damage = 0.0F;
+        bool applyImpulse = false;
+    };
+
+    struct SpringPrepareResult
+    {
+        Vec3 localVelocityChange;
+        bool prepared = false;
+        bool lockSpring = false;
+    };
+
     static ContactResult SpeedArrowContact(
         Vec3 worldDirection, float damage) noexcept;
     static ContactResult LushaContact(
@@ -134,6 +157,22 @@ public:
     static ImpulseContactResult ImpulseContact(
         bool hasContactActor, bool hasTarget, bool contactIsTarget,
         std::uint32_t hitCount, float damage) noexcept;
+    static float PrepareMaximumLife(
+        float speed, float maximumDistance,
+        float sampledMinimumLife) noexcept;
+    static LaserUpdateResult LaserUpdate(
+        float maximumDistance, bool hit, float hitDistance,
+        float deltaTime, float damage, bool distort,
+        float timeLife, float maximumTimeLife) noexcept;
+    static ContinuousContactResult FireContact(
+        bool hasTarget, float damage, float deltaTime) noexcept;
+    static ContinuousContactResult DrobilkaContact(
+        bool hasTarget, float damage, float deltaTime) noexcept;
+    static ContinuousContactResult SonarContact(
+        bool hasTarget, Vec3 linearVelocity, float mass,
+        float damage, float deltaTime) noexcept;
+    static SpringPrepareResult SpringPrepare(
+        bool hasCar, bool wheelsContact, float speed) noexcept;
 };
 
 // GameBase.cpp::ShotEffect receives one OnShot callback only after
