@@ -221,6 +221,27 @@ int main()
     branchPath->Add(branchMiddle);
     branchPath->Add(third);
 
+    source::Player carLifecyclePlayer;
+    carLifecyclePlayer.Reset(100.0F, 1U, &trace);
+    carLifecyclePlayer.InsertBonusProjectile(9U);
+    if (carLifecyclePlayer.car.GetMapPos().x != 0.0F ||
+        carLifecyclePlayer.car.GetMapPos().y != 0.0F)
+        return 38;
+    carLifecyclePlayer.CreateCar(true);
+    if (carLifecyclePlayer.car.GetLastNode() != mainPath->GetFirst() ||
+        carLifecyclePlayer.car.GetLiveTile() != mainPath->GetFirst() ||
+        carLifecyclePlayer.HasBonusProjectile(9U) ||
+        carLifecyclePlayer.GetNextBonusProjectileId() != 1U)
+        return 39;
+    carLifecyclePlayer.car.numLaps = 3U;
+    carLifecyclePlayer.FreeCar(true);
+    if (carLifecyclePlayer.car.GetLastNode() != nullptr ||
+        carLifecyclePlayer.car.GetLiveTile() != nullptr ||
+        carLifecyclePlayer.car.numLaps != 0U ||
+        carLifecyclePlayer.car.GetMapPos().x != 0.0F ||
+        carLifecyclePlayer.car.GetMapPos().y != 0.0F)
+        return 40;
+
     source::Player tracedPlayer;
     tracedPlayer.Reset(100.0F, 1U, &trace);
     const auto firstUpdate = tracedPlayer.car.Update(

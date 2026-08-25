@@ -874,6 +874,27 @@ smoke дополнительно загружает реальные `droid`/`re
 `workshop.xml`, устанавливает их через `PlayerProfile`, проверяет 0.4
 reflector и фактическое лечение через active session update.
 
+### P2.14 — Player::CreateCar/FreeCar state lifecycle — выполнено
+
+Перенесён оставшийся жизненный цикл `eff9338:Player.cpp::CreateCar/FreeCar`
+в active `source::Player` и его вложенный `CarState`. Подтвердилось, что
+portable session при восстановлении вызывал только `Resc()` и поэтому
+оставлял от уничтоженной машины `moveInverse`, таймер неправильного
+направления, накопленную максимальную скорость и таймер потери управления.
+После respawn это могло немедленно породить ложную реплику wrong-way либо
+повторный `LostControl`.
+
+Теперь каждый `CreateCar`, включая двухсекундный restore, сбрасывает эти
+transient-поля. Ветка `newRace` дополнительно ставит `curTile/curNode/lastNode`
+на первый узел main path, очищает bonus-projectile registry, возвращает
+`nextBonusProjId` к 1 и обнуляет restore timer. `FreeCar(true)` очищает
+узлы и круги, как Windows. Удалён придуманный mini-map fallback на первую
+точку: без live tile и last node `GetMapPos()` возвращает NullVector.
+
+Прямой regression проверяет create/free/respawn state, начальную привязку к
+trace и mine-id lifecycle; 13 non-network CTest, resource verifier, map1
+physics и 240-frame Metal/Jolt smoke проходят.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

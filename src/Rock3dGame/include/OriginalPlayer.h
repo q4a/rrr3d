@@ -172,6 +172,8 @@ public:
         };
 
         void Reset(Trace* trace = nullptr) noexcept;
+        void OnCreateCar(bool newRace) noexcept;
+        void OnFreeCar(bool freeState) noexcept;
         UpdateResult Update(Trace& trace,
                             const TraceVec3& position,
                             const TraceVec3& direction,
@@ -226,11 +228,12 @@ public:
         float moveInverseStart_ = -1.0F;
         float maximumSpeed_ = 0.0F;
         float maximumSpeedTime_ = 0.0F;
-        TraceVec3 fallbackMapPosition_{};
     };
 
     void Reset(float newMaximumLife, std::uint32_t initialPlace,
                Trace* trace = nullptr) noexcept;
+    void CreateCar(bool newRace) noexcept;
+    void FreeCar(bool freeState) noexcept;
     void OnLapPass(std::size_t weaponDefinitionCount) noexcept;
     void ReloadWeapons(std::size_t weaponDefinitionCount) noexcept;
     void SyncSelectedWeapon(std::size_t weaponDefinitionCount) noexcept;

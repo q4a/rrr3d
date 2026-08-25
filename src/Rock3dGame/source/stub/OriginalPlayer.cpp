@@ -78,13 +78,39 @@ void Player::CarState::Reset(Trace* trace) noexcept
     moveInverseStart_ = -1.0F;
     maximumSpeed_ = 0.0F;
     maximumSpeedTime_ = 0.0F;
-    fallbackMapPosition_ = {};
-    if (trace_ != nullptr)
+}
+
+void Player::CarState::OnCreateCar(bool newRace) noexcept
+{
+    // Player::CreateCar resets per-actor movement diagnostics every time the
+    // physical car is recreated. Retaining these values across a death makes
+    // the new actor immediately inherit wrong-way/lost-control history.
+    moveInverse = false;
+    moveInverseStart_ = -1.0F;
+    maximumSpeed_ = 0.0F;
+    maximumSpeedTime_ = 0.0F;
+
+    if (newRace && trace_ != nullptr)
     {
-        const auto* path = trace_->GetPath(0U);
+        auto* path = trace_->GetPath(0U);
         if (path != nullptr && path->GetFirst() != nullptr)
-            fallbackMapPosition_ = path->GetFirst()->GetPos();
+        {
+            auto* first = path->GetFirst();
+            SetCurTile(first);
+            SetCurNode(first);
+            SetLastNode(first);
+        }
     }
+}
+
+void Player::CarState::OnFreeCar(bool freeState) noexcept
+{
+    if (!freeState)
+        return;
+    SetCurTile(nullptr);
+    SetCurNode(nullptr);
+    SetLastNode(nullptr);
+    numLaps = 0U;
 }
 
 Player::CarState::UpdateResult Player::CarState::Update(
@@ -310,7 +336,7 @@ TraceVec3 Player::CarState::GetMapPos() const noexcept
     }
     if (lastNode_ != nullptr)
         return lastNode_->GetTile().GetPoint(lastNodeCoordX_);
-    return fallbackMapPosition_;
+    return {};
 }
 
 float Player::CarState::GetLastNodeCoordX() const noexcept
@@ -349,6 +375,22 @@ void Player::Reset(float newMaximumLife,
     ResetGameObject(std::max(newMaximumLife, 1.0F));
     place = initialPlace;
     car.Reset(trace);
+}
+
+void Player::CreateCar(bool newRace) noexcept
+{
+    car.OnCreateCar(newRace);
+    Resc();
+    if (!newRace)
+        return;
+    ClearBonusProjectiles();
+    nextBonusProjectileId_ = 1U;
+    restoreSeconds = 0.0F;
+}
+
+void Player::FreeCar(bool freeState) noexcept
+{
+    car.OnFreeCar(freeState);
 }
 
 void Player::OnLapPass(std::size_t weaponDefinitionCount) noexcept
@@ -864,7 +906,7 @@ PlayerRestoreStep Player::ProgressRestore(float seconds) noexcept
     if (restoreSeconds < 0.0F)
     {
         restoreSeconds = 0.0F;
-        Resc();
+        CreateCar(false);
         return PlayerRestoreStep::ActivateCar;
     }
     restoreSeconds = std::max(0.0F, restoreSeconds - seconds);
@@ -986,6 +1028,7 @@ void Player::Disconnect() noexcept
     touchAttacker = undefinedPlayerId;
     touchAttributionSeconds = 0.0F;
     ClearBonusProjectiles();
+    FreeCar(true);
 }
 
 void Player::ResetBlock(bool block) noexcept

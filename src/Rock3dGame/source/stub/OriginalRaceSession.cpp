@@ -1154,6 +1154,7 @@ void OriginalRaceSession::reset()
         racers_[index].Reset(
             vehicle.maximumLife,
             static_cast<std::uint32_t>(index + 1U), &sourceTrace_);
+        racers_[index].CreateCar(true);
         for (std::size_t weaponIndex = 0;
              weaponIndex < race_.weapons.size(); ++weaponIndex)
         {

@@ -1806,3 +1806,16 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   regression фиксирует ordinary id=1 без инкремента, replicated mine id=77,
   next=78 и удаление записи после контакта; 13/13 CTest, map1 physics и
   240-frame render smoke проходят.
+
+### Source Player CreateCar/FreeCar state lifecycle follow-up
+
+- `source::Player::CreateCar/FreeCar` теперь владеют полным состоянием
+  исходных Windows-методов. Каждый create сбрасывает `moveInverse`, его
+  таймер, накопленный максимум скорости и timer `LostControl`; restore больше
+  не наследует эти значения от взорванной машины.
+- `CreateCar(true)` устанавливает первый main-path node, очищает registry мин,
+  возвращает следующий bonus projectile id к 1 и обнуляет restore timer.
+  `FreeCar(true)` очищает trace nodes и число кругов.
+- Удалён отсутствующий в исходнике fallback mini-map на первую точку трассы:
+  без current tile и last node возвращается NullVector. Unit, 13/13 CTest,
+  resource, map1 physics и 240-frame Metal smoke проходят.
