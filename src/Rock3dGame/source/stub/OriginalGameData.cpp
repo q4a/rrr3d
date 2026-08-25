@@ -4,6 +4,7 @@
 
 #include <tinyxml.h>
 
+#include <algorithm>
 #include <array>
 #include <charconv>
 #include <cctype>
@@ -413,6 +414,50 @@ const Language* findLanguage(const Catalog& catalog,
             return &language;
     }
     return nullptr;
+}
+
+const Language* findLanguage(const Catalog& catalog,
+                             int primaryId) noexcept
+{
+    for (const auto& language : catalog.languages)
+    {
+        if (language.primaryId == primaryId)
+            return &language;
+    }
+    return nullptr;
+}
+
+std::string autodetectOriginalLanguage(
+    const Catalog& catalog, int userPrimaryLanguageId)
+{
+    const auto* language =
+        findLanguage(catalog, userPrimaryLanguageId);
+    if (language == nullptr && !catalog.languages.empty())
+        language = &catalog.languages.front();
+    return language != nullptr ? language->name : std::string{};
+}
+
+std::string autodetectOriginalCommentatorStyle(
+    const Catalog& catalog, std::string_view language)
+{
+    const auto hasStyle = [&](std::string_view name) {
+        return std::find(
+                   catalog.commentatorStyles.begin(),
+                   catalog.commentatorStyles.end(), name) !=
+               catalog.commentatorStyles.end();
+    };
+    const auto* selectedLanguage = findLanguage(catalog, language);
+    if (selectedLanguage != nullptr &&
+        selectedLanguage->charset == LanguageCharset::Russian &&
+        hasStyle("russian"))
+    {
+        return "russian";
+    }
+    if (hasStyle("english"))
+        return "english";
+    return !catalog.commentatorStyles.empty()
+               ? catalog.commentatorStyles.front()
+               : std::string{};
 }
 
 std::size_t StringLibrary::size() const noexcept

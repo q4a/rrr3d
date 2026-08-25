@@ -112,11 +112,14 @@ std::string toUtf8(CFStringRef value)
 
 } // namespace
 
-std::string preferredGameLanguage()
+int preferredGamePrimaryLanguageId()
 {
+    // Windows PRIMARYLANGID values used by the serialized game.xml primId
+    // fields: German=7, English=9, Spanish=10, French=12,
+    // Portuguese=22, Russian=25.
     ScopedArray languages(CFLocaleCopyPreferredLanguages());
     if (languages.get() == nullptr || CFArrayGetCount(languages.get()) == 0)
-        return "english";
+        return 9;
     const auto language = static_cast<CFStringRef>(
         CFArrayGetValueAtIndex(languages.get(), 0));
     std::string value = toUtf8(language);
@@ -124,7 +127,17 @@ std::string preferredGameLanguage()
                    [](unsigned char character) {
                        return static_cast<char>(std::tolower(character));
                    });
-    return value.rfind("ru", 0) == 0 ? "russian" : "english";
+    if (value.rfind("de", 0) == 0)
+        return 7;
+    if (value.rfind("es", 0) == 0)
+        return 10;
+    if (value.rfind("fr", 0) == 0)
+        return 12;
+    if (value.rfind("pt", 0) == 0)
+        return 22;
+    if (value.rfind("ru", 0) == 0)
+        return 25;
+    return 9;
 }
 
 TextBitmap rasterizeText(std::string_view utf8,

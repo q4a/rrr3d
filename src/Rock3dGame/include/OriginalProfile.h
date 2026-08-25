@@ -130,6 +130,11 @@ struct ProfileState
     // first launch and must survive the portable XML adapter.
     bool preferredCameraSerialized = false;
     bool discreteVideoCardSerialized = false;
+    // Missing values call GameMode::AutodetectLanguage and
+    // AutodetectCommentatorStyle; default string contents are not proof that
+    // either value was present in user.xml.
+    bool languageSerialized = false;
+    bool commentatorStyleSerialized = false;
     PlayerProfile player;
     std::vector<std::string> profiles{"profile1"};
     std::string lastProfile{"profile1"};

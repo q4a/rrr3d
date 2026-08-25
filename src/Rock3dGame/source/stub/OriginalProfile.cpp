@@ -201,10 +201,14 @@ void readControlMap(TiXmlNode* controls, const char* controller,
 
 void loadConfig(const std::filesystem::path& path, UserConfig& config,
                 bool& preferredCameraSerialized,
-                bool& discreteVideoCardSerialized)
+                bool& discreteVideoCardSerialized,
+                bool& languageSerialized,
+                bool& commentatorStyleSerialized)
 {
     preferredCameraSerialized = false;
     discreteVideoCardSerialized = false;
+    languageSerialized = false;
+    commentatorStyleSerialized = false;
     TiXmlDocument document(path.string());
     if (!document.LoadFile() || document.RootElement() == nullptr)
         return;
@@ -268,9 +272,16 @@ void loadConfig(const std::filesystem::path& path, UserConfig& config,
         discreteVideoCardSerialized = true;
     }
     if (const char* token = value(root, "language"))
+    {
         config.language = token;
+        languageSerialized = !config.language.empty();
+    }
     if (const char* token = value(root, "commentatorStyle"))
+    {
         config.commentatorStyle = token;
+        commentatorStyleSerialized =
+            !config.commentatorStyle.empty();
+    }
     if (const char* token = value(root, "prefCamera"))
     {
         config.preferredCamera =
@@ -806,9 +817,10 @@ bool runOriginalProfileFlowSmokeTest(std::string& error)
 {
     error.clear();
     auto state = makeOriginalDefaultProfileState();
-    if (state.tutorialStage != 0U)
+    if (state.tutorialStage != 0U || state.languageSerialized ||
+        state.commentatorStyleSerialized)
     {
-        error = "Race::_tutorialStage did not start at source stage zero";
+        error = "source defaults confused absent serialized config fields";
         return false;
     }
     state.planetsCompleted.clear();
@@ -1047,6 +1059,8 @@ bool runOriginalProfileFlowSmokeTest(std::string& error)
         loadedConfig.enableHud || loadedConfig.enableMineBug ||
         !loadedConfig.disableVideo || loadedConfig.fullScreen ||
         loadedConfig.discreteVideoCard ||
+        !reloadedNetwork.languageSerialized ||
+        !reloadedNetwork.commentatorStyleSerialized ||
         loadedConfig.language != "russian" ||
         loadedConfig.commentatorStyle != "russian" ||
         loadedConfig.preferredCamera != PreferredCamera::ThirdPerson ||
@@ -1146,7 +1160,9 @@ ProfileState OriginalProfileStore::load(std::string& warning) const
         loadConfig(
             loadPath("user.xml"), state.config,
             state.preferredCameraSerialized,
-            state.discreteVideoCardSerialized);
+            state.discreteVideoCardSerialized,
+            state.languageSerialized,
+            state.commentatorStyleSerialized);
         loadRaceLibrary(loadPath("race.xml"), state);
         if (!state.player.name.empty())
         {

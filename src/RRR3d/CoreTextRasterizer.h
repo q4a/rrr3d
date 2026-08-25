@@ -23,8 +23,8 @@ TextBitmap rasterizeText(std::string_view utf8,
                          float pointSize, bool bold,
                          r3d::game::mainmenu2::Rgba8 color);
 
-// Mirrors the legacy GameMode::AutodetectLanguage decision for the two
-// localized resource sets currently accepted by the Milestone 6 slice.
-std::string preferredGameLanguage();
+// Portable GetUserDefaultUILanguage/PRIMARYLANGID boundary used by the
+// source GameMode::AutodetectLanguage policy.
+int preferredGamePrimaryLanguageId();
 
 } // namespace rrr3d::macos

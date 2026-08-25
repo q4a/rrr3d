@@ -2121,3 +2121,15 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   MainMenu, MusicDialog, обе очереди и commentator получают один owner.
 - Независимый TinyXML parser из `OriginalAudioSpec.cpp` удалён; compatibility
   API делегирует общему loader и не содержит второй интерпретации формата.
+
+### Source language/commentator autodetection follow-up
+
+- `ProfileState` различает отсутствующие и реально записанные `language`/
+  `commentatorStyle`, поэтому clean first launch снова вызывает исходный
+  autodetect вместо скрытых English defaults.
+- macOS preferred locale преобразуется в serialized Windows `primId` для
+  всех шести языков; неизвестный id выбирает первую запись, как
+  `GameMode::AutodetectLanguage`.
+- `lcRussian -> russian`, иначе `english`, иначе первый style повторяет
+  `AutodetectCommentatorStyle`; обычный `SaveConfig` фиксирует выбранные
+  значения в `user.xml`.

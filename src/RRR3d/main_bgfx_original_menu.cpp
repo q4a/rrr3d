@@ -852,8 +852,6 @@ std::optional<Options> parseOptions(int argc, char** argv)
         }
         return std::nullopt;
     }
-    if (options.language.empty())
-        options.language = rrr3d::macos::preferredGameLanguage();
     return options;
 }
 
@@ -1669,9 +1667,15 @@ int main(int argc, char** argv)
          profileState.config.discreteVideoCard !=
              sourceCurrentDiscreteVideoCard);
     if (options->languageSelected)
+    {
         profileState.config.language = options->language;
-    else
+        profileState.languageSerialized = true;
+    }
+    else if (profileState.languageSerialized &&
+             !profileState.config.language.empty())
         activeLanguage = profileState.config.language;
+    else
+        activeLanguage.clear();
     std::size_t selectedTrack =
         options->trackSelected ? options->trackIndex : 0U;
     bool weatherNightPassed = false;
@@ -1684,6 +1688,26 @@ int main(int argc, char** argv)
         resources.emplace(dataDirectory);
         originalGameDataCatalog =
             originalgamedata::loadOriginalGameDataCatalog(*resources);
+        if (activeLanguage.empty())
+        {
+            activeLanguage =
+                originalgamedata::autodetectOriginalLanguage(
+                    originalGameDataCatalog,
+                    rrr3d::macos::preferredGamePrimaryLanguageId());
+#ifdef RRR3D_PHYSICS
+            profileState.config.language = activeLanguage;
+#endif
+        }
+#ifdef RRR3D_PHYSICS
+        if (!profileState.commentatorStyleSerialized ||
+            profileState.config.commentatorStyle.empty())
+        {
+            profileState.config.commentatorStyle =
+                originalgamedata::
+                    autodetectOriginalCommentatorStyle(
+                        originalGameDataCatalog, activeLanguage);
+        }
+#endif
         if (originalgamedata::findLanguage(
                 originalGameDataCatalog, activeLanguage) == nullptr)
         {
@@ -1847,8 +1871,18 @@ int main(int argc, char** argv)
             languages[4].primaryId == 10 &&
             languages[5].name == "german" &&
             languages[5].primaryId == 7 &&
+            originalgamedata::autodetectOriginalLanguage(
+                originalGameDataCatalog, 25) == "russian" &&
+            originalgamedata::autodetectOriginalLanguage(
+                originalGameDataCatalog, 12) == "french" &&
+            originalgamedata::autodetectOriginalLanguage(
+                originalGameDataCatalog, 999) == "english" &&
             commentators == std::vector<std::string>{
                 "russian", "english"} &&
+            originalgamedata::autodetectOriginalCommentatorStyle(
+                originalGameDataCatalog, "russian") == "russian" &&
+            originalgamedata::autodetectOriginalCommentatorStyle(
+                originalGameDataCatalog, "french") == "english" &&
             originalGameDataCatalog.commentator.delay == 0.0F &&
             comments.size() == 37U &&
             startComment != comments.end() &&
@@ -6456,6 +6490,10 @@ int main(int argc, char** argv)
         profileState.config.gameMusicPlaylist =
             musicPlaylistString(gameMusic.playlist());
 #endif
+        // GameMode::SaveConfig always writes both values, even when they
+        // originated in first-launch autodetection.
+        profileState.languageSerialized = true;
+        profileState.commentatorStyleSerialized = true;
         auto persistedState = profileState;
 #ifdef RRR3D_NETWORK
         // Race::_snClientProfile is transient.  Network host rules and the

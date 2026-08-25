@@ -88,6 +88,15 @@ Catalog loadOriginalGameDataCatalog(
 
 const Language* findLanguage(const Catalog& catalog,
                              std::string_view name) noexcept;
+const Language* findLanguage(const Catalog& catalog,
+                             int primaryId) noexcept;
+
+// GameMode::AutodetectLanguage and AutodetectCommentatorStyle, kept here so
+// platform code only supplies the OS primary-language id.
+std::string autodetectOriginalLanguage(
+    const Catalog& catalog, int userPrimaryLanguageId);
+std::string autodetectOriginalCommentatorStyle(
+    const Catalog& catalog, std::string_view language);
 
 // Platform-independent ownership and lookup semantics of the original
 // ResourceManager::StringLibrary.  The Windows class returns the id itself

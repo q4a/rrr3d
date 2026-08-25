@@ -1654,6 +1654,26 @@ commentator. Дублирующий TinyXML music parser удалён; стар�
 3 menu + 11 game tracks теперь проверяет данные того же объекта, что и 6
 languages, 2 styles и 37 comments.
 
+### P2.54 — `AutodetectLanguage`/`AutodetectCommentatorStyle` — выполнено
+
+После объединения catalog подтвердился first-run разрыв в `LoadGameOpt`.
+Portable `UserConfig` заранее содержал строки `english`/`english` и не
+запоминал, присутствовали ли соответствующие узлы в `user.xml`. Поэтому
+отсутствующий или новый config никогда не вызывал исходные autodetect-ветви:
+русская система запускалась с English, а русский commentator автоматически
+не выбирался.
+
+`ProfileState` теперь отдельно хранит presence обоих XML-полей, как уже
+делалось для `prefCamera` и `discreteVideoCard`. Перенесены обе исходные
+policy-функции: language ищется по Windows `PRIMARYLANGID` и при miss берёт
+первую serialized запись; commentator выбирает Russian только для
+`lcRussian`, иначе English, затем первый доступный style. CoreFoundation
+boundary отображает macOS preferred locale на все шесть shipped primary ids
+(German/English/Spanish/French/Portuguese/Russian), а не только ru/en.
+`SaveConfig`-эквивалент после любого сохранения помечает оба значения как
+serialized. Profile и resource regressions проверяют absent/present state,
+locale fallback и Russian/French commentator branches.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
