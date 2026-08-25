@@ -106,6 +106,7 @@ public:
                   r3d::game::originalrace::VehicleDeathFragmentState>&
                   vehicleDeathFragments,
               const std::vector<bool>& bonusActive,
+              const std::vector<float>& bonusScales,
               const std::vector<
                   r3d::game::originalrace::RacerRuntime>& racerRuntime,
               const std::vector<
@@ -136,6 +137,7 @@ public:
             r3d::game::originalrace::VehicleDeathFragmentState>&
             vehicleDeathFragments,
         const std::vector<bool>& bonusActive,
+        const std::vector<float>& bonusScales,
         const std::vector<
             r3d::game::originalrace::RacerRuntime>& racerRuntime,
         const std::vector<

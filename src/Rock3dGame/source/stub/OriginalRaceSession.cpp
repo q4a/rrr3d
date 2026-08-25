@@ -1131,11 +1131,19 @@ void OriginalRaceSession::reset()
     bonusActive_.assign(race_.bonuses.size(), true);
     bonusObjects_.clear();
     bonusObjects_.reserve(race_.bonuses.size());
+    bonusProjectiles_.clear();
+    bonusProjectiles_.reserve(race_.bonuses.size());
+    bonusScales_.assign(race_.bonuses.size(), -1.0F);
     for (std::size_t index = 0U; index < race_.bonuses.size(); ++index)
     {
         source::GameObject bonus;
         bonus.ResetGameObject(-1.0F);
         bonusObjects_.push_back(std::move(bonus));
+        source::AutoProj projectile;
+        projectile.Reset(race_.bonuses[index].projectileType);
+        projectile.LogicInited();
+        bonusScales_[index] = projectile.GetModelScale();
+        bonusProjectiles_.push_back(std::move(projectile));
     }
     bonusNetworkPendingContact_.assign(
         race_.bonuses.size(), RacerRuntime::invalidWeapon);
@@ -2120,6 +2128,11 @@ const std::vector<float>& OriginalRaceSession::decorationLife() const noexcept
 const std::vector<bool>& OriginalRaceSession::bonusActive() const noexcept
 {
     return bonusActive_;
+}
+
+const std::vector<float>& OriginalRaceSession::bonusScales() const noexcept
+{
+    return bonusScales_;
 }
 
 std::size_t OriginalRaceSession::racerForMapObjectId(
@@ -5180,7 +5193,9 @@ void OriginalRaceSession::updateGameplay(
             {
                 applyMasloContact(
                     racer, bonus.transform.position,
-                    bonus.value, false);
+                    bonus.value,
+                    bonusIndex < bonusProjectiles_.size() &&
+                        bonusProjectiles_[bonusIndex].IsArming());
                 continue;
             }
             if (bonus.kind == BonusKind::MineHazard)
@@ -6138,6 +6153,22 @@ void OriginalRaceSession::update(
     // during the visible countdown as well as during active racing.
     for (auto& rack : weaponRacks_)
         rack.OnProgress(seconds);
+    // AutoProj is a registered GameObject before GoRace. Its MineUpdate
+    // therefore advances during the visible countdown even though race time
+    // itself has not started. This is most visible on ptMaslo, whose model
+    // grows from scale zero during the original 0.25-second arming window.
+    for (std::size_t index = 0U;
+         index < bonusProjectiles_.size(); ++index)
+    {
+        if (index >= bonusActive_.size() || !bonusActive_[index])
+            continue;
+        bonusProjectiles_[index].OnProgress(seconds);
+        if (index < bonusScales_.size())
+        {
+            bonusScales_[index] =
+                bonusProjectiles_[index].GetModelScale();
+        }
+    }
     for (auto& effect : effects_)
     {
         effect.seconds -= seconds;
@@ -7630,6 +7661,47 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     "once");
             }
             vehicles[0].speed = 0.0F;
+        }
+
+        if (!race.bonuses.empty())
+        {
+            Race autoProjRace = race;
+            autoProjRace.bonuses.assign(1U, race.bonuses.front());
+            auto& sourceOil = autoProjRace.bonuses.front();
+            sourceOil.kind = BonusKind::OilHazard;
+            sourceOil.projectileType = 10U;
+            sourceOil.transform.position = {
+                100000.0F, 100000.0F, 1000.0F};
+            OriginalRaceSession autoProjSession(autoProjRace);
+            auto autoProjVehicles = vehicles;
+            RaceControl autoProjInput;
+            if (autoProjSession.bonusScales().size() != 1U ||
+                autoProjSession.bonusScales().front() != 0.0F)
+            {
+                throw std::runtime_error(
+                    "source AutoProj oil did not start at scale zero");
+            }
+            autoProjSession.update(
+                0.1F, autoProjVehicles, autoProjInput);
+            if (autoProjSession.phase() != RacePhase::Countdown ||
+                std::abs(
+                    autoProjSession.bonusScales().front() - 0.4F) >
+                    0.001F)
+            {
+                throw std::runtime_error(
+                    "source AutoProj did not progress during countdown");
+            }
+            autoProjSession.update(
+                0.1F, autoProjVehicles, autoProjInput);
+            autoProjSession.update(
+                0.1F, autoProjVehicles, autoProjInput);
+            if (std::abs(
+                    autoProjSession.bonusScales().front() - 1.0F) >
+                0.001F)
+            {
+                throw std::runtime_error(
+                    "source AutoProj oil arming scale did not finish");
+            }
         }
 
         const auto mapMine = std::find_if(

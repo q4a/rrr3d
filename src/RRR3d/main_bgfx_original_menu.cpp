@@ -4012,6 +4012,7 @@ int main(int argc, char** argv)
         r3d::game::originalrace::VehicleDeathFragmentState>
         garageVehicleDeathFragments;
     const std::vector<bool> garageBonusActive;
+    const std::vector<float> garageBonusScales;
     const std::vector<r3d::game::originalrace::RaceEffect>
         garageEffects;
     const std::vector<r3d::game::originalrace::MineRuntime>
@@ -17360,7 +17361,7 @@ int main(int argc, char** argv)
                 *originalRace, raceVehicles, racePipeline,
                 raceSession.decorationActive(),
                 decorationFragments, vehicleDeathFragments,
-                raceSession.bonusActive(),
+                raceSession.bonusActive(), raceSession.bonusScales(),
                 raceSession.racers(),
                 raceSession.effects(), raceSession.mines(),
                 raceSession.projectiles(), raceElapsedSeconds,
@@ -17560,6 +17561,7 @@ int main(int argc, char** argv)
                 *originalAngarScene, angarVehicles, racePipeline,
                 angarDecorationActive, garageDecorationFragments,
                 garageVehicleDeathFragments, garageBonusActive,
+                garageBonusScales,
                 angarRacerRuntime, garageEffects, garageMines,
                 garageProjectiles, angarSceneSeconds,
                 profileState.config.quality);
@@ -17690,6 +17692,7 @@ int main(int argc, char** argv)
                 *originalGarageScene, garageVehicles, racePipeline,
                 garageDecorationActive, garageDecorationFragments,
                 garageVehicleDeathFragments, garageBonusActive,
+                garageBonusScales,
                 garageRacerRuntime, garageEffects, garageMines,
                 garageProjectiles, garageSceneSeconds,
                 profileState.config.quality);

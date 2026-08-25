@@ -595,6 +595,79 @@ Proj::BonusContactResult Proj::BonusContact(
     return result;
 }
 
+bool AutoProj::UsesMineUpdate(std::uint32_t type) noexcept
+{
+    switch (type)
+    {
+    case 10U: // ptMaslo
+    case 11U: // ptMine
+    case 12U: // ptMineRip
+    case 20U: // ptCrater
+    case 24U: // ptMineProton
+        return true;
+    default:
+        return false;
+    }
+}
+
+void AutoProj::Reset(std::uint32_t type) noexcept
+{
+    type_ = type;
+    prepared_ = false;
+    armingTimer_ = -1.0F;
+    modelScale_ = -1.0F;
+}
+
+void AutoProj::LogicInited(bool hasLogic) noexcept
+{
+    // AutoProj::InitProj is idempotent and does nothing until GetLogic()
+    // succeeds.  PrepareProj(NULL, ctx) preserves the map object's position
+    // and rotation; those transforms remain owned by BonusInstance here.
+    if (prepared_ || !hasLogic)
+        return;
+    prepared_ = true;
+    if (UsesMineUpdate(type_))
+        armingTimer_ = 0.0F;
+    if (type_ == masloType)
+        modelScale_ = 0.0F;
+}
+
+void AutoProj::LogicReleased() noexcept
+{
+    prepared_ = false;
+}
+
+void AutoProj::OnProgress(float deltaTime) noexcept
+{
+    if (!prepared_ || !UsesMineUpdate(type_))
+        return;
+    const auto result = Proj::MineUpdate(
+        armingTimer_, deltaTime);
+    armingTimer_ = result.timer;
+    if (type_ == masloType && result.visualScale >= 0.0F)
+        modelScale_ = result.visualScale;
+}
+
+bool AutoProj::IsPrepared() const noexcept
+{
+    return prepared_;
+}
+
+bool AutoProj::IsArming() const noexcept
+{
+    return prepared_ && armingTimer_ >= 0.0F;
+}
+
+float AutoProj::GetModelScale() const noexcept
+{
+    return modelScale_;
+}
+
+std::uint32_t AutoProj::GetType() const noexcept
+{
+    return type_;
+}
+
 void ShotEffect::Reset() noexcept
 {
     shotCount_ = 0U;

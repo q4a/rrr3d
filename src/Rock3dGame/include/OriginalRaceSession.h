@@ -418,6 +418,7 @@ public:
     const std::vector<bool>& decorationActive() const noexcept;
     const std::vector<float>& decorationLife() const noexcept;
     const std::vector<bool>& bonusActive() const noexcept;
+    const std::vector<float>& bonusScales() const noexcept;
     std::size_t racerForMapObjectId(
         std::uint32_t mapObjectId) const noexcept;
     std::size_t decorationForMapObjectId(
@@ -527,6 +528,8 @@ private:
     std::vector<source::DestrObj> decorationObjects_;
     std::vector<bool> bonusActive_;
     std::vector<source::GameObject> bonusObjects_;
+    std::vector<source::AutoProj> bonusProjectiles_;
+    std::vector<float> bonusScales_;
     std::vector<std::size_t> bonusNetworkPendingContact_;
     std::vector<source::WeaponRack> weaponRacks_;
     std::vector<source::PlayerItemRack> playerItemRacks_;

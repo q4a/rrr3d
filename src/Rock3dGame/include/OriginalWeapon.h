@@ -216,6 +216,35 @@ public:
         float targetMaximumLife) noexcept;
 };
 
+// MapObj.cpp registers gotProj as AutoProj.  Unlike a weapon shot, this
+// source object prepares itself when Logic is attached, keeps the serialized
+// map transform, and releases only its prepared state when Logic goes away.
+// MineUpdate owns the short arming interval used by the oil model/contact.
+class AutoProj
+{
+public:
+    static constexpr std::uint32_t masloType = 10U;
+
+    void Reset(std::uint32_t type) noexcept;
+    void LogicInited(bool hasLogic = true) noexcept;
+    void LogicReleased() noexcept;
+    void OnProgress(float deltaTime) noexcept;
+
+    bool IsPrepared() const noexcept;
+    bool IsArming() const noexcept;
+    float GetModelScale() const noexcept;
+    std::uint32_t GetType() const noexcept;
+
+private:
+    static bool UsesMineUpdate(std::uint32_t type) noexcept;
+
+    std::uint32_t type_ = 0U;
+    float armingTimer_ = -1.0F;
+    // Negative means that the source Proj did not touch actor scale.
+    float modelScale_ = -1.0F;
+    bool prepared_ = false;
+};
+
 // GameBase.cpp::ShotEffect receives one OnShot callback only after
 // Weapon::PrepareProj succeeds. The backend may create a child visual and a
 // Source3d, but this owner preserves the callback lifetime per weapon actor.

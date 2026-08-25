@@ -263,6 +263,35 @@ int main()
             false, false, false, true).lockClutch)
         return 32;
 
+    source::AutoProj autoOil;
+    autoOil.Reset(10U);
+    autoOil.LogicInited(false);
+    if (autoOil.IsPrepared())
+        return 62;
+    autoOil.LogicInited();
+    if (!autoOil.IsPrepared() || !autoOil.IsArming() ||
+        autoOil.GetModelScale() != 0.0F)
+        return 63;
+    autoOil.OnProgress(0.125F);
+    if (!autoOil.IsArming() ||
+        std::abs(autoOil.GetModelScale() - 0.5F) > 0.001F)
+        return 64;
+    autoOil.OnProgress(0.125F);
+    if (autoOil.IsArming() ||
+        std::abs(autoOil.GetModelScale() - 1.0F) > 0.001F)
+        return 65;
+    autoOil.LogicReleased();
+    if (autoOil.IsPrepared())
+        return 66;
+
+    source::AutoProj autoMinePiece;
+    autoMinePiece.Reset(13U);
+    autoMinePiece.LogicInited();
+    autoMinePiece.OnProgress(1.0F);
+    if (!autoMinePiece.IsPrepared() || autoMinePiece.IsArming() ||
+        autoMinePiece.GetModelScale() >= 0.0F)
+        return 67;
+
     const auto firstRocketHeight = source::Proj::RocketUpdate(
         10.0F, 3.0F, 2.0F, 0.0F, true);
     const auto lowerRocketHeight = source::Proj::RocketUpdate(

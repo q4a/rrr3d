@@ -3349,6 +3349,7 @@ void OriginalRaceRenderer::draw(
         r3d::game::originalrace::VehicleDeathFragmentState>&
         vehicleDeathFragments,
     const std::vector<bool>& bonusActive,
+    const std::vector<float>& bonusScales,
     const std::vector<r3d::game::originalrace::RacerRuntime>& racerRuntime,
     const std::vector<r3d::game::originalrace::RaceEffect>& effects,
     const std::vector<r3d::game::originalrace::MineRuntime>& mines,
@@ -4883,9 +4884,16 @@ void OriginalRaceRenderer::draw(
         // velocities. They remain at their serialized map transform; the
         // former bob/spin was a portable invention and made pickup collision
         // appear detached from the visible object.
+        auto bonusTransform = race.bonuses[index].transform;
+        if (index < bonusScales.size() && bonusScales[index] >= 0.0F)
+        {
+            const float sourceScale = bonusScales[index];
+            bonusTransform.scale = {
+                sourceScale, sourceScale, sourceScale};
+        }
         drawDefinition(
             bonuses_.at(index), race.bonuses[index].visual,
-            race.bonuses[index].transform, elapsedSeconds,
+            bonusTransform, elapsedSeconds,
             r3d::physics::Vec3{});
     }
 
@@ -5911,6 +5919,7 @@ void OriginalRaceRenderer::renderFrame(
         r3d::game::originalrace::VehicleDeathFragmentState>&
         vehicleDeathFragments,
     const std::vector<bool>& bonusActive,
+    const std::vector<float>& bonusScales,
     const std::vector<r3d::game::originalrace::RacerRuntime>& racerRuntime,
     const std::vector<r3d::game::originalrace::RaceEffect>& effects,
     const std::vector<r3d::game::originalrace::MineRuntime>& mines,
@@ -6412,7 +6421,7 @@ void OriginalRaceRenderer::renderFrame(
                 clearRgba, true, true);
             draw(device, sceneShader, race, vehicles, pipeline,
                  decorationActive, decorationFragments,
-                 vehicleDeathFragments, bonusActive,
+                 vehicleDeathFragments, bonusActive, bonusScales,
                  racerRuntime, effects, mines, projectiles,
                  elapsedSeconds, countdownStage, true, true, false, true,
                  &faceCamera);
@@ -6436,7 +6445,7 @@ void OriginalRaceRenderer::renderFrame(
             reflectionCamera, clearRgba, true, true);
         draw(device, sceneShader, race, vehicles, pipeline,
              decorationActive, decorationFragments,
-             vehicleDeathFragments, bonusActive,
+             vehicleDeathFragments, bonusActive, bonusScales,
              racerRuntime, effects, mines, projectiles,
              elapsedSeconds, countdownStage, true, false, false, false,
              &reflectionCamera);
@@ -6502,7 +6511,7 @@ void OriginalRaceRenderer::renderFrame(
         camera, clearRgba, true, true);
     draw(device, sceneShader, race, vehicles, pipeline,
          decorationActive, decorationFragments,
-         vehicleDeathFragments, bonusActive,
+         vehicleDeathFragments, bonusActive, bonusScales,
          racerRuntime, effects, mines, projectiles, elapsedSeconds,
          countdownStage,
          false, usesSceneDepthSurface, false, false, &camera);
@@ -6571,7 +6580,7 @@ void OriginalRaceRenderer::renderFrame(
             clearRgba, false, false);
         draw(device, refractionShader_, race, vehicles, pipeline,
              decorationActive, decorationFragments,
-             vehicleDeathFragments, bonusActive,
+             vehicleDeathFragments, bonusActive, bonusScales,
              racerRuntime, effects, mines, projectiles,
              elapsedSeconds, countdownStage, false,
              usesSceneDepthSurface, true, false, &camera);
