@@ -1876,3 +1876,13 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   pause.
 - Finish transition использует точное исходное условие `> 3.0f`; unit и
   13/13 non-network CTest проходят.
+
+### Source Player light attachment follow-up
+
+- `Player::CreateCar/ReleaseCar` теперь явно владеют attachment двух spot
+  lights и `_nightFlare`; уничтоженная машина не оставляет прожекторы в
+  старой физической позиции, restore присоединяет их обратно.
+- `_nightFlare` исключён из cube/water reflection и refraction в соответствии
+  с отсутствующими `gpReflScene/gpReflWater` в исходном `GraphDesc`.
+- Renderer больше не выводит flare по одной только погоде: он читает
+  `Player::HasAttachedLights()`.

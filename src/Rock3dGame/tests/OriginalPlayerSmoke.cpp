@@ -28,8 +28,19 @@ int main()
     player.SetHeadlight(source::Player::HeadLightMode::Two);
     player.SetReflScene(false);
     if (player.GetHeadLight() != source::Player::HeadLightMode::Two ||
-        player.GetReflScene())
+        player.GetReflScene() || player.HasCar() ||
+        player.HasAttachedLights())
         return 46;
+    player.CreateCar(true);
+    if (!player.HasCar() || !player.HasAttachedLights())
+        return 47;
+    player.FreeCar(false);
+    if (player.HasCar() || player.HasAttachedLights() ||
+        player.GetHeadLight() != source::Player::HeadLightMode::Two)
+        return 48;
+    player.CreateCar(false);
+    if (!player.HasAttachedLights())
+        return 49;
     player.SetNetName({});
     if (player.GetName() != "Tyler")
         return 42;
@@ -173,14 +184,16 @@ int main()
         return 10;
 
     player.Destroy();
-    if (!player.destroyed || player.life != 0.0F ||
+    if (!player.destroyed || player.life != 0.0F || player.HasCar() ||
+        player.HasAttachedLights() ||
         player.ProgressRestore(1.0F) != source::PlayerRestoreStep::None ||
         player.ProgressRestore(1.0F) !=
             source::PlayerRestoreStep::QueueRespawn ||
         player.life != player.maximumLife || !player.destroyed ||
         player.ProgressRestore(0.01F) !=
             source::PlayerRestoreStep::ActivateCar ||
-        player.destroyed)
+        player.destroyed || !player.HasCar() ||
+        !player.HasAttachedLights())
         return 11;
 
     if (source::Player::RoundedRandomIndex(4U, 0.16F) != 0U ||

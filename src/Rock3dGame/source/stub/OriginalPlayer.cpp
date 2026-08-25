@@ -453,6 +453,16 @@ void Player::SetHeadlight(HeadLightMode value) noexcept
     headLight_ = value;
 }
 
+bool Player::HasCar() const noexcept
+{
+    return carPresent_;
+}
+
+bool Player::HasAttachedLights() const noexcept
+{
+    return carPresent_ && headLight_ != HeadLightMode::None;
+}
+
 bool Player::GetReflScene() const noexcept
 {
     return reflScene_;
@@ -465,6 +475,7 @@ void Player::SetReflScene(bool value) noexcept
 
 void Player::CreateCar(bool newRace) noexcept
 {
+    carPresent_ = true;
     car.OnCreateCar(newRace);
     Resc();
     if (!newRace)
@@ -476,6 +487,7 @@ void Player::CreateCar(bool newRace) noexcept
 
 void Player::FreeCar(bool freeState) noexcept
 {
+    carPresent_ = false;
     car.OnFreeCar(freeState);
 }
 
@@ -983,6 +995,10 @@ void Player::Destroy() noexcept
     touchAttacker = undefinedPlayerId;
     touchAttributionSeconds = 0.0F;
     restoreSeconds = restoreCarSeconds;
+    // GameObject::Death destroys the MapObj immediately afterwards. The
+    // portable owner combines that OnDestroy callback here so render/audio
+    // adapters cannot retain child state during the restore delay.
+    FreeCar(false);
 }
 
 PlayerRestoreStep Player::ProgressRestore(float seconds) noexcept

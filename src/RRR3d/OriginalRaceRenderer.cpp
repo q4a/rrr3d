@@ -3426,11 +3426,11 @@ void OriginalRaceRenderer::draw(
              lampIndex < SceneLighting::maximumSpotLights;
              ++racerIndex)
         {
+            if (racerIndex >= racerRuntime.size() ||
+                !racerRuntime[racerIndex].HasAttachedLights())
+                continue;
             const auto headLight =
-                racerIndex < racerRuntime.size()
-                    ? racerRuntime[racerIndex].GetHeadLight()
-                    : r3d::game::originalrace::source::Player::
-                          HeadLightMode::None;
+                racerRuntime[racerIndex].GetHeadLight();
             const std::size_t headlightCount =
                 headLight == r3d::game::originalrace::source::Player::
                                  HeadLightMode::Two
@@ -5097,10 +5097,14 @@ void OriginalRaceRenderer::draw(
                     DrawLayer::All, &weaponNode);
             }
         }
+        // Player::_nightFlare is created only while headlights are enabled
+        // and CreateNightLights clears/detaches it in ReleaseCar. Its
+        // GraphDesc has neither gpReflScene nor gpReflWater, so it must not
+        // be submitted into cube/water reflection or refraction passes.
         const bool showNightLights =
-            race.environment.weather ==
-                r3d::game::originalrace::Weather::Night;
-        if (!refractionPass && showNightLights)
+            racer < racerRuntime.size() &&
+            racerRuntime[racer].HasAttachedLights();
+        if (!reflectionPass && !refractionPass && showNightLights)
         {
             for (const auto& source : definition.nightLights)
             {

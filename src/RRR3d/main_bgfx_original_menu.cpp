@@ -21715,6 +21715,8 @@ int main(int argc, char** argv)
                                const auto& racer) {
                                 using Player =
                                     r3d::game::originalrace::source::Player;
+                                if (!racer.HasAttachedLights())
+                                    return count;
                                 return count +
                                     (racer.GetHeadLight() ==
                                              Player::HeadLightMode::Two

@@ -1037,6 +1037,21 @@ Offline-путь повторяет `Menu::StartRace -> GoRaceTimer` и исхо
 regression покрывает offline, external network, pause, DEBUG_PX и граничные
 три секунды; 13 non-network CTest проходят.
 
+### P2.22 — Player car/light attachment lifecycle — выполнено
+
+Подтвердилось, что перенос сохранил `HeadLightMode`, но потерял вторую
+половину исходного `Player::ReleaseCar/SetLightsParent`: при смерти spot
+lights продолжали освещать сцену из старой позиции Jolt-body. Active
+`Player` теперь владеет наличием car и attachment света; `Destroy/FreeCar`
+отсоединяют свет, а `CreateCar` после restore присоединяет его снова без
+сброса выбранного режима фар.
+
+Также подтверждён лишний render branch: Windows `_nightFlare::GraphDesc` не
+содержит `gpReflScene`/`gpReflWater`, но порт повторно рисовал flare каждого
+автомобиля в cube и water reflection. bgfx adapter теперь показывает flare
+только для attached source Player и только в основном scene pass. Unit
+regression покрывает death/restore attachment lifecycle.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

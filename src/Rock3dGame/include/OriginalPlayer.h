@@ -271,6 +271,8 @@ public:
     bool IsHumanOrOpponent() const noexcept;
     HeadLightMode GetHeadLight() const noexcept;
     void SetHeadlight(HeadLightMode value) noexcept;
+    bool HasCar() const noexcept;
+    bool HasAttachedLights() const noexcept;
     bool GetReflScene() const noexcept;
     void SetReflScene(bool value) noexcept;
     void CreateCar(bool newRace) noexcept;
@@ -398,6 +400,10 @@ private:
     std::string netName_;
     std::array<float, 4> color_{1.0F, 1.0F, 1.0F, 1.0F};
     HeadLightMode headLight_ = HeadLightMode::None;
+    // Portable counterpart of CarState::mapObj. Player::ReleaseCar detaches
+    // both spot lights and the night-flare actor without changing the
+    // selected HeadLightMode; CreateCar attaches them again.
+    bool carPresent_ = false;
     bool reflScene_ = true;
     bool energyDamageEffectCreated_ = false;
     std::vector<PlayerGameEvent> gameEvents_;
