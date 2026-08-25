@@ -1799,6 +1799,12 @@ int main(int argc, char** argv)
         const auto& languages = originalGameDataCatalog.languages;
         const auto& commentators =
             originalGameDataCatalog.commentatorStyles;
+        const auto& comments =
+            originalGameDataCatalog.commentator.comments;
+        const auto startComment = comments.find("raceStartTime2");
+        const auto inverseComment =
+            comments.find("playerMoveInverse");
+        const auto lastComment = comments.find("playerFinishLast");
         const bool sourceGameDataCatalogValid =
             languages.size() == 6U &&
             languages[0].name == "english" &&
@@ -1821,7 +1827,19 @@ int main(int argc, char** argv)
             languages[5].name == "german" &&
             languages[5].primaryId == 7 &&
             commentators == std::vector<std::string>{
-                "russian", "english"};
+                "russian", "english"} &&
+            originalGameDataCatalog.commentator.delay == 0.0F &&
+            comments.size() == 37U &&
+            startComment != comments.end() &&
+            startComment->second.voices.size() == 4U &&
+            startComment->second.voices.front().sound ==
+                "Voice\\start1.ogg" &&
+            inverseComment != comments.end() &&
+            inverseComment->second.busy ==
+                originalgamedata::CommentatorBusyAction::Queue &&
+            !inverseComment->second.repeatPlayer &&
+            lastComment != comments.end() &&
+            lastComment->second.voices.size() == 6U;
         if (!sourceGameDataCatalogValid)
         {
             std::cerr << "Serialized game.xml language/commentator catalog "
@@ -4572,7 +4590,7 @@ int main(int argc, char** argv)
     };
     engineAudioValid = engineAudioValid && preloadEffectAudio();
     rrr3d::audio::OriginalRaceCommentator commentator(
-        audio, *resources);
+        audio, *resources, originalGameDataCatalog);
     const bool commentatorValid = commentator.initialize(
         profileState.config.commentatorStyle, audioError);
     if (commentatorValid)

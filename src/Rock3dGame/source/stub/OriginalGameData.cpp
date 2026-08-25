@@ -6,6 +6,8 @@
 
 #include <array>
 #include <charconv>
+#include <cctype>
+#include <exception>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -77,6 +79,62 @@ int parsePrimaryId(std::string_view value, std::string_view language)
     return result;
 }
 
+std::string trim(std::string value)
+{
+    while (!value.empty() &&
+           std::isspace(static_cast<unsigned char>(value.front())) != 0)
+        value.erase(value.begin());
+    while (!value.empty() &&
+           std::isspace(static_cast<unsigned char>(value.back())) != 0)
+        value.pop_back();
+    return value;
+}
+
+float parseFloat(const TiXmlElement* parent, const char* name,
+                 std::string_view source)
+{
+    const std::string value = trim(requiredText(parent, name, source));
+    try
+    {
+        std::size_t consumed = 0U;
+        const float result = std::stof(value, &consumed);
+        if (consumed != value.size())
+            throw std::invalid_argument("trailing data");
+        return result;
+    }
+    catch (const std::exception&)
+    {
+        throw resource::ResourceError(
+            std::string(source) + ": invalid " + name);
+    }
+}
+
+bool parseBool(const TiXmlElement* parent, const char* name,
+               std::string_view source)
+{
+    const std::string value = trim(requiredText(parent, name, source));
+    if (value == "true" || value == "1")
+        return true;
+    if (value == "false" || value == "0")
+        return false;
+    throw resource::ResourceError(
+        std::string(source) + ": invalid " + name);
+}
+
+CommentatorBusyAction parseBusy(const TiXmlElement* parent,
+                                std::string_view source)
+{
+    const std::string value = trim(requiredText(parent, "busy", source));
+    if (value == "baSkip")
+        return CommentatorBusyAction::Skip;
+    if (value == "baQueue")
+        return CommentatorBusyAction::Queue;
+    if (value == "baReplace")
+        return CommentatorBusyAction::Replace;
+    throw resource::ResourceError(
+        std::string(source) + ": invalid busy action " + value);
+}
+
 } // namespace
 
 Catalog loadOriginalGameDataCatalog(
@@ -144,6 +202,62 @@ Catalog loadOriginalGameDataCatalog(
     {
         throw resource::ResourceError(
             "game.xml/commentators contains no styles");
+    }
+
+    const auto* commentator =
+        requiredChild(root, "commentator", "game.xml");
+    result.commentator.delay =
+        parseFloat(commentator, "delay", "game.xml/commentator");
+    const auto* comments = requiredChild(
+        commentator, "comments", "game.xml/commentator");
+    for (auto* entry = comments->FirstChildElement(); entry != nullptr;
+         entry = entry->NextSiblingElement())
+    {
+        const std::string name = entry->Value();
+        if (name.empty())
+        {
+            throw resource::ResourceError(
+                "game.xml/commentator contains an unnamed comment");
+        }
+        const std::string source =
+            "game.xml/commentator/comments/" + name;
+        CommentatorComment comment;
+        comment.chance = parseFloat(entry, "chance", source);
+        comment.delay = parseFloat(entry, "delay", source);
+        comment.busy = parseBusy(entry, source);
+        comment.repeatPlayer = parseBool(entry, "repeatPlayer", source);
+        const auto* voices = requiredChild(entry, "voices", source);
+        for (auto* voice = voices->FirstChildElement(); voice != nullptr;
+             voice = voice->NextSiblingElement())
+        {
+            const std::string voiceSource =
+                source + "/" + voice->Value();
+            CommentatorVoice item;
+            item.weight = parseFloat(voice, "weight", voiceSource);
+            item.startPlayer = parseBool(voice, "sPlayer", voiceSource);
+            item.endPlayer = parseBool(voice, "ePlayer", voiceSource);
+            item.humanOnly = parseBool(voice, "forHuman", voiceSource);
+            item.sound = trim(requiredText(voice, "sound", voiceSource));
+            comment.voices.push_back(std::move(item));
+        }
+        if (comment.voices.empty())
+        {
+            throw resource::ResourceError(
+                source + ": comment contains no voices");
+        }
+        const auto [stored, inserted] =
+            result.commentator.comments.emplace(name, std::move(comment));
+        static_cast<void>(stored);
+        if (!inserted)
+        {
+            throw resource::ResourceError(
+                source + ": duplicate comment name");
+        }
+    }
+    if (result.commentator.comments.empty())
+    {
+        throw resource::ResourceError(
+            "game.xml/commentator/comments is empty");
     }
     return result;
 }

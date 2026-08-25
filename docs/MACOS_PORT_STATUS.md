@@ -2069,3 +2069,16 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   незакрытую `scMaslo` во французском поставляемом файле.
 - Resource verification успешно выполнена отдельно для всех шести языков и
   проверяет точные 6/2 records и их source metadata.
+
+### Source Commentator descriptor/player-id follow-up
+
+- Единый `OriginalGameData` catalog теперь содержит полный
+  `Commentator::LoadGame`: global delay, 37 comments, busy/repeat state и все
+  weighted voice descriptors; audio runtime больше не имеет отдельного
+  permissive XML parser.
+- Выбранный commentator style проверяется по сериализованным двум стилям, а
+  недоступные в конкретном переводе Ogg остаются в descriptor и фильтруются
+  при `Generate`, как после `ResourceManager::LoadCommentator/CheckSounds`.
+- `forHuman`, `repeatPlayer` и prefix/suffix generation получают настоящий
+  битовый `Player::GetId`; countdown/race-finish без `EventData` используют
+  source `undefinedId`, а не ошибочный индекс машины 0.

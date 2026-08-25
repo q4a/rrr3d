@@ -1,5 +1,6 @@
 #pragma once
 
+#include "OriginalGameData.h"
 #include "OriginalRaceSession.h"
 #include "audio/AudioBackend.h"
 
@@ -23,7 +24,8 @@ class OriginalRaceCommentator
 public:
     OriginalRaceCommentator(
         r3d::audio::AudioBackend& audio,
-        const r3d::resource::ResourceFileSystem& resources);
+        const r3d::resource::ResourceFileSystem& resources,
+        const r3d::game::originalgamedata::Catalog& gameData);
     ~OriginalRaceCommentator();
 
     OriginalRaceCommentator(const OriginalRaceCommentator&) = delete;
@@ -76,7 +78,8 @@ private:
         float chance = 0.0F;
         float delay = 0.0F;
         float nextSeconds = 0.0F;
-        std::size_t lastPlayer = static_cast<std::size_t>(-1);
+        int lastPlayer =
+            r3d::game::originalrace::source::Player::undefinedId;
         BusyAction busy = BusyAction::Skip;
         bool repeatPlayer = true;
     };
@@ -84,19 +87,19 @@ private:
     void enqueue(
         std::string_view commentName,
         const r3d::game::originalrace::Race* race,
-        std::size_t racer,
+        std::size_t racer, int playerId,
         std::string& error);
     const CommentVoice* generate(
-        Comment& comment, std::size_t racer);
+        Comment& comment, int playerId);
     [[nodiscard]] bool isSpeaking() const noexcept;
     void playNext(std::string& error);
 
     r3d::audio::AudioBackend& audio_;
     const r3d::resource::ResourceFileSystem& resources_;
+    const r3d::game::originalgamedata::Catalog& gameData_;
     std::map<std::string, Comment> comments_;
     std::map<std::string, r3d::audio::SoundHandle> loadedSounds_;
     std::deque<r3d::audio::SoundHandle> queue_;
-    std::size_t humanRacer_ = static_cast<std::size_t>(-1);
     r3d::audio::VoiceHandle voice_ = r3d::audio::invalidVoice;
     float globalDelaySeconds_ = 0.0F;
     float timeSeconds_ = 0.0F;

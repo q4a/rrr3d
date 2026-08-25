@@ -1563,6 +1563,25 @@ French `scMaslo` отсутствует закрывающая кавычка. W
 последнее значение duplicate id и `\\n` replacement. Resource regression
 проверяет точные 6/2 records, metadata и успешную загрузку каждого языка.
 
+### P2.49 — единый `Commentator::LoadGame` и source player id — выполнено
+
+Portable audio раньше повторно и независимо разбирал
+`game.xml/commentator/comments`, используя собственные fallback-значения.
+Это создавало второй источник истины рядом с уже перенесённым
+`GameMode::LoadGameData`. Кроме того, `Commentator::Generate` получал индекс
+машины в portable-векторе. Windows передаёт битовый `Player::GetId`, а события
+без `EventData` используют `cUndefPlayerId`; именно этот id управляет
+`forHuman`, `repeatPlayer` и `lastPlayer`.
+
+Полная таблица `delay`, 37 comments, busy/repeat flags и все voice records
+теперь строго читается единым `OriginalGameData` loader. SDL-компонент только
+связывает эти descriptors с выбранным style и доступными Ogg, сохраняя
+исходную фильтрацию отсутствующих переводов. Runtime event adapter переводит
+индекс racer в настоящий source `playerId`; `raceStartTime2` и `raceFinish`
+передаются без игрока. Resource audit проверяет counts и ключевые queue/repeat/
+voice параметры. Audio, Jolt, 13 offline tests и 240-frame Metal race smoke
+проходят с общей таблицей.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
