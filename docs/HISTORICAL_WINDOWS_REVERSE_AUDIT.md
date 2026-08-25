@@ -1784,6 +1784,23 @@ voice/queue, запускает music с нулевым gain и повторяе
 profile regression уже требует, что config-only write не создаёт `race.xml`,
 `Profile/*` и `achievment.xml`.
 
+### P2.60 — точная граница `GameMode::ChangePlanet` — выполнено
+
+Сверка перехода из `AngarFrame` выявила преждевременный unlock в portable
+adapter. Windows вызывает `Planet::Unlock` только если завершена текущая
+планета и выбран ровно `Tournament::GetNextPlanet`; затем
+`Tournament::ChangePlanet` отдельно выполняет `Open`. Portable helper до
+этого безусловно вызывал `Unlock` для любого `psClosed`/`psUnavailable`,
+поэтому недоступная неследующая планета могла стать открытой и попасть в
+profile XML с неверным состоянием.
+
+Helper теперь сначала восстанавливает текущие planet/pass/track в перенесённом
+`source::Tournament`, принимает реальный `Race::GetPlanetChampion` state и
+разрешает `Unlock` только следующему миру. Обычная закрытая планета открывается
+самим `Tournament::ChangePlanet`; недоступная неследующая остаётся
+`psUnavailable` с исходным recovery-pass 1; повторный выбор текущей планеты не
+меняет её state. Regression фиксирует все три ветви и champion-переход.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

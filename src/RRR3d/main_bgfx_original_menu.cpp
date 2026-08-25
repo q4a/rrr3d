@@ -9068,7 +9068,8 @@ int main(int argc, char** argv)
         const bool newPlanet =
             progress.state == 1U || progress.state == 2U;
         if (!r3d::game::originalrace::changeOriginalTournamentPlanet(
-                *originalRace, index, profileState.player))
+                *originalRace, index, profileState.player,
+                racePlanetChampion))
         {
             std::cerr << "Original Tournament::ChangePlanet failed\n";
             runtimeSmokeFailed = true;

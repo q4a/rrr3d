@@ -4795,24 +4795,30 @@ void writeOriginalTournamentSelection(
 
 bool changeOriginalTournamentPlanet(
     const Race& race, std::size_t planetIndex,
-    PlayerProfile& profile) noexcept
+    PlayerProfile& profile, bool planetChampion) noexcept
 {
     try
     {
         auto tournament = makeSourceTournament(race, profile);
+        if (!tournament.Select(
+                profile.currentPlanet,
+                static_cast<int>(profile.currentPass),
+                profile.currentTrack))
+        {
+            return false;
+        }
         auto* planet = tournament.GetPlanet(planetIndex);
         if (planet == nullptr)
             return false;
 
-        // The Hangar flow unlocks a closed/unavailable destination before
-        // invoking the source Tournament::ChangePlanet method.  Completed
-        // planets must not be fed through Unlock because Windows uses that
-        // operation only while exposing entries to a new game mode.
-        if (planet->GetState() == source::Planet::psClosed ||
-            planet->GetState() == source::Planet::psUnavailable)
-        {
+        // GameMode::ChangePlanet unlocks exactly one destination: the next
+        // planet after Race::GetPlanetChampion. Tournament::ChangePlanet then
+        // opens it. A closed planet opens without this step, while an
+        // unavailable non-next planet stays unavailable and merely receives
+        // the source pass-one recovery value.
+        if (planetChampion &&
+            planet == tournament.GetNextPlanet())
             planet->Unlock();
-        }
         if (!tournament.ChangePlanet(planetIndex))
             return false;
 
@@ -4997,11 +5003,12 @@ bool runOriginalTournamentProgressSmokeTest(std::string& error)
     navigationRace.trackCatalog = {
         {"Data/Map/World1/map1.r3dMap", 4U, "wtWorld1", 0U, 1U},
         {"Data/Map/World2/map1.r3dMap", 4U, "wtWorld2", 1U, 1U},
+        {"Data/Map/World3/map1.r3dMap", 4U, "wtWorld3", 2U, 1U},
     };
     auto navigationProfile = makeOriginalDefaultProfileState().player;
     navigationProfile.planets[1] = {2U, 0U};
     if (!changeOriginalTournamentPlanet(
-            navigationRace, 1U, navigationProfile) ||
+            navigationRace, 1U, navigationProfile, true) ||
         navigationProfile.currentPlanet != 1U ||
         navigationProfile.currentTrack != 0U ||
         navigationProfile.currentPass != 1U ||
@@ -5011,6 +5018,33 @@ bool runOriginalTournamentProgressSmokeTest(std::string& error)
             navigationRace, navigationProfile) != 1U)
     {
         error = "source Tournament::ChangePlanet transition mismatch";
+        return false;
+    }
+
+    auto unavailableProfile = makeOriginalDefaultProfileState().player;
+    unavailableProfile.planets[1] = {2U, 0U};
+    unavailableProfile.planets[2] = {2U, 0U};
+    if (!changeOriginalTournamentPlanet(
+            navigationRace, 2U, unavailableProfile, false) ||
+        unavailableProfile.currentPlanet != 2U ||
+        unavailableProfile.currentPass != 1U ||
+        unavailableProfile.planets[2].state != 2U ||
+        unavailableProfile.planets[2].pass != 1U)
+    {
+        error =
+            "GameMode::ChangePlanet opened an unavailable non-next planet";
+        return false;
+    }
+
+    auto currentProfile = makeOriginalDefaultProfileState().player;
+    currentProfile.planets[0] = {1U, 1U};
+    if (!changeOriginalTournamentPlanet(
+            navigationRace, 0U, currentProfile, true) ||
+        currentProfile.currentPlanet != 0U ||
+        currentProfile.planets[0].state != 1U)
+    {
+        error =
+            "GameMode::ChangePlanet mutated the already-current planet";
         return false;
     }
 

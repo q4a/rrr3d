@@ -2195,3 +2195,15 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   записывает текущую гонку/achievements и не продвигает tournament.
 - Полное сохранение остаётся только на явных исходных Race/Menu boundaries;
   automated shutdown проверяет config path в изолированном временном store.
+
+### Source GameMode planet-transition follow-up
+
+- `GameMode::ChangePlanet` больше не открывает произвольный
+  `psClosed`/`psUnavailable` destination: `Planet::Unlock` разрешён только для
+  `GetNextPlanet` после подтверждённого planet champion.
+- Перед переходом adapter восстанавливает текущий planet/pass/track в
+  перенесённом `source::Tournament`, поэтому повторный выбор текущего мира и
+  `Tournament::ChangePlanet` имеют тот же порядок побочных эффектов, что и
+  Windows.
+- Tournament regression проверяет champion-next, unavailable non-next и
+  already-current branches, включая сохранённые state/pass значения.

@@ -905,7 +905,7 @@ void writeOriginalTournamentSelection(
     PlayerProfile& profile) noexcept;
 bool changeOriginalTournamentPlanet(
     const Race& race, std::size_t planetIndex,
-    PlayerProfile& profile) noexcept;
+    PlayerProfile& profile, bool planetChampion) noexcept;
 int originalTournamentRequestPoints(
     const Race& race, std::uint32_t pass) noexcept;
 TournamentAdvance completeOriginalTournamentTrack(
