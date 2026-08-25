@@ -467,6 +467,7 @@ private:
 
     const Race& race_;
     source::Trace sourceTrace_{4U};
+    source::TouchDeath groundTouchDeath_;
     RacePhase phase_ = RacePhase::Countdown;
     RacePhase phaseBeforePause_ = RacePhase::Countdown;
     float countdownSeconds_ = 4.0F;

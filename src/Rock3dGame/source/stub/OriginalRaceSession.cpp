@@ -3921,9 +3921,11 @@ void OriginalRaceSession::updateGameplay(
             racers_[racer].touchAttributionSeconds > 0.0F
                 ? racers_[racer].touchAttacker
                 : RacerRuntime::invalidWeapon;
+        if (!groundTouchDeath_.OnContact(&racers_[racer]))
+            continue;
         destroyRacer(
             racer, attacker, vehicles[racer].body.position,
-            vehicles[racer], DamageType::DeathPlane, false);
+            vehicles[racer], DamageType::DeathPlane, false, true);
     }
     for (std::size_t racer = 1;
          racer < vehicles.size() && racer < racers_.size(); ++racer)

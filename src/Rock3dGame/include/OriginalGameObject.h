@@ -109,11 +109,19 @@ public:
     DamageResult Damage(std::size_t senderPlayerId, float value,
                         float newLife, bool death,
                         DamageType damageType) noexcept;
+    bool Death(
+        DamageType damageType = DamageType::Simple) noexcept;
     bool OnProgress(float deltaTime) noexcept;
     bool HasPendingDestruction() const noexcept;
 
 private:
     bool checkDestruction_ = false;
+};
+
+class TouchDeath
+{
+public:
+    bool OnContact(GameObject* target) const noexcept;
 };
 
 // Backend-neutral state owned by the original GameBase behavior classes.

@@ -95,11 +95,9 @@ bool GameObject::Death(DamageType damageType) noexcept
 {
     if (destroyed)
         return false;
-    if (damageType != DamageType::Touch)
-    {
-        touchAttacker = undefinedPlayerId;
-        touchAttributionSeconds = 0.0F;
-    }
+    // Direct Death does not clear _touchPlayerId in the Windows source.
+    // TouchDeath relies on that distinction so an earlier car contact can
+    // still be attributed when the victim crosses the death plane.
     destroyed = true;
     return true;
 }
@@ -180,6 +178,13 @@ GameObject::DamageResult DestrObj::Damage(
     return result;
 }
 
+bool DestrObj::Death(DamageType damageType) noexcept
+{
+    const bool died = GameObject::Death(damageType);
+    checkDestruction_ = checkDestruction_ || died;
+    return died;
+}
+
 bool DestrObj::OnProgress(float deltaTime) noexcept
 {
     GameObject::OnProgress(deltaTime);
@@ -192,6 +197,11 @@ bool DestrObj::OnProgress(float deltaTime) noexcept
 bool DestrObj::HasPendingDestruction() const noexcept
 {
     return checkDestruction_;
+}
+
+bool TouchDeath::OnContact(GameObject* target) const noexcept
+{
+    return target != nullptr && target->Death(DamageType::DeathPlane);
 }
 
 LowLifePoints::LowLifePoints(float lifeLevel) noexcept

@@ -81,6 +81,11 @@ int main()
         destructible.HasPendingDestruction() ||
         destructible.OnProgress(0.0F))
         return 15;
+    destructible.Resc();
+    if (!destructible.Death(original::DamageType::DeathPlane) ||
+        !destructible.HasPendingDestruction() ||
+        !destructible.OnProgress(0.0F))
+        return 31;
 
     source::GameObject effectOwner;
     effectOwner.ResetGameObject(100.0F);
@@ -146,6 +151,15 @@ int main()
     if (!slowReleased.limitSpeed || !slowReleased.released ||
         slowEffect.IsEffectMaked())
         return 29;
+
+    source::GameObject falling;
+    falling.ResetGameObject(10.0F);
+    falling.Damage(8U, 0.0F, original::DamageType::Touch);
+    source::TouchDeath touchDeath;
+    if (!touchDeath.OnContact(&falling) || !falling.destroyed ||
+        falling.GetTouchPlayerId() != 8U ||
+        touchDeath.OnContact(&falling))
+        return 30;
 
     std::cout << "original GameObject/DestrObj/effect behavior source "
                  "rules passed\n";
