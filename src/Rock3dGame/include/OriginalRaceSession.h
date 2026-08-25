@@ -414,6 +414,9 @@ public:
     std::int32_t countdownStage() const noexcept;
     float elapsedSeconds() const noexcept;
     bool finishPresentationReady() const noexcept;
+    // GameMode::Pause couples World::Pause with Logic::Mute(scEffects).
+    // The audio backend consumes this state at its platform boundary.
+    bool effectsMuted() const noexcept;
     const std::vector<r3d::physics::VehicleInput>& vehicleInputs() const
         noexcept;
     const std::vector<RacerRuntime>& racers() const noexcept;

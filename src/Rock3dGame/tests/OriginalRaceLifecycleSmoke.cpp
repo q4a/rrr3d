@@ -21,10 +21,13 @@ int main()
         *gameAdvance.countdownStage != source::GameModeRaceState::goRace1)
         return 14;
     gameMode.Pause(true);
-    if (gameMode.OnFrame(2.0F).countdownStage ||
+    if (!gameMode.IsPaused() ||
+        gameMode.OnFrame(2.0F).countdownStage ||
         gameMode.CountdownStage() != source::GameModeRaceState::goRace1)
         return 15;
     gameMode.Pause(false);
+    if (gameMode.IsPaused())
+        return 22;
     gameMode.OnFrame(0.99F);
     if (gameMode.CountdownStage() != source::GameModeRaceState::goRace2)
         return 16;

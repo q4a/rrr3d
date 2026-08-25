@@ -1052,6 +1052,20 @@ lights продолжали освещать сцену из старой поз
 только для attached source Player и только в основном scene pass. Unit
 regression покрывает death/restore attachment lifecycle.
 
+### P2.23 — GameMode pause/effects coupling — выполнено
+
+Подтвердилось, что portable HudMenu pause останавливал Jolt/session, но не
+выполнял вторую половину оригинального `GameMode::Pause`:
+`Logic::Mute(Logic::scEffects, pause)`. Поэтому loop-голоса мотора, шин и
+эффектов продолжали микшироваться за modal exit dialog.
+
+Все race pause/resume/exit/failure переходы теперь проходят через одну
+границу: source `GameModeRaceState` останавливает clocks, а SDL adapter
+устанавливает только Effects bus в `0` и возвращает сохранённый options
+volume при resume. Music и Voice не приглушаются, точно как в Windows.
+Session и integrated renderer smoke проверяют frozen countdown/world,
+effects mute и восстановление громкости.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

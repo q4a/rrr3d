@@ -5606,6 +5606,7 @@ int main(int argc, char** argv)
     bool racePauseDialogObserved = !options->raceRenderSmokeTest;
     bool racePauseResumeObserved = !options->raceRenderSmokeTest;
     bool racePauseFrozenObserved = !options->raceRenderSmokeTest;
+    bool raceEffectsMuteObserved = !options->raceRenderSmokeTest;
     bool raceChatInputObserved = !options->raceRenderSmokeTest;
     bool raceChatLineObserved = !options->raceRenderSmokeTest;
     bool racePlayerDestroyedObserved = false;
@@ -6976,6 +6977,19 @@ int main(int argc, char** argv)
         raceFireWeaponSlotRequested = -1;
         raceResetRequested = false;
     };
+    auto setRacePaused = [&](bool paused) {
+        // Exact GameMode::Pause boundary: the world clock is stopped while
+        // Logic::scEffects is volume-muted. Music and Voice are deliberately
+        // untouched by the Windows source.
+        raceSession.setPaused(paused);
+#ifdef RRR3D_AUDIO
+        audio.setBusVolume(
+            r3d::audio::Bus::Effects,
+            raceSession.effectsMuted()
+                ? 0.0F
+                : profileState.config.effectsVolume);
+#endif
+    };
     auto closeExitRaceDialog = [&]() {
         const auto humanRacer = raceSession.humanRacer();
         if (options->raceRenderSmokeTest &&
@@ -6996,7 +7010,12 @@ int main(int argc, char** argv)
                 dx * dx + dy * dy + dz * dz < 0.000001F;
         }
         exitRaceDialogVisible = false;
-        raceSession.setPaused(false);
+        setRacePaused(false);
+#ifdef RRR3D_AUDIO
+        raceEffectsMuteObserved = raceEffectsMuteObserved &&
+            std::abs(audio.busVolume(r3d::audio::Bus::Effects) -
+                     profileState.config.effectsVolume) < 0.0001F;
+#endif
         clearRaceControls();
         previousFrameTicks = SDL_GetTicksNS();
         racePauseResumeObserved = true;
@@ -7014,7 +7033,11 @@ int main(int argc, char** argv)
         // must continue to simulate behind it.
         if (!networkMatchStarted)
 #endif
-            raceSession.setPaused(true);
+            setRacePaused(true);
+#ifdef RRR3D_AUDIO
+        raceEffectsMuteObserved = raceEffectsMuteObserved ||
+            audio.busVolume(r3d::audio::Bus::Effects) == 0.0F;
+#endif
         clearRaceControls();
         racePauseElapsedSnapshot = raceSession.elapsedSeconds();
         const auto humanRacer = raceSession.humanRacer();
@@ -7099,7 +7122,7 @@ int main(int argc, char** argv)
 #else
         static_cast<void>(publishNetworkRaceExit);
 #endif
-        raceSession.setPaused(false);
+        setRacePaused(false);
         exitRaceDialogVisible = false;
         if (showFinishMenu)
             showFinishMenu(false);
@@ -7325,7 +7348,7 @@ int main(int argc, char** argv)
             leaveCurrentRace(false);
         else
         {
-            raceSession.setPaused(false);
+            setRacePaused(false);
             raceLoadingActive = false;
             clearRaceControls();
             saveRaceProfile();
@@ -7450,7 +7473,7 @@ int main(int argc, char** argv)
         if (networkFailureDialogAction ==
             NetworkFailureDialogAction::ExitMatch)
         {
-            raceSession.setPaused(true);
+            setRacePaused(true);
             clearRaceControls();
         }
         const auto message =
@@ -21762,6 +21785,7 @@ int main(int argc, char** argv)
                     !racePauseDialogObserved ||
                     !racePauseResumeObserved ||
                     !racePauseFrozenObserved ||
+                    !raceEffectsMuteObserved ||
                     !raceChatInputObserved ||
                     !raceChatLineObserved ||
                     raceChatSmokeStep != 4U ||
@@ -21829,7 +21853,8 @@ int main(int argc, char** argv)
                         << ", pause="
                         << racePauseDialogObserved << '/'
                         << racePauseResumeObserved << '/'
-                        << racePauseFrozenObserved << ", chat="
+                        << racePauseFrozenObserved << '/'
+                        << raceEffectsMuteObserved << ", chat="
                         << raceChatInputObserved << '/'
                         << raceChatLineObserved << '/'
                         << raceChatSmokeStep << ", destroyed="

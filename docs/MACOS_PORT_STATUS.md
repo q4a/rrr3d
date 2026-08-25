@@ -1886,3 +1886,12 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   с отсутствующими `gpReflScene/gpReflWater` в исходном `GraphDesc`.
 - Renderer больше не выводит flare по одной только погоде: он читает
   `Player::HasAttachedLights()`.
+
+### Source GameMode pause audio follow-up
+
+- Перенесён полный `GameMode::Pause`: world/session clocks и Jolt frozen,
+  `Logic::scEffects` отображается в нулевую громкость SDL Effects bus.
+- Resume восстанавливает актуальный `effectsVolume`; Music/Voice остаются
+  нетронутыми по исходному коду.
+- Integrated smoke проверяет mute и restore вместе с уже существующей
+  проверкой неподвижного автомобиля и замороженного race time.

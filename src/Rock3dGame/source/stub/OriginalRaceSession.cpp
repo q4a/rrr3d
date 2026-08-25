@@ -2112,6 +2112,11 @@ bool OriginalRaceSession::finishPresentationReady() const noexcept
            gameModeRaceState_.IsFinishPresentationReady();
 }
 
+bool OriginalRaceSession::effectsMuted() const noexcept
+{
+    return gameModeRaceState_.IsPaused();
+}
+
 const std::vector<r3d::physics::VehicleInput>&
 OriginalRaceSession::vehicleInputs() const noexcept
 {
@@ -6355,6 +6360,22 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
         {
             throw std::runtime_error(
                 "offline cGoRaceWait source stage was not initialized");
+        }
+        session.setPaused(true);
+        session.update(0.1F, vehicles, input);
+        if (session.phase() != RacePhase::Paused ||
+            !session.effectsMuted() ||
+            session.countdownSeconds() != 4.0F)
+        {
+            throw std::runtime_error(
+                "GameMode::Pause world/effects state mismatch");
+        }
+        session.setPaused(false);
+        if (session.phase() != RacePhase::Countdown ||
+            session.effectsMuted())
+        {
+            throw std::runtime_error(
+                "GameMode::Pause effects restore mismatch");
         }
         for (int frame = 0; frame < 11; ++frame)
             session.update(0.1F, vehicles, input);
