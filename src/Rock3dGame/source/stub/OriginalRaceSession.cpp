@@ -1450,16 +1450,23 @@ void OriginalRaceSession::writePlayerProfile(
         slot.charge = charge;
         slot.hasCharge = true;
     };
-    writeWeapon(PlayerProfile::hyperSlot, runtime.hyperWeapon,
-                runtime.hyperCapacity);
-    writeWeapon(PlayerProfile::mineSlot, runtime.mineWeapon,
-                runtime.mineCapacity);
+    const auto* hyperItem = runtime.GetHyperWeaponItem();
+    const auto* mineItem = runtime.GetMineWeaponItem();
+    writeWeapon(
+        PlayerProfile::hyperSlot, runtime.hyperWeapon,
+        hyperItem != nullptr ? hyperItem->GetCntCharge() : 0U);
+    writeWeapon(
+        PlayerProfile::mineSlot, runtime.mineWeapon,
+        mineItem != nullptr ? mineItem->GetCntCharge() : 0U);
+    const auto primaryItems = runtime.GetPrimaryWeaponItems();
     for (std::size_t slot = 0;
          slot < PlayerProfile::weaponSlotCount; ++slot)
     {
         writeWeapon(PlayerProfile::firstWeaponSlot + slot,
                     runtime.weaponSlots[slot],
-                    runtime.weaponCapacity[slot]);
+                    primaryItems[slot] != nullptr
+                        ? primaryItems[slot]->GetCntCharge()
+                        : 0U);
     }
 }
 
@@ -5570,6 +5577,7 @@ void OriginalRaceSession::updateGameplay(
 
         std::array<source::AICar::AttackWeapon,
                    PlayerProfile::weaponSlotCount> attackWeapons{};
+        const auto primaryItems = runtime.GetPrimaryWeaponItems();
         std::size_t attackWeaponCount = 0U;
         for (std::size_t slot = 0U;
              slot < runtime.weaponSlots.size(); ++slot)
@@ -5586,8 +5594,11 @@ void OriginalRaceSession::updateGameplay(
             state.slot = slot;
             state.projectileType = weapon.projectileType;
             state.maximumDistance = weapon.maximumDistance;
-            state.capacity = runtime.weaponCapacity[slot];
-            state.charge = runtime.weaponCharges[slot];
+            const auto* item = primaryItems[slot];
+            state.capacity =
+                item != nullptr ? item->GetCntCharge() : 0U;
+            state.charge =
+                item != nullptr ? item->GetCurCharge() : 0U;
             state.ready =
                 runtime.GetWeaponRack().primary[slot].IsReadyShot(
                     std::max(weapon.shotDelay, 0.25F));
@@ -5605,20 +5616,26 @@ void OriginalRaceSession::updateGameplay(
         if (runtime.hyperWeapon != RacerRuntime::invalidWeapon &&
             runtime.hyperWeapon < race_.weapons.size())
         {
+            const auto* item = runtime.GetHyperWeaponItem();
             context.hyper.installed = true;
             context.hyper.projectileSpeed =
                 race_.weapons[runtime.hyperWeapon].projectileSpeed;
-            context.hyper.capacity = runtime.hyperCapacity;
-            context.hyper.charge = runtime.hyperCharge;
+            context.hyper.capacity =
+                item != nullptr ? item->GetCntCharge() : 0U;
+            context.hyper.charge =
+                item != nullptr ? item->GetCurCharge() : 0U;
         }
         if (runtime.mineWeapon != RacerRuntime::invalidWeapon &&
             runtime.mineWeapon < race_.weapons.size())
         {
+            const auto* item = runtime.GetMineWeaponItem();
             context.mine.installed = true;
             context.mine.oil =
                 runtime.GetWeaponRack().mine.IsMaslo();
-            context.mine.capacity = runtime.mineCapacity;
-            context.mine.charge = runtime.mines;
+            context.mine.capacity =
+                item != nullptr ? item->GetCntCharge() : 0U;
+            context.mine.charge =
+                item != nullptr ? item->GetCurCharge() : 0U;
         }
 
         const auto decision = aiPlayers_[racer].UpdateAttack(

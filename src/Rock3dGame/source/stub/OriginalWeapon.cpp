@@ -862,9 +862,19 @@ std::uint32_t WeaponItem::GetMaxCharge() const noexcept
     return maximumCharge_;
 }
 
+void WeaponItem::SetMaxCharge(std::uint32_t value) noexcept
+{
+    maximumCharge_ = value;
+}
+
 std::uint32_t WeaponItem::GetCntCharge() const noexcept
 {
     return countCharge_;
+}
+
+void WeaponItem::SetCntCharge(std::uint32_t value) noexcept
+{
+    countCharge_ = value;
 }
 
 std::uint32_t WeaponItem::GetCurCharge() const noexcept
@@ -872,9 +882,20 @@ std::uint32_t WeaponItem::GetCurCharge() const noexcept
     return currentCharge_ != nullptr ? *currentCharge_ : 0U;
 }
 
+void WeaponItem::SetCurCharge(std::uint32_t value) noexcept
+{
+    if (currentCharge_ != nullptr)
+        *currentCharge_ = value;
+}
+
 std::uint32_t WeaponItem::GetChargeStep() const noexcept
 {
     return chargeStep_;
+}
+
+void WeaponItem::SetChargeStep(std::uint32_t value) noexcept
+{
+    chargeStep_ = value;
 }
 
 float WeaponItem::GetDamage() const noexcept
@@ -882,9 +903,22 @@ float WeaponItem::GetDamage() const noexcept
     return damage_;
 }
 
+void WeaponItem::SetDamage(float value) noexcept
+{
+    // Kept for serialized source compatibility. Player.cpp::GetDamage uses
+    // projectile descriptors for statistics; gameplay projectile damage is
+    // likewise read from WeaponDefinition rather than this legacy field.
+    damage_ = value;
+}
+
 int WeaponItem::GetChargeCost() const noexcept
 {
     return chargeCost_;
+}
+
+void WeaponItem::SetChargeCost(int value) noexcept
+{
+    chargeCost_ = value;
 }
 
 Weapon* WeaponItem::GetWeapon() const noexcept

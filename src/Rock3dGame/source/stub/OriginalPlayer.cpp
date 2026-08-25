@@ -727,7 +727,10 @@ void Player::SyncSelectedWeapon(
             continue;
         selectedWeaponSlot = slot;
         selectedWeapon = weapon;
-        ammunition = weaponCharges[slot];
+        const auto items = GetPrimaryWeaponItems();
+        ammunition = items[slot] != nullptr
+                         ? items[slot]->GetCurCharge()
+                         : weaponCharges[slot];
         return;
     }
     selectedWeapon = invalidWeapon;
@@ -922,38 +925,39 @@ PlayerBonusResult Player::TakeAmmunition(
 {
     struct RechargeTarget
     {
-        std::uint32_t* current = nullptr;
-        std::uint32_t capacity = 0U;
+        WeaponItem* item = nullptr;
         std::size_t weapon = invalidWeapon;
         PlayerBonusSlot slot = PlayerBonusSlot::None;
     };
     std::vector<RechargeTarget> targets;
     targets.reserve(weaponSlots.size() + 2U);
-    if (hyperWeapon != invalidWeapon &&
+    auto* hyperItem = GetHyperWeaponItem();
+    if (hyperItem != nullptr && hyperWeapon != invalidWeapon &&
         hyperWeapon < maximumCharges.size() &&
-        hyperCharge < hyperCapacity)
+        hyperItem->GetCurCharge() < hyperItem->GetCntCharge())
     {
         targets.push_back(
-            {&hyperCharge, hyperCapacity, hyperWeapon,
-             PlayerBonusSlot::Hyper});
+            {hyperItem, hyperWeapon, PlayerBonusSlot::Hyper});
     }
-    if (mineWeapon != invalidWeapon &&
+    auto* mineItem = GetMineWeaponItem();
+    if (mineItem != nullptr && mineWeapon != invalidWeapon &&
         mineWeapon < maximumCharges.size() &&
-        mines < mineCapacity)
+        mineItem->GetCurCharge() < mineItem->GetCntCharge())
     {
         targets.push_back(
-            {&mines, mineCapacity, mineWeapon,
-             PlayerBonusSlot::Mine});
+            {mineItem, mineWeapon, PlayerBonusSlot::Mine});
     }
+    const auto primaryItems = GetPrimaryWeaponItems();
     for (std::size_t slot = 0U; slot < weaponSlots.size(); ++slot)
     {
         const auto weapon = weaponSlots[slot];
-        if (weapon == invalidWeapon || weapon >= maximumCharges.size() ||
-            weaponCharges[slot] >= weaponCapacity[slot])
+        auto* item = primaryItems[slot];
+        if (item == nullptr || weapon == invalidWeapon ||
+            weapon >= maximumCharges.size() ||
+            item->GetCurCharge() >= item->GetCntCharge())
             continue;
         targets.push_back(
-            {&weaponCharges[slot], weaponCapacity[slot], weapon,
-             PlayerBonusSlot::Primary});
+            {item, weapon, PlayerBonusSlot::Primary});
     }
     PlayerBonusResult result;
     if (!targets.empty())
@@ -962,8 +966,9 @@ PlayerBonusResult Player::TakeAmmunition(
             targets.size(), randomUnit)];
         const auto amount = BonusCharge(
             maximumCharges[target.weapon], value);
-        *target.current = std::min(
-            *target.current + amount, target.capacity);
+        target.item->SetCurCharge(std::min(
+            target.item->GetCurCharge() + amount,
+            target.item->GetCntCharge()));
         result = {target.slot, target.weapon, amount};
     }
     SyncSelectedWeapon(maximumCharges.size());

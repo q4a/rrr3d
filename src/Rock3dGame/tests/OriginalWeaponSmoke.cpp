@@ -97,6 +97,17 @@ int main()
     if (item.IsInstalled() || item.IsReadyShot() ||
         item.GetWeapon() != nullptr || item.Shot(true) || charge != 4U)
         return 11;
+    item.SetMaxCharge(9U);
+    item.SetCntCharge(5U);
+    item.SetCurCharge(3U);
+    item.SetChargeStep(3U);
+    item.SetDamage(13.5F);
+    item.SetChargeCost(125);
+    if (item.GetMaxCharge() != 9U || item.GetCntCharge() != 5U ||
+        item.GetCurCharge() != 3U || item.GetChargeStep() != 3U ||
+        std::abs(item.GetDamage() - 13.5F) > 0.0001F ||
+        item.GetChargeCost() != 125 || charge != 3U)
+        return 11;
 
     // maxCharge==0 is the original infinite-ammunition sentinel.  It must
     // still create a shot at currentCharge==0 and clamp the decrement to 0.

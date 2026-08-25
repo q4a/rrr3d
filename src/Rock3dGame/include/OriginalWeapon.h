@@ -339,11 +339,17 @@ public:
     bool HasShotCharge() const noexcept;
 
     std::uint32_t GetMaxCharge() const noexcept;
+    void SetMaxCharge(std::uint32_t value) noexcept;
     std::uint32_t GetCntCharge() const noexcept;
+    void SetCntCharge(std::uint32_t value) noexcept;
     std::uint32_t GetCurCharge() const noexcept;
+    void SetCurCharge(std::uint32_t value) noexcept;
     std::uint32_t GetChargeStep() const noexcept;
+    void SetChargeStep(std::uint32_t value) noexcept;
     float GetDamage() const noexcept;
+    void SetDamage(float value) noexcept;
     int GetChargeCost() const noexcept;
+    void SetChargeCost(int value) noexcept;
     Weapon* GetWeapon() const noexcept;
     Weapon::Desc GetDesc() const;
 

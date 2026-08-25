@@ -1016,6 +1016,7 @@ void OriginalRaceHud::update(
                 std::to_string(race.lapCount),
             25.0F, true, white);
     selectedWeaponSlot_ = player.selectedWeaponSlot;
+    const auto primaryItems = player.GetPrimaryWeaponItems();
     for (std::size_t slot = 0; slot < weaponAmmo_.size(); ++slot)
     {
         weaponVisible_[slot] =
@@ -1025,18 +1026,33 @@ void OriginalRaceHud::update(
         weaponVisualIndices_[slot] = player.weaponSlots[slot];
         setText(device, weaponAmmo_[slot],
                 weaponVisible_[slot]
-                    ? std::to_string(player.weaponCharges[slot]) + "/" +
-                          std::to_string(player.weaponCapacity[slot])
+                    ? std::to_string(
+                          primaryItems[slot] != nullptr
+                              ? primaryItems[slot]->GetCurCharge()
+                              : 0U) +
+                          "/" +
+                          std::to_string(
+                              primaryItems[slot] != nullptr
+                                  ? primaryItems[slot]->GetCntCharge()
+                                  : 0U)
                     : std::string{},
                 18.0F, true, white);
     }
+    const auto* mineItem = player.GetMineWeaponItem();
+    const auto* hyperItem = player.GetHyperWeaponItem();
     setText(device, mineAmmo_,
-            std::to_string(player.mines) + "/" +
-                std::to_string(player.mineCapacity),
+            std::to_string(
+                mineItem != nullptr ? mineItem->GetCurCharge() : 0U) +
+                "/" +
+                std::to_string(
+                    mineItem != nullptr ? mineItem->GetCntCharge() : 0U),
             18.0F, true, white);
     setText(device, hyperAmmo_,
-            std::to_string(player.hyperCharge) + "/" +
-                std::to_string(player.hyperCapacity),
+            std::to_string(
+                hyperItem != nullptr ? hyperItem->GetCurCharge() : 0U) +
+                "/" +
+                std::to_string(
+                    hyperItem != nullptr ? hyperItem->GetCntCharge() : 0U),
             18.0F, true, white);
     mineVisualIndex_ = player.mineWeapon;
     hyperVisualIndex_ = player.hyperWeapon;

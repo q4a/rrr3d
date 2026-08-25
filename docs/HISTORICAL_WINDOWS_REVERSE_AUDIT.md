@@ -1364,6 +1364,26 @@ weapon actor (`_inst`), а `OnDestroyCar` освобождает его. Поэ�
 машины. Regression проверяет detached/attached/detached/respawn-переходы для
 обычного оружия и Droid, включая live `Garage::InstalSlot` replacement.
 
+### P2.40 — WeaponItem charge API in active consumers — выполнено
+
+После lifecycle-аудита подтвердился следующий обход исходного владельца:
+HUD, AI attack context, ammunition bonus, selected-weapon state и запись
+профиля читали публичные staging-массивы `RacerRuntime`, хотя Windows всегда
+обращается к установленному `WeaponItem::GetCurCharge/GetCntCharge`. Это
+оставляло два пути доступа к одному заряду и позволяло UI/AI увидеть не тот
+предмет после live replacement физического слота.
+
+Восстановлен полный изменяемый API исходного `WeaponItem`:
+`SetMaxCharge`, `SetCntCharge`, `SetCurCharge`, `SetChargeStep`, `SetDamage` и
+`SetChargeCost`. Active HUD, profile writer, AI primary/Hyper/Mine context,
+выбор оружия и `Player::TakeAmmunition` теперь читают и меняют Slot-owned
+`WeaponItem`; бонус выбирает только реально неполный установленный предмет и
+записывает заряд через `SetCurCharge`. Старые arrays пока остаются только как
+инициализационное хранилище до `BindWeaponItems` и compatibility surface для
+session regression; удаление этого staging требует отдельной перестановки
+порядка profile/loadout binding. Regression проверяет весь mutable API и
+общую storage identity с текущим зарядом.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
