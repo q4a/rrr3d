@@ -1646,6 +1646,7 @@ float earlierPositiveTimeLife(float parent, float child)
 void appendParticleEmitters(
     const resource::ResourceFileSystem& resources,
     TiXmlElement* record, const Transform& parentTransform,
+    const Transform& sourceOwnerTransform,
     ObjectDefinition& definition, std::string_view source,
     float ownerMaximumTimeLife, TiXmlElement* nestedNodes = nullptr,
     std::int32_t parentEmitter = -1)
@@ -1654,7 +1655,7 @@ void appendParticleEmitters(
     // These are properties of the source GameObject, not of the flattened
     // parent definition.
     const bool waitForParticleEnd = hasBehaviorType(record, "2");
-    const bool inheritSourceVelocity = hasBehaviorType(record, "3");
+    const bool sourceSpeedBehavior = hasBehaviorType(record, "3");
     auto* nodes = nestedNodes != nullptr
                       ? nestedNodes
                       : child(record, "grActor/nodes/items");
@@ -1680,6 +1681,7 @@ void appendParticleEmitters(
                         resources, record,
                         compose(nodeTransform,
                                 elementTransform(childNode, source)),
+                        sourceOwnerTransform,
                         definition, source, ownerMaximumTimeLife,
                         childNodes, parentEmitter);
                 }
@@ -1831,6 +1833,7 @@ void appendParticleEmitters(
             emitter.materials = materials;
             emitter.nodeVisuals = nodeVisuals;
             emitter.parentEmitter = parentEmitter;
+            emitter.sourceOwnerTransform = sourceOwnerTransform;
             emitter.fixedDirection = fixedDirection;
             emitter.renderMode = renderMode;
             emitter.animationMode = animationMode;
@@ -1980,7 +1983,7 @@ void appendParticleEmitters(
                     std::string_view(coordinates->GetText()) ==
                     "true";
             }
-            emitter.inheritSourceVelocity = inheritSourceVelocity;
+            emitter.sourceSpeedBehavior = sourceSpeedBehavior;
             emitter.waitForParticleEnd = waitForParticleEnd;
             emitter.emissionDuration = ownerMaximumTimeLife;
             if (auto* rotateNode = child(sourceEmitter, "autoRot");
@@ -2031,8 +2034,9 @@ void appendParticleEmitters(
                 {
                     appendParticleEmitters(
                         resources, record,
-                        elementTransform(childNode, source), definition,
-                        source, ownerMaximumTimeLife, childNodes,
+                        elementTransform(childNode, source),
+                        sourceOwnerTransform, definition, source,
+                        ownerMaximumTimeLife, childNodes,
                         static_cast<std::int32_t>(owner));
                 }
             }
@@ -2118,8 +2122,9 @@ void appendIncludedEffects(
         const std::size_t firstEmitter =
             definition.particleEmitters.size();
         appendParticleEmitters(
-            resources, includedRecord, includeTransform, definition,
-            source, ownerMaximumTimeLife);
+            resources, includedRecord, includeTransform,
+            includeTransform, definition, source,
+            ownerMaximumTimeLife);
         // Serialized include instances carry their own Behavior list.  It
         // is authoritative for anonymous objects and can add runtime
         // behaviors to a referenced record (rocket/smoke2 is one such
@@ -2132,9 +2137,9 @@ void appendIncludedEffects(
             definition.particleEmitters[emitter].waitForParticleEnd =
                 definition.particleEmitters[emitter].waitForParticleEnd ||
                 inlineWaitingEnd;
-            definition.particleEmitters[emitter].inheritSourceVelocity =
+            definition.particleEmitters[emitter].sourceSpeedBehavior =
                 definition.particleEmitters[emitter]
-                    .inheritSourceVelocity || inlineSourceSpeed;
+                    .sourceSpeedBehavior || inlineSourceSpeed;
         }
 
         // Only LifeEffect (BehaviorType 7) starts its sound by itself when
@@ -2240,7 +2245,7 @@ ObjectDefinition objectDefinition(
     result.visualNodes = visualNodes(resources, dbRecord, source);
     const float rootMaximumTimeLife = positiveTimeLife(dbRecord);
     appendParticleEmitters(
-        resources, dbRecord, Transform{}, result, source,
+        resources, dbRecord, Transform{}, Transform{}, result, source,
         rootMaximumTimeLife);
     appendIncludedEffects(
         resources, database, dbRecord, Transform{}, result, source, 0U,
@@ -5591,11 +5596,11 @@ bool runOriginalRaceResourceSmokeTest(
             {
                 const bool fire2 = emitter.sourceRecord == "fire2";
                 sawFire2Emitter = sawFire2Emitter || fire2;
-                if (emitter.inheritSourceVelocity)
+                if (emitter.sourceSpeedBehavior)
                     ++inheritedVelocityEmitterCount;
                 invalidParticleBehavior = invalidParticleBehavior ||
-                    (emitter.inheritSourceVelocity != fire2) ||
-                    (emitter.inheritSourceVelocity &&
+                    (emitter.sourceSpeedBehavior != fire2) ||
+                    (emitter.sourceSpeedBehavior &&
                      !emitter.waitForParticleEnd);
             }
             for (const auto& piece : definition.destructionPieces)

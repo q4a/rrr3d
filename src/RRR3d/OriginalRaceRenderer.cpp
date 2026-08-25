@@ -1,6 +1,7 @@
 #include "OriginalRaceRenderer.h"
 
 #include "OriginalGameCar.h"
+#include "OriginalGameObject.h"
 #include "OriginalMainMenu.h"
 #include "resource/ResourceFileSystem.h"
 #include "rrr3d_fs_bloom_blur.bin.h"
@@ -3949,10 +3950,30 @@ void OriginalRaceRenderer::draw(
                 };
                 std::vector<ScheduledGroup> scheduledGroups;
                 std::vector<LiveGroup> liveGroups;
+                // sotDist observes the newest particle in emitter-local
+                // space. FxSystemSrcSpeed cancels owner motion there, so the
+                // source cadence is driven by the particle's own flow speed,
+                // not by the car/projectile speed.
+                const auto meanSquareRange =
+                    [](float minimum, float maximum) noexcept {
+                        // E[x^2] for the source's uniform range. Using the
+                        // RMS speed also handles symmetric spark/smoke
+                        // ranges whose mean vector is zero although every
+                        // emitted particle is moving.
+                        return (minimum * minimum +
+                                minimum * maximum +
+                                maximum * maximum) / 3.0F;
+                    };
                 const float distanceSpeed = std::sqrt(
-                    sourceVelocity.x * sourceVelocity.x +
-                    sourceVelocity.y * sourceVelocity.y +
-                    sourceVelocity.z * sourceVelocity.z);
+                    meanSquareRange(
+                        emitter.velocityMinimum.x,
+                        emitter.velocityMaximum.x) +
+                    meanSquareRange(
+                        emitter.velocityMinimum.y,
+                        emitter.velocityMaximum.y) +
+                    meanSquareRange(
+                        emitter.velocityMinimum.z,
+                        emitter.velocityMaximum.z));
                 const float scheduleAge =
                     emitter.distanceTriggered
                         ? age * distanceSpeed
@@ -4090,6 +4111,32 @@ void OriginalRaceRenderer::draw(
                 const auto emitterWorld = compose(
                     parent,
                     sourceAnimatedNodeTransform(emitter, age));
+                r3d::physics::Vec3 inheritedSourceVelocity{};
+                if (emitter.sourceSpeedBehavior)
+                {
+                    const auto ownerWorld = compose(
+                        parent, emitter.sourceOwnerTransform);
+                    r3d::game::originalrace::source::
+                        FxSystemSrcSpeed sourceSpeed;
+                    const r3d::game::originalrace::source::
+                        FxSystemSrcSpeed::ParentTransform sourceParent{
+                            {ownerWorld.scale.x, ownerWorld.scale.y,
+                             ownerWorld.scale.z},
+                            {ownerWorld.rotation.x, ownerWorld.rotation.y,
+                             ownerWorld.rotation.z,
+                             ownerWorld.rotation.w}};
+                    sourceSpeed.OnProgress(
+                        true,
+                        {sourceVelocity.x, sourceVelocity.y,
+                         sourceVelocity.z},
+                        &sourceParent);
+                    const auto& localSource =
+                        sourceSpeed.GetSourceSpeed();
+                    inheritedSourceVelocity = transformNormal(
+                        ownerWorld,
+                        {localSource.x, localSource.y,
+                         localSource.z});
+                }
                 std::vector<r3d::physics::Vec3> trailPoints;
                 struct TrailStyle
                 {
@@ -4247,7 +4294,7 @@ void OriginalRaceRenderer::draw(
                             particleVelocity.z +=
                                 emitter.gravity.z * particleAge;
                         }
-                        if (emitter.inheritSourceVelocity)
+                        if (emitter.sourceSpeedBehavior)
                         {
                             // FxFlowEmitter adds FxSystem::srcSpeed to the
                             // particle velocity at birth.  SrcSpeed is the
@@ -4255,9 +4302,12 @@ void OriginalRaceRenderer::draw(
                             // only set by FxSystemSrcSpeed. It is separate
                             // from the world-coordinate birth-position
                             // reconstruction above.
-                            particleVelocity.x += sourceVelocity.x;
-                            particleVelocity.y += sourceVelocity.y;
-                            particleVelocity.z += sourceVelocity.z;
+                            particleVelocity.x +=
+                                inheritedSourceVelocity.x;
+                            particleVelocity.y +=
+                                inheritedSourceVelocity.y;
+                            particleVelocity.z +=
+                                inheritedSourceVelocity.z;
                         }
                         if (emitter.autoRotate)
                         {
@@ -4305,14 +4355,14 @@ void OriginalRaceRenderer::draw(
                                 emitter.gravity.z * particleAge *
                                 particleAge * 0.5F;
                         }
-                        if (emitter.inheritSourceVelocity)
+                        if (emitter.sourceSpeedBehavior)
                         {
                             world.position.x +=
-                                sourceVelocity.x * particleAge;
+                                inheritedSourceVelocity.x * particleAge;
                             world.position.y +=
-                                sourceVelocity.y * particleAge;
+                                inheritedSourceVelocity.y * particleAge;
                             world.position.z +=
-                                sourceVelocity.z * particleAge;
+                                inheritedSourceVelocity.z * particleAge;
                         }
                         // FxParticleSystem::OnUpdateParticle only copies the
                         // particle's world position into its child node; the

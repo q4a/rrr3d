@@ -220,6 +220,29 @@ int main()
         deathEffect.GetTargetChild() || deathEffect.IsEffectMaked())
         return 44;
 
+    source::FxSystemSrcSpeed sourceSpeed;
+    if (sourceSpeed.OnProgress(false, {3.0F, 4.0F, 5.0F}))
+        return 45;
+    const source::FxSystemSrcSpeed::ParentTransform speedParent{
+        {2.0F, 4.0F, 5.0F},
+        {0.0F, 0.0F, 0.70710678F, 0.70710678F}};
+    if (!sourceSpeed.OnProgress(
+            true, {0.0F, 4.0F, 10.0F}, &speedParent))
+        return 46;
+    const auto localSourceSpeed = sourceSpeed.GetSourceSpeed();
+    if (std::abs(localSourceSpeed.x - 2.0F) > 0.0001F ||
+        std::abs(localSourceSpeed.y) > 0.0001F ||
+        std::abs(localSourceSpeed.z - 2.0F) > 0.0001F)
+        return 47;
+    if (sourceSpeed.OnProgress(false, {0.0F, 0.0F, 0.0F}) ||
+        std::abs(sourceSpeed.GetSourceSpeed().x - 2.0F) > 0.0001F)
+        return 48;
+    sourceSpeed.Reset();
+    if (sourceSpeed.GetSourceSpeed().x != 0.0F ||
+        sourceSpeed.GetSourceSpeed().y != 0.0F ||
+        sourceSpeed.GetSourceSpeed().z != 0.0F)
+        return 49;
+
     std::cout << "original GameObject/DestrObj/effect behavior source "
                  "rules passed\n";
     return 0;

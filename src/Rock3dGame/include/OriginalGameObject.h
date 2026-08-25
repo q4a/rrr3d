@@ -161,6 +161,45 @@ private:
     bool fading_ = false;
 };
 
+// GameBase.cpp::FxSystemSrcSpeed copies the owning PhysX actor's linear
+// velocity into every direct particle system.  When the effect GameObject is
+// included below another object, the source first converts that velocity
+// through the parent's complete inverse world matrix.  The renderer later
+// performs FxFlowEmitter's matching local-to-world conversion.
+class FxSystemSrcSpeed
+{
+public:
+    struct Vector
+    {
+        float x = 0.0F;
+        float y = 0.0F;
+        float z = 0.0F;
+    };
+
+    struct Quaternion
+    {
+        float x = 0.0F;
+        float y = 0.0F;
+        float z = 0.0F;
+        float w = 1.0F;
+    };
+
+    struct ParentTransform
+    {
+        Vector scale{1.0F, 1.0F, 1.0F};
+        Quaternion rotation;
+    };
+
+    void Reset() noexcept;
+    bool OnProgress(
+        bool physicsActorAvailable, Vector actorLinearVelocity,
+        const ParentTransform* parent = nullptr) noexcept;
+    const Vector& GetSourceSpeed() const noexcept;
+
+private:
+    Vector sourceSpeed_;
+};
+
 // EventEffect owns one distinguished _makeEffect actor in addition to any
 // transient actors created by ShotEffect. These operations preserve the
 // original MakeEffect/FreeEffect/OnDestroy identity rules independently of

@@ -288,9 +288,11 @@ struct ParticleEmitterDefinition
     Vec3 gravity;
     bool worldCoordinates = true;
     // FxSystemSrcSpeed is attached to the GameObject which owns this
-    // emitter.  Keep the flag per emitter because included effect objects
-    // are flattened into one portable ObjectDefinition.
-    bool inheritSourceVelocity = false;
+    // emitter. Keep both its serialized behavior and the flattened owner
+    // transform: the source converts actor velocity to the owner's parent
+    // space before FxFlowEmitter converts it back for world particles.
+    bool sourceSpeedBehavior = false;
+    Transform sourceOwnerTransform;
     // FxSystemWaitingEnd switches the source system to fading and keeps the
     // object alive until the last emitted particle has expired.
     bool waitForParticleEnd = false;

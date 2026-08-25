@@ -1,6 +1,7 @@
 #include "OriginalGameObject.h"
 
 #include <algorithm>
+#include <cmath>
 
 namespace r3d::game::originalrace::source
 {
@@ -252,6 +253,74 @@ FxSystemWaitingEnd::ProgressResult FxSystemWaitingEnd::OnProgress(
 bool FxSystemWaitingEnd::IsFading() const noexcept
 {
     return fading_;
+}
+
+void FxSystemSrcSpeed::Reset() noexcept
+{
+    sourceSpeed_ = {};
+}
+
+bool FxSystemSrcSpeed::OnProgress(
+    bool physicsActorAvailable, Vector actorLinearVelocity,
+    const ParentTransform* parent) noexcept
+{
+    // The Windows behavior returns before touching FxParticleSystem when the
+    // GameObject does not resolve to an NxActor.  Preserve the last value in
+    // that case instead of replacing it with zero.
+    if (!physicsActorAvailable)
+        return false;
+
+    if (parent != nullptr)
+    {
+        const auto& rotation = parent->rotation;
+        const float lengthSquared =
+            rotation.x * rotation.x + rotation.y * rotation.y +
+            rotation.z * rotation.z + rotation.w * rotation.w;
+        Quaternion inverse;
+        if (lengthSquared > 0.0000001F)
+        {
+            inverse = {-rotation.x / lengthSquared,
+                       -rotation.y / lengthSquared,
+                       -rotation.z / lengthSquared,
+                       rotation.w / lengthSquared};
+        }
+
+        const Vector twiceCross{
+            2.0F * (inverse.y * actorLinearVelocity.z -
+                    inverse.z * actorLinearVelocity.y),
+            2.0F * (inverse.z * actorLinearVelocity.x -
+                    inverse.x * actorLinearVelocity.z),
+            2.0F * (inverse.x * actorLinearVelocity.y -
+                    inverse.y * actorLinearVelocity.x)};
+        Vector local{
+            actorLinearVelocity.x + inverse.w * twiceCross.x +
+                (inverse.y * twiceCross.z - inverse.z * twiceCross.y),
+            actorLinearVelocity.y + inverse.w * twiceCross.y +
+                (inverse.z * twiceCross.x - inverse.x * twiceCross.z),
+            actorLinearVelocity.z + inverse.w * twiceCross.z +
+                (inverse.x * twiceCross.y - inverse.y * twiceCross.x)};
+
+        // Vec3TransformNormal(GetInvWorldMat()) includes inverse scale and
+        // excludes only translation.
+        const auto inverseScale = [](float value, float scale) noexcept {
+            return std::abs(scale) > 0.0000001F ? value / scale : 0.0F;
+        };
+        local.x = inverseScale(local.x, parent->scale.x);
+        local.y = inverseScale(local.y, parent->scale.y);
+        local.z = inverseScale(local.z, parent->scale.z);
+        sourceSpeed_ = local;
+    }
+    else
+    {
+        sourceSpeed_ = actorLinearVelocity;
+    }
+    return true;
+}
+
+const FxSystemSrcSpeed::Vector&
+FxSystemSrcSpeed::GetSourceSpeed() const noexcept
+{
+    return sourceSpeed_;
 }
 
 void EventEffect::Reset() noexcept
