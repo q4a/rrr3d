@@ -694,6 +694,45 @@ Player* Player::FindClosestEnemy(
     return enemy;
 }
 
+void Player::InsertBonusProjectile(std::uint32_t projectileId)
+{
+    // Player::InsertBonusProj is reached only from Player::Shot(stMine).
+    // Ordinary weapon/hyper shots reuse the current RPC id and do not advance
+    // this owner-specific sequence.
+    nextBonusProjectileId_ = projectileId + 1U;
+    bonusProjectileIds_.push_back(projectileId);
+}
+
+bool Player::RemoveBonusProjectile(
+    std::uint32_t projectileId) noexcept
+{
+    const auto found = std::find(
+        bonusProjectileIds_.begin(), bonusProjectileIds_.end(),
+        projectileId);
+    if (found == bonusProjectileIds_.end())
+        return false;
+    bonusProjectileIds_.erase(found);
+    return true;
+}
+
+void Player::ClearBonusProjectiles() noexcept
+{
+    bonusProjectileIds_.clear();
+}
+
+bool Player::HasBonusProjectile(
+    std::uint32_t projectileId) const noexcept
+{
+    return std::find(
+               bonusProjectileIds_.begin(), bonusProjectileIds_.end(),
+               projectileId) != bonusProjectileIds_.end();
+}
+
+std::uint32_t Player::GetNextBonusProjectileId() const noexcept
+{
+    return nextBonusProjectileId_;
+}
+
 bool Player::ConsumeEnergyDamageEffectCreated() noexcept
 {
     const bool result = energyDamageEffectCreated_;
@@ -946,6 +985,7 @@ void Player::Disconnect() noexcept
     Immortal(0.0F);
     touchAttacker = undefinedPlayerId;
     touchAttributionSeconds = 0.0F;
+    ClearBonusProjectiles();
 }
 
 void Player::ResetBlock(bool block) noexcept

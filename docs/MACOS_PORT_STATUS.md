@@ -1787,3 +1787,22 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   передний/задний sectors и нижний Z-level. Существующие lethal impulse chain,
   sphereGun homing, 13/13 CTest, map1 physics и 240-frame Metal/Jolt smoke
   проходят через новый owner.
+
+### Source Player bonus-projectile owner block
+
+- `Player::_bonusProjs` и `_nextBonusProjId` перенесены в active
+  `source::Player`. Session-вектор `nextNetworkProjectileIds_` удалён;
+  `NetPlayer::DoShot`, replicated shot и MineContact теперь используют
+  Player-owned identity/liveness registry.
+- Исправлено подтверждённое расхождение: portable counter увеличивался после
+  любого primary/hyper shot. В Windows id меняется только после успешного
+  `Player::Shot(stMine) -> InsertBonusProj`; обычные выстрелы используют
+  текущий id, не занимая его.
+- Уничтожение, timeout и MineRip снимают id тем же listener lifecycle, который
+  выполняет `Player::OnDestroy -> RemoveBonusProj`; disconnect очищает
+  оставшиеся ссылки без перемотки sequence. Входящий MineContact принимается
+  только если id ещё жив в owner Player.
+- Unit regression проверяет insert/remove/clear/next-id. Integrated network
+  regression фиксирует ordinary id=1 без инкремента, replicated mine id=77,
+  next=78 и удаление записи после контакта; 13/13 CTest, map1 physics и
+  240-frame render smoke проходят.

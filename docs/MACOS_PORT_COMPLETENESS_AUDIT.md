@@ -1266,6 +1266,15 @@ Network, video и Steam явно выключены.
   наведение на наклонных участках не использует выровненную по горизонту
   подмену.
 
+### Source Player bonus-projectile identity owner
+
+- Подтвердилось, что сетевой id счётчик мин был придуман как общий session
+  projectile counter. Он увеличивался на primary и hyper, в отличие от
+  Windows `Player::InsertBonusProj`, вызываемого только для `stMine`.
+- Registry и sequence перенесены в Player. Mine destroy/timeout/MineRip
+  удаляют live id, replicated MineContact проверяет owner registry, а обычный
+  выстрел больше не сдвигает следующий mine id.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

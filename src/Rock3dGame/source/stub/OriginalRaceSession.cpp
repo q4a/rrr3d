@@ -1063,7 +1063,6 @@ void OriginalRaceSession::reset()
     weaponRacks_.assign(race_.racers.size(), {});
     playerItemRacks_.assign(race_.racers.size(), {});
     humanPlayer_.SetCurWeapon(0);
-    nextNetworkProjectileIds_.assign(race_.racers.size(), 1U);
     aiPlayers_.clear();
     aiPlayers_.reserve(race_.racers.size());
     for (std::size_t index = 0U; index < race_.racers.size(); ++index)
@@ -4190,13 +4189,8 @@ void OriginalRaceSession::updateGameplay(
         const std::uint32_t networkProjectileId =
             networkReplicated && replicatedProjectileId != 0U
                 ? replicatedProjectileId
-                : nextNetworkProjectileIds_[owner]++;
-        if (networkReplicated)
-        {
-            nextNetworkProjectileIds_[owner] = std::max(
-                nextNetworkProjectileIds_[owner],
-                networkProjectileId + 1U);
-        }
+                : racers_[owner].GetNextBonusProjectileId();
+        racers_[owner].InsertBonusProjectile(networkProjectileId);
         racers_[owner].gameCar.LockMine(0.4F);
         MineRuntime mine;
         mine.owner = owner;
@@ -4320,13 +4314,7 @@ void OriginalRaceSession::updateGameplay(
         const std::uint32_t networkProjectileId =
             networkReplicated && replicatedProjectileId != 0U
                 ? replicatedProjectileId
-                : nextNetworkProjectileIds_[owner]++;
-        if (networkReplicated)
-        {
-            nextNetworkProjectileIds_[owner] = std::max(
-                nextNetworkProjectileIds_[owner],
-                networkProjectileId + 1U);
-        }
+                : racers_[owner].GetNextBonusProjectileId();
         const Vec3 position = vehicles[owner].body.position;
         const float sampledMinimumLife = sampleSourceRange(
             projectile.minimumLife, projectile.maximumLife);
@@ -4507,6 +4495,19 @@ void OriginalRaceSession::updateGameplay(
              rotate(vehicles[racer].body.rotation, localMomentum)});
         return true;
     };
+    auto deactivateMine = [&](MineRuntime& mine) {
+        if (!mine.active)
+            return;
+        if (mine.owner < racers_.size() &&
+            mine.networkProjectileId != 0U)
+        {
+            // Proj destruction notifies Player::OnDestroy, which removes the
+            // retained BonusProj listener entry without rewinding the id.
+            racers_[mine.owner].RemoveBonusProjectile(
+                mine.networkProjectileId);
+        }
+        mine.active = false;
+    };
     auto applyMineContact = [&](MineRuntime& mine, std::size_t racer,
                                 const Vec3& contactPoint) {
         if (!mine.active || racer >= vehicles.size() ||
@@ -4565,7 +4566,7 @@ void OriginalRaceSession::updateGameplay(
         if (mine.type != 20U)
         {
             spawnMineDeathEffect(mine);
-            mine.active = false;
+            deactivateMine(mine);
         }
         return true;
     };
@@ -4583,6 +4584,9 @@ void OriginalRaceSession::updateGameplay(
             [&](const MineRuntime& mine) {
                 return mine.active &&
                        mine.owner == contact.projectileOwner &&
+                       mine.owner < racers_.size() &&
+                       racers_[mine.owner].HasBonusProjectile(
+                           contact.projectileId) &&
                        mine.networkProjectileId == contact.projectileId;
             });
         if (found == mines_.end())
@@ -4629,7 +4633,7 @@ void OriginalRaceSession::updateGameplay(
             mine.seconds > mine.maximumLife)
         {
             spawnMineDeathEffect(mine);
-            mine.active = false;
+            deactivateMine(mine);
             continue;
         }
         if (mine.type == 12U)
@@ -4697,7 +4701,7 @@ void OriginalRaceSession::updateGameplay(
                     }
                 }
                 spawnMineDeathEffect(mine);
-                mine.active = false;
+                deactivateMine(mine);
                 continue;
             }
         }
@@ -5138,13 +5142,7 @@ void OriginalRaceSession::updateGameplay(
         const std::uint32_t networkProjectileId =
             networkReplicated && replicatedProjectileId != 0U
                 ? replicatedProjectileId
-                : nextNetworkProjectileIds_[shooter]++;
-        if (networkReplicated)
-        {
-            nextNetworkProjectileIds_[shooter] = std::max(
-                nextNetworkProjectileIds_[shooter],
-                networkProjectileId + 1U);
-        }
+                : runtime.GetNextBonusProjectileId();
         runtime.SyncSelectedWeapon(race_.weapons.size());
         const Vec3 eventOrigin = weaponWorldTransform(
             shooter, firedWeapon, firedSlot).position;
@@ -11429,10 +11427,14 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                            event.networkSlotMask != 0U &&
                            !event.networkCoordinates.empty();
                 });
-            if (sourceShot == shotSource.events().end())
+            if (sourceShot == shotSource.events().end() ||
+                sourceShot->networkProjectileId != 1U ||
+                shotSource.racers()[0]
+                        .GetNextBonusProjectileId() != 1U)
             {
                 throw std::runtime_error(
-                    "source NetPlayer::DoShot packet metadata missing");
+                    "source NetPlayer::DoShot packet metadata/id owner "
+                    "missing");
             }
 
             OriginalRaceSession shotTarget(networkRace);
@@ -11467,7 +11469,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                                sourceShot->networkCoordinates.front())) <
                                0.001F;
                 });
-            if (targetShot == shotTarget.events().end())
+            if (targetShot == shotTarget.events().end() ||
+                shotTarget.racers()[0]
+                        .GetNextBonusProjectileId() != 1U)
             {
                 throw std::runtime_error(
                     "source NetPlayer::DoShot replay failed");
@@ -11580,7 +11584,10 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                            !event.networkMapObject;
                 });
             if (mineContact == mineTarget.events().end() ||
-                mineTarget.mines().size() != 1U)
+                mineTarget.mines().size() != 1U ||
+                !mineTarget.racers()[0].HasBonusProjectile(77U) ||
+                mineTarget.racers()[0]
+                        .GetNextBonusProjectileId() != 78U)
             {
                 throw std::runtime_error(
                     "source target-owned MineContact request failed");
@@ -11594,7 +11601,10 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 std::move(replicatedContact));
             mineTarget.update(
                 1.0F / 60.0F, mineVehicles, noShotInput);
-            if (!mineTarget.mines().empty())
+            if (!mineTarget.mines().empty() ||
+                mineTarget.racers()[0].HasBonusProjectile(77U) ||
+                mineTarget.racers()[0]
+                        .GetNextBonusProjectileId() != 78U)
             {
                 throw std::runtime_error(
                     "source NetPlayer::OnMineContact replay failed");

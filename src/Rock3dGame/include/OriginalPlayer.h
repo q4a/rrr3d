@@ -265,6 +265,11 @@ public:
     Player* FindClosestEnemy(
         float viewAngle, bool zTest,
         std::span<Player* const> players) noexcept;
+    void InsertBonusProjectile(std::uint32_t projectileId);
+    bool RemoveBonusProjectile(std::uint32_t projectileId) noexcept;
+    void ClearBonusProjectiles() noexcept;
+    bool HasBonusProjectile(std::uint32_t projectileId) const noexcept;
+    std::uint32_t GetNextBonusProjectileId() const noexcept;
     bool ConsumeEnergyDamageEffectCreated() noexcept;
     std::vector<PlayerGameEvent> TakeGameEvents() noexcept;
 
@@ -344,6 +349,8 @@ protected:
 private:
     bool energyDamageEffectCreated_ = false;
     std::vector<PlayerGameEvent> gameEvents_;
+    std::vector<std::uint32_t> bonusProjectileIds_;
+    std::uint32_t nextBonusProjectileId_ = 1U;
 };
 
 } // namespace r3d::game::originalrace::source

@@ -547,7 +547,6 @@ private:
     std::vector<source::WeaponRack> weaponRacks_;
     std::vector<source::PlayerItemRack> playerItemRacks_;
     source::HumanPlayer humanPlayer_;
-    std::vector<std::uint32_t> nextNetworkProjectileIds_;
     std::vector<source::AIPlayer> aiPlayers_;
     source::AISystem aiSystem_{4U};
     // Per-frame non-owning adapter reused by source::AISystem without

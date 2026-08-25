@@ -123,6 +123,23 @@ int main()
         progressPlayer.car.cheatFaster ||
         progressPlayer.car.cheatSlower)
         return 32;
+
+    source::Player bonusProjectilePlayer;
+    bonusProjectilePlayer.Reset(80.0F, 1U);
+    if (bonusProjectilePlayer.GetNextBonusProjectileId() != 1U ||
+        bonusProjectilePlayer.HasBonusProjectile(1U))
+        return 35;
+    bonusProjectilePlayer.InsertBonusProjectile(7U);
+    if (bonusProjectilePlayer.GetNextBonusProjectileId() != 8U ||
+        !bonusProjectilePlayer.HasBonusProjectile(7U) ||
+        !bonusProjectilePlayer.RemoveBonusProjectile(7U) ||
+        bonusProjectilePlayer.HasBonusProjectile(7U) ||
+        bonusProjectilePlayer.GetNextBonusProjectileId() != 8U)
+        return 36;
+    bonusProjectilePlayer.InsertBonusProjectile(12U);
+    bonusProjectilePlayer.Disconnect();
+    if (bonusProjectilePlayer.HasBonusProjectile(12U))
+        return 37;
     player.ApplyRaceReward();
     if (player.money != 119U || player.points != 20U)
         return 10;
