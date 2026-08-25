@@ -210,7 +210,54 @@ int main()
             source::PlayerBonusType::Money, 25.0F, {}, 0.0F).taken)
         return 28;
 
-    std::cout << "original Weapon/WeaponItem/Droid/Reflector/Logic "
+    const auto speedArrow = source::Proj::SpeedArrowContact(
+        {3.0F, 4.0F, 0.0F}, 10.0F);
+    if (!speedArrow.setLinearVelocity ||
+        !speedArrow.sendSpeedArrowEvent ||
+        std::abs(speedArrow.linearVelocity.x - 6.0F) > 0.001F ||
+        std::abs(speedArrow.linearVelocity.y - 8.0F) > 0.001F)
+        return 29;
+    const auto lusha = source::Proj::LushaContact(
+        {30.0F, 0.0F, 0.0F}, 20.0F);
+    if (!lusha.setLinearVelocity ||
+        std::abs(lusha.linearVelocity.x - 20.0F) > 0.001F ||
+        source::Proj::LushaContact(
+            {15.0F, 0.0F, 0.0F}, 20.0F).setLinearVelocity)
+        return 30;
+    const auto oilRight = source::Proj::MasloContact(
+        {}, {0.0F, 1.0F, 0.0F}, {0.0F, 1.0F, 0.0F},
+        {4.0F, 0.0F, 0.0F}, 1.5F,
+        false, false, false, false);
+    const auto oilLeft = source::Proj::MasloContact(
+        {}, {0.0F, 1.0F, 0.0F}, {0.0F, -1.0F, 0.0F},
+        {4.0F, 0.0F, 0.0F}, 1.5F,
+        false, false, false, false);
+    if (!oilRight.lockClutch || oilRight.clutchStrength != -1.5F ||
+        !oilLeft.lockClutch || oilLeft.clutchStrength != 1.5F)
+        return 31;
+    if (source::Proj::MasloContact(
+            {}, {0.0F, 1.0F, 0.0F}, {},
+            {4.0F, 0.0F, 0.0F}, 1.5F,
+            true, false, false, false).lockClutch ||
+        source::Proj::MasloContact(
+            {}, {0.0F, 1.0F, 0.0F}, {},
+            {3.0F, 0.0F, 0.0F}, 1.5F,
+            false, false, false, false).lockClutch ||
+        source::Proj::MasloContact(
+            {}, {0.0F, 1.0F, 0.0F}, {},
+            {4.0F, 0.0F, 0.0F}, 1.5F,
+            false, true, false, false).lockClutch ||
+        source::Proj::MasloContact(
+            {}, {0.0F, 1.0F, 0.0F}, {},
+            {4.0F, 0.0F, 0.0F}, 1.5F,
+            false, false, true, false).lockClutch ||
+        source::Proj::MasloContact(
+            {}, {0.0F, 1.0F, 0.0F}, {},
+            {4.0F, 0.0F, 0.0F}, 1.5F,
+            false, false, false, true).lockClutch)
+        return 32;
+
+    std::cout << "original Weapon/Proj/WeaponItem/Droid/Reflector/Logic "
                  "source rules passed\n";
     return 0;
 }

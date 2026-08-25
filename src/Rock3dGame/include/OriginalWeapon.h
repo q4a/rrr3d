@@ -9,6 +9,38 @@
 namespace r3d::game::originalrace::source
 {
 
+// Gameplay-owned contact rules from Proj. PhysX actor lookup and the final
+// Jolt velocity/momentum writes remain backend adapters.
+class Proj
+{
+public:
+    struct Vec3
+    {
+        float x = 0.0F;
+        float y = 0.0F;
+        float z = 0.0F;
+    };
+
+    struct ContactResult
+    {
+        Vec3 linearVelocity;
+        float clutchStrength = 0.0F;
+        bool setLinearVelocity = false;
+        bool lockClutch = false;
+        bool sendSpeedArrowEvent = false;
+    };
+
+    static ContactResult SpeedArrowContact(
+        Vec3 worldDirection, float damage) noexcept;
+    static ContactResult LushaContact(
+        Vec3 linearVelocity, float damage) noexcept;
+    static ContactResult MasloContact(
+        Vec3 carPosition, Vec3 carWorldRight, Vec3 oilPosition,
+        Vec3 linearVelocity, float damage, bool arming,
+        bool mineLocked, bool clutchLocked,
+        bool clutchImmune) noexcept;
+};
+
 // Backend-neutral transcription of the original Weapon timer and Desc
 // ownership. Projectile preparation remains at the Jolt/bgfx session
 // boundary; readiness and successful-shot lifetime belong here.

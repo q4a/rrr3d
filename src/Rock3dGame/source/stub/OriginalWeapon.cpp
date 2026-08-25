@@ -1,6 +1,7 @@
 #include "OriginalWeapon.h"
 
 #include <algorithm>
+#include <cmath>
 
 namespace r3d::game::originalrace::source
 {
@@ -10,7 +11,75 @@ namespace
 
 constexpr std::uint32_t masloProjectileType = 10U;
 
+float length(Proj::Vec3 value) noexcept
+{
+    return std::sqrt(
+        value.x * value.x + value.y * value.y + value.z * value.z);
+}
+
+Proj::Vec3 normalized(Proj::Vec3 value) noexcept
+{
+    const float magnitude = length(value);
+    if (magnitude <= 0.000001F)
+        return {};
+    return {value.x / magnitude, value.y / magnitude,
+            value.z / magnitude};
+}
+
 } // namespace
+
+Proj::ContactResult Proj::SpeedArrowContact(
+    Vec3 worldDirection, float damage) noexcept
+{
+    const auto direction = normalized(worldDirection);
+    return {{direction.x * damage, direction.y * damage,
+             direction.z * damage},
+            0.0F, true, false, true};
+}
+
+Proj::ContactResult Proj::LushaContact(
+    Vec3 linearVelocity, float damage) noexcept
+{
+    ContactResult result;
+    const float speed = length(linearVelocity);
+    if (speed > 1.0F && speed > damage)
+    {
+        const auto direction = normalized(linearVelocity);
+        result.linearVelocity = {
+            direction.x * damage, direction.y * damage,
+            direction.z * damage};
+        result.setLinearVelocity = true;
+    }
+    return result;
+}
+
+Proj::ContactResult Proj::MasloContact(
+    Vec3 carPosition, Vec3 carWorldRight, Vec3 oilPosition,
+    Vec3 linearVelocity, float damage, bool arming,
+    bool mineLocked, bool clutchLocked,
+    bool clutchImmune) noexcept
+{
+    ContactResult result;
+    if (arming || mineLocked || clutchLocked || clutchImmune ||
+        length(linearVelocity) <= 3.0F)
+    {
+        return result;
+    }
+    const Vec3 offset{
+        oilPosition.x - carPosition.x,
+        oilPosition.y - carPosition.y,
+        oilPosition.z - carPosition.z};
+    const float distance =
+        carWorldRight.x * offset.x +
+        carWorldRight.y * offset.y +
+        carWorldRight.z * offset.z;
+    result.clutchStrength =
+        std::abs(distance) > 0.1F && distance > 0.0F
+            ? -damage
+            : damage;
+    result.lockClutch = true;
+    return result;
+}
 
 Weapon::Weapon(const Desc& desc) : desc_(desc) {}
 

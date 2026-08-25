@@ -4398,6 +4398,48 @@ void OriginalRaceSession::updateGameplay(
         impact.ignoreRotation = death->ignoreRotation;
         effects_.push_back(std::move(impact));
     };
+    auto applyMasloContact = [&](
+        std::size_t racer, const Vec3& oilPosition, float damage,
+        bool arming) {
+        if (racer >= vehicles.size() || racer >= racers_.size())
+            return false;
+        const auto carRight = rotate(
+            vehicles[racer].body.rotation, {0.0F, 1.0F, 0.0F});
+        const auto sourceResult = source::Proj::MasloContact(
+            {vehicles[racer].body.position.x,
+             vehicles[racer].body.position.y,
+             vehicles[racer].body.position.z},
+            {carRight.x, carRight.y, carRight.z},
+            {oilPosition.x, oilPosition.y, oilPosition.z},
+            {vehicles[racer].linearVelocity.x,
+             vehicles[racer].linearVelocity.y,
+             vehicles[racer].linearVelocity.z},
+            damage, arming,
+            racers_[racer].mineLockSeconds > 0.0F,
+            racers_[racer].clutchSeconds > 0.0F,
+            clutchImmune(racer));
+        if (!sourceResult.lockClutch)
+            return false;
+        racers_[racer].clutchSeconds = 0.38F;
+        const auto& vehicleDefinition =
+            race_.racers[racer].hasConfiguredVehicle
+                ? race_.racers[racer].configuredVehicle
+                : race_.vehicles.at(race_.racers[racer].vehicle);
+        const Quat inverseRotation{
+            -vehicles[racer].body.rotation.x,
+            -vehicles[racer].body.rotation.y,
+            -vehicles[racer].body.rotation.z,
+            vehicles[racer].body.rotation.w};
+        Vec3 localMomentum = rotate(
+            inverseRotation, vehicles[racer].angularMomentum);
+        localMomentum.z = sourceResult.clutchStrength *
+                          std::max(
+                              vehicleDefinition.physics.mass, 0.0F);
+        angularMomentumRequests_.push_back(
+            {racer,
+             rotate(vehicles[racer].body.rotation, localMomentum)});
+        return true;
+    };
     auto applyMineContact = [&](MineRuntime& mine, std::size_t racer,
                                 const Vec3& contactPoint) {
         if (!mine.active || racer >= vehicles.size() ||
@@ -4409,35 +4451,9 @@ void OriginalRaceSession::updateGameplay(
                 : race_.vehicles.at(race_.racers[racer].vehicle);
         if (mine.type == 10U)
         {
-            if (racers_[racer].clutchSeconds > 0.0F ||
-                length3(vehicles[racer].linearVelocity) <= 3.0F ||
-                clutchImmune(racer))
-                return false;
-            const Vec3 direction = normalized2(
-                forward(vehicles[racer].body.rotation));
-            const Vec3 right{-direction.y, direction.x, 0.0F};
-            const float side = dot2(
-                right,
-                subtract(mine.position,
-                         vehicles[racer].body.position));
-            const float strength =
-                std::abs(side) > 0.1F && side > 0.0F
-                    ? -mine.damage
-                    : mine.damage;
-            racers_[racer].clutchSeconds = 0.38F;
-            const Quat inverseRotation{
-                -vehicles[racer].body.rotation.x,
-                -vehicles[racer].body.rotation.y,
-                -vehicles[racer].body.rotation.z,
-                vehicles[racer].body.rotation.w};
-            Vec3 localMomentum = rotate(
-                inverseRotation, vehicles[racer].angularMomentum);
-            localMomentum.z =
-                strength * std::max(vehicleDefinition.physics.mass, 0.0F);
-            angularMomentumRequests_.push_back(
-                {racer,
-                 rotate(vehicles[racer].body.rotation, localMomentum)});
-            return true;
+            return applyMasloContact(
+                racer, mine.position, mine.damage,
+                mine.seconds < 0.25F);
         }
         applyRacerDamage(
             racer, mine.owner, contactPoint,
@@ -4913,9 +4929,16 @@ void OriginalRaceSession::updateGameplay(
 
             if (bonus.kind == BonusKind::Speed)
             {
-                const Vec3 wanted = multiply(
-                    normalized3(forward(bonus.transform.rotation)),
-                    bonus.value);
+                const Vec3 direction =
+                    forward(bonus.transform.rotation);
+                const auto sourceResult =
+                    source::Proj::SpeedArrowContact(
+                        {direction.x, direction.y, direction.z},
+                        bonus.value);
+                const Vec3 wanted{
+                    sourceResult.linearVelocity.x,
+                    sourceResult.linearVelocity.y,
+                    sourceResult.linearVelocity.z};
                 velocityRequests_.push_back(
                     {racer,
                      subtract(wanted, vehicles[racer].linearVelocity)});
@@ -4926,13 +4949,18 @@ void OriginalRaceSession::updateGameplay(
             }
             if (bonus.kind == BonusKind::SlowHazard)
             {
-                const float speed =
-                    length3(vehicles[racer].linearVelocity);
-                if (speed > 1.0F && speed > bonus.value)
-                {
-                    const Vec3 wanted = multiply(
-                        normalized3(vehicles[racer].linearVelocity),
+                const auto& velocity =
+                    vehicles[racer].linearVelocity;
+                const auto sourceResult =
+                    source::Proj::LushaContact(
+                        {velocity.x, velocity.y, velocity.z},
                         bonus.value);
+                if (sourceResult.setLinearVelocity)
+                {
+                    const Vec3 wanted{
+                        sourceResult.linearVelocity.x,
+                        sourceResult.linearVelocity.y,
+                        sourceResult.linearVelocity.z};
                     velocityRequests_.push_back(
                         {racer,
                          subtract(wanted,
@@ -4942,45 +4970,9 @@ void OriginalRaceSession::updateGameplay(
             }
             if (bonus.kind == BonusKind::OilHazard)
             {
-                if (runtime.mineLockSeconds <= 0.0F &&
-                    runtime.clutchSeconds <= 0.0F &&
-                    length3(vehicles[racer].linearVelocity) >
-                        3.0F &&
-                    !clutchImmune(racer))
-                {
-                    const Vec3 direction = normalized2(
-                        forward(vehicles[racer].body.rotation));
-                    const Vec3 right{-direction.y, direction.x, 0.0F};
-                    const float side = dot2(
-                        right,
-                        subtract(bonus.transform.position,
-                                 vehicles[racer].body.position));
-                    const float strength =
-                        std::abs(side) > 0.1F && side > 0.0F
-                            ? -bonus.value
-                            : bonus.value;
-                    runtime.clutchSeconds = 0.38F;
-                    const auto& sourceRacer = race_.racers[racer];
-                    const auto& vehicleDefinition =
-                        sourceRacer.hasConfiguredVehicle
-                            ? sourceRacer.configuredVehicle
-                            : race_.vehicles.at(sourceRacer.vehicle);
-                    const Quat inverseRotation{
-                        -vehicles[racer].body.rotation.x,
-                        -vehicles[racer].body.rotation.y,
-                        -vehicles[racer].body.rotation.z,
-                        vehicles[racer].body.rotation.w};
-                    Vec3 localMomentum = rotate(
-                        inverseRotation,
-                        vehicles[racer].angularMomentum);
-                    localMomentum.z =
-                        strength *
-                        std::max(vehicleDefinition.physics.mass, 0.0F);
-                    angularMomentumRequests_.push_back(
-                        {racer,
-                         rotate(vehicles[racer].body.rotation,
-                                localMomentum)});
-                }
+                applyMasloContact(
+                    racer, bonus.transform.position,
+                    bonus.value, false);
                 continue;
             }
             if (bonus.kind == BonusKind::MineHazard)
