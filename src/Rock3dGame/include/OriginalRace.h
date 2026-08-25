@@ -497,6 +497,9 @@ struct Vehicle
     r3d::physics::VehicleDescription physics;
     float maximumLife = 100.0F;
     LightingMode lighting = LightingMode::Standard;
+    // RockCar::GetDisableColor gates Player::ApplyColorMat. The shipped car
+    // records currently leave it false, but it remains serialized state.
+    bool disableColor = false;
 };
 
 enum class WeaponSlot

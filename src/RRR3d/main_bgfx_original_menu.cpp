@@ -5847,6 +5847,7 @@ int main(int argc, char** argv)
                            player.netSlot == visual.player.netSlot &&
                            player.gamerId == visual.player.gamerId &&
                            player.car == visual.player.car &&
+                           player.color == visual.player.color &&
                            player.raceReady ==
                                visual.player.raceReady;
                 });
@@ -17824,8 +17825,11 @@ int main(int argc, char** argv)
                     r3d::game::originalrace::RacerRuntime::
                         invalidWeapon);
                 if (racer < originalGarageScene->racers.size())
+                {
                     originalGarageScene->racers[racer].color =
                         profileState.player.color;
+                    runtime.SetColor(profileState.player.color);
+                }
             }
             if (!presentationCarLocked &&
                 selectedRacer < garageRacerRuntime.size())
@@ -18904,7 +18908,7 @@ int main(int argc, char** argv)
                         playerX + 72.0F * direction, playerY,
                         130.0F, 130.0F,
                         garageSceneSeconds * bx::kPi * 0.5F,
-                        racePipeline);
+                        racePipeline, &visual.player.color);
                 }
                 drawQuadRotated(
                     *device, quad, shader, networkPlayerFrame,

@@ -4938,10 +4938,20 @@ void OriginalRaceRenderer::draw(
             racer < racerRuntime.size()
                 ? racerRuntime[racer].GetColor()
                 : race.racers[racer].color;
+        std::array<std::array<float, 4>, 4> sourceNodeColors{};
+        for (auto& color : sourceNodeColors)
+            color = {1.0F, 1.0F, 1.0F, 1.0F};
+        sourceNodeColors.front() = sourceColor;
+        const auto* sourceNodeColorOverride =
+            definition.disableColor ? nullptr : &sourceNodeColors;
+        // Player::ApplyColorMat clones and colors only the first IVBMeshNode
+        // material of the root car actor. Included track/cushion actors and
+        // any later body node retain their source material unchanged.
         if (!drawObject(
                 vehicleBodies_[racer], definition.bodyVisuals, state.body,
                 r3d::game::originalrace::GraphOrder::Default,
-                false, 1.0F, &sourceColor))
+                false, 1.0F, nullptr, -1.0F,
+                sourceNodeColorOverride))
         {
             continue;
         }
@@ -4966,7 +4976,7 @@ void OriginalRaceRenderer::draw(
                     lightingForQuality(animatedAsset.lighting,
                                        activeLightQuality_),
                     DrawLayer::All, &node,
-                    1.0F, &sourceColor,
+                    1.0F, nullptr,
                     sourceTextureOffset);
             }
         }
@@ -5006,8 +5016,7 @@ void OriginalRaceRenderer::draw(
                     elapsedSeconds, 0.0F,
                     lightingForQuality(animatedAsset.lighting,
                                        activeLightQuality_),
-                    DrawLayer::All, &node, 1.0F,
-                    &sourceColor);
+                    DrawLayer::All, &node);
             }
         }
         if (racer < racerRuntime.size())

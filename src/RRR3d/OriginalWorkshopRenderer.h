@@ -50,7 +50,8 @@ public:
         r3d::renderer::Shader shader, std::string_view record,
         float centerX, float centerY, float width, float height,
         float rotationRadians,
-        const r3d::renderer::PipelineState& pipeline) const;
+        const r3d::renderer::PipelineState& pipeline,
+        const std::array<float, 4>* color = nullptr) const;
 
 private:
     struct NodeAsset

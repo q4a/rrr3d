@@ -476,7 +476,8 @@ void drawModel(
     const Models& models, std::string_view record,
     float centerX, float centerY, float width, float height,
     SourceView view, float rotationRadians,
-    const PipelineState& sourcePipeline)
+    const PipelineState& sourcePipeline,
+    const std::array<float, 4>* firstNodeColor = nullptr)
 {
     const auto found = std::find_if(
         models.begin(), models.end(),
@@ -495,15 +496,20 @@ void drawModel(
     const auto viewTransform = sourceViewTransform(
         found->minimum, found->maximum, centerX, centerY,
         width, height, view, rotationRadians);
-    for (const auto& node : found->nodes)
+    for (std::size_t nodeIndex = 0U;
+         nodeIndex < found->nodes.size(); ++nodeIndex)
     {
+        const auto& node = found->nodes[nodeIndex];
+        auto nodeMaterial = material;
+        if (nodeIndex == 0U && firstNodeColor != nullptr)
+            nodeMaterial.color = *firstNodeColor;
         const auto transform =
             compose(viewTransform, localTransform(node.local));
         if (node.source.materialGroups.empty())
         {
             device.draw(
                 node.mesh, shader, node.textures.front(), transform,
-                pipeline, {}, material);
+                pipeline, {}, nodeMaterial);
             continue;
         }
         for (std::size_t index = 0;
@@ -515,7 +521,7 @@ void drawModel(
                 node.textures[std::min(
                     index, node.textures.size() - 1U)],
                 transform, pipeline,
-                {group.firstIndex, group.indexCount}, material);
+                {group.firstIndex, group.indexCount}, nodeMaterial);
         }
     }
 }
@@ -549,12 +555,13 @@ void OriginalWorkshopRenderer::drawPlanet(
 void OriginalWorkshopRenderer::drawCar(
     GraphicsDevice& device, Shader shader, std::string_view record,
     float centerX, float centerY, float width, float height,
-    float rotationRadians, const PipelineState& sourcePipeline) const
+    float rotationRadians, const PipelineState& sourcePipeline,
+    const std::array<float, 4>* color) const
 {
     drawModel(
         device, shader, carAssets_, record, centerX, centerY,
         width, height, SourceView::Car, rotationRadians,
-        sourcePipeline);
+        sourcePipeline, color);
 }
 
 } // namespace rrr3d::race

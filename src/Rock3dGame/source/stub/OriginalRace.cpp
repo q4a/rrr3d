@@ -3191,6 +3191,8 @@ Vehicle loadVehicle(const resource::ResourceFileSystem& resources,
     Vehicle result;
     result.record = std::string(record);
     result.maximumLife = baseArmor(record);
+    result.disableColor = optionalBoolean(
+        car, "motor/disableColor", false);
     if (auto* lighting = child(car, "grActor/graphLighting");
         lighting != nullptr && lighting->GetText() != nullptr)
     {
@@ -6674,6 +6676,12 @@ bool runOriginalRaceResourceSmokeTest(
                         (!vehicle.wheelSlipSounds.empty() &&
                          vehicle.wheelSlipSounds.front()));
             });
+        const bool colorMaterialMatchesSource = std::all_of(
+            race.vehicles.begin(), race.vehicles.end(),
+            [](const Vehicle& vehicle) {
+                return !vehicle.disableColor &&
+                       !vehicle.bodyVisuals.empty();
+            });
         const bool smokeMatchesSource =
             recordEndsWith(race.wheelSmokeEffect.record, "smoke7") &&
             race.wheelSmokeEffect.graphOrder == GraphOrder::Effect &&
@@ -6728,12 +6736,14 @@ bool runOriginalRaceResourceSmokeTest(
             !trackMatchesSource(gusenizaBoss) ||
             !cushionMatchesSource(podushka) ||
             !cushionMatchesSource(podushkaBoss) ||
-            !motorRangesMatchSource || !smokeMatchesSource ||
+            !motorRangesMatchSource || !colorMaterialMatchesSource ||
+            !smokeMatchesSource ||
             !trailMatchesSource || !actorLightingVectorsMatchSource)
         {
             error =
                 "source GusenizaAnim/PodushkaAnim/SoundMotor/"
-                "PxWheelSlipEffect/FxTrailManager/GraphManager texDiffK "
+                "Player::ApplyColorMat/PxWheelSlipEffect/FxTrailManager/"
+                "GraphManager texDiffK "
                 "provenance mismatch";
             return false;
         }

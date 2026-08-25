@@ -1132,6 +1132,24 @@ kill notification и оба finish UI теперь разрешают имя/п�
 Resource regression отдельно проверяет global Snake и различающиеся id=1 на
 Intaria/Patagonis.
 
+### P2.28 — Player::ApplyColorMat / CarFrame color scope — выполнено
+
+Подтвердилась визуальная реимплементация: Metal adapter передавал цвет
+игрока как tint всем root nodes кузова, а также отдельным include-actors
+`GusenizaAnim` и `PodushkaAnim`. Windows `Player::ApplyColorMat` клонирует
+материал только первого `IVBMeshNode` корневого car actor (если
+`RockCar::disableColor` выключен) и меняет sampler 0 этого клона. Гусеницы,
+подушки, колёса и последующие body nodes не перекрашиваются.
+
+Vehicle loader теперь сохраняет сериализованный `motor/disableColor`.
+Race renderer применяет runtime `Player::GetColor` только к node 0 корневого
+кузова; animated include actors снова используют исходные материалы. В
+меню `CarFrame` цвет записывается в active presentation Player, поэтому
+выбор палитры сразу виден после переноса runtime owner. Сетевые маленькие
+car viewports получают `NetPlayer` color, а их cache invalidation теперь
+учитывает изменение цвета. Resource regression проверяет color-material gate
+для всех 17 поставляемых машин.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

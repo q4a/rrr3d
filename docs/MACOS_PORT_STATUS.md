@@ -1948,3 +1948,14 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - `Race::StartRace` replacement дублирующегося персонажа рассматривает
   только `Tournament::GetGamers`, как Windows-код. Resource regression
   проверяет global и planet-local совпадающие ids.
+
+### Source Player::ApplyColorMat / CarFrame color follow-up
+
+- Удалён общий tint автомобиля: исходный `Player::ApplyColorMat` окрашивает
+  sampler только первого mesh-node корневого кузова. Гусеницы, подушки,
+  колёса и дополнительные body nodes сохраняют свои материалы.
+- `motor/disableColor` загружается из каждого ctCar record и блокирует
+  override так же, как `RockCar::GetDisableColor` в Windows.
+- Garage/Workshop/RaceMain presentation теперь меняет цвет active Player;
+  сетевые viewport-машины получают собственный `NetPlayer` color, а cache
+  обновляется при `OnSetColor`. Source-палитра из 14 цветов сохранена.
