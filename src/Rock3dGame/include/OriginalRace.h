@@ -911,6 +911,10 @@ int originalTournamentRequestPoints(
 TournamentAdvance completeOriginalTournamentTrack(
     const Race& race, std::size_t trackIndex,
     ProfileState& profile) noexcept;
+TournamentAdvance completeOriginalTournamentTrack(
+    const Race& race, std::size_t trackIndex,
+    ProfileState& profile, std::uint32_t totalPoints,
+    std::uint32_t humanOrOpponentCount) noexcept;
 FinishTransition originalFinishTransition(
     const TournamentAdvance& advance, std::uint32_t currentPlanet,
     bool campaign) noexcept;

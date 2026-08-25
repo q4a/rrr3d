@@ -971,8 +971,12 @@ bool selectOriginalGarageCar(const OriginalGarageCatalog& catalog,
             std::min<std::uint64_t>(
                 money, std::numeric_limits<std::uint32_t>::max()));
     }
-    profile.player.carChanged =
-        championship && !profile.player.currentCar.empty();
+    // Garage::BuyCar only raises Race::_carChanged when a campaign Human
+    // replaces a car that actually resolves in Garage.  It never clears an
+    // already raised flag: that happens only in Race::EnterProfile before
+    // SnProfile restores its persisted value.
+    if (championship && oldCar != nullptr)
+        profile.player.carChanged = true;
     profile.player.currentCar = car.record;
     profile.player.slots = std::move(newSlots);
     if (championship && car.initialUpgradeSet > 0U)
@@ -1360,6 +1364,7 @@ bool runOriginalGarageSmokeTest(
             !selectOriginalGarageCar(
                 catalog, profile, *dirtdevil, true, error) ||
             profile.player.currentCar != dirtdevil->record ||
+            !profile.player.carChanged ||
             profile.player.money != 0U ||
             profile.player.slots[6].record !=
                 workshopRecord("rifleWeapon"))
@@ -1445,12 +1450,47 @@ bool runOriginalGarageSmokeTest(
                 catalog, purchasedRocket, true);
         if (!selectOriginalGarageCar(
                 catalog, carSwitchProfile, *marauder, true, error) ||
-            carSwitchProfile.player.money != switchedRocketValue)
+            carSwitchProfile.player.money != switchedRocketValue ||
+            !carSwitchProfile.player.carChanged)
         {
             if (error.empty())
                 error =
                     "Garage::BuyCar did not sell incompatible installed "
                     "equipment";
+            return false;
+        }
+
+        ProfileState missingOldCarProfile;
+        for (auto& planet : missingOldCarProfile.player.planets)
+            planet = {0U, 99U};
+        missingOldCarProfile.player.currentCar =
+            "world\\db\\root\\ctCar\\missing";
+        missingOldCarProfile.player.money = marauder->cost;
+        if (!selectOriginalGarageCar(
+                catalog, missingOldCarProfile, *marauder, true, error) ||
+            missingOldCarProfile.player.carChanged)
+        {
+            if (error.empty())
+                error =
+                    "Garage::BuyCar raised carChanged without a source "
+                    "current Car";
+            return false;
+        }
+
+        ProfileState retainedCarChangedProfile;
+        for (auto& planet : retainedCarChangedProfile.player.planets)
+            planet = {0U, 99U};
+        retainedCarChangedProfile.player.currentCar = marauder->record;
+        retainedCarChangedProfile.player.carChanged = true;
+        if (!selectOriginalGarageCar(
+                catalog, retainedCarChangedProfile, *dirtdevil, false,
+                error) ||
+            !retainedCarChangedProfile.player.carChanged)
+        {
+            if (error.empty())
+                error =
+                    "Garage::BuyCar cleared the profile-owned carChanged "
+                    "flag";
             return false;
         }
         return true;

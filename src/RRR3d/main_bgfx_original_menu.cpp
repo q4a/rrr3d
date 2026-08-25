@@ -6512,11 +6512,21 @@ int main(int argc, char** argv)
                 raceSession.racers()[humanRacer].GetFinished() &&
                 !raceProgressSaved)
             {
+                // Race::GetTotalPoints includes the local Human and every
+                // live NetPlayer Opponent.  ProfileState owns only the local
+                // profile, so capture the source PlayerList aggregate before
+                // advancing Tournament.
+                const auto tournamentTotalPoints =
+                    raceSession.totalHumanOrOpponentPoints();
+                const auto tournamentHumanCount =
+                    raceSession.humanOrOpponentCount();
                 const auto completedTrack = selectedTrack;
                 const auto advance =
                     r3d::game::originalrace::
                         completeOriginalTournamentTrack(
-                            *originalRace, selectedTrack, profileState);
+                            *originalRace, selectedTrack, profileState,
+                            tournamentTotalPoints,
+                            tournamentHumanCount);
                 raceTournamentAdvance = advance;
                 selectedTrack = advance.trackIndex;
                 racePlanetChampion = advance.planetChampion;

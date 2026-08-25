@@ -2205,6 +2205,27 @@ std::size_t OriginalRaceSession::humanRacer() const noexcept
     return humanRacer_;
 }
 
+std::uint32_t OriginalRaceSession::humanOrOpponentCount() const noexcept
+{
+    return static_cast<std::uint32_t>(std::count_if(
+        racers_.begin(), racers_.end(),
+        [](const RacerRuntime& racer) {
+            return !racer.disconnected && racer.IsHumanOrOpponent();
+        }));
+}
+
+std::uint32_t OriginalRaceSession::totalHumanOrOpponentPoints() const noexcept
+{
+    std::uint64_t total = 0U;
+    for (const auto& racer : racers_)
+    {
+        if (!racer.disconnected && racer.IsHumanOrOpponent())
+            total += racer.GetPoints();
+    }
+    return static_cast<std::uint32_t>(std::min<std::uint64_t>(
+        total, std::numeric_limits<std::uint32_t>::max()));
+}
+
 const std::vector<source::RaceResult>&
 OriginalRaceSession::results() const noexcept
 {
@@ -6566,15 +6587,27 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             auto& reorderedRacers =
                 const_cast<std::vector<RacerRuntime>&>(
                     reorderedSession.racers());
+            reorderedRacers[0].SetPoints(235U);
             reorderedRacers[1].SetMoney(4321U);
             reorderedRacers[1].SetPoints(765U);
             PlayerProfile reorderedProfile;
             reorderedSession.writePlayerProfile(reorderedProfile);
             if (reorderedProfile.money != 4321U ||
-                reorderedProfile.points != 765U)
+                reorderedProfile.points != 765U ||
+                reorderedSession.humanOrOpponentCount() != 2U ||
+                reorderedSession.totalHumanOrOpponentPoints() != 1000U)
             {
                 throw std::runtime_error(
-                    "source HumanPlayer profile owner used racer 0");
+                    "source HumanPlayer/opponent total points owner "
+                    "mismatch");
+            }
+            reorderedRacers[0].disconnected = true;
+            if (reorderedSession.humanOrOpponentCount() != 1U ||
+                reorderedSession.totalHumanOrOpponentPoints() != 765U)
+            {
+                throw std::runtime_error(
+                    "disposed NetPlayer remained in source tournament "
+                    "totals");
             }
         }
 

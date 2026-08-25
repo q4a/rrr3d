@@ -4876,6 +4876,16 @@ TournamentAdvance completeOriginalTournamentTrack(
     const Race& race, std::size_t trackIndex,
     ProfileState& profile) noexcept
 {
+    return completeOriginalTournamentTrack(
+        race, trackIndex, profile, profile.player.points,
+        sourceHumanOrOpponentCount(race));
+}
+
+TournamentAdvance completeOriginalTournamentTrack(
+    const Race& race, std::size_t trackIndex,
+    ProfileState& profile, std::uint32_t totalPoints,
+    std::uint32_t humanOrOpponentCount) noexcept
+{
     TournamentAdvance result;
     if (trackIndex >= race.trackCatalog.size())
         return result;
@@ -4895,10 +4905,10 @@ TournamentAdvance completeOriginalTournamentTrack(
         tournament.SetCurTrack(trackIndex);
         const auto advance = tournament.CompleteTrack(
             static_cast<int>(std::min<std::uint32_t>(
-                profile.player.points,
+                totalPoints,
                 static_cast<std::uint32_t>(
                     std::numeric_limits<int>::max()))),
-            sourceHumanOrOpponentCount(race));
+            humanOrOpponentCount);
         result.trackIndex = advance.trackIndex;
         result.passComplete = advance.passComplete;
         result.passChampion = advance.passChampion;
@@ -4973,6 +4983,35 @@ bool runOriginalTournamentProgressSmokeTest(std::string& error)
     profile.player.planets[4].state = 0U;
     profile.player.planets[4].pass = 2U;
     profile.planetsCompleted.clear();
+
+    auto insufficientTeamProfile = profile;
+    insufficientTeamProfile.player.points = 0U;
+    const auto insufficientTeamAdvance =
+        completeOriginalTournamentTrack(
+            race, 0U, insufficientTeamProfile, 299U, 2U);
+    if (!insufficientTeamAdvance.passComplete ||
+        insufficientTeamAdvance.passChampion ||
+        insufficientTeamAdvance.planetChampion)
+    {
+        error =
+            "source network tournament request-point scaling mismatch";
+        return false;
+    }
+
+    auto exactTeamProfile = profile;
+    exactTeamProfile.player.points = 0U;
+    const auto exactTeamAdvance =
+        completeOriginalTournamentTrack(
+            race, 0U, exactTeamProfile, 300U, 2U);
+    if (!exactTeamAdvance.passComplete ||
+        !exactTeamAdvance.passChampion ||
+        !exactTeamAdvance.planetChampion)
+    {
+        error =
+            "Race::GetTotalPoints opponent contribution was not used";
+        return false;
+    }
+
     const auto finalAdvance =
         completeOriginalTournamentTrack(race, 0U, profile);
     const auto completed = [&](std::uint32_t planet) {

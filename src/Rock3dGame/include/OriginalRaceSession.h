@@ -434,6 +434,12 @@ public:
         noexcept;
     const std::vector<RacerRuntime>& racers() const noexcept;
     std::size_t humanRacer() const noexcept;
+    // Race::GetTotalPoints and Planet::GetRequestPoints iterate the active
+    // PlayerList and include both the local Human and network Opponents.
+    // Disconnected portable storage is excluded because NetPlayer's source
+    // destructor has already removed that Player from the list.
+    std::uint32_t humanOrOpponentCount() const noexcept;
+    std::uint32_t totalHumanOrOpponentPoints() const noexcept;
     const std::vector<source::RaceResult>& results() const noexcept;
     const source::RaceResult* resultForRacer(
         std::size_t racer) const noexcept;
