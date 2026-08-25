@@ -828,6 +828,10 @@ struct Race
     std::vector<AchievementDefinition> achievements;
     std::vector<PlayerIdentity> playerIdentities;
     std::vector<Racer> racers;
+    // Planet owns five serialized computer PlayerData entries independently
+    // from Race::_players. Race::CreatePlayers can therefore delete active
+    // players and later recreate all seven AI slots from these templates.
+    std::vector<Racer> computerTemplates;
     std::array<std::uint32_t, 3> rewardMoney{};
     std::array<std::uint32_t, 3> rewardPoints{};
     std::vector<std::uint32_t> requiredPoints;
@@ -868,6 +872,12 @@ struct TournamentAdvance
 };
 
 inline constexpr std::uint32_t originalTournamentPlanetCount = 5U;
+inline constexpr std::uint32_t originalMaximumPlayers = 8U;
+inline constexpr std::uint32_t originalMaximumComputers =
+    originalMaximumPlayers - 1U;
+inline constexpr std::uint32_t originalCampaignMaximumPlayers = 6U;
+inline constexpr std::uint32_t originalCampaignMaximumHumans = 3U;
+inline constexpr std::uint32_t originalComputerDefinitionCount = 5U;
 
 enum class FinishTransition
 {
@@ -925,6 +935,16 @@ FinishTransition originalFinishTransition(
 void applyOriginalPlayerProfile(
     Race& race, const resource::ResourceFileSystem& resources,
     const PlayerProfile& profile, bool armor4Opened = false);
+// Race::CreatePlayers grows or shrinks the active list to numAI + 1.  IDs
+// above cComputer5 reuse a serialized Planet player loadout while retaining
+// their own gamer id/color, allowing the source eight-player skirmish limit.
+void reconcileOriginalPlayerRoster(
+    Race& race, std::uint32_t computerCount, bool campaign);
+// Planet::Track::GetLapsCount uses serialized track laps in campaign and the
+// GameMode/Tournament option only in skirmish.
+std::uint32_t originalEffectiveLapCount(
+    const Race& race, bool campaign,
+    std::uint32_t configuredLaps) noexcept;
 // Planet::StartPass applies Garage::MaxUpgradeCar and weaponMaxLevel only to
 // source computer players in rmSkirmish.  Human and network-opponent loadouts
 // are already owned by their profile/network model and remain untouched.

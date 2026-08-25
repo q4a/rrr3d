@@ -2190,9 +2190,12 @@ bool OriginalNetworkModels::sendOwnedPlayerMineContactMap(
 
 bool OriginalNetworkModels::acceptsConnections() const noexcept
 {
+    // Race::cCampaignMaxHumans and Race::cMaxPlayers. The former cap is
+    // independent of cCampaignMaxPlayers because NetRace adds its campaign
+    // computers only when StartRace runs.
     const auto sourceLimit = impl_->value.match.mode == 0
                                  ? 3U
-                                 : 6U;
+                                 : 8U;
     const auto maximum = std::min(
         impl_->value.match.maxPlayers, sourceLimit);
     const auto humans = static_cast<std::uint32_t>(std::count_if(

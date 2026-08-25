@@ -193,8 +193,8 @@ int main()
         match.upgradeMaxLevel = 3;
         match.weaponMaxLevel = 2;
         match.lapsCount = 4U;
-        match.maxPlayers = 6U;
-        match.maxComputers = 3U;
+        match.maxPlayers = 8U;
+        match.maxComputers = 7U;
         match.springBorders = true;
         match.enableMineBug = true;
         match.planet = 2;
@@ -791,7 +791,7 @@ int main()
         const bool restoredComputers =
             restartedRace && pump(server, client, [&]() {
                 const auto expectedPlayers =
-                    2U + static_cast<std::size_t>(match.maxComputers);
+                    static_cast<std::size_t>(match.maxPlayers);
                 return serverModels.snapshot().players.size() ==
                            expectedPlayers &&
                        clientModels.snapshot().players.size() ==

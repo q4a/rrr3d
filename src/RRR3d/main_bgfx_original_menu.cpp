@@ -3123,8 +3123,11 @@ int main(int argc, char** argv)
             std::to_string(std::clamp(
                 optionsDraftConfig.weaponMaxLevel, 1U, 4U)),
             std::to_string(std::clamp(
-                optionsDraftConfig.maxPlayers, 2U, 6U)),
-            std::to_string(optionsDraftConfig.maxComputers),
+                optionsDraftConfig.maxPlayers, 2U,
+                r3d::game::originalrace::originalMaximumPlayers)),
+            std::to_string(std::min(
+                optionsDraftConfig.maxComputers,
+                r3d::game::originalrace::originalMaximumComputers)),
             std::to_string(optionsDraftConfig.lapsCount),
             onOff(optionsDraftConfig.enableMineBug),
             onOff(optionsDraftConfig.disableVideo),
@@ -6611,20 +6614,29 @@ int main(int argc, char** argv)
                     std::stable_sort(
                         models.players.begin(), models.players.end(),
                         [](const auto& left, const auto& right) {
-                            if (left.owner != right.owner)
-                                return left.owner;
-                            const bool leftHuman = left.playerId == 0U;
-                            const bool rightHuman = right.playerId == 0U;
-                            if (leftHuman != rightHuman)
-                                return leftHuman;
-                            return leftHuman
-                                       ? left.netSlot < right.netSlot
-                                       : left.playerId < right.playerId;
+                            // NetPlayer constructors append Race::Player in
+                            // model creation order: connected humans first,
+                            // then host-created computers at StartRace. Model
+                            // IDs are the shared order on every peer; local
+                            // owner flags are deliberately not canonical.
+                            return left.modelId < right.modelId;
                         });
+                    // The serialized planet owns only cComputer1..5, while
+                    // Race::cMaxPlayers permits eight active NetPlayers.
+                    // Grow source-compatible templates before canonical
+                    // network order replaces the list.
+                    r3d::game::originalrace::
+                        reconcileOriginalPlayerRoster(
+                            *originalRace,
+                            static_cast<std::uint32_t>(
+                                std::min<std::size_t>(
+                                    models.players.size() - 1U,
+                                    r3d::game::originalrace::
+                                        originalMaximumComputers)),
+                            championshipMode);
                     const auto sourceRacers = originalRace->racers;
-                    const auto count = std::clamp<std::size_t>(
-                        models.players.size(), 1U,
-                        sourceRacers.size());
+                    const auto count = std::min(
+                        models.players.size(), sourceRacers.size());
                     originalRace->racers.resize(count);
                     networkRaceModelOrder.clear();
                     networkAppliedVehicleRevisions.clear();
@@ -6704,10 +6716,30 @@ int main(int argc, char** argv)
                         }
                         originalRace->racers[index] = std::move(racer);
                     }
+                    // Cloning a cComputer template for a later NetPlayer can
+                    // duplicate its MapObj ID. Race::StartRace creates cars
+                    // in the canonical PlayerList order, so restore the same
+                    // contiguous dynamic IDs after the replacement pass.
+                    r3d::game::originalrace::
+                        reconcileOriginalPlayerRoster(
+                            *originalRace,
+                            static_cast<std::uint32_t>(count - 1U),
+                            championshipMode);
                     networkRosterApplied = true;
                 }
             }
 #endif
+            if (!networkRosterApplied && !championshipMode)
+            {
+                r3d::game::originalrace::
+                    reconcileOriginalPlayerRoster(
+                        *originalRace,
+                        std::min<std::uint32_t>(
+                            profileState.config.maxComputers,
+                            r3d::game::originalrace::
+                                originalMaximumComputers),
+                        false);
+            }
             if (!originalRace->racers.empty())
                 originalRace->racers.front().name =
                     profileState.player.name;
@@ -6718,27 +6750,13 @@ int main(int argc, char** argv)
                 writeOriginalTournamentSelection(
                     *originalRace, selectedTrack,
                     profileState.player);
+            originalRace->lapCount =
+                r3d::game::originalrace::originalEffectiveLapCount(
+                    *originalRace, championshipMode,
+                    std::clamp<std::uint32_t>(
+                        profileState.config.lapsCount, 1U, 8U));
             if (!championshipMode)
             {
-                // GameMode::StartRace applies these GameFrame values only
-                // to rmSkirmish.  Championship keeps the tournament's own
-                // lap and six-racer definitions.
-                originalRace->lapCount =
-                    std::clamp<std::uint32_t>(
-                        profileState.config.lapsCount, 1U, 8U);
-                if (!networkRosterApplied)
-                {
-                    const auto skirmishRacers =
-                        std::min<std::size_t>(
-                            originalRace->racers.size(),
-                            std::clamp<std::uint32_t>(
-                                profileState.config.maxComputers,
-                                0U, 5U) +
-                                1U);
-                    originalRace->racers.resize(
-                        std::max<std::size_t>(
-                            skirmishRacers, 1U));
-                }
                 // Planet::StartPass invokes Garage::MaxUpgradeCar for every
                 // computer created in skirmish, then removes primary weapon
                 // mounts above GameMode::_weaponMaxLevel.
@@ -6946,7 +6964,11 @@ int main(int argc, char** argv)
             profileState.config.upgradeMaxLevel);
         match.weaponMaxLevel = static_cast<std::int32_t>(
             profileState.config.weaponMaxLevel);
-        match.lapsCount = originalRace->lapCount;
+        // Tournament::_lapsCount is a GameMode option in both modes and is
+        // always serialized by NetRace::WriteMatch. Track::numLaps remains
+        // the effective campaign lap count on each peer.
+        match.lapsCount = std::clamp<std::uint32_t>(
+            profileState.config.lapsCount, 1U, 8U);
         match.maxPlayers = profileState.config.maxPlayers;
         match.maxComputers = profileState.config.maxComputers;
         match.springBorders = profileState.config.springBorders;
@@ -9382,9 +9404,13 @@ int main(int argc, char** argv)
         profileState.config.lapsCount =
             std::clamp<std::uint32_t>(match.lapsCount, 1U, 8U);
         profileState.config.maxPlayers =
-            std::clamp<std::uint32_t>(match.maxPlayers, 2U, 6U);
+            std::clamp<std::uint32_t>(
+                match.maxPlayers, 2U,
+                r3d::game::originalrace::originalMaximumPlayers);
         profileState.config.maxComputers =
-            std::min<std::uint32_t>(match.maxComputers, 5U);
+            std::min<std::uint32_t>(
+                match.maxComputers,
+                r3d::game::originalrace::originalMaximumComputers);
         profileState.config.springBorders = match.springBorders;
         profileState.config.enableMineBug = match.enableMineBug;
 
@@ -9669,9 +9695,13 @@ int main(int argc, char** argv)
         const auto laps =
             std::clamp<std::uint32_t>(match.lapsCount, 1U, 8U);
         const auto players =
-            std::clamp<std::uint32_t>(match.maxPlayers, 2U, 6U);
+            std::clamp<std::uint32_t>(
+                match.maxPlayers, 2U,
+                r3d::game::originalrace::originalMaximumPlayers);
         const auto computers =
-            std::min<std::uint32_t>(match.maxComputers, 5U);
+            std::min<std::uint32_t>(
+                match.maxComputers,
+                r3d::game::originalrace::originalMaximumComputers);
         const auto difficulty =
             networkSnapshot.models.currentDifficultySet
                 ? std::string(sourceDifficultyName(
@@ -10226,16 +10256,24 @@ int main(int argc, char** argv)
                     cycleValue(
                         std::clamp(
                             optionsDraftConfig.maxPlayers,
-                            2U, 6U) -
                             2U,
-                        5U, direction) +
+                            r3d::game::originalrace::
+                                originalMaximumPlayers) -
+                            2U,
+                        r3d::game::originalrace::
+                                originalMaximumPlayers -
+                            1U,
+                        direction) +
                     2U;
                 break;
             case 8:
                 optionsDraftConfig.maxComputers =
                     cycleValue(
                         optionsDraftConfig.maxComputers,
-                        6U, direction);
+                        r3d::game::originalrace::
+                            originalMaximumComputers +
+                            1U,
+                        direction);
                 break;
             case 9:
                 optionsDraftConfig.lapsCount =

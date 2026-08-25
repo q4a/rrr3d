@@ -326,6 +326,23 @@ void loadPlayerIdentities(
     }
 }
 
+constexpr std::array<std::array<float, 4>, 8> sourcePlayerColors{{
+    {91.0F / 255.0F, 41.0F / 255.0F, 165.0F / 255.0F, 1.0F},
+    {158.0F / 255.0F, 158.0F / 255.0F, 158.0F / 255.0F, 1.0F},
+    {1.0F, 128.0F / 255.0F, 192.0F / 255.0F, 1.0F},
+    {131.0F / 255.0F, 247.0F / 255.0F, 204.0F / 255.0F, 1.0F},
+    {131.0F / 255.0F, 229.0F / 255.0F, 0.0F, 1.0F},
+    {216.0F / 255.0F, 229.0F / 255.0F, 133.0F / 255.0F, 1.0F},
+    {97.0F / 255.0F, 0.0F, 185.0F / 255.0F, 1.0F},
+    {0.0F, 108.0F / 255.0F, 164.0F / 255.0F, 1.0F},
+}};
+
+const std::array<float, 4>& sourcePlayerColor(
+    std::size_t computerIndex) noexcept
+{
+    return sourcePlayerColors[computerIndex % sourcePlayerColors.size()];
+}
+
 void selectRacers(Race& race,
                   const resource::ResourceFileSystem& resources,
                   TiXmlElement* planet,
@@ -440,19 +457,11 @@ void selectRacers(Race& race,
     if (race.racers.size() < 2)
         throw resource::ResourceError(
             "tournamet.xml: selected race has no AI opponents");
-    static constexpr std::array<std::array<float, 4>, 8> aiColors{{
-        {91.0F / 255.0F, 41.0F / 255.0F, 165.0F / 255.0F, 1.0F},
-        {158.0F / 255.0F, 158.0F / 255.0F, 158.0F / 255.0F, 1.0F},
-        {1.0F, 128.0F / 255.0F, 192.0F / 255.0F, 1.0F},
-        {131.0F / 255.0F, 247.0F / 255.0F, 204.0F / 255.0F, 1.0F},
-        {131.0F / 255.0F, 229.0F / 255.0F, 0.0F, 1.0F},
-        {216.0F / 255.0F, 229.0F / 255.0F, 133.0F / 255.0F, 1.0F},
-        {97.0F / 255.0F, 0.0F, 185.0F / 255.0F, 1.0F},
-        {0.0F, 108.0F / 255.0F, 164.0F / 255.0F, 1.0F},
-    }};
     for (std::size_t index = 1; index < race.racers.size(); ++index)
         race.racers[index].color =
-            aiColors[(index - 1U) % aiColors.size()];
+            sourcePlayerColor(index - 1U);
+    race.computerTemplates.assign(
+        race.racers.begin() + 1, race.racers.end());
 }
 
 MaterialDefinition materialDefinition(
@@ -5238,6 +5247,89 @@ void applyOriginalPlayerProfile(
     }
 }
 
+void reconcileOriginalPlayerRoster(
+    Race& race, std::uint32_t computerCount, bool campaign)
+{
+    if (race.racers.empty())
+        return;
+
+    computerCount = std::min(
+        computerCount, originalMaximumComputers);
+    const auto targetCount =
+        static_cast<std::size_t>(computerCount) + 1U;
+    if (race.racers.size() > targetCount)
+        race.racers.resize(targetCount);
+
+    while (race.racers.size() < targetCount)
+    {
+        const auto playerId = static_cast<std::uint32_t>(
+            race.racers.size());
+        std::uint32_t templateId = playerId;
+        if (templateId > originalComputerDefinitionCount)
+        {
+            // Literal Planet::StartPass mapping for Player IDs beyond
+            // cComputer5. Campaign excludes the boss from the reuse ring;
+            // skirmish cycles through all five serialized computer records.
+            templateId = campaign
+                             ? (templateId - 1U) %
+                                       (originalComputerDefinitionCount - 1U) +
+                                   2U
+                             : (templateId - 1U) %
+                                       originalComputerDefinitionCount +
+                                   1U;
+        }
+        const Racer* source = nullptr;
+        if (templateId > 0U &&
+            templateId <= race.computerTemplates.size())
+        {
+            source = &race.computerTemplates[templateId - 1U];
+        }
+        else
+        {
+            const auto active = std::find_if(
+                race.racers.begin(), race.racers.end(),
+                [templateId](const Racer& racer) {
+                    return racer.playerId == static_cast<int>(templateId);
+                });
+            if (active != race.racers.end())
+                source = &*active;
+        }
+        if (source == nullptr)
+            break;
+
+        Racer racer = *source;
+        racer.playerId = static_cast<int>(playerId);
+        racer.gamerId = playerId;
+        racer.netSlot = 0U;
+        racer.netName.clear();
+        racer.human = false;
+        racer.color = sourcePlayerColor(playerId - 1U);
+        racer.mapObjectId = race.firstDynamicMapObjectId + playerId;
+        if (const auto* identity = findOriginalPlayerIdentity(
+                race, static_cast<int>(racer.gamerId)))
+        {
+            racer.name = identity->name;
+            racer.photoPath = identity->photoPath;
+        }
+        race.racers.push_back(std::move(racer));
+    }
+
+    // Race::CreatePlayers/DelPlayer changes the dynamic MapObj creation
+    // order together with the active list. Keep the canonical contiguous IDs
+    // when a menu stepper shrinks and later expands the roster.
+    for (std::size_t index = 0U; index < race.racers.size(); ++index)
+        race.racers[index].mapObjectId =
+            race.firstDynamicMapObjectId +
+            static_cast<std::uint32_t>(index);
+}
+
+std::uint32_t originalEffectiveLapCount(
+    const Race& race, bool campaign,
+    std::uint32_t configuredLaps) noexcept
+{
+    return campaign ? race.lapCount : configuredLaps;
+}
+
 void applyOriginalSkirmishComputerConfig(
     Race& race, const OriginalGarageCatalog& garage,
     std::uint32_t upgradeMaxLevel, std::uint32_t weaponMaxLevel,
@@ -5763,6 +5855,73 @@ bool runOriginalRaceResourceSmokeTest(
             error =
                 "source Race::StartRace duplicate gamer replacement was "
                 "not preserved";
+            return false;
+        }
+        auto skirmishRoster = race;
+        reconcileOriginalPlayerRoster(
+            skirmishRoster, originalMaximumComputers, false);
+        const auto skirmishLoadoutMatches =
+            skirmishRoster.racers.size() == originalMaximumPlayers &&
+            !skirmishRoster.racers[6].loadout.empty() &&
+            !skirmishRoster.racers[7].loadout.empty() &&
+            skirmishRoster.racers[6].vehicle == race.racers[1].vehicle &&
+            skirmishRoster.racers[6].loadout.front().record ==
+                race.racers[1].loadout.front().record &&
+            skirmishRoster.racers[7].vehicle == race.racers[2].vehicle &&
+            skirmishRoster.racers[7].loadout.front().record ==
+                race.racers[2].loadout.front().record;
+        if (!skirmishLoadoutMatches ||
+            skirmishRoster.racers[6].playerId != 6 ||
+            skirmishRoster.racers[6].gamerId != 6U ||
+            skirmishRoster.racers[6].name != "scGarry" ||
+            skirmishRoster.racers[7].playerId != 7 ||
+            skirmishRoster.racers[7].gamerId != 7U ||
+            skirmishRoster.racers[7].name != "svKristoph" ||
+            skirmishRoster.racers.back().mapObjectId !=
+                race.firstDynamicMapObjectId + 7U ||
+            std::abs(skirmishRoster.racers[6].color[0] -
+                     216.0F / 255.0F) > 0.001F ||
+            originalEffectiveLapCount(race, true, 8U) !=
+                race.lapCount ||
+            originalEffectiveLapCount(race, false, 8U) != 8U)
+        {
+            error =
+                "source eight-player Race::CreatePlayers/Track laps "
+                "contract mismatch";
+            return false;
+        }
+        auto campaignOverflowRoster = race;
+        reconcileOriginalPlayerRoster(
+            campaignOverflowRoster, originalMaximumComputers, true);
+        if (campaignOverflowRoster.racers.size() !=
+                originalMaximumPlayers ||
+            campaignOverflowRoster.racers[6].vehicle !=
+                race.racers[3].vehicle ||
+            campaignOverflowRoster.racers[7].vehicle !=
+                race.racers[4].vehicle)
+        {
+            error =
+                "source campaign cComputer5 overflow mapping mismatch";
+            return false;
+        }
+        reconcileOriginalPlayerRoster(skirmishRoster, 2U, false);
+        if (skirmishRoster.racers.size() != 3U ||
+            skirmishRoster.racers.back().playerId != 2 ||
+            skirmishRoster.racers.back().mapObjectId !=
+                race.firstDynamicMapObjectId + 2U)
+        {
+            error = "source Race::CreatePlayers shrink mismatch";
+            return false;
+        }
+        reconcileOriginalPlayerRoster(
+            skirmishRoster, originalMaximumComputers, false);
+        if (skirmishRoster.racers.size() != originalMaximumPlayers ||
+            skirmishRoster.racers[6].vehicle != race.racers[1].vehicle ||
+            skirmishRoster.racers[7].vehicle != race.racers[2].vehicle)
+        {
+            error =
+                "source Race::CreatePlayers regrow from Planet data "
+                "mismatch";
             return false;
         }
         auto humanEasy = race.vehicles.at(race.racers.front().vehicle);
