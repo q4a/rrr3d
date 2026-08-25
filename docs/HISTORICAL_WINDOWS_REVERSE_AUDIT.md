@@ -960,6 +960,27 @@ resource audit проверяет IDs полного campaign roster, а network
 regression использует настоящий opponent ID. 13 non-network CTest, resource
 verifier и map1 physics smoke проходят.
 
+### P2.18 — Race::ExitRace source teardown — выполнено
+
+Перенесён оставшийся gameplay lifecycle `Race::ExitRace`. Подтвердилось, что
+portable automatic finish переходил прямо в FinishMenu после трёхсекундного
+таймера и не вызывал source teardown; `AIPlayer`, `Player::CarState`, active
+projectiles/mines/effects, pending physics requests и achievement race-state
+оставались живыми за меню. Ручной выход вызывал только completion/ranking и
+также не выполнял `Player::FreeCar(true)`.
+
+`RaceRunState::ExitRace` теперь освобождает CarState всех Player, а session
+однократно освобождает AI cars и item lifecycle, очищает source Logic object
+graph, pending network/physics queues, сбрасывает contact effect и выключает
+map bonus/decoration instances. Jolt actor/bgfx scene остаются backend
+границей и перестают обновляться через `inRace`.
+
+`showFinishMenu` теперь повторяет Windows-цепочку
+`cRaceFinishTimeEnd -> Menu::ExitRace -> Race::ExitRace -> FinishMenu`;
+ранний HudMenu exit остаётся идемпотентным. Regression проверяет освобождённые
+car nodes, AI и object graph после первого/повторного exit. 13 CTest, map1
+physics и 300-frame FinishMenu smoke проходят.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

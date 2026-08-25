@@ -12,16 +12,16 @@ namespace r3d::game::originalrace::source
 
 class Player;
 
-// Gameplay-owned flags and Player block transitions from
+// Gameplay-owned flags and Player transitions from
 // Race::StartRace/GoRace/ExitRace. World, renderer and physics teardown stay
-// at their platform boundaries, but the human start brake is source state.
+// at their platform boundaries; Player::FreeCar(true) remains source state.
 class RaceRunState
 {
 public:
     void Reset() noexcept;
     bool StartRace(std::span<Player> players, Player* human) noexcept;
     void GoRace(Player* human) noexcept;
-    bool ExitRace() noexcept;
+    bool ExitRace(std::span<Player> players) noexcept;
 
     bool IsStartRace() const noexcept;
     bool IsRaceGo() const noexcept;

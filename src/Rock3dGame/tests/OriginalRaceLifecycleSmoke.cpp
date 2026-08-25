@@ -27,8 +27,12 @@ int main()
     run.GoRace(&runPlayers.front());
     if (!run.IsRaceGo() || runPlayers.front().IsBlock())
         return 10;
-    if (!run.ExitRace() || run.IsStartRace() || run.IsRaceGo() ||
-        run.ExitRace())
+    runPlayers.front().car.numLaps = 2U;
+    runPlayers.back().car.numLaps = 3U;
+    if (!run.ExitRace(runPlayers) || run.IsStartRace() || run.IsRaceGo() ||
+        runPlayers.front().car.numLaps != 0U ||
+        runPlayers.back().car.numLaps != 0U ||
+        run.ExitRace(runPlayers))
         return 11;
 
     const std::array<std::uint32_t, 3> money{100U, 60U, 30U};

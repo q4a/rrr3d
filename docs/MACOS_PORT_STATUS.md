@@ -1855,3 +1855,13 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - Damage authority, AI, catch-up, lap/finish и race start consumers переведены
   с угадывания роли по vector index/definition flag на Player owner. Unit,
   resource и map1 physics regressions проходят.
+
+### Source Race ExitRace teardown follow-up
+
+- Автоматический и ручной finish теперь проходят через исходный
+  `Race::ExitRace` до открытия FinishMenu.
+- Active owner освобождает Player CarState, AI cars, Droid lifecycle,
+  projectiles/mines/effects, contact state и pending physics/network queues;
+  bonus/decoration map objects больше не остаются активными за меню.
+- Повторный вызов idempotent, результаты/награды FinishMenu сохраняются.
+  Unit, integrated map1 physics и FinishMenu renderer smoke проходят.

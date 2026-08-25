@@ -10099,6 +10099,10 @@ int main(int argc, char** argv)
     showFinishMenu = [&](bool persistProgress) {
         if (finishMenuShown || raceSession.racers().empty())
             return;
+        // Menu::OnProcessEvent(cRaceFinishTimeEnd) calls ExitRace before
+        // ExitRaceGoFinish. This also executes on the network result path;
+        // CompleteRace/ExitRace are deliberately idempotent there.
+        raceSession.completeRaceForExit(raceVehicles);
         finishMenuShown = true;
         finishAnimationSeconds = 0.0F;
         finishVoiceIndex = 0U;

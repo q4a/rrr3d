@@ -5933,10 +5933,39 @@ void OriginalRaceSession::completeRaceForExit(
 {
     // Race::ExitRace unconditionally begins with CompleteRace(results), even
     // when the local human accepted HudMenu's exit dialog before finishing.
-    // The renderer/Jolt teardown remains outside this source gameplay owner.
+    // Jolt actor and bgfx scene destruction remain backend boundaries, but
+    // Race's AI/Player/object graph teardown belongs to this source owner.
     completeRemainingRacers(vehicles);
     updatePlaces(vehicles);
-    raceRunState_.ExitRace();
+    if (raceRunState_.ExitRace(racers_))
+    {
+        for (auto& aiPlayer : aiPlayers_)
+            aiPlayer.FreeCar();
+        for (auto& itemRack : playerItemRacks_)
+            itemRack.OnDestroyCar();
+        for (auto& player : racers_)
+            player.ClearBonusProjectiles();
+        achievementModel_.ResetRaceState();
+
+        // World::Logic::CleanGameObjs and Map::Clear destroy these source
+        // objects on Windows. Keeping them in the portable session allowed
+        // stale effects and sound owners to survive behind FinishMenu.
+        effects_.clear();
+        mines_.clear();
+        projectiles_.clear();
+        respawns_.clear();
+        velocityRequests_.clear();
+        angularVelocityRequests_.clear();
+        angularMomentumRequests_.clear();
+        pendingNetworkShots_.clear();
+        pendingNetworkBonuses_.clear();
+        pendingNetworkMineContacts_.clear();
+        std::fill(decorationActive_.begin(), decorationActive_.end(), false);
+        std::fill(bonusActive_.begin(), bonusActive_.end(), false);
+        std::fill(vehicleInputs_.begin(), vehicleInputs_.end(),
+                  r3d::physics::VehicleInput{});
+        pairContactEffect_.Reset(race_.contactSoundPaths.size());
+    }
     phase_ = RacePhase::Finished;
     phaseBeforePause_ = phase_;
     finishSecondsRemaining_ = 0.0F;
@@ -6393,6 +6422,25 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 humanResult == nullptr || humanResult->pickedMoney != 17U ||
                 !exitRacers.front().finished ||
                 exitRacers.front().pickedMoney != 0U ||
+                exitRacers.front().car.GetLastNode() != nullptr ||
+                std::any_of(
+                    exitSession.decorationActive().begin(),
+                    exitSession.decorationActive().end(),
+                    [](bool active) { return active; }) ||
+                std::any_of(
+                    exitSession.bonusActive().begin(),
+                    exitSession.bonusActive().end(),
+                    [](bool active) { return active; }) ||
+                std::any_of(
+                    exitRacers.begin(), exitRacers.end(),
+                    [&](const RacerRuntime& racer) {
+                        return exitSession.racerHasAiController(
+                            static_cast<std::size_t>(
+                                &racer - exitRacers.data()));
+                    }) ||
+                !exitSession.effects().empty() ||
+                !exitSession.mines().empty() ||
+                !exitSession.projectiles().empty() ||
                 exitRacers.front().money !=
                     humanResult->money + humanResult->pickedMoney ||
                 exitRacers.front().points != humanResult->points)

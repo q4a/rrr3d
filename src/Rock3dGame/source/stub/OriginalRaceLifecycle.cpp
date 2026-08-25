@@ -37,12 +37,14 @@ void RaceRunState::GoRace(Player* human) noexcept
         human->ResetBlock(false);
 }
 
-bool RaceRunState::ExitRace() noexcept
+bool RaceRunState::ExitRace(std::span<Player> players) noexcept
 {
     goRace_ = false;
     if (!startRace_)
         return false;
     startRace_ = false;
+    for (auto& player : players)
+        player.FreeCar(true);
     return true;
 }
 
