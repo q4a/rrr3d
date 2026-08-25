@@ -1770,3 +1770,20 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - Player unit regression покрывает общий owner и destroyed branch;
   campaign AI finish regression, 13/13 non-network CTest, map1 physics и
   FinishMenu smoke проходят.
+
+### Source Player::FindClosestEnemy owner block
+
+- Удалена session-лямбда наведения оружия. `source::Player` теперь владеет
+  исходным `FindClosestEnemy`: фильтром живых map objects, минимальной
+  абсолютной дистанцией до forward plane и проверкой view cone.
+- Исправлены два потерянных branch. Отрицательный `viewAngle` снова означает
+  задний сектор через `angle <= cos(pi/2-viewAngle)`, а `zTest` использует
+  `curTile->IsZLevelContains` для многоуровневых участков трассы. Нулевой угол
+  по-прежнему отключает cone filter для `sphereGun`.
+- `CarState` теперь отдельно хранит полный нормализованный `dir3`; прежний
+  session surrogate передавал только XY-направление и терял наклон машины при
+  3D plane/cone targeting. Trace-направление остаётся отдельной XY-проекцией.
+- Прямой Player regression различает plane distance от Euclidean distance,
+  передний/задний sectors и нижний Z-level. Существующие lethal impulse chain,
+  sphereGun homing, 13/13 CTest, map1 physics и 240-frame Metal/Jolt smoke
+  проходят через новый owner.

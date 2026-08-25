@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <functional>
 #include <limits>
+#include <span>
 #include <vector>
 
 namespace r3d::game::originalrace::source
@@ -196,6 +197,8 @@ public:
         float GetDist(bool lastCorrect = false) const noexcept;
         float GetLap(bool lastCorrect = false) const noexcept;
         float GetSpeed() const noexcept;
+        TraceVec3 GetPosition() const noexcept;
+        TraceVec3 GetDirection3() const noexcept;
         TraceVec3 GetMapPos() const noexcept;
         float GetLastNodeCoordX() const noexcept;
         std::uint32_t GetTrack() const noexcept;
@@ -213,6 +216,7 @@ public:
         Trace* trace_ = nullptr;
         TraceVec3 position_{};
         TraceVec3 direction_{1.0F, 0.0F, 0.0F};
+        TraceVec3 direction3_{1.0F, 0.0F, 0.0F};
         float speed_ = 0.0F;
         WayNode* curTile_ = nullptr;
         WayNode* curNode_ = nullptr;
@@ -258,6 +262,9 @@ public:
         std::uint32_t cheatMask, std::size_t playerId,
         std::size_t difficulty,
         const std::vector<CheatPlayerView>& players) noexcept;
+    Player* FindClosestEnemy(
+        float viewAngle, bool zTest,
+        std::span<Player* const> players) noexcept;
     bool ConsumeEnergyDamageEffectCreated() noexcept;
     std::vector<PlayerGameEvent> TakeGameEvents() noexcept;
 

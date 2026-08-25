@@ -43,6 +43,15 @@ TraceVec3 normalized2(TraceVec3 value) noexcept
     return {value.x / length, value.y / length, 0.0F};
 }
 
+TraceVec3 normalized3(TraceVec3 value) noexcept
+{
+    const float length = std::sqrt(
+        value.x * value.x + value.y * value.y + value.z * value.z);
+    if (length <= 0.0001F)
+        return {1.0F, 0.0F, 0.0F};
+    return {value.x / length, value.y / length, value.z / length};
+}
+
 float dot2(const TraceVec2& first, const TraceVec3& second) noexcept
 {
     return first.x * second.x + first.y * second.y;
@@ -55,6 +64,7 @@ void Player::CarState::Reset(Trace* trace) noexcept
     trace_ = trace;
     position_ = {};
     direction_ = {1.0F, 0.0F, 0.0F};
+    direction3_ = {1.0F, 0.0F, 0.0F};
     speed_ = 0.0F;
     curTile_ = nullptr;
     curNode_ = nullptr;
@@ -84,6 +94,7 @@ Player::CarState::UpdateResult Player::CarState::Update(
 {
     trace_ = &trace;
     position_ = position;
+    direction3_ = normalized3(direction);
     direction_ = normalized2(direction);
     speed_ = vehicleSpeed;
 
@@ -278,6 +289,16 @@ float Player::CarState::GetLap(bool lastCorrect) const noexcept
 float Player::CarState::GetSpeed() const noexcept
 {
     return speed_;
+}
+
+TraceVec3 Player::CarState::GetPosition() const noexcept
+{
+    return position_;
+}
+
+TraceVec3 Player::CarState::GetDirection3() const noexcept
+{
+    return direction3_;
 }
 
 TraceVec3 Player::CarState::GetMapPos() const noexcept
@@ -607,6 +628,70 @@ Player::ProgressResult Player::OnProgress(
 
     result.blockMove = ProgressBlock(deltaTime);
     return result;
+}
+
+Player* Player::FindClosestEnemy(
+    float viewAngle, bool zTest,
+    std::span<Player* const> players) noexcept
+{
+    // The Windows method tests CarState::mapObj here. During a lethal contact
+    // callback that MapObj still exists until deferred object destruction,
+    // even though portable GameObject damage state has already flipped. The
+    // retained CarState pose is therefore the backend-neutral live-mapObj
+    // boundary for the source player in this synchronous search.
+    const TraceVec3 carPosition = car.GetPosition();
+    const TraceVec3 carDirection = car.GetDirection3();
+    const WayNode* liveTile = car.GetLiveTile();
+    Player* enemy = nullptr;
+    float minimumPlaneDistance = 0.0F;
+    constexpr float halfPi = 1.57079632679489661923F;
+
+    for (Player* candidate : players)
+    {
+        if (candidate == nullptr || candidate == this ||
+            candidate->destroyed || candidate->disconnected)
+        {
+            continue;
+        }
+        const TraceVec3 enemyPosition = candidate->car.GetPosition();
+        if (zTest && liveTile != nullptr &&
+            !liveTile->GetTile().IsZLevelContains(enemyPosition))
+        {
+            continue;
+        }
+
+        const TraceVec3 difference{
+            enemyPosition.x - carPosition.x,
+            enemyPosition.y - carPosition.y,
+            enemyPosition.z - carPosition.z};
+        const float length = std::sqrt(
+            difference.x * difference.x +
+            difference.y * difference.y +
+            difference.z * difference.z);
+        if (length <= 0.0001F)
+            continue;
+        const float alignment =
+            (difference.x * carDirection.x +
+             difference.y * carDirection.y +
+             difference.z * carDirection.z) /
+            length;
+        const float planeDistance = std::abs(
+            difference.x * carDirection.x +
+            difference.y * carDirection.y +
+            difference.z * carDirection.z);
+        const bool nearest =
+            enemy == nullptr || planeDistance < minimumPlaneDistance;
+        const bool insideView =
+            viewAngle == 0.0F ||
+            (viewAngle > 0.0F
+                 ? alignment >= std::cos(viewAngle)
+                 : alignment <= std::cos(halfPi - viewAngle));
+        if (!nearest || !insideView)
+            continue;
+        enemy = candidate;
+        minimumPlaneDistance = planeDistance;
+    }
+    return enemy;
 }
 
 bool Player::ConsumeEnergyDamageEffectCreated() noexcept

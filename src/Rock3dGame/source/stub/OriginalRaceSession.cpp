@@ -2339,7 +2339,7 @@ void OriginalRaceSession::updateProgress(
 
     const auto state = runtime.car.Update(
         sourceTrace_, vehicle.body.position,
-        normalized2(forward(vehicle.body.rotation)),
+        normalized3(forward(vehicle.body.rotation)),
         vehicle.speed, seconds);
     if (state.lostControl)
     {
@@ -2850,47 +2850,21 @@ void OriginalRaceSession::updateGameplay(
             localProjectile.rotation = projectile.rotation;
             return compose(result, localProjectile);
         };
+    std::vector<source::Player*> playerList;
+    playerList.reserve(racers_.size());
+    for (auto& racer : racers_)
+        playerList.push_back(&racer);
     auto findClosestEnemy =
-        [&](std::size_t source, float viewAngle) {
+        [&](std::size_t source, float viewAngle, bool zTest = false) {
             if (source >= vehicles.size() ||
                 source >= racers_.size())
                 return RacerRuntime::invalidWeapon;
-            const Vec3 sourcePosition =
-                vehicles[source].body.position;
-            const Vec3 sourceDirection = normalized3(
-                forward(vehicles[source].body.rotation));
-            std::size_t result = RacerRuntime::invalidWeapon;
-            float minimumPlaneDistance = 0.0F;
-            for (std::size_t candidate = 0;
-                 candidate < vehicles.size() &&
-                 candidate < racers_.size(); ++candidate)
-            {
-                if (candidate == source ||
-                    racers_[candidate].destroyed)
-                    continue;
-                const Vec3 difference = subtract(
-                    vehicles[candidate].body.position,
-                    sourcePosition);
-                const float distance = length3(difference);
-                if (distance <= 0.0001F)
-                    continue;
-                const float angle = dot3(
-                    multiply(difference, 1.0F / distance),
-                    sourceDirection);
-                const float planeDistance =
-                    std::abs(dot3(sourceDirection, difference));
-                const bool nearest =
-                    result == RacerRuntime::invalidWeapon ||
-                    planeDistance < minimumPlaneDistance;
-                const bool insideView =
-                    viewAngle == 0.0F ||
-                    angle >= std::cos(viewAngle);
-                if (!nearest || !insideView)
-                    continue;
-                result = candidate;
-                minimumPlaneDistance = planeDistance;
-            }
-            return result;
+            const auto* enemy = racers_[source].FindClosestEnemy(
+                viewAngle, zTest, playerList);
+            return enemy == nullptr
+                       ? RacerRuntime::invalidWeapon
+                       : static_cast<std::size_t>(
+                             enemy - racers_.data());
         };
     for (std::size_t racer = 0; racer < racers_.size(); ++racer)
     {

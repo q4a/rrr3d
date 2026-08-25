@@ -217,6 +217,45 @@ int main()
         std::abs(firstMap.x - 40.0F) > 0.001F)
         return 13;
 
+    source::Player planeNearPlayer;
+    source::Player forwardPlayer;
+    source::Player backPlayer;
+    source::Player lowerLevelPlayer;
+    planeNearPlayer.Reset(100.0F, 2U, &trace);
+    forwardPlayer.Reset(100.0F, 3U, &trace);
+    backPlayer.Reset(100.0F, 4U, &trace);
+    lowerLevelPlayer.Reset(100.0F, 5U, &trace);
+    planeNearPlayer.car.Update(
+        trace, {50.0F, 100.0F, 0.0F}, {1.0F, 0.0F, 0.0F},
+        0.0F, 1.0F / 60.0F);
+    forwardPlayer.car.Update(
+        trace, {80.0F, 0.0F, 0.0F}, {1.0F, 0.0F, 0.0F},
+        0.0F, 1.0F / 60.0F);
+    backPlayer.car.Update(
+        trace, {0.0F, 0.0F, 0.0F}, {1.0F, 0.0F, 0.0F},
+        0.0F, 1.0F / 60.0F);
+    lowerLevelPlayer.car.Update(
+        trace, {60.0F, 0.0F, -1000.0F}, {1.0F, 0.0F, 0.0F},
+        0.0F, 1.0F / 60.0F);
+    std::vector<source::Player*> enemyPlayers{
+        &tracedPlayer, &planeNearPlayer, &forwardPlayer, &backPlayer};
+    if (tracedPlayer.FindClosestEnemy(
+            1.57079632679489661923F, false, enemyPlayers) !=
+            &planeNearPlayer ||
+        tracedPlayer.FindClosestEnemy(
+            -0.78539816339744830962F, false, enemyPlayers) !=
+            &backPlayer)
+    {
+        return 33;
+    }
+    enemyPlayers = {&tracedPlayer, &lowerLevelPlayer};
+    if (tracedPlayer.FindClosestEnemy(0.0F, false, enemyPlayers) !=
+            &lowerLevelPlayer ||
+        tracedPlayer.FindClosestEnemy(0.0F, true, enemyPlayers) != nullptr)
+    {
+        return 34;
+    }
+
     std::vector<source::Player::CheatPlayerView> cheatPlayers{
         {0U, true, true, tracedPlayer.car.GetLap() + 0.25F},
         {1U, false, true, tracedPlayer.car.GetLap() + 0.49F}};

@@ -1255,6 +1255,17 @@ Network, video и Steam явно выключены.
   `HasCar()` восстановило исходную семантику `AIPlayer::OnProgress` и убрало
   движение компьютеров после финиша.
 
+### Source Player::FindClosestEnemy owner
+
+- Подтвердилось, что оружейный runtime оставлял поиск цели в session surrogate.
+  Он поддерживал только нулевой/положительный cone и не имел `zTest`.
+  Лямбда удалена; projectile/homing paths вызывают active
+  `Player::FindClosestEnemy`.
+- Перенесены negative rear cone, source forward-plane metric и Z-level test.
+  `CarState` хранит полный `dir3`, не только XY trace direction, поэтому
+  наведение на наклонных участках не использует выровненную по горизонту
+  подмену.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity
