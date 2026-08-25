@@ -112,6 +112,32 @@ public:
         bool lockSpring = false;
     };
 
+    struct TypeRules
+    {
+        bool rocketPrepare = false;
+        bool attached = false;
+        bool ray = false;
+        bool homing = false;
+        bool ballistic = false;
+        bool mineTestsLock = false;
+    };
+
+    enum class BonusContactType : std::uint8_t
+    {
+        None,
+        Medpack,
+        Charge,
+        Money,
+        Immortal,
+    };
+
+    struct BonusContactResult
+    {
+        BonusContactType type = BonusContactType::None;
+        float value = 0.0F;
+        bool take = false;
+    };
+
     static ContactResult SpeedArrowContact(
         Vec3 worldDirection, float damage) noexcept;
     static ContactResult LushaContact(
@@ -173,6 +199,10 @@ public:
         float damage, float deltaTime) noexcept;
     static SpringPrepareResult SpringPrepare(
         bool hasCar, bool wheelsContact, float speed) noexcept;
+    static TypeRules GetTypeRules(std::uint32_t type) noexcept;
+    static BonusContactResult BonusContact(
+        std::uint32_t type, bool hasTarget, float damage,
+        float targetMaximumLife) noexcept;
 };
 
 // GameBase.cpp::ShotEffect receives one OnShot callback only after

@@ -4883,8 +4883,11 @@ void OriginalRaceSession::updateGameplay(
             racers_[racer].destroyed)
             return false;
         const auto& bonus = race_.bonuses[bonusIndex];
+        const auto bonusRules =
+            source::Proj::GetTypeRules(bonus.projectileType);
         if (bonus.kind != BonusKind::MineHazard ||
-            (enableMineBug_ && racers_[racer].gameCar.IsMineLocked()))
+            (bonusRules.mineTestsLock && enableMineBug_ &&
+             racers_[racer].gameCar.IsMineLocked()))
             return false;
         const auto& racerDefinition = race_.racers[racer];
         const auto& vehicleDefinition =
@@ -4952,6 +4955,11 @@ void OriginalRaceSession::updateGameplay(
             !bonusActive_[bonusIndex] || racers_[racer].destroyed)
             return false;
         auto& runtime = racers_[racer];
+        const auto sourceBonus = source::Proj::BonusContact(
+            race_.bonuses[bonusIndex].projectileType, true, value,
+            runtime.maximumLife);
+        const float sourceValue =
+            sourceBonus.take ? sourceBonus.value : value;
         source::PlayerBonusType sourceType;
         switch (kind)
         {
@@ -4987,7 +4995,7 @@ void OriginalRaceSession::updateGameplay(
                 : 0.0F;
         const auto result = source::Logic::TakeBonus(
             &runtime, &bonusObjects_[bonusIndex], sourceType,
-            value, weaponMaximumCharges, bonusRandomUnit);
+            sourceValue, weaponMaximumCharges, bonusRandomUnit);
         if (!result.taken)
             return false;
         PickSlot pickSlot = PickSlot::None;
@@ -5013,7 +5021,7 @@ void OriginalRaceSession::updateGameplay(
         event.racer = racer;
         event.target = bonusIndex;
         event.position = race_.bonuses[bonusIndex].transform.position;
-        event.value = value;
+        event.value = sourceValue;
         event.pickSlot = pickSlot;
         event.networkReplicated = networkReplicated;
         events_.push_back(std::move(event));
@@ -5110,7 +5118,10 @@ void OriginalRaceSession::updateGameplay(
             }
             if (bonus.kind == BonusKind::MineHazard)
             {
-                if (enableMineBug_ &&
+                const auto bonusRules =
+                    source::Proj::GetTypeRules(
+                        bonus.projectileType);
+                if (bonusRules.mineTestsLock && enableMineBug_ &&
                     runtime.gameCar.IsMineLocked())
                     continue;
                 if (networkGameplayEnabled_)
@@ -5220,11 +5231,10 @@ void OriginalRaceSession::updateGameplay(
             // RocketPrepare. Laser/FrostRay/Drobilka keep the weapon actor's
             // full 3D direction; applying CalcSpeed to them changed both ray
             // hits and visible beam alignment on slopes.
+            const auto projectileRules =
+                source::Proj::GetTypeRules(projectile.type);
             const bool rocketPrepared =
-                projectile.type == 0U || projectile.type == 2U ||
-                projectile.type == 14U || projectile.type == 16U ||
-                projectile.type == 19U || projectile.type == 21U ||
-                projectile.type == 22U || projectile.type == 23U;
+                projectileRules.rocketPrepare;
             const auto sourceLaunch = source::Proj::CalcSpeed(
                 sourceVec(sourceDirection),
                 sourceVec(vehicles[shooter].linearVelocity),
@@ -5244,13 +5254,9 @@ void OriginalRaceSession::updateGameplay(
                 requestedTarget < racers_.size()
                     ? requestedTarget
                     : findClosestEnemy(shooter, homingViewAngle);
-            const bool rayProjectile =
-                projectile.speed <= 0.0F;
+            const bool rayProjectile = projectileRules.ray;
             const bool attachedProjectile =
-                projectile.type == 3U ||
-                projectile.type == 14U ||
-                projectile.type == 15U ||
-                projectile.type == 18U;
+                projectileRules.attached;
             const float projectileDistance =
                 projectile.maximumDistance > 0.0F
                     ? projectile.maximumDistance
@@ -5349,12 +5355,11 @@ void OriginalRaceSession::updateGameplay(
                 runtimeProjectile.lifeSeconds =
                     runtimeProjectile.maximumLifeSeconds;
                 runtimeProjectile.ballistic =
-                    projectile.type == 19U;
+                    projectileRules.ballistic;
                 runtimeProjectile.deathEffect.Reset(
                     projectile.deathEffect.effectPhysicsIgnoreSenderCar,
                     projectile.deathEffect.targetChild);
-                if (projectile.type == 2U ||
-                    projectile.type == 21U)
+                if (projectileRules.homing)
                 {
                     runtimeProjectile.homingDelay = 0.4F;
                     runtimeProjectile.target = homingTarget;
@@ -7730,8 +7735,12 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 DamageType::Simple, medpackVehicles[0]);
             const float lifeBefore =
                 medpackSession.racers().front().life;
+            const float sourceMedpackValue =
+                sourceMedpack->value > 0.0F
+                    ? sourceMedpack->value
+                    : medpackSession.racers().front().maximumLife;
             const float expectedLife = std::min(
-                lifeBefore + sourceMedpack->value,
+                lifeBefore + sourceMedpackValue,
                 medpackSession.racers().front().maximumLife);
             medpackVehicles[0].body.position =
                 medpackRace.bonuses.front().transform.position;
@@ -11476,12 +11485,16 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 synchronizedLife, false);
             const float lifeBeforeBonus =
                 bonusTarget.racers().front().life;
+            const float sourceNetworkBonusValue =
+                sourceBonus->value > 0.0F
+                    ? sourceBonus->value
+                    : bonusTarget.racers().front().maximumLife;
             const float expectedBonusLife = std::min(
-                lifeBeforeBonus + sourceBonus->value,
+                lifeBeforeBonus + sourceNetworkBonusValue,
                 bonusTarget.racers().front().maximumLife);
             bonusTarget.queueNetworkBonus(
                 {0U, bonusIndex, sourceBonus->kind,
-                 sourceBonus->value});
+                 sourceNetworkBonusValue});
             bonusTarget.update(
                 1.0F / 60.0F, vehicles, noShotInput);
             const auto bonusEvent = std::find_if(

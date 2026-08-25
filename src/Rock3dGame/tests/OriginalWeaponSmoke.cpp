@@ -430,6 +430,36 @@ int main()
         source::Proj::SpringPrepare(
             true, false, 17.0F).prepared)
         return 59;
+    const auto rocketRules = source::Proj::GetTypeRules(0U);
+    const auto laserRules = source::Proj::GetTypeRules(3U);
+    const auto fireRules = source::Proj::GetTypeRules(14U);
+    const auto mortarRules = source::Proj::GetTypeRules(19U);
+    if (!rocketRules.rocketPrepare || rocketRules.ray ||
+        !laserRules.attached || !laserRules.ray ||
+        !fireRules.rocketPrepare || !fireRules.attached ||
+        !mortarRules.rocketPrepare || !mortarRules.ballistic ||
+        !source::Proj::GetTypeRules(11U).mineTestsLock ||
+        source::Proj::GetTypeRules(24U).mineTestsLock)
+        return 60;
+    const auto fullMedpack = source::Proj::BonusContact(
+        4U, true, 0.0F, 80.0F);
+    const auto partialMedpack = source::Proj::BonusContact(
+        4U, true, 5.0F, 80.0F);
+    const auto chargeBonus = source::Proj::BonusContact(
+        5U, true, 3.0F, 80.0F);
+    if (!fullMedpack.take ||
+        fullMedpack.type !=
+            source::Proj::BonusContactType::Medpack ||
+        fullMedpack.value != 80.0F ||
+        partialMedpack.value != 5.0F ||
+        chargeBonus.type !=
+            source::Proj::BonusContactType::Charge ||
+        chargeBonus.value != 3.0F ||
+        source::Proj::BonusContact(
+            4U, false, 0.0F, 80.0F).take ||
+        source::Proj::BonusContact(
+            8U, true, 3.0F, 80.0F).take)
+        return 61;
 
     source::PairPxContactEffect contacts;
     contacts.Reset(3U);

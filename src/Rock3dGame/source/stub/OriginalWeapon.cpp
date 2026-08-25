@@ -487,6 +487,90 @@ Proj::SpringPrepareResult Proj::SpringPrepare(
     return result;
 }
 
+Proj::TypeRules Proj::GetTypeRules(std::uint32_t type) noexcept
+{
+    TypeRules result;
+    switch (type)
+    {
+    case 0U:  // ptRocket
+        result.rocketPrepare = true;
+        break;
+    case 2U:  // ptTorpeda
+        result.rocketPrepare = true;
+        result.homing = true;
+        break;
+    case 3U:  // ptLaser
+        result.attached = true;
+        result.ray = true;
+        break;
+    case 11U: // ptMine
+    case 12U: // ptMineRip
+        result.mineTestsLock = true;
+        break;
+    case 14U: // ptFire
+        result.rocketPrepare = true;
+        result.attached = true;
+        break;
+    case 15U: // ptDrobilka
+        result.attached = true;
+        break;
+    case 16U: // ptSonar
+        result.rocketPrepare = true;
+        break;
+    case 18U: // ptFrostRay
+        result.attached = true;
+        result.ray = true;
+        break;
+    case 19U: // ptMortira
+        result.rocketPrepare = true;
+        result.ballistic = true;
+        break;
+    case 21U: // ptImpulse
+        result.rocketPrepare = true;
+        result.homing = true;
+        break;
+    case 22U: // ptThunder
+    case 23U: // ptResonanse
+        result.rocketPrepare = true;
+        break;
+    default:
+        break;
+    }
+    return result;
+}
+
+Proj::BonusContactResult Proj::BonusContact(
+    std::uint32_t type, bool hasTarget, float damage,
+    float targetMaximumLife) noexcept
+{
+    BonusContactResult result;
+    if (!hasTarget)
+        return result;
+    switch (type)
+    {
+    case 4U: // ptMedpack
+        result.type = BonusContactType::Medpack;
+        result.value = damage > 0.0F ? damage : targetMaximumLife;
+        break;
+    case 5U: // ptCharge
+        result.type = BonusContactType::Charge;
+        result.value = damage;
+        break;
+    case 6U: // ptMoney
+        result.type = BonusContactType::Money;
+        result.value = damage;
+        break;
+    case 7U: // ptImmortal
+        result.type = BonusContactType::Immortal;
+        result.value = damage;
+        break;
+    default:
+        return result;
+    }
+    result.take = true;
+    return result;
+}
+
 void ShotEffect::Reset() noexcept
 {
     shotCount_ = 0U;
