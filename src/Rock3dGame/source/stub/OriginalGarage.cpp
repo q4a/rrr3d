@@ -341,12 +341,20 @@ void loadWorkshop(TiXmlElement* root, OriginalGarageCatalog& catalog)
                 value.maximumTorque =
                     real(function, "maxTorque");
                 value.life = real(function, "life");
-                value.longExtremumValue =
-                    real(child(function, "longTire"),
-                         "extremumValue");
-                value.lateralExtremumValue =
-                    real(child(function, "latTire"),
-                         "extremumValue");
+                value.maximumSpeed = real(function, "maxSpeed");
+                value.tireSpring = real(function, "tireSpring");
+                const auto readTire = [](TiXmlElement* tire) {
+                    OriginalWorkshopItem::CarFunction::Tire result;
+                    result.extremumSlip = real(tire, "extremumSlip");
+                    result.extremumValue = real(tire, "extremumValue");
+                    result.asymptoteSlip = real(tire, "asymptoteSlip");
+                    result.asymptoteValue = real(tire, "asymptoteValue");
+                    return result;
+                };
+                value.longitudinalTire =
+                    readTire(child(function, "longTire"));
+                value.lateralTire =
+                    readTire(child(function, "latTire"));
                 if (!value.car.empty())
                     item.carFunctions.push_back(
                         std::move(value));
@@ -478,9 +486,10 @@ float mobilitySkill(
     if (function == nullptr)
         return 0.0F;
     return function->maximumTorque +
-           std::max(function->longExtremumValue - 5.0F, 0.0F) *
+           std::max(function->longitudinalTire.extremumValue - 5.0F,
+                    0.0F) *
                300.0F +
-           std::max(function->lateralExtremumValue - 1.5F,
+           std::max(function->lateralTire.extremumValue - 1.5F,
                     0.0F) *
                2000.0F;
 }
@@ -579,6 +588,15 @@ OriginalGarageCatalog loadOriginalGarage(
     loadWorkshop(workshop.RootElement(), catalog);
     loadUnlocks(tournament.RootElement(), catalog);
     return catalog;
+}
+
+std::vector<OriginalWorkshopItem> loadOriginalWorkshop(
+    const resource::ResourceFileSystem& resources)
+{
+    OriginalGarageCatalog catalog;
+    auto workshop = parseXml(resources, "workshop.xml");
+    loadWorkshop(workshop.RootElement(), catalog);
+    return catalog.workshop;
 }
 
 OriginalGarageStats originalGarageStats(

@@ -36,11 +36,21 @@ struct OriginalWorkshopItem
 {
     struct CarFunction
     {
+        struct Tire
+        {
+            float extremumSlip = 0.0F;
+            float extremumValue = 0.0F;
+            float asymptoteSlip = 0.0F;
+            float asymptoteValue = 0.0F;
+        };
+
         std::string car;
-        float longExtremumValue = 0.0F;
-        float lateralExtremumValue = 0.0F;
+        Tire longitudinalTire;
+        Tire lateralTire;
         float maximumTorque = 0.0F;
         float life = 0.0F;
+        float maximumSpeed = 0.0F;
+        float tireSpring = 0.0F;
     };
 
     std::string record;
@@ -130,6 +140,8 @@ struct OriginalGarageStats
 };
 
 OriginalGarageCatalog loadOriginalGarage(
+    const resource::ResourceFileSystem& resources);
+std::vector<OriginalWorkshopItem> loadOriginalWorkshop(
     const resource::ResourceFileSystem& resources);
 
 OriginalGarageStats originalGarageStats(

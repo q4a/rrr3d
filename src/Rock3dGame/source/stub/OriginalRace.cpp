@@ -2,6 +2,7 @@
 
 #include "OriginalPlayer.h"
 #include "OriginalProfile.h"
+#include "OriginalSlot.h"
 #include "OriginalTournament.h"
 #include "resource/R3DMeshAsset.h"
 #include "resource/ResourceFileSystem.h"
@@ -261,120 +262,16 @@ bool optionalBoolean(TiXmlElement* parent, std::string_view path,
                      bool fallback);
 
 void applyMobilityLoadout(
-    Vehicle& vehicle, TiXmlElement* workshop,
+    Vehicle& vehicle,
+    const std::vector<OriginalWorkshopItem>& workshop,
     const std::vector<RacerSlot>& loadout,
     std::string_view difficulty, bool humanOrOpponent,
     bool armor4Opened = false)
 {
-    const float baseMaximumSpeed = vehicle.physics.maximumSpeed;
-    const float baseTireSpring = vehicle.physics.tireSpring;
-    float maximumTorque = 0.0F;
-    float maximumLife = 0.0F;
-    float maximumSpeed = 0.0F;
-    float tireSpring = 0.0F;
-    r3d::physics::WheelDescription::TireFunction longitudinalTire;
-    r3d::physics::WheelDescription::TireFunction lateralTire;
-    auto addTire = [&](TiXmlElement* function, const char* name,
-                       auto& output) {
-        auto* tire = child(function, name);
-        if (tire == nullptr)
-            return;
-        output.extremumSlip +=
-            optionalScalar(tire, "extremumSlip", 0.0F);
-        output.extremumValue +=
-            optionalScalar(tire, "extremumValue", 0.0F);
-        output.asymptoteSlip +=
-            optionalScalar(tire, "asymptoteSlip", 0.0F);
-        output.asymptoteValue +=
-            optionalScalar(tire, "asymptoteValue", 0.0F);
-    };
-
-    for (const auto& slot : loadout)
-    {
-        const auto itemName = basename(slot.record);
-        if (itemName.empty())
-            continue;
-        TiXmlElement* entry = nullptr;
-        for (auto* candidate = workshop->FirstChildElement();
-             candidate != nullptr;
-             candidate = candidate->NextSiblingElement())
-        {
-            if (std::string_view(candidate->Value()) == itemName)
-            {
-                entry = candidate;
-                break;
-            }
-        }
-        if (entry == nullptr)
-            continue;
-        auto* item = child(entry, "item");
-        auto* functions = child(item, "carFuncMap");
-        if (functions == nullptr)
-            continue;
-        TiXmlElement* function = nullptr;
-        for (auto* candidate = functions->FirstChildElement();
-             candidate != nullptr;
-             candidate = candidate->NextSiblingElement())
-        {
-            auto* carElement = child(candidate, "car");
-            const char* car =
-                carElement == nullptr ? nullptr : carElement->GetText();
-            if (car != nullptr &&
-                (vehicle.record == car ||
-                 basename(vehicle.record) == basename(car)))
-            {
-                function = candidate;
-                break;
-            }
-        }
-        if (function == nullptr)
-            continue;
-
-        maximumTorque += optionalScalar(function, "maxTorque", 0.0F);
-        maximumLife += optionalScalar(function, "life", 0.0F);
-        // ArmorItem::CheckArmor4 upgrades an installed armor3 only for the
-        // local Human/Opponent and contributes ten life before the source
-        // difficulty multiplier is applied.
-        if (armor4Opened && humanOrOpponent && itemName == "armor3")
-            maximumLife += 10.0F;
-        maximumSpeed = std::max(
-            maximumSpeed, optionalScalar(function, "maxSpeed", 0.0F));
-        tireSpring += optionalScalar(function, "tireSpring", 0.0F);
-        addTire(function, "longTire", longitudinalTire);
-        addTire(function, "latTire", lateralTire);
-
-        // WheelItem inherits SlotItem::OnCreateCar unchanged in the Windows
-        // game. Its Upgrade/wheel*.r3d mesh is only displayed by the garage
-        // viewport, which fits preview meshes to its box. It must not replace
-        // the wheel nodes created by DataBase::AddWheel: the preview meshes
-        // use a much larger unit scale and become giant rotating race meshes.
-    }
-
-    // Player::ApplyMobility resets these values, accumulates every installed
-    // mobility slot, and then restores only the car's base maximum speed.
-    vehicle.physics.maximumTorque = maximumTorque;
-    vehicle.physics.maximumSpeed = baseMaximumSpeed + maximumSpeed;
-    vehicle.physics.tireSpring = baseTireSpring + tireSpring;
-    // Player::ApplyMobility applies cHumanArmorK only to the local Human and
-    // network Opponent roles. Tournament Computer1..Computer5 cars retain
-    // the unscaled sum of their installed armor. Racer::human deliberately
-    // represents both human-controlled source roles in the portable roster.
-    float armorScale = 1.0F;
-    if (humanOrOpponent)
-    {
-        const std::size_t difficultyIndex =
-            difficulty == "gdEasy" ? 0U
-            : difficulty == "gdHard" ? 2U
-                                     : 1U;
-        armorScale =
-            source::Player::humanArmorScale[difficultyIndex];
-    }
-    vehicle.maximumLife = maximumLife * armorScale;
-    for (auto& wheel : vehicle.physics.wheels)
-    {
-        wheel.longitudinalTire = longitudinalTire;
-        wheel.lateralTire = lateralTire;
-    }
+    source::PlayerSlotRack slots;
+    slots.Bind(workshop, loadout);
+    slots.ApplyMobility(vehicle, difficulty, humanOrOpponent,
+                        armor4Opened);
 }
 
 void selectRacers(Race& race,
@@ -5054,9 +4951,7 @@ void applyOriginalPlayerProfile(
     if (race.racers.empty() ||
         race.racers.front().vehicle >= race.vehicles.size())
         return;
-    auto workshopDocument = parseXml(resources, "workshop.xml");
-    auto* workshop = require(workshopDocument.RootElement(), "workshop",
-                             "workshop.xml");
+    const auto workshop = loadOriginalWorkshop(resources);
     auto& human = race.racers.front();
     human.color = profile.color;
     human.gamerId = profile.gamerId;
@@ -5463,9 +5358,7 @@ bool runOriginalRaceResourceSmokeTest(
 {
     try
     {
-        auto workshopDocument = parseXml(resources, "workshop.xml");
-        auto* workshop = require(
-            workshopDocument.RootElement(), "workshop", "workshop.xml");
+        const auto workshop = loadOriginalWorkshop(resources);
         const auto windowsDebugRace =
             loadFirstOriginalRace(resources, true);
         const auto patagonisDebugTrack = std::find_if(
