@@ -1098,6 +1098,22 @@ Network, video и Steam явно выключены.
   удалены. Unit smoke и resource race smoke проверяют реальные записи
   `droid`/`reflector`, профильную установку, 40% отражение и active healing.
 
+### Source continuous-contact and PairPxContactEffect lifecycle block
+
+- `Proj::SonarContact` теперь передаёт уже рассчитанный исходником
+  `damage * contact.deltaTime` в `Logic::Damage` ровно один раз. Повторное
+  умножение на frame delta в session adapter удалено; тот же результат
+  одновременно используется для линейного и углового импульса.
+- `PairPxContactEffect::ReleaseContact` снова допускает сосуществование
+  старого затухающего `spark2` и нового эффекта той же actor-pair/slot.
+  Новый контакт больше не реанимирует старый particle object.
+- Release lookup выбирает живой effect instance. Ранее затухающий instance
+  перехватывал release нового объекта, из-за чего новый `RaceEffect`
+  оставался в контейнере навсегда и накапливался во время гонки.
+- Resource race regression проверяет точный single-delta `ptSonar` damage и
+  impulse, повторное создание contact effect до завершения старых частиц и
+  полное освобождение обоих поколений без роста `effects_`.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

@@ -3185,6 +3185,8 @@ void OriginalRaceSession::updateGameplay(
                     [&](const RaceEffect& value) {
                         return value.kind ==
                                    RaceEventKind::ContactImpact &&
+                               !value.waitingEnd.IsResurrect() &&
+                               !value.effectOwner.destroyed &&
                                value.racer == racer &&
                                value.contactSurface == contact.surface &&
                                value.contactActor == contact.otherActor &&
@@ -3233,14 +3235,15 @@ void OriginalRaceSession::updateGameplay(
             effects_.begin(), effects_.end(),
             [&](const RaceEffect& value) {
                 if (value.kind != RaceEventKind::ContactImpact ||
-                    value.contactIndex != released.slot)
+                    value.contactIndex != released.slot ||
+                    value.waitingEnd.IsResurrect() ||
+                    value.effectOwner.destroyed)
                     return false;
                 return pairContactKey(
                            value.racer, value.contactSurface,
                            value.contactActor) == released.key;
             });
-        if (effect == effects_.end() ||
-            effect->waitingEnd.IsResurrect())
+        if (effect == effects_.end())
             continue;
         effect->emissionEndSeconds = effect->ageSeconds;
         effect->effectOwner.Death();
@@ -3893,34 +3896,28 @@ void OriginalRaceSession::updateGameplay(
             {
                 continue;
             }
+            const auto sonarResult = sonarContact
+                ? source::Proj::SonarContact(
+                      true, sourceVec(projectile.velocity),
+                      projectileDefinition.mass,
+                      projectileDefinition.damage, seconds)
+                : source::Proj::ContinuousContactResult{};
             const float sourceDamage =
                 projectileDefinition.type == 21U
                     ? impulseContact.damage
                     : (sonarContact
-                           ? source::Proj::SonarContact(
-                                 true, sourceVec(projectile.velocity),
-                                 projectileDefinition.mass,
-                                 projectileDefinition.damage,
-                                 seconds)
-                                 .damage
+                           ? sonarResult.damage
                            : projectile.damage);
             applyRacerDamage(
                 target, projectile.damageOwner, contactPoint,
-                std::max(
-                    sourceDamage *
-                        (sonarContact ? seconds : 1.0F),
-                    0.0F),
+                std::max(sourceDamage, 0.0F),
                 sourceProjectileDamageType(
                     projectileDefinition.type));
             if (sonarContact)
             {
-                const auto contact = source::Proj::SonarContact(
-                    true, sourceVec(projectile.velocity),
-                    projectileDefinition.mass,
-                    projectileDefinition.damage, seconds);
                 const float targetMass =
                     std::max(vehicleDefinition.physics.mass, 1.0F);
-                const Vec3 impulse = runtimeVec(contact.impulse);
+                const Vec3 impulse = runtimeVec(sonarResult.impulse);
                 velocityRequests_.push_back(
                     {target, multiply(impulse, 1.0F / targetMass)});
                 // AddContactForce(..., NX_IMPULSE) also applies the
@@ -8231,7 +8228,39 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     "source PairPxContactEffect create/sound failed");
             }
             contactVehicles[0].bodyContacts.clear();
-            for (int step = 0; step < 6; ++step)
+            contactSession.update(
+                0.1F, contactVehicles, contactInput);
+            contactSession.update(
+                0.001F, contactVehicles, contactInput);
+            contact.points.resize(1U);
+            contactVehicles[0].bodyContacts = {contact};
+            contactSession.update(
+                1.0F / 60.0F, contactVehicles, contactInput);
+            const auto fadingContactCount =
+                static_cast<std::size_t>(std::count_if(
+                    contactSession.effects().begin(),
+                    contactSession.effects().end(),
+                    [](const RaceEffect& effect) {
+                        return effect.kind ==
+                                   RaceEventKind::ContactImpact &&
+                               effect.waitingEnd.IsResurrect();
+                    }));
+            const auto liveContactCount =
+                static_cast<std::size_t>(std::count_if(
+                    contactSession.effects().begin(),
+                    contactSession.effects().end(),
+                    [](const RaceEffect& effect) {
+                        return effect.kind ==
+                                   RaceEventKind::ContactImpact &&
+                               !effect.waitingEnd.IsResurrect();
+                    }));
+            if (fadingContactCount != 2U || liveContactCount != 1U)
+            {
+                throw std::runtime_error(
+                    "source PairPxContactEffect reused a released effect");
+            }
+            contactVehicles[0].bodyContacts.clear();
+            for (int step = 0; step < 5; ++step)
                 contactSession.update(
                     0.1F, contactVehicles, contactInput);
             const bool particlesStillAlive = std::any_of(
@@ -8240,7 +8269,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 [](const RaceEffect& effect) {
                     return effect.kind == RaceEventKind::ContactImpact;
                 });
-            for (int step = 0; step < 3; ++step)
+            for (int step = 0; step < 5; ++step)
                 contactSession.update(
                     0.1F, contactVehicles, contactInput);
             const bool released = std::none_of(
@@ -8249,10 +8278,22 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 [](const RaceEffect& effect) {
                     return effect.kind == RaceEventKind::ContactImpact;
                 });
-            if (!particlesStillAlive || !released)
-            {
+            if (!particlesStillAlive)
                 throw std::runtime_error(
-                    "source PairPxContactEffect release/waiting-end failed");
+                    "source PairPxContactEffect particles expired early");
+            if (!released)
+            {
+                const auto remainingContactCount =
+                    static_cast<std::size_t>(std::count_if(
+                        contactSession.effects().begin(),
+                        contactSession.effects().end(),
+                        [](const RaceEffect& effect) {
+                            return effect.kind ==
+                                   RaceEventKind::ContactImpact;
+                        }));
+                throw std::runtime_error(
+                    "source PairPxContactEffect waiting-end did not finish: " +
+                    std::to_string(remainingContactCount));
             }
         }
 
@@ -9629,6 +9670,101 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             throw std::runtime_error(
                 "source Rocket/Thunder/Resonanse definitions were not "
                 "preserved");
+        }
+        if (vehicles.size() > 1U)
+        {
+            Race legacySonarRace = race;
+            const std::size_t legacySonarWeapon =
+                static_cast<std::size_t>(
+                    rocketLauncher - race.weapons.begin());
+            auto& legacySonarDefinition =
+                legacySonarRace.weapons[legacySonarWeapon];
+            legacySonarDefinition.record = "sourceLegacySonar";
+            legacySonarDefinition.name = "source legacy ptSonar";
+            legacySonarDefinition.projectiles.resize(1U);
+            auto& legacySonarProjectile =
+                legacySonarDefinition.projectiles.front();
+            legacySonarProjectile.type = 16U;
+            legacySonarProjectile.damage = 10.0F;
+            legacySonarProjectile.mass = 2.0F;
+            legacySonarProjectile.maximumDistance = 10000.0F;
+            legacySonarProjectile.collision.center = {};
+            legacySonarProjectile.collision.halfExtents = {
+                100.0F, 100.0F, 100.0F};
+
+            OriginalRaceSession legacySonarSession(legacySonarRace);
+            PlayerProfile legacySonarProfile;
+            auto& slot = legacySonarProfile.slots[
+                PlayerProfile::firstWeaponSlot];
+            slot.record = legacySonarDefinition.record;
+            slot.charge = 2U;
+            slot.hasCharge = true;
+            legacySonarSession.applyPlayerProfile(legacySonarProfile);
+            auto legacySonarVehicles = vehicles;
+            for (std::size_t index = 0U;
+                 index < legacySonarVehicles.size(); ++index)
+            {
+                legacySonarVehicles[index].body.position = {
+                    100000.0F + static_cast<float>(index) * 1000.0F,
+                    100000.0F, 1000.0F};
+                legacySonarVehicles[index].body.rotation = {};
+                legacySonarVehicles[index].linearVelocity = {};
+                legacySonarVehicles[index].bodyContacts.clear();
+            }
+            RaceControl legacySonarInput;
+            for (int frame = 0; frame < 250; ++frame)
+            {
+                legacySonarSession.update(
+                    1.0F / 60.0F, legacySonarVehicles,
+                    legacySonarInput);
+            }
+            legacySonarInput.useWeapon = true;
+            legacySonarSession.update(
+                1.0F / 60.0F, legacySonarVehicles,
+                legacySonarInput);
+            legacySonarInput.useWeapon = false;
+            const auto activeLegacySonar = std::find_if(
+                legacySonarSession.projectiles().begin(),
+                legacySonarSession.projectiles().end(),
+                [legacySonarWeapon](
+                    const ProjectileRuntime& projectile) {
+                    return projectile.owner == 0U &&
+                           projectile.weapon == legacySonarWeapon &&
+                           projectile.projectile == 0U &&
+                           projectile.active;
+                });
+            if (activeLegacySonar ==
+                legacySonarSession.projectiles().end())
+            {
+                throw std::runtime_error(
+                    "source ptSonar integration projectile was not created");
+            }
+            legacySonarVehicles[1].body.position =
+                activeLegacySonar->position;
+            const float lifeBeforeLegacySonar =
+                legacySonarSession.racers()[1].life;
+            constexpr float legacySonarStep = 0.1F;
+            legacySonarSession.update(
+                legacySonarStep, legacySonarVehicles,
+                legacySonarInput);
+            const float legacySonarDamage =
+                lifeBeforeLegacySonar -
+                legacySonarSession.racers()[1].life;
+            const auto legacySonarImpulse =
+                legacySonarSession.takeVelocityRequests();
+            // SonarContact already multiplies damage by contact.deltaTime.
+            // The old adapter multiplied that returned value a second time,
+            // reducing 10 * 0.1 to 0.1 (or less after a reflector).
+            if (legacySonarDamage <= 0.2F ||
+                legacySonarDamage >
+                    legacySonarProjectile.damage * legacySonarStep +
+                        0.001F ||
+                legacySonarImpulse.empty())
+            {
+                throw std::runtime_error(
+                    "source ptSonar continuous damage/impulse transition "
+                    "failed");
+            }
         }
         {
             bool testedBorder = false;
