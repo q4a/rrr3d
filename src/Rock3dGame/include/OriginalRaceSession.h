@@ -35,6 +35,7 @@ enum class RaceEventKind
     Finish,
     Respawn,
     WeaponFired,
+    HumanShot,
     EffectSound,
     ContactImpact,
     WeaponShotEffect,

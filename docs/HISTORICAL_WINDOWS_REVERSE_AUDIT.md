@@ -777,16 +777,44 @@ reset после `CreateShot`. Три несвязанных session-масси�
   network-replicated shot commit;
 - аналоговая мина читает тот же `_shotTime` с `(1-alpha)*0.6`, а `maslo`
   определяется по типу первого projectile (`ptMaslo`), не по имени record;
-- удалены выдуманные minimum cooldown 0.03 для игрока и 0.25 для AI. После
-  успешного выстрела все участники снова ждут только сериализованный
-  `Weapon::Desc::shotDelay`, как Windows;
+- удалён отсутствующий в Windows minimum cooldown 0.03 для игрока;
+- повторная прямая проверка `AICar.cpp::ShotByEnemy` установила, что AI
+  обязан использовать `max(shotDelay, 0.25)`. Ошибочно удалённый на первом
+  проходе 0.25-second floor восстановлен в active session;
 - AI readiness теперь напрямую спрашивает установленный source `Weapon`.
 
 Добавлен отдельный десятый CTest `OriginalWeaponSmoke`: strict boundary,
 failed-prepare retention, successful reset, `ptMaslo` и полный rack progress.
 Физическое создание projectile и эффекты остаются Jolt/bgfx boundary внутри
-сессии; следующий блок должен выносить `WeaponItem::Shot`/`Logic` execution,
-не дублируя эти backend-операции.
+сессии.
+
+### P2.11 — WeaponItem charge ownership и Logic::Shot execution — выполнено
+
+Перенесён active `source::WeaponItem`, связанный с уже существующим
+profile-backed charge storage `source::Player`. Он сохраняет исходные
+`maxCharge/cntCharge/curCharge/chargeStep/damage/chargeCost`, readiness,
+`Reload` и точную транзакцию `Shot` без второй копии боезапаса.
+
+Session primary/Hyper/Mine paths больше не списывают заряды и не сбрасывают
+таймеры вручную. Backend сначала сообщает результат `PrepareProj`, после чего
+`WeaponItem::Shot` одновременно фиксирует charge и successful-shot reset.
+Сохранены две нетривиальные ветки Windows:
+
+- `maxCharge == 0` означает бесконечный боезапас и допускает выстрел при
+  `curCharge == 0`;
+- явный `newCharge` из `NetPlayer::DoShot` применяется даже при неуспешной
+  подготовке projectile, включая empty desc, failed mine ray и spring без
+  контакта колёс.
+
+Перенесён `source::Logic::Shot`/`ShotAll` с Windows-порядком битов
+Hyper/Mine/Weapon1..4, readiness selection и `cHumanShot`: обычная попытка
+человека регистрируется даже без созданного projectile, Hyper исключён.
+`source::HumanPlayer::SelectWeapon` ищет следующий primary с
+`curCharge > 0`, после последнего заряда переключает слот и не вызывает
+`Logic::Shot`, если заряженных слотов нет. Lap reload теперь вызывает
+`WeaponItem::Reload`. `OriginalWeaponSmoke` и resource race smoke проверяют
+failed prepare, replicated charge, infinite ammo, dry human event,
+auto-selection и multi-slot shot.
 
 ## Итоговое решение
 

@@ -1037,15 +1037,34 @@ Network, video и Steam явно выключены.
 - Session arrays `weaponCooldown_`, `mineShotAge_`, `hyperCooldown_` удалены.
   Weapon timers прогрессируют и во время countdown, но останавливаются на
   pause, как зарегистрированные Windows `GameObject`.
-- Удалены synthetic 0.03/0.25 cooldown floors; player и AI используют только
-  сериализованный `shotDelay`. Это также устраняет искусственное ограничение
-  частоты атак AI.
+- Удалён synthetic player floor 0.03. Повторная сверка с оригинальным
+  `AICar.cpp::ShotByEnemy` подтвердила отдельное исходное правило AI
+  `max(shotDelay, 0.25)`; оно восстановлено после ошибочного удаления.
 - Charge и timer меняются лишь после наличия live projectile; failed mine
   track ray и failed Hyper wheel gate не расходуют выстрел.
 - Analog mine threshold и AI readiness используют тот же source timer;
   `ptMaslo` определяется первым projectile type.
 - Новый `OriginalWeaponSmoke` доводит CTest-набор до десяти тестов и отдельно
   проверяет strict time boundary и успешный/неуспешный shot commit.
+
+### Source WeaponItem/Logic execution block
+
+- `source::WeaponItem` связывает `Weapon` с profile-backed current/capacity
+  полями `source::Player`; отдельная расходящаяся копия charge не создана.
+- Primary, Hyper и Mine используют исходную `WeaponItem::Shot` транзакцию:
+  backend возвращает результат projectile preparation, затем одним commit
+  меняются charge и weapon timer. Lap reload вызывает `WeaponItem::Reload`.
+- Восстановлен sentinel `maxCharge == 0` для бесконечного боезапаса.
+  Сетевой явный `newCharge` применяется и при failed preparation, как в
+  `NetPlayer::DoShot` Windows.
+- `source::Logic::Shot/ShotAll` формирует маску в порядке Hyper, Mine,
+  Weapon1..4, проверяет readiness и выдаёт отдельный `HumanShot` event даже
+  для dry primary/mine request; Hyper в это событие не входит.
+- `source::HumanPlayer::SelectWeapon` переносит поиск следующего primary с
+  положительным `curCharge`, автоматическое переключение после последнего
+  заряда и отсутствие shot request, когда заряженных слотов нет.
+- Unit и resource smoke покрывают infinite ammo, failed prepare, replicated
+  charge commit, selection, multi-slot fire и dry human event.
 
 ## Очередь дальнейшего переноса
 

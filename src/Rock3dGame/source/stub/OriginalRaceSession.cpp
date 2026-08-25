@@ -4101,28 +4101,87 @@ void OriginalRaceSession::updateGameplay(
             effects_.push_back(std::move(effect));
         };
 
+    auto primaryWeaponItem = [&](std::size_t owner,
+                                 std::size_t slot) {
+        if (owner >= racers_.size() || owner >= weaponRacks_.size() ||
+            slot >= PlayerProfile::weaponSlotCount)
+            return source::WeaponItem{};
+        auto& runtime = racers_[owner];
+        const std::size_t weapon = runtime.weaponSlots[slot];
+        if (weapon == RacerRuntime::invalidWeapon ||
+            weapon >= race_.weapons.size())
+            return source::WeaponItem{};
+        const auto& definition = race_.weapons[weapon];
+        return source::WeaponItem(
+            &weaponRacks_[owner].primary[slot],
+            definition.maximumCharge, runtime.weaponCapacity[slot],
+            &runtime.weaponCharges[slot], definition.chargeStep,
+            definition.damage);
+    };
+    auto hyperWeaponItem = [&](std::size_t owner) {
+        if (owner >= racers_.size() || owner >= weaponRacks_.size())
+            return source::WeaponItem{};
+        auto& runtime = racers_[owner];
+        if (runtime.hyperWeapon == RacerRuntime::invalidWeapon ||
+            runtime.hyperWeapon >= race_.weapons.size())
+            return source::WeaponItem{};
+        const auto& definition = race_.weapons[runtime.hyperWeapon];
+        return source::WeaponItem(
+            &weaponRacks_[owner].hyper, definition.maximumCharge,
+            runtime.hyperCapacity, &runtime.hyperCharge,
+            definition.chargeStep, definition.damage);
+    };
+    auto mineWeaponItem = [&](std::size_t owner) {
+        if (owner >= racers_.size() || owner >= weaponRacks_.size())
+            return source::WeaponItem{};
+        auto& runtime = racers_[owner];
+        if (runtime.mineWeapon == RacerRuntime::invalidWeapon ||
+            runtime.mineWeapon >= race_.weapons.size())
+            return source::WeaponItem{};
+        const auto& definition = race_.weapons[runtime.mineWeapon];
+        return source::WeaponItem(
+            &weaponRacks_[owner].mine, definition.maximumCharge,
+            runtime.mineCapacity, &runtime.mines,
+            definition.chargeStep, definition.damage);
+    };
+    auto emitHumanShot = [&](const source::Logic::ShotPlan& plan) {
+        if (!plan.humanShotEvent || racers_.empty())
+            return;
+        RaceEvent event;
+        event.kind = RaceEventKind::HumanShot;
+        event.racer = 0U;
+        events_.push_back(std::move(event));
+    };
+
     auto placeMine = [&](
         std::size_t owner, const Vec3* replicatedPosition = nullptr,
         std::uint32_t replicatedProjectileId = 0U,
         bool networkReplicated = false,
         bool sourceReadinessOverride = false) {
         if (owner >= vehicles.size() || owner >= racers_.size() ||
-            racers_[owner].destroyed ||
-            racers_[owner].mines == 0)
+            racers_[owner].destroyed)
             return;
         const std::size_t weapon = racers_[owner].mineWeapon;
         if (weapon == RacerRuntime::invalidWeapon ||
             weapon >= race_.weapons.size() ||
             owner >= weaponRacks_.size())
             return;
+        auto item = mineWeaponItem(owner);
         if (!networkReplicated && !sourceReadinessOverride &&
-            !weaponRacks_[owner].mine.IsReadyShot())
+            !item.IsReadyShot())
             return;
+        const int newCharge =
+            networkReplicated
+                ? static_cast<int>(item.GetCurCharge()) - 1
+                : -1;
         const auto& projectiles = race_.weapons[weapon].projectiles;
         const auto* projectile =
             projectiles.empty() ? nullptr : &projectiles.front();
         if (projectile == nullptr)
+        {
+            item.Shot(false, newCharge);
             return;
+        }
         const Transform weaponTransform =
             directWeaponWorldTransform(owner, weapon);
         Transform localProjectile;
@@ -4133,7 +4192,10 @@ void OriginalRaceSession::updateGameplay(
         const auto hit = raycastTrackPlane(
             race_, add(rayPosition, {0.0F, 0.0F, 2.0F}));
         if (!hit.hit)
+        {
+            item.Shot(false, newCharge);
             return;
+        }
         // Source MinePrepare uses ComputeAABB(true), while CreatePxBox uses
         // ComputeAABB(false).  Using the contact box here lifted the maslo
         // plane by 0.85 m even though its source model offset is only 0.05 m.
@@ -4142,6 +4204,8 @@ void OriginalRaceSession::updateGameplay(
             replicatedPosition != nullptr
                 ? *replicatedPosition
                 : add(hit.position, {0.0F, 0.0F, offset});
+        if (!item.Shot(true, newCharge))
+            return;
         const std::uint32_t networkProjectileId =
             networkReplicated && replicatedProjectileId != 0U
                 ? replicatedProjectileId
@@ -4152,8 +4216,6 @@ void OriginalRaceSession::updateGameplay(
                 nextNetworkProjectileIds_[owner],
                 networkProjectileId + 1U);
         }
-        --racers_[owner].mines;
-        weaponRacks_[owner].mine.OnShot();
         racers_[owner].mineLockSeconds = 0.4F;
         MineRuntime mine;
         mine.owner = owner;
@@ -4188,7 +4250,15 @@ void OriginalRaceSession::updateGameplay(
         events_.push_back(std::move(mineEvent));
     };
     if (humanControl.useMine)
-        placeMine(0);
+    {
+        auto item = mineWeaponItem(0U);
+        const auto plan = source::Logic::Shot(
+            item.IsInstalled() ? &item : nullptr,
+            source::Logic::SlotType::Mine, true);
+        emitHumanShot(plan);
+        if (plan.Get(source::Logic::SlotType::Mine))
+            placeMine(0U, nullptr, 0U, false, true);
+    }
     if (!racers_.empty() && humanControl.mineHeld > 0.0F &&
         racers_[0].mineWeapon != RacerRuntime::invalidWeapon &&
         racers_[0].mineWeapon < race_.weapons.size())
@@ -4203,7 +4273,12 @@ void OriginalRaceSession::updateGameplay(
             const float sourceDelay = (1.0F - alpha) * 0.6F;
             if (!weaponRacks_.empty() &&
                 weaponRacks_[0].mine.IsReadyShot(sourceDelay))
+            {
+                source::Logic::ShotPlan humanShot;
+                humanShot.humanShotEvent = true;
+                emitHumanShot(humanShot);
                 placeMine(0, nullptr, 0U, false, true);
+            }
         }
     }
     auto activateHyper = [&](
@@ -4212,7 +4287,6 @@ void OriginalRaceSession::updateGameplay(
         bool networkReplicated = false) {
         if (owner >= racers_.size() ||
             racers_[owner].destroyed ||
-            racers_[owner].hyperCharge == 0 ||
             racers_[owner].hyperWeapon ==
                 RacerRuntime::invalidWeapon ||
             racers_[owner].hyperWeapon >= race_.weapons.size() ||
@@ -4220,13 +4294,24 @@ void OriginalRaceSession::updateGameplay(
             (!networkReplicated &&
              !weaponRacks_[owner].hyper.IsReadyShot()))
             return;
+        auto item = hyperWeaponItem(owner);
         const auto& weapon =
             race_.weapons[racers_[owner].hyperWeapon];
+        const int newCharge =
+            networkReplicated
+                ? static_cast<int>(item.GetCurCharge()) - 1
+                : -1;
         if (weapon.projectiles.empty())
+        {
+            item.Shot(false, newCharge);
             return;
+        }
         const auto& projectile = weapon.projectiles.front();
         if (owner >= vehicles.size())
+        {
+            item.Shot(false, newCharge);
             return;
+        }
         const auto& racerDefinition = race_.racers[owner];
         const auto& vehicleDefinition =
             racerDefinition.hasConfiguredVehicle
@@ -4238,9 +4323,13 @@ void OriginalRaceSession::updateGameplay(
                 vehicleDefinition.physics.wheels.size();
             if (wheelCount == 0U ||
                 vehicles[owner].contactCount < wheelCount)
+            {
+                item.Shot(false, newCharge);
                 return;
+            }
         }
-        --racers_[owner].hyperCharge;
+        if (!item.Shot(true, newCharge))
+            return;
         const std::uint32_t networkProjectileId =
             networkReplicated && replicatedProjectileId != 0U
                 ? replicatedProjectileId
@@ -4251,7 +4340,6 @@ void OriginalRaceSession::updateGameplay(
                 nextNetworkProjectileIds_[owner],
                 networkProjectileId + 1U);
         }
-        weaponRacks_[owner].hyper.OnShot();
         const Vec3 position = vehicles[owner].body.position;
         const float duration =
             projectile.minimumLife > 0.0F
@@ -4329,7 +4417,14 @@ void OriginalRaceSession::updateGameplay(
             projectile);
     };
     if (humanControl.useHyper)
-        activateHyper(0);
+    {
+        auto item = hyperWeaponItem(0U);
+        const auto plan = source::Logic::Shot(
+            item.IsInstalled() ? &item : nullptr,
+            source::Logic::SlotType::Hyper, true);
+        if (plan.Get(source::Logic::SlotType::Hyper))
+            activateHyper(0U);
+    }
 
     std::vector<MineRuntime> spawnedMines;
     auto spawnMineDeathEffect = [&](const MineRuntime& mine) {
@@ -4989,7 +5084,8 @@ void OriginalRaceSession::updateGameplay(
                 RacerRuntime::invalidWeapon,
             const Vec3* replicatedOrigin = nullptr,
             std::uint32_t replicatedProjectileId = 0U,
-            bool networkReplicated = false) {
+            bool networkReplicated = false,
+            bool sourceReadinessOverride = false) {
         if (shooter >= vehicles.size() ||
             shooter >= racers_.size() ||
             shooter >= weaponRacks_.size() ||
@@ -5000,15 +5096,14 @@ void OriginalRaceSession::updateGameplay(
         runtime.SyncSelectedWeapon(race_.weapons.size());
         if (runtime.selectedWeapon == RacerRuntime::invalidWeapon ||
             runtime.selectedWeapon >= race_.weapons.size() ||
-            runtime.selectedWeaponSlot >= runtime.weaponCharges.size() ||
-            (!networkReplicated &&
-             !weaponRacks_[shooter]
-                  .primary[runtime.selectedWeaponSlot]
-                  .IsReadyShot()) ||
-            runtime.weaponCharges[runtime.selectedWeaponSlot] == 0)
+            runtime.selectedWeaponSlot >= runtime.weaponCharges.size())
             return;
         const std::size_t firedSlot = runtime.selectedWeaponSlot;
         const std::size_t firedWeapon = runtime.selectedWeapon;
+        auto item = primaryWeaponItem(shooter, firedSlot);
+        if (!networkReplicated && !sourceReadinessOverride &&
+            !item.IsReadyShot())
+            return;
         const auto* weapon =
             &race_.weapons[firedWeapon];
         if (weapon->slot == WeaponSlot::Support)
@@ -5018,7 +5113,11 @@ void OriginalRaceSession::updateGameplay(
             [](const ProjectileDefinition& projectile) {
                 return !projectile.spawnOnParentDeath;
             });
-        if (!projectileCreated)
+        const int newCharge =
+            networkReplicated
+                ? static_cast<int>(item.GetCurCharge()) - 1
+                : -1;
+        if (!item.Shot(projectileCreated, newCharge))
             return;
         const std::uint32_t networkProjectileId =
             networkReplicated && replicatedProjectileId != 0U
@@ -5030,9 +5129,7 @@ void OriginalRaceSession::updateGameplay(
                 nextNetworkProjectileIds_[shooter],
                 networkProjectileId + 1U);
         }
-        --runtime.weaponCharges[firedSlot];
         runtime.SyncSelectedWeapon(race_.weapons.size());
-        weaponRacks_[shooter].primary[firedSlot].OnShot();
         const Vec3 eventOrigin = weaponWorldTransform(
             shooter, firedWeapon, firedSlot).position;
         std::size_t target = racers_.size();
@@ -5247,8 +5344,44 @@ void OriginalRaceSession::updateGameplay(
             std::move(networkCoordinates);
         events_.push_back(std::move(shotEvent));
     };
-    if (humanControl.useWeapon)
-        fireWeapon(0);
+    if (humanControl.useWeapon && !racers_.empty())
+    {
+        auto& runtime = racers_.front();
+        std::array<source::WeaponItem,
+                   PlayerProfile::weaponSlotCount> items{};
+        for (std::size_t slot = 0U; slot < items.size(); ++slot)
+            items[slot] = primaryWeaponItem(0U, slot);
+        const auto selection = source::HumanPlayer::SelectWeapon(
+            items, runtime.selectedWeaponSlot);
+        runtime.selectedWeaponSlot = selection.slot;
+        runtime.SyncSelectedWeapon(race_.weapons.size());
+        if (selection.found)
+        {
+            auto& item = items[selection.slot];
+            const auto slotType =
+                static_cast<source::Logic::SlotType>(
+                    static_cast<std::size_t>(
+                        source::Logic::SlotType::Weapon1) +
+                    selection.slot);
+            const auto plan = source::Logic::Shot(
+                &item, slotType, true);
+            emitHumanShot(plan);
+            if (plan.Get(slotType))
+            {
+                fireWeapon(0U, RacerRuntime::invalidWeapon,
+                           nullptr, 0U, false, true);
+                if (item.GetCurCharge() == 0U)
+                {
+                    const auto next =
+                        source::HumanPlayer::SelectWeapon(
+                            items, selection.slot);
+                    runtime.selectedWeaponSlot = next.slot;
+                    runtime.SyncSelectedWeapon(
+                        race_.weapons.size());
+                }
+            }
+        }
+    }
     if (humanControl.fireWeaponSlot >= 0 && !racers_.empty() &&
         humanControl.fireWeaponSlot <
             static_cast<int>(PlayerProfile::weaponSlotCount))
@@ -5277,7 +5410,18 @@ void OriginalRaceSession::updateGameplay(
             const auto selected = runtime.selectedWeaponSlot;
             runtime.selectedWeaponSlot = requested;
             runtime.SyncSelectedWeapon(race_.weapons.size());
-            fireWeapon(0);
+            auto item = primaryWeaponItem(0U, requested);
+            const auto slotType =
+                static_cast<source::Logic::SlotType>(
+                    static_cast<std::size_t>(
+                        source::Logic::SlotType::Weapon1) + requested);
+            const auto plan = source::Logic::Shot(
+                item.IsInstalled() ? &item : nullptr,
+                slotType, true);
+            emitHumanShot(plan);
+            if (plan.Get(slotType))
+                fireWeapon(0U, RacerRuntime::invalidWeapon,
+                           nullptr, 0U, false, true);
             runtime.selectedWeaponSlot = selected;
             runtime.SyncSelectedWeapon(race_.weapons.size());
         }
@@ -5286,16 +5430,25 @@ void OriginalRaceSession::updateGameplay(
     {
         auto& runtime = racers_.front();
         const auto selected = runtime.selectedWeaponSlot;
+        std::array<source::WeaponItem,
+                   PlayerProfile::weaponSlotCount> items{};
+        for (std::size_t slot = 0U; slot < items.size(); ++slot)
+            items[slot] = primaryWeaponItem(0U, slot);
+        const auto plan = source::Logic::ShotAll(items, true);
+        emitHumanShot(plan);
         for (std::size_t slot = 0;
              slot < runtime.weaponSlots.size(); ++slot)
         {
-            if (runtime.weaponSlots[slot] ==
-                    RacerRuntime::invalidWeapon ||
-                runtime.weaponCharges[slot] == 0U)
+            const auto slotType =
+                static_cast<source::Logic::SlotType>(
+                    static_cast<std::size_t>(
+                        source::Logic::SlotType::Weapon1) + slot);
+            if (!plan.Get(slotType))
                 continue;
             runtime.selectedWeaponSlot = slot;
             runtime.SyncSelectedWeapon(race_.weapons.size());
-            fireWeapon(0);
+            fireWeapon(0U, RacerRuntime::invalidWeapon,
+                       nullptr, 0U, false, true);
         }
         runtime.selectedWeaponSlot = selected;
         runtime.SyncSelectedWeapon(race_.weapons.size());
@@ -5430,7 +5583,8 @@ void OriginalRaceSession::updateGameplay(
             state.charge = runtime.weaponCharges[slot];
             state.ready =
                 racer < weaponRacks_.size() &&
-                weaponRacks_[racer].primary[slot].IsReadyShot();
+                weaponRacks_[racer].primary[slot].IsReadyShot(
+                    std::max(weapon.shotDelay, 0.25F));
             attackWeapons[attackWeaponCount++] = state;
         }
 
@@ -8662,6 +8816,82 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             {
                 throw std::runtime_error(
                     "source Shot1..4 direct-slot transition failed");
+            }
+
+            // Logic::Shot sends cHumanShot for a human request even if the
+            // selected Weapon is still inside its strict shot delay.
+            weaponInput = {};
+            weaponInput.fireWeaponSlot = 1;
+            weaponSession.update(
+                1.0F / 60.0F, vehicles, weaponInput);
+            const bool dryHumanShot = std::any_of(
+                weaponSession.events().begin(),
+                weaponSession.events().end(),
+                [](const RaceEvent& event) {
+                    return event.kind == RaceEventKind::HumanShot &&
+                           event.racer == 0U;
+                });
+            const bool dryProjectile = std::any_of(
+                weaponSession.events().begin(),
+                weaponSession.events().end(),
+                [](const RaceEvent& event) {
+                    return event.kind == RaceEventKind::WeaponFired &&
+                           event.racer == 0U;
+                });
+            if (!dryHumanShot || dryProjectile)
+            {
+                throw std::runtime_error(
+                    "source Logic::Shot dry human event failed");
+            }
+
+            Race infiniteRace = race;
+            infiniteRace.racers.resize(1U);
+            const auto infiniteDefinition = std::find_if(
+                infiniteRace.weapons.begin(),
+                infiniteRace.weapons.end(),
+                [&](const WeaponDefinition& weapon) {
+                    return weapon.record == primaryWeapons.front()->record;
+                });
+            if (infiniteDefinition == infiniteRace.weapons.end())
+            {
+                throw std::runtime_error(
+                    "source infinite WeaponItem fixture missing");
+            }
+            infiniteDefinition->maximumCharge = 0U;
+            infiniteDefinition->reloadCharge = 0U;
+            OriginalRaceSession infiniteSession(infiniteRace);
+            PlayerProfile infiniteProfile;
+            auto& infiniteSlot = infiniteProfile.slots[
+                PlayerProfile::firstWeaponSlot];
+            infiniteSlot.record = infiniteDefinition->record;
+            infiniteSlot.charge = 0U;
+            infiniteSlot.hasCharge = true;
+            infiniteSession.applyPlayerProfile(infiniteProfile);
+            auto infiniteVehicles = vehicles;
+            infiniteVehicles.resize(1U);
+            RaceControl infiniteInput;
+            for (int frame = 0; frame < 250; ++frame)
+            {
+                infiniteSession.update(
+                    1.0F / 60.0F,
+                    infiniteVehicles, infiniteInput);
+            }
+            infiniteInput.fireWeaponSlot = 0;
+            infiniteSession.update(
+                1.0F / 60.0F,
+                infiniteVehicles, infiniteInput);
+            const bool infiniteShot = std::any_of(
+                infiniteSession.events().begin(),
+                infiniteSession.events().end(),
+                [](const RaceEvent& event) {
+                    return event.kind == RaceEventKind::WeaponFired &&
+                           event.racer == 0U;
+                });
+            if (!infiniteShot ||
+                infiniteSession.racers().front().weaponCharges[0] != 0U)
+            {
+                throw std::runtime_error(
+                    "source WeaponItem maxCharge==0 shot failed");
             }
         }
 

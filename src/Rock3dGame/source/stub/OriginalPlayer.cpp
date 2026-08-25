@@ -1,5 +1,7 @@
 #include "OriginalPlayer.h"
 
+#include "OriginalWeapon.h"
+
 #include <algorithm>
 #include <cmath>
 
@@ -316,14 +318,25 @@ void Player::ReloadWeapons(
     {
         if (weaponSlots[slot] != invalidWeapon &&
             weaponSlots[slot] < weaponDefinitionCount)
-            weaponCharges[slot] = weaponCapacity[slot];
+        {
+            WeaponItem item(
+                nullptr, 0U, weaponCapacity[slot],
+                &weaponCharges[slot]);
+            item.Reload();
+        }
     }
     if (hyperWeapon != invalidWeapon &&
         hyperWeapon < weaponDefinitionCount)
-        hyperCharge = hyperCapacity;
+    {
+        WeaponItem item(nullptr, 0U, hyperCapacity, &hyperCharge);
+        item.Reload();
+    }
     if (mineWeapon != invalidWeapon &&
         mineWeapon < weaponDefinitionCount)
-        mines = mineCapacity;
+    {
+        WeaponItem item(nullptr, 0U, mineCapacity, &mines);
+        item.Reload();
+    }
     SyncSelectedWeapon(weaponDefinitionCount);
 }
 
