@@ -263,6 +263,79 @@ int main()
             false, false, false, true).lockClutch)
         return 32;
 
+    const auto firstRocketHeight = source::Proj::RocketUpdate(
+        10.0F, 3.0F, 2.0F, 0.0F, true);
+    const auto lowerRocketHeight = source::Proj::RocketUpdate(
+        6.0F, 3.0F, 2.0F, firstRocketHeight.clearance, true);
+    const auto stableRocketHeight = source::Proj::RocketUpdate(
+        5.95F, 3.0F, 2.0F, lowerRocketHeight.clearance, true);
+    if (firstRocketHeight.clearance != 7.0F ||
+        firstRocketHeight.positionZ != 10.0F ||
+        lowerRocketHeight.clearance != 3.0F ||
+        lowerRocketHeight.positionZ != 6.0F ||
+        stableRocketHeight.clearance != 3.0F ||
+        stableRocketHeight.positionZ != 6.0F)
+        return 42;
+    const auto missedTrack = source::Proj::RocketUpdate(
+        9.0F, 0.0F, 2.0F, 3.0F, false);
+    if (missedTrack.positionZ != 9.0F ||
+        missedTrack.clearance != 3.0F)
+        return 43;
+
+    const auto waitingTorpeda = source::Proj::TorpedaUpdate(
+        0.1F, {}, {}, {12.0F, 0.0F, 0.0F}, 0.4F,
+        true, {0.0F, 10.0F, 0.0F}, 10.0F, true, 4.0F);
+    if (waitingTorpeda.setLinearVelocity ||
+        std::abs(waitingTorpeda.homingDelay - 0.3F) > 0.001F)
+        return 44;
+    const auto aimedTorpeda = source::Proj::TorpedaUpdate(
+        0.1F, {}, {}, {10.0F, 0.0F, 0.0F}, 0.0F,
+        true, {0.0F, 10.0F, 0.0F}, 20.0F, false, 0.0F);
+    if (!aimedTorpeda.setLinearVelocity ||
+        std::abs(aimedTorpeda.direction.y - 1.0F) > 0.001F ||
+        std::abs(aimedTorpeda.linearVelocity.y - 20.0F) > 0.001F)
+        return 45;
+    const auto nearTorpeda = source::Proj::TorpedaUpdate(
+        0.1F, {}, {}, {12.0F, 0.0F, 0.0F}, 0.0F,
+        true, {}, 10.0F, true, 4.0F);
+    if (!nearTorpeda.setLinearVelocity ||
+        std::abs(nearTorpeda.direction.x - 1.0F) > 0.001F ||
+        std::abs(nearTorpeda.linearVelocity.x - 12.0F) > 0.001F)
+        return 46;
+
+    if (std::abs(source::Proj::ThunderUpdate(0.1F, 0.16F) + 0.06F) >
+        0.001F)
+        return 47;
+    const auto thunderReflection = source::Proj::ThunderContact(
+        {10.0F, 0.0F, 0.0F}, {1.0F, 0.0F, 0.0F},
+        0.0F, true);
+    const auto thunderReverse = source::Proj::ThunderContact(
+        {0.0F, 10.0F, 0.0F}, {1.0F, 0.0F, 0.0F},
+        0.0F, true);
+    if (!thunderReflection.setLinearVelocity ||
+        thunderReflection.linearVelocity.x != -10.0F ||
+        thunderReflection.reflectionCooldown != 0.1F ||
+        !thunderReverse.setLinearVelocity ||
+        thunderReverse.linearVelocity.y != -10.0F ||
+        source::Proj::ThunderContact(
+            {4.0F, 0.0F, 0.0F}, {1.0F, 0.0F, 0.0F},
+            0.0F, true).setLinearVelocity)
+        return 48;
+
+    const auto resonance = source::Proj::ResonanseUpdate(
+        {}, 3.14159265358979323846F, 0.5F);
+    if (std::abs(resonance.x - 0.70710678F) > 0.001F ||
+        std::abs(resonance.w - 0.70710678F) > 0.001F)
+        return 49;
+    const auto rocketTorque = source::Proj::RocketContactTorque(
+        {0.0F, 1.0F, 0.0F}, {10.0F, 0.0F, 0.0F}, 10.0F);
+    if (!rocketTorque.apply ||
+        std::abs(rocketTorque.localVelocityChange.z + 2.0F) > 0.001F ||
+        source::Proj::RocketContactTorque(
+            {0.0F, 1.0F, 0.0F}, {1.0F, 0.0F, 0.0F},
+            10.0F).apply)
+        return 50;
+
     source::PairPxContactEffect contacts;
     contacts.Reset(3U);
     const source::PairPxContactEffect::Key contactKey{4U, 9U};

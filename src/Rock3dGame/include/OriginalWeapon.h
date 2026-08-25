@@ -21,6 +21,14 @@ public:
         float z = 0.0F;
     };
 
+    struct Quat
+    {
+        float x = 0.0F;
+        float y = 0.0F;
+        float z = 0.0F;
+        float w = 1.0F;
+    };
+
     struct ContactResult
     {
         Vec3 linearVelocity;
@@ -28,6 +36,34 @@ public:
         bool setLinearVelocity = false;
         bool lockClutch = false;
         bool sendSpeedArrowEvent = false;
+    };
+
+    struct RocketUpdateResult
+    {
+        float positionZ = 0.0F;
+        float clearance = 0.0F;
+    };
+
+    struct TorpedaUpdateResult
+    {
+        Vec3 direction;
+        Vec3 linearVelocity;
+        Quat rotation;
+        float homingDelay = 0.0F;
+        bool setLinearVelocity = false;
+    };
+
+    struct ThunderContactResult
+    {
+        Vec3 linearVelocity;
+        float reflectionCooldown = 0.0F;
+        bool setLinearVelocity = false;
+    };
+
+    struct TorqueResult
+    {
+        Vec3 localVelocityChange;
+        bool apply = false;
     };
 
     static ContactResult SpeedArrowContact(
@@ -39,6 +75,28 @@ public:
         Vec3 linearVelocity, float damage, bool arming,
         bool mineLocked, bool clutchLocked,
         bool clutchImmune) noexcept;
+
+    // These are direct backend-neutral transcriptions of the source Proj
+    // update/contact methods. Raycasts and final actor writes stay in the
+    // Jolt adapter, while the original state transitions live here.
+    static RocketUpdateResult RocketUpdate(
+        float projectileZ, float trackZ, float boxHalfExtentZ,
+        float clearance, bool trackHit) noexcept;
+    static TorpedaUpdateResult TorpedaUpdate(
+        float deltaTime, Vec3 position, Quat rotation,
+        Vec3 storedVelocity, float homingDelay, bool hasTarget,
+        Vec3 targetPosition, float sourceSpeed, bool speedRelative,
+        float angleSpeed) noexcept;
+    static float ThunderUpdate(
+        float reflectionCooldown, float deltaTime) noexcept;
+    static ThunderContactResult ThunderContact(
+        Vec3 linearVelocity, Vec3 contactNormal,
+        float reflectionCooldown,
+        bool shotTransparencyContact) noexcept;
+    static Quat ResonanseUpdate(
+        Quat rotation, float angleSpeed, float deltaTime) noexcept;
+    static TorqueResult RocketContactTorque(
+        Vec3 contactPoint, Vec3 linearVelocity, float mass) noexcept;
 };
 
 // GameBase.cpp::ShotEffect receives one OnShot callback only after

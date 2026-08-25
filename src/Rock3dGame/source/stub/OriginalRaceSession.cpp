@@ -46,6 +46,26 @@ Vec3 multiply(Vec3 value, float scale)
     return {value.x * scale, value.y * scale, value.z * scale};
 }
 
+source::Proj::Vec3 sourceVec(Vec3 value)
+{
+    return {value.x, value.y, value.z};
+}
+
+Vec3 runtimeVec(source::Proj::Vec3 value)
+{
+    return {value.x, value.y, value.z};
+}
+
+source::Proj::Quat sourceQuat(Quat value)
+{
+    return {value.x, value.y, value.z, value.w};
+}
+
+Quat runtimeQuat(source::Proj::Quat value)
+{
+    return {value.x, value.y, value.z, value.w};
+}
+
 struct EffectTiming
 {
     float emissionSeconds = 0.0F;
@@ -3602,56 +3622,27 @@ void OriginalRaceSession::updateGameplay(
         }
         if ((projectileDefinition.type == 2U ||
              projectileDefinition.type == 21U) &&
-            projectile.target < vehicles.size() &&
-            projectile.target < racers_.size() &&
-            !racers_[projectile.target].destroyed)
+            projectile.target < vehicles.size())
         {
-            projectile.homingDelay =
-                std::max(0.0F, projectile.homingDelay - seconds);
-            if (projectile.homingDelay <= 0.0F)
+            const bool hasTarget =
+                projectile.target < racers_.size() &&
+                !racers_[projectile.target].destroyed;
+            const auto update = source::Proj::TorpedaUpdate(
+                seconds, sourceVec(projectile.position),
+                sourceQuat(projectile.rotation),
+                sourceVec(projectile.velocity),
+                projectile.homingDelay, hasTarget,
+                sourceVec(vehicles[projectile.target].body.position),
+                projectileDefinition.speed,
+                projectileDefinition.relativeSpeed,
+                projectile.angularSpeed);
+            projectile.homingDelay = update.homingDelay;
+            if (update.setLinearVelocity)
             {
-                const Vec3 difference = subtract(
-                    vehicles[projectile.target].body.position,
-                    projectile.position);
-                const float targetDistance = length3(difference);
-                if (targetDistance > 0.0001F)
-                {
-                    const Vec3 targetDirection =
-                        targetDistance > 1.0F
-                            ? multiply(
-                                  difference,
-                                  1.0F / targetDistance)
-                            : normalized3(rotate(
-                                  projectile.rotation,
-                                  {1.0F, 0.0F, 0.0F}));
-                    const Quat targetRotation =
-                        shortestArcFromX(targetDirection);
-                    if (projectile.angularSpeed > 0.0F)
-                    {
-                        projectile.rotation = quaternionSlerp(
-                            projectile.rotation, targetRotation,
-                            seconds * projectile.angularSpeed);
-                    }
-                    else
-                    {
-                        projectile.rotation = targetRotation;
-                    }
-                    projectile.direction = normalized3(rotate(
-                        projectile.rotation,
-                        {1.0F, 0.0F, 0.0F}));
-                    const float steeredSpeed =
-                        projectileDefinition.relativeSpeed
-                            ? length3(projectile.velocity)
-                            : std::max(
-                                  dot3(
-                                      projectile.velocity,
-                                      projectile.direction),
-                                  projectileDefinition.speed);
-                    projectile.speed = std::max(
-                        projectileDefinition.speed, steeredSpeed);
-                    projectile.velocity = multiply(
-                        projectile.direction, projectile.speed);
-                }
+                projectile.rotation = runtimeQuat(update.rotation);
+                projectile.direction = runtimeVec(update.direction);
+                projectile.velocity = runtimeVec(update.linearVelocity);
+                projectile.speed = length3(projectile.velocity);
             }
         }
         const Vec3 previous = projectile.position;
@@ -3678,34 +3669,22 @@ void OriginalRaceSession::updateGameplay(
             // preserves the projectile's lowest established clearance.
             const auto trackHit = raycastTrackPlane(
                 race_, add(projectile.position, {0.0F, 0.0F, 4.0F}));
-            if (trackHit.hit)
-            {
-                const float height = std::max(
-                    projectile.position.z - trackHit.position.z,
-                    projectileDefinition.collision.halfExtents.z);
-                if (projectile.trackClearance == 0.0F ||
-                    projectile.trackClearance - height > 0.1F)
-                {
-                    projectile.trackClearance = height;
-                }
-                projectile.position.z =
-                    trackHit.position.z + projectile.trackClearance;
-            }
+            const auto update = source::Proj::RocketUpdate(
+                projectile.position.z, trackHit.position.z,
+                projectileDefinition.collision.halfExtents.z,
+                projectile.trackClearance, trackHit.hit);
+            projectile.position.z = update.positionZ;
+            projectile.trackClearance = update.clearance;
         }
         if (projectileDefinition.type == 23U &&
             std::abs(projectileDefinition.angularSpeed) > 0.0001F)
         {
-            const float halfAngle =
-                projectileDefinition.angularSpeed * seconds * 0.5F;
-            const Quat sourceSpin{
-                std::sin(halfAngle), 0.0F, 0.0F,
-                std::cos(halfAngle)};
-            projectile.rotation =
-                multiply(projectile.rotation, sourceSpin);
+            projectile.rotation = runtimeQuat(source::Proj::ResonanseUpdate(
+                sourceQuat(projectile.rotation),
+                projectileDefinition.angularSpeed, seconds));
         }
-        projectile.reflectionCooldown =
-            std::max(0.0F,
-                     projectile.reflectionCooldown - seconds);
+        projectile.reflectionCooldown = source::Proj::ThunderUpdate(
+            projectile.reflectionCooldown, seconds);
         if (projectileDefinition.type == 22U &&
             projectile.reflectionCooldown <= 0.0F)
         {
@@ -3713,23 +3692,27 @@ void OriginalRaceSession::updateGameplay(
             thunderTransform.position = projectile.position;
             thunderTransform.rotation = projectile.rotation;
             Vec3 normal;
-            if (length3(projectile.velocity) > 5.0F &&
+            const bool borderContact =
+                length3(projectile.velocity) > 5.0F &&
                 trackBorderContact(
-                    race_,
-                    orientedBox(
-                        thunderTransform,
-                        projectileDefinition.collision),
-                    normal))
+                    race_, orientedBox(
+                               thunderTransform,
+                               projectileDefinition.collision),
+                    normal);
+            const auto contact = source::Proj::ThunderContact(
+                sourceVec(projectile.velocity), sourceVec(normal),
+                projectile.reflectionCooldown, borderContact);
+            if (contact.setLinearVelocity)
             {
-                projectile.velocity =
-                    thunderReflection(projectile.velocity, normal);
+                projectile.velocity = runtimeVec(contact.linearVelocity);
                 projectile.direction =
                     normalized3(projectile.velocity);
                 // ThunderContact only changes PhysX linear velocity. The
                 // projectile actor/model rotation remains the shot rotation
                 // (and Resonanse is the only RocketUpdate variant that spins
                 // its actor explicitly).
-                projectile.reflectionCooldown = 0.1F;
+                projectile.reflectionCooldown =
+                    contact.reflectionCooldown;
             }
         }
         RaceEffect fired;
@@ -3858,17 +3841,17 @@ void OriginalRaceSession::updateGameplay(
                 projectileDefinition.type == 22U ||
                 projectileDefinition.type == 23U)
             {
-                const Vec3 torqueDirection =
-                    cross(contactPoint, projectile.direction);
-                if (length3(torqueDirection) > 0.01F)
+                const auto torque = source::Proj::RocketContactTorque(
+                    sourceVec(contactPoint),
+                    sourceVec(projectile.velocity),
+                    projectileDefinition.mass);
+                if (torque.apply)
                 {
                     angularVelocityRequests_.push_back(
                         {target,
                          rotate(
                              vehicles[target].body.rotation,
-                             multiply(
-                                 normalized3(torqueDirection),
-                                 projectileDefinition.mass * 0.2F))});
+                             runtimeVec(torque.localVelocityChange))});
                 }
             }
             if (sonarContact)

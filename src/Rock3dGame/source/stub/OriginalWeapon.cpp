@@ -26,6 +26,105 @@ Proj::Vec3 normalized(Proj::Vec3 value) noexcept
             value.z / magnitude};
 }
 
+float dot(Proj::Vec3 first, Proj::Vec3 second) noexcept
+{
+    return first.x * second.x + first.y * second.y +
+           first.z * second.z;
+}
+
+Proj::Vec3 cross(Proj::Vec3 first, Proj::Vec3 second) noexcept
+{
+    return {first.y * second.z - first.z * second.y,
+            first.z * second.x - first.x * second.z,
+            first.x * second.y - first.y * second.x};
+}
+
+Proj::Quat normalized(Proj::Quat value) noexcept
+{
+    const float magnitude = std::sqrt(
+        value.x * value.x + value.y * value.y +
+        value.z * value.z + value.w * value.w);
+    if (magnitude <= 0.000001F)
+        return {};
+    return {value.x / magnitude, value.y / magnitude,
+            value.z / magnitude, value.w / magnitude};
+}
+
+Proj::Quat multiply(Proj::Quat first, Proj::Quat second) noexcept
+{
+    return {first.w * second.x + first.x * second.w +
+                first.y * second.z - first.z * second.y,
+            first.w * second.y - first.x * second.z +
+                first.y * second.w + first.z * second.x,
+            first.w * second.z + first.x * second.y -
+                first.y * second.x + first.z * second.w,
+            first.w * second.w - first.x * second.x -
+                first.y * second.y - first.z * second.z};
+}
+
+Proj::Vec3 rotate(Proj::Quat rotation, Proj::Vec3 value) noexcept
+{
+    rotation = normalized(rotation);
+    const Proj::Vec3 quaternionVector{
+        rotation.x, rotation.y, rotation.z};
+    auto twiceCross = cross(quaternionVector, value);
+    twiceCross = {
+        twiceCross.x * 2.0F,
+        twiceCross.y * 2.0F,
+        twiceCross.z * 2.0F};
+    const auto secondCross = cross(quaternionVector, twiceCross);
+    return {value.x + rotation.w * twiceCross.x + secondCross.x,
+            value.y + rotation.w * twiceCross.y + secondCross.y,
+            value.z + rotation.w * twiceCross.z + secondCross.z};
+}
+
+Proj::Quat shortestArcFromX(Proj::Vec3 direction) noexcept
+{
+    direction = normalized(direction);
+    const float cosine = std::clamp(direction.x, -1.0F, 1.0F);
+    if (cosine < -0.999999F)
+        return {0.0F, 0.0F, 1.0F, 0.0F};
+    const float scale = std::sqrt((1.0F + cosine) * 2.0F);
+    const float inverseScale =
+        scale > 0.000001F ? 1.0F / scale : 0.0F;
+    return normalized(Proj::Quat{
+        0.0F, -direction.z * inverseScale,
+        direction.y * inverseScale, scale * 0.5F});
+}
+
+Proj::Quat slerp(
+    Proj::Quat first, Proj::Quat second, float alpha) noexcept
+{
+    first = normalized(first);
+    second = normalized(second);
+    float cosine = first.x * second.x + first.y * second.y +
+                   first.z * second.z + first.w * second.w;
+    if (cosine < 0.0F)
+    {
+        second = {-second.x, -second.y, -second.z, -second.w};
+        cosine = -cosine;
+    }
+    cosine = std::clamp(cosine, -1.0F, 1.0F);
+    if (cosine > 0.9995F)
+    {
+        return normalized(Proj::Quat{
+            first.x + (second.x - first.x) * alpha,
+            first.y + (second.y - first.y) * alpha,
+            first.z + (second.z - first.z) * alpha,
+            first.w + (second.w - first.w) * alpha});
+    }
+    const float angle = std::acos(cosine);
+    const float sine = std::sin(angle);
+    const float firstWeight =
+        std::sin((1.0F - alpha) * angle) / sine;
+    const float secondWeight = std::sin(alpha * angle) / sine;
+    return normalized(Proj::Quat{
+        first.x * firstWeight + second.x * secondWeight,
+        first.y * firstWeight + second.y * secondWeight,
+        first.z * firstWeight + second.z * secondWeight,
+        first.w * firstWeight + second.w * secondWeight});
+}
+
 } // namespace
 
 Proj::ContactResult Proj::SpeedArrowContact(
@@ -78,6 +177,136 @@ Proj::ContactResult Proj::MasloContact(
             ? -damage
             : damage;
     result.lockClutch = true;
+    return result;
+}
+
+Proj::RocketUpdateResult Proj::RocketUpdate(
+    float projectileZ, float trackZ, float boxHalfExtentZ,
+    float clearance, bool trackHit) noexcept
+{
+    RocketUpdateResult result{projectileZ, clearance};
+    if (!trackHit)
+        return result;
+
+    const float height = std::max(
+        projectileZ - trackZ, boxHalfExtentZ);
+    if (result.clearance == 0.0F ||
+        result.clearance - height > 0.1F)
+    {
+        result.clearance = height;
+    }
+    result.positionZ = trackZ + result.clearance;
+    return result;
+}
+
+Proj::TorpedaUpdateResult Proj::TorpedaUpdate(
+    float deltaTime, Vec3 position, Quat rotation,
+    Vec3 storedVelocity, float homingDelay, bool hasTarget,
+    Vec3 targetPosition, float sourceSpeed, bool speedRelative,
+    float angleSpeed) noexcept
+{
+    TorpedaUpdateResult result;
+    result.rotation = rotation;
+    result.direction = normalized(rotate(rotation, {1.0F, 0.0F, 0.0F}));
+    result.linearVelocity = storedVelocity;
+    result.homingDelay = std::max(homingDelay - deltaTime, 0.0F);
+    if (!hasTarget || result.homingDelay != 0.0F)
+        return result;
+
+    Vec3 direction{
+        targetPosition.x - position.x,
+        targetPosition.y - position.y,
+        targetPosition.z - position.z};
+    const float distance = length(direction);
+    direction = distance > 1.0F
+                    ? normalized(direction)
+                    : result.direction;
+
+    const Quat targetRotation = shortestArcFromX(direction);
+    result.rotation = angleSpeed > 0.0F
+                          ? slerp(rotation, targetRotation,
+                                  deltaTime * angleSpeed)
+                          : targetRotation;
+    result.direction = normalized(
+        rotate(result.rotation, {1.0F, 0.0F, 0.0F}));
+    const float speed = speedRelative
+                            ? length(storedVelocity)
+                            : std::max(
+                                  dot(storedVelocity, result.direction),
+                                  sourceSpeed);
+    const float actorSpeed = std::max(sourceSpeed, speed);
+    result.linearVelocity = {
+        result.direction.x * actorSpeed,
+        result.direction.y * actorSpeed,
+        result.direction.z * actorSpeed};
+    result.setLinearVelocity = true;
+    return result;
+}
+
+float Proj::ThunderUpdate(
+    float reflectionCooldown, float deltaTime) noexcept
+{
+    return reflectionCooldown - deltaTime;
+}
+
+Proj::ThunderContactResult Proj::ThunderContact(
+    Vec3 linearVelocity, Vec3 contactNormal,
+    float reflectionCooldown,
+    bool shotTransparencyContact) noexcept
+{
+    ThunderContactResult result{
+        linearVelocity, reflectionCooldown, false};
+    if (reflectionCooldown > 0.0F ||
+        !shotTransparencyContact || length(linearVelocity) <= 5.0F)
+    {
+        return result;
+    }
+
+    result.reflectionCooldown = 0.1F;
+    contactNormal = normalized(contactNormal);
+    const auto velocityNormal = normalized(linearVelocity);
+    if (std::abs(dot(velocityNormal, contactNormal)) > 0.1F)
+    {
+        const float projection = dot(linearVelocity, contactNormal);
+        result.linearVelocity = {
+            linearVelocity.x - 2.0F * projection * contactNormal.x,
+            linearVelocity.y - 2.0F * projection * contactNormal.y,
+            linearVelocity.z - 2.0F * projection * contactNormal.z};
+    }
+    else
+    {
+        result.linearVelocity = {
+            -linearVelocity.x, -linearVelocity.y, -linearVelocity.z};
+    }
+    result.setLinearVelocity = true;
+    return result;
+}
+
+Proj::Quat Proj::ResonanseUpdate(
+    Quat rotation, float angleSpeed, float deltaTime) noexcept
+{
+    const float halfAngle = angleSpeed * deltaTime * 0.5F;
+    return normalized(multiply(
+        rotation,
+        {std::sin(halfAngle), 0.0F, 0.0F, std::cos(halfAngle)}));
+}
+
+Proj::TorqueResult Proj::RocketContactTorque(
+    Vec3 contactPoint, Vec3 linearVelocity, float mass) noexcept
+{
+    TorqueResult result;
+    if (length(linearVelocity) <= 1.0F)
+        return result;
+    const Vec3 direction = normalized(linearVelocity);
+    Vec3 contactDirection = cross(contactPoint, direction);
+    if (length(contactDirection) <= 0.01F)
+        return result;
+    contactDirection = normalized(contactDirection);
+    result.localVelocityChange = {
+        contactDirection.x * mass * 0.2F,
+        contactDirection.y * mass * 0.2F,
+        contactDirection.z * mass * 0.2F};
+    result.apply = true;
     return result;
 }
 
