@@ -484,6 +484,9 @@ private:
     std::vector<r3d::physics::VehicleInput> vehicleInputs_;
     std::vector<bool> decorationActive_;
     std::vector<float> decorationLife_;
+    // Active source owner. The parallel arrays are renderer/physics views,
+    // no longer the authority for damage or death.
+    std::vector<source::DestrObj> decorationObjects_;
     std::vector<bool> bonusActive_;
     std::vector<std::size_t> bonusNetworkPendingContact_;
     std::vector<source::WeaponRack> weaponRacks_;

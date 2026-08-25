@@ -160,4 +160,38 @@ std::size_t GameObject::GetTouchPlayerId() const noexcept
     return touchAttacker;
 }
 
+GameObject::DamageResult DestrObj::Damage(
+    std::size_t senderPlayerId, float value,
+    DamageType damageType) noexcept
+{
+    auto result = GameObject::Damage(
+        senderPlayerId, value, damageType);
+    checkDestruction_ = checkDestruction_ || result.death;
+    return result;
+}
+
+GameObject::DamageResult DestrObj::Damage(
+    std::size_t senderPlayerId, float value, float newLife,
+    bool death, DamageType damageType) noexcept
+{
+    auto result = GameObject::Damage(
+        senderPlayerId, value, newLife, death, damageType);
+    checkDestruction_ = checkDestruction_ || result.death;
+    return result;
+}
+
+bool DestrObj::OnProgress(float deltaTime) noexcept
+{
+    GameObject::OnProgress(deltaTime);
+    if (!checkDestruction_)
+        return false;
+    checkDestruction_ = false;
+    return true;
+}
+
+bool DestrObj::HasPendingDestruction() const noexcept
+{
+    return checkDestruction_;
+}
+
 } // namespace r3d::game::originalrace::source

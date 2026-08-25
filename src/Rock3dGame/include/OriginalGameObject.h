@@ -97,5 +97,24 @@ public:
     bool destroyed = false;
 };
 
+// Gameplay-owned part of GameCar.h::DestrObj. The original queues its
+// serialized destruction list from OnDeath and releases it once from the
+// following progress callback.
+class DestrObj : public GameObject
+{
+public:
+    DamageResult Damage(
+        std::size_t senderPlayerId, float value,
+        DamageType damageType = DamageType::Simple) noexcept;
+    DamageResult Damage(std::size_t senderPlayerId, float value,
+                        float newLife, bool death,
+                        DamageType damageType) noexcept;
+    bool OnProgress(float deltaTime) noexcept;
+    bool HasPendingDestruction() const noexcept;
+
+private:
+    bool checkDestruction_ = false;
+};
+
 } // namespace source
 } // namespace r3d::game::originalrace

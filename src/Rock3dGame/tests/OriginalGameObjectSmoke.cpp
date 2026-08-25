@@ -71,6 +71,17 @@ int main()
         !object.OnProgress(0.001F).lifetimeDeath)
         return 13;
 
-    std::cout << "original GameObject lifetime/damage source rules passed\n";
+    source::DestrObj destructible;
+    destructible.ResetGameObject(10.0F);
+    if (destructible.Damage(
+            2U, 10.0F, original::DamageType::Energy).death == false ||
+        !destructible.HasPendingDestruction())
+        return 14;
+    if (!destructible.OnProgress(0.0F) ||
+        destructible.HasPendingDestruction() ||
+        destructible.OnProgress(0.0F))
+        return 15;
+
+    std::cout << "original GameObject/DestrObj source rules passed\n";
     return 0;
 }

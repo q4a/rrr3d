@@ -1046,14 +1046,19 @@ void OriginalRaceSession::reset()
     decorationActive_.assign(race_.decorationInstances.size(), true);
     decorationLife_.clear();
     decorationLife_.reserve(race_.decorationInstances.size());
+    decorationObjects_.clear();
+    decorationObjects_.reserve(race_.decorationInstances.size());
     for (const auto& instance : race_.decorationInstances)
     {
         const auto& definition =
             race_.decorationDefinitions.at(instance.definition);
-        decorationLife_.push_back(
+        source::DestrObj object;
+        object.ResetGameObject(
             definition.maximumLife >= 0.0F
                 ? definition.maximumLife
                 : -1.0F);
+        decorationLife_.push_back(object.GetLife());
+        decorationObjects_.push_back(std::move(object));
     }
     bonusActive_.assign(race_.bonuses.size(), true);
     bonusNetworkPendingContact_.assign(
@@ -1775,6 +1780,7 @@ bool OriginalRaceSession::damageDecoration(
     std::size_t hit, float damage, std::size_t attacker)
 {
     if (hit >= decorationActive_.size() ||
+        hit >= decorationObjects_.size() ||
         hit >= race_.decorationInstances.size() ||
         !decorationActive_[hit])
         return false;
@@ -1828,14 +1834,14 @@ OriginalRaceSession::applyDecorationDamageInternal(
         }
     }
 
-    const float appliedDamage = std::max(damage, 0.0F);
-    if (synchronizeState)
-        decorationLife_[hit] = targetLife;
-    else
-        decorationLife_[hit] -= appliedDamage;
-    const bool destroyed = synchronizeState
-                               ? death
-                               : decorationLife_[hit] <= 0.0F;
+    const float appliedDamage = damage;
+    auto& object = decorationObjects_[hit];
+    const auto damageResult = synchronizeState
+        ? object.Damage(attacker, appliedDamage, targetLife, death,
+                        damageType)
+        : object.Damage(attacker, appliedDamage, damageType);
+    decorationLife_[hit] = object.GetLife();
+    const bool destroyed = damageResult.death;
 
     RaceEvent damageEvent;
     damageEvent.kind = RaceEventKind::MapObjectDamage;
@@ -1852,6 +1858,8 @@ OriginalRaceSession::applyDecorationDamageInternal(
         return {decorationLife_[hit], false};
 
     decorationActive_[hit] = false;
+    if (!object.OnProgress(0.0F))
+        return {decorationLife_[hit], true};
     const Vec3 position =
         race_.decorationInstances[hit].transform.position;
     RaceEvent destroyedEvent;
