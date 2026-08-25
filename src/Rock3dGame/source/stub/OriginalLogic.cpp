@@ -195,10 +195,8 @@ Logic::TakeBonusResult Logic::TakeBonus(
     if (player == nullptr || bonus == nullptr || player->destroyed ||
         bonus->destroyed)
         return {};
-    // Logic::TakeBonus kills the picked MapObj before Player applies it.
-    bonus->Death();
     return {player->TakeBonus(
-                type, value, maximumCharges, randomUnit),
+                *bonus, type, value, maximumCharges, randomUnit),
             true};
 }
 

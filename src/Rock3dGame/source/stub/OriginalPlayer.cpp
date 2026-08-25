@@ -470,6 +470,17 @@ PlayerBonusResult Player::TakeBonus(
     return {};
 }
 
+PlayerBonusResult Player::TakeBonus(
+    GameObject& bonus, PlayerBonusType type, float value,
+    const std::vector<std::uint32_t>& maximumCharges,
+    float randomUnit) noexcept
+{
+    // Player::TakeBonus owns this transition in the source.  In particular,
+    // bonus death listeners run before money/life/charge state is changed.
+    bonus.Death();
+    return TakeBonus(type, value, maximumCharges, randomUnit);
+}
+
 Player::BehaviorProgressResult Player::ProgressBehaviors(
     float deltaTime, float lowLifeLevel, float linearSpeed) noexcept
 {
@@ -494,6 +505,34 @@ bool Player::ConsumeEnergyDamageEffectCreated() noexcept
     return result;
 }
 
+std::vector<PlayerGameEvent> Player::TakeGameEvents() noexcept
+{
+    std::vector<PlayerGameEvent> result;
+    result.swap(gameEvents_);
+    return result;
+}
+
+void Player::OnDeathEvent(
+    DamageType damageType, GameObject* target) noexcept
+{
+    (void)target;
+    if (damageType == DamageType::DeathPlane)
+    {
+        gameEvents_.push_back(
+            {PlayerGameEventKind::Overboard,
+             GameObject::undefinedPlayerId, 0.0F, damageType});
+    }
+    else if (damageType == DamageType::Mine)
+    {
+        gameEvents_.push_back(
+            {PlayerGameEventKind::DeathMine,
+             GameObject::undefinedPlayerId, 0.0F, damageType});
+    }
+    gameEvents_.push_back(
+        {PlayerGameEventKind::Death, GetTouchPlayerId(), 0.0F,
+         damageType});
+}
+
 void Player::OnDamageEvent(
     float value, DamageType damageType) noexcept
 {
@@ -503,6 +542,24 @@ void Player::OnDamageEvent(
     immortalEffect.OnDamage();
     energyDamageEffectCreated_ =
         energyDamageEffect.OnDamage(damageType);
+}
+
+void Player::OnDamageDispatchEvent(
+    std::size_t senderPlayerId, float value,
+    DamageType damageType) noexcept
+{
+    gameEvents_.push_back(
+        {PlayerGameEventKind::Damage, senderPlayerId, value,
+         damageType});
+}
+
+void Player::OnKillDispatchEvent(
+    std::size_t senderPlayerId, float value,
+    DamageType damageType) noexcept
+{
+    gameEvents_.push_back(
+        {PlayerGameEventKind::Kill, senderPlayerId, value,
+         damageType});
 }
 
 void Player::OnImmortalStatusEvent(bool status) noexcept

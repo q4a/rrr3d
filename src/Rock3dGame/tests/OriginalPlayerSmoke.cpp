@@ -68,8 +68,15 @@ int main()
         player.immortalEffect.GetDamageTime() != 0.0F ||
         !player.ConsumeEnergyDamageEffectCreated())
         return 21;
+    const auto immortalDamageEvents = player.TakeGameEvents();
+    if (immortalDamageEvents.size() != 1U ||
+        immortalDamageEvents[0].kind != source::PlayerGameEventKind::Damage ||
+        immortalDamageEvents[0].otherPlayerId != 1U ||
+        immortalDamageEvents[0].value != 5.0F)
+        return 23;
     player.Damage(1U, 5.0F, r3d::game::originalrace::DamageType::Energy);
-    if (player.ConsumeEnergyDamageEffectCreated())
+    if (player.ConsumeEnergyDamageEffectCreated() ||
+        player.TakeGameEvents().size() != 1U)
         return 22;
 
     player.Complete(1U, 100U, 20U, 10.0F);
@@ -109,6 +116,44 @@ int main()
         source::Player::BonusCharge(3U, 0.5F) != 1U ||
         source::Player::BonusCharge(10U, 0.0F) != 1U)
         return 12;
+
+    source::Player lethalPlayer;
+    lethalPlayer.Reset(50.0F, 1U);
+    lethalPlayer.Damage(
+        2U, 60.0F, r3d::game::originalrace::DamageType::Simple);
+    const auto lethalEvents = lethalPlayer.TakeGameEvents();
+    if (lethalEvents.size() != 3U ||
+        lethalEvents[0].kind != source::PlayerGameEventKind::Damage ||
+        lethalEvents[1].kind != source::PlayerGameEventKind::Kill ||
+        lethalEvents[2].kind != source::PlayerGameEventKind::Death ||
+        lethalEvents[1].otherPlayerId != 2U)
+        return 24;
+
+    source::Player minePlayer;
+    minePlayer.Reset(50.0F, 1U);
+    minePlayer.Damage(
+        3U, 60.0F, r3d::game::originalrace::DamageType::Mine);
+    const auto mineEvents = minePlayer.TakeGameEvents();
+    if (mineEvents.size() != 3U ||
+        mineEvents[0].kind != source::PlayerGameEventKind::Damage ||
+        mineEvents[1].kind != source::PlayerGameEventKind::DeathMine ||
+        mineEvents[2].kind != source::PlayerGameEventKind::Death)
+        return 25;
+
+    source::Player overboardPlayer;
+    overboardPlayer.Reset(50.0F, 1U);
+    overboardPlayer.Damage(
+        4U, 0.0F, r3d::game::originalrace::DamageType::Touch);
+    overboardPlayer.TakeGameEvents();
+    overboardPlayer.Death(
+        r3d::game::originalrace::DamageType::DeathPlane);
+    const auto overboardEvents = overboardPlayer.TakeGameEvents();
+    if (overboardEvents.size() != 2U ||
+        overboardEvents[0].kind !=
+            source::PlayerGameEventKind::Overboard ||
+        overboardEvents[1].kind != source::PlayerGameEventKind::Death ||
+        overboardEvents[1].otherPlayerId != 4U)
+        return 26;
 
     source::Trace trace(4U);
     auto* first = trace.AddPoint(1U);

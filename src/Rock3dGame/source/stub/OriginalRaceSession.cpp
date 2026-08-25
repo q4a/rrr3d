@@ -1643,6 +1643,53 @@ void OriginalRaceSession::pushDamageEvent(
     events_.push_back(std::move(event));
 }
 
+void OriginalRaceSession::appendPlayerGameEvents(
+    std::size_t racer, const Vec3& position,
+    bool networkReplicated)
+{
+    if (racer >= racers_.size())
+        return;
+    for (const auto& sourceEvent : racers_[racer].TakeGameEvents())
+    {
+        RaceEvent event;
+        event.racer = racer;
+        event.target = sourceEvent.otherPlayerId;
+        event.position = position;
+        event.value = sourceEvent.value;
+        event.touchDamage =
+            sourceEvent.damageType == DamageType::Touch;
+        event.damageType = sourceEvent.damageType;
+        event.networkReplicated = networkReplicated;
+        switch (sourceEvent.kind)
+        {
+        case source::PlayerGameEventKind::Damage:
+            event.kind = RaceEventKind::Damage;
+            event.authoritativeLife = racers_[racer].life;
+            event.authoritativeDeath = racers_[racer].destroyed;
+            break;
+        case source::PlayerGameEventKind::Kill:
+            event.kind = RaceEventKind::Kill;
+            event.racer = sourceEvent.otherPlayerId;
+            event.target = racer;
+            event.killCredit = true;
+            break;
+        case source::PlayerGameEventKind::Overboard:
+            event.kind = RaceEventKind::Overboard;
+            event.killCredit = false;
+            break;
+        case source::PlayerGameEventKind::DeathMine:
+            event.kind = RaceEventKind::DeathMine;
+            event.killCredit = false;
+            break;
+        case source::PlayerGameEventKind::Death:
+            event.kind = RaceEventKind::Death;
+            event.killCredit = false;
+            break;
+        }
+        events_.push_back(std::move(event));
+    }
+}
+
 bool OriginalRaceSession::applyRacerDamageInternal(
     std::size_t target, std::size_t attacker, const Vec3& position,
     float sourceDamage, DamageType damageType,
@@ -1680,23 +1727,17 @@ bool OriginalRaceSession::applyRacerDamageInternal(
                                          ? &playerItemRacks_[target]
                                          : nullptr,
                                      sourceDamage, damageType);
-    const std::size_t damageEvent = events_.size();
-    pushDamageEvent(
-        target, attacker, position, incoming, damageType,
-        networkReplicated);
-
     // The Windows client does not call GameObject::Damage while producing
     // NetRace::Damage. It waits for the host's targetLife/death packet.
     if (networkGameplayEnabled_ && !networkGameplayHost_ &&
         !synchronizeState)
     {
-        if (damageEvent < events_.size())
-        {
-            events_[damageEvent].authoritativeLife =
-                racers_[target].life;
-            events_[damageEvent].authoritativeDeath =
-                racers_[target].destroyed;
-        }
+        const std::size_t damageEvent = events_.size();
+        pushDamageEvent(
+            target, attacker, position, incoming, damageType,
+            networkReplicated);
+        events_[damageEvent].authoritativeLife = racers_[target].life;
+        events_[damageEvent].authoritativeDeath = racers_[target].destroyed;
         return false;
     }
 
@@ -1734,20 +1775,12 @@ bool OriginalRaceSession::applyRacerDamageInternal(
             effects_.push_back(std::move(effect));
         }
     }
+    // Drain the actual GameObject/Player dispatch queue. Its lethal order is
+    // Damage, Kill, then the Player listener's special death event and Death.
+    appendPlayerGameEvents(target, position, networkReplicated);
     if (!damageResult.death)
-    {
-        if (damageEvent < events_.size())
-            events_[damageEvent].authoritativeLife = runtime.life;
         return false;
-    }
-    destroyRacer(
-        target, attacker, position, vehicle, damageType,
-        damageResult.killCredit, true);
-    if (damageEvent < events_.size())
-    {
-        events_[damageEvent].authoritativeLife = racers_[target].life;
-        events_[damageEvent].authoritativeDeath = true;
-    }
+    destroyRacer(target, position, vehicle, true);
     return true;
 }
 
@@ -2701,9 +2734,9 @@ void OriginalRaceSession::queueRespawn(
 }
 
 void OriginalRaceSession::destroyRacer(
-    std::size_t racer, std::size_t attacker, Vec3 position,
-    const r3d::physics::VehicleState& vehicle, DamageType damageType,
-    bool killCredit, bool gameObjectAlreadyDestroyed)
+    std::size_t racer, Vec3 position,
+    const r3d::physics::VehicleState& vehicle,
+    bool gameObjectAlreadyDestroyed)
 {
     if (racer >= racers_.size() || racer >= race_.racers.size() ||
         (racers_[racer].destroyed && !gameObjectAlreadyDestroyed))
@@ -2711,34 +2744,12 @@ void OriginalRaceSession::destroyRacer(
     auto& runtime = racers_[racer];
     // Player::OnDeath/OnDestroy begins the exact cTimeRestoreCar lifecycle.
     runtime.Destroy();
+    appendPlayerGameEvents(racer, position, false);
     releaseRacerProjectileReferences(racer);
     if (racer < playerItemRacks_.size())
         playerItemRacks_[racer].OnDestroyCar();
     if (racer < vehicleInputs_.size())
         vehicleInputs_[racer] = {};
-    if (damageType == DamageType::DeathPlane)
-    {
-        events_.push_back({RaceEventKind::Overboard, racer, attacker,
-                           position, 0.0F});
-    }
-    else if (damageType == DamageType::Mine)
-    {
-        events_.push_back({RaceEventKind::DeathMine, racer, attacker,
-                           position, 0.0F});
-    }
-    events_.push_back({RaceEventKind::Death, racer, attacker,
-                       position, 0.0F});
-    RaceEvent deathEvent;
-    deathEvent.kind = RaceEventKind::Kill;
-    deathEvent.racer = attacker;
-    deathEvent.target = racer;
-    deathEvent.position = position;
-    deathEvent.touchDamage =
-        damageType == DamageType::Touch;
-    deathEvent.killCredit = killCredit;
-    deathEvent.damageType = damageType;
-    events_.push_back(std::move(deathEvent));
-
     const auto& sourceRacer = race_.racers[racer];
     const auto& definition =
         sourceRacer.hasConfiguredVehicle
@@ -3992,15 +4003,11 @@ void OriginalRaceSession::updateGameplay(
         // car shape crossing that plane receives Death(dtDeathPlane).
         if (body.center.z - verticalRadius > 0.0F)
             continue;
-        const std::size_t attacker =
-            racers_[racer].touchAttributionSeconds > 0.0F
-                ? racers_[racer].touchAttacker
-                : RacerRuntime::invalidWeapon;
         if (!groundTouchDeath_.OnContact(&racers_[racer]))
             continue;
         destroyRacer(
-            racer, attacker, vehicles[racer].body.position,
-            vehicles[racer], DamageType::DeathPlane, false, true);
+            racer, vehicles[racer].body.position,
+            vehicles[racer], true);
     }
     for (std::size_t racer = 1;
          racer < vehicles.size() && racer < racers_.size(); ++racer)
@@ -5831,7 +5838,7 @@ void OriginalRaceSession::updateAchievements(float seconds)
             event.kind == RaceEventKind::Kill &&
             event.killCredit && event.racer == 0U;
         const bool humanDeath =
-            event.kind == RaceEventKind::Kill && event.target == 0U;
+            event.kind == RaceEventKind::Death && event.racer == 0U;
         const bool humanLap =
             event.kind == RaceEventKind::Lap && event.racer == 0U;
         const bool humanFinish =
@@ -5952,8 +5959,8 @@ void OriginalRaceSession::updateAchievements(float seconds)
                     completeAchievement(index);
                 break;
             case 9U:
-                if (event.kind == RaceEventKind::Kill &&
-                    event.target != 0U && event.racer == 0U &&
+                if (event.kind == RaceEventKind::Death &&
+                    event.racer != 0U && event.target == 0U &&
                     (event.damageType == DamageType::Touch ||
                      event.damageType == DamageType::DeathPlane))
                     completeAchievement(index);
@@ -8515,9 +8522,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     overboardSession.events().begin(),
                     overboardSession.events().end(),
                     [](const RaceEvent& event) {
-                        return event.kind == RaceEventKind::Kill &&
-                               event.target == 1U &&
-                               event.racer == 0U &&
+                        return event.kind == RaceEventKind::Death &&
+                               event.racer == 1U &&
+                               event.target == 0U &&
                                !event.killCredit &&
                                event.damageType ==
                                    DamageType::DeathPlane;

@@ -4,10 +4,29 @@
 #include <cmath>
 #include <iostream>
 
+namespace source = r3d::game::originalrace::source;
+
+namespace
+{
+
+struct BonusDeathOrder final : source::GameObjectListener
+{
+    source::Player* player = nullptr;
+    std::uint32_t moneyAtDeath = 0U;
+
+    void OnDeath(
+        source::GameObject&,
+        r3d::game::originalrace::DamageType,
+        source::GameObject*) noexcept override
+    {
+        moneyAtDeath = player == nullptr ? 0U : player->pickedMoney;
+    }
+};
+
+} // namespace
+
 int main()
 {
-    namespace source = r3d::game::originalrace::source;
-
     const std::array<std::uint32_t, 2> projectiles{10U, 11U};
     source::Weapon weapon;
     weapon.SetDesc(0.1F, projectiles);
@@ -205,11 +224,15 @@ int main()
     bonusPlayer.Reset(100.0F, 1U);
     source::GameObject bonusObject;
     bonusObject.ResetGameObject(-1.0F);
+    BonusDeathOrder bonusDeathOrder;
+    bonusDeathOrder.player = &bonusPlayer;
+    bonusObject.InsertListener(&bonusDeathOrder);
     const auto moneyBonus = source::Logic::TakeBonus(
         &bonusPlayer, &bonusObject,
         source::PlayerBonusType::Money, 25.0F, {}, 0.0F);
     if (!moneyBonus.taken || !bonusObject.destroyed ||
-        bonusPlayer.pickedMoney != 25U)
+        bonusPlayer.pickedMoney != 25U ||
+        bonusDeathOrder.moneyAtDeath != 0U)
         return 27;
     if (source::Logic::TakeBonus(
             &bonusPlayer, &bonusObject,

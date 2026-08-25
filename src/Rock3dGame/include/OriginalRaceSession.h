@@ -470,16 +470,17 @@ private:
         std::size_t racer,
         const std::vector<r3d::physics::VehicleState>& vehicles);
     void destroyRacer(
-        std::size_t racer, std::size_t attacker, Vec3 position,
+        std::size_t racer, Vec3 position,
         const r3d::physics::VehicleState& vehicle,
-        DamageType damageType = DamageType::Simple,
-        bool killCredit = true,
         bool gameObjectAlreadyDestroyed = false);
     void releaseRacerProjectileReferences(
         std::size_t racer) noexcept;
     void pushDamageEvent(
         std::size_t target, std::size_t attacker, const Vec3& position,
         float damage, DamageType damageType, bool networkReplicated);
+    void appendPlayerGameEvents(
+        std::size_t racer, const Vec3& position,
+        bool networkReplicated);
     bool applyRacerDamageInternal(
         std::size_t target, std::size_t attacker, const Vec3& position,
         float sourceDamage, DamageType damageType,

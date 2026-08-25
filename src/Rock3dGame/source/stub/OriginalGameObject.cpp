@@ -231,6 +231,10 @@ GameObject::DamageResult GameObject::Damage(
         touchAttacker = senderPlayerId;
         touchAttributionSeconds = 3.0F;
     }
+    // Source GameObject::Damage emits cPlayerDamage for every mortal object,
+    // including absorbed damage, before testing the authoritative death bit.
+    if (maximumLife >= 0.0F)
+        OnDamageDispatchEvent(senderPlayerId, value, damageType);
     if (!death)
         return result;
 
@@ -243,6 +247,8 @@ GameObject::DamageResult GameObject::Damage(
     result.death = true;
     result.killCredit = senderPlayerId != undefinedPlayerId &&
                         damageType != DamageType::Mine;
+    if (result.killCredit)
+        OnKillDispatchEvent(senderPlayerId, value, damageType);
     SendDeath(damageType, nullptr);
     return result;
 }

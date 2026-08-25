@@ -54,6 +54,25 @@ enum class PlayerBlockMove : std::uint8_t
     Brake,
 };
 
+// Public events emitted by the source car GameObject and its Player listener.
+// The race adapter consumes this queue without recreating their ordering.
+enum class PlayerGameEventKind : std::uint8_t
+{
+    Damage,
+    Kill,
+    Overboard,
+    DeathMine,
+    Death,
+};
+
+struct PlayerGameEvent
+{
+    PlayerGameEventKind kind = PlayerGameEventKind::Damage;
+    std::size_t otherPlayerId = GameObject::undefinedPlayerId;
+    float value = 0.0F;
+    DamageType damageType = DamageType::Simple;
+};
+
 // Backend result of the downward PhysX query made by Player::ResetCar.
 // The source accepts the track plane and the player's own car, rejects every
 // other shape, and treats a missing hit like the global death plane on the
@@ -191,10 +210,15 @@ public:
         PlayerBonusType type, float value,
         const std::vector<std::uint32_t>& maximumCharges,
         float randomUnit) noexcept;
+    PlayerBonusResult TakeBonus(
+        GameObject& bonus, PlayerBonusType type, float value,
+        const std::vector<std::uint32_t>& maximumCharges,
+        float randomUnit) noexcept;
     BehaviorProgressResult ProgressBehaviors(
         float deltaTime, float lowLifeLevel,
         float linearSpeed) noexcept;
     bool ConsumeEnergyDamageEffectCreated() noexcept;
+    std::vector<PlayerGameEvent> TakeGameEvents() noexcept;
 
     void SetFinished(bool value, float time = -1.0F) noexcept;
     void Complete(std::uint32_t resultPlace,
@@ -258,11 +282,20 @@ public:
     CarState car;
 
 protected:
+    void OnDeathEvent(
+        DamageType damageType, GameObject* target) noexcept override;
     void OnDamageEvent(float value, DamageType damageType) noexcept override;
+    void OnDamageDispatchEvent(
+        std::size_t senderPlayerId, float value,
+        DamageType damageType) noexcept override;
+    void OnKillDispatchEvent(
+        std::size_t senderPlayerId, float value,
+        DamageType damageType) noexcept override;
     void OnImmortalStatusEvent(bool status) noexcept override;
 
 private:
     bool energyDamageEffectCreated_ = false;
+    std::vector<PlayerGameEvent> gameEvents_;
 };
 
 } // namespace r3d::game::originalrace::source

@@ -134,6 +134,14 @@ protected:
     virtual void OnDeathEvent(
         DamageType, GameObject*) noexcept {}
     virtual void OnDamageEvent(float, DamageType) noexcept {}
+    // GameObject.cpp sends the public cPlayerDamage event after every
+    // listener has observed the assigned life, then sends cPlayerKill after
+    // DoDeath and before the death-listener graph.  These backend-neutral
+    // hooks retain those two distinct dispatch points.
+    virtual void OnDamageDispatchEvent(
+        std::size_t, float, DamageType) noexcept {}
+    virtual void OnKillDispatchEvent(
+        std::size_t, float, DamageType) noexcept {}
     virtual void OnLowLifeEvent() noexcept {}
     virtual void OnImmortalStatusEvent(bool) noexcept {}
 
