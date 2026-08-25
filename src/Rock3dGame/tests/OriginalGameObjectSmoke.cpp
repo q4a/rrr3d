@@ -180,6 +180,25 @@ int main()
     if (waitingEnd.IsResurrect() || waitingEnd.IsFading())
         return 35;
 
+    source::EventEffect eventEffect;
+    if (!eventEffect.MakeEffect() || eventEffect.MakeEffect() ||
+        !eventEffect.IsEffectMaked() || !eventEffect.FreeEffect() ||
+        eventEffect.FreeEffect() || eventEffect.IsEffectMaked())
+        return 36;
+    eventEffect.MakeEffect();
+    if (!eventEffect.OnDestroyEffect() ||
+        eventEffect.OnDestroyEffect())
+        return 37;
+
+    source::LifeEffect lifeEffect;
+    if (lifeEffect.OnProgress(false) || lifeEffect.HasPlayed() ||
+        !lifeEffect.OnProgress(true) || !lifeEffect.HasPlayed() ||
+        lifeEffect.OnProgress(true))
+        return 38;
+    lifeEffect.Reset();
+    if (lifeEffect.HasPlayed() || !lifeEffect.OnProgress(true))
+        return 39;
+
     std::cout << "original GameObject/DestrObj/effect behavior source "
                  "rules passed\n";
     return 0;

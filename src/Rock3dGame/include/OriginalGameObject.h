@@ -161,6 +161,36 @@ private:
     bool fading_ = false;
 };
 
+// EventEffect owns one distinguished _makeEffect actor in addition to any
+// transient actors created by ShotEffect. These operations preserve the
+// original MakeEffect/FreeEffect/OnDestroy identity rules independently of
+// the renderer object which realizes the actor.
+class EventEffect
+{
+public:
+    void Reset() noexcept;
+    bool MakeEffect() noexcept;
+    bool FreeEffect() noexcept;
+    bool OnDestroyEffect() noexcept;
+    bool IsEffectMaked() const noexcept;
+
+private:
+    bool effectMaked_ = false;
+};
+
+class LifeEffect : public EventEffect
+{
+public:
+    void Reset() noexcept;
+    // LifeEffect retries until GiveSource3d can supply a source and then
+    // plays that source exactly once for the lifetime of the object.
+    bool OnProgress(bool sourceAvailable) noexcept;
+    bool HasPlayed() const noexcept;
+
+private:
+    bool play_ = false;
+};
+
 // Backend-neutral state owned by the original GameBase behavior classes.
 // Effect actors/sounds remain renderer and audio adapters, but their state
 // machines live here instead of being reconstructed in RaceSession.
@@ -186,7 +216,7 @@ public:
 private:
     float lifeLevel_ = 0.35F;
     float effectSeconds_ = 0.0F;
-    bool effectMaked_ = false;
+    EventEffect eventEffect_;
 };
 
 class DamageEffect
@@ -208,7 +238,7 @@ private:
     DamageType damageType_ = DamageType::Simple;
     float maximumTimeLife_ = 0.5F;
     float effectSeconds_ = 0.0F;
-    bool effectMaked_ = false;
+    EventEffect eventEffect_;
 };
 
 class ImmortalEffect
@@ -235,7 +265,7 @@ private:
     float fadeOutTime_ = -1.0F;
     float damageTime_ = -1.0F;
     float effectSeconds_ = 0.0F;
-    bool effectMaked_ = false;
+    EventEffect eventEffect_;
 };
 
 class SlowEffect
@@ -265,7 +295,7 @@ private:
     float timeLife_ = 0.0F;
     std::size_t weapon_ = GameObject::undefinedPlayerId;
     std::size_t projectile_ = GameObject::undefinedPlayerId;
-    bool effectMaked_ = false;
+    EventEffect eventEffect_;
 };
 
 } // namespace source

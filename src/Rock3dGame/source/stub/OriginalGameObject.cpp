@@ -254,6 +254,56 @@ bool FxSystemWaitingEnd::IsFading() const noexcept
     return fading_;
 }
 
+void EventEffect::Reset() noexcept
+{
+    effectMaked_ = false;
+}
+
+bool EventEffect::MakeEffect() noexcept
+{
+    if (effectMaked_)
+        return false;
+    effectMaked_ = true;
+    return true;
+}
+
+bool EventEffect::FreeEffect() noexcept
+{
+    if (!effectMaked_)
+        return false;
+    effectMaked_ = false;
+    return true;
+}
+
+bool EventEffect::OnDestroyEffect() noexcept
+{
+    return FreeEffect();
+}
+
+bool EventEffect::IsEffectMaked() const noexcept
+{
+    return effectMaked_;
+}
+
+void LifeEffect::Reset() noexcept
+{
+    EventEffect::Reset();
+    play_ = false;
+}
+
+bool LifeEffect::OnProgress(bool sourceAvailable) noexcept
+{
+    if (play_ || !sourceAvailable)
+        return false;
+    play_ = true;
+    return true;
+}
+
+bool LifeEffect::HasPlayed() const noexcept
+{
+    return play_;
+}
+
 LowLifePoints::LowLifePoints(float lifeLevel) noexcept
 {
     Reset(lifeLevel);
@@ -263,7 +313,7 @@ void LowLifePoints::Reset(float lifeLevel) noexcept
 {
     lifeLevel_ = lifeLevel;
     effectSeconds_ = 0.0F;
-    effectMaked_ = false;
+    eventEffect_.Reset();
 }
 
 LowLifePoints::ProgressResult LowLifePoints::OnProgress(
@@ -278,16 +328,14 @@ LowLifePoints::ProgressResult LowLifePoints::OnProgress(
         life / maximumLife < lifeLevel_;
     if (lowLife)
     {
-        if (!effectMaked_)
+        if (eventEffect_.MakeEffect())
         {
-            effectMaked_ = true;
             result.activated = true;
         }
         effectSeconds_ += deltaTime;
     }
-    else if (effectMaked_)
+    else if (eventEffect_.FreeEffect())
     {
-        effectMaked_ = false;
         effectSeconds_ = 0.0F;
         result.released = true;
     }
@@ -306,7 +354,7 @@ void LowLifePoints::SetLifeLevel(float value) noexcept
 
 bool LowLifePoints::IsEffectMaked() const noexcept
 {
-    return effectMaked_;
+    return eventEffect_.IsEffectMaked();
 }
 
 float LowLifePoints::GetEffectSeconds() const noexcept
@@ -323,32 +371,29 @@ DamageEffect::DamageEffect(
 void DamageEffect::Reset() noexcept
 {
     effectSeconds_ = 0.0F;
-    effectMaked_ = false;
+    eventEffect_.Reset();
 }
 
 bool DamageEffect::OnDamage(DamageType damageType) noexcept
 {
     if (damageType_ != damageType)
         return false;
-    const bool created = !effectMaked_;
+    const bool created = eventEffect_.MakeEffect();
     if (created)
-    {
-        effectMaked_ = true;
         effectSeconds_ = 0.0F;
-    }
     return created;
 }
 
 void DamageEffect::OnProgress(float deltaTime) noexcept
 {
-    if (!effectMaked_)
+    if (!eventEffect_.IsEffectMaked())
         return;
     effectSeconds_ += deltaTime;
     if (maximumTimeLife_ > 0.0F &&
         effectSeconds_ > maximumTimeLife_)
     {
         effectSeconds_ = 0.0F;
-        effectMaked_ = false;
+        eventEffect_.FreeEffect();
     }
 }
 
@@ -364,7 +409,7 @@ void DamageEffect::SetDamageType(DamageType value) noexcept
 
 bool DamageEffect::IsEffectMaked() const noexcept
 {
-    return effectMaked_;
+    return eventEffect_.IsEffectMaked();
 }
 
 float DamageEffect::GetEffectSeconds() const noexcept
@@ -378,7 +423,7 @@ void ImmortalEffect::Reset() noexcept
     fadeOutTime_ = -1.0F;
     damageTime_ = -1.0F;
     effectSeconds_ = 0.0F;
-    effectMaked_ = false;
+    eventEffect_.Reset();
 }
 
 void ImmortalEffect::OnImmortalStatus(bool status) noexcept
@@ -387,7 +432,7 @@ void ImmortalEffect::OnImmortalStatus(bool status) noexcept
     {
         // EventEffect::MakeEffect keeps an existing fading actor. The source
         // deliberately does not cancel fadeOutTime_ when a new shield starts.
-        effectMaked_ = true;
+        eventEffect_.MakeEffect();
         fadeInTime_ = 0.0F;
     }
     else
@@ -398,13 +443,13 @@ void ImmortalEffect::OnImmortalStatus(bool status) noexcept
 
 void ImmortalEffect::OnDamage() noexcept
 {
-    if (effectMaked_)
+    if (eventEffect_.IsEffectMaked())
         damageTime_ = 0.0F;
 }
 
 void ImmortalEffect::OnProgress(float deltaTime) noexcept
 {
-    if (effectMaked_ && damageTime_ >= 0.0F)
+    if (eventEffect_.IsEffectMaked() && damageTime_ >= 0.0F)
     {
         const float alpha = std::clamp(
             damageTime_ / damageSeconds, 0.0F, 1.0F);
@@ -413,13 +458,13 @@ void ImmortalEffect::OnProgress(float deltaTime) noexcept
         else
             damageTime_ += deltaTime;
     }
-    if (effectMaked_ && fadeInTime_ >= 0.0F)
+    if (eventEffect_.IsEffectMaked() && fadeInTime_ >= 0.0F)
     {
         fadeInTime_ += deltaTime;
         if (fadeInTime_ / fadeSeconds >= 1.0F)
             fadeInTime_ = -1.0F;
     }
-    if (effectMaked_ && fadeOutTime_ >= 0.0F)
+    if (eventEffect_.IsEffectMaked() && fadeOutTime_ >= 0.0F)
     {
         fadeOutTime_ += deltaTime;
         if (fadeOutTime_ / fadeSeconds >= 1.0F)
@@ -427,16 +472,16 @@ void ImmortalEffect::OnProgress(float deltaTime) noexcept
             fadeOutTime_ = -1.0F;
             damageTime_ = -1.0F;
             effectSeconds_ = 0.0F;
-            effectMaked_ = false;
+            eventEffect_.FreeEffect();
         }
     }
-    if (effectMaked_)
+    if (eventEffect_.IsEffectMaked())
         effectSeconds_ += deltaTime;
 }
 
 bool ImmortalEffect::IsEffectMaked() const noexcept
 {
-    return effectMaked_;
+    return eventEffect_.IsEffectMaked();
 }
 
 float ImmortalEffect::GetEffectSeconds() const noexcept
@@ -491,7 +536,7 @@ void SlowEffect::Reset() noexcept
     timeLife_ = 0.0F;
     weapon_ = GameObject::undefinedPlayerId;
     projectile_ = GameObject::undefinedPlayerId;
-    effectMaked_ = false;
+    eventEffect_.Reset();
 }
 
 bool SlowEffect::Attach(
@@ -500,13 +545,13 @@ bool SlowEffect::Attach(
 {
     // FrostRayUpdate only adds the behavior when Find<SlowEffect>() fails;
     // repeated ray contacts do not refresh the child effect's lifetime.
-    if (effectMaked_)
+    if (eventEffect_.IsEffectMaked())
         return false;
     maximumTimeLife_ = maximumTimeLife;
     timeLife_ = 0.0F;
     weapon_ = weapon;
     projectile_ = projectile;
-    effectMaked_ = true;
+    eventEffect_.MakeEffect();
     return true;
 }
 
@@ -514,7 +559,7 @@ SlowEffect::ProgressResult SlowEffect::OnProgress(
     float deltaTime, float linearSpeed) noexcept
 {
     ProgressResult result;
-    if (!effectMaked_)
+    if (!eventEffect_.IsEffectMaked())
         return result;
     // SlowEffect::OnProgress normalizes and clamps the actor velocity to 20
     // only while it is moving faster than both source thresholds.
@@ -531,12 +576,12 @@ SlowEffect::ProgressResult SlowEffect::OnProgress(
 
 bool SlowEffect::IsEffectMaked() const noexcept
 {
-    return effectMaked_;
+    return eventEffect_.IsEffectMaked();
 }
 
 float SlowEffect::GetRemainingSeconds() const noexcept
 {
-    if (!effectMaked_ || maximumTimeLife_ <= 0.0F)
+    if (!eventEffect_.IsEffectMaked() || maximumTimeLife_ <= 0.0F)
         return 0.0F;
     return std::max(maximumTimeLife_ - timeLife_, 0.0F);
 }
