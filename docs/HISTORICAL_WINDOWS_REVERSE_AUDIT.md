@@ -1518,6 +1518,28 @@ M8 audio smoke проверяет все три menu Ogg, shuffle, pause/resume,
 manual Next; M9 Metal regression дополнительно требует отсутствия выбранного
 game track до `StartRace` и нулевую позицию сразу после source `Play`.
 
+### P2.47 — serialized `MusicCat::LoadGame` catalog — выполнено
+
+Следующий проход обнаружил, что static menu catalog был взят не из обычного
+Windows path, а из `GameMode::ResetGameData`. Эта функция вызывается только
+если `game.xml` невозможно открыть. В поставляемой игре конструктор сначала
+успешно выполняет `LoadGameData`, а `MusicCat::LoadGame` заменяет fallback
+содержимым `game.xml`. Поэтому порт показывал для menu Ogg неверные названия и
+исполнителей (`Jet`, `Social Distortion`) вместо сериализованных `Frantick` и
+`The Ventures`.
+
+Добавлен platform-independent loader обеих `menuMusic/tracks` и
+`gameMusic/tracks` таблиц с точным чтением item reference, name, band и group,
+проверкой существования каждого Ogg и строгими XML errors. Runtime MusicCat,
+MusicDialog и shuffle grouping теперь используют единый загруженный каталог:
+три menu и одиннадцать game tracks. Hard-coded arrays остаются только
+историческим missing-file/smoke fallback, как в Windows.
+
+Resource regression требует точные поставляемые counts, пути и menu metadata;
+M8 вывод теперь подтверждает `Frantick - Peter Gunn Theme`,
+`Frantick - Bad to the Bone` и `The Ventures - Peter Gunn Theme`. Полные M8
+audio и M9 Metal прогоны проходят с сериализованным каталогом.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

@@ -29,6 +29,7 @@ else()
     # after their renderer/physics dependencies have real backends.
     set(_rrr3d_portable_game_sources
         source/stub/MusicCat.cpp
+        source/stub/OriginalAudioSpec.cpp
         source/stub/PortableGame.cpp
         include/InputActions.h
         include/MusicCat.h

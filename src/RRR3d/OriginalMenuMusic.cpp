@@ -18,15 +18,6 @@ namespace rrr3d::audio
 namespace
 {
 
-std::vector<r3d::game::MusicCatTrack> originalMenuTracks()
-{
-	std::vector<r3d::game::MusicCatTrack> tracks;
-	tracks.reserve(r3d::game::originalaudio::menuTracks.size());
-	for (const auto &track : r3d::game::originalaudio::menuTracks)
-		tracks.push_back({track.path, track.name, track.band, track.group});
-	return tracks;
-}
-
 std::string dataPath(const std::string &legacyPath)
 {
 	return "Data\\" + legacyPath;
@@ -62,7 +53,10 @@ struct OriginalMenuMusic::Impl
 	Impl(r3d::audio::AudioBackend &backend, const r3d::resource::ResourceFileSystem &fileSystem,
 	     std::filesystem::path persistedState, std::uint64_t seed, bool shouldPersist)
 		: Impl(backend, fileSystem, std::move(persistedState), seed,
-		       shouldPersist, originalMenuTracks(), {})
+		       shouldPersist,
+		       r3d::game::originalaudio::
+		           loadOriginalMusicCatalog(fileSystem).menu,
+		       {})
 	{
 	}
 

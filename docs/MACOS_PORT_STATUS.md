@@ -2046,3 +2046,13 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   не восстанавливается между запусками обычной игры.
 - M8 audio и 240-frame M9 Metal regressions подтверждают обе очереди, все три
   menu-трека, автоматический Next и deferred zero-frame game start.
+
+### Serialized MusicCat catalog follow-up
+
+- Перенесён `GameMode::LoadGameData -> MusicCat::LoadGame`: menu/game paths,
+  title, band и group читаются из поставляемого `game.xml`.
+- Удалено использование аварийных `ResetGameData` metadata в normal path;
+  MusicDialog теперь показывает поставляемые `Frantick/The Ventures`, а
+  game shuffle использует все 11 сериализованных записей и их группы.
+- Loader проверяет ссылки на Ogg; resource audit фиксирует точные 3/11 counts
+  и ключевые metadata, M8/M9 regressions используют этот же каталог.

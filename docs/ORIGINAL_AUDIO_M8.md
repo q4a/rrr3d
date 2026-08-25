@@ -18,10 +18,12 @@ music or synthetic game sound is used.
 
 ## Behaviour taken from the legacy game
 
-`OriginalAudioSpec.h` records the menu playlist, sound paths and automatic
-volume defaults extracted from `GameMode.cpp`, `Menu.cpp`, `DataBase.cpp` and
-`Logic.cpp`. The main-button click path is consumed by both the legacy
-`Menu.cpp` and the macOS adapter.
+`OriginalAudioSpec` loads both MusicCat catalogs from the shipped `game.xml`,
+matching `GameMode::LoadGameData`/`MusicCat::LoadGame`; it also records sound
+paths and automatic volume defaults extracted from `GameMode.cpp`, `Menu.cpp`,
+`DataBase.cpp` and `Logic.cpp`. The hard-coded `ResetGameData` table is only a
+missing-file fallback. The main-button click path is consumed by both the
+legacy `Menu.cpp` and the macOS adapter.
 
 The original `MainMenu2` creates its five buttons with `Menu::ssButton1`.
 That scheme contains only `Sounds\\UI\\click.ogg` on button press. It does not
@@ -39,9 +41,9 @@ queue. No menu-only replacement playback policy is used.
 All three shipped menu entries are active and retain their title/band/group
 metadata:
 
-- `Music\\Track1.ogg` — Jet, Cold Hard Bitch;
-- `Music\\Track14.ogg` — Social Distortion, Angel's wings (acoustic);
-- `Music\\Track15.ogg` — Stereoside, On our Way.
+- `Music\\Track1.ogg` — Frantick, Peter Gunn Theme;
+- `Music\\Track14.ogg` — Frantick, Bad to the Bone;
+- `Music\\Track15.ogg` — The Ventures, Peter Gunn Theme.
 
 The source `DialogMenu2::MusicDialog` is also active. It uses the shipped
 334×99 `GUI/dlgFrame2.png`, white 32 px band text, gray 24 px track text and
@@ -206,9 +208,9 @@ that original gameplay effects work through the same backend. It does not
 claim the Windows `snd::Engine`, X3DAudio spatial emitters, commentator queue
 or race sound graph are already ported.
 
-The independent MusicCat policy, its three real menu tracks, background
-decoding, shuffle, automatic/manual Next, pause/resume and state restoration
-are now present. This still does not port the Windows-only spatial engine,
-commentator queue or race sound graph. M9 must attach the backend to the real
-race/physics port rather than firing gameplay effects from the menu as a
-demonstration.
+The independent MusicCat policy, serialized 3/11 menu/game catalogs,
+background decoding, shuffle, automatic/manual Next and in-process
+pause/resume are now present. The complete state round-trip is confined to the
+smoke fixture; normal launches persist only the source playlist in `user.xml`.
+Later milestones attach the same backend to the source-derived spatial,
+commentator and race sound graph.

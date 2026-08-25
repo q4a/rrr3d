@@ -1,6 +1,14 @@
 #pragma once
 
+#include "MusicCat.h"
+
 #include <array>
+#include <vector>
+
+namespace r3d::resource
+{
+class ResourceFileSystem;
+}
 
 namespace r3d::game::originalaudio
 {
@@ -57,5 +65,18 @@ inline constexpr float masteringVoiceVolume = 0.1F;
 inline constexpr float defaultMusicVolume = 1.2F;
 inline constexpr float defaultEffectsVolume = 0.8F;
 inline constexpr float defaultVoiceVolume = 1.2F;
+
+struct MusicCatalog
+{
+	std::vector<MusicCatTrack> menu;
+	std::vector<MusicCatTrack> game;
+};
+
+// GameMode::LoadGameData -> MusicCat::LoadGame reads the shipped game.xml
+// before normal playback.  ResetGameData's hard-coded metadata above is only
+// the missing-file recovery path and is not authoritative for the retail
+// resources.
+MusicCatalog loadOriginalMusicCatalog(
+	const resource::ResourceFileSystem &resources);
 
 } // namespace r3d::game::originalaudio

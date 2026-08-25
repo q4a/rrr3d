@@ -1616,6 +1616,9 @@ int main(int argc, char** argv)
     std::optional<r3d::resource::ResourceFileSystem> resources;
     std::optional<menu::Model> model;
     std::string activeLanguage = options->language;
+#ifdef RRR3D_AUDIO
+    originalaudio::MusicCatalog originalMusicCatalog;
+#endif
 #ifdef RRR3D_PHYSICS
     std::optional<r3d::game::originalrace::Race> originalRace;
     std::optional<r3d::game::originalrace::Race> originalGarageScene;
@@ -1677,6 +1680,10 @@ int main(int argc, char** argv)
         resources.emplace(dataDirectory);
         model.emplace(
             menu::loadOriginalMainMenu(*resources, activeLanguage));
+#ifdef RRR3D_AUDIO
+        originalMusicCatalog =
+            originalaudio::loadOriginalMusicCatalog(*resources);
+#endif
 #ifdef RRR3D_PHYSICS
         originalGarage.emplace(
             r3d::game::originalrace::loadOriginalGarage(*resources));
@@ -1763,9 +1770,41 @@ int main(int argc, char** argv)
               << model->audit.guiImages << " GUI images, "
               << model->audit.guiMeshes << " GUI meshes, "
               << model->audit.localizedStrings << " localized strings\n";
+#ifdef RRR3D_AUDIO
+    std::cout << "Serialized MusicCat catalog: "
+              << originalMusicCatalog.menu.size() << " menu, "
+              << originalMusicCatalog.game.size() << " game tracks\n";
+#endif
 
     if (options->verifyResources)
     {
+#ifdef RRR3D_AUDIO
+        const bool sourceMusicCatalogValid =
+            originalMusicCatalog.menu.size() == 3U &&
+            originalMusicCatalog.game.size() == 11U &&
+            originalMusicCatalog.menu[0].path ==
+                "Music\\Track1.ogg" &&
+            originalMusicCatalog.menu[0].name ==
+                "Peter Gunn Theme" &&
+            originalMusicCatalog.menu[0].band == "Frantick" &&
+            originalMusicCatalog.menu[1].path ==
+                "Music\\Track14.ogg" &&
+            originalMusicCatalog.menu[1].name ==
+                "Bad to the Bone" &&
+            originalMusicCatalog.menu[2].path ==
+                "Music\\Track15.ogg" &&
+            originalMusicCatalog.menu[2].band ==
+                "The Ventures" &&
+            originalMusicCatalog.game.front().group == 1 &&
+            originalMusicCatalog.game.back().path ==
+                "Music\\Track3.ogg";
+        if (!sourceMusicCatalogValid)
+        {
+            std::cerr << "Serialized game.xml MusicCat catalog does not "
+                         "match the shipped Windows data\n";
+            return EXIT_FAILURE;
+        }
+#endif
         std::cout << "Milestone 6 original resource/MainMenu2 specification "
                      "verification passed\n";
 #ifdef RRR3D_PHYSICS
@@ -3289,10 +3328,10 @@ int main(int argc, char** argv)
         return result;
     };
     const auto menuMusicDialogVisuals =
-        createMusicDialogVisuals(originalaudio::menuTracks);
+        createMusicDialogVisuals(originalMusicCatalog.menu);
 #ifdef RRR3D_PHYSICS
     const auto gameMusicDialogVisuals =
-        createMusicDialogVisuals(originalaudio::gameTracks);
+        createMusicDialogVisuals(originalMusicCatalog.game);
 #endif
 #endif
     const TextVisual finalBackText = createText(
@@ -4159,11 +4198,11 @@ int main(int argc, char** argv)
         options->audioSmokeTest ? 0x4d75736963436174ULL
                                 : rrr3d::platform::steady_nanoseconds(),
         options->audioSmokeTest,
-        musicTracks(originalaudio::menuTracks),
+        originalMusicCatalog.menu,
         options->audioSmokeTest
             ? std::vector<std::size_t>{}
             : musicPlaylist(profileState.config.menuMusicPlaylist,
-                            originalaudio::menuTracks.size()));
+                            originalMusicCatalog.menu.size()));
     if (!music.initialize(audioError))
     {
         std::cerr << "Original MusicCat initialization failed: "
@@ -4214,9 +4253,9 @@ int main(int argc, char** argv)
         audio, *resources, gameMusicStatePath,
         rrr3d::platform::steady_nanoseconds() ^
             0x47616d654d757369ULL,
-        false, musicTracks(originalaudio::gameTracks),
+        false, originalMusicCatalog.game,
         musicPlaylist(profileState.config.gameMusicPlaylist,
-                      originalaudio::gameTracks.size()));
+                      originalMusicCatalog.game.size()));
     // Windows GameMode only loads the game playlist here.  Its first entry is
     // consumed later by DoStartRace::_gameMusic->Play(), not while the menu is
     // starting.
@@ -4298,7 +4337,7 @@ int main(int argc, char** argv)
     if (options->audioSmokeTest)
         std::cout << ", isolated test state " << musicStatePath;
     std::cout << "\nOriginal menu tracks:";
-    for (const auto& track : originalaudio::menuTracks)
+    for (const auto& track : originalMusicCatalog.menu)
         std::cout << " [" << track.band << " - " << track.name
                   << ": Data/" << track.path << ']';
     std::cout << "\nOriginal Menu SoundSheme: "
@@ -17182,7 +17221,7 @@ int main(int argc, char** argv)
             {
                 bool metadataValid = renderedFrames > 1;
                 for (std::size_t index = 0;
-                     index < originalaudio::menuTracks.size(); ++index)
+                     index < originalMusicCatalog.menu.size(); ++index)
                 {
                     const auto* info = music.trackInfo(index);
                     metadataValid = metadataValid && info != nullptr &&
