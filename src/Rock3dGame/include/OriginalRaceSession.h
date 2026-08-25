@@ -1,6 +1,7 @@
 #pragma once
 
 #include "OriginalAICar.h"
+#include "OriginalGameObject.h"
 #include "OriginalHumanPlayer.h"
 #include "OriginalPlayer.h"
 #include "OriginalProfile.h"
@@ -82,18 +83,6 @@ enum class PickSlot : std::uint8_t
     Primary,
     Hyper,
     Mine,
-};
-
-// GameObjListener::DamageType in the Windows game.  Keep the source type on
-// portable events because HUD, achievements and death semantics distinguish
-// energy, mine, touch and death-plane damage.
-enum class DamageType : std::uint8_t
-{
-    Simple,
-    Energy,
-    Mine,
-    Touch,
-    DeathPlane,
 };
 
 struct RaceControl
@@ -446,7 +435,8 @@ private:
         std::size_t racer, std::size_t attacker, Vec3 position,
         const r3d::physics::VehicleState& vehicle,
         DamageType damageType = DamageType::Simple,
-        bool killCredit = true);
+        bool killCredit = true,
+        bool gameObjectAlreadyDestroyed = false);
     void pushDamageEvent(
         std::size_t target, std::size_t attacker, const Vec3& position,
         float damage, DamageType damageType, bool networkReplicated);

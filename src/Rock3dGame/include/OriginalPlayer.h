@@ -1,5 +1,6 @@
 #pragma once
 
+#include "OriginalGameObject.h"
 #include "OriginalTrace.h"
 
 #include <array>
@@ -41,7 +42,7 @@ enum class PlayerRestoreStep : std::uint8_t
 // while race state, inventory, bonuses, finish blocking and restore lifecycle
 // retain the source class's rules.  Fields remain visible during the staged
 // object-graph migration because HUD/network adapters still consume them.
-class Player
+class Player : public GameObject
 {
 public:
     static constexpr std::size_t invalidWeapon =
@@ -157,8 +158,6 @@ public:
 
     std::size_t nextPathNode = 1;
     std::uint32_t place = 1;
-    float life = 100.0F;
-    float maximumLife = 100.0F;
     std::uint32_t ammunition = 10;
     std::uint32_t mines = 0;
     std::uint32_t mineCapacity = 0;
@@ -180,7 +179,6 @@ public:
     std::uint32_t pickedMoney = 0;
     std::uint32_t rewardMoney = 0;
     std::uint32_t rewardPoints = 0;
-    float shieldSeconds = 0.0F;
     float speedBoostSeconds = 0.0F;
     float slowSeconds = 0.0F;
     std::size_t slowWeapon = invalidWeapon;
@@ -188,8 +186,6 @@ public:
     float clutchSeconds = 0.0F;
     float mineLockSeconds = 0.0F;
     float springLockSeconds = 0.0F;
-    std::size_t touchAttacker = invalidWeapon;
-    float touchAttributionSeconds = 0.0F;
     float restoreSeconds = 0.0F;
     float lowLifeEffectSeconds = 0.0F;
     float shieldEffectSeconds = 0.0F;
@@ -198,7 +194,6 @@ public:
     float shieldDamageSeconds = -1.0F;
     float finishTime = -1.0F;
     bool finished = false;
-    bool destroyed = false;
     bool disconnected = false;
     bool lowLife = false;
     CarState car;

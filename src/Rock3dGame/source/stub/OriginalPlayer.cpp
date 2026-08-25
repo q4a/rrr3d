@@ -305,8 +305,7 @@ void Player::Reset(float newMaximumLife,
                    Trace* trace) noexcept
 {
     *this = Player{};
-    maximumLife = std::max(newMaximumLife, 1.0F);
-    life = maximumLife;
+    ResetGameObject(std::max(newMaximumLife, 1.0F));
     place = initialPlace;
     car.Reset(trace);
 }
@@ -370,7 +369,7 @@ PlayerBonusResult Player::TakeMoney(float value) noexcept
 PlayerBonusResult Player::TakeMedpack(float value) noexcept
 {
     const float previous = life;
-    life = std::min(life + value, maximumLife);
+    Healt(value);
     return {PlayerBonusSlot::None, invalidWeapon,
             static_cast<std::uint32_t>(
                 std::max(life - previous, 0.0F))};
@@ -378,7 +377,7 @@ PlayerBonusResult Player::TakeMedpack(float value) noexcept
 
 PlayerBonusResult Player::TakeImmortal(float value) noexcept
 {
-    if (shieldSeconds <= 0.0F)
+    if (!IsTimedImmortal())
     {
         shieldEffectSeconds = 0.0F;
         shieldFadeInSeconds = 0.0F;
@@ -386,7 +385,7 @@ PlayerBonusResult Player::TakeImmortal(float value) noexcept
         // fade-out, but it does clear the damage flash timer.
         shieldDamageSeconds = -1.0F;
     }
-    shieldSeconds = std::max(value, 0.0F);
+    Immortal(std::max(value, 0.0F));
     return {PlayerBonusSlot::None, invalidWeapon,
             static_cast<std::uint32_t>(shieldSeconds)};
 }
@@ -449,6 +448,7 @@ PlayerBonusResult Player::TakeAmmunition(
 void Player::SetFinished(bool value, float time) noexcept
 {
     finished = value;
+    SetImmortalFlag(value);
     if (value)
         finishTime = time;
     else
@@ -487,16 +487,16 @@ void Player::ApplyRaceReward() noexcept
 
 void Player::Destroy() noexcept
 {
-    life = 0.0F;
-    destroyed = true;
+    SetLife(0.0F);
+    Death();
     lowLife = false;
     lowLifeEffectSeconds = 0.0F;
-    shieldSeconds = 0.0F;
+    Immortal(0.0F);
     shieldEffectSeconds = 0.0F;
     shieldFadeInSeconds = -1.0F;
     shieldFadeOutSeconds = -1.0F;
     shieldDamageSeconds = -1.0F;
-    touchAttacker = invalidWeapon;
+    touchAttacker = undefinedPlayerId;
     touchAttributionSeconds = 0.0F;
     restoreSeconds = restoreCarSeconds;
 }
@@ -508,13 +508,13 @@ PlayerRestoreStep Player::ProgressRestore(float seconds) noexcept
     if (restoreSeconds < 0.0F)
     {
         restoreSeconds = 0.0F;
-        destroyed = false;
+        Resc();
         return PlayerRestoreStep::ActivateCar;
     }
     restoreSeconds = std::max(0.0F, restoreSeconds - seconds);
     if (restoreSeconds > 0.0F)
         return PlayerRestoreStep::None;
-    life = maximumLife;
+    SetLife(maximumLife);
     restoreSeconds = -1.0F;
     return PlayerRestoreStep::QueueRespawn;
 }
@@ -522,17 +522,17 @@ PlayerRestoreStep Player::ProgressRestore(float seconds) noexcept
 void Player::Disconnect() noexcept
 {
     disconnected = true;
-    destroyed = true;
     SetFinished(false);
-    life = 0.0F;
+    SetLife(0.0F);
+    Death();
     lowLife = false;
     restoreSeconds = 0.0F;
-    shieldSeconds = 0.0F;
+    Immortal(0.0F);
     shieldEffectSeconds = 0.0F;
     shieldFadeInSeconds = -1.0F;
     shieldFadeOutSeconds = -1.0F;
     shieldDamageSeconds = -1.0F;
-    touchAttacker = invalidWeapon;
+    touchAttacker = undefinedPlayerId;
     touchAttributionSeconds = 0.0F;
 }
 

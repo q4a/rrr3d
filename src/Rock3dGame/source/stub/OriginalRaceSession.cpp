@@ -1620,23 +1620,11 @@ bool OriginalRaceSession::applyRacerDamageInternal(
     }
 
     auto& runtime = racers_[target];
-    if (touch && attacker != RacerRuntime::invalidWeapon)
-    {
-        runtime.touchAttacker = attacker;
-        runtime.touchAttributionSeconds = 3.0F;
-    }
-    if (synchronizeState)
-    {
-        runtime.life = targetLife;
-    }
-    else if (runtime.shieldSeconds <= 0.0F && !runtime.finished)
-    {
-        runtime.life = std::max(0.0F, runtime.life - incoming);
-    }
-
-    const bool shouldDestroy =
-        synchronizeState ? death : runtime.life <= 0.0F;
-    if (!shouldDestroy)
+    const auto damageResult = synchronizeState
+        ? runtime.Damage(attacker, incoming, targetLife, death,
+                         damageType)
+        : runtime.Damage(attacker, incoming, damageType);
+    if (!damageResult.death)
     {
         if (damageEvent < events_.size())
             events_[damageEvent].authoritativeLife = runtime.life;
@@ -1644,7 +1632,7 @@ bool OriginalRaceSession::applyRacerDamageInternal(
     }
     destroyRacer(
         target, attacker, position, vehicle, damageType,
-        damageType != DamageType::Mine);
+        damageResult.killCredit, true);
     if (damageEvent < events_.size())
     {
         events_[damageEvent].authoritativeLife = racers_[target].life;
@@ -2681,10 +2669,10 @@ void OriginalRaceSession::queueRespawn(
 void OriginalRaceSession::destroyRacer(
     std::size_t racer, std::size_t attacker, Vec3 position,
     const r3d::physics::VehicleState& vehicle, DamageType damageType,
-    bool killCredit)
+    bool killCredit, bool gameObjectAlreadyDestroyed)
 {
     if (racer >= racers_.size() || racer >= race_.racers.size() ||
-        racers_[racer].destroyed)
+        (racers_[racer].destroyed && !gameObjectAlreadyDestroyed))
         return;
     auto& runtime = racers_[racer];
     // Player::OnDeath/OnDestroy begins the exact cTimeRestoreCar lifecycle.
@@ -2921,9 +2909,8 @@ void OriginalRaceSession::updateGameplay(
     for (std::size_t racer = 0; racer < racers_.size(); ++racer)
     {
         auto& runtime = racers_[racer];
-        const bool shieldWasActive = runtime.shieldSeconds > 0.0F;
-        runtime.shieldSeconds =
-            std::max(0.0F, runtime.shieldSeconds - seconds);
+        const bool shieldWasActive = runtime.IsTimedImmortal();
+        runtime.OnProgress(seconds);
         if (runtime.shieldFadeInSeconds >= 0.0F)
         {
             runtime.shieldFadeInSeconds += seconds;
@@ -2968,18 +2955,6 @@ void OriginalRaceSession::updateGameplay(
             std::max(0.0F, runtime.mineLockSeconds - seconds);
         runtime.springLockSeconds =
             std::max(0.0F, runtime.springLockSeconds - seconds);
-        if (runtime.touchAttributionSeconds > 0.0F)
-        {
-            runtime.touchAttributionSeconds =
-                std::max(
-                    0.0F,
-                    runtime.touchAttributionSeconds - seconds);
-            if (runtime.touchAttributionSeconds <= 0.0F)
-            {
-                runtime.touchAttacker =
-                    RacerRuntime::invalidWeapon;
-            }
-        }
         if (racer < vehicleInputs_.size())
         {
             vehicleInputs_[racer].springLocked =
