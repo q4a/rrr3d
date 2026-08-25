@@ -1936,3 +1936,15 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   blocking, удержания цели и обгона независимо от формы Jolt backend body.
 - Resource, Player и integrated session regressions проверяют формулу и
   передачу значения каждой configured vehicle.
+
+### Source Player::GetName/GetPhoto follow-up
+
+- Добавлен полный presentation-каталог `Planet::PlayerData` из
+  `tournamet.xml`; lookup сохраняет исходный приоритет global gamers над
+  игроками только текущей планеты, а не над всеми планетами сразу.
+- HUD, kill popup, встроенная таблица финиша и отдельный FinishMenu выбирают
+  локализованное имя и портрет по текущему `Player::GetGamerId`; сетевое имя
+  по-прежнему имеет приоритет.
+- `Race::StartRace` replacement дублирующегося персонажа рассматривает
+  только `Tournament::GetGamers`, как Windows-код. Resource regression
+  проверяет global и planet-local совпадающие ids.

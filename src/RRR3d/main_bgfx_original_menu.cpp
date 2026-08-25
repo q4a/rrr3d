@@ -10179,8 +10179,17 @@ int main(int argc, char** argv)
                 finishRows.emplace_back();
                 auto& row = finishRows.back();
                 row.racer = racer;
+                const auto* identity =
+                    r3d::game::originalrace::findOriginalPlayerIdentity(
+                        *originalRace, result.GetGamerId());
+                const std::string displayName =
+                    result.GetNetName().empty()
+                        ? localized(identity != nullptr
+                                        ? identity->name
+                                        : result.GetName())
+                        : result.GetNetName();
                 row.name = createText(
-                    *device, localized(definition.name),
+                    *device, displayName,
                     menu::headerFontHeight, false,
                     menu::Rgba8{233U, 167U, 63U, 255U},
                     resolvedFont);
@@ -10209,10 +10218,14 @@ int main(int argc, char** argv)
                     menu::headerFontHeight, false,
                     menu::Rgba8{132U, 188U, 67U, 255U},
                     resolvedFont);
-                if (!definition.photoPath.empty())
+                const std::string& photoPath =
+                    identity != nullptr && !identity->photoPath.empty()
+                        ? identity->photoPath
+                        : definition.photoPath;
+                if (!photoPath.empty())
                 {
                     const auto photo = menu::loadOriginalImage(
-                        *resources, definition.photoPath);
+                        *resources, photoPath);
                     row.photo =
                         createImageTexture(*device, photo);
                     const float photoScale = std::min(

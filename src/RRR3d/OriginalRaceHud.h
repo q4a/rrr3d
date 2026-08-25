@@ -7,6 +7,7 @@
 #include <array>
 #include <cstddef>
 #include <limits>
+#include <map>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -103,6 +104,7 @@ private:
         r3d::game::originalrace::PickSlot slot =
             r3d::game::originalrace::PickSlot::None;
         std::size_t target = std::numeric_limits<std::size_t>::max();
+        int targetGamerId = -1;
         TextAsset label;
         float started = 0.0F;
         float x = 0.0F;
@@ -116,6 +118,7 @@ private:
         TextAsset name;
         TextAsset value;
         std::size_t racer = std::numeric_limits<std::size_t>::max();
+        int gamerId = -1;
     };
 
     struct AchievementNotification
@@ -148,6 +151,8 @@ private:
         const r3d::game::originalrace::Race& race,
         const r3d::game::originalrace::OriginalRaceSession& session,
         std::size_t racer) const;
+    const ImageAsset* racerPhoto(int gamerId,
+                                 std::size_t racer) const noexcept;
 
     ImageAsset placeFrame_;
     ImageAsset lifeBack_;
@@ -188,6 +193,7 @@ private:
     ImageAsset finishLineFrame_;
     std::array<ImageAsset, 3> finishCups_;
     std::vector<ImageAsset> racerPhotos_;
+    std::map<int, ImageAsset> gamerPhotos_;
     std::vector<ImageAsset> achievementImages_;
     std::vector<ImageAsset> achievementPointsImages_;
     ImageAsset achievementMultiplierImage_;
@@ -236,6 +242,7 @@ private:
     std::string moneyName_ = "Money";
     std::string pointsName_ = "Points";
     std::vector<std::string> localizedRacerNames_;
+    std::map<int, std::string> localizedGamerNames_;
     float uiSeconds_ = 0.0F;
     float finishStarted_ = -1.0F;
     bool finishVisible_ = false;

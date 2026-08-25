@@ -295,6 +295,24 @@ bool OriginalRaceHud::initialize(
             return false;
         }
     }
+    for (const auto& identity : race.playerIdentities)
+    {
+        // Player ids are reused by every planet. Cache only the entry that
+        // Tournament::GetPlayerData would resolve for this active race.
+        if (originalrace::findOriginalPlayerIdentity(race, identity.id) !=
+            &identity)
+            continue;
+        if (identity.photoPath.empty() ||
+            gamerPhotos_.contains(identity.id))
+            continue;
+        ImageAsset photo;
+        if (!loadImage(device, resources, identity.photoPath, photo, error))
+        {
+            shutdown(device);
+            return false;
+        }
+        gamerPhotos_.emplace(identity.id, std::move(photo));
+    }
     achievementImages_.resize(race.achievements.size());
     achievementPointsImages_.resize(race.achievements.size());
     for (std::size_t index = 0;
@@ -432,6 +450,18 @@ bool OriginalRaceHud::initialize(
             localizedRacerNames_.push_back(
                 name.empty() ? racer.name : std::move(name));
         }
+        for (const auto& identity : race.playerIdentities)
+        {
+            if (originalrace::findOriginalPlayerIdentity(
+                    race, identity.id) != &identity)
+                continue;
+            if (localizedGamerNames_.contains(identity.id))
+                continue;
+            auto name = localizedValue(localization, identity.name);
+            localizedGamerNames_.emplace(
+                identity.id,
+                name.empty() ? identity.name : std::move(name));
+        }
     }
     catch (const std::exception&)
     {
@@ -514,6 +544,12 @@ void OriginalRaceHud::shutdown(GraphicsDevice& device) noexcept
     for (auto& photo : racerPhotos_)
         releaseImage(photo);
     racerPhotos_.clear();
+    for (auto& [gamerId, photo] : gamerPhotos_)
+    {
+        (void)gamerId;
+        releaseImage(photo);
+    }
+    gamerPhotos_.clear();
     for (auto& cup : finishCups_)
         releaseImage(cup);
     releaseImage(finishLineFrame_);
@@ -528,6 +564,7 @@ void OriginalRaceHud::shutdown(GraphicsDevice& device) noexcept
     notifications_.clear();
     achievementNotifications_.clear();
     localizedRacerNames_.clear();
+    localizedGamerNames_.clear();
     finishRows_ = {};
     uiSeconds_ = 0.0F;
     finishStarted_ = -1.0F;
@@ -568,6 +605,10 @@ std::string OriginalRaceHud::racerName(
         // tournament token cached when HUD resources were initialized.
         if (!player.GetNetName().empty())
             return player.GetNetName();
+        const auto gamerName = localizedGamerNames_.find(
+            player.GetGamerId());
+        if (gamerName != localizedGamerNames_.end())
+            return gamerName->second;
         if (racer < race.racers.size() &&
             player.GetName() != race.racers[racer].name)
             return player.GetName();
@@ -578,6 +619,15 @@ std::string OriginalRaceHud::racerName(
         return session.racers()[racer].GetName();
     return racer < race.racers.size() ? race.racers[racer].name
                                       : std::string{};
+}
+
+const OriginalRaceHud::ImageAsset* OriginalRaceHud::racerPhoto(
+    int gamerId, std::size_t racer) const noexcept
+{
+    const auto found = gamerPhotos_.find(gamerId);
+    if (found != gamerPhotos_.end())
+        return &found->second;
+    return racer < racerPhotos_.size() ? &racerPhotos_[racer] : nullptr;
 }
 
 void OriginalRaceHud::buildMiniMap(GraphicsDevice& device,
@@ -1113,6 +1163,8 @@ void OriginalRaceHud::update(
         {
             PickNotification notification;
             notification.target = event.target;
+            notification.targetGamerId =
+                session.racers()[event.target].GetGamerId();
             notification.started = uiSeconds_;
             notification.x = playerKill_.width * 0.5F;
             notification.y = 255.0F;
@@ -1522,10 +1574,12 @@ void OriginalRaceHud::update(
             {
                 output.racer =
                     std::numeric_limits<std::size_t>::max();
+                output.gamerId = -1;
                 continue;
             }
             output.racer = order[row];
             const auto& runtime = session.racers()[output.racer];
+            output.gamerId = runtime.GetGamerId();
             const auto* sourceResult =
                 session.resultForRacer(output.racer);
             const auto place =
@@ -1632,12 +1686,12 @@ void OriginalRaceHud::draw(GraphicsDevice& device, Mesh quad,
                 pipeline, tint);
 
             const auto racer = finishRows_[row].racer;
-            if (racer < racerPhotos_.size())
+            if (const auto* photo =
+                    racerPhoto(finishRows_[row].gamerId, racer))
             {
-                const auto size =
-                    stretchedSize(racerPhotos_[racer], 198.0F, 193.0F);
+                const auto size = stretchedSize(*photo, 198.0F, 193.0F);
                 drawTintedAsset(
-                    device, quad, shader, racerPhotos_[racer].texture,
+                    device, quad, shader, photo->texture,
                     size[0], size[1], offsetX + 128.0F,
                     top + 116.0F, 28.0F, pipeline, tint);
             }
@@ -1895,11 +1949,12 @@ void OriginalRaceHud::draw(GraphicsDevice& device, Mesh quad,
                 notification->width, notification->height,
                 item.x, item.y, 20.0F, pipeline,
                 {1.0F, 1.0F, 1.0F, item.alpha});
-            if (item.target < racerPhotos_.size())
+            if (const auto* photo =
+                    racerPhoto(item.targetGamerId, item.target))
             {
                 drawTintedAsset(
                     device, quad, shader,
-                    racerPhotos_[item.target].texture, 50.0F, 50.0F,
+                    photo->texture, 50.0F, 50.0F,
                     item.x - 40.0F, item.y, 18.0F, pipeline,
                     {1.0F, 1.0F, 1.0F, item.alpha});
                 drawTintedAsset(

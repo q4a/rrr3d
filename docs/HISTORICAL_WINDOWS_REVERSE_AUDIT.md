@@ -1115,6 +1115,23 @@ body `VisualNode` mesh bounds и их source transforms. Размер и radius
 валидный visual AABB, Player regression — size/radius relation, session
 regression — соответствие каждой configured vehicle.
 
+### P2.27 — Player::GetName/GetPhoto tournament lookup — выполнено
+
+Подтвердилось, что portable `Player` хранил имя из первоначального
+`Race::Racer`, а HUD и отдельный FinishMenu заранее загружали портрет по тому
+же descriptor. После исходных `NetPlayer::OnSetGamerId` или замены
+дублирующегося gamer id активный `Player` уже имел новый id, но интерфейс мог
+продолжить показывать старого персонажа.
+
+В `Race` перенесён backend-neutral каталог исходных `Planet::PlayerData`.
+Lookup повторяет точный порядок `Tournament::GetPlayerData`: все global
+`GetGamers()` по XML-порядку, затем только игроки текущей планеты. Замена
+дубликата по `Race::StartRace` ограничена глобальными gamer entries. HUD,
+kill notification и оба finish UI теперь разрешают имя/портрет по runtime
+`Player::GetGamerId`, сохраняя `NetPlayer::_netName` как высший приоритет.
+Resource regression отдельно проверяет global Snake и различающиеся id=1 на
+Intaria/Patagonis.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

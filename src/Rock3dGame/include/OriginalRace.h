@@ -760,6 +760,19 @@ struct Racer
     std::uint32_t mapObjectId = 0U;
 };
 
+// Minimal backend-neutral Planet::PlayerData presentation record. Ordering
+// is significant: Tournament::GetPlayerData searches global gamers before
+// planet players and returns the first matching id.
+struct PlayerIdentity
+{
+    int id = -1;
+    std::string name;
+    std::string photoPath;
+    // Tournament::GetPlayerData scans every entry in GetGamers(), then only
+    // the current planet.  -1 identifies a global gamer entry.
+    int planetIndex = -1;
+};
+
 struct TrackCatalogEntry
 {
     std::string levelPath;
@@ -801,6 +814,7 @@ struct Race
     std::vector<Vehicle> vehicles;
     std::vector<WeaponDefinition> weapons;
     std::vector<AchievementDefinition> achievements;
+    std::vector<PlayerIdentity> playerIdentities;
     std::vector<Racer> racers;
     std::array<std::uint32_t, 3> rewardMoney{};
     std::array<std::uint32_t, 3> rewardPoints{};
@@ -827,6 +841,9 @@ struct Race
     Vehicle vehicle;
     PresentationCamera presentationCamera;
 };
+
+const PlayerIdentity* findOriginalPlayerIdentity(
+    const Race& race, int gamerId) noexcept;
 
 struct TournamentAdvance
 {

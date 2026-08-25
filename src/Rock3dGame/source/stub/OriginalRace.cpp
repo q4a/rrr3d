@@ -274,6 +274,58 @@ void applyMobilityLoadout(
                         armor4Opened);
 }
 
+void appendPlayerIdentities(
+    Race& race, const resource::ResourceFileSystem& resources,
+    TiXmlElement* players, int planetIndex)
+{
+    if (players == nullptr)
+        return;
+    for (auto* player = players->FirstChildElement();
+         player != nullptr; player = player->NextSiblingElement())
+    {
+        PlayerIdentity identity;
+        identity.id = static_cast<int>(unsignedValue(
+            text(player, "id", "tournamet.xml/player identity"),
+            "tournamet.xml/player identity/id"));
+        identity.name =
+            text(player, "name", "tournamet.xml/player identity");
+        identity.planetIndex = planetIndex;
+        if (auto* photo = child(player, "photo");
+            photo != nullptr && photo->Attribute("item") != nullptr)
+        {
+            identity.photoPath = canonicalDataPath(
+                resources, photo->Attribute("item"));
+        }
+        race.playerIdentities.push_back(std::move(identity));
+    }
+}
+
+void loadPlayerIdentities(
+    Race& race, const resource::ResourceFileSystem& resources,
+    TiXmlElement* tournament)
+{
+    race.playerIdentities.clear();
+    if (auto* gamers = child(tournament, "gamers"))
+    {
+        for (auto* gamer = gamers->FirstChildElement(); gamer != nullptr;
+             gamer = gamer->NextSiblingElement())
+        {
+            appendPlayerIdentities(
+                race, resources, child(gamer, "players"), -1);
+        }
+    }
+    if (auto* planets = child(tournament, "planets"))
+    {
+        int planetIndex = 0;
+        for (auto* planet = planets->FirstChildElement(); planet != nullptr;
+             planet = planet->NextSiblingElement(), ++planetIndex)
+        {
+            appendPlayerIdentities(
+                race, resources, child(planet, "players"), planetIndex);
+        }
+    }
+}
+
 void selectRacers(Race& race,
                   const resource::ResourceFileSystem& resources,
                   TiXmlElement* planet,
@@ -4002,6 +4054,27 @@ std::uint32_t unsignedValue(std::string_view value,
 
 } // namespace
 
+const PlayerIdentity* findOriginalPlayerIdentity(
+    const Race& race, int gamerId) noexcept
+{
+    const auto global = std::find_if(
+        race.playerIdentities.begin(), race.playerIdentities.end(),
+        [gamerId](const PlayerIdentity& identity) {
+            return identity.planetIndex < 0 && identity.id == gamerId;
+        });
+    if (global != race.playerIdentities.end())
+        return &*global;
+    const int currentPlanet =
+        static_cast<int>(race.tournamentPlanetIndex);
+    const auto local = std::find_if(
+        race.playerIdentities.begin(), race.playerIdentities.end(),
+        [gamerId, currentPlanet](const PlayerIdentity& identity) {
+            return identity.planetIndex == currentPlanet &&
+                   identity.id == gamerId;
+        });
+    return local != race.playerIdentities.end() ? &*local : nullptr;
+}
+
 Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources,
                            bool legacyWindowsDebug)
 {
@@ -4013,6 +4086,7 @@ Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources,
     auto* database = databaseDocument.RootElement();
 
     Race race;
+    loadPlayerIdentities(race, resources, tournament);
     race.touchBorderDamage = vector2(
         garageDocument.RootElement(), "touchBorderDamage", "garage.xml");
     race.touchBorderDamageForce = vector2(
@@ -4992,44 +5066,8 @@ void applyOriginalPlayerProfile(
     auto& human = race.racers.front();
     human.color = profile.color;
     human.gamerId = profile.gamerId;
-    auto tournamentDocument = parseXml(resources, "tournamet.xml");
-    if (auto* gamers =
-            child(tournamentDocument.RootElement(), "gamers"))
+    if (!race.playerIdentities.empty())
     {
-        struct GamerIdentity
-        {
-            std::uint32_t id = 0U;
-            std::string name;
-            std::string photoPath;
-        };
-        std::vector<GamerIdentity> identities;
-        for (auto* gamer = gamers->FirstChildElement(); gamer != nullptr;
-             gamer = gamer->NextSiblingElement())
-        {
-            auto* players = child(gamer, "players");
-            if (players == nullptr)
-                continue;
-            for (auto* player = players->FirstChildElement();
-                 player != nullptr;
-                 player = player->NextSiblingElement())
-            {
-                GamerIdentity identity;
-                identity.id = unsignedValue(
-                    text(player, "id", "tournamet.xml/gamer"),
-                    "tournamet.xml/gamer/id");
-                identity.name =
-                    text(player, "name", "tournamet.xml/gamer");
-                if (auto* photo = child(player, "photo");
-                    photo != nullptr &&
-                    photo->Attribute("item") != nullptr)
-                {
-                    identity.photoPath = canonicalDataPath(
-                        resources, photo->Attribute("item"));
-                }
-                identities.push_back(std::move(identity));
-            }
-        }
-
         // Race::StartRace assigns each ordinary computer its numeric player
         // id, then replaces a duplicate gamer id with the first unused entry
         // from Tournament::GetGamers().  This matters when the human selected
@@ -5048,16 +5086,17 @@ void applyOriginalPlayerProfile(
             if (!duplicate)
                 continue;
             const auto replacement = std::find_if(
-                identities.begin(), identities.end(),
-                [&](const GamerIdentity& candidate) {
-                    return std::none_of(
+                race.playerIdentities.begin(), race.playerIdentities.end(),
+                [&](const PlayerIdentity& candidate) {
+                    return candidate.planetIndex < 0 && std::none_of(
                         race.racers.begin(), race.racers.end(),
                         [&](const Racer& other) {
-                            return other.gamerId == candidate.id;
+                            return other.gamerId ==
+                                   static_cast<std::uint32_t>(candidate.id);
                         });
                 });
-            if (replacement != identities.end())
-                racer.gamerId = replacement->id;
+            if (replacement != race.playerIdentities.end())
+                racer.gamerId = static_cast<std::uint32_t>(replacement->id);
         }
 
         // Tournament::GetPlayerData searches the global gamer catalog before
@@ -5066,12 +5105,9 @@ void applyOriginalPlayerProfile(
         // leak into HUD or FinishMenu.
         for (auto& racer : race.racers)
         {
-            const auto identity = std::find_if(
-                identities.begin(), identities.end(),
-                [&](const GamerIdentity& candidate) {
-                    return candidate.id == racer.gamerId;
-                });
-            if (identity != identities.end())
+            const auto* identity = findOriginalPlayerIdentity(
+                race, static_cast<int>(racer.gamerId));
+            if (identity != nullptr)
             {
                 racer.name = identity->name;
                 racer.photoPath = identity->photoPath;
@@ -5465,12 +5501,25 @@ bool runOriginalRaceResourceSmokeTest(
             [](const Racer& racer) {
                 return racer.gamerId == 5U;
             });
+        const auto* globalSnake = findOriginalPlayerIdentity(race, 4);
+        const auto* intariaPlayer = findOriginalPlayerIdentity(race, 1);
+        auto patagonisIdentityRace = race;
+        patagonisIdentityRace.tournamentPlanetIndex = 1U;
+        const auto* patagonisPlayer =
+            findOriginalPlayerIdentity(patagonisIdentityRace, 1);
         if (unresolvedComputer != race.racers.end() ||
             snake == race.racers.end() || snake->name != "scSnake" ||
             snake->photoPath.find("snake.png") == std::string::npos ||
             tarquin == race.racers.end() ||
             tarquin->name != "scTarquin" ||
-            tarquin->photoPath.find("tarquin.png") == std::string::npos)
+            tarquin->photoPath.find("tarquin.png") == std::string::npos ||
+            globalSnake == nullptr || globalSnake->name != "scSnake" ||
+            globalSnake->planetIndex >= 0 || intariaPlayer == nullptr ||
+            intariaPlayer->name != "scMardock" ||
+            intariaPlayer->planetIndex != 0 ||
+            patagonisPlayer == nullptr ||
+            patagonisPlayer->name != "scStinkle" ||
+            patagonisPlayer->planetIndex != 1)
         {
             error =
                 "source Tournament::GetPlayerData computer identity "
