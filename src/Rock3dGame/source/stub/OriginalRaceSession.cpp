@@ -1058,7 +1058,6 @@ void OriginalRaceSession::reset()
     racers_.assign(race_.racers.size(), {});
     vehicleInputs_.assign(race_.racers.size(), {});
     weaponRacks_.assign(race_.racers.size(), {});
-    playerItemRacks_.assign(race_.racers.size(), {});
     humanPlayer_.SetCurWeapon(0);
     aiPlayers_.reserve(race_.racers.size());
     aiSystem_.Reset(sourceTrace_.GetTrackCount());
@@ -1150,8 +1149,6 @@ void OriginalRaceSession::reset()
             sourceRacer.netSlot, sourceRacer.name,
             sourceRacer.netName, sourceRacer.color);
         racers_[index].SetCar(&vehicle);
-        racers_[index].CreateCar(true);
-        racers_[index].car.SetSize(vehicle.boundingSize);
         for (std::size_t weaponIndex = 0;
              weaponIndex < race_.weapons.size(); ++weaponIndex)
         {
@@ -1346,7 +1343,7 @@ void OriginalRaceSession::reset()
         configureWeapon(
             weaponRacks_[index].mine,
             racers_[index].mineWeapon);
-        auto& itemRack = playerItemRacks_[index];
+        auto& itemRack = racers_[index].GetItemRack();
         itemRack.Reset();
         for (std::size_t slot = 0U;
              slot < PlayerProfile::weaponSlotCount; ++slot)
@@ -1379,7 +1376,8 @@ void OriginalRaceSession::reset()
                     definition.reflectValue);
             }
         }
-        itemRack.OnCreateCar();
+        racers_[index].CreateCar(true);
+        racers_[index].car.SetSize(vehicle.boundingSize);
     }
     const auto humanPosition = std::find_if(
         racers_.begin(), racers_.end(),
@@ -1607,8 +1605,6 @@ bool OriginalRaceSession::disconnectNetworkRacer(
     auto& runtime = racers_[racer];
     runtime.Disconnect();
     releaseRacerProjectileReferences(racer);
-    if (racer < playerItemRacks_.size())
-        playerItemRacks_[racer].OnDestroyCar();
     if (racer < vehicleInputs_.size())
         vehicleInputs_[racer] = {};
     if (racer < networkOwnedRacers_.size())
@@ -1745,8 +1741,8 @@ bool OriginalRaceSession::applyRacerDamageInternal(
     const float incoming = incomingAlreadySupported
                                ? sourceDamage
                                : source::Logic::ResolveDamage(
-                                     target < playerItemRacks_.size()
-                                         ? &playerItemRacks_[target]
+                                     target < racers_.size()
+                                         ? &racers_[target].GetItemRack()
                                          : nullptr,
                                      sourceDamage, damageType);
     // The Windows client does not call GameObject::Damage while producing
@@ -2182,8 +2178,8 @@ const source::RaceResult* OriginalRaceSession::resultForRacer(
 const source::PlayerItemRack* OriginalRaceSession::playerItems(
     std::size_t racer) const noexcept
 {
-    return racer < playerItemRacks_.size()
-               ? &playerItemRacks_[racer]
+    return racer < racers_.size()
+               ? &racers_[racer].GetItemRack()
                : nullptr;
 }
 
@@ -2582,12 +2578,6 @@ OriginalRaceSession::progressPlayers(
         {
             queueRespawn(racer, vehicles);
         }
-        else if (results[racer].restore ==
-                     source::PlayerRestoreStep::ActivateCar &&
-                 racer < playerItemRacks_.size())
-        {
-            playerItemRacks_[racer].OnCreateCar();
-        }
 
         // Player only calls GameCar::SetMoveCar while its car object exists.
         if (runtime.destroyed ||
@@ -2791,8 +2781,6 @@ void OriginalRaceSession::destroyRacer(
     runtime.Destroy();
     appendPlayerGameEvents(racer, position, false);
     releaseRacerProjectileReferences(racer);
-    if (racer < playerItemRacks_.size())
-        playerItemRacks_[racer].OnDestroyCar();
     if (racer < vehicleInputs_.size())
         vehicleInputs_[racer] = {};
     const auto& definition = vehicleForRacer(racer);
@@ -2935,12 +2923,6 @@ void OriginalRaceSession::updateGameplay(
         }
         if (runtime.destroyed)
             continue;
-        if (racer < playerItemRacks_.size())
-        {
-            playerItemRacks_[racer].OnProgress(
-                seconds, runtime.life, runtime.maximumLife,
-                runtime.destroyed);
-        }
         if (behaviorProgress.lowLifeActivated)
         {
             events_.push_back(
@@ -5906,8 +5888,6 @@ void OriginalRaceSession::completeRaceForExit(
     {
         for (auto& aiPlayer : aiPlayers_)
             aiPlayer.FreeCar();
-        for (auto& itemRack : playerItemRacks_)
-            itemRack.OnDestroyCar();
         for (auto& player : racers_)
             player.ClearBonusProjectiles();
         achievementModel_.ResetRaceState();

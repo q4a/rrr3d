@@ -3,6 +3,7 @@
 #include "OriginalGameObject.h"
 #include "OriginalGameCar.h"
 #include "OriginalTrace.h"
+#include "OriginalWeapon.h"
 
 #include <array>
 #include <cstddef>
@@ -20,8 +21,6 @@ struct Vehicle;
 
 namespace r3d::game::originalrace::source
 {
-
-class WeaponItem;
 
 // Slot order deliberately follows Player::SlotType from the Windows source:
 // stHyper, stMine, stWeapon1..stWeapon4.  Player::TakeBonus depends on this
@@ -299,6 +298,8 @@ public:
     bool Shot(WeaponItem& item, bool projectileCreated,
               bool mineSlot, std::uint32_t projectileId,
               int newCharge = -1) noexcept;
+    PlayerItemRack& GetItemRack() noexcept;
+    const PlayerItemRack& GetItemRack() const noexcept;
 
     std::uint32_t GetMoney() const noexcept;
     void SetMoney(std::uint32_t value) noexcept;
@@ -440,6 +441,7 @@ private:
     std::vector<PlayerGameEvent> gameEvents_;
     std::vector<std::uint32_t> bonusProjectileIds_;
     std::uint32_t nextBonusProjectileId_ = 1U;
+    PlayerItemRack itemRack_;
 };
 
 } // namespace r3d::game::originalrace::source

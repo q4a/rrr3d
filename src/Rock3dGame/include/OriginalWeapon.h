@@ -409,11 +409,11 @@ private:
     float reflectValue_ = 0.25F;
 };
 
-// Player owns four physical stWeapon slots. Until the renderer/physics Slot
-// actor hierarchy itself replaces the adapter, this owner keeps the original
-// polymorphic DroidItem/ReflectorItem identity and lifecycle per physical
-// slot. Multiple droids progress independently; GetSlotInst(stReflector)
-// semantics select the first reflector in slot order.
+// Player owns four physical stWeapon slots. This value is embedded in the
+// active Player and keeps the original polymorphic DroidItem/ReflectorItem
+// identity and car lifecycle per physical slot. Multiple droids progress
+// independently; GetSlotInst(stReflector) semantics select the first
+// reflector in slot order.
 class PlayerItemRack
 {
 public:

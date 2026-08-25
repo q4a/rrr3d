@@ -89,6 +89,26 @@ int main()
     if (player.GetCarRecord() != &secondCar || player.HasCar() ||
         player.car.numLaps != 0U)
         return 58;
+
+    source::Weapon droidWeapon;
+    std::uint32_t droidCharge = 1U;
+    auto& physicalItems = player.GetItemRack();
+    physicalItems.Reset();
+    physicalItems.BindDroid(
+        0U, &droidWeapon, 1U, 1U, &droidCharge,
+        17.0F, 0.1F);
+    player.SetLife(60.0F);
+    player.CreateCar(true);
+    if (physicalItems.GetDroid(0U) == nullptr ||
+        !physicalItems.GetDroid(0U)->IsProgressRegistered())
+        return 59;
+    player.ProgressBehaviors(0.101F, 0.35F, 0.0F);
+    if (std::abs(player.GetLife() - 65.0F) > 0.001F)
+        return 60;
+    player.FreeCar(false);
+    if (physicalItems.GetDroid(0U)->IsProgressRegistered())
+        return 61;
+    physicalItems.Reset();
     player.CreateCar(true);
 
     player.weaponSlots = {2U, source::Player::invalidWeapon, 4U, 5U};

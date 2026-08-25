@@ -522,6 +522,7 @@ void Player::CreateCar(bool newRace) noexcept
     carPresent_ = true;
     car.OnCreateCar(newRace);
     Resc();
+    itemRack_.OnCreateCar();
     if (!newRace)
         return;
     ClearBonusProjectiles();
@@ -531,6 +532,8 @@ void Player::CreateCar(bool newRace) noexcept
 
 void Player::FreeCar(bool freeState) noexcept
 {
+    if (carPresent_)
+        itemRack_.OnDestroyCar();
     carPresent_ = false;
     car.OnFreeCar(freeState);
 }
@@ -602,6 +605,16 @@ bool Player::Shot(WeaponItem& item, bool projectileCreated,
     if (result && mineSlot)
         InsertBonusProjectile(projectileId);
     return result;
+}
+
+PlayerItemRack& Player::GetItemRack() noexcept
+{
+    return itemRack_;
+}
+
+const PlayerItemRack& Player::GetItemRack() const noexcept
+{
+    return itemRack_;
 }
 
 std::uint32_t Player::GetMoney() const noexcept { return money_; }
@@ -740,6 +753,8 @@ Player::BehaviorProgressResult Player::ProgressBehaviors(
 {
     BehaviorProgressResult result;
     result.gameObject = GameObject::OnProgress(deltaTime);
+    itemRack_.OnProgress(
+        deltaTime, life, maximumLife, destroyed);
     energyDamageEffect.OnProgress(deltaTime);
     immortalEffect.OnProgress(deltaTime);
     lowLifePoints.SetLifeLevel(lowLifeLevel);

@@ -1292,6 +1292,20 @@ Network, video и Steam явно выключены.
   машину, очищает lap state и требует нового `CreateCar`, как Windows
   `Player::SetCar(MapObjRec*)`.
 
+### Source Player physical item-slot owner
+
+- `DroidItem` и `ReflectorItem` больше не хранятся в отдельном session
+  массиве: `PlayerItemRack` встроен в active Player как portable-часть
+  исходного `_slot[stWeapon1..stWeapon4]`.
+- `Player::CreateCar/FreeCar` владеют `OnCreateCar/OnDestroyCar`, поэтому
+  death, restore, disconnect и race exit не требуют дублирующих adapter
+  callbacks. Droid progress также выполняется внутри Player behavior owner.
+- `Logic::ResolveDamage` получает Reflector из самого target Player. Touch
+  damage по-прежнему обходит reflector, а остальные типы используют первый
+  физический reflector в порядке слотов.
+- Session parallel `playerItemRacks_` удалён. Regression проверяет полный
+  bind/create/progress/free lifecycle активного Player.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

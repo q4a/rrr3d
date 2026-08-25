@@ -1202,6 +1202,22 @@ AI, weapon contacts, death/energy/shield effects, основной и shadow pas
 assets. Player regression проверяет identity record и обязательный teardown
 при смене машины.
 
+### P2.32 — Player physical item-slot owner — выполнено
+
+Подтвердилось, что уже перенесённые `DroidItem`/`ReflectorItem` оставались в
+параллельном `OriginalRaceSession::playerItemRacks_`. Это расходилось с
+`Player::_slot[]` Windows и вынуждало session вручную вызывать
+`OnCreateCar`, `OnDestroyCar`, progress и reflector lookup при каждом
+destroy/restore/disconnect/exit переходе.
+
+`PlayerItemRack` теперь является частью active `source::Player`.
+`CreateCar/FreeCar` сами подключают и отключают slot item lifecycle,
+`ProgressBehaviors` исполняет Droid, а damage path получает первый Reflector
+из целевого Player. Параллельный session-массив и пять ручных синхронизаций
+удалены; racer setup связывает slots до `CreateCar`, как требует исходный
+callback. Player regression проверяет регистрацию Droid, исходное лечение на
+5 единиц и обязательное отключение progress при `FreeCar`.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
