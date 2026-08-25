@@ -6,6 +6,113 @@
 namespace r3d::game::originalrace::source
 {
 
+namespace
+{
+
+using SyncVector = GameObjectFrameSync::Vector;
+using SyncQuaternion = GameObjectFrameSync::Quaternion;
+
+constexpr float syncPi = 3.14159265358979323846F;
+
+SyncVector subtractSync(SyncVector left, SyncVector right) noexcept
+{
+    return {left.x - right.x, left.y - right.y, left.z - right.z};
+}
+
+float lengthSync(SyncVector value) noexcept
+{
+    return std::sqrt(
+        value.x * value.x + value.y * value.y + value.z * value.z);
+}
+
+SyncVector normalizedSync(SyncVector value) noexcept
+{
+    const float valueLength = lengthSync(value);
+    if (valueLength <= 0.000001F)
+        return {};
+    return {
+        value.x / valueLength, value.y / valueLength,
+        value.z / valueLength};
+}
+
+SyncQuaternion normalizedSync(SyncQuaternion value) noexcept
+{
+    const float valueLength = std::sqrt(
+        value.x * value.x + value.y * value.y +
+        value.z * value.z + value.w * value.w);
+    if (valueLength <= 0.000001F)
+        return {};
+    return {
+        value.x / valueLength, value.y / valueLength,
+        value.z / valueLength, value.w / valueLength};
+}
+
+SyncQuaternion multiplySync(
+    SyncQuaternion left, SyncQuaternion right) noexcept
+{
+    return normalizedSync({
+        left.w * right.x + left.x * right.w +
+            left.y * right.z - left.z * right.y,
+        left.w * right.y - left.x * right.z +
+            left.y * right.w + left.z * right.x,
+        left.w * right.z + left.x * right.y -
+            left.y * right.x + left.z * right.w,
+        left.w * right.w - left.x * right.x -
+            left.y * right.y - left.z * right.z});
+}
+
+SyncQuaternion inverseSync(SyncQuaternion value) noexcept
+{
+    value = normalizedSync(value);
+    return {-value.x, -value.y, -value.z, value.w};
+}
+
+SyncQuaternion rotationSync(
+    SyncQuaternion current, SyncQuaternion next) noexcept
+{
+    return multiplySync(next, inverseSync(current));
+}
+
+float angleSync(SyncQuaternion value) noexcept
+{
+    value = normalizedSync(value);
+    return 2.0F * std::acos(std::clamp(value.w, -1.0F, 1.0F));
+}
+
+SyncVector axisSync(SyncQuaternion value) noexcept
+{
+    value = normalizedSync(value);
+    const float divisor = std::sqrt(std::max(
+        1.0F - value.w * value.w, 0.0F));
+    if (divisor <= 0.000001F)
+        return {1.0F, 0.0F, 0.0F};
+    return {
+        value.x / divisor, value.y / divisor,
+        value.z / divisor};
+}
+
+SyncQuaternion angleAxisSync(float angle, SyncVector axis) noexcept
+{
+    axis = normalizedSync(axis);
+    if (lengthSync(axis) <= 0.000001F)
+        return {};
+    const float sine = std::sin(angle * 0.5F);
+    return normalizedSync({
+        axis.x * sine, axis.y * sine, axis.z * sine,
+        std::cos(angle * 0.5F)});
+}
+
+float shortestSignedAngle(float angle) noexcept
+{
+    const float magnitude = std::abs(angle);
+    if (magnitude <= syncPi)
+        return angle;
+    return (2.0F * syncPi - magnitude) *
+           (angle > 0.0F ? -1.0F : 1.0F);
+}
+
+} // namespace
+
 void GameObject::ResetGameObject(float maximumLifeValue) noexcept
 {
     maximumLife = maximumLifeValue;
@@ -157,6 +264,185 @@ void GameObject::SetMaxTimeLife(float value) noexcept
 std::size_t GameObject::GetTouchPlayerId() const noexcept
 {
     return touchAttacker;
+}
+
+void GameObjectFrameSync::Reset() noexcept
+{
+    *this = {};
+}
+
+void GameObjectFrameSync::SetPosSync(Vector value) noexcept
+{
+    posSync_ = value;
+    posSyncDirection_ = normalizedSync(value);
+    posSyncLength_ = lengthSync(value);
+}
+
+void GameObjectFrameSync::SetRotSync(Quaternion value) noexcept
+{
+    rotSync_ = normalizedSync(value);
+    rotSyncAxis_ = axisSync(rotSync_);
+    rotSyncAngle_ = shortestSignedAngle(angleSync(rotSync_));
+}
+
+void GameObjectFrameSync::SetPosSync2(
+    Vector current, Vector next) noexcept
+{
+    posSyncDirection2_ = subtractSync(current, next);
+    posSyncDistance2_ = lengthSync(posSyncDirection2_);
+    posSyncDirection2_ = normalizedSync(posSyncDirection2_);
+    posSync2_ = next;
+    posSyncLength2_ = lengthSync(posSync2_);
+}
+
+void GameObjectFrameSync::SetRotSync2(
+    Quaternion current, Quaternion next) noexcept
+{
+    const Quaternion difference = rotationSync(next, current);
+    rotSyncAxis2_ = axisSync(difference);
+    rotSyncAngle2_ = shortestSignedAngle(angleSync(difference));
+    rotSync2_ = normalizedSync(next);
+    rotSyncLength2_ = angleSync(rotSync2_);
+}
+
+GameObjectFrameSync::NetworkCorrection
+GameObjectFrameSync::OnNetworkPose(
+    Vector physicsPosition, Vector graphPosition,
+    Quaternion graphRotation, Vector targetPosition,
+    Quaternion targetRotation) noexcept
+{
+    NetworkCorrection result;
+    const Vector positionDifference =
+        subtractSync(targetPosition, physicsPosition);
+    if (lengthSync(positionDifference) > 4.0F)
+    {
+        SetPosSync(subtractSync(targetPosition, graphPosition));
+        result.snapPosition = true;
+    }
+
+    const Quaternion rotationDifference =
+        rotationSync(graphRotation, targetRotation);
+    const float rotationAngle = std::abs(
+        shortestSignedAngle(angleSync(rotationDifference)));
+    if (rotationAngle > syncPi / 24.0F)
+    {
+        SetRotSync(rotationDifference);
+        result.snapRotation = true;
+    }
+    return result;
+}
+
+GameObjectFrameSync::Pose GameObjectFrameSync::OnFrame(
+    Pose physicsPose, float deltaTime) noexcept
+{
+    deltaTime = std::max(deltaTime, 0.0F);
+    Pose result = physicsPose;
+    if (posSyncLength_ > 0.0F && posSyncLength_ < 5.0F)
+    {
+        posSyncLength_ = std::max(
+            posSyncLength_ - 5.0F * deltaTime, 0.0F);
+        result.position.x -= posSyncDirection_.x * posSyncLength_;
+        result.position.y -= posSyncDirection_.y * posSyncLength_;
+        result.position.z -= posSyncDirection_.z * posSyncLength_;
+    }
+    else
+    {
+        posSyncLength_ = 0.0F;
+    }
+
+    if (rotSyncAngle_ != 0.0F)
+    {
+        if (rotSyncAngle_ > 0.0F)
+        {
+            rotSyncAngle_ = std::max(
+                rotSyncAngle_ - 1.3F * syncPi * deltaTime,
+                0.0F);
+        }
+        else
+        {
+            rotSyncAngle_ = std::min(
+                rotSyncAngle_ + 1.3F * syncPi * deltaTime,
+                0.0F);
+        }
+        result.rotation = multiplySync(
+            angleAxisSync(-rotSyncAngle_, rotSyncAxis_),
+            result.rotation);
+    }
+
+    if (posSyncDistance2_ > 0.0F && posSyncDistance2_ < 5.0F)
+    {
+        posSyncDistance2_ = std::max(
+            posSyncDistance2_ - 5.0F * deltaTime, 0.0F);
+        result.position.x +=
+            posSync2_.x + posSyncDirection2_.x * posSyncDistance2_;
+        result.position.y +=
+            posSync2_.y + posSyncDirection2_.y * posSyncDistance2_;
+        result.position.z +=
+            posSync2_.z + posSyncDirection2_.z * posSyncDistance2_;
+    }
+    else if (posSyncLength2_ > 0.0F)
+    {
+        posSyncDistance2_ = 0.0F;
+        result.position.x += posSync2_.x;
+        result.position.y += posSync2_.y;
+        result.position.z += posSync2_.z;
+    }
+
+    if (rotSyncAngle2_ != 0.0F)
+    {
+        if (rotSyncAngle2_ > 0.0F)
+        {
+            rotSyncAngle2_ = std::max(
+                rotSyncAngle2_ - 1.3F * syncPi * deltaTime,
+                0.0F);
+        }
+        else
+        {
+            rotSyncAngle2_ = std::min(
+                rotSyncAngle2_ + 1.3F * syncPi * deltaTime,
+                0.0F);
+        }
+        result.rotation = multiplySync(
+            angleAxisSync(-rotSyncAngle2_, rotSyncAxis2_),
+            multiplySync(rotSync2_, result.rotation));
+    }
+    else if (rotSyncLength2_ != 0.0F)
+    {
+        rotSyncAngle2_ = 0.0F;
+        result.rotation = multiplySync(rotSync2_, result.rotation);
+    }
+    return result;
+}
+
+const GameObjectFrameSync::Vector&
+GameObjectFrameSync::GetPosSync() const noexcept
+{
+    return posSync_;
+}
+
+const GameObjectFrameSync::Quaternion&
+GameObjectFrameSync::GetRotSync() const noexcept
+{
+    return rotSync_;
+}
+
+const GameObjectFrameSync::Vector&
+GameObjectFrameSync::GetPosSync2() const noexcept
+{
+    return posSync2_;
+}
+
+const GameObjectFrameSync::Quaternion&
+GameObjectFrameSync::GetRotSync2() const noexcept
+{
+    return rotSync2_;
+}
+
+bool GameObjectFrameSync::HasActiveCorrection() const noexcept
+{
+    return posSyncLength_ != 0.0F || rotSyncAngle_ != 0.0F ||
+           posSyncDistance2_ != 0.0F || posSyncLength2_ != 0.0F ||
+           rotSyncAngle2_ != 0.0F || rotSyncLength2_ != 0.0F;
 }
 
 GameObject::DamageResult DestrObj::Damage(

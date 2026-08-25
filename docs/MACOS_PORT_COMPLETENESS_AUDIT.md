@@ -1114,6 +1114,22 @@ Network, video и Steam явно выключены.
   impulse, повторное создание contact effect до завершения старых частиц и
   полное освобождение обоих поколений без роста `effects_`.
 
+### Source GameObject network frame-synchronization block
+
+- Перенесены `GameObject::SetPosSync`, `SetRotSync`, `SetPosSync2`,
+  `SetRotSync2` и последовательность их `OnFrame`: translation error
+  выбирается со скоростью `5 units/s`, rotation — `1.3*pi rad/s`, а
+  correction длиной `>=5` не сглаживается, как в исходнике.
+- Активный `NetPlayer::ResponseStream` использует исходные пороги: position
+  snap только при расхождении `>4`, rotation snap — при `>pi/24`. Jolt
+  получает авторитетную physics pose/momenta, а отдельный graph pose
+  сохраняет старый кадр и плавно догоняет body.
+- Graph correction применяется к кузову и всем четырём world-space wheel
+  transforms; renderer и HUD opponent projections используют эту позу,
+  gameplay collisions/AI/trace продолжают получать фактический Jolt state.
+- `OriginalGameObjectSmoke` проверяет первый кадр после snap, source rates,
+  strict пятиединичную границу и второй position-sync channel.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

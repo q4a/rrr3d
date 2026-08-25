@@ -97,6 +97,79 @@ public:
     bool destroyed = false;
 };
 
+// GameObject.cpp::SetPosSync/SetRotSync and the second correction channel
+// are graph-side state: PhysX may snap to an authoritative network pose while
+// the rendered actor consumes the old-to-new error at the source rates.  The
+// Jolt body remains authoritative; this owner returns the exact graph pose
+// which the original OnFrame would have submitted.
+class GameObjectFrameSync
+{
+public:
+    struct Vector
+    {
+        float x = 0.0F;
+        float y = 0.0F;
+        float z = 0.0F;
+    };
+
+    struct Quaternion
+    {
+        float x = 0.0F;
+        float y = 0.0F;
+        float z = 0.0F;
+        float w = 1.0F;
+    };
+
+    struct Pose
+    {
+        Vector position;
+        Quaternion rotation;
+    };
+
+    struct NetworkCorrection
+    {
+        bool snapPosition = false;
+        bool snapRotation = false;
+    };
+
+    void Reset() noexcept;
+    void SetPosSync(Vector value) noexcept;
+    void SetRotSync(Quaternion value) noexcept;
+    void SetPosSync2(Vector current, Vector next) noexcept;
+    void SetRotSync2(Quaternion current, Quaternion next) noexcept;
+
+    // Active NetPlayer::ResponseStream thresholds. A far physics position or
+    // divergent graph rotation starts the matching GameObject correction.
+    NetworkCorrection OnNetworkPose(
+        Vector physicsPosition, Vector graphPosition,
+        Quaternion graphRotation, Vector targetPosition,
+        Quaternion targetRotation) noexcept;
+    Pose OnFrame(Pose physicsPose, float deltaTime) noexcept;
+
+    const Vector& GetPosSync() const noexcept;
+    const Quaternion& GetRotSync() const noexcept;
+    const Vector& GetPosSync2() const noexcept;
+    const Quaternion& GetRotSync2() const noexcept;
+    bool HasActiveCorrection() const noexcept;
+
+private:
+    Vector posSync_;
+    Vector posSyncDirection_;
+    float posSyncLength_ = 0.0F;
+    Quaternion rotSync_;
+    Vector rotSyncAxis_{1.0F, 0.0F, 0.0F};
+    float rotSyncAngle_ = 0.0F;
+
+    Vector posSync2_;
+    Vector posSyncDirection2_;
+    float posSyncDistance2_ = 0.0F;
+    float posSyncLength2_ = 0.0F;
+    Quaternion rotSync2_;
+    Vector rotSyncAxis2_{1.0F, 0.0F, 0.0F};
+    float rotSyncAngle2_ = 0.0F;
+    float rotSyncLength2_ = 0.0F;
+};
+
 // Gameplay-owned part of GameCar.h::DestrObj. The original queues its
 // serialized destruction list from OnDeath and releases it once from the
 // following progress callback.

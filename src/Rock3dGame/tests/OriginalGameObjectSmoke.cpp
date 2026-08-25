@@ -71,6 +71,60 @@ int main()
         !object.OnProgress(0.001F).lifetimeDeath)
         return 13;
 
+    source::GameObjectFrameSync frameSync;
+    constexpr float halfQuarterTurn =
+        0.70710678118654752440F;
+    const source::GameObjectFrameSync::Pose targetPose{
+        {4.1F, 0.0F, 0.0F},
+        {0.0F, 0.0F, halfQuarterTurn, halfQuarterTurn}};
+    const auto correction = frameSync.OnNetworkPose(
+        {}, {}, {}, targetPose.position, targetPose.rotation);
+    const auto firstGraphPose = frameSync.OnFrame(targetPose, 0.0F);
+    if (!correction.snapPosition || !correction.snapRotation ||
+        std::abs(firstGraphPose.position.x) > 0.0001F ||
+        std::abs(firstGraphPose.rotation.z) > 0.0001F ||
+        std::abs(firstGraphPose.rotation.w - 1.0F) > 0.0001F)
+        return 49;
+    const auto progressingGraphPose =
+        frameSync.OnFrame(targetPose, 0.2F);
+    if (std::abs(progressingGraphPose.position.x - 1.0F) > 0.0001F ||
+        progressingGraphPose.rotation.z <= 0.2F ||
+        progressingGraphPose.rotation.z >= halfQuarterTurn)
+        return 50;
+    const auto completedGraphPose =
+        frameSync.OnFrame(targetPose, 1.0F);
+    if (std::abs(completedGraphPose.position.x - 4.1F) > 0.0001F ||
+        std::abs(completedGraphPose.rotation.z - halfQuarterTurn) >
+            0.0001F ||
+        frameSync.HasActiveCorrection())
+        return 51;
+
+    frameSync.Reset();
+    const source::GameObjectFrameSync::Pose largeSnapPose{
+        {6.0F, 0.0F, 0.0F}, {}};
+    if (!frameSync.OnNetworkPose(
+             {}, {}, {}, largeSnapPose.position,
+             largeSnapPose.rotation).snapPosition ||
+        std::abs(
+            frameSync.OnFrame(largeSnapPose, 0.0F).position.x -
+            6.0F) > 0.0001F)
+        return 52;
+
+    frameSync.Reset();
+    frameSync.SetPosSync2(
+        {3.0F, 0.0F, 0.0F}, {1.0F, 0.0F, 0.0F});
+    const source::GameObjectFrameSync::Pose originPose{};
+    if (std::abs(
+            frameSync.OnFrame(originPose, 0.0F).position.x - 3.0F) >
+            0.0001F ||
+        std::abs(
+            frameSync.OnFrame(originPose, 0.2F).position.x - 2.0F) >
+            0.0001F ||
+        std::abs(
+            frameSync.OnFrame(originPose, 0.2F).position.x - 1.0F) >
+            0.0001F)
+        return 53;
+
     source::DestrObj destructible;
     destructible.ResetGameObject(10.0F);
     if (destructible.Damage(

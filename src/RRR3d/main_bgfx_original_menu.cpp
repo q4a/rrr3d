@@ -5567,6 +5567,12 @@ int main(int argc, char** argv)
     for (std::size_t index = 0; index < physicsWorld->vehicleCount();
          ++index)
         raceVehicles[index] = physicsWorld->vehicle(index);
+    std::vector<r3d::physics::VehicleState> raceRenderVehicles =
+        raceVehicles;
+#ifdef RRR3D_NETWORK
+    std::vector<r3d::game::originalrace::source::GameObjectFrameSync>
+        networkVehicleFrameSync(raceVehicles.size());
+#endif
     float raceElapsedSeconds = 0.0F;
     bool integratedRaceStartObserved = !options->raceRenderSmokeTest;
     bool raceLoadingFrameObserved = !options->raceRenderSmokeTest;
@@ -6547,6 +6553,11 @@ int main(int argc, char** argv)
             for (std::size_t index = 0;
                  index < physicsWorld->vehicleCount(); ++index)
                 raceVehicles[index] = physicsWorld->vehicle(index);
+            raceRenderVehicles = raceVehicles;
+#ifdef RRR3D_NETWORK
+            networkVehicleFrameSync.assign(
+                raceVehicles.size(), {});
+#endif
             return true;
         }
         catch (const std::exception& exception)
@@ -6875,6 +6886,11 @@ int main(int argc, char** argv)
         for (std::size_t index = 0;
              index < physicsWorld->vehicleCount(); ++index)
             raceVehicles[index] = physicsWorld->vehicle(index);
+        raceRenderVehicles = raceVehicles;
+#ifdef RRR3D_NETWORK
+        networkVehicleFrameSync.assign(
+            raceVehicles.size(), {});
+#endif
         inRace = true;
         if (options->raceRenderSmokeTest)
             integratedRaceStartObserved = true;
@@ -15449,6 +15465,36 @@ int main(int argc, char** argv)
                     {
                         continue;
                     }
+                    if (networkVehicleFrameSync.size() <
+                        raceVehicles.size())
+                    {
+                        networkVehicleFrameSync.resize(
+                            raceVehicles.size());
+                    }
+                    if (raceRenderVehicles.size() < raceVehicles.size())
+                        raceRenderVehicles = raceVehicles;
+                    const auto& physicsPose =
+                        physicsWorld->vehicle(index).body;
+                    const auto& graphPose =
+                        raceRenderVehicles[index].body;
+                    networkVehicleFrameSync[index].OnNetworkPose(
+                        {physicsPose.position.x,
+                         physicsPose.position.y,
+                         physicsPose.position.z},
+                        {graphPose.position.x,
+                         graphPose.position.y,
+                         graphPose.position.z},
+                        {graphPose.rotation.x,
+                         graphPose.rotation.y,
+                         graphPose.rotation.z,
+                         graphPose.rotation.w},
+                        {player->vehicle.position[0],
+                         player->vehicle.position[1],
+                         player->vehicle.position[2]},
+                        {player->vehicle.rotation[0],
+                         player->vehicle.rotation[1],
+                         player->vehicle.rotation[2],
+                         player->vehicle.rotation[3]});
                     physicsWorld->synchronizeNetworkVehicle(
                         index,
                         {player->vehicle.position[0],
@@ -16647,6 +16693,65 @@ int main(int argc, char** argv)
                 }
 #endif
             }
+            raceRenderVehicles = raceVehicles;
+#ifdef RRR3D_NETWORK
+            if (networkMatchStarted)
+            {
+                const auto syncCount = std::min(
+                    raceRenderVehicles.size(),
+                    networkVehicleFrameSync.size());
+                for (std::size_t index = 0U;
+                     index < syncCount; ++index)
+                {
+                    auto& frameSync = networkVehicleFrameSync[index];
+                    if (!frameSync.HasActiveCorrection())
+                        continue;
+                    const auto physicalBody = raceVehicles[index].body;
+                    const auto graphPose = frameSync.OnFrame(
+                        {{physicalBody.position.x,
+                          physicalBody.position.y,
+                          physicalBody.position.z},
+                         {physicalBody.rotation.x,
+                          physicalBody.rotation.y,
+                          physicalBody.rotation.z,
+                          physicalBody.rotation.w}},
+                        frameSeconds);
+                    const r3d::physics::Quat graphRotation{
+                        graphPose.rotation.x,
+                        graphPose.rotation.y,
+                        graphPose.rotation.z,
+                        graphPose.rotation.w};
+                    const r3d::physics::Quat inversePhysicalRotation{
+                        -physicalBody.rotation.x,
+                        -physicalBody.rotation.y,
+                        -physicalBody.rotation.z,
+                        physicalBody.rotation.w};
+                    const auto graphFromPhysical = multiplyObserverQuat(
+                        graphRotation, inversePhysicalRotation);
+                    auto& rendered = raceRenderVehicles[index];
+                    rendered.body.position = {
+                        graphPose.position.x,
+                        graphPose.position.y,
+                        graphPose.position.z};
+                    rendered.body.rotation = graphRotation;
+                    for (auto& wheel : rendered.wheels)
+                    {
+                        const r3d::physics::Vec3 relative{
+                            wheel.position.x - physicalBody.position.x,
+                            wheel.position.y - physicalBody.position.y,
+                            wheel.position.z - physicalBody.position.z};
+                        const auto rotated = rotateObserverVector(
+                            relative, graphFromPhysical);
+                        wheel.position = {
+                            rendered.body.position.x + rotated.x,
+                            rendered.body.position.y + rotated.y,
+                            rendered.body.position.z + rotated.z};
+                        wheel.rotation = multiplyObserverQuat(
+                            graphFromPhysical, wheel.rotation);
+                    }
+                }
+            }
+#endif
             for (std::size_t index = 0;
                  index < physicsWorld->decorationCount() &&
                  index < originalRace->decorationInstances.size(); ++index)
@@ -17358,7 +17463,7 @@ int main(int argc, char** argv)
                 raceQuality.postEffect);
             raceRenderer.renderFrame(
                 *device, raceShader, raceCamera, 0x6b91b8ffU,
-                *originalRace, raceVehicles, racePipeline,
+                *originalRace, raceRenderVehicles, racePipeline,
                 raceSession.decorationActive(),
                 decorationFragments, vehicleDeathFragments,
                 raceSession.bonusActive(), raceSession.bonusScales(),
@@ -17368,7 +17473,8 @@ int main(int argc, char** argv)
                 raceQuality, raceSession.countdownStage(),
                 gameDebug.traceVisible());
             raceHud.update(*device, *originalRace, raceSession,
-                           raceVehicles, raceCamera, raceRenderSeconds);
+                           raceRenderVehicles, raceCamera,
+                           raceRenderSeconds);
             device->beginOverlay(camera);
             // PlayerStateFrame::OnInvalidate hides only _raceState when
             // enableHUD is false; MiniMapFrame likewise hides only its lap
