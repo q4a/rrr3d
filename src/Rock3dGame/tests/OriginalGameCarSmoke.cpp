@@ -39,6 +39,47 @@ int main()
         car.IsMineLocked())
         return 7;
 
-    std::cout << "original GameCar lock state rules passed\n";
+    source::SoundMotor motor;
+    const std::array<float, 2> volumeRange{0.2F, 0.8F};
+    const std::array<float, 2> frequencyRange{0.75F, 1.5F};
+    const auto idle = motor.OnMotor(
+        1.0F / 60.0F, 1000.0F, 1000.0F, 6000.0F,
+        volumeRange, frequencyRange);
+    if (std::abs(idle.currentRpm - 166.66667F) > 0.001F ||
+        idle.idleVolume != 1.0F || idle.rpmVolume != 0.0F ||
+        std::abs(idle.rpmFrequencyRatio - 0.75F) > 0.0001F)
+        return 8;
+    const auto high = motor.OnMotor(
+        1.0F, 6000.0F, 1000.0F, 6000.0F,
+        volumeRange, frequencyRange);
+    if (high.currentRpm != 6000.0F || high.idleVolume != 0.0F ||
+        std::abs(high.rpmVolume - 0.8F) > 0.0001F ||
+        std::abs(high.rpmFrequencyRatio - 1.5F) > 0.0001F)
+        return 9;
+    motor.Reset();
+    if (motor.GetCurrentRpm() != 0.0F)
+        return 10;
+
+    source::PxWheelSlipEffect slip;
+    const auto quiet = slip.OnProgress(true, 0.4F, 0.7F, true);
+    if (quiet.active || quiet.makeEffect || !quiet.stopSound)
+        return 11;
+    const auto skidding = slip.OnProgress(true, -0.65F, 0.9F, true);
+    if (!skidding.active || !skidding.makeEffect ||
+        !skidding.playSound || skidding.freeEffect ||
+        std::abs(skidding.slip - 0.45F) > 0.0001F ||
+        skidding.volume != 1.0F || !slip.IsEffectMaked())
+        return 12;
+    const auto continued = slip.OnProgress(true, 0.5F, 0.7F, true);
+    if (!continued.active || continued.makeEffect ||
+        std::abs(continued.volume - 0.4F) > 0.0001F)
+        return 13;
+    const auto released = slip.OnProgress(false, 5.0F, 5.0F, true);
+    if (released.active || !released.freeEffect ||
+        !released.stopSound || slip.IsEffectMaked())
+        return 14;
+
+    std::cout << "original GameCar lock, SoundMotor and wheel-slip "
+                 "rules passed\n";
     return 0;
 }

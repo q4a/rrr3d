@@ -1,5 +1,6 @@
 #include "OriginalRaceRenderer.h"
 
+#include "OriginalGameCar.h"
 #include "OriginalMainMenu.h"
 #include "resource/ResourceFileSystem.h"
 #include "rrr3d_fs_bloom_blur.bin.h"
@@ -5086,9 +5087,11 @@ void OriginalRaceRenderer::draw(
                 definition.wheelSlipEffects[wheelIndex];
             const bool slipping =
                 wheelEffectEnabled && contact != nullptr &&
-                contact->hasContact &&
-                (std::abs(contact->longitudinalSlip) > 0.4F ||
-                 std::abs(contact->lateralSlip) > 0.7F);
+                r3d::game::originalrace::source::PxWheelSlipEffect::
+                        SourceSlip(
+                            contact->hasContact,
+                            contact->longitudinalSlip,
+                            contact->lateralSlip) > 0.0F;
             const auto* trailPath =
                 racer < wheelTrailPaths_.size() &&
                         wheelIndex < wheelTrailPaths_[racer].size()
@@ -6019,9 +6022,12 @@ void OriginalRaceRenderer::renderFrame(
                 wheel < definition.wheelSlipEffects.size() &&
                 definition.wheelSlipEffects[wheel];
             const bool slipping =
-                wheelEffectEnabled && contact.hasContact &&
-                (std::abs(contact.longitudinalSlip) > 0.4F ||
-                 std::abs(contact.lateralSlip) > 0.7F);
+                wheelEffectEnabled &&
+                r3d::game::originalrace::source::PxWheelSlipEffect::
+                        SourceSlip(
+                            contact.hasContact,
+                            contact.longitudinalSlip,
+                            contact.lateralSlip) > 0.0F;
             if (slipping)
             {
                 if (smokeStarts[wheel] < 0.0F)

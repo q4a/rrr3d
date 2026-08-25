@@ -1,6 +1,7 @@
 #include "OriginalGameCar.h"
 
 #include <algorithm>
+#include <cmath>
 
 namespace r3d::game::originalrace::source
 {
@@ -97,6 +98,99 @@ bool GameCar::IsMineLocked() const noexcept
 float GameCar::GetMineTime() const noexcept
 {
     return mineTime_;
+}
+
+void SoundMotor::Reset() noexcept
+{
+    currentRpm_ = 0.0F;
+}
+
+SoundMotor::Mix SoundMotor::OnMotor(
+    float deltaTime, float rpm, float minimumRpm, float maximumRpm,
+    const std::array<float, 2>& rpmVolumeRange,
+    const std::array<float, 2>& rpmFrequencyRange) noexcept
+{
+    const float distanceRpm = rpm - currentRpm_;
+    const float rpmDelta = motorLag * deltaTime *
+        (distanceRpm > 0.0F ? 1.0F : -1.0F);
+    currentRpm_ += std::clamp(
+        rpmDelta, -std::abs(distanceRpm), std::abs(distanceRpm));
+
+    minimumRpm = std::max(minimumRpm, 1.0F);
+    maximumRpm = std::max(maximumRpm, minimumRpm + 1.0F);
+    const float idleAlpha = std::clamp(
+        0.5F * (currentRpm_ - minimumRpm) / minimumRpm,
+        0.0F, 1.0F);
+    const float rpmAlpha = std::clamp(
+        (currentRpm_ - minimumRpm) /
+            (maximumRpm - minimumRpm),
+        0.0F, 1.0F);
+
+    Mix result;
+    result.currentRpm = currentRpm_;
+    result.idleVolume = 1.0F - idleAlpha;
+    result.rpmVolume =
+        (rpmVolumeRange[0] + rpmAlpha *
+            (rpmVolumeRange[1] - rpmVolumeRange[0])) *
+        idleAlpha;
+    result.rpmFrequencyRatio =
+        rpmFrequencyRange[0] + rpmAlpha *
+            (rpmFrequencyRange[1] - rpmFrequencyRange[0]);
+    return result;
+}
+
+float SoundMotor::GetCurrentRpm() const noexcept
+{
+    return currentRpm_;
+}
+
+void PxWheelSlipEffect::Reset() noexcept
+{
+    effectMaked_ = false;
+}
+
+float PxWheelSlipEffect::SourceSlip(
+    bool hasContact, float longitudinalSlip,
+    float lateralSlip) noexcept
+{
+    if (!hasContact)
+        return 0.0F;
+    return std::max(
+               std::abs(lateralSlip) - lateralThreshold, 0.0F) +
+           std::max(
+               std::abs(longitudinalSlip) - longitudinalThreshold,
+               0.0F);
+}
+
+PxWheelSlipEffect::ProgressResult PxWheelSlipEffect::OnProgress(
+    bool hasContact, float longitudinalSlip, float lateralSlip,
+    bool hasSound) noexcept
+{
+    ProgressResult result;
+    result.slip = SourceSlip(
+        hasContact, longitudinalSlip, lateralSlip);
+    result.volume = std::clamp(result.slip * volumeScale, 0.0F, 1.0F);
+    result.active = result.slip > 0.0F;
+    if (result.active)
+    {
+        result.makeEffect = !effectMaked_;
+        effectMaked_ = true;
+        result.playSound = hasSound;
+    }
+    else
+    {
+        result.freeEffect = effectMaked_;
+        effectMaked_ = false;
+        // PxWheelSlipEffect calls Source3d::Stop even when no visual actor
+        // was active, provided this behavior owns a sound.
+        result.stopSound = hasSound;
+    }
+    return result;
+}
+
+bool PxWheelSlipEffect::IsEffectMaked() const noexcept
+{
+    return effectMaked_;
 }
 
 } // namespace r3d::game::originalrace::source

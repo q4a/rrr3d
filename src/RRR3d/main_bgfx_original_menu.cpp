@@ -4307,14 +4307,13 @@ int main(int argc, char** argv)
         r3d::audio::SoundHandle rpm = r3d::audio::invalidSound;
         r3d::audio::VoiceHandle idleVoice = r3d::audio::invalidVoice;
         r3d::audio::VoiceHandle rpmVoice = r3d::audio::invalidVoice;
-        // SoundMotor approaches the reported RPM at 10000 RPM/s before it
-        // mixes the idle and high layers.
-        float currentRpm = 0.0F;
+        r3d::game::originalrace::source::SoundMotor behavior;
         bool spatialProxyPlaying = true;
     };
     struct WheelSlipAudio
     {
         r3d::audio::VoiceHandle voice = r3d::audio::invalidVoice;
+        r3d::game::originalrace::source::PxWheelSlipEffect behavior;
         bool spatialProxyPlaying = false;
     };
     struct ShotEffectAudio
@@ -4562,7 +4561,7 @@ int main(int argc, char** argv)
             for (auto& voice : wheelSlipVoices[racer])
                 stopRaceLoopVoice(voice.voice);
         }
-        engine.currentRpm = 0.0F;
+        engine.behavior.Reset();
         engine.spatialProxyPlaying = true;
         r3d::audio::PlayOptions options;
         options.bus = r3d::audio::Bus::Effects;
@@ -16677,28 +16676,13 @@ int main(int argc, char** argv)
                             : originalRace->vehicles.at(
                                   sourceRacer.vehicle);
                     auto& motorAudio = engineAudio[racer];
-                    const float targetRpm =
-                        raceVehicles[racer].engineRpm;
-                    const float distanceRpm =
-                        targetRpm - motorAudio.currentRpm;
-                    const float motorStep =
-                        10000.0F * (audioPaused ? 0.0F : frameSeconds);
-                    motorAudio.currentRpm += std::clamp(
-                        distanceRpm, -motorStep, motorStep);
-                    const float minimumRpm = std::max(
-                        definition.physics.idlingRpm, 1.0F);
-                    const float maximumRpm = std::max(
+                    const auto motorMix = motorAudio.behavior.OnMotor(
+                        audioPaused ? 0.0F : frameSeconds,
+                        raceVehicles[racer].engineRpm,
+                        definition.physics.idlingRpm,
                         definition.physics.maximumRpm,
-                        minimumRpm + 1.0F);
-                    const float idleAlpha = std::clamp(
-                        0.5F *
-                            (motorAudio.currentRpm - minimumRpm) /
-                            minimumRpm,
-                        0.0F, 1.0F);
-                    const float rpmAlpha = std::clamp(
-                        (motorAudio.currentRpm - minimumRpm) /
-                            (maximumRpm - minimumRpm),
-                        0.0F, 1.0F);
+                        definition.rpmVolumeRange,
+                        definition.rpmFrequencyRange);
                     const auto& source =
                         raceVehicles[racer].body.position;
                     const float dx = source.x - listener.x;
@@ -16717,28 +16701,20 @@ int main(int argc, char** argv)
                     const auto rpmSourceVolume =
                         engineSoundVolumes.find(motorAudio.rpm);
                     const float idleVolume =
-                        spatial.gain * (1.0F - idleAlpha) *
+                        spatial.gain * motorMix.idleVolume *
                         (idleSourceVolume != engineSoundVolumes.end()
                              ? idleSourceVolume->second
                              : 1.0F);
                     const float rpmVolume =
-                        spatial.gain * idleAlpha *
-                        (definition.rpmVolumeRange[0] +
-                         rpmAlpha *
-                             (definition.rpmVolumeRange[1] -
-                              definition.rpmVolumeRange[0])) *
+                        spatial.gain * motorMix.rpmVolume *
                         (rpmSourceVolume != engineSoundVolumes.end()
                              ? rpmSourceVolume->second
                              : 1.0F);
-                    const float pitch =
-                        definition.rpmFrequencyRange[0] +
-                        rpmAlpha *
-                            (definition.rpmFrequencyRange[1] -
-                             definition.rpmFrequencyRange[0]);
                     audio.setVoiceParameters(
                         motorAudio.idleVoice, idleVolume, 1.0F, 0.0F);
                     audio.setVoiceParameters(
-                        motorAudio.rpmVoice, rpmVolume, pitch,
+                        motorAudio.rpmVoice, rpmVolume,
+                        motorMix.rpmFrequencyRatio,
                         0.0F);
                     audio.setVoicePaused(
                         motorAudio.idleVoice,
@@ -16761,25 +16737,16 @@ int main(int argc, char** argv)
                     {
                         const auto& contact =
                             raceVehicles[racer].wheelContacts[wheel];
-                        const float sourceSlip =
-                            definition.wheelSlipEffects[wheel] &&
-                                    definition.wheelSlipSounds[wheel] &&
-                                    contact.hasContact
-                                ? std::max(
-                                      std::abs(
-                                          contact.longitudinalSlip) -
-                                          0.4F,
-                                      0.0F) +
-                                      std::max(
-                                          std::abs(
-                                              contact.lateralSlip) -
-                                              0.7F,
-                                          0.0F)
-                                : 0.0F;
                         auto& voice = slipVoices[wheel];
-                        if (sourceSlip <= 0.0F)
+                        const auto slip = voice.behavior.OnProgress(
+                            definition.wheelSlipEffects[wheel] &&
+                                contact.hasContact,
+                            contact.longitudinalSlip,
+                            contact.lateralSlip,
+                            definition.wheelSlipSounds[wheel]);
+                        if (!slip.active)
                         {
-                            if (voice.voice !=
+                            if (slip.stopSound && voice.voice !=
                                 r3d::audio::invalidVoice)
                             {
                                 stopRaceLoopVoice(voice.voice);
@@ -16824,8 +16791,7 @@ int main(int argc, char** argv)
                             audio.setVoiceParameters(
                                 voice.voice,
                                 wheelSpatial.gain *
-                                    std::clamp(
-                                        sourceSlip * 4.0F, 0.0F, 1.0F) *
+                                    slip.volume *
                                     (slipSourceVolume !=
                                              engineSoundVolumes.end()
                                          ? slipSourceVolume->second
