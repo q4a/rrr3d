@@ -141,7 +141,7 @@ int main()
                       ? nullptr
                       : dynamic_cast<source::DroidItem*>(
                             &droidSlot->GetItem());
-    if (droid == nullptr ||
+    if (droid == nullptr || droid->IsInstalled() ||
         droid->GetPos() !=
             std::array<float, 3>{2.5F, 2.5F, 5.0F} ||
         droid->GetRot() !=
@@ -153,15 +153,19 @@ int main()
         return 67;
     player.SetLife(60.0F);
     player.CreateCar(true);
-    if (droid == nullptr || !droid->IsProgressRegistered())
+    if (droid == nullptr || !droid->IsProgressRegistered() ||
+        !droid->IsInstalled())
         return 59;
     player.ProgressBehaviors(0.101F, 0.35F, 0.0F);
     if (std::abs(player.GetLife() - 65.0F) > 0.001F)
         return 60;
     player.FreeCar(false);
-    if (droid->IsProgressRegistered())
+    if (droid->IsProgressRegistered() || droid->IsInstalled() ||
+        droid->IsReadyShot())
         return 61;
     player.CreateCar(true);
+    if (!droid->IsInstalled())
+        return 61;
 
     // Garage::InstalSlot replaces the physical object, applies the selected
     // car's PlaceSlot/PlaceItem transform and immediately connects a Droid
@@ -235,6 +239,7 @@ int main()
     const auto secondWeaponItems = player.GetPrimaryWeaponItems();
     if (firstWeaponItems[0] == nullptr ||
         firstWeaponItems[0] != secondWeaponItems[0] ||
+        !firstWeaponItems[0]->IsInstalled() ||
         firstWeaponItems[0]->GetCurCharge() != 1U ||
         player.GetHyperWeaponItem() == nullptr ||
         player.GetHyperWeaponItem()->GetCurCharge() != 0U ||
@@ -266,6 +271,7 @@ int main()
     std::uint32_t shotCharge = 2U;
     source::WeaponItem shotItem(
         &shotWeapon, 2U, 2U, &shotCharge);
+    shotItem.OnCreateCar();
     if (!player.Shot(shotItem, true, false, 21U) ||
         shotCharge != 1U || player.HasBonusProjectile(21U) ||
         player.GetNextBonusProjectileId() != 1U)

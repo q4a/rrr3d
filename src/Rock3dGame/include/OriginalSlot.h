@@ -66,6 +66,13 @@ public:
     virtual WeaponItem* IsWeaponItem() noexcept;
     virtual const WeaponItem* IsWeaponItem() const noexcept;
 
+    // Player::CreateCar/ReleaseCar dispatch these callbacks to every one of
+    // the ten physical slots. Platform actors remain renderer-owned, but the
+    // installed-item lifecycle is gameplay state and must not survive the
+    // car actor itself.
+    virtual void OnCreateCar() noexcept;
+    virtual void OnDestroyCar() noexcept;
+
     SlotType GetType() const noexcept;
     const std::string& GetRecord() const noexcept;
     virtual const std::string& GetName() const noexcept;

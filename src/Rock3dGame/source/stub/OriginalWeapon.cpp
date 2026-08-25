@@ -776,6 +776,16 @@ const WeaponItem* WeaponItem::IsWeaponItem() const noexcept
     return this;
 }
 
+void WeaponItem::OnCreateCar() noexcept
+{
+    carAttached_ = true;
+}
+
+void WeaponItem::OnDestroyCar() noexcept
+{
+    carAttached_ = false;
+}
+
 void WeaponItem::Bind(
     Weapon* weapon, std::uint32_t maximumCharge,
     std::uint32_t countCharge, std::uint32_t* currentCharge,
@@ -796,7 +806,7 @@ bool WeaponItem::Shot(bool projectileCreated, int newCharge) noexcept
     if (currentCharge_ != nullptr &&
         (*currentCharge_ > 0U || maximumCharge_ == 0U))
     {
-        result = weapon_ != nullptr && projectileCreated;
+        result = carAttached_ && weapon_ != nullptr && projectileCreated;
         if (newCharge == -1)
         {
             newCharge = result
@@ -825,17 +835,20 @@ void WeaponItem::Reload() noexcept
 
 bool WeaponItem::IsReadyShot(float delay) const noexcept
 {
-    return weapon_ != nullptr && weapon_->IsReadyShot(delay);
+    return carAttached_ && weapon_ != nullptr &&
+           weapon_->IsReadyShot(delay);
 }
 
 bool WeaponItem::IsReadyShot() const noexcept
 {
-    return weapon_ != nullptr && weapon_->IsReadyShot();
+    return carAttached_ && weapon_ != nullptr &&
+           weapon_->IsReadyShot();
 }
 
 bool WeaponItem::IsInstalled() const noexcept
 {
-    return weapon_ != nullptr && currentCharge_ != nullptr;
+    return carAttached_ && weapon_ != nullptr &&
+           currentCharge_ != nullptr;
 }
 
 bool WeaponItem::HasShotCharge() const noexcept
@@ -876,11 +889,13 @@ int WeaponItem::GetChargeCost() const noexcept
 
 Weapon* WeaponItem::GetWeapon() const noexcept
 {
-    return weapon_;
+    return carAttached_ ? weapon_ : nullptr;
 }
 
 Weapon::Desc WeaponItem::GetDesc() const
 {
+    // Windows returns the serialized _wpnDesc while its live child actor is
+    // detached. The portable rack owns that same description permanently.
     return weapon_ != nullptr ? weapon_->GetDesc() : Weapon::Desc{};
 }
 
@@ -911,6 +926,7 @@ void DroidItem::Bind(
 
 void DroidItem::OnCreateCar() noexcept
 {
+    WeaponItem::OnCreateCar();
     time_ = 0.0F;
     progressRegistered_ = true;
 }
@@ -920,6 +936,7 @@ void DroidItem::OnDestroyCar() noexcept
     // The source unregisters the progress event here. _time is reset by the
     // next OnCreateCar, not by OnDestroyCar itself.
     progressRegistered_ = false;
+    WeaponItem::OnDestroyCar();
 }
 
 float DroidItem::OnProgress(

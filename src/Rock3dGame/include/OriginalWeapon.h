@@ -325,6 +325,8 @@ public:
 
     WeaponItem* IsWeaponItem() noexcept override;
     const WeaponItem* IsWeaponItem() const noexcept override;
+    void OnCreateCar() noexcept override;
+    void OnDestroyCar() noexcept override;
 
     // projectileCreated is the result of the backend preparation step which
     // Weapon::CreateShot performed in Windows.  newCharge is used by
@@ -347,6 +349,7 @@ public:
 
 private:
     Weapon* weapon_ = nullptr;
+    bool carAttached_ = false;
     std::uint32_t maximumCharge_ = 0U;
     std::uint32_t countCharge_ = 0U;
     std::uint32_t* currentCharge_ = nullptr;
@@ -384,8 +387,8 @@ public:
               std::uint32_t countCharge,
               std::uint32_t* currentCharge,
               float repairValue, float repairPeriod) noexcept;
-    void OnCreateCar() noexcept;
-    void OnDestroyCar() noexcept;
+    void OnCreateCar() noexcept override;
+    void OnDestroyCar() noexcept override;
     float OnProgress(float deltaTime, float& life,
                      float maximumLife, bool death) noexcept;
 

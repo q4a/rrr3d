@@ -519,17 +519,15 @@ void Player::SetCar(const Vehicle* record) noexcept
 
 void Player::CreateCar(bool newRace) noexcept
 {
-    carPresent_ = true;
-    car.OnCreateCar(newRace);
-    Resc();
-    for (std::size_t slot = 0U; slot < weaponSlotCount; ++slot)
+    if (!carPresent_)
     {
-        auto& item = slotRack_.GetSlot(
-            static_cast<PlayerSlotType>(
-                static_cast<std::size_t>(PlayerSlotType::Weapon1) + slot))
-                         .GetItem();
-        if (auto* droid = dynamic_cast<DroidItem*>(&item))
-            droid->OnCreateCar();
+        carPresent_ = true;
+        car.OnCreateCar(newRace);
+        Resc();
+        for (std::size_t slot = 0U;
+             slot < PlayerSlotRack::slotCount; ++slot)
+            slotRack_.GetSlot(static_cast<PlayerSlotType>(slot))
+                .GetItem().OnCreateCar();
     }
     if (!newRace)
         return;
@@ -542,15 +540,10 @@ void Player::FreeCar(bool freeState) noexcept
 {
     if (carPresent_)
     {
-        for (std::size_t slot = 0U; slot < weaponSlotCount; ++slot)
-        {
-            auto& item = slotRack_.GetSlot(
-                static_cast<PlayerSlotType>(
-                    static_cast<std::size_t>(PlayerSlotType::Weapon1) +
-                    slot)).GetItem();
-            if (auto* droid = dynamic_cast<DroidItem*>(&item))
-                droid->OnDestroyCar();
-        }
+        for (std::size_t slot = 0U;
+             slot < PlayerSlotRack::slotCount; ++slot)
+            slotRack_.GetSlot(static_cast<PlayerSlotType>(slot))
+                .GetItem().OnDestroyCar();
     }
     carPresent_ = false;
     car.OnFreeCar(freeState);
@@ -598,7 +591,13 @@ void Player::BindWeaponItems(
         const auto expectedType = itemType(definitions[definitionIndex]);
         auto* item = physicalSlot.GetItem().IsWeaponItem();
         if (item == nullptr || physicalSlot.GetType() != expectedType)
+        {
+            if (carPresent_)
+                physicalSlot.GetItem().OnDestroyCar();
             item = physicalSlot.CreateItem(expectedType).IsWeaponItem();
+            if (carPresent_)
+                physicalSlot.GetItem().OnCreateCar();
+        }
         return item;
     };
     auto bind = [&](WeaponItem* item, Weapon* weapon,
@@ -766,11 +765,10 @@ void Player::BindSlots(
 {
     if (carPresent_)
     {
-        for (auto* item : GetPrimaryWeaponItems())
-        {
-            if (auto* droid = dynamic_cast<DroidItem*>(item))
-                droid->OnDestroyCar();
-        }
+        for (std::size_t slot = 0U;
+             slot < PlayerSlotRack::slotCount; ++slot)
+            slotRack_.GetSlot(static_cast<PlayerSlotType>(slot))
+                .GetItem().OnDestroyCar();
     }
     slotRack_.Bind(workshop, loadout);
     if (carRecord_ != nullptr)
@@ -812,11 +810,10 @@ void Player::BindSlots(
     }
     if (carPresent_)
     {
-        for (auto* item : GetPrimaryWeaponItems())
-        {
-            if (auto* droid = dynamic_cast<DroidItem*>(item))
-                droid->OnCreateCar();
-        }
+        for (std::size_t slot = 0U;
+             slot < PlayerSlotRack::slotCount; ++slot)
+            slotRack_.GetSlot(static_cast<PlayerSlotType>(slot))
+                .GetItem().OnCreateCar();
     }
 }
 
@@ -827,20 +824,14 @@ void Player::SetSlot(
 {
     auto& slot = slotRack_.GetSlot(type);
     if (carPresent_)
-    {
-        if (auto* droid = dynamic_cast<DroidItem*>(&slot.GetItem()))
-            droid->OnDestroyCar();
-    }
+        slot.GetItem().OnDestroyCar();
     slot.SetRecord(record);
     if (record == nullptr)
         return;
     slot.GetItem().SetPos(position);
     slot.GetItem().SetRot(rotation);
     if (carPresent_)
-    {
-        if (auto* droid = dynamic_cast<DroidItem*>(&slot.GetItem()))
-            droid->OnCreateCar();
-    }
+        slot.GetItem().OnCreateCar();
 }
 
 void Player::ApplyMobility(

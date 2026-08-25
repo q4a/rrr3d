@@ -75,6 +75,10 @@ int main()
     source::WeaponItem item(
         &rack.primary[2], 7U, 4U, &charge, 2U, 12.5F, 100);
     rack.primary[2].OnProgress(0.3F);
+    if (item.IsInstalled() || item.IsReadyShot() ||
+        item.GetWeapon() != nullptr || item.Shot(true) || charge != 2U)
+        return 8;
+    item.OnCreateCar();
     if (!item.IsInstalled() || !item.IsReadyShot() ||
         !item.HasShotCharge() || item.GetMaxCharge() != 7U ||
         item.GetCntCharge() != 4U || item.GetCurCharge() != 2U ||
@@ -89,12 +93,17 @@ int main()
     item.Reload();
     if (charge != 4U)
         return 11;
+    item.OnDestroyCar();
+    if (item.IsInstalled() || item.IsReadyShot() ||
+        item.GetWeapon() != nullptr || item.Shot(true) || charge != 4U)
+        return 11;
 
     // maxCharge==0 is the original infinite-ammunition sentinel.  It must
     // still create a shot at currentCharge==0 and clamp the decrement to 0.
     charge = 0U;
     source::WeaponItem infinite(
         &rack.mine, 0U, 0U, &charge);
+    infinite.OnCreateCar();
     rack.mine.OnProgress(1.0F);
     if (!infinite.HasShotCharge() || !infinite.Shot(true) || charge != 0U)
         return 12;
@@ -104,6 +113,7 @@ int main()
     charge = 3U;
     source::WeaponItem replicated(
         &rack.hyper, 7U, 3U, &charge);
+    replicated.OnCreateCar();
     if (replicated.Shot(false, 1) || charge != 1U)
         return 13;
 
@@ -119,6 +129,8 @@ int main()
         source::WeaponItem(&rack.primary[1], 7U, 1U, &secondCharge)};
     std::array<source::WeaponItem*, 2U> primaryItems{
         &primary[0], &primary[1]};
+    for (auto& primaryItem : primary)
+        primaryItem.OnCreateCar();
     const auto allPlan = source::Logic::ShotAll(primaryItems, true);
     if (!allPlan.humanShotEvent || allPlan.shotCount != 1U ||
         !allPlan.Get(source::Logic::SlotType::Weapon1) ||

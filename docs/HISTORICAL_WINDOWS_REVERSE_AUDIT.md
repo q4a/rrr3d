@@ -1343,6 +1343,27 @@ primary-предмета используют тот же owner и ту же п�
 Регрессии проверяют ненулевой Hyper offset, его точную world-space позицию в
 attached projectile и полный mount из реального `manticora` в `garage.xml`.
 
+### P2.39 — complete SlotItem car lifecycle — выполнено
+
+Сверка `Player::CreateCar/ReleaseCar` обнаружила ещё один остаток временной
+архитектуры: callbacks подключения/отключения автомобиля исполнялись только
+для `DroidItem` в четырёх primary-позициях. В Windows цикл проходит по всем
+десяти физическим `Slot`; именно `WeaponItem::OnCreateCar` создаёт дочерний
+weapon actor (`_inst`), а `OnDestroyCar` освобождает его. Поэтому после
+`FreeCar` порт продолжал считать primary/Hyper/Mine установленными и готовыми
+к выстрелу, хотя машины уже не существовало.
+
+В backend-neutral `SlotItem` перенесены виртуальные car lifecycle callbacks.
+`Player::CreateCar`, `FreeCar`, `BindSlots` и `SetSlot` теперь симметрично
+подключают/отключают все десять предметов. `WeaponItem` отдельно хранит
+состояние live child actor: `IsInstalled`, `IsReadyShot`, `GetWeapon` и
+успешность локального `Shot` требуют активной машины; replicated `newCharge`
+по-прежнему применяется даже к неуспешному shot, как в Windows. `DroidItem`
+вызывает базовый weapon lifecycle вместе с регистрацией progress callback.
+Повторный `CreateCar` больше не создаёт callbacks второй раз для уже живой
+машины. Regression проверяет detached/attached/detached/respawn-переходы для
+обычного оружия и Droid, включая live `Garage::InstalSlot` replacement.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

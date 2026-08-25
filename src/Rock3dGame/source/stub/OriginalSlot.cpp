@@ -79,6 +79,8 @@ const WeaponItem* SlotItem::IsWeaponItem() const noexcept
 {
     return nullptr;
 }
+void SlotItem::OnCreateCar() noexcept {}
+void SlotItem::OnDestroyCar() noexcept {}
 
 SlotType SlotItem::GetType() const noexcept { return type_; }
 const std::string& SlotItem::GetRecord() const noexcept { return record_; }

@@ -16,6 +16,8 @@ int main()
         source::WeaponItem(&weapons[2], 7U, 1U, &charges[2])};
     std::array<source::WeaponItem*, 3U> itemPointers{
         &items[0], &items[1], &items[2]};
+    for (auto& item : items)
+        item.OnCreateCar();
 
     source::HumanPlayer human;
     auto selection = human.SelectWeapon(itemPointers);
