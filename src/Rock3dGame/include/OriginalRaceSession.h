@@ -405,6 +405,8 @@ public:
     void update(float seconds,
                 const std::vector<r3d::physics::VehicleState>& vehicles,
                 const RaceControl& humanControl);
+    void completeRaceForExit(
+        const std::vector<r3d::physics::VehicleState>& vehicles);
 
     RacePhase phase() const noexcept;
     float countdownSeconds() const noexcept;

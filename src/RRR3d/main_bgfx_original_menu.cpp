@@ -7003,6 +7003,7 @@ int main(int argc, char** argv)
                 physicsWorld->vehicle().body.position;
         racePauseDialogObserved = true;
     };
+    std::function<void(bool)> showFinishMenu;
 #ifdef RRR3D_NETWORK
     auto collectNetworkRaceResults = [&]() {
         const auto toSourceInt = [](std::uint32_t value) {
@@ -7047,6 +7048,13 @@ int main(int argc, char** argv)
     };
 #endif
     auto leaveCurrentRace = [&](bool publishNetworkRaceExit = true) {
+        // Menu::ExitRace -> GameMode::ExitRace -> Race::ExitRace always
+        // completes/ranks every remaining player before saving or publishing
+        // network results, even for an early HudMenu exit.
+        raceSession.completeRaceForExit(raceVehicles);
+        if (profileState.tutorialStage < 3U)
+            ++profileState.tutorialStage;
+        saveRaceProfile();
 #ifdef RRR3D_NETWORK
         if (publishNetworkRaceExit && networkMatchStarted &&
             networkHostRequested && networkRaceStarted &&
@@ -7071,18 +7079,20 @@ int main(int argc, char** argv)
 #else
         static_cast<void>(publishNetworkRaceExit);
 #endif
-        if (profileState.tutorialStage < 3U)
-            ++profileState.tutorialStage;
-        saveRaceProfile();
         raceSession.setPaused(false);
         exitRaceDialogVisible = false;
-        inRace = false;
-        clearRaceControls();
+        if (showFinishMenu)
+            showFinishMenu(false);
+        else
+        {
+            inRace = false;
+            clearRaceControls();
 #ifdef RRR3D_AUDIO
-        stopRaceAudio();
+            stopRaceAudio();
 #endif
-        previousFrameTicks = SDL_GetTicksNS();
-        std::cout << "Original HudMenu accept: Race -> RaceMenu2\n";
+            previousFrameTicks = SDL_GetTicksNS();
+        }
+        std::cout << "Original HudMenu accept: Race -> FinishMenu\n";
     };
     auto replaceOptionsPage =
         [&](MenuPageVisual& page,
@@ -10075,7 +10085,7 @@ int main(int argc, char** argv)
         }
         refreshCurrentOptionsPage();
     };
-    auto showFinishMenu = [&](bool persistProgress = true) {
+    showFinishMenu = [&](bool persistProgress) {
         if (finishMenuShown || raceSession.racers().empty())
             return;
         finishMenuShown = true;
@@ -17011,7 +17021,7 @@ int main(int argc, char** argv)
                 showFinishMenu(
                     !networkMatchStarted || networkHostRequested);
 #else
-                showFinishMenu();
+                showFinishMenu(true);
 #endif
             }
         }

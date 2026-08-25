@@ -5870,6 +5870,19 @@ void OriginalRaceSession::applyCampaignRewards() noexcept
     campaignRewardsApplied_ = true;
 }
 
+void OriginalRaceSession::completeRaceForExit(
+    const std::vector<r3d::physics::VehicleState>& vehicles)
+{
+    // Race::ExitRace unconditionally begins with CompleteRace(results), even
+    // when the local human accepted HudMenu's exit dialog before finishing.
+    // The renderer/Jolt teardown remains outside this source gameplay owner.
+    completeRemainingRacers(vehicles);
+    updatePlaces(vehicles);
+    phase_ = RacePhase::Finished;
+    phaseBeforePause_ = phase_;
+    finishSecondsRemaining_ = 0.0F;
+}
+
 void OriginalRaceSession::update(
     float seconds,
     const std::vector<r3d::physics::VehicleState>& vehicles,
@@ -6381,6 +6394,40 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             session.vehicleInputs().empty() ||
             session.vehicleInputs().front().throttle < 0.9F)
             throw std::runtime_error("countdown/control transition failed");
+
+        {
+            OriginalRaceSession exitSession(race);
+            auto& exitRacers = const_cast<std::vector<RacerRuntime>&>(
+                exitSession.racers());
+            exitRacers.front().pickedMoney = 17U;
+            exitSession.completeRaceForExit(vehicles);
+            const auto* humanResult = exitSession.resultForRacer(0U);
+            const auto activeCount = static_cast<std::size_t>(std::count_if(
+                exitRacers.begin(), exitRacers.end(),
+                [](const RacerRuntime& racer) {
+                    return !racer.disconnected;
+                }));
+            if (!exitSession.finishPresentationReady() ||
+                exitSession.results().size() != activeCount ||
+                humanResult == nullptr || humanResult->pickedMoney != 17U ||
+                !exitRacers.front().finished ||
+                exitRacers.front().pickedMoney != 0U ||
+                exitRacers.front().money !=
+                    humanResult->money + humanResult->pickedMoney ||
+                exitRacers.front().points != humanResult->points)
+            {
+                throw std::runtime_error(
+                    "Race::ExitRace did not complete/rank/save all players");
+            }
+            const auto settledMoney = exitRacers.front().money;
+            exitSession.completeRaceForExit(vehicles);
+            if (exitRacers.front().money != settledMoney ||
+                exitSession.results().size() != activeCount)
+            {
+                throw std::runtime_error(
+                    "Race::ExitRace completion was applied more than once");
+            }
+        }
 
         input.reset = true;
         vehicles[0].contactCount = 0U;

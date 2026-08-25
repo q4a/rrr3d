@@ -1711,3 +1711,22 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   удалённого участника больше не возникает.
 - Unit regression покрывает authoritative finish ordering, lead swap и
   roster removal. 13/13 non-network CTest и полный map1 physics smoke проходят.
+
+### Source Race::ExitRace early-completion block
+
+- Восстановлен обязательный первый вызов `Race::CompleteRace(results)` из
+  Windows `Race::ExitRace`. При подтверждённом досрочном выходе session теперь
+  ранжирует всех оставшихся игроков по source правилам, фиксирует Results,
+  сбрасывает picked money, начисляет campaign rewards и только затем сохраняет
+  профиль либо сериализует сетевой результат.
+- Исправлена неверная UI-ветвь portable runtime: offline
+  `HudMenu -> Menu::ExitRace -> GameMode::ExitRaceGoFinish` ведёт в исходный
+  FinishMenu, а не прямо в RaceMenu2. Таблица результатов получает даже
+  досрочно завершённую гонку; переход после её закрытия остаётся в общей
+  source-derived `originalFinishTransition`.
+- Для network host порядок также восстановлен: Complete/Save выполняются до
+  `OnExitRace` RPC, поэтому пакет содержит окончательные place, money, points
+  и captured pickMoney, как `NetRace.cpp`.
+- Physics regression завершает гонку из countdown/ранней racing state,
+  проверяет результат каждого активного игрока, немедленную готовность
+  FinishMenu и идемпотентность наград. 13/13 CTest и map1 smoke проходят.

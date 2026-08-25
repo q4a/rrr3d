@@ -1217,6 +1217,18 @@ Network, video и Steam явно выключены.
   disconnect не становится выдуманной сменой лидера. Thresholds и
   result-suppression перенесены без изменения.
 
+### Source Race::ExitRace completion path
+
+- Подтвердилось расхождение досрочного выхода. Windows всегда вызывает
+  `CompleteRace(results)` до teardown/save, а порт сохранял только текущий
+  Human state и возвращался прямо в RaceMenu. Теперь все активные машины
+  получают Results/rewards, Tournament обрабатывается тем же путём, и
+  `Menu::ExitRace` открывает FinishMenu через эквивалент
+  `ExitRaceGoFinish`.
+- Network host завершает source result graph до формирования ExitRace RPC;
+  captured picked money берётся из `RaceLifecycle`, а не из уже сброшенного
+  Player. Повторный exit не дублирует награды или результаты.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity
