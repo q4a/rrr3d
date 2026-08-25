@@ -1818,6 +1818,26 @@ Resource regression проверяет уровень всех четырёх а
 Weapon2..4 при лимите 1, полный боезапас Hyper/Mine/weapon и неизменность
 человеческой комплектации.
 
+### P2.62 — lifecycle `Race::_minDifficulty` и общий `ExitRace` — выполнено
+
+Обратная сверка `Race::EnterProfile`, `SnProfile::LoadGame/SaveGame`,
+`Race::ExitRace` и `Menu::DoPlayFinal` выявила две связанные потери. Новый
+portable-профиль начинал с `minDifficulty=gdEasy`, хотя Windows использует
+sentinel `cDifficultyEnd`; кроме того, естественный финиш не выполнял общий
+profile-lifecycle `ExitRace`, поэтому tutorial stage изменялся только при
+досрочном выходе, а минимальная реально использованная сложность не
+обновлялась вообще. Это делало итоговые Easy/Normal/Hard champion conditions
+недостоверными.
+
+Новый профиль теперь начинает с `cDifficultyEnd`, а единая идемпотентная
+граница естественного и досрочного завершения один раз повышает tutorial
+stage и понижает `minDifficulty` до сложности активного профиля перед
+сохранением. Временный SkProfile выполняет тот же runtime-переход, но
+существующая source-граница persistence возвращает championship player;
+изолированный FinishMenu smoke состояние не меняет. Profile regression
+проверяет последовательность Hard -> Normal -> Hard, неизвестный token,
+новый профиль и отсутствие утечки skirmish-состояния в кампанию.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

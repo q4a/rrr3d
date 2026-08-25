@@ -74,6 +74,11 @@ struct PlanetProgress
     std::uint32_t pass = 0;
 };
 
+// GameBase::Difficulty ends with cDifficultyEnd. Race uses that sentinel
+// until the first completed Race::ExitRace lowers it to the active profile
+// difficulty; SnProfile persists it for the champion difficulty result.
+inline constexpr std::uint32_t originalDifficultyEnd = 3U;
+
 struct PlayerProfile
 {
     static constexpr std::size_t planetCount = 6;
@@ -86,7 +91,7 @@ struct PlayerProfile
     std::string name = "profile1";
     std::string difficulty = "gdNormal";
     bool carChanged = false;
-    std::uint32_t minimumDifficulty = 0;
+    std::uint32_t minimumDifficulty = originalDifficultyEnd;
     std::array<PlanetProgress, planetCount> planets{};
     std::uint32_t currentTrack = 0;
     std::uint32_t currentPlanet = 0;
@@ -161,6 +166,11 @@ struct ProfileState
 // is read.  Smoke tests use it so a player's saved workshop loadout cannot
 // change source-provenance assertions.
 ProfileState makeOriginalDefaultProfileState();
+
+// Source-equivalent tail of Race::ExitRace. Unknown difficulty tokens cannot
+// lower the sentinel, matching the finite source enum rather than silently
+// treating corrupt profile data as normal difficulty.
+void completeOriginalRaceDifficulty(PlayerProfile& profile) noexcept;
 
 // Race::CompletePlanet is also used while loading race.xml. Completing the
 // fifth tournament planet unlocks every non-tournament planet, and repeated

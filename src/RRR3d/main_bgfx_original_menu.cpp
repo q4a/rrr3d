@@ -5829,6 +5829,7 @@ int main(int argc, char** argv)
     std::array<bool, 2> raceCameraStylesObserved{};
     std::array<bool, 5> legacyDebugCameraStylesObserved{};
     bool raceProgressSaved = false;
+    bool raceExitLifecycleApplied = false;
     bool finishMenuShown = false;
     bool finishMenuFrameObserved =
         !options->finishMenuSmokeTest;
@@ -7124,6 +7125,7 @@ int main(int argc, char** argv)
         racePauseElapsedSnapshot = -1.0F;
         raceElapsedSeconds = 0.0F;
         raceProgressSaved = false;
+        raceExitLifecycleApplied = false;
         finishMenuShown = false;
         finishVoiceIndex = 0U;
         finishLastVoiceDispatched = false;
@@ -7278,6 +7280,18 @@ int main(int argc, char** argv)
         racePauseDialogObserved = true;
     };
     std::function<void(bool)> showFinishMenu;
+    auto applyOriginalRaceExitLifecycle = [&]() {
+        if (raceExitLifecycleApplied)
+            return;
+        // Race::ExitRace advances the shared tutorial and lowers the
+        // SnProfile minimum difficulty exactly once while _startRace is set.
+        // Both natural completion and the HudMenu exit pass this boundary.
+        if (profileState.tutorialStage < 3U)
+            ++profileState.tutorialStage;
+        r3d::game::originalrace::completeOriginalRaceDifficulty(
+            profileState.player);
+        raceExitLifecycleApplied = true;
+    };
 #ifdef RRR3D_NETWORK
     auto collectNetworkRaceResults = [&]() {
         const auto toSourceInt = [](std::uint32_t value) {
@@ -7326,8 +7340,7 @@ int main(int argc, char** argv)
         // completes/ranks every remaining player before saving or publishing
         // network results, even for an early HudMenu exit.
         raceSession.completeRaceForExit(raceVehicles);
-        if (profileState.tutorialStage < 3U)
-            ++profileState.tutorialStage;
+        applyOriginalRaceExitLifecycle();
         saveRaceProfile();
 #ifdef RRR3D_NETWORK
         if (publishNetworkRaceExit && networkMatchStarted &&
@@ -10368,6 +10381,11 @@ int main(int argc, char** argv)
         // ExitRaceGoFinish. This also executes on the network result path;
         // CompleteRace/ExitRace are deliberately idempotent there.
         raceSession.completeRaceForExit(raceVehicles);
+        // --finish-menu-smoke-test is a renderer fixture, not a started
+        // source race. Real host/client and offline finishes all execute the
+        // Race::ExitRace state transition even when only the host persists.
+        if (!options->finishMenuSmokeTest)
+            applyOriginalRaceExitLifecycle();
         finishMenuShown = true;
         finishAnimationSeconds = 0.0F;
         finishVoiceIndex = 0U;

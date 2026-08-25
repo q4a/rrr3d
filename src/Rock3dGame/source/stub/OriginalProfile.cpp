@@ -724,6 +724,19 @@ ProfileState makeOriginalDefaultProfileState()
     return state;
 }
 
+void completeOriginalRaceDifficulty(PlayerProfile& profile) noexcept
+{
+    std::uint32_t difficulty = originalDifficultyEnd;
+    if (profile.difficulty == "gdEasy")
+        difficulty = 0U;
+    else if (profile.difficulty == "gdNormal")
+        difficulty = 1U;
+    else if (profile.difficulty == "gdHard")
+        difficulty = 2U;
+    profile.minimumDifficulty =
+        std::min(profile.minimumDifficulty, difficulty);
+}
+
 void completeOriginalPlanet(
     ProfileState& state, std::uint32_t planetIndex)
 {
@@ -924,7 +937,9 @@ bool runOriginalProfileFlowSmokeTest(std::string& error)
 {
     error.clear();
     auto state = makeOriginalDefaultProfileState();
-    if (state.tutorialStage != 0U || state.languageSerialized ||
+    if (state.tutorialStage != 0U ||
+        state.player.minimumDifficulty != originalDifficultyEnd ||
+        state.languageSerialized ||
         state.commentatorStyleSerialized ||
         state.config.keyboardControls.size() !=
             originalcontrol::gameActionCount ||
@@ -949,6 +964,23 @@ bool runOriginalProfileFlowSmokeTest(std::string& error)
         error =
             "source ControlManager tables/defaults or absent config "
             "fields diverged";
+        return false;
+    }
+
+    auto difficultyLifecycle = state.player;
+    difficultyLifecycle.difficulty = "gdHard";
+    completeOriginalRaceDifficulty(difficultyLifecycle);
+    difficultyLifecycle.difficulty = "gdNormal";
+    completeOriginalRaceDifficulty(difficultyLifecycle);
+    difficultyLifecycle.difficulty = "gdHard";
+    completeOriginalRaceDifficulty(difficultyLifecycle);
+    difficultyLifecycle.difficulty = "gdInvented";
+    completeOriginalRaceDifficulty(difficultyLifecycle);
+    if (difficultyLifecycle.minimumDifficulty != 1U)
+    {
+        error =
+            "Race::_minDifficulty did not retain the lowest completed "
+            "source difficulty";
         return false;
     }
 
@@ -1062,6 +1094,7 @@ bool runOriginalProfileFlowSmokeTest(std::string& error)
 
     auto skirmishRuntime = state;
     skirmishRuntime.player = skirmish;
+    completeOriginalRaceDifficulty(skirmishRuntime.player);
     skirmishRuntime.config.lapsCount = 7U;
     skirmishRuntime.achievementPoints = 42U;
     const auto persisted =
@@ -1069,6 +1102,8 @@ bool runOriginalProfileFlowSmokeTest(std::string& error)
             skirmishRuntime, campaignBeforeSkirmish);
     if (persisted.player.name != "profile1" ||
         persisted.player.money != 999U ||
+        persisted.player.minimumDifficulty !=
+            campaignBeforeSkirmish.minimumDifficulty ||
         persisted.config.lapsCount != 7U ||
         persisted.achievementPoints != 42U ||
         std::find(
@@ -1086,6 +1121,7 @@ bool runOriginalProfileFlowSmokeTest(std::string& error)
     if (newName != "profile2" ||
         state.player.name != "profile2" ||
         state.player.difficulty != "gdHard" ||
+        state.player.minimumDifficulty != originalDifficultyEnd ||
         state.player.money != 0U || state.player.points != 0U ||
         state.player.planets[0].state != 0U ||
         state.player.planets[0].pass != 1U ||
