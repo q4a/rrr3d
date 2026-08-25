@@ -10,9 +10,29 @@ int main()
 {
     source::Player player;
     player.Reset(80.0F, 3U);
+    player.ConfigureIdentity(
+        source::Player::humanId, 7, 3U, "Tyler", "Network Tyler",
+        {0.2F, 0.3F, 0.4F, 1.0F});
     if (player.life != 80.0F || player.maximumLife != 80.0F ||
         player.place != 3U || player.finished || player.destroyed)
         return 1;
+    if (!player.IsHuman() || player.IsComputer() || player.IsOpponent() ||
+        player.GetId() != source::Player::humanId ||
+        player.GetGamerId() != 7 || player.GetNetSlot() != 3U ||
+        player.GetName() != "Network Tyler" ||
+        std::abs(player.GetColor()[2] - 0.4F) > 0.001F)
+        return 41;
+    player.SetNetName({});
+    if (player.GetName() != "Tyler")
+        return 42;
+    player.SetId(4 << source::Player::opponentBit);
+    if (player.IsHuman() || player.IsComputer() || !player.IsOpponent() ||
+        !player.IsHumanOrOpponent())
+        return 43;
+    player.SetId(3);
+    if (player.IsHuman() || !player.IsComputer() || player.IsOpponent() ||
+        player.IsHumanOrOpponent())
+        return 44;
 
     player.weaponSlots = {2U, source::Player::invalidWeapon, 4U, 5U};
     player.weaponCapacity = {6U, 0U, 3U, 2U};

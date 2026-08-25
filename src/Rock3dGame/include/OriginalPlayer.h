@@ -10,6 +10,7 @@
 #include <functional>
 #include <limits>
 #include <span>
+#include <string>
 #include <vector>
 
 namespace r3d::game::originalrace::source
@@ -106,6 +107,15 @@ using ResetCarRayCast =
 class Player : public GameObject
 {
 public:
+    // Race::Player identifiers from the original Windows runtime.  These
+    // are bit fields, not indices into the portable racer vector.
+    static constexpr int undefinedId = -1;
+    static constexpr int humanId = 0;
+    static constexpr int computerMask = 0x000000FF;
+    static constexpr int opponentBit = 8;
+    static constexpr int opponentMask = 0x0000FF00;
+    static constexpr unsigned defaultNetSlot = 0U;
+
     static constexpr std::size_t invalidWeapon =
         std::numeric_limits<std::size_t>::max();
     static constexpr std::size_t weaponSlotCount = 4U;
@@ -232,6 +242,26 @@ public:
 
     void Reset(float newMaximumLife, std::uint32_t initialPlace,
                Trace* trace = nullptr) noexcept;
+    void ConfigureIdentity(
+        int playerId, int sourceGamerId, unsigned sourceNetSlot,
+        std::string sourceName, std::string sourceNetName,
+        const std::array<float, 4>& sourceColor);
+    int GetId() const noexcept;
+    int GetGamerId() const noexcept;
+    unsigned GetNetSlot() const noexcept;
+    const std::string& GetNetName() const noexcept;
+    const std::string& GetName() const noexcept;
+    const std::array<float, 4>& GetColor() const noexcept;
+    void SetId(int value) noexcept;
+    void SetGamerId(int value) noexcept;
+    void SetNetSlot(unsigned value) noexcept;
+    void SetNetName(std::string value);
+    void SetName(std::string value);
+    void SetColor(const std::array<float, 4>& value) noexcept;
+    bool IsHuman() const noexcept;
+    bool IsComputer() const noexcept;
+    bool IsOpponent() const noexcept;
+    bool IsHumanOrOpponent() const noexcept;
     void CreateCar(bool newRace) noexcept;
     void FreeCar(bool freeState) noexcept;
     void OnLapPass(std::size_t weaponDefinitionCount) noexcept;
@@ -350,6 +380,12 @@ protected:
     void OnImmortalStatusEvent(bool status) noexcept override;
 
 private:
+    int id_ = undefinedId;
+    int gamerId_ = -1;
+    unsigned netSlot_ = defaultNetSlot;
+    std::string name_;
+    std::string netName_;
+    std::array<float, 4> color_{1.0F, 1.0F, 1.0F, 1.0F};
     bool energyDamageEffectCreated_ = false;
     std::vector<PlayerGameEvent> gameEvents_;
     std::vector<std::uint32_t> bonusProjectileIds_;

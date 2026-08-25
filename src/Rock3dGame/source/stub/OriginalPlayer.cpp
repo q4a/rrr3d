@@ -377,6 +377,72 @@ void Player::Reset(float newMaximumLife,
     car.Reset(trace);
 }
 
+void Player::ConfigureIdentity(
+    int playerId, int sourceGamerId, unsigned sourceNetSlot,
+    std::string sourceName, std::string sourceNetName,
+    const std::array<float, 4>& sourceColor)
+{
+    id_ = playerId;
+    gamerId_ = sourceGamerId;
+    netSlot_ = sourceNetSlot;
+    name_ = std::move(sourceName);
+    netName_ = std::move(sourceNetName);
+    color_ = sourceColor;
+}
+
+int Player::GetId() const noexcept { return id_; }
+
+int Player::GetGamerId() const noexcept { return gamerId_; }
+
+unsigned Player::GetNetSlot() const noexcept { return netSlot_; }
+
+const std::string& Player::GetNetName() const noexcept { return netName_; }
+
+const std::string& Player::GetName() const noexcept
+{
+    return netName_.empty() ? name_ : netName_;
+}
+
+const std::array<float, 4>& Player::GetColor() const noexcept
+{
+    return color_;
+}
+
+void Player::SetId(int value) noexcept { id_ = value; }
+
+void Player::SetGamerId(int value) noexcept { gamerId_ = value; }
+
+void Player::SetNetSlot(unsigned value) noexcept { netSlot_ = value; }
+
+void Player::SetNetName(std::string value)
+{
+    netName_ = std::move(value);
+}
+
+void Player::SetName(std::string value) { name_ = std::move(value); }
+
+void Player::SetColor(const std::array<float, 4>& value) noexcept
+{
+    color_ = value;
+}
+
+bool Player::IsHuman() const noexcept { return id_ == humanId; }
+
+bool Player::IsComputer() const noexcept
+{
+    return (id_ & computerMask) != 0;
+}
+
+bool Player::IsOpponent() const noexcept
+{
+    return (id_ & opponentMask) != 0;
+}
+
+bool Player::IsHumanOrOpponent() const noexcept
+{
+    return IsHuman() || IsOpponent();
+}
+
 void Player::CreateCar(bool newRace) noexcept
 {
     car.OnCreateCar(newRace);

@@ -1155,6 +1155,16 @@ void OriginalRaceSession::reset()
         racers_[index].Reset(
             vehicle.maximumLife,
             static_cast<std::uint32_t>(index + 1U), &sourceTrace_);
+        const int playerId =
+            sourceRacer.playerId != source::Player::undefinedId
+                ? sourceRacer.playerId
+                : (sourceRacer.human && index == 0U
+                       ? source::Player::humanId
+                       : static_cast<int>(index));
+        racers_[index].ConfigureIdentity(
+            playerId, static_cast<int>(sourceRacer.gamerId),
+            sourceRacer.netSlot, sourceRacer.name,
+            sourceRacer.netName, sourceRacer.color);
         racers_[index].CreateCar(true);
         for (std::size_t weaponIndex = 0;
              weaponIndex < race_.weapons.size(); ++weaponIndex)
@@ -1385,11 +1395,11 @@ void OriginalRaceSession::reset()
         }
         itemRack.OnCreateCar();
     }
+    const auto humanPosition = std::find_if(
+        racers_.begin(), racers_.end(),
+        [](const source::Player& player) { return player.IsHuman(); });
     source::Player* human =
-        !racers_.empty() && !race_.racers.empty() &&
-                race_.racers.front().human
-            ? &racers_.front()
-            : nullptr;
+        humanPosition == racers_.end() ? nullptr : &*humanPosition;
     raceRunState_.StartRace(racers_, human);
     if (legacyWindowsDebug_)
         raceRunState_.GoRace(human);
@@ -1677,8 +1687,8 @@ bool OriginalRaceSession::applyRacerDamageInternal(
             if (!networkGameplayHost_)
                 return false;
         }
-        else if (attacker >= race_.racers.size() ||
-                 !race_.racers[attacker].human ||
+        else if (attacker >= racers_.size() ||
+                 !racers_[attacker].IsHumanOrOpponent() ||
                  (!networkGameplayHost_ &&
                   (attacker >= networkOwnedRacers_.size() ||
                    !networkOwnedRacers_[attacker])))
@@ -1921,8 +1931,8 @@ OriginalRaceSession::applyDecorationDamageInternal(
     // object; AI damage is deliberately ignored by NetRace::Damage.
     if (networkGameplayEnabled_ && !networkReplicated)
     {
-        if (attacker >= race_.racers.size() ||
-            !race_.racers[attacker].human)
+        if (attacker >= racers_.size() ||
+            !racers_[attacker].IsHumanOrOpponent())
             return {decorationLife_[hit], false};
         if (!networkGameplayHost_)
         {
@@ -2009,11 +2019,13 @@ void OriginalRaceSession::synchronizeNetworkCountdown(
         phase_ = targetPhase;
     if (stage == 4)
     {
+        const auto humanPosition = std::find_if(
+            racers_.begin(), racers_.end(),
+            [](const source::Player& player) {
+                return player.IsHuman();
+            });
         source::Player* human =
-            !racers_.empty() && !race_.racers.empty() &&
-                    race_.racers.front().human
-                ? &racers_.front()
-                : nullptr;
+            humanPosition == racers_.end() ? nullptr : &*humanPosition;
         raceRunState_.GoRace(human);
     }
 
@@ -2410,18 +2422,16 @@ void OriginalRaceSession::updateProgress(
             [](const RacerRuntime& candidate) {
                 return !candidate.disconnected;
             }));
-    const bool localHuman =
-        racer == 0U && racer < race_.racers.size() &&
-        race_.racers[racer].human;
-    const bool hasHuman =
-        !racers_.empty() && !racers_.front().disconnected &&
-        !race_.racers.empty() && race_.racers.front().human;
+    const bool localHuman = runtime.IsHuman();
+    const bool hasHuman = std::any_of(
+        racers_.begin(), racers_.end(),
+        [](const RacerRuntime& candidate) {
+            return !candidate.disconnected && candidate.IsHuman();
+        });
     source::RaceLifecyclePlayer player;
     player.playerId = racer;
     player.human = localHuman;
-    player.opponent =
-        racer != 0U && racer < race_.racers.size() &&
-        race_.racers[racer].human;
+    player.opponent = runtime.IsOpponent();
     player.disconnected = runtime.disconnected;
     player.finished = runtime.finished;
     player.laps = runtime.car.numLaps;
@@ -2503,7 +2513,7 @@ OriginalRaceSession::progressPlayers(
     {
         cheatPlayers.push_back(
             {racer,
-             racer < race_.racers.size() && race_.racers[racer].human,
+             racers_[racer].IsHumanOrOpponent(),
              !racers_[racer].disconnected,
              racers_[racer].car.GetLap()});
     }
@@ -2517,8 +2527,7 @@ OriginalRaceSession::progressPlayers(
             continue;
         const std::uint32_t cheatMask =
             racer < aiPlayers_.size() &&
-                    racer < race_.racers.size() &&
-                    !race_.racers[racer].human
+                    racers_[racer].IsComputer()
                 ? aiPlayers_[racer].GetCheat()
                 : (racer == 0U && networkGameplayEnabled_
                        ? source::Player::cheatEnableFaster
@@ -2567,7 +2576,7 @@ void OriginalRaceSession::updateAiTracks(
          racer < racers_.size() && racer < vehicles.size() &&
          racer < aiPlayers_.size(); ++racer)
     {
-        if (race_.racers[racer].human ||
+        if (!racers_[racer].IsComputer() ||
             (networkGameplayEnabled_ &&
              (racer >= networkOwnedRacers_.size() ||
               !networkOwnedRacers_[racer])) ||
@@ -3976,7 +3985,7 @@ void OriginalRaceSession::updateGameplay(
     for (std::size_t racer = 1;
          racer < vehicles.size() && racer < racers_.size(); ++racer)
     {
-        if (!race_.racers[racer].human &&
+        if (racers_[racer].IsComputer() &&
             (!networkGameplayEnabled_ ||
              (racer < networkOwnedRacers_.size() &&
               networkOwnedRacers_[racer])) &&
@@ -5546,7 +5555,7 @@ void OriginalRaceSession::updateGameplay(
         auto& runtime = racers_[racer];
         // AICar::AttackState::Update returns before changing retained targets
         // or RNG state while the source CarState has no live curTile.
-        if (race_.racers[racer].human ||
+        if (!racers_[racer].IsComputer() ||
             (networkGameplayEnabled_ &&
              (racer >= networkOwnedRacers_.size() ||
               !networkOwnedRacers_[racer])) ||
@@ -5844,12 +5853,8 @@ void OriginalRaceSession::completeRemainingRacers(
     {
         source::RaceLifecyclePlayer player;
         player.playerId = racer;
-        player.human =
-            racer == 0U && racer < race_.racers.size() &&
-            race_.racers[racer].human;
-        player.opponent =
-            racer != 0U && racer < race_.racers.size() &&
-            race_.racers[racer].human;
+        player.human = racers_[racer].IsHuman();
+        player.opponent = racers_[racer].IsOpponent();
         player.disconnected = racers_[racer].disconnected;
         player.finished = racers_[racer].finished;
         player.laps = racers_[racer].car.numLaps;
@@ -5898,8 +5903,8 @@ void OriginalRaceSession::completeRacer(
     // block state above. A normal Windows build has no AIPlayer for the
     // human; the separately selectable legacy debug build does.
     if (racer < aiPlayers_.size() &&
-        (racer >= race_.racers.size() ||
-         !race_.racers[racer].human || legacyWindowsDebug_))
+        (racer >= racers_.size() || racers_[racer].IsComputer() ||
+         legacyWindowsDebug_))
     {
         aiPlayers_[racer].FreeCar();
     }
@@ -6064,11 +6069,13 @@ void OriginalRaceSession::update(
         }
         if (countdownSeconds_ <= 0.0F)
         {
+            const auto humanPosition = std::find_if(
+                racers_.begin(), racers_.end(),
+                [](const source::Player& player) {
+                    return player.IsHuman();
+                });
             source::Player* human =
-                !racers_.empty() && !race_.racers.empty() &&
-                        race_.racers.front().human
-                    ? &racers_.front()
-                    : nullptr;
+                humanPosition == racers_.end() ? nullptr : &*humanPosition;
             raceRunState_.GoRace(human);
             phase_ = RacePhase::Racing;
         }
@@ -6129,7 +6136,7 @@ void OriginalRaceSession::update(
     for (std::size_t racer = 1;
          racer < racers_.size() && racer < vehicles.size(); ++racer)
     {
-        if (!race_.racers[racer].human &&
+        if (racers_[racer].IsComputer() &&
             racer < aiPlayers_.size() &&
             aiPlayers_[racer].HasCar() &&
             (!networkGameplayEnabled_ ||
@@ -11293,6 +11300,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     "source network gameplay regression needs two racers");
             }
             networkRace.racers[1].human = true;
+            networkRace.racers[1].playerId =
+                2 << source::Player::opponentBit;
+            networkRace.racers[1].netSlot = 2U;
             OriginalRaceSession networkSession(networkRace);
             std::vector<bool> clientOwned(
                 networkRace.racers.size(), false);

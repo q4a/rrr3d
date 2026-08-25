@@ -738,9 +738,14 @@ struct Racer
 {
     std::string name;
     std::string photoPath;
+    // Final Race::Player id, after NetPlayer maps remote cHuman descriptors
+    // to netSlot << cOpponentBit. It is intentionally not the vector index.
+    int playerId = -1;
     // Player::GetName/GetPhoto resolve this through Tournament::GetPlayerData
     // instead of displaying the service scComp4/scComp5 planet records.
     std::uint32_t gamerId = 0U;
+    std::uint32_t netSlot = 0U;
+    std::string netName;
     std::size_t vehicle = 0;
     bool human = false;
     std::vector<RacerSlot> loadout;

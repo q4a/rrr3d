@@ -293,6 +293,7 @@ void selectRacers(Race& race,
     race.racers.clear();
     Racer human;
     human.name = "Human";
+    human.playerId = source::Player::humanId;
     human.vehicle = humanVehicle->second;
     human.human = true;
     race.racers.push_back(std::move(human));
@@ -369,6 +370,7 @@ void selectRacers(Race& race,
             throw resource::ResourceError(
                 "garage.xml: AI tournament car is missing: " + state.car);
         Racer racer;
+        racer.playerId = static_cast<int>(race.racers.size());
         racer.gamerId = static_cast<std::uint32_t>(player.id);
         racer.name = player.name;
         racer.photoPath = player.photoPath;
@@ -4391,6 +4393,7 @@ Race loadOriginalGarageScene(
     {
         Racer racer;
         racer.name = result.vehicles[index].record;
+        racer.playerId = static_cast<int>(index);
         racer.vehicle = index;
         result.racers.push_back(std::move(racer));
     }
@@ -5403,6 +5406,18 @@ bool runOriginalRaceResourceSmokeTest(
         if (race.racers.size() < 2U)
         {
             error = "source Player::ApplyMobility role regression has no AI";
+            return false;
+        }
+        if (race.racers.front().playerId != source::Player::humanId ||
+            !std::all_of(
+                race.racers.begin() + 1U, race.racers.end(),
+                [&](const Racer& racer) {
+                    const auto index = static_cast<int>(
+                        &racer - race.racers.data());
+                    return racer.playerId == index;
+                }))
+        {
+            error = "source Race::AddPlayer identifiers were not preserved";
             return false;
         }
         const auto unresolvedComputer = std::find_if(

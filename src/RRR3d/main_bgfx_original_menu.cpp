@@ -6401,8 +6401,19 @@ int main(int argc, char** argv)
                                                              1U);
                         auto racer = sourceRacers[baseIndex];
                         racer.human = player.playerId == 0U;
+                        racer.playerId =
+                            player.playerId == 0U
+                                ? (player.owner
+                                       ? r3d::game::originalrace::source::
+                                             Player::humanId
+                                       : static_cast<int>(
+                                             player.netSlot <<
+                                             r3d::game::originalrace::source::
+                                                 Player::opponentBit))
+                                : static_cast<int>(player.playerId);
                         racer.gamerId = static_cast<std::uint32_t>(
                             std::max(player.gamerId, 0));
+                        racer.netSlot = player.netSlot;
                         racer.color = player.color;
                         if (!player.car.empty())
                         {

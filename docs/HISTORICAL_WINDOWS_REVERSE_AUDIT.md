@@ -938,6 +938,28 @@ Unit regression покрывает повторный start, go и exit; integra
 проверяет полный brake и block на offline/network countdown и снятие на
 cGoRace. 13 CTest, map1 physics и 240-frame Metal/Jolt smoke проходят.
 
+### P2.17 — Player identity/role owner — выполнено
+
+Перенесены поля и методы исходного `Player`: `_id`, `_gamerId`, `_netSlot`,
+`_netName`, color, `GetName`, `IsHuman`, `IsComputer` и `IsOpponent`.
+Подтвердилось, что active session продолжала заново выводить роль из индекса
+гонщика и `Race::Racer::human`; это неэквивалентно Windows, где ID является
+битовым значением (`cHuman=0`, computers в младшем байте, opponents в
+старшем байте).
+
+Tournament loader теперь присваивает исходные `Race::AddPlayer` IDs, а
+network roster выполняет ветку `NetPlayer`: локальный владелец получает
+`cHuman`, удалённый human — `netSlot << cOpponentBit`, AI сохраняет descriptor
+ID. Gameplay damage authority, AI selection, catch-up reference set,
+lap/finish completion и countdown находят роли через active `Player`, а не
+через definition/index surrogate. `GetName` сохраняет исходный приоритет
+сетевого имени над tournament name.
+
+Прямой regression проверяет все три роли, identity, цвет и name override;
+resource audit проверяет IDs полного campaign roster, а network session
+regression использует настоящий opponent ID. 13 non-network CTest, resource
+verifier и map1 physics smoke проходят.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

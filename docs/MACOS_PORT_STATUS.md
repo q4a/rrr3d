@@ -1843,3 +1843,15 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - `GoRace` снимает block на зелёном сигнале; `DEBUG_PX` делает это немедленно,
   network — на stage 4. Unit и integrated countdown regressions, 13/13 CTest,
   map1 physics и 240-frame Metal smoke проходят.
+
+### Source Player identity/role follow-up
+
+- Active `source::Player` теперь владеет Windows-полями id/gamerId/netSlot,
+  network/tournament name и color, а также точными битовыми предикатами
+  Human/Computer/Opponent.
+- Tournament и network roster назначают окончательный `Race::Player` ID по
+  исходным правилам `Race::AddPlayer`/`NetPlayer`: удалённый human становится
+  opponent через `netSlot << 8`, не AI и не локальным Human.
+- Damage authority, AI, catch-up, lap/finish и race start consumers переведены
+  с угадывания роли по vector index/definition flag на Player owner. Unit,
+  resource и map1 physics regressions проходят.
