@@ -27,6 +27,17 @@ public:
         float steering = 0.0F;
     };
 
+    // Exact three-stage gate used by HumanPlayer::Control. Event actions are
+    // rejected by block/car/chat state; continuous driving is evaluated
+    // before the chat check; Hyper/analog Mine are evaluated after it. The
+    // Windows AIDebug owner suppresses only continuous progress.
+    struct ControlGate
+    {
+        bool inputActions = false;
+        bool driving = false;
+        bool progressWeapons = false;
+    };
+
     HumanPlayer() = default;
     explicit HumanPlayer(int currentWeapon) noexcept;
 
@@ -46,6 +57,12 @@ public:
     static DrivingCommand OnInputProgress(
         bool accelerateDown, bool backDown,
         float leftDown, float rightDown) noexcept;
+    static ControlGate EvaluateControl(
+        bool playerBlocked, bool carPresent,
+        bool chatMode, bool debugAiControl) noexcept;
+    static bool ResetCar(
+        bool carPresent, bool anyWheelContact,
+        bool bodyContact) noexcept;
 
 private:
     int currentWeapon_ = 0;

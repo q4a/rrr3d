@@ -62,6 +62,33 @@ int main()
         std::abs(driving.steering + 0.6F) > 0.0001F)
         return 8;
 
+    auto gate = source::HumanPlayer::EvaluateControl(
+        false, true, false, false);
+    if (!gate.inputActions || !gate.driving ||
+        !gate.progressWeapons)
+        return 9;
+    gate = source::HumanPlayer::EvaluateControl(
+        false, true, true, false);
+    if (gate.inputActions || !gate.driving || gate.progressWeapons)
+        return 10;
+    gate = source::HumanPlayer::EvaluateControl(
+        false, true, false, true);
+    if (!gate.inputActions || gate.driving || gate.progressWeapons)
+        return 11;
+    gate = source::HumanPlayer::EvaluateControl(
+        true, true, false, false);
+    if (gate.inputActions || gate.driving || gate.progressWeapons)
+        return 12;
+    gate = source::HumanPlayer::EvaluateControl(
+        false, false, false, false);
+    if (gate.inputActions || gate.driving || gate.progressWeapons)
+        return 13;
+    if (!source::HumanPlayer::ResetCar(true, true, false) ||
+        !source::HumanPlayer::ResetCar(true, false, true) ||
+        source::HumanPlayer::ResetCar(true, false, false) ||
+        source::HumanPlayer::ResetCar(false, true, true))
+        return 14;
+
     std::cout << "original HumanPlayer source rules passed\n";
     return 0;
 }

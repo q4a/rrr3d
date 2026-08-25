@@ -15413,6 +15413,7 @@ int main(int argc, char** argv)
             control.weaponChange = raceWeaponChangeDirection;
             control.fireWeaponSlot = raceFireWeaponSlotRequested;
             control.reset = raceResetRequested;
+            control.chatMode = userChat.inputVisible();
 #ifdef RRR3D_NETWORK
             if (networkMatchStarted &&
                 !options->legacyWindowsDebug)

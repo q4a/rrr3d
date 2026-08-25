@@ -895,6 +895,29 @@ transient-поля. Ветка `newRace` дополнительно ставит
 trace и mine-id lifecycle; 13 non-network CTest, resource verifier, map1
 physics и 240-frame Metal/Jolt smoke проходят.
 
+### P2.15 — HumanPlayer::Control gates и ResetCar owner — выполнено
+
+Перенесены оставшиеся ветви `eff9338:HumanPlayer.cpp::Control` и
+`HumanPlayer::ResetCar`. Подтвердилось, что session применял SDL-команды
+непосредственно и не отбрасывал weapon/mine/hyper/reset при `Player::IsBlock`;
+непрерывный `mineHeld` также обходил chat gate. Контактная проверка reset была
+верной по смыслу, но оставалась session-local.
+
+Active `source::HumanPlayer` теперь выдаёт точный трёхчастный gate:
+
+- отсутствие car или block запрещают движение и все действия;
+- chat запрещает event actions и continuous Hyper/Mine, но сохраняет уже
+  удерживаемый gas/steering, потому что Windows проверяет chat после
+  `SetMoveCar/SetSteerWheel`;
+- AIDebug human AI подавляет continuous driving/Hyper/Mine, но не меняет
+  независимый `OnHandleInput` event gate;
+- reset принимается только при существующей машине и контакте хотя бы одного
+  колеса либо кузова.
+
+Main передаёт реальное состояние `UserChat::inputVisible`, session применяет
+только source-filtered control. Прямой HumanPlayer regression покрывает все
+ветви; 13 CTest, map1 physics и 240-frame Metal/Jolt smoke проходят.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

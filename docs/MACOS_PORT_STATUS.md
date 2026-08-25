@@ -1819,3 +1819,16 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - Удалён отсутствующий в исходнике fallback mini-map на первую точку трассы:
   без current tile и last node возвращается NullVector. Unit, 13/13 CTest,
   resource, map1 physics и 240-frame Metal smoke проходят.
+
+### Source HumanPlayer control-gate follow-up
+
+- Перенесён точный порядок `HumanPlayer::Control`: block/отсутствующий car
+  запрещают весь control; chat запрещает event actions и continuous
+  Hyper/Mine, но не уже удерживаемые gas/steering; debug human AI подавляет
+  continuous progress отдельно от `OnHandleInput`.
+- Исправлён обход gate непрерывной миной из SDL held state, а finish/countdown
+  block больше не пропускает weapon, mine, hyper или reset в gameplay.
+- Контактное правило `HumanPlayer::ResetCar` вынесено в source owner: нужен
+  существующий car и wheel либо body contact. Main передаёт реальный
+  `UserChat::inputVisible`; 13/13 CTest, map1 physics и 240-frame Metal smoke
+  проходят.

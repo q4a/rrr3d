@@ -3921,11 +3921,11 @@ void OriginalRaceSession::updateGameplay(
 
     if (!vehicles.empty())
     {
-        // HumanPlayer::ResetCar accepts the command only while at least one
-        // wheel or the rigid body has contact.
-        if (humanControl.reset && !racers_[0].destroyed &&
-            (vehicles[0].contactCount > 0U ||
-             !vehicles[0].bodyContacts.empty()))
+        if (humanControl.reset &&
+            source::HumanPlayer::ResetCar(
+                !racers_[0].destroyed,
+                vehicles[0].contactCount > 0U,
+                !vehicles[0].bodyContacts.empty()))
             queueRespawn(0, vehicles);
         previousPositions_[0] = vehicles[0].body.position;
     }
@@ -6064,10 +6064,37 @@ void OriginalRaceSession::update(
             std::max(0.0F, finishSecondsRemaining_ - seconds);
     }
 
+    RaceControl sourceHumanControl = humanControl;
+    const bool humanCarPresent =
+        !racers_.empty() && !vehicles.empty() &&
+        !racers_.front().destroyed &&
+        !racers_.front().disconnected;
+    const auto humanGate = source::HumanPlayer::EvaluateControl(
+        racers_.empty() || racers_.front().IsBlock(),
+        humanCarPresent, humanControl.chatMode,
+        debugHumanAiControl_);
+    if (!humanGate.driving)
+        sourceHumanControl.driving = {};
+    if (!humanGate.inputActions)
+    {
+        sourceHumanControl.useWeapon = false;
+        sourceHumanControl.useAllWeapons = false;
+        sourceHumanControl.useMine = false;
+        sourceHumanControl.changeWeapon = false;
+        sourceHumanControl.weaponSlot = -1;
+        sourceHumanControl.fireWeaponSlot = -1;
+        sourceHumanControl.reset = false;
+    }
+    if (!humanGate.progressWeapons)
+    {
+        sourceHumanControl.mineHeld = 0.0F;
+        sourceHumanControl.useHyper = false;
+    }
+
     elapsedSeconds_ += seconds;
     if (!vehicleInputs_.empty() && !racers_.front().finished)
     {
-        vehicleInputs_[0] = humanControl.driving;
+        vehicleInputs_[0] = sourceHumanControl.driving;
         if (racers_[0].speedBoostSeconds > 0.0F)
             vehicleInputs_[0].throttle = 1.0F;
     }
@@ -6112,7 +6139,7 @@ void OriginalRaceSession::update(
         }
     }
 
-    updateGameplay(seconds, vehicles, humanControl);
+    updateGameplay(seconds, vehicles, sourceHumanControl);
     updatePlaces(vehicles);
     updateAchievements(seconds);
     if (phase_ == RacePhase::Finished &&

@@ -104,6 +104,7 @@ struct RaceControl
     int weaponSlot = -1;
     int fireWeaponSlot = -1;
     bool reset = false;
+    bool chatMode = false;
 };
 
 // Preserve the public adapter name while the active runtime object is now the

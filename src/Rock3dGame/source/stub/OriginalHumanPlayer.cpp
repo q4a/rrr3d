@@ -102,4 +102,29 @@ HumanPlayer::DrivingCommand HumanPlayer::OnInputProgress(
     return result;
 }
 
+HumanPlayer::ControlGate HumanPlayer::EvaluateControl(
+    bool playerBlocked, bool carPresent,
+    bool chatMode, bool debugAiControl) noexcept
+{
+    ControlGate result;
+    if (playerBlocked || !carPresent)
+        return result;
+
+    // Control::OnHandleInput checks chat immediately after block/mapObj.
+    result.inputActions = !chatMode;
+
+    // Control::OnInputProgress checks the debug AICar before writing the
+    // move/steering state, then checks chat only before Hyper/Mine polling.
+    result.driving = !debugAiControl;
+    result.progressWeapons = result.driving && !chatMode;
+    return result;
+}
+
+bool HumanPlayer::ResetCar(
+    bool carPresent, bool anyWheelContact,
+    bool bodyContact) noexcept
+{
+    return carPresent && (anyWheelContact || bodyContact);
+}
+
 } // namespace r3d::game::originalrace::source
