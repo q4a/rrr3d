@@ -1611,6 +1611,8 @@ bool OriginalRaceSession::disconnectNetworkRacer(
         vehicleInputs_[racer] = {};
     if (racer < networkOwnedRacers_.size())
         networkOwnedRacers_[racer] = false;
+    if (racer < aiPlayers_.size())
+        aiPlayers_[racer].FreeCar();
     for (auto& aiPlayer : aiPlayers_)
         aiPlayer.DisposeTarget(racer);
 
@@ -2050,14 +2052,15 @@ void OriginalRaceSession::synchronizeNetworkFinishResults(
     {
         if (result.racer >= racers_.size())
             continue;
-        auto& racer = racers_[result.racer];
-        racer.Complete(
+        completeRacer(
+            result.racer,
             result.place,
             static_cast<std::uint32_t>(
                 std::max(result.rewardMoney, 0)),
             static_cast<std::uint32_t>(
                 std::max(result.rewardPoints, 0)),
             elapsedSeconds_);
+        auto& racer = racers_[result.racer];
         racer.pickedMoney = static_cast<std::uint32_t>(
             std::max(result.pickedMoney, 0));
     }
@@ -2133,6 +2136,12 @@ const std::vector<bool>& OriginalRaceSession::bonusActive() const noexcept
 const std::vector<float>& OriginalRaceSession::bonusScales() const noexcept
 {
     return bonusScales_;
+}
+
+bool OriginalRaceSession::racerHasAiController(
+    std::size_t racer) const noexcept
+{
+    return racer < aiPlayers_.size() && aiPlayers_[racer].HasCar();
 }
 
 std::size_t OriginalRaceSession::racerForMapObjectId(
@@ -2408,9 +2417,9 @@ void OriginalRaceSession::updateProgress(
             rewardMoney = race_.rewardMoney[reward];
             rewardPoints = race_.rewardPoints[reward];
         }
-        runtime.Complete(
-            resultPlace, rewardMoney, rewardPoints, elapsedSeconds_);
-        vehicleInputs_[racer] = {};
+        completeRacer(
+            racer, resultPlace, rewardMoney, rewardPoints,
+            elapsedSeconds_);
         events_.push_back({RaceEventKind::Finish, racer, 0,
                            vehicle.body.position, runtime.finishTime});
         const std::size_t finishCount =
@@ -6101,10 +6110,9 @@ void OriginalRaceSession::completeRemainingRacers(
         racers_.begin(), racers_.end(),
         [](const RacerRuntime& racer) {
             return !racer.disconnected && racer.finished;
-        }));
+    }));
     for (const std::size_t racer : remaining)
     {
-        auto& runtime = racers_[racer];
         const float finishTime =
             elapsedSeconds_ + static_cast<float>(completed) * 0.001F;
         const auto resultPlace = static_cast<std::uint32_t>(++completed);
@@ -6117,12 +6125,40 @@ void OriginalRaceSession::completeRemainingRacers(
             rewardMoney = race_.rewardMoney[reward];
             rewardPoints = race_.rewardPoints[reward];
         }
-        runtime.Complete(
-            resultPlace, rewardMoney, rewardPoints, finishTime);
-        if (racer < vehicleInputs_.size())
-            vehicleInputs_[racer] = {};
+        completeRacer(
+            racer, resultPlace, rewardMoney, rewardPoints, finishTime);
     }
     applyCampaignRewards();
+}
+
+void OriginalRaceSession::completeRacer(
+    std::size_t racer, std::uint32_t place,
+    std::uint32_t rewardMoney, std::uint32_t rewardPoints,
+    float finishTime) noexcept
+{
+    if (racer >= racers_.size())
+        return;
+
+    auto& runtime = racers_[racer];
+    runtime.Complete(
+        place, rewardMoney, rewardPoints, finishTime);
+    // Race::CompleteRace always follows SetFinished/SetPlace with this
+    // finite control block. Player::OnProgress owns the countdown and then
+    // leaves the surviving physical car under mcBrake.
+    runtime.SetBlockTime(source::Player::finishBlockSeconds);
+    if (racer < vehicleInputs_.size())
+        vehicleInputs_[racer] = {};
+
+    // AIPlayer::FreeCar deletes AICar only. The Player::GameCar and its
+    // renderer/physics actor remain in the race and are governed by the
+    // block state above. A normal Windows build has no AIPlayer for the
+    // human; the separately selectable legacy debug build does.
+    if (racer < aiPlayers_.size() &&
+        (racer >= race_.racers.size() ||
+         !race_.racers[racer].human || legacyWindowsDebug_))
+    {
+        aiPlayers_[racer].FreeCar();
+    }
 }
 
 void OriginalRaceSession::applyCampaignRewards() noexcept
@@ -6439,16 +6475,16 @@ void OriginalRaceSession::update(
     for (std::size_t racer = 0U;
          racer < racers_.size() && racer < vehicleInputs_.size(); ++racer)
     {
-        const auto& runtime = racers_[racer];
-        if (!runtime.finished)
+        auto& runtime = racers_[racer];
+        const auto blockMove = runtime.ProgressBlock(seconds);
+        if (blockMove == source::PlayerBlockMove::Unblocked)
             continue;
         auto& control = vehicleInputs_[racer];
         control.throttle = 0.0F;
         control.reverse = 0.0F;
         control.steering = 0.0F;
-        // CompleteRace sets Player::_block to 0.3. Player::OnProgress then
-        // emits mcNone until it reaches zero and mcBrake thereafter.
-        control.brake = runtime.FinishBrake(elapsedSeconds_);
+        control.brake =
+            blockMove == source::PlayerBlockMove::Brake ? 1.0F : 0.0F;
     }
 
     updateGameplay(seconds, vehicles, humanControl);
@@ -8748,6 +8784,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 const auto& coasting =
                     aiFinishSession.vehicleInputs()[racer];
                 if (!runtime.finished || runtime.car.numLaps != 1U ||
+                    aiFinishSession.racerHasAiController(racer) ||
                     !emittedFinish || coasting.throttle > 0.1F ||
                     coasting.reverse > 0.1F ||
                     std::abs(coasting.steering) > 0.1F)
@@ -11519,7 +11556,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             if (!networkSession.disconnectNetworkRacer(1U) ||
                 networkSession.disconnectNetworkRacer(1U) ||
                 !networkSession.racers()[1].disconnected ||
-                !networkSession.racers()[1].destroyed)
+                !networkSession.racers()[1].destroyed ||
+                networkSession.racerHasAiController(1U))
             {
                 throw std::runtime_error(
                     "NetPlayer destructor racer removal state failed");

@@ -419,6 +419,7 @@ public:
     const std::vector<float>& decorationLife() const noexcept;
     const std::vector<bool>& bonusActive() const noexcept;
     const std::vector<float>& bonusScales() const noexcept;
+    bool racerHasAiController(std::size_t racer) const noexcept;
     std::size_t racerForMapObjectId(
         std::uint32_t mapObjectId) const noexcept;
     std::size_t decorationForMapObjectId(
@@ -501,6 +502,10 @@ private:
     void completeAchievement(std::size_t achievement);
     void completeRemainingRacers(
         const std::vector<r3d::physics::VehicleState>& vehicles);
+    void completeRacer(
+        std::size_t racer, std::uint32_t place,
+        std::uint32_t rewardMoney, std::uint32_t rewardPoints,
+        float finishTime) noexcept;
     void applyCampaignRewards() noexcept;
 
     const Race& race_;

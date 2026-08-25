@@ -68,6 +68,18 @@ int main()
         player.FinishBrake(10.29F) != 0.0F ||
         player.FinishBrake(10.3F) != 1.0F)
         return 9;
+    player.SetBlockTime(source::Player::finishBlockSeconds);
+    if (!player.IsBlock() ||
+        player.ProgressBlock(0.1F) != source::PlayerBlockMove::Coast ||
+        std::abs(player.GetBlockTime() - 0.2F) > 0.001F ||
+        player.ProgressBlock(0.21F) != source::PlayerBlockMove::Brake ||
+        player.GetBlockTime() != 0.0F)
+        return 19;
+    player.ResetBlock(false);
+    if (player.IsBlock() || player.GetBlockTime() != -1.0F ||
+        player.ProgressBlock(1.0F) !=
+            source::PlayerBlockMove::Unblocked)
+        return 20;
     player.ApplyRaceReward();
     if (player.money != 119U || player.points != 20U)
         return 10;

@@ -46,6 +46,13 @@ enum class PlayerRestoreStep : std::uint8_t
     ActivateCar,
 };
 
+enum class PlayerBlockMove : std::uint8_t
+{
+    Unblocked,
+    Coast,
+    Brake,
+};
+
 // Portable transcription of the gameplay-owned portion of Player.  Renderer
 // actor ownership and the PhysX RockCar pointer remain backend boundaries,
 // while race state, inventory, bonuses, finish blocking and restore lifecycle
@@ -175,6 +182,11 @@ public:
     void Destroy() noexcept;
     PlayerRestoreStep ProgressRestore(float seconds) noexcept;
     void Disconnect() noexcept;
+    void ResetBlock(bool block) noexcept;
+    bool IsBlock() const noexcept;
+    float GetBlockTime() const noexcept;
+    void SetBlockTime(float value) noexcept;
+    PlayerBlockMove ProgressBlock(float seconds) noexcept;
     float FinishBrake(float elapsedSeconds) const noexcept;
 
     static std::size_t RoundedRandomIndex(
@@ -208,6 +220,7 @@ public:
     float speedBoostSeconds = 0.0F;
     float restoreSeconds = 0.0F;
     float finishTime = -1.0F;
+    float blockSeconds = -1.0F;
     bool finished = false;
     bool disconnected = false;
     LowLifePoints lowLifePoints;

@@ -564,6 +564,7 @@ void Player::Disconnect() noexcept
 {
     disconnected = true;
     SetFinished(false);
+    ResetBlock(false);
     SetLife(0.0F);
     Death();
     lowLifePoints.Reset(lowLifePoints.GetLifeLevel());
@@ -575,6 +576,35 @@ void Player::Disconnect() noexcept
     Immortal(0.0F);
     touchAttacker = undefinedPlayerId;
     touchAttributionSeconds = 0.0F;
+}
+
+void Player::ResetBlock(bool block) noexcept
+{
+    blockSeconds = block ? 0.0F : -1.0F;
+}
+
+bool Player::IsBlock() const noexcept
+{
+    return blockSeconds >= 0.0F;
+}
+
+float Player::GetBlockTime() const noexcept
+{
+    return blockSeconds;
+}
+
+void Player::SetBlockTime(float value) noexcept
+{
+    blockSeconds = value;
+}
+
+PlayerBlockMove Player::ProgressBlock(float seconds) noexcept
+{
+    if (!IsBlock())
+        return PlayerBlockMove::Unblocked;
+    blockSeconds = std::max(blockSeconds - std::max(seconds, 0.0F), 0.0F);
+    return blockSeconds == 0.0F ? PlayerBlockMove::Brake
+                                : PlayerBlockMove::Coast;
 }
 
 float Player::FinishBrake(float elapsedSeconds) const noexcept
