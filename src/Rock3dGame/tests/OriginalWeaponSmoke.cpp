@@ -57,10 +57,14 @@ int main()
         return 6;
 
     source::WeaponRack rack;
-    const std::array<source::Weapon::ProjectileDesc, 2U>
-        itemProjectiles{{
-            {0U, 40.0F, 300.0F, 6.0F},
-            {0U, 40.0F, 300.0F, 6.5F}}};
+    std::array<r3d::game::originalrace::ProjectileDefinition, 2U>
+        itemProjectiles{};
+    itemProjectiles[0].type = 0U;
+    itemProjectiles[0].speed = 40.0F;
+    itemProjectiles[0].maximumDistance = 300.0F;
+    itemProjectiles[0].damage = 6.0F;
+    itemProjectiles[1] = itemProjectiles[0];
+    itemProjectiles[1].damage = 6.5F;
     rack.primary[2].SetDesc(0.2F, itemProjectiles);
     rack.hyper.SetDesc(
         0.3F, std::span<const std::uint32_t>{});
@@ -115,9 +119,16 @@ int main()
 
     source::Weapon::Desc replacementDescription;
     replacementDescription.shotDelay = 0.75F;
-    replacementDescription.projectiles = {
-        {2U, 60.0F, 500.0F, 8.0F},
-        {2U, 60.0F, 500.0F, 5.5F}};
+    auto replacementProjectile = itemProjectiles[0];
+    replacementProjectile.type = 2U;
+    replacementProjectile.speed = 60.0F;
+    replacementProjectile.maximumDistance = 500.0F;
+    replacementProjectile.damage = 8.0F;
+    replacementDescription.projectiles.push_back(
+        replacementProjectile);
+    replacementProjectile.damage = 5.5F;
+    replacementDescription.projectiles.push_back(
+        replacementProjectile);
     item.SetWpnDesc(replacementDescription);
     if (item.GetWpnDesc().projectiles.size() != 2U ||
         item.GetDesc().Front().type != 2U ||

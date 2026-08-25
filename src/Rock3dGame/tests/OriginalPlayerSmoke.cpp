@@ -101,7 +101,8 @@ int main()
     auto& playerWeapons = player.GetWeaponRack();
     source::Weapon::Desc droidWeaponDescription;
     droidWeaponDescription.shotDelay = 0.5F;
-    droidWeaponDescription.projectiles = {{1U}};
+    droidWeaponDescription.projectiles.resize(1U);
+    droidWeaponDescription.projectiles.front().type = 1U;
     playerWeapons.primary[0].SetDesc(droidWeaponDescription);
     playerWeapons.primary[0].Reset();
     playerWeapons.primary[0].OnShot();
@@ -273,7 +274,11 @@ int main()
         firstWeaponItems[0]->GetCurCharge() != 6U)
         return 27;
 
-    source::Weapon shotWeapon({0.5F, {{11U}}});
+    source::Weapon::Desc shotDescription;
+    shotDescription.shotDelay = 0.5F;
+    shotDescription.projectiles.resize(1U);
+    shotDescription.projectiles.front().type = 11U;
+    source::Weapon shotWeapon(shotDescription);
     std::uint32_t shotCharge = 2U;
     source::WeaponItem shotItem(
         &shotWeapon, 2U, 2U, &shotCharge);

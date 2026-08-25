@@ -1350,15 +1350,13 @@ void OriginalRaceSession::reset()
                 return;
             }
             const auto& definition = race_.weapons[weaponIndex];
-            std::vector<source::Weapon::ProjectileDesc> projectiles;
+            std::vector<ProjectileDefinition> projectiles;
             projectiles.reserve(definition.projectiles.size());
             for (const auto& projectile : definition.projectiles)
             {
                 if (projectile.spawnOnParentDeath)
                     continue;
-                projectiles.push_back(
-                    {projectile.type, projectile.speed,
-                     projectile.maximumDistance, projectile.damage});
+                projectiles.push_back(projectile);
             }
             runtimeWeapon.SetDesc(
                 definition.shotDelay,
@@ -4199,7 +4197,8 @@ void OriginalRaceSession::updateGameplay(
             networkReplicated
                 ? static_cast<int>(item->GetCurCharge()) - 1
                 : -1;
-        const auto& projectiles = race_.weapons[weapon].projectiles;
+        const auto* liveWeapon = item->GetWeapon();
+        const auto& projectiles = liveWeapon->GetDesc().projectiles;
         const auto* projectile =
             projectiles.empty() ? nullptr : &projectiles.front();
         if (projectile == nullptr)
@@ -4245,7 +4244,18 @@ void OriginalRaceSession::updateGameplay(
         mine.owner = owner;
         mine.damageOwner = owner;
         mine.weapon = weapon;
-        mine.projectile = 0U;
+        const auto sourceProjectile = std::find_if(
+            race_.weapons[weapon].projectiles.begin(),
+            race_.weapons[weapon].projectiles.end(),
+            [](const ProjectileDefinition& candidate) {
+                return !candidate.spawnOnParentDeath;
+            });
+        mine.projectile = sourceProjectile ==
+                                  race_.weapons[weapon].projectiles.end()
+                              ? 0U
+                              : static_cast<std::size_t>(std::distance(
+                                    race_.weapons[weapon].projectiles.begin(),
+                                    sourceProjectile));
         mine.position = position;
         mine.rotation = rotationWithUp(hit.normal);
         mine.damage = projectile->damage;
@@ -4320,20 +4330,20 @@ void OriginalRaceSession::updateGameplay(
         auto* item = hyperWeaponItem(owner);
         if (item == nullptr || !item->IsInstalled())
             return;
-        const auto& weapon =
-            race_.weapons[racers_[owner].hyperWeapon];
         const int newCharge =
             networkReplicated
                 ? static_cast<int>(item->GetCurCharge()) - 1
                 : -1;
-        if (weapon.projectiles.empty())
+        const auto* liveWeapon = item->GetWeapon();
+        const auto& projectiles = liveWeapon->GetDesc().projectiles;
+        if (projectiles.empty())
         {
             racers_[owner].Shot(
                 *item, false, false,
                 replicatedProjectileId, newCharge);
             return;
         }
-        const auto& projectile = weapon.projectiles.front();
+        const auto& projectile = projectiles.front();
         if (owner >= vehicles.size())
         {
             racers_[owner].Shot(
@@ -4412,7 +4422,18 @@ void OriginalRaceSession::updateGameplay(
             runtimeProjectile.damageOwner = owner;
             runtimeProjectile.weapon =
                 racers_[owner].hyperWeapon;
-            runtimeProjectile.projectile = 0U;
+            const auto& sourceProjectiles =
+                race_.weapons[racers_[owner].hyperWeapon].projectiles;
+            const auto sourceProjectile = std::find_if(
+                sourceProjectiles.begin(), sourceProjectiles.end(),
+                [](const ProjectileDefinition& candidate) {
+                    return !candidate.spawnOnParentDeath;
+                });
+            runtimeProjectile.projectile =
+                sourceProjectile == sourceProjectiles.end()
+                    ? 0U
+                    : static_cast<std::size_t>(std::distance(
+                          sourceProjectiles.begin(), sourceProjectile));
             runtimeProjectile.position =
                 projectileTransform.position;
             runtimeProjectile.direction = normalized3(
@@ -5164,11 +5185,10 @@ void OriginalRaceSession::updateGameplay(
             &race_.weapons[firedWeapon];
         if (weapon->slot == WeaponSlot::Support)
             return;
-        const bool projectileCreated = std::any_of(
-            weapon->projectiles.begin(), weapon->projectiles.end(),
-            [](const ProjectileDefinition& projectile) {
-                return !projectile.spawnOnParentDeath;
-            });
+        const auto* liveWeapon = item->GetWeapon();
+        const auto& itemProjectiles =
+            liveWeapon->GetDesc().projectiles;
+        const bool projectileCreated = !itemProjectiles.empty();
         const int newCharge =
             networkReplicated
                 ? static_cast<int>(item->GetCurCharge()) - 1
@@ -5186,14 +5206,22 @@ void OriginalRaceSession::updateGameplay(
             shooter, firedWeapon, firedSlot).position;
         std::size_t target = racers_.size();
         std::vector<Vec3> networkCoordinates;
+        std::size_t sourceProjectileIndex = 0U;
         for (std::size_t projectileIndex = 0;
-             projectileIndex < weapon->projectiles.size();
+             projectileIndex < itemProjectiles.size();
              ++projectileIndex)
         {
             const auto& projectile =
-                weapon->projectiles[projectileIndex];
-            if (projectile.spawnOnParentDeath)
-                continue;
+                itemProjectiles[projectileIndex];
+            while (sourceProjectileIndex < weapon->projectiles.size() &&
+                   weapon->projectiles[sourceProjectileIndex]
+                       .spawnOnParentDeath)
+                ++sourceProjectileIndex;
+            const std::size_t backendProjectileIndex =
+                sourceProjectileIndex < weapon->projectiles.size()
+                    ? sourceProjectileIndex
+                    : projectileIndex;
+            ++sourceProjectileIndex;
             auto shotTransform = projectileWorldTransform(
                 shooter, firedWeapon, firedSlot, projectile);
             if (replicatedOrigin != nullptr)
@@ -5270,7 +5298,7 @@ void OriginalRaceSession::updateGameplay(
                 runtimeProjectile.owner = shooter;
                 runtimeProjectile.damageOwner = shooter;
                 runtimeProjectile.weapon = firedWeapon;
-                runtimeProjectile.projectile = projectileIndex;
+                runtimeProjectile.projectile = backendProjectileIndex;
                 runtimeProjectile.mountSlot = firedSlot;
                 runtimeProjectile.position = projectileOrigin;
                 runtimeProjectile.direction = sourceDirection;
@@ -5312,7 +5340,7 @@ void OriginalRaceSession::updateGameplay(
                 runtimeProjectile.owner = shooter;
                 runtimeProjectile.damageOwner = shooter;
                 runtimeProjectile.weapon = firedWeapon;
-                runtimeProjectile.projectile = projectileIndex;
+                runtimeProjectile.projectile = backendProjectileIndex;
                 runtimeProjectile.mountSlot = firedSlot;
                 runtimeProjectile.position = projectileOrigin;
                 runtimeProjectile.direction = launchDirection;
@@ -5373,7 +5401,7 @@ void OriginalRaceSession::updateGameplay(
                 (rayProjectile || attachedProjectile) ? 0.12F : 0.03F;
             fired.totalSeconds = fired.seconds;
             fired.weapon = firedWeapon;
-            fired.projectile = projectileIndex;
+            fired.projectile = backendProjectileIndex;
             effects_.push_back(std::move(fired));
             pushShotEffect(
                 shooter, firedWeapon, firedSlot,
@@ -9056,6 +9084,71 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
         }
         if (primaryWeapons.size() == 2U)
         {
+            {
+                OriginalRaceSession descriptorSession(race);
+                PlayerProfile descriptorProfile;
+                auto& descriptorSlot = descriptorProfile.slots[
+                    PlayerProfile::firstWeaponSlot];
+                descriptorSlot.record = primaryWeapons[0]->record;
+                descriptorSlot.charge = 2U;
+                descriptorSlot.hasCharge = true;
+                descriptorSession.applyPlayerProfile(descriptorProfile);
+                auto& descriptorRacer = const_cast<RacerRuntime&>(
+                    descriptorSession.racers().front());
+                auto* descriptorItem =
+                    descriptorRacer.GetPrimaryWeaponItems()[0];
+                if (descriptorItem == nullptr ||
+                    descriptorItem->GetWpnDesc().projectiles.empty())
+                {
+                    throw std::runtime_error(
+                        "source WeaponItem full WpnDesc fixture failed");
+                }
+                auto changedDescription =
+                    descriptorItem->GetWpnDesc();
+                auto& changedProjectile =
+                    changedDescription.projectiles.front();
+                changedProjectile.type = 0U;
+                changedProjectile.speed = 77.0F;
+                changedProjectile.relativeSpeed = false;
+                changedProjectile.maximumDistance = 321.0F;
+                changedProjectile.damage = 9.25F;
+                descriptorItem->SetWpnDesc(changedDescription);
+                auto descriptorVehicles = vehicles;
+                descriptorVehicles.resize(1U);
+                descriptorVehicles[0].speed = 0.0F;
+                descriptorVehicles[0].linearVelocity = {};
+                RaceControl descriptorInput;
+                for (int frame = 0; frame < 250; ++frame)
+                {
+                    descriptorSession.update(
+                        1.0F / 60.0F, descriptorVehicles,
+                        descriptorInput);
+                }
+                descriptorInput.fireWeaponSlot = 0;
+                descriptorSession.update(
+                    1.0F / 60.0F, descriptorVehicles,
+                    descriptorInput);
+                const auto firedProjectile = std::find_if(
+                    descriptorSession.projectiles().begin(),
+                    descriptorSession.projectiles().end(),
+                    [](const ProjectileRuntime& projectile) {
+                        return projectile.owner == 0U;
+                    });
+                if (firedProjectile ==
+                        descriptorSession.projectiles().end() ||
+                    std::abs(firedProjectile->speed - 77.0F) >
+                        0.001F ||
+                    std::abs(
+                        firedProjectile->maximumDistance - 321.0F) >
+                        0.001F ||
+                    std::abs(firedProjectile->damage - 9.25F) >
+                        0.001F)
+                {
+                    throw std::runtime_error(
+                        "source WeaponItem full WpnDesc shot ownership "
+                        "failed");
+                }
+            }
             OriginalRaceSession weaponSession(race);
             PlayerProfile weaponProfile;
             for (std::size_t slot = 0; slot < 2U; ++slot)

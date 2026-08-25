@@ -2002,3 +2002,13 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - AI получает характеристики primary/Hyper/Mine из live Slot item; resource,
   unit и integrated race regressions подтверждают реальные значения
   bulletGun/rifleWeapon и car lifecycle.
+
+### Full Proj::Desc firing-owner follow-up
+
+- Weapon item хранит полное описание непосредственных снарядов, включая
+  transforms, collision, relative motion, lifetime и death/nested data.
+- Primary/Hyper/Mine preparation теперь читает live Weapon descriptor; static
+  race catalog остаётся только asset/index bridge для bgfx/Jolt и generated
+  death projectiles.
+- Regression с post-bind заменой descriptor подтверждает, что новый projectile
+  получает item-owned speed `77`, maxDist `321` и damage `9.25`.

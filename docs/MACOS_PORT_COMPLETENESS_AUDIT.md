@@ -1387,6 +1387,18 @@ Network, video и Steam явно выключены.
   из установленного item. Реальные bulletGun/rifleWeapon и lifecycle
   descriptor apply покрыты resource и integrated regressions.
 
+### Full Proj::Desc shot source
+
+- `_wpnDesc` расширен с четырёх статистических полей до полного portable
+  `Proj::Desc`: transform/collision/model placement, speed/range/lifetime,
+  mass/damage, visual/death/nested-projectile данные.
+- Primary, Hyper и Mine создаются по live descriptor установленного
+  `WeaponItem`; `WeaponDefinition` используется как стабильный asset/index
+  bridge для bgfx/Jolt и generated death projectiles, но не как параллельный
+  владелец параметров нового выстрела.
+- Integrated regression меняет только item descriptor после binding и
+  проверяет реальные speed/maxDist/damage созданного projectile.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

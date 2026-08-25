@@ -685,9 +685,9 @@ std::uint64_t ShotEffect::GetShotCount() const noexcept
 
 Weapon::Weapon(const Desc& desc) : desc_(desc) {}
 
-const Weapon::ProjectileDesc& Weapon::Desc::Front() const noexcept
+const ProjectileDefinition& Weapon::Desc::Front() const noexcept
 {
-    static const ProjectileDesc empty;
+    static const ProjectileDefinition empty;
     return projectiles.empty() ? empty : projectiles.front();
 }
 
@@ -757,12 +757,16 @@ void Weapon::SetDesc(
     desc_.projectiles.clear();
     desc_.projectiles.reserve(projectileTypes.size());
     for (const auto type : projectileTypes)
-        desc_.projectiles.push_back({type});
+    {
+        ProjectileDefinition projectile;
+        projectile.type = type;
+        desc_.projectiles.push_back(std::move(projectile));
+    }
 }
 
 void Weapon::SetDesc(
     float shotDelay,
-    std::span<const ProjectileDesc> projectiles)
+    std::span<const ProjectileDefinition> projectiles)
 {
     desc_.shotDelay = shotDelay;
     desc_.projectiles.assign(projectiles.begin(), projectiles.end());

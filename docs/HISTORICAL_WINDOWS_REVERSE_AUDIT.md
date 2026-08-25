@@ -1425,6 +1425,29 @@ primary/Hyper/Mine context теперь получает type/range/speed/oil и
 `bulletGun` (`6`, `2750`) и `rifleWeapon` (`6+6`, `9000`), descriptor apply и
 detached/attached поведение.
 
+### P2.43 — полный `Proj::Desc` как источник выстрела — выполнено
+
+P2.42 намеренно начинался с минимального набора полей, достаточного для
+статистики и AI. Следующая проверка показала, что оставлять создание снаряда
+на `Race::WeaponDefinition` означало бы сохранить второго владельца. Теперь
+`Weapon::Desc::projectiles` содержит полную portable-транскрипцию исходного
+`Proj::Desc`: transforms, три visual/death-effect описания, collision boxes,
+model-size placement, relative speed, angular speed, distance, lifetime,
+mass, damage и type-specific nested projectile data.
+
+Primary, Hyper и Mine preparation берут descriptor непосредственно из live
+`WeaponItem::GetWeapon()->GetDesc()`. Resource `WeaponDefinition` остаётся
+стабильным каталогом GPU/effect assets и индексным мостом для bgfx/Jolt, но
+не определяет параметры создаваемого gameplay-снаряда. Для generated
+death-effect projectiles сохранено отдельное source-index mapping: они не
+входят в workshop `_wpnDesc`, но их renderer/effect assets остаются доступны.
+
+Integrated regression после binding изменяет только `_wpnDesc` установленного
+предмета и подтверждает, что реально созданный projectile получает новые
+speed `77`, maxDist `321` и damage `9.25`; resource-копия при этом не меняется.
+Это закрывает прежний формальный перенос descriptor, при котором getters
+были source-подобными, а сам выстрел продолжал обходить owner.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

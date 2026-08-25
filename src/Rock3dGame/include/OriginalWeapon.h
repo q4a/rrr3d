@@ -1,5 +1,6 @@
 #pragma once
 
+#include "OriginalRace.h"
 #include "OriginalSlot.h"
 
 #include <array>
@@ -267,20 +268,12 @@ private:
 class Weapon
 {
 public:
-    struct ProjectileDesc
-    {
-        std::uint32_t type = 0U;
-        float speed = 0.0F;
-        float maximumDistance = 0.0F;
-        float damage = 0.0F;
-    };
-
     struct Desc
     {
         float shotDelay = 0.0F;
-        std::vector<ProjectileDesc> projectiles;
+        std::vector<ProjectileDefinition> projectiles;
 
-        const ProjectileDesc& Front() const noexcept;
+        const ProjectileDefinition& Front() const noexcept;
     };
 
     Weapon() = default;
@@ -303,7 +296,7 @@ public:
     void SetDesc(float shotDelay,
                  std::span<const std::uint32_t> projectileTypes);
     void SetDesc(float shotDelay,
-                 std::span<const ProjectileDesc> projectiles);
+                 std::span<const ProjectileDefinition> projectiles);
     const ShotEffect& GetShotEffect() const noexcept;
 
 private:
