@@ -429,8 +429,6 @@ public:
     const std::vector<source::RaceResult>& results() const noexcept;
     const source::RaceResult* resultForRacer(
         std::size_t racer) const noexcept;
-    const source::PlayerItemRack* playerItems(
-        std::size_t racer) const noexcept;
     Vec3 mapPosition(std::size_t racer) const noexcept;
     const std::vector<bool>& decorationActive() const noexcept;
     const std::vector<float>& decorationLife() const noexcept;

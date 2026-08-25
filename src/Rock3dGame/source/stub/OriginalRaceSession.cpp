@@ -1147,8 +1147,6 @@ void OriginalRaceSession::reset()
             playerId, static_cast<int>(sourceRacer.gamerId),
             sourceRacer.netSlot, sourceRacer.name,
             sourceRacer.netName, sourceRacer.color);
-        racers_[index].BindSlots(
-            race_.workshop, sourceRacer.loadout);
         racers_[index].SetCar(&vehicle);
         for (std::size_t weaponIndex = 0;
              weaponIndex < race_.weapons.size(); ++weaponIndex)
@@ -1311,6 +1309,36 @@ void OriginalRaceSession::reset()
                 }
             }
         }
+        auto activeLoadout = sourceRacer.loadout;
+        const bool bindProfileSlots =
+            index == 0U && std::any_of(
+                initialPlayerProfile_.slots.begin(),
+                initialPlayerProfile_.slots.end(),
+                [](const ProfileSlot& slot) {
+                    return !slot.record.empty();
+                });
+        if (bindProfileSlots)
+        {
+            static constexpr std::array<std::string_view,
+                                        PlayerProfile::slotCount>
+                physicalNames{
+                    "stWheel", "stTruba", "stArmor", "stMotor",
+                    "stHyper", "stMine", "stWeapon1", "stWeapon2",
+                    "stWeapon3", "stWeapon4"};
+            activeLoadout.clear();
+            for (std::size_t slot = 0U;
+                 slot < initialPlayerProfile_.slots.size(); ++slot)
+            {
+                const auto& profileSlot =
+                    initialPlayerProfile_.slots[slot];
+                if (profileSlot.record.empty())
+                    continue;
+                activeLoadout.push_back(
+                    {profileSlot.record, std::string(physicalNames[slot]),
+                     profileSlot.charge});
+            }
+        }
+        racers_[index].BindSlots(race_.workshop, activeLoadout);
         racers_[index].SyncSelectedWeapon(race_.weapons.size());
         auto configureWeapon = [&](source::Weapon& runtimeWeapon,
                                    std::size_t weaponIndex) {
@@ -1712,7 +1740,7 @@ bool OriginalRaceSession::applyRacerDamageInternal(
                                ? sourceDamage
                                : source::Logic::ResolveDamage(
                                      target < racers_.size()
-                                         ? &racers_[target].GetItemRack()
+                                         ? &racers_[target]
                                          : nullptr,
                                      sourceDamage, damageType);
     // The Windows client does not call GameObject::Damage while producing
@@ -2143,14 +2171,6 @@ const source::RaceResult* OriginalRaceSession::resultForRacer(
     std::size_t racer) const noexcept
 {
     return raceLifecycle_.GetResult(racer);
-}
-
-const source::PlayerItemRack* OriginalRaceSession::playerItems(
-    std::size_t racer) const noexcept
-{
-    return racer < racers_.size()
-               ? &racers_[racer].GetItemRack()
-               : nullptr;
 }
 
 Vec3 OriginalRaceSession::mapPosition(std::size_t racer) const noexcept
@@ -4032,18 +4052,19 @@ void OriginalRaceSession::updateGameplay(
         if (owner >= racers_.size() ||
             slot >= PlayerProfile::weaponSlotCount)
             return nullptr;
-        return &racers_[owner].GetPrimaryWeaponItems()[slot];
+        const auto items = racers_[owner].GetPrimaryWeaponItems();
+        return items[slot];
     };
     auto hyperWeaponItem = [&](std::size_t owner)
         -> source::WeaponItem* {
         return owner < racers_.size()
-                   ? &racers_[owner].GetHyperWeaponItem()
+                   ? racers_[owner].GetHyperWeaponItem()
                    : nullptr;
     };
     auto mineWeaponItem = [&](std::size_t owner)
         -> source::WeaponItem* {
         return owner < racers_.size()
-                   ? &racers_[owner].GetMineWeaponItem()
+                   ? racers_[owner].GetMineWeaponItem()
                    : nullptr;
     };
     auto emitHumanShot = [&](const source::Logic::ShotPlan& plan) {
@@ -4058,7 +4079,8 @@ void OriginalRaceSession::updateGameplay(
     auto humanPrimaryItems = [&]() {
         return humanRacer_ < racers_.size()
                    ? racers_[humanRacer_].GetPrimaryWeaponItems()
-                   : std::span<source::WeaponItem>{};
+                   : std::array<source::WeaponItem*,
+                                PlayerProfile::weaponSlotCount>{};
     };
     if (humanRacer_ < racers_.size() && humanControl.weaponSlot >= 0 &&
         humanControl.weaponSlot <
@@ -4067,7 +4089,7 @@ void OriginalRaceSession::updateGameplay(
         const auto slot =
             static_cast<std::size_t>(humanControl.weaponSlot);
         auto items = humanPrimaryItems();
-        if (items[slot].IsInstalled())
+        if (items[slot] != nullptr && items[slot]->IsInstalled())
         {
             humanPlayer_.SetCurWeapon(
                 static_cast<int>(slot));
@@ -5318,20 +5340,20 @@ void OriginalRaceSession::updateGameplay(
         runtime.SyncSelectedWeapon(race_.weapons.size());
         if (selection.found)
         {
-            auto& item = items[selection.slot];
+            auto* item = items[selection.slot];
             const auto slotType =
                 static_cast<source::Logic::SlotType>(
                     static_cast<std::size_t>(
                         source::Logic::SlotType::Weapon1) +
                     selection.slot);
             const auto plan = source::Logic::Shot(
-                &item, slotType, true);
+                item, slotType, true);
             emitHumanShot(plan);
             if (plan.Get(slotType))
             {
                 fireWeapon(humanRacer_, RacerRuntime::invalidWeapon,
                            nullptr, 0U, false, true);
-                if (item.GetCurCharge() == 0U)
+                if (item->GetCurCharge() == 0U)
                 {
                     const auto next = humanPlayer_.SelectWeapon(items);
                     runtime.selectedWeaponSlot = next.slot;
@@ -6196,13 +6218,25 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             reflectorSlot.charge = 1U;
             reflectorSlot.hasCharge = true;
             supportSession.applyPlayerProfile(supportProfile);
-            const auto* items = supportSession.playerItems(0U);
-            if (items == nullptr ||
-                items->GetType(0U) !=
-                    source::PlayerItemRack::Type::Droid ||
-                items->GetType(1U) !=
-                    source::PlayerItemRack::Type::Reflector ||
-                std::abs(items->Reflect(100.0F) - 60.0F) > 0.001F)
+            const auto& supportPlayer =
+                supportSession.racers().front();
+            const auto* droid = dynamic_cast<const source::DroidItem*>(
+                supportPlayer.GetSlotInst(source::SlotType::Droid) == nullptr
+                    ? nullptr
+                    : &supportPlayer
+                           .GetSlotInst(source::SlotType::Droid)
+                           ->GetItem());
+            const auto* reflector =
+                dynamic_cast<const source::ReflectorItem*>(
+                    supportPlayer.GetSlotInst(
+                        source::SlotType::Reflector) == nullptr
+                        ? nullptr
+                        : &supportPlayer
+                               .GetSlotInst(source::SlotType::Reflector)
+                               ->GetItem());
+            if (droid == nullptr || reflector == nullptr ||
+                std::abs(supportPlayer.ReflectDamage(100.0F) - 60.0F) >
+                    0.001F)
             {
                 throw std::runtime_error(
                     "source Player physical support slots were not bound");

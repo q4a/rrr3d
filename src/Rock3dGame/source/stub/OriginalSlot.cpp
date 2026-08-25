@@ -1,5 +1,7 @@
 #include "OriginalSlot.h"
 
+#include "OriginalWeapon.h"
+
 #include "OriginalPlayer.h"
 
 #include <algorithm>
@@ -69,6 +71,11 @@ SlotItem::SlotItem(SlotType type) noexcept : type_(type) {}
 
 MobilityItem* SlotItem::IsMobilityItem() noexcept { return nullptr; }
 const MobilityItem* SlotItem::IsMobilityItem() const noexcept
+{
+    return nullptr;
+}
+WeaponItem* SlotItem::IsWeaponItem() noexcept { return nullptr; }
+const WeaponItem* SlotItem::IsWeaponItem() const noexcept
 {
     return nullptr;
 }
@@ -268,6 +275,21 @@ SlotItem& Slot::CreateItem(SlotType type)
         break;
     case SlotType::Motor:
         item_ = std::make_unique<MotorItem>();
+        break;
+    case SlotType::Hyper:
+        item_ = std::make_unique<HyperItem>();
+        break;
+    case SlotType::Mine:
+        item_ = std::make_unique<MineItem>();
+        break;
+    case SlotType::Weapon:
+        item_ = std::make_unique<WeaponItem>();
+        break;
+    case SlotType::Droid:
+        item_ = std::make_unique<DroidItem>();
+        break;
+    case SlotType::Reflector:
+        item_ = std::make_unique<ReflectorItem>();
         break;
     default:
         item_ = std::make_unique<SlotItem>(type);

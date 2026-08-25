@@ -14,38 +14,40 @@ int main()
         source::WeaponItem(&weapons[0], 7U, 1U, &charges[0]),
         source::WeaponItem(&weapons[1], 7U, 1U, &charges[1]),
         source::WeaponItem(&weapons[2], 7U, 1U, &charges[2])};
+    std::array<source::WeaponItem*, 3U> itemPointers{
+        &items[0], &items[1], &items[2]};
 
     source::HumanPlayer human;
-    auto selection = human.SelectWeapon(items);
+    auto selection = human.SelectWeapon(itemPointers);
     if (!selection.found || selection.slot != 1U ||
         human.GetCurWeapon() != 1)
         return 1;
     charges[1] = 0U;
-    selection = human.SelectWeapon(items);
+    selection = human.SelectWeapon(itemPointers);
     if (!selection.found || selection.slot != 2U ||
         human.GetCurWeapon() != 2)
         return 2;
     charges[2] = 0U;
-    selection = human.SelectWeapon(items);
+    selection = human.SelectWeapon(itemPointers);
     if (selection.found || selection.slot != 0U ||
         human.GetCurWeapon() != 0)
         return 3;
 
     charges = {1U, 1U, 1U};
-    human.ChangeWeapon(1, items);
-    human.ChangeWeapon(1, items);
-    human.ChangeWeapon(1, items);
+    human.ChangeWeapon(1, itemPointers);
+    human.ChangeWeapon(1, itemPointers);
+    human.ChangeWeapon(1, itemPointers);
     if (human.GetCurWeapon() != 2)
         return 4;
-    human.ChangeWeapon(-1, items);
+    human.ChangeWeapon(-1, itemPointers);
     if (human.GetCurWeapon() != 1 ||
-        human.GetWeaponCount(items) != 3 ||
-        human.GetWeaponByIndex(0, items) != 0U ||
-        human.GetWeaponByIndex(2, items) != 2U ||
-        human.GetWeaponByIndex(3, items) != items.size())
+        human.GetWeaponCount(itemPointers) != 3 ||
+        human.GetWeaponByIndex(0, itemPointers) != 0U ||
+        human.GetWeaponByIndex(2, itemPointers) != 2U ||
+        human.GetWeaponByIndex(3, itemPointers) != itemPointers.size())
         return 5;
-    std::array<source::WeaponItem, 3U> sparse{
-        items[0], source::WeaponItem{}, items[2]};
+    std::array<source::WeaponItem*, 3U> sparse{
+        &items[0], nullptr, &items[2]};
     if (human.GetWeaponCount(sparse) != 1 ||
         human.GetWeaponByIndex(0, sparse) != 0U ||
         human.GetWeaponByIndex(1, sparse) != 2U)

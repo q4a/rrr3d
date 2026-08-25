@@ -50,6 +50,7 @@ enum class PlayerSlotType : std::uint8_t
 };
 
 class MobilityItem;
+class WeaponItem;
 
 // Backend-neutral part of the original SlotItem.  Mesh/texture fields keep
 // source resource identity; creation of bgfx actors stays at the renderer
@@ -62,6 +63,8 @@ public:
 
     virtual MobilityItem* IsMobilityItem() noexcept;
     virtual const MobilityItem* IsMobilityItem() const noexcept;
+    virtual WeaponItem* IsWeaponItem() noexcept;
+    virtual const WeaponItem* IsWeaponItem() const noexcept;
 
     SlotType GetType() const noexcept;
     const std::string& GetRecord() const noexcept;

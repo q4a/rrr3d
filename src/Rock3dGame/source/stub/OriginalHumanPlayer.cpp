@@ -12,24 +12,25 @@ HumanPlayer::HumanPlayer(int currentWeapon) noexcept
 
 std::size_t HumanPlayer::GetWeaponByIndex(
     int number,
-    std::span<const WeaponItem> primaryWeapons) const noexcept
+    std::span<WeaponItem* const> primaryWeapons) const noexcept
 {
     for (std::size_t slot = 0U;
          slot < primaryWeapons.size(); ++slot)
     {
-        if (primaryWeapons[slot].IsInstalled() && --number < 0)
+        if (primaryWeapons[slot] != nullptr &&
+            primaryWeapons[slot]->IsInstalled() && --number < 0)
             return slot;
     }
     return primaryWeapons.size();
 }
 
 int HumanPlayer::GetWeaponCount(
-    std::span<const WeaponItem> primaryWeapons) const noexcept
+    std::span<WeaponItem* const> primaryWeapons) const noexcept
 {
     int count = 0;
     for (const auto& weapon : primaryWeapons)
     {
-        if (!weapon.IsInstalled())
+        if (weapon == nullptr || !weapon->IsInstalled())
             break;
         ++count;
     }
@@ -48,7 +49,7 @@ void HumanPlayer::SetCurWeapon(int index) noexcept
 
 void HumanPlayer::ChangeWeapon(
     int direction,
-    std::span<const WeaponItem> primaryWeapons) noexcept
+    std::span<WeaponItem* const> primaryWeapons) noexcept
 {
     if (direction < 0)
     {
@@ -62,7 +63,7 @@ void HumanPlayer::ChangeWeapon(
 }
 
 HumanPlayer::Selection HumanPlayer::SelectWeapon(
-    std::span<const WeaponItem> primaryWeapons) noexcept
+    std::span<WeaponItem* const> primaryWeapons) noexcept
 {
     if (primaryWeapons.empty())
         return {};
@@ -72,8 +73,9 @@ HumanPlayer::Selection HumanPlayer::SelectWeapon(
         const std::size_t slot =
             (static_cast<std::size_t>(std::max(currentWeapon_, 0)) +
              offset) % primaryWeapons.size();
-        const auto& weapon = primaryWeapons[slot];
-        if (weapon.IsInstalled() && weapon.GetCurCharge() > 0U)
+        const auto* weapon = primaryWeapons[slot];
+        if (weapon != nullptr && weapon->IsInstalled() &&
+            weapon->GetCurCharge() > 0U)
         {
             currentWeapon_ = static_cast<int>(slot);
             return {slot, true};

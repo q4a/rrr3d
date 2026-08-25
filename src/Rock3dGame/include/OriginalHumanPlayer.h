@@ -43,16 +43,16 @@ public:
 
     std::size_t GetWeaponByIndex(
         int number,
-        std::span<const WeaponItem> primaryWeapons) const noexcept;
+        std::span<WeaponItem* const> primaryWeapons) const noexcept;
     int GetWeaponCount(
-        std::span<const WeaponItem> primaryWeapons) const noexcept;
+        std::span<WeaponItem* const> primaryWeapons) const noexcept;
     int GetCurWeapon() const noexcept;
     void SetCurWeapon(int index) noexcept;
     void ChangeWeapon(
         int direction,
-        std::span<const WeaponItem> primaryWeapons) noexcept;
+        std::span<WeaponItem* const> primaryWeapons) noexcept;
     Selection SelectWeapon(
-        std::span<const WeaponItem> primaryWeapons) noexcept;
+        std::span<WeaponItem* const> primaryWeapons) noexcept;
 
     static DrivingCommand OnInputProgress(
         bool accelerateDown, bool backDown,

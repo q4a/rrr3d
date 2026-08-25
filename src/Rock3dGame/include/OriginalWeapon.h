@@ -1,5 +1,7 @@
 #pragma once
 
+#include "OriginalSlot.h"
+
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -302,10 +304,11 @@ private:
 // owned its charge fields directly; the portable Player already owns the
 // profile-backed storage, so this class binds to that storage instead of
 // creating a second, divergent copy.
-class WeaponItem
+class WeaponItem : public SlotItem
 {
 public:
-    WeaponItem() = default;
+    explicit WeaponItem(
+        SlotType type = SlotType::Weapon) noexcept;
     WeaponItem(Weapon* weapon, std::uint32_t maximumCharge,
                std::uint32_t countCharge,
                std::uint32_t* currentCharge,
@@ -319,6 +322,9 @@ public:
               std::uint32_t chargeStep = 1U,
               float damage = 0.0F,
               int chargeCost = 0) noexcept;
+
+    WeaponItem* IsWeaponItem() noexcept override;
+    const WeaponItem* IsWeaponItem() const noexcept override;
 
     // projectileCreated is the result of the backend preparation step which
     // Weapon::CreateShot performed in Windows.  newCharge is used by
@@ -349,13 +355,25 @@ private:
     int chargeCost_ = 0;
 };
 
+class HyperItem final : public WeaponItem
+{
+public:
+    HyperItem() noexcept : WeaponItem(SlotType::Hyper) {}
+};
+
+class MineItem final : public WeaponItem
+{
+public:
+    MineItem() noexcept : WeaponItem(SlotType::Mine) {}
+};
+
 // Exact gameplay-owned portion of Player::DroidItem. The serialized
 // repairValue is retained for source/profile parity, although the Windows
 // OnProgress implementation heals by the literal 5.0f value.
 class DroidItem : public WeaponItem
 {
 public:
-    DroidItem() = default;
+    DroidItem() noexcept;
     DroidItem(Weapon* weapon, std::uint32_t maximumCharge,
               std::uint32_t countCharge,
               std::uint32_t* currentCharge,
@@ -391,7 +409,7 @@ private:
 class ReflectorItem : public WeaponItem
 {
 public:
-    ReflectorItem() = default;
+    ReflectorItem() noexcept;
     ReflectorItem(Weapon* weapon, std::uint32_t maximumCharge,
                   std::uint32_t countCharge,
                   std::uint32_t* currentCharge,
@@ -407,52 +425,6 @@ public:
 
 private:
     float reflectValue_ = 0.25F;
-};
-
-// Player owns four physical stWeapon slots. This value is embedded in the
-// active Player and keeps the original polymorphic DroidItem/ReflectorItem
-// identity and car lifecycle per physical slot. Multiple droids progress
-// independently; GetSlotInst(stReflector) semantics select the first
-// reflector in slot order.
-class PlayerItemRack
-{
-public:
-    static constexpr std::size_t slotCount = 4U;
-
-    enum class Type : std::uint8_t
-    {
-        None,
-        Droid,
-        Reflector,
-    };
-
-    void Reset() noexcept;
-    void BindDroid(std::size_t slot, Weapon* weapon,
-                   std::uint32_t maximumCharge,
-                   std::uint32_t countCharge,
-                   std::uint32_t* currentCharge,
-                   float repairValue, float repairPeriod) noexcept;
-    void BindReflector(std::size_t slot, Weapon* weapon,
-                       std::uint32_t maximumCharge,
-                       std::uint32_t countCharge,
-                       std::uint32_t* currentCharge,
-                       float reflectValue) noexcept;
-    void OnCreateCar() noexcept;
-    void OnDestroyCar() noexcept;
-    float OnProgress(float deltaTime, float& life,
-                     float maximumLife, bool death) noexcept;
-    float Reflect(float damage) const noexcept;
-
-    Type GetType(std::size_t slot) const noexcept;
-    DroidItem* GetDroid(std::size_t slot) noexcept;
-    const DroidItem* GetDroid(std::size_t slot) const noexcept;
-    ReflectorItem* GetReflector(std::size_t slot) noexcept;
-    const ReflectorItem* GetReflector(std::size_t slot) const noexcept;
-
-private:
-    std::array<Type, slotCount> types_{};
-    std::array<DroidItem, slotCount> droids_{};
-    std::array<ReflectorItem, slotCount> reflectors_{};
 };
 
 // One source Weapon map object exists for every installed Player slot,

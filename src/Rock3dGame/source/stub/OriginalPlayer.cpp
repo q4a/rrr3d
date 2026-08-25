@@ -522,7 +522,15 @@ void Player::CreateCar(bool newRace) noexcept
     carPresent_ = true;
     car.OnCreateCar(newRace);
     Resc();
-    itemRack_.OnCreateCar();
+    for (std::size_t slot = 0U; slot < weaponSlotCount; ++slot)
+    {
+        auto& item = slotRack_.GetSlot(
+            static_cast<PlayerSlotType>(
+                static_cast<std::size_t>(PlayerSlotType::Weapon1) + slot))
+                         .GetItem();
+        if (auto* droid = dynamic_cast<DroidItem*>(&item))
+            droid->OnCreateCar();
+    }
     if (!newRace)
         return;
     ClearBonusProjectiles();
@@ -533,7 +541,17 @@ void Player::CreateCar(bool newRace) noexcept
 void Player::FreeCar(bool freeState) noexcept
 {
     if (carPresent_)
-        itemRack_.OnDestroyCar();
+    {
+        for (std::size_t slot = 0U; slot < weaponSlotCount; ++slot)
+        {
+            auto& item = slotRack_.GetSlot(
+                static_cast<PlayerSlotType>(
+                    static_cast<std::size_t>(PlayerSlotType::Weapon1) +
+                    slot)).GetItem();
+            if (auto* droid = dynamic_cast<DroidItem*>(&item))
+                droid->OnDestroyCar();
+        }
+    }
     carPresent_ = false;
     car.OnFreeCar(freeState);
 }
@@ -550,97 +568,152 @@ void Player::ReloadWeapons(
     // Player.cpp iterates the six physical weapon Slots and reloads their
     // resident WeaponItem objects. The portable Player now has the same
     // ownership, so no temporary charge-only wrappers are required.
-    hyperWeaponItem_.Reload();
-    mineWeaponItem_.Reload();
-    for (auto& item : primaryWeaponItems_)
-        item.Reload();
+    if (auto* item = GetHyperWeaponItem())
+        item->Reload();
+    if (auto* item = GetMineWeaponItem())
+        item->Reload();
+    for (auto* item : GetPrimaryWeaponItems())
+    {
+        if (item != nullptr)
+            item->Reload();
+    }
     SyncSelectedWeapon(weaponDefinitionCount);
 }
 
 void Player::BindWeaponItems(
     std::span<const WeaponDefinition> definitions) noexcept
 {
-    auto bind = [&](WeaponItem& item, Weapon* weapon,
-                    std::size_t definitionIndex,
-                    std::uint32_t countCharge,
-                    std::uint32_t* currentCharge) {
+    auto itemType = [](const WeaponDefinition& definition) noexcept {
+        return static_cast<SlotType>(definition.itemType);
+    };
+    auto ensureItem = [&](PlayerSlotType physicalType,
+                          std::size_t definitionIndex)
+        -> WeaponItem* {
+        auto& physicalSlot = slotRack_.GetSlot(physicalType);
         if (definitionIndex == invalidWeapon ||
             definitionIndex >= definitions.size())
         {
-            item.Bind(nullptr, 0U, 0U, nullptr);
+            return physicalSlot.GetItem().IsWeaponItem();
+        }
+        const auto expectedType = itemType(definitions[definitionIndex]);
+        auto* item = physicalSlot.GetItem().IsWeaponItem();
+        if (item == nullptr || physicalSlot.GetType() != expectedType)
+            item = physicalSlot.CreateItem(expectedType).IsWeaponItem();
+        return item;
+    };
+    auto bind = [&](WeaponItem* item, Weapon* weapon,
+                    std::size_t definitionIndex,
+                    std::uint32_t countCharge,
+                    std::uint32_t* currentCharge) {
+        if (item == nullptr)
+            return;
+        if (definitionIndex == invalidWeapon ||
+            definitionIndex >= definitions.size())
+        {
+            item->Bind(nullptr, 0U, 0U, nullptr);
             return;
         }
         const auto& definition = definitions[definitionIndex];
-        item.Bind(
+        item->Bind(
             weapon, definition.maximumCharge, countCharge,
             currentCharge, definition.chargeStep, definition.damage);
     };
 
-    for (std::size_t slot = 0U; slot < primaryWeaponItems_.size(); ++slot)
+    for (std::size_t slot = 0U; slot < weaponSlotCount; ++slot)
     {
-        bind(primaryWeaponItems_[slot], &weaponRack_.primary[slot],
+        const auto physicalType = static_cast<PlayerSlotType>(
+            static_cast<std::size_t>(PlayerSlotType::Weapon1) + slot);
+        auto* item = ensureItem(physicalType, weaponSlots[slot]);
+        bind(item, &weaponRack_.primary[slot],
              weaponSlots[slot], weaponCapacity[slot],
              &weaponCharges[slot]);
-    }
-    bind(hyperWeaponItem_, &weaponRack_.hyper, hyperWeapon,
-         hyperCapacity, &hyperCharge);
-    bind(mineWeaponItem_, &weaponRack_.mine, mineWeapon,
-         mineCapacity, &mines);
-
-    itemRack_.Reset();
-    for (std::size_t slot = 0U; slot < primaryWeaponItems_.size(); ++slot)
-    {
         const std::size_t definitionIndex = weaponSlots[slot];
         if (definitionIndex == invalidWeapon ||
             definitionIndex >= definitions.size())
             continue;
         const auto& definition = definitions[definitionIndex];
-        if (definition.itemType == WeaponItemType::Droid)
+        if (auto* droid = dynamic_cast<DroidItem*>(item))
         {
-            itemRack_.BindDroid(
-                slot, &weaponRack_.primary[slot],
+            droid->Bind(
+                &weaponRack_.primary[slot],
                 definition.maximumCharge, weaponCapacity[slot],
                 &weaponCharges[slot], definition.repairValue,
                 definition.repairPeriod);
         }
-        else if (definition.itemType == WeaponItemType::Reflector)
+        else if (auto* reflector = dynamic_cast<ReflectorItem*>(item))
         {
-            itemRack_.BindReflector(
-                slot, &weaponRack_.primary[slot],
+            reflector->Bind(
+                &weaponRack_.primary[slot],
                 definition.maximumCharge, weaponCapacity[slot],
                 &weaponCharges[slot], definition.reflectValue);
         }
     }
+    bind(ensureItem(PlayerSlotType::Hyper, hyperWeapon),
+         &weaponRack_.hyper, hyperWeapon, hyperCapacity, &hyperCharge);
+    bind(ensureItem(PlayerSlotType::Mine, mineWeapon),
+         &weaponRack_.mine, mineWeapon, mineCapacity, &mines);
 }
 
-std::span<WeaponItem> Player::GetPrimaryWeaponItems() noexcept
+std::array<WeaponItem*, Player::weaponSlotCount>
+Player::GetPrimaryWeaponItems() noexcept
 {
-    return primaryWeaponItems_;
+    std::array<WeaponItem*, weaponSlotCount> result{};
+    for (std::size_t slot = 0U; slot < result.size(); ++slot)
+    {
+        result[slot] = slotRack_.GetSlot(
+            static_cast<PlayerSlotType>(
+                static_cast<std::size_t>(PlayerSlotType::Weapon1) + slot))
+                           .GetItem().IsWeaponItem();
+    }
+    return result;
 }
 
-std::span<const WeaponItem> Player::GetPrimaryWeaponItems() const noexcept
+std::array<const WeaponItem*, Player::weaponSlotCount>
+Player::GetPrimaryWeaponItems() const noexcept
 {
-    return primaryWeaponItems_;
+    std::array<const WeaponItem*, weaponSlotCount> result{};
+    for (std::size_t slot = 0U; slot < result.size(); ++slot)
+    {
+        result[slot] = slotRack_.GetSlot(
+            static_cast<PlayerSlotType>(
+                static_cast<std::size_t>(PlayerSlotType::Weapon1) + slot))
+                           .GetItem().IsWeaponItem();
+    }
+    return result;
 }
 
-WeaponItem& Player::GetHyperWeaponItem() noexcept
+WeaponItem* Player::GetHyperWeaponItem() noexcept
 {
-    return hyperWeaponItem_;
+    return slotRack_.GetSlot(PlayerSlotType::Hyper)
+        .GetItem().IsWeaponItem();
 }
 
-const WeaponItem& Player::GetHyperWeaponItem() const noexcept
+const WeaponItem* Player::GetHyperWeaponItem() const noexcept
 {
-    return hyperWeaponItem_;
+    return slotRack_.GetSlot(PlayerSlotType::Hyper)
+        .GetItem().IsWeaponItem();
 }
 
-WeaponItem& Player::GetMineWeaponItem() noexcept
+WeaponItem* Player::GetMineWeaponItem() noexcept
 {
-    return mineWeaponItem_;
+    return slotRack_.GetSlot(PlayerSlotType::Mine)
+        .GetItem().IsWeaponItem();
 }
 
-const WeaponItem& Player::GetMineWeaponItem() const noexcept
+const WeaponItem* Player::GetMineWeaponItem() const noexcept
 {
-    return mineWeaponItem_;
+    return slotRack_.GetSlot(PlayerSlotType::Mine)
+        .GetItem().IsWeaponItem();
+}
+
+float Player::ReflectDamage(float value) const noexcept
+{
+    const auto* slot = GetSlotInst(SlotType::Reflector);
+    const auto* reflector = slot == nullptr
+                                ? nullptr
+                                : dynamic_cast<const ReflectorItem*>(
+                                      &slot->GetItem());
+    return reflector == nullptr ? value : reflector->Reflect(value);
 }
 
 void Player::SyncSelectedWeapon(
@@ -675,16 +748,6 @@ bool Player::Shot(WeaponItem& item, bool projectileCreated,
     if (result && mineSlot)
         InsertBonusProjectile(projectileId);
     return result;
-}
-
-PlayerItemRack& Player::GetItemRack() noexcept
-{
-    return itemRack_;
-}
-
-const PlayerItemRack& Player::GetItemRack() const noexcept
-{
-    return itemRack_;
 }
 
 WeaponRack& Player::GetWeaponRack() noexcept
@@ -864,8 +927,16 @@ Player::BehaviorProgressResult Player::ProgressBehaviors(
 {
     BehaviorProgressResult result;
     result.gameObject = GameObject::OnProgress(deltaTime);
-    itemRack_.OnProgress(
-        deltaTime, life, maximumLife, destroyed);
+    for (std::size_t slot = 0U; slot < weaponSlotCount; ++slot)
+    {
+        auto& item = slotRack_.GetSlot(
+            static_cast<PlayerSlotType>(
+                static_cast<std::size_t>(PlayerSlotType::Weapon1) + slot))
+                         .GetItem();
+        if (auto* droid = dynamic_cast<DroidItem*>(&item))
+            droid->OnProgress(
+                deltaTime, life, maximumLife, destroyed);
+    }
     energyDamageEffect.OnProgress(deltaTime);
     immortalEffect.OnProgress(deltaTime);
     lowLifePoints.SetLifeLevel(lowLifeLevel);

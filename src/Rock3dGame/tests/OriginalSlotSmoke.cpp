@@ -1,4 +1,5 @@
 #include "OriginalSlot.h"
+#include "OriginalWeapon.h"
 
 #include <cmath>
 #include <iostream>
@@ -77,10 +78,16 @@ int main()
                 .GetItem().IsMobilityItem() == nullptr ||
         rack.GetSlot(source::PlayerSlotType::Weapon1).GetType() !=
             source::SlotType::Droid ||
+        dynamic_cast<const source::DroidItem*>(
+            &rack.GetSlot(source::PlayerSlotType::Weapon1).GetItem()) ==
+            nullptr ||
         rack.GetSlot(source::PlayerSlotType::Weapon2).GetType() !=
             source::SlotType::Base ||
         rack.GetSlot(source::PlayerSlotType::Weapon3).GetType() !=
             source::SlotType::Reflector ||
+        dynamic_cast<const source::ReflectorItem*>(
+            &rack.GetSlot(source::PlayerSlotType::Weapon3).GetItem()) ==
+            nullptr ||
         rack.GetSlotInst(source::SlotType::Droid) !=
             &rack.GetSlot(source::PlayerSlotType::Weapon1) ||
         rack.GetSlotInst(source::SlotType::Reflector) !=

@@ -141,7 +141,7 @@ Logic::ShotPlan Logic::Shot(
 }
 
 Logic::ShotPlan Logic::ShotAll(
-    std::span<const WeaponItem> primaryWeapons,
+    std::span<WeaponItem* const> primaryWeapons,
     bool human) noexcept
 {
     ShotPlan result;
@@ -150,7 +150,8 @@ Logic::ShotPlan Logic::ShotAll(
         primaryWeapons.size(), WeaponRack::primarySlotCount);
     for (std::size_t slot = 0U; slot < count; ++slot)
     {
-        if (!primaryWeapons[slot].IsReadyShot())
+        if (primaryWeapons[slot] == nullptr ||
+            !primaryWeapons[slot]->IsReadyShot())
             continue;
         result.slots[slot +
                      static_cast<std::size_t>(SlotType::Weapon1)] = true;
@@ -160,13 +161,13 @@ Logic::ShotPlan Logic::ShotAll(
 }
 
 float Logic::ResolveDamage(
-    const PlayerItemRack* targetItems, float value,
+    const Player* targetPlayer, float value,
     DamageType damageType) noexcept
 {
-    if (targetItems == nullptr || damageType == DamageType::Touch)
+    if (targetPlayer == nullptr || damageType == DamageType::Touch)
         return value;
     // Player::GetSlotInst(stReflector) returns the first physical slot.
-    return targetItems->Reflect(value);
+    return targetPlayer->ReflectDamage(value);
 }
 
 GameObject::DamageResult Logic::Damage(

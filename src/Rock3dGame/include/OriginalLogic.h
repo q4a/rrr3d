@@ -125,11 +125,11 @@ public:
     static ShotPlan Shot(const WeaponItem* weapon, SlotType type,
                          bool human) noexcept;
     static ShotPlan ShotAll(
-        std::span<const WeaponItem> primaryWeapons,
+        std::span<WeaponItem* const> primaryWeapons,
         bool human) noexcept;
 
     static float ResolveDamage(
-        const PlayerItemRack* targetItems, float value,
+        const Player* targetPlayer, float value,
         DamageType damageType) noexcept;
     static GameObject::DamageResult Damage(
         GameObject& target, std::size_t senderPlayerId,

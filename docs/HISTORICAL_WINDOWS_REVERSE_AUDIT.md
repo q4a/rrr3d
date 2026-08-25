@@ -862,10 +862,10 @@ selection, sparse direct ordinal и exhausted-ammo reset.
   типа `stReflector`, не суммируя отражатели и не проверяя ненулевой
   коэффициент.
 
-Добавлен `source::PlayerItemRack`, который хранит тип и lifecycle четырёх
-физических `stWeapon1..4` слотов каждого гонщика. Инициализация профиля,
+Эти классы теперь являются настоящими полиморфными предметами четырёх
+физических `Slot` (`stWeapon1..4`) каждого гонщика. Инициализация профиля,
 death/release, двухсекундный respawn/create и network disconnect теперь
-проходят через этот owner. Из сессии удалены `repairSeconds_`, поиск первого
+проходят через `Player::_slot[]` owner. Из сессии удалены `repairSeconds_`, поиск первого
 repair description и ручной расчёт отражения по `WeaponDefinition`.
 
 Расширенный `OriginalWeaponSmoke` проверяет strict period, literal heal,
@@ -1210,7 +1210,9 @@ assets. Player regression проверяет identity record и обязател
 `OnCreateCar`, `OnDestroyCar`, progress и reflector lookup при каждом
 destroy/restore/disconnect/exit переходе.
 
-`PlayerItemRack` теперь является частью active `source::Player`.
+На промежуточном этапе `PlayerItemRack` был частью active `source::Player`;
+в P2.36 этот временный контейнер удалён, а классы помещены непосредственно в
+физические `Slot`.
 `CreateCar/FreeCar` сами подключают и отключают slot item lifecycle,
 `ProgressBehaviors` исполняет Droid, а damage path получает первый Reflector
 из целевого Player. Параллельный session-массив и пять ручных синхронизаций
@@ -1262,7 +1264,7 @@ charge-only wrappers. В Windows один `WeaponItem` постоянно жив
 обращаются именно к этому объекту.
 
 Active `Player` теперь постоянно хранит четыре primary `WeaponItem`, Hyper и
-Mine, связывает их с собственными `WeaponRack` и charge storage после
+Mine непосредственно в физических `Slot`, связывает их с собственными `WeaponRack` и charge storage после
 формирования loadout и одновременно настраивает производные
 Droid/Reflector. `ReloadWeapons`, Human selection/ShotAll, AI, mine, hyper и
 сетевые shot transactions используют эти же экземпляры; три фабричные
@@ -1270,6 +1272,31 @@ Droid/Reflector. `ReloadWeapons`, Human selection/ShotAll, AI, mine, hyper и
 Player regression проверяет устойчивую identity объектов и то, что изменения
 заряда через bonus/reload видны тому же экземпляру; lifecycle regression
 теперь также связывает реальные WeaponItem до `Race::StartRace`.
+
+### P2.36 — Slot-owned polymorphic weapon items — выполнено
+
+Продолжение аудита подтвердило, что P2.35 ещё оставлял два объекта на один
+слот: `PlayerSlotRack::Slot` содержал безликий `SlotItem`, а рабочий
+`WeaponItem` находился рядом в отдельном Player-массиве. Это всё ещё не
+соответствовало `eff9338:Player.h`, где `Slot::CreateItem` создаёт один
+полиморфный `HyperItem`, `MineItem`, `WeaponItem`, `DroidItem` или
+`ReflectorItem`.
+
+`WeaponItem` теперь наследует portable `SlotItem`, а `Slot::CreateItem`
+создаёт все пять исходных weapon-классов по serialized `Slot::Type`.
+`Player::BindWeaponItems`, reload, Human/Logic shot selection, Droid
+create/destroy/progress и первый Reflector работают с объектом из
+`PlayerSlotRack`; промежуточные `primaryWeaponItems_`, Hyper/Mine items и
+`PlayerItemRack` полностью удалены. `Logic::ResolveDamage` принимает target
+Player и выполняет исходный `GetSlotInst(stReflector)` lookup.
+
+Также исправлен профильный owner: при `applyPlayerProfile` физические
+`slot0..slot9` человека теперь пересобираются из профиля с точными именами
+`stWheel..stWeapon4`. Ранее менялись индексы оружия и charge, но физический
+Slot мог остаться от стартового race loadout, из-за чего Droid/Reflector и
+визуальная запись расходились. Regression проверяет несколько Slot-owned
+Droid с независимым lifecycle, два Reflector с first-slot rule и устойчивую
+identity WeaponItem непосредственно внутри Slot.
 
 ## Итоговое решение
 

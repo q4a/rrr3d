@@ -1091,8 +1091,8 @@ Network, video и Steam явно выключены.
 - Active `source::ReflectorItem` переносит clamped коэффициент урона.
   `Logic::Damage`-adapter обходит touch damage и применяет только первый
   физический слот типа Reflector, как `Player::GetSlotInst(stReflector)`.
-- `source::PlayerItemRack` владеет четырьмя physical weapon slots каждого
-  гонщика. Несколько Droid имеют независимые таймеры; death, respawn и
+- Четыре physical `Slot` самого Player владеют полиморфными Droid/Reflector.
+  Несколько Droid имеют независимые таймеры; death, respawn и
   disconnect вызывают исходный item lifecycle.
 - Session-local `repairSeconds_`, description scan и ручной reflector math
   удалены. Unit smoke и resource race smoke проверяют реальные записи
@@ -1294,9 +1294,9 @@ Network, video и Steam явно выключены.
 
 ### Source Player physical item-slot owner
 
-- `DroidItem` и `ReflectorItem` больше не хранятся в отдельном session
-  массиве: `PlayerItemRack` встроен в active Player как portable-часть
-  исходного `_slot[stWeapon1..stWeapon4]`.
+- `DroidItem` и `ReflectorItem` больше не хранятся ни в session-массиве, ни в
+  промежуточном `PlayerItemRack`: это полиморфные предметы исходного
+  `_slot[stWeapon1..stWeapon4]`.
 - `Player::CreateCar/FreeCar` владеют `OnCreateCar/OnDestroyCar`, поэтому
   death, restore, disconnect и race exit не требуют дублирующих adapter
   callbacks. Droid progress также выполняется внутри Player behavior owner.
@@ -1346,6 +1346,22 @@ Network, video и Steam явно выключены.
   session. Readiness, cooldown и charge transaction читают единый объект.
 - Player/lifecycle regressions проверяют устойчивую identity, общий charge
   storage и исходный reload через постоянные items.
+
+### Source Slot-owned polymorphic weapon items
+
+- `WeaponItem` наследует portable `SlotItem`; `Slot::CreateItem` создаёт
+  `HyperItem`, `MineItem`, `WeaponItem`, `DroidItem` и `ReflectorItem` по
+  исходному serialized class id. Второго runtime item рядом со Slot больше
+  нет.
+- Player reload, Human/Logic selection, network/local shot, Droid lifecycle
+  и Reflector lookup получают один предмет непосредственно из physical Slot.
+  Временные Player-массивы items и `PlayerItemRack` удалены.
+- Применение human profile теперь перестраивает все десять физических слотов
+  из `slot0..slot9` (`stWheel..stWeapon4`) до binding weapon backend; запись,
+  class identity и charge больше не расходятся со стартовым race loadout.
+- Weapon/Player/resource regressions покрывают Slot identity, несколько
+  Droid, first Reflector, профильную установку и полный create/free/reload
+  lifecycle.
 
 ## Очередь дальнейшего переноса
 

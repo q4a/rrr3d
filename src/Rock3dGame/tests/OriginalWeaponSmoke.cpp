@@ -117,7 +117,9 @@ int main()
     std::array<source::WeaponItem, 2U> primary{
         source::WeaponItem(&rack.primary[0], 7U, 1U, &firstCharge),
         source::WeaponItem(&rack.primary[1], 7U, 1U, &secondCharge)};
-    const auto allPlan = source::Logic::ShotAll(primary, true);
+    std::array<source::WeaponItem*, 2U> primaryItems{
+        &primary[0], &primary[1]};
+    const auto allPlan = source::Logic::ShotAll(primaryItems, true);
     if (!allPlan.humanShotEvent || allPlan.shotCount != 1U ||
         !allPlan.Get(source::Logic::SlotType::Weapon1) ||
         allPlan.Get(source::Logic::SlotType::Weapon2))
@@ -156,57 +158,98 @@ int main()
     if (droid.GetRepairTime() != 0.0F)
         return 20;
 
-    source::PlayerItemRack supportRack;
-    std::uint32_t firstReflectorCharge = 0U;
-    std::uint32_t secondReflectorCharge = 0U;
-    supportRack.BindReflector(
-        2U, &rack.primary[2], 1U, 1U,
-        &secondReflectorCharge, 0.9F);
-    supportRack.BindReflector(
-        0U, &rack.primary[0], 1U, 1U,
-        &firstReflectorCharge, 0.4F);
-    if (supportRack.GetType(0U) !=
-            source::PlayerItemRack::Type::Reflector ||
-        supportRack.GetReflector(0U) == nullptr ||
-        std::abs(supportRack.Reflect(100.0F) - 60.0F) > 0.001F)
+    source::Player supportPlayer;
+    supportPlayer.Reset(100.0F, 1U);
+    r3d::game::originalrace::OriginalWorkshopItem firstDroidRecord;
+    firstDroidRecord.record =
+        "world\\race\\workshopRoot\\workshop\\droid1";
+    firstDroidRecord.type = static_cast<std::uint32_t>(
+        source::SlotType::Droid);
+    auto secondDroidRecord = firstDroidRecord;
+    secondDroidRecord.record =
+        "world\\race\\workshopRoot\\workshop\\droid2";
+    supportPlayer.BindSlots(
+        {firstDroidRecord, secondDroidRecord},
+        {{firstDroidRecord.record, "stWeapon1", 1U},
+         {secondDroidRecord.record, "stWeapon2", 1U}});
+    supportPlayer.weaponSlots[0] = 0U;
+    supportPlayer.weaponSlots[1] = 1U;
+    supportPlayer.weaponCapacity[0] = 1U;
+    supportPlayer.weaponCapacity[1] = 1U;
+    supportPlayer.weaponCharges[0] = 1U;
+    supportPlayer.weaponCharges[1] = 1U;
+    std::array<r3d::game::originalrace::WeaponDefinition, 2U>
+        droidDefinitions{};
+    for (auto& definition : droidDefinitions)
+    {
+        definition.itemType =
+            r3d::game::originalrace::WeaponItemType::Droid;
+        definition.maximumCharge = 1U;
+        definition.reloadCharge = 1U;
+        definition.repairPeriod = 1.0F;
+    }
+    supportPlayer.BindWeaponItems(droidDefinitions);
+    supportPlayer.SetLife(80.0F);
+    supportPlayer.CreateCar(true);
+    auto* firstDroid = dynamic_cast<source::DroidItem*>(
+        &supportPlayer
+             .GetSlotInst(source::SlotType::Droid)
+             ->GetItem());
+    if (firstDroid == nullptr || !firstDroid->IsProgressRegistered())
         return 21;
-
-    std::uint32_t secondDroidCharge = 0U;
-    supportRack.Reset();
-    supportRack.BindDroid(
-        0U, &rack.primary[0], 1U, 1U,
-        &droidCharge, 5.0F, 1.0F);
-    supportRack.BindDroid(
-        1U, &rack.primary[1], 1U, 1U,
-        &secondDroidCharge, 5.0F, 1.0F);
-    supportRack.OnCreateCar();
-    life = 80.0F;
-    if (supportRack.OnProgress(
-            1.001F, life, 100.0F, false) != 10.0F ||
-        life != 90.0F)
+    supportPlayer.ProgressBehaviors(1.001F, 0.35F, 0.0F);
+    if (supportPlayer.GetLife() != 90.0F)
         return 22;
-    supportRack.OnDestroyCar();
-    if (supportRack.OnProgress(
-            2.0F, life, 100.0F, false) != 0.0F ||
-        life != 90.0F)
+    supportPlayer.FreeCar(false);
+    supportPlayer.ProgressBehaviors(2.0F, 0.35F, 0.0F);
+    if (firstDroid->IsProgressRegistered() ||
+        supportPlayer.GetLife() != 90.0F)
         return 23;
 
-    source::PlayerItemRack damageSupport;
-    damageSupport.BindReflector(
-        0U, &rack.primary[0], 1U, 1U,
-        &firstReflectorCharge, 0.4F);
+    source::Player damagePlayer;
+    damagePlayer.Reset(100.0F, 1U);
+    r3d::game::originalrace::OriginalWorkshopItem firstReflectorRecord;
+    firstReflectorRecord.record =
+        "world\\race\\workshopRoot\\workshop\\reflector1";
+    firstReflectorRecord.type = static_cast<std::uint32_t>(
+        source::SlotType::Reflector);
+    auto secondReflectorRecord = firstReflectorRecord;
+    secondReflectorRecord.record =
+        "world\\race\\workshopRoot\\workshop\\reflector2";
+    damagePlayer.BindSlots(
+        {firstReflectorRecord, secondReflectorRecord},
+        {{firstReflectorRecord.record, "stWeapon1", 1U},
+         {secondReflectorRecord.record, "stWeapon3", 1U}});
+    damagePlayer.weaponSlots[0] = 0U;
+    damagePlayer.weaponSlots[2] = 1U;
+    damagePlayer.weaponCapacity[0] = 1U;
+    damagePlayer.weaponCapacity[2] = 1U;
+    damagePlayer.weaponCharges[0] = 1U;
+    damagePlayer.weaponCharges[2] = 1U;
+    std::array<r3d::game::originalrace::WeaponDefinition, 2U>
+        reflectorDefinitions{};
+    for (auto& definition : reflectorDefinitions)
+    {
+        definition.itemType =
+            r3d::game::originalrace::WeaponItemType::Reflector;
+        definition.maximumCharge = 1U;
+        definition.reloadCharge = 1U;
+    }
+    reflectorDefinitions[0].reflectValue = 0.4F;
+    reflectorDefinitions[1].reflectValue = 0.9F;
+    damagePlayer.BindWeaponItems(reflectorDefinitions);
     if (std::abs(source::Logic::ResolveDamage(
-                     &damageSupport, 100.0F,
+                     &damagePlayer, 100.0F,
                      r3d::game::originalrace::DamageType::Simple) -
                  60.0F) > 0.001F ||
         source::Logic::ResolveDamage(
-            &damageSupport, 100.0F,
+            &damagePlayer, 100.0F,
             r3d::game::originalrace::DamageType::Touch) != 100.0F)
         return 24;
     source::GameObject damageTarget;
     damageTarget.ResetGameObject(100.0F);
     const auto resolved = source::Logic::ResolveDamage(
-        &damageSupport, 100.0F,
+        &damagePlayer, 100.0F,
         r3d::game::originalrace::DamageType::Simple);
     const auto damageResult = source::Logic::Damage(
         damageTarget, 3U, resolved,

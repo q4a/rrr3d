@@ -299,17 +299,18 @@ public:
     void SyncSelectedWeapon(std::size_t weaponDefinitionCount) noexcept;
     void BindWeaponItems(
         std::span<const WeaponDefinition> definitions) noexcept;
-    std::span<WeaponItem> GetPrimaryWeaponItems() noexcept;
-    std::span<const WeaponItem> GetPrimaryWeaponItems() const noexcept;
-    WeaponItem& GetHyperWeaponItem() noexcept;
-    const WeaponItem& GetHyperWeaponItem() const noexcept;
-    WeaponItem& GetMineWeaponItem() noexcept;
-    const WeaponItem& GetMineWeaponItem() const noexcept;
+    std::array<WeaponItem*, weaponSlotCount>
+        GetPrimaryWeaponItems() noexcept;
+    std::array<const WeaponItem*, weaponSlotCount>
+        GetPrimaryWeaponItems() const noexcept;
+    WeaponItem* GetHyperWeaponItem() noexcept;
+    const WeaponItem* GetHyperWeaponItem() const noexcept;
+    WeaponItem* GetMineWeaponItem() noexcept;
+    const WeaponItem* GetMineWeaponItem() const noexcept;
+    float ReflectDamage(float value) const noexcept;
     bool Shot(WeaponItem& item, bool projectileCreated,
               bool mineSlot, std::uint32_t projectileId,
               int newCharge = -1) noexcept;
-    PlayerItemRack& GetItemRack() noexcept;
-    const PlayerItemRack& GetItemRack() const noexcept;
     WeaponRack& GetWeaponRack() noexcept;
     const WeaponRack& GetWeaponRack() const noexcept;
     void BindSlots(
@@ -465,13 +466,6 @@ private:
     std::uint32_t nextBonusProjectileId_ = 1U;
     PlayerSlotRack slotRack_;
     WeaponRack weaponRack_;
-    // Windows Slot owns the WeaponItem for stHyper, stMine and every
-    // stWeapon position. Keep those items persistent inside Player as well;
-    // the session only provides backend Weapon instances and definitions.
-    std::array<WeaponItem, weaponSlotCount> primaryWeaponItems_{};
-    WeaponItem hyperWeaponItem_;
-    WeaponItem mineWeaponItem_;
-    PlayerItemRack itemRack_;
 };
 
 } // namespace r3d::game::originalrace::source

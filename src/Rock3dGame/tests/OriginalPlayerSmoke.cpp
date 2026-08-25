@@ -102,24 +102,41 @@ int main()
     playerWeapons.OnProgress(0.51F);
     if (!playerWeapons.primary[0].IsReadyShot())
         return 63;
-    std::uint32_t droidCharge = 1U;
-    auto& physicalItems = player.GetItemRack();
-    physicalItems.Reset();
-    physicalItems.BindDroid(
-        0U, &playerWeapons.primary[0], 1U, 1U, &droidCharge,
-        17.0F, 0.1F);
+    r3d::game::originalrace::OriginalWorkshopItem droidRecord;
+    droidRecord.record =
+        "world\\race\\workshopRoot\\workshop\\droid";
+    droidRecord.type = static_cast<std::uint32_t>(
+        source::SlotType::Droid);
+    player.BindSlots(
+        {droidRecord},
+        {{droidRecord.record, "stWeapon1", 1U}});
+    player.weaponSlots[0] = 0U;
+    player.weaponCapacity[0] = 1U;
+    player.weaponCharges[0] = 1U;
+    std::array<r3d::game::originalrace::WeaponDefinition, 1U>
+        droidDefinitions{};
+    droidDefinitions[0].itemType =
+        r3d::game::originalrace::WeaponItemType::Droid;
+    droidDefinitions[0].maximumCharge = 1U;
+    droidDefinitions[0].reloadCharge = 1U;
+    droidDefinitions[0].repairValue = 17.0F;
+    droidDefinitions[0].repairPeriod = 0.1F;
+    player.BindWeaponItems(droidDefinitions);
+    auto* droidSlot = player.GetSlotInst(source::SlotType::Droid);
+    auto* droid = droidSlot == nullptr
+                      ? nullptr
+                      : dynamic_cast<source::DroidItem*>(
+                            &droidSlot->GetItem());
     player.SetLife(60.0F);
     player.CreateCar(true);
-    if (physicalItems.GetDroid(0U) == nullptr ||
-        !physicalItems.GetDroid(0U)->IsProgressRegistered())
+    if (droid == nullptr || !droid->IsProgressRegistered())
         return 59;
     player.ProgressBehaviors(0.101F, 0.35F, 0.0F);
     if (std::abs(player.GetLife() - 65.0F) > 0.001F)
         return 60;
     player.FreeCar(false);
-    if (physicalItems.GetDroid(0U)->IsProgressRegistered())
+    if (droid->IsProgressRegistered())
         return 61;
-    physicalItems.Reset();
     player.CreateCar(true);
 
     player.weaponSlots = {2U, source::Player::invalidWeapon, 4U, 5U};
@@ -152,10 +169,13 @@ int main()
     player.BindWeaponItems(playerWeaponDefinitions);
     const auto firstWeaponItems = player.GetPrimaryWeaponItems();
     const auto secondWeaponItems = player.GetPrimaryWeaponItems();
-    if (&firstWeaponItems[0] != &secondWeaponItems[0] ||
-        firstWeaponItems[0].GetCurCharge() != 1U ||
-        player.GetHyperWeaponItem().GetCurCharge() != 0U ||
-        player.GetMineWeaponItem().GetCurCharge() != 1U)
+    if (firstWeaponItems[0] == nullptr ||
+        firstWeaponItems[0] != secondWeaponItems[0] ||
+        firstWeaponItems[0]->GetCurCharge() != 1U ||
+        player.GetHyperWeaponItem() == nullptr ||
+        player.GetHyperWeaponItem()->GetCurCharge() != 0U ||
+        player.GetMineWeaponItem() == nullptr ||
+        player.GetMineWeaponItem()->GetCurCharge() != 1U)
         return 64;
     const auto hyper = player.TakeAmmunition(
         0.5F, maximumCharges, 0.0F);
