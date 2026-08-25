@@ -1052,25 +1052,15 @@ void OriginalRaceSession::reset()
     humanRacer_ = RacerRuntime::invalidWeapon;
     networkOwnedRacers_.clear();
     elapsedSeconds_ = 0.0F;
+    // AIPlayer::~AIPlayer writes the source-owned cheat flag back to its
+    // Player. Release these owners before replacing the Player vector.
+    aiPlayers_.clear();
     racers_.assign(race_.racers.size(), {});
     vehicleInputs_.assign(race_.racers.size(), {});
     weaponRacks_.assign(race_.racers.size(), {});
     playerItemRacks_.assign(race_.racers.size(), {});
     humanPlayer_.SetCurWeapon(0);
-    aiPlayers_.clear();
     aiPlayers_.reserve(race_.racers.size());
-    for (std::size_t index = 0U; index < race_.racers.size(); ++index)
-    {
-        aiPlayers_.emplace_back(
-            &racers_[index], race_.racers[index].human,
-            sourceTrace_.GetTrackCount());
-        // A debug build also creates an AIPlayer for the human; keeping the
-        // dormant owner here lets the separately enabled legacy debug mode
-        // reproduce that branch without rebuilding the session.
-        aiPlayers_.back().CreateCar();
-        if (race_.racers[index].human)
-            aiPlayers_.back().SetEnabled(false);
-    }
     aiSystem_.Reset(sourceTrace_.GetTrackCount());
     aiSystemEntriesScratch_.clear();
     aiSystemEntriesScratch_.reserve(race_.racers.size());
@@ -1402,6 +1392,27 @@ void OriginalRaceSession::reset()
     }
     source::Player* human =
         humanPosition == racers_.end() ? nullptr : &*humanPosition;
+    for (std::size_t index = 0U; index < racers_.size(); ++index)
+    {
+        auto& player = racers_[index];
+        if (player.IsComputer() || player.IsHuman())
+        {
+            aiPlayers_.emplace_back(
+                &player, player.IsHuman(), sourceTrace_.GetTrackCount());
+            // The release/debug build distinction is represented by enabled
+            // state. Keeping a dormant Human AI owner permits DEBUG_PX to be
+            // selected at runtime without giving Human any cheat flags.
+            aiPlayers_.back().CreateCar();
+            if (player.IsHuman())
+                aiPlayers_.back().SetEnabled(false);
+        }
+        else
+        {
+            // Net opponents receive authoritative vehicle snapshots and do
+            // not own an AIPlayer in the Windows NetPlayer constructor.
+            aiPlayers_.emplace_back(sourceTrace_.GetTrackCount());
+        }
+    }
     raceRunState_.StartRace(
         racers_, human,
         race_.environment.weather == Weather::Night,
@@ -2550,15 +2561,8 @@ OriginalRaceSession::progressPlayers(
         auto& runtime = racers_[racer];
         if (runtime.disconnected)
             continue;
-        const std::uint32_t cheatMask =
-            racer < aiPlayers_.size() &&
-                    racers_[racer].IsComputer()
-                ? aiPlayers_[racer].GetCheat()
-                : (runtime.IsHuman() && networkGameplayEnabled_
-                       ? source::Player::cheatEnableFaster
-                       : source::Player::cheatDisabled);
         results[racer] = runtime.OnProgress(
-            seconds, !runtime.destroyed, cheatMask, racer,
+            seconds, !runtime.destroyed, runtime.GetCheat(), racer,
             difficultyIndex, cheatPlayers);
 
         if (results[racer].restore ==
@@ -6571,6 +6575,19 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
         }
 
         OriginalRaceSession networkCountdownSession(race);
+        const auto computerCheat =
+            source::Player::cheatEnableFaster |
+            source::Player::cheatEnableSlower;
+        if (networkCountdownSession.racers().front().GetCheat() !=
+                source::Player::cheatDisabled ||
+            (networkCountdownSession.racers().size() > 1U &&
+             networkCountdownSession.racers()[1].IsComputer() &&
+             networkCountdownSession.racers()[1].GetCheat() !=
+                 computerCheat))
+        {
+            throw std::runtime_error(
+                "AIPlayer did not configure Player-owned cheat flags");
+        }
         const std::array<float, 4> synchronizedColor{
             0.15F, 0.35F, 0.55F, 1.0F};
         if (!networkCountdownSession.synchronizePlayerPresentation(
@@ -11452,6 +11469,15 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 2 << source::Player::opponentBit;
             networkRace.racers[1].netSlot = 2U;
             OriginalRaceSession networkSession(networkRace);
+            if (networkSession.racers()[0].GetCheat() !=
+                    source::Player::cheatDisabled ||
+                networkSession.racers()[1].GetCheat() !=
+                    source::Player::cheatDisabled ||
+                networkSession.racerHasAiController(1U))
+            {
+                throw std::runtime_error(
+                    "NetPlayer human/opponent received non-source AI cheat");
+            }
             std::vector<bool> clientOwned(
                 networkRace.racers.size(), false);
             clientOwned[0] = true;

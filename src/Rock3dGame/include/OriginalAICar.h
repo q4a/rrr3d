@@ -216,10 +216,11 @@ public:
     explicit AIPlayer(std::uint32_t trackCount = 4U);
     AIPlayer(Player* player, bool human,
              std::uint32_t trackCount = 4U);
+    ~AIPlayer();
     AIPlayer(const AIPlayer&) = delete;
     AIPlayer& operator=(const AIPlayer&) = delete;
-    AIPlayer(AIPlayer&&) noexcept = default;
-    AIPlayer& operator=(AIPlayer&&) noexcept = default;
+    AIPlayer(AIPlayer&& other) noexcept;
+    AIPlayer& operator=(AIPlayer&& other) noexcept;
 
     void Reset(Player* player, bool human,
                std::uint32_t trackCount = 4U);
@@ -244,10 +245,11 @@ public:
     const AICar* GetCar() const noexcept;
 
 private:
+    void ReleasePlayer() noexcept;
+
     Player* player_ = nullptr;
     AICar car_;
     std::uint32_t trackCount_ = 4U;
-    std::uint32_t cheat_ = cheatDisabled;
     bool carCreated_ = false;
     bool enabled_ = true;
 };

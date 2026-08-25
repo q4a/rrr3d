@@ -1908,3 +1908,17 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   удалённых участников.
 - Resource descriptor сохранён как fallback и владелец статических assets;
   unit/session regression проверяет gamer id, цвет и неверный slot.
+
+### Source Player cheat owner / AIPlayer lifecycle follow-up
+
+- `_cheatEnable` перенесён из parallel portable `AIPlayer` в active
+  `source::Player`, вместе с исходными `GetCheat/SetCheat`.
+- `AIPlayer` теперь повторяет constructor/destructor side effects Windows:
+  Computer получает Faster+Slower на время жизни AI owner, release/rebind
+  возвращает Disabled. Move lifecycle сохраняет единственного владельца.
+- Удалён отсутствующий в оригинале network-Human `cheatEnableFaster`.
+  Remote Opponent больше не получает фиктивный AI controller; его машина
+  остаётся под authoritative network snapshots. Reset очищает AI owners до
+  замены Player storage, исключая dangling owner state.
+- Player, AIPlayer, offline session и network-role regressions подтверждают
+  source masks и teardown.

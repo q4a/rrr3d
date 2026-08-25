@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <utility>
 
 namespace r3d::game::originalrace::source
 {
@@ -804,15 +805,58 @@ AIPlayer::AIPlayer(Player* player, bool human,
     Reset(player, human, trackCount);
 }
 
+AIPlayer::~AIPlayer()
+{
+    FreeCar();
+    ReleasePlayer();
+}
+
+AIPlayer::AIPlayer(AIPlayer&& other) noexcept
+    : player_(std::exchange(other.player_, nullptr)),
+      car_(std::move(other.car_)), trackCount_(other.trackCount_),
+      carCreated_(other.carCreated_), enabled_(other.enabled_)
+{
+    other.carCreated_ = false;
+}
+
+AIPlayer& AIPlayer::operator=(AIPlayer&& other) noexcept
+{
+    if (this == &other)
+        return *this;
+    FreeCar();
+    ReleasePlayer();
+    player_ = std::exchange(other.player_, nullptr);
+    car_ = std::move(other.car_);
+    trackCount_ = other.trackCount_;
+    carCreated_ = other.carCreated_;
+    enabled_ = other.enabled_;
+    other.carCreated_ = false;
+    return *this;
+}
+
+void AIPlayer::ReleasePlayer() noexcept
+{
+    if (player_ != nullptr && !player_->IsHuman())
+        player_->SetCheat(Player::cheatDisabled);
+    player_ = nullptr;
+}
+
 void AIPlayer::Reset(Player* player, bool human,
                      std::uint32_t trackCount)
 {
     FreeCar();
+    ReleasePlayer();
     player_ = player;
     trackCount_ = std::max(trackCount, 1U);
-    cheat_ = human
-                 ? cheatDisabled
-                 : cheatEnableFaster | cheatEnableSlower;
+    // AIPlayer's Windows constructor derives this from Player::IsHuman and
+    // mutates Player::_cheatEnable. The bool remains only as an adapter/API
+    // compatibility argument; identity is the source authority.
+    (void)human;
+    if (player_ != nullptr && !player_->IsHuman())
+    {
+        player_->SetCheat(
+            Player::cheatEnableFaster | Player::cheatEnableSlower);
+    }
     enabled_ = true;
 }
 
@@ -867,7 +911,10 @@ bool AIPlayer::TakeResetCar() noexcept
 void AIPlayer::SetEnabled(bool value) noexcept { enabled_ = value; }
 bool AIPlayer::IsEnabled() const noexcept { return enabled_; }
 bool AIPlayer::HasCar() const noexcept { return carCreated_; }
-std::uint32_t AIPlayer::GetCheat() const noexcept { return cheat_; }
+std::uint32_t AIPlayer::GetCheat() const noexcept
+{
+    return player_ != nullptr ? player_->GetCheat() : cheatDisabled;
+}
 Player* AIPlayer::GetPlayer() noexcept { return player_; }
 const Player* AIPlayer::GetPlayer() const noexcept { return player_; }
 AICar* AIPlayer::GetCar() noexcept

@@ -269,6 +269,8 @@ public:
     bool IsComputer() const noexcept;
     bool IsOpponent() const noexcept;
     bool IsHumanOrOpponent() const noexcept;
+    std::uint32_t GetCheat() const noexcept;
+    void SetCheat(std::uint32_t value) noexcept;
     HeadLightMode GetHeadLight() const noexcept;
     void SetHeadlight(HeadLightMode value) noexcept;
     bool HasCar() const noexcept;
@@ -399,6 +401,7 @@ private:
     std::string name_;
     std::string netName_;
     std::array<float, 4> color_{1.0F, 1.0F, 1.0F, 1.0F};
+    std::uint32_t cheatEnable_ = cheatDisabled;
     HeadLightMode headLight_ = HeadLightMode::None;
     // Portable counterpart of CarState::mapObj. Player::ReleaseCar detaches
     // both spot lights and the night-flare actor without changing the

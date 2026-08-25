@@ -251,6 +251,11 @@ int main()
             [](bool locked) { return locked; }))
         return 22;
 
+    lanePlayers[0].ConfigureIdentity(
+        1, 1, 0U, "Computer", "", {1.0F, 1.0F, 1.0F, 1.0F});
+    lanePlayers[1].ConfigureIdentity(
+        source::Player::humanId, 0, 0U, "Human", "",
+        {1.0F, 1.0F, 1.0F, 1.0F});
     source::AIPlayer computerOwner(&lanePlayers[0], false, 4U);
     source::AIPlayer humanOwner(&lanePlayers[1], true, 4U);
     if (computerOwner.HasCar() ||
@@ -259,6 +264,9 @@ int main()
              source::AIPlayer::cheatEnableSlower) ||
         humanOwner.GetCheat() != source::AIPlayer::cheatDisabled)
         return 23;
+    if (lanePlayers[0].GetCheat() != computerOwner.GetCheat() ||
+        lanePlayers[1].GetCheat() != source::Player::cheatDisabled)
+        return 28;
     computerOwner.CreateCar();
     computerOwner.SetEnabled(false);
     vehicle.position = lanePositions[0];
@@ -279,6 +287,9 @@ int main()
             1.0F / 60.0F, vehicle, &testRandom).move !=
             source::AICar::MoveCarState::None)
         return 26;
+    computerOwner.Reset(nullptr, false, 4U);
+    if (lanePlayers[0].GetCheat() != source::Player::cheatDisabled)
+        return 29;
 
     std::cout << "original AIPlayer/AICar/AISystem source rules passed\n";
     return 0;

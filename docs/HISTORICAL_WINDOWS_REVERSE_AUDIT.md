@@ -1083,6 +1083,22 @@ fallback для отсутствующего runtime slot и владельце�
 ресурсных assets. Session regression проверяет перенос gamer id/цвета и
 границу индекса; 13 non-network CTest и integrated Metal/Jolt smoke проходят.
 
+### P2.25 — Player cheat/AIPlayer ownership lifecycle — выполнено
+
+Подтвердилось, что флаги исходного `Player::_cheatEnable` были ошибочно
+размещены в portable `AIPlayer::cheat_`. Session читал этот параллельный
+state для компьютеров и дополнительно выдавал сетевому Human выдуманный
+`cheatEnableFaster`, которого нет ни в `Player`, ни в `NetPlayer` Windows.
+Это меняло torque/steering физики не по исходной роли.
+
+`Player::GetCheat/SetCheat` и само поле теперь перенесены в active Player.
+Как в оригинальном `AIPlayer`, constructor/reset включает Faster+Slower у
+не-Human Player, а destructor/rebind снимает их. Session освобождает AI owner
+до замены массива Player, создаёт AI только для Computer и dormant debug
+Human, но не для authoritative remote Opponent, и `Player::OnProgress` всегда
+читает собственную маску. Unit regressions проверяют assign/release owner;
+network regression — отсутствие AI/cheat у Human и Opponent.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

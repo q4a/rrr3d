@@ -52,6 +52,14 @@ int main()
     if (player.IsHuman() || !player.IsComputer() || player.IsOpponent() ||
         player.IsHumanOrOpponent())
         return 44;
+    player.SetCheat(
+        source::Player::cheatEnableFaster |
+        source::Player::cheatEnableSlower);
+    if (player.GetCheat() !=
+        (source::Player::cheatEnableFaster |
+         source::Player::cheatEnableSlower))
+        return 50;
+    player.SetCheat(source::Player::cheatDisabled);
 
     player.weaponSlots = {2U, source::Player::invalidWeapon, 4U, 5U};
     player.weaponCapacity = {6U, 0U, 3U, 2U};

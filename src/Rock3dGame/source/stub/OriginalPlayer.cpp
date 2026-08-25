@@ -443,6 +443,16 @@ bool Player::IsHumanOrOpponent() const noexcept
     return IsHuman() || IsOpponent();
 }
 
+std::uint32_t Player::GetCheat() const noexcept
+{
+    return cheatEnable_;
+}
+
+void Player::SetCheat(std::uint32_t value) noexcept
+{
+    cheatEnable_ = value;
+}
+
 Player::HeadLightMode Player::GetHeadLight() const noexcept
 {
     return headLight_;
