@@ -1275,6 +1275,23 @@ Network, video и Steam явно выключены.
   удаляют live id, replicated MineContact проверяет owner registry, а обычный
   выстрел больше не сдвигает следующий mine id.
 
+### Source Player::SetCar active record owner
+
+- Перенесены исходные `Player::GetCar/SetCar` semantics для ссылки на
+  выбранный `ctCar`: active Player хранит персонально настроенный `Vehicle`,
+  а замена record сначала исполняет `FreeCar(true)` и сбрасывает прежний
+  `CarState`.
+- Session physics/AI/weapon/effect branches больше не возвращаются к
+  неизменяемому `Race::Racer` descriptor. Один Player record определяет
+  collision shape, mass, mounts, damage/death/shield graphs и car bounds.
+- bgfx/Metal остаётся adapter этой записи: основной и shadow passes, wheel/
+  track animation, tire trails и camera cull target берут ту же active
+  definition. Descriptor используется только до создания Players для
+  загрузки GPU assets и как защитный fallback.
+- `OriginalPlayerSmoke` проверяет, что смена записи отсоединяет существующую
+  машину, очищает lap state и требует нового `CreateCar`, как Windows
+  `Player::SetCar(MapObjRec*)`.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

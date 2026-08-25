@@ -1184,6 +1184,24 @@ HUD и сетевой result snapshot теперь читают одного Pla
 `RaceLifecycle::Result`; fixture также проходит через `SetFinished`, сохраняя
 побочный immortal flag. Player regression покрывает Set/Get/Add и reset.
 
+### P2.31 — Player::SetCar active record owner — выполнено
+
+Подтвердился ещё один потерянный исходный owner: portable `Player` вообще не
+хранил эквивалент `Player::CarState::record`. После создания гонки session,
+AI, collision/weapon logic и bgfx renderer десятки раз возвращались к
+стартовому `Race::Racer`, поэтому последующая замена машины не могла атомарно
+сменить её physics, visual/effect definitions и runtime lifecycle.
+
+Перенесены `Player::GetCarRecord/SetCar`. Как в Windows, смена record сначала
+вызывает `FreeCar(true)`, полностью отсоединяя прежнюю машину и очищая её
+`CarState`, и только затем записывает новый record. Race reset связывает
+каждого active Player с уже настроенной персональной `Vehicle`; gameplay,
+AI, weapon contacts, death/energy/shield effects, основной и shadow passes,
+анимация гусениц и следы шин читают эту запись. Стартовый descriptor остаётся
+только fallback до создания runtime и источником предварительной загрузки GPU
+assets. Player regression проверяет identity record и обязательный teardown
+при смене машины.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

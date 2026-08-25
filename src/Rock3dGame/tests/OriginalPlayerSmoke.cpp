@@ -1,4 +1,5 @@
 #include "OriginalPlayer.h"
+#include "OriginalRace.h"
 #include "OriginalWeapon.h"
 
 #include <cmath>
@@ -74,6 +75,21 @@ int main()
          source::Player::cheatEnableSlower))
         return 50;
     player.SetCheat(source::Player::cheatDisabled);
+
+    r3d::game::originalrace::Vehicle firstCar;
+    firstCar.record = "world\\db\\root\\ctCar\\marauder";
+    r3d::game::originalrace::Vehicle secondCar;
+    secondCar.record = "world\\db\\root\\ctCar\\buggi";
+    player.SetCar(&firstCar);
+    player.CreateCar(true);
+    if (player.GetCarRecord() != &firstCar || !player.HasCar())
+        return 57;
+    player.car.numLaps = 2U;
+    player.SetCar(&secondCar);
+    if (player.GetCarRecord() != &secondCar || player.HasCar() ||
+        player.car.numLaps != 0U)
+        return 58;
+    player.CreateCar(true);
 
     player.weaponSlots = {2U, source::Player::invalidWeapon, 4U, 5U};
     player.weaponCapacity = {6U, 0U, 3U, 2U};

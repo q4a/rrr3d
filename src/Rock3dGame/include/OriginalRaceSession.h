@@ -509,6 +509,7 @@ private:
         float targetLife, bool death, bool networkReplicated);
     std::size_t findWeapon(std::string_view record,
                            WeaponSlot slot) const noexcept;
+    const Vehicle& vehicleForRacer(std::size_t racer) const noexcept;
     bool damageDecorationWithBox(
         Transform transform, ProjectileCollisionBox collision,
         float damage, std::size_t attacker,

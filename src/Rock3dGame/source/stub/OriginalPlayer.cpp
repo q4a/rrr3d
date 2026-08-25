@@ -1,5 +1,6 @@
 #include "OriginalPlayer.h"
 
+#include "OriginalRace.h"
 #include "OriginalWeapon.h"
 
 #include <algorithm>
@@ -499,6 +500,21 @@ bool Player::GetReflScene() const noexcept
 void Player::SetReflScene(bool value) noexcept
 {
     reflScene_ = value;
+}
+
+const Vehicle* Player::GetCarRecord() const noexcept
+{
+    return carRecord_;
+}
+
+void Player::SetCar(const Vehicle* record) noexcept
+{
+    if (carRecord_ == record)
+        return;
+    // Object::ReplaceRef in the Windows code releases the live MapObj and
+    // clears the complete CarState before replacing its MapObjRec pointer.
+    FreeCar(true);
+    carRecord_ = record;
 }
 
 void Player::CreateCar(bool newRace) noexcept

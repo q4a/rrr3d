@@ -13,6 +13,11 @@
 #include <string>
 #include <vector>
 
+namespace r3d::game::originalrace
+{
+struct Vehicle;
+}
+
 namespace r3d::game::originalrace::source
 {
 
@@ -284,6 +289,8 @@ public:
     bool HasAttachedLights() const noexcept;
     bool GetReflScene() const noexcept;
     void SetReflScene(bool value) noexcept;
+    const Vehicle* GetCarRecord() const noexcept;
+    void SetCar(const Vehicle* record) noexcept;
     void CreateCar(bool newRace) noexcept;
     void FreeCar(bool freeState) noexcept;
     void OnLapPass(std::size_t weaponDefinitionCount) noexcept;
@@ -427,6 +434,7 @@ private:
     // both spot lights and the night-flare actor without changing the
     // selected HeadLightMode; CreateCar attaches them again.
     bool carPresent_ = false;
+    const Vehicle* carRecord_ = nullptr;
     bool reflScene_ = true;
     bool energyDamageEffectCreated_ = false;
     std::vector<PlayerGameEvent> gameEvents_;

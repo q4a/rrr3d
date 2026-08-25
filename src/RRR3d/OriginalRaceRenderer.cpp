@@ -75,6 +75,22 @@ std::string_view recordName(std::string_view value)
                                             : value.substr(slash + 1U);
 }
 
+const r3d::game::originalrace::Vehicle& activeVehicleDefinition(
+    const r3d::game::originalrace::Race& race,
+    const std::vector<r3d::game::originalrace::RacerRuntime>& players,
+    std::size_t racer)
+{
+    if (racer < players.size())
+    {
+        if (const auto* record = players[racer].GetCarRecord())
+            return *record;
+    }
+    const auto& descriptor = race.racers.at(racer);
+    return descriptor.hasConfiguredVehicle
+               ? descriptor.configuredVehicle
+               : race.vehicles.at(descriptor.vehicle);
+}
+
 std::vector<StaticMeshVertex> vertices(
     const r3d::resource::R3DMeshAsset& mesh)
 {
@@ -4930,9 +4946,7 @@ void OriginalRaceRenderer::draw(
             racer >= vehicleBodies_.size())
             continue;
         const auto& definition =
-            race.racers[racer].hasConfiguredVehicle
-                ? race.racers[racer].configuredVehicle
-                : race.vehicles[vehicleIndex];
+            activeVehicleDefinition(race, racerRuntime, racer);
         const auto& state = vehicles[racer];
         const auto& sourceColor =
             racer < racerRuntime.size()
@@ -5417,11 +5431,8 @@ void OriginalRaceRenderer::draw(
             effect.racer < race.racers.size() &&
             effect.racer < vehicleEnergyDamageEffects_.size())
         {
-            const auto& sourceRacer = race.racers[effect.racer];
-            const auto& vehicle =
-                sourceRacer.hasConfiguredVehicle
-                    ? sourceRacer.configuredVehicle
-                    : race.vehicles.at(sourceRacer.vehicle);
+            const auto& vehicle = activeVehicleDefinition(
+                race, racerRuntime, effect.racer);
             drawDefinition(
                 vehicleEnergyDamageEffects_[effect.racer],
                 vehicle.energyDamageEffect,
@@ -5437,11 +5448,8 @@ void OriginalRaceRenderer::draw(
             effect.racer < race.racers.size() &&
             effect.racer < vehicleDeathEffects_.size())
         {
-            const auto& sourceRacer = race.racers[effect.racer];
-            const auto& vehicle =
-                sourceRacer.hasConfiguredVehicle
-                    ? sourceRacer.configuredVehicle
-                    : race.vehicles.at(sourceRacer.vehicle);
+            const auto& vehicle = activeVehicleDefinition(
+                race, racerRuntime, effect.racer);
             if (effect.vehicleEffect >= vehicle.deathEffects.size() ||
                 effect.vehicleEffect >=
                     vehicleDeathEffects_[effect.racer].size())
@@ -5624,11 +5632,8 @@ void OriginalRaceRenderer::draw(
         const auto& runtime = racerRuntime[racer];
         if (!runtime.immortalEffect.IsEffectMaked())
             continue;
-        const auto& sourceRacer = race.racers[racer];
         const auto& definition =
-            sourceRacer.hasConfiguredVehicle
-                ? sourceRacer.configuredVehicle
-                : race.vehicles.at(sourceRacer.vehicle);
+            activeVehicleDefinition(race, racerRuntime, racer);
         const float fade = runtime.immortalEffect.GetScale();
         r3d::physics::Transform shield = vehicles[racer].body;
         shield.scale = {
@@ -5830,9 +5835,7 @@ void OriginalRaceRenderer::drawShadowCasters(
         if (vehicleIndex >= race.vehicles.size())
             continue;
         const auto& definition =
-            race.racers[racer].hasConfiguredVehicle
-                ? race.racers[racer].configuredVehicle
-                : race.vehicles[vehicleIndex];
+            activeVehicleDefinition(race, racerRuntime, racer);
         const auto& state = vehicles[racer];
         drawObject(vehicleBodies_[racer], definition.bodyVisuals,
                    state.body);
@@ -5916,11 +5919,8 @@ void OriginalRaceRenderer::drawShadowCasters(
         if (fragment.racer >= race.racers.size() ||
             fragment.racer >= vehicleDeathEffects_.size())
             continue;
-        const auto& sourceRacer = race.racers[fragment.racer];
-        const auto& vehicle =
-            sourceRacer.hasConfiguredVehicle
-                ? sourceRacer.configuredVehicle
-                : race.vehicles.at(sourceRacer.vehicle);
+        const auto& vehicle = activeVehicleDefinition(
+            race, racerRuntime, fragment.racer);
         if (fragment.effect >= vehicle.deathEffects.size() ||
             fragment.effect >=
                 vehicleDeathEffects_[fragment.racer].size())
@@ -5990,9 +5990,7 @@ void OriginalRaceRenderer::renderFrame(
         if (vehicleIndex >= race.vehicles.size())
             continue;
         const auto& definition =
-            race.racers[racer].hasConfiguredVehicle
-                ? race.racers[racer].configuredVehicle
-                : race.vehicles[vehicleIndex];
+            activeVehicleDefinition(race, racerRuntime, racer);
         const auto& state = vehicles[racer];
         float leadWheelSpeed = 0.0F;
         const auto wheelCount = std::min(
@@ -6065,9 +6063,7 @@ void OriginalRaceRenderer::renderFrame(
         if (vehicleIndex >= race.vehicles.size())
             continue;
         const auto& definition =
-            race.racers[racer].hasConfiguredVehicle
-                ? race.racers[racer].configuredVehicle
-                : race.vehicles[vehicleIndex];
+            activeVehicleDefinition(race, racerRuntime, racer);
         const auto& state = vehicles[racer];
         const auto wheelCount = std::min(
             {state.wheels.size(), state.wheelContacts.size(),
@@ -6204,10 +6200,8 @@ void OriginalRaceRenderer::renderFrame(
         const auto vehicleIndex = race.racers[humanRacer].vehicle;
         if (vehicleIndex < race.vehicles.size())
         {
-            const auto& vehicle =
-                race.racers[humanRacer].hasConfiguredVehicle
-                    ? race.racers[humanRacer].configuredVehicle
-                    : race.vehicles[vehicleIndex];
+            const auto& vehicle = activeVehicleDefinition(
+                race, racerRuntime, humanRacer);
             const auto bounds = objectBounds(
                 vehicleBodies_[humanRacer], vehicle.bodyVisuals,
                 vehicles[humanRacer].body);

@@ -1149,6 +1149,7 @@ void OriginalRaceSession::reset()
             playerId, static_cast<int>(sourceRacer.gamerId),
             sourceRacer.netSlot, sourceRacer.name,
             sourceRacer.netName, sourceRacer.color);
+        racers_[index].SetCar(&vehicle);
         racers_[index].CreateCar(true);
         racers_[index].car.SetSize(vehicle.boundingSize);
         for (std::size_t weaponIndex = 0;
@@ -1526,6 +1527,20 @@ std::size_t OriginalRaceSession::findWeapon(
     return RacerRuntime::invalidWeapon;
 }
 
+const Vehicle& OriginalRaceSession::vehicleForRacer(
+    std::size_t racer) const noexcept
+{
+    if (racer < racers_.size())
+    {
+        if (const auto* active = racers_[racer].GetCarRecord())
+            return *active;
+    }
+    const auto& descriptor = race_.racers.at(racer);
+    return descriptor.hasConfiguredVehicle
+               ? descriptor.configuredVehicle
+               : race_.vehicles.at(descriptor.vehicle);
+}
+
 void OriginalRaceSession::setNetworkGameplayRole(
     bool enabled, bool host, std::vector<bool> ownedRacers)
 {
@@ -1762,11 +1777,7 @@ bool OriginalRaceSession::applyRacerDamageInternal(
         runtime.ConsumeEnergyDamageEffectCreated();
     if (makeEnergyEffect && target < race_.racers.size())
     {
-        const auto& sourceRacer = race_.racers[target];
-        const auto& vehicleDefinition =
-            sourceRacer.hasConfiguredVehicle
-                ? sourceRacer.configuredVehicle
-                : race_.vehicles.at(sourceRacer.vehicle);
+        const auto& vehicleDefinition = vehicleForRacer(target);
         const auto& visual = vehicleDefinition.energyDamageEffect;
         if (!visual.visualNodes.empty() ||
             !visual.particleEmitters.empty())
@@ -2638,11 +2649,7 @@ r3d::physics::VehicleInput OriginalRaceSession::aiInput(
         racers_[racer].GetFinished() || racers_[racer].destroyed)
         return {};
 
-    const auto& racerDefinition = race_.racers[racer];
-    const auto& vehicleDefinition =
-        racerDefinition.hasConfiguredVehicle
-            ? racerDefinition.configuredVehicle
-            : race_.vehicles.at(racerDefinition.vehicle);
+    const auto& vehicleDefinition = vehicleForRacer(racer);
     source::AICar::VehicleState sourceVehicle;
     sourceVehicle.position = vehicle.body.position;
     sourceVehicle.direction =
@@ -2788,11 +2795,7 @@ void OriginalRaceSession::destroyRacer(
         playerItemRacks_[racer].OnDestroyCar();
     if (racer < vehicleInputs_.size())
         vehicleInputs_[racer] = {};
-    const auto& sourceRacer = race_.racers[racer];
-    const auto& definition =
-        sourceRacer.hasConfiguredVehicle
-            ? sourceRacer.configuredVehicle
-            : race_.vehicles.at(sourceRacer.vehicle);
+    const auto& definition = vehicleForRacer(racer);
     for (std::size_t index = 0;
          index < definition.deathEffects.size(); ++index)
     {
@@ -2823,12 +2826,7 @@ void OriginalRaceSession::updateGameplay(
     const auto clutchImmune = [&](std::size_t racer) {
         if (racer >= race_.racers.size())
             return false;
-        const auto& sourceRacer = race_.racers[racer];
-        const auto& vehicle =
-            sourceRacer.hasConfiguredVehicle
-                ? sourceRacer.configuredVehicle
-                : race_.vehicles.at(std::min(
-                      sourceRacer.vehicle, race_.vehicles.size() - 1U));
+        const auto& vehicle = vehicleForRacer(racer);
         return vehicle.physics.clutchImmunity;
     };
     auto directWeaponWorldTransform =
@@ -2841,11 +2839,7 @@ void OriginalRaceSession::updateGameplay(
         [&](std::size_t owner, std::size_t weaponIndex,
             std::size_t mountSlot) {
             Transform result = vehicles[owner].body;
-            const auto& racerDefinition = race_.racers[owner];
-            const auto& vehicleDefinition =
-                racerDefinition.hasConfiguredVehicle
-                    ? racerDefinition.configuredVehicle
-                    : race_.vehicles.at(racerDefinition.vehicle);
+            const auto& vehicleDefinition = vehicleForRacer(owner);
             if (mountSlot < vehicleDefinition.weaponMounts.size())
             {
                 const auto& mount =
@@ -2915,11 +2909,7 @@ void OriginalRaceSession::updateGameplay(
     for (std::size_t racer = 0; racer < racers_.size(); ++racer)
     {
         auto& runtime = racers_[racer];
-        const auto& sourceRacer = race_.racers[racer];
-        const auto& vehicleDefinition =
-            sourceRacer.hasConfiguredVehicle
-                ? sourceRacer.configuredVehicle
-                : race_.vehicles.at(sourceRacer.vehicle);
+        const auto& vehicleDefinition = vehicleForRacer(racer);
         const auto behaviorProgress = runtime.ProgressBehaviors(
             seconds, vehicleDefinition.lowLifeLevel,
             racer < vehicles.size()
@@ -3540,13 +3530,8 @@ void OriginalRaceSession::updateGameplay(
                     if (target == projectile.owner ||
                         racers_[target].destroyed)
                         continue;
-                    const auto& racerDefinition =
-                        race_.racers[target];
                     const auto& vehicleDefinition =
-                        racerDefinition.hasConfiguredVehicle
-                            ? racerDefinition.configuredVehicle
-                            : race_.vehicles.at(
-                                  racerDefinition.vehicle);
+                        vehicleForRacer(target);
                     const OrientedBox targetBox = vehicleBox(
                         vehicles[target],
                         vehicleDefinition.physics);
@@ -3740,12 +3725,8 @@ void OriginalRaceSession::updateGameplay(
             projectile.damageOwner < vehicles.size() &&
             projectile.damageOwner < race_.racers.size())
         {
-            const auto& ownerRacer =
-                race_.racers[projectile.damageOwner];
             const auto& ownerVehicle =
-                ownerRacer.hasConfiguredVehicle
-                    ? ownerRacer.configuredVehicle
-                    : race_.vehicles.at(ownerRacer.vehicle);
+                vehicleForRacer(projectile.damageOwner);
             // PhysX ignores only the projectile/weapon actor pair, not the
             // owning car forever.  Arm owner contacts after the shot has
             // cleared our coarser portable vehicle box, so reflected and
@@ -3769,11 +3750,7 @@ void OriginalRaceSession::updateGameplay(
                 projectile.target < racers_.size() &&
                 target != projectile.target)
                 continue;
-            const auto& racerDefinition = race_.racers[target];
-            const auto& vehicleDefinition =
-                racerDefinition.hasConfiguredVehicle
-                    ? racerDefinition.configuredVehicle
-                    : race_.vehicles.at(racerDefinition.vehicle);
+            const auto& vehicleDefinition = vehicleForRacer(target);
             const OrientedBox targetBox = vehicleBox(
                 vehicles[target], vehicleDefinition.physics);
             if (!boxesOverlap(projectileBox, targetBox))
@@ -3981,11 +3958,7 @@ void OriginalRaceSession::updateGameplay(
     {
         if (racers_[racer].destroyed)
             continue;
-        const auto& sourceRacer = race_.racers[racer];
-        const auto& definition =
-            sourceRacer.hasConfiguredVehicle
-                ? sourceRacer.configuredVehicle
-                : race_.vehicles.at(sourceRacer.vehicle);
+        const auto& definition = vehicleForRacer(racer);
         const OrientedBox body =
             vehicleBox(vehicles[racer], definition.physics);
         const float verticalRadius =
@@ -4344,11 +4317,7 @@ void OriginalRaceSession::updateGameplay(
                 replicatedProjectileId, newCharge);
             return;
         }
-        const auto& racerDefinition = race_.racers[owner];
-        const auto& vehicleDefinition =
-            racerDefinition.hasConfiguredVehicle
-                ? racerDefinition.configuredVehicle
-                : race_.vehicles.at(racerDefinition.vehicle);
+        const auto& vehicleDefinition = vehicleForRacer(owner);
         source::Proj::SpringPrepareResult springPreparation;
         if (projectile.type == 17U)
         {
@@ -4535,10 +4504,7 @@ void OriginalRaceSession::updateGameplay(
                 sourceResult.clutchStrength,
                 clutchImmune(racer)))
             return false;
-        const auto& vehicleDefinition =
-            race_.racers[racer].hasConfiguredVehicle
-                ? race_.racers[racer].configuredVehicle
-                : race_.vehicles.at(race_.racers[racer].vehicle);
+        const auto& vehicleDefinition = vehicleForRacer(racer);
         const Quat inverseRotation{
             -vehicles[racer].body.rotation.x,
             -vehicles[racer].body.rotation.y,
@@ -4573,10 +4539,7 @@ void OriginalRaceSession::updateGameplay(
         if (!mine.active || racer >= vehicles.size() ||
             racer >= racers_.size() || racers_[racer].destroyed)
             return false;
-        const auto& vehicleDefinition =
-            race_.racers[racer].hasConfiguredVehicle
-                ? race_.racers[racer].configuredVehicle
-                : race_.vehicles.at(race_.racers[racer].vehicle);
+        const auto& vehicleDefinition = vehicleForRacer(racer);
         if (mine.type == 10U)
         {
             return applyMasloContact(
@@ -4794,11 +4757,7 @@ void OriginalRaceSession::updateGameplay(
             Transform mineTransform;
             mineTransform.position = mine.position;
             mineTransform.rotation = mine.rotation;
-            const auto& vehicleDefinition =
-                race_.racers[racer].hasConfiguredVehicle
-                    ? race_.racers[racer].configuredVehicle
-                    : race_.vehicles.at(
-                          race_.racers[racer].vehicle);
+            const auto& vehicleDefinition = vehicleForRacer(racer);
             const OrientedBox targetBox =
                 vehicleBox(
                     vehicles[racer],
@@ -4892,11 +4851,7 @@ void OriginalRaceSession::updateGameplay(
             (bonusRules.mineTestsLock && enableMineBug_ &&
              racers_[racer].gameCar.IsMineLocked()))
             return false;
-        const auto& racerDefinition = race_.racers[racer];
-        const auto& vehicleDefinition =
-            racerDefinition.hasConfiguredVehicle
-                ? racerDefinition.configuredVehicle
-                : race_.vehicles.at(racerDefinition.vehicle);
+        const auto& vehicleDefinition = vehicleForRacer(racer);
         applyRacerDamage(
             racer, RacerRuntime::invalidWeapon, contactPoint,
             std::max(bonus.value, 0.0F), DamageType::Mine);
@@ -5054,11 +5009,7 @@ void OriginalRaceSession::updateGameplay(
                 runtime.destroyed)
                 continue;
             const auto& bonus = race_.bonuses[bonusIndex];
-            const auto& racerDefinition = race_.racers[racer];
-            const auto& vehicleDefinition =
-                racerDefinition.hasConfiguredVehicle
-                    ? racerDefinition.configuredVehicle
-                    : race_.vehicles.at(racerDefinition.vehicle);
+            const auto& vehicleDefinition = vehicleForRacer(racer);
             const OrientedBox targetBox =
                 vehicleBox(
                     vehicles[racer],
@@ -5592,11 +5543,7 @@ void OriginalRaceSession::updateGameplay(
             continue;
         }
 
-        const auto& racerDefinition = race_.racers[racer];
-        const auto& vehicleDefinition =
-            racerDefinition.hasConfiguredVehicle
-                ? racerDefinition.configuredVehicle
-                : race_.vehicles.at(racerDefinition.vehicle);
+        const auto& vehicleDefinition = vehicleForRacer(racer);
         source::AICar::VehicleState sourceVehicle;
         sourceVehicle.position = vehicles[racer].body.position;
         sourceVehicle.direction =
@@ -5705,11 +5652,7 @@ void OriginalRaceSession::updateGameplay(
                 {
                     return vehicles[racer].kineticEnergy;
                 }
-                const auto& source = race_.racers[racer];
-                const auto& definition =
-                    source.hasConfiguredVehicle
-                        ? source.configuredVehicle
-                        : race_.vehicles.at(source.vehicle);
+                const auto& definition = vehicleForRacer(racer);
                 const float translational =
                     0.5F * definition.physics.mass *
                     dot3(vehicles[racer].linearVelocity,
@@ -6253,16 +6196,19 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
         for (std::size_t racer = 0U;
              racer < session.racers().size(); ++racer)
         {
-            const auto& definition = race.racers[racer];
-            const auto& vehicle = definition.hasConfiguredVehicle
-                ? definition.configuredVehicle
-                : race.vehicles.at(definition.vehicle);
+            const auto* vehicle =
+                session.racers()[racer].GetCarRecord();
+            if (vehicle == nullptr)
+            {
+                throw std::runtime_error(
+                    "Player::SetCar active vehicle record was not bound");
+            }
             if (std::abs(
                     session.racers()[racer].car.GetSize() -
-                    vehicle.boundingSize) > 0.001F ||
+                    vehicle->boundingSize) > 0.001F ||
                 std::abs(
                     session.racers()[racer].car.GetRadius() -
-                    vehicle.boundingRadius) > 0.001F)
+                    vehicle->boundingRadius) > 0.001F)
             {
                 throw std::runtime_error(
                     "Player::ComputeCarBBSize visual bounds owner mismatch");
