@@ -426,43 +426,6 @@ const ReflectorItem* PlayerItemRack::GetReflector(
                : nullptr;
 }
 
-bool Logic::ShotPlan::Get(SlotType type) const noexcept
-{
-    return slots[static_cast<std::size_t>(type)];
-}
-
-Logic::ShotPlan Logic::Shot(
-    const WeaponItem* weapon, SlotType type, bool human) noexcept
-{
-    ShotPlan result;
-    result.humanShotEvent = human && type != SlotType::Hyper;
-    if (weapon != nullptr && weapon->IsReadyShot())
-    {
-        result.slots[static_cast<std::size_t>(type)] = true;
-        result.shotCount = 1U;
-    }
-    return result;
-}
-
-Logic::ShotPlan Logic::ShotAll(
-    std::span<const WeaponItem> primaryWeapons,
-    bool human) noexcept
-{
-    ShotPlan result;
-    result.humanShotEvent = human;
-    const std::size_t count = std::min(
-        primaryWeapons.size(), WeaponRack::primarySlotCount);
-    for (std::size_t slot = 0U; slot < count; ++slot)
-    {
-        if (!primaryWeapons[slot].IsReadyShot())
-            continue;
-        result.slots[slot +
-                     static_cast<std::size_t>(SlotType::Weapon1)] = true;
-        ++result.shotCount;
-    }
-    return result;
-}
-
 void WeaponRack::Reset() noexcept
 {
     for (auto& weapon : primary)

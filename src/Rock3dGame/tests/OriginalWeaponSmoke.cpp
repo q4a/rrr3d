@@ -1,4 +1,4 @@
-#include "OriginalWeapon.h"
+#include "OriginalLogic.h"
 
 #include <array>
 #include <cmath>
@@ -164,6 +164,36 @@ int main()
             2.0F, life, 100.0F, false) != 0.0F ||
         life != 90.0F)
         return 23;
+
+    source::PlayerItemRack damageSupport;
+    damageSupport.BindReflector(
+        0U, &rack.primary[0], 1U, 1U,
+        &firstReflectorCharge, 0.4F);
+    if (std::abs(source::Logic::ResolveDamage(
+                     &damageSupport, 100.0F,
+                     r3d::game::originalrace::DamageType::Simple) -
+                 60.0F) > 0.001F ||
+        source::Logic::ResolveDamage(
+            &damageSupport, 100.0F,
+            r3d::game::originalrace::DamageType::Touch) != 100.0F)
+        return 24;
+    source::GameObject damageTarget;
+    damageTarget.ResetGameObject(100.0F);
+    const auto resolved = source::Logic::ResolveDamage(
+        &damageSupport, 100.0F,
+        r3d::game::originalrace::DamageType::Simple);
+    const auto damageResult = source::Logic::Damage(
+        damageTarget, 3U, resolved,
+        r3d::game::originalrace::DamageType::Simple);
+    if (damageResult.death ||
+        std::abs(damageTarget.GetLife() - 40.0F) > 0.001F)
+        return 25;
+    const auto authoritative = source::Logic::Damage(
+        damageTarget, 3U, 5.0F, -2.0F, true,
+        r3d::game::originalrace::DamageType::Energy);
+    if (!authoritative.death || !authoritative.killCredit ||
+        damageTarget.GetLife() != -2.0F)
+        return 26;
 
     std::cout << "original Weapon/WeaponItem/Droid/Reflector/Logic "
                  "source rules passed\n";

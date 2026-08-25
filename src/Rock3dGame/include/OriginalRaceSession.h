@@ -3,6 +3,7 @@
 #include "OriginalAICar.h"
 #include "OriginalGameObject.h"
 #include "OriginalHumanPlayer.h"
+#include "OriginalLogic.h"
 #include "OriginalPlayer.h"
 #include "OriginalProfile.h"
 #include "OriginalRace.h"
@@ -448,8 +449,6 @@ private:
         float targetLife, bool death, bool networkReplicated);
     std::size_t findWeapon(std::string_view record,
                            WeaponSlot slot) const noexcept;
-    float damageAfterSupport(std::size_t racer, float damage,
-                             bool touchDamage) const noexcept;
     bool damageDecorationWithBox(
         Transform transform, ProjectileCollisionBox collision,
         float damage, std::size_t attacker,

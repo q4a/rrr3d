@@ -49,6 +49,7 @@ else()
     if(RRR3D_BUILD_ORIGINAL_MENU)
         list(APPEND _rrr3d_portable_game_sources
             source/stub/OriginalGameObject.cpp
+            source/stub/OriginalLogic.cpp
             source/stub/OriginalMainMenu.cpp
             source/stub/OriginalAICar.cpp
             source/stub/OriginalHumanPlayer.cpp
@@ -59,6 +60,7 @@ else()
             source/stub/OriginalUserChat.cpp
             source/stub/OriginalWeapon.cpp
             include/OriginalGameObject.h
+            include/OriginalLogic.h
             include/OriginalMainMenu.h
             include/OriginalAICar.h
             include/OriginalHumanPlayer.h

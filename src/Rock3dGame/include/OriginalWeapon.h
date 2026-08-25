@@ -199,37 +199,6 @@ private:
     std::array<ReflectorItem, slotCount> reflectors_{};
 };
 
-// Slot selection from Logic::Shot.  Slot order deliberately matches the
-// Windows ShotSlots packet: Hyper, Mine, Weapon1..Weapon4.
-class Logic
-{
-public:
-    enum class SlotType : std::uint8_t
-    {
-        Hyper = 0U,
-        Mine = 1U,
-        Weapon1 = 2U,
-        Weapon2 = 3U,
-        Weapon3 = 4U,
-        Weapon4 = 5U,
-    };
-
-    struct ShotPlan
-    {
-        std::array<bool, 6U> slots{};
-        std::size_t shotCount = 0U;
-        bool humanShotEvent = false;
-
-        bool Get(SlotType type) const noexcept;
-    };
-
-    static ShotPlan Shot(const WeaponItem* weapon, SlotType type,
-                         bool human) noexcept;
-    static ShotPlan ShotAll(
-        std::span<const WeaponItem> primaryWeapons,
-        bool human) noexcept;
-};
-
 // One source Weapon map object exists for every installed slot, including
 // Hyper and Mine. This small owner replaces three unrelated session timers.
 struct WeaponRack

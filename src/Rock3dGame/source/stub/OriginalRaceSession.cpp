@@ -1454,14 +1454,6 @@ std::size_t OriginalRaceSession::findWeapon(
     return RacerRuntime::invalidWeapon;
 }
 
-float OriginalRaceSession::damageAfterSupport(
-    std::size_t racer, float damage, bool touchDamage) const noexcept
-{
-    if (touchDamage || racer >= playerItemRacks_.size())
-        return damage;
-    return playerItemRacks_[racer].Reflect(damage);
-}
-
 void OriginalRaceSession::setNetworkGameplayRole(
     bool enabled, bool host, std::vector<bool> ownedRacers)
 {
@@ -1596,14 +1588,16 @@ bool OriginalRaceSession::applyRacerDamageInternal(
             return false;
         }
     }
-    const bool touch = damageType == DamageType::Touch;
     // Logic::Damage applies the first reflector before entering NetRace.
     // Consequently authoritative RPC values must not pass through the
     // reflector a second time on the host or receiving client.
     const float incoming = incomingAlreadySupported
                                ? sourceDamage
-                               : damageAfterSupport(
-                                     target, sourceDamage, touch);
+                               : source::Logic::ResolveDamage(
+                                     target < playerItemRacks_.size()
+                                         ? &playerItemRacks_[target]
+                                         : nullptr,
+                                     sourceDamage, damageType);
     const std::size_t damageEvent = events_.size();
     pushDamageEvent(
         target, attacker, position, incoming, damageType,
@@ -1626,9 +1620,11 @@ bool OriginalRaceSession::applyRacerDamageInternal(
 
     auto& runtime = racers_[target];
     const auto damageResult = synchronizeState
-        ? runtime.Damage(attacker, incoming, targetLife, death,
-                         damageType)
-        : runtime.Damage(attacker, incoming, damageType);
+        ? source::Logic::Damage(
+              runtime, attacker, incoming, targetLife, death,
+              damageType)
+        : source::Logic::Damage(
+              runtime, attacker, incoming, damageType);
     if (!damageResult.death)
     {
         if (damageEvent < events_.size())
