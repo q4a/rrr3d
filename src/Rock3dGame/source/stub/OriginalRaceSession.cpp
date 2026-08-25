@@ -2527,6 +2527,7 @@ r3d::physics::VehicleInput OriginalRaceSession::aiInput(
     sourceVehicle.steeringControl =
         vehicleDefinition.physics.steeringControl;
     sourceVehicle.mapObject = true;
+    sourceVehicle.cheatSlower = racers_[racer].car.cheatSlower;
 
     const auto command = aiPlayers_[racer].OnProgress(
         seconds, sourceVehicle, &sourceRandomUnit);
@@ -6036,43 +6037,42 @@ void OriginalRaceSession::update(
     for (std::size_t racer = 0U;
          racer < racers_.size() && racer < vehicles.size(); ++racer)
         updateProgress(racer, vehicles[racer], seconds);
-    updateAiTracks(vehicles);
-    if (debugHumanAiControl_ && !vehicleInputs_.empty() &&
-        !racers_.front().finished && !racers_.front().destroyed &&
-        !vehicles.empty())
-    {
-        // AIDebug F7 flips AICar::_enbAI for the human car. Reuse the same
-        // portable AICar path controller as opponents instead of creating a
-        // synthetic racer or a second physics vehicle.
-        vehicleInputs_[0] = aiInput(0U, vehicles.front(), seconds);
-    }
     const auto difficultyIndex =
         initialPlayerProfile_.difficulty == "gdEasy"
             ? 0U
             : initialPlayerProfile_.difficulty == "gdHard" ? 2U : 1U;
-    const auto& easingMinimumDistance =
-        source::Player::humanEasingMinimumDistance;
-    const auto& easingMaximumDistance =
-        source::Player::humanEasingMaximumDistance;
-    const auto& easingMinimumSpeed =
-        source::Player::humanEasingMinimumSpeed;
-    const auto& easingMaximumSpeed =
-        source::Player::humanEasingMaximumSpeed;
-    const auto& cheatMinimumTorque =
-        source::Player::computerCheatMinimumTorque;
-    const auto& cheatMaximumTorque =
-        source::Player::computerCheatMaximumTorque;
-    const float pathLength = [&]() {
-        float result = 0.0F;
-        for (std::size_t node = 1U;
-             node < race_.tracePath.size(); ++node)
-        {
-            result += length2(subtract(
-                tracePoint(node).position,
-                tracePoint(node - 1U).position));
-        }
-        return std::max(result, 1.0F);
-    }();
+    std::vector<source::Player::CheatPlayerView> cheatPlayers;
+    cheatPlayers.reserve(racers_.size());
+    for (std::size_t racer = 0U; racer < racers_.size(); ++racer)
+    {
+        cheatPlayers.push_back(
+            {racer,
+             racer < race_.racers.size() && race_.racers[racer].human,
+             !racers_[racer].disconnected,
+             racers_[racer].car.GetLap()});
+    }
+    std::vector<source::Player::CheatResult> cheatResults(
+        racers_.size());
+    // Player::OnProgress/CheatUpdate precedes AISystem::OnProgress in the
+    // Windows fixed-step order, so AICar observes cheatSlower this frame.
+    for (std::size_t racer = 0U;
+         racer < racers_.size() && racer < vehicles.size(); ++racer)
+    {
+        if (racers_[racer].destroyed)
+            continue;
+        const std::uint32_t cheatMask =
+            racer < aiPlayers_.size() &&
+                    racer < race_.racers.size() &&
+                    !race_.racers[racer].human
+                ? aiPlayers_[racer].GetCheat()
+                : (racer == 0U && networkGameplayEnabled_
+                       ? source::Player::cheatEnableFaster
+                       : source::Player::cheatDisabled);
+        cheatResults[racer] = racers_[racer].CheatUpdate(
+            cheatMask, racer, difficultyIndex, cheatPlayers);
+    }
+
+    updateAiTracks(vehicles);
     for (std::size_t racer = 1;
          racer < racers_.size() && racer < vehicles.size(); ++racer)
     {
@@ -6085,99 +6085,26 @@ void OriginalRaceSession::update(
                 aiInput(racer, vehicles[racer], seconds);
         }
     }
-
-    // Player::CheatUpdate runs for both HumanPlayer and every AIPlayer.  It
-    // compares each car with the racer having the greatest signed lap lead,
-    // not only with the human.  HumanPlayer enables the faster bit; AIPlayer
-    // enables both faster and slower bits.
-    for (std::size_t racer = 0U;
-         racer < racers_.size() && racer < vehicles.size(); ++racer)
+    if (debugHumanAiControl_ && !vehicleInputs_.empty() &&
+        !racers_.front().finished && !racers_.front().destroyed &&
+        !vehicles.empty())
     {
-        if (racers_[racer].destroyed)
-            continue;
-        const std::uint32_t cheat =
-            racer < aiPlayers_.size() &&
-                    !race_.racers[racer].human
-                ? aiPlayers_[racer].GetCheat()
-                : (racer == 0U && networkGameplayEnabled_
-                       ? source::AIPlayer::cheatEnableFaster
-                       : source::AIPlayer::cheatDisabled);
-        if (cheat == source::AIPlayer::cheatDisabled)
-            continue;
-        const float racerLap =
-            this->lapPosition(racer, vehicles[racer]);
-        std::size_t opponent = RacerRuntime::invalidWeapon;
-        float maximumLapDistance = 0.0F;
-        for (std::size_t candidate = 0U;
-             candidate < racers_.size() &&
-             candidate < vehicles.size(); ++candidate)
+        // AIDebug F7 flips AICar::_enbAI for the human car. Reuse the same
+        // portable AICar path controller as opponents instead of creating a
+        // synthetic racer or a second physics vehicle.
+        vehicleInputs_[0] = aiInput(0U, vehicles.front(), seconds);
+    }
+
+    for (std::size_t racer = 0U;
+         racer < cheatResults.size() &&
+         racer < vehicleInputs_.size(); ++racer)
+    {
+        if (cheatResults[racer].faster)
         {
-            if (candidate == racer)
-                continue;
-            if (racers_[candidate].destroyed ||
-                racers_[candidate].disconnected)
-                continue;
-            const float lapDistance =
-                this->lapPosition(candidate, vehicles[candidate]) -
-                racerLap;
-            if (opponent == RacerRuntime::invalidWeapon ||
-                lapDistance > maximumLapDistance)
-            {
-                opponent = candidate;
-                maximumLapDistance = lapDistance;
-            }
-        }
-        if (opponent == RacerRuntime::invalidWeapon)
-            continue;
-        const float opponentLap =
-            this->lapPosition(opponent, vehicles[opponent]);
-        float distance = std::abs(racerLap - opponentLap);
-        distance -= std::floor(distance);
-        const TraceNodeRef trace = racerTraceNode(racer);
-        const float racerPathLength =
-            trace.valid()
-                ? std::max(tracePathLength(trace.path), 1.0F)
-                : pathLength;
-        distance = std::min(distance, 1.0F - distance) *
-                   racerPathLength;
-        const float distancePart = std::clamp(
-            (distance - easingMinimumDistance[difficultyIndex]) /
-                (easingMaximumDistance[difficultyIndex] -
-                 easingMinimumDistance[difficultyIndex]),
-            0.0F, 1.0F);
-        auto& control = vehicleInputs_[racer];
-        if (racerLap > opponentLap &&
-            distance >
-                easingMinimumDistance[difficultyIndex])
-        {
-            if ((cheat & source::AIPlayer::cheatEnableSlower) != 0U)
-            {
-                const float speedLimit =
-                    easingMinimumSpeed[difficultyIndex] +
-                    (easingMaximumSpeed[difficultyIndex] -
-                     easingMinimumSpeed[difficultyIndex]) *
-                        distancePart;
-                if (vehicles[racer].speed > speedLimit &&
-                    control.brake <= 0.0F)
-                {
-                    control.throttle = 0.0F;
-                    control.reverse = 0.0F;
-                }
-            }
-        }
-        else if (distance >
-                 easingMinimumDistance[difficultyIndex])
-        {
-            if ((cheat & source::AIPlayer::cheatEnableFaster) != 0U)
-            {
-                const float torqueScale =
-                    cheatMinimumTorque[difficultyIndex] +
-                    (cheatMaximumTorque[difficultyIndex] -
-                     cheatMinimumTorque[difficultyIndex]) *
-                        distancePart;
-                control.motorTorqueScale = torqueScale;
-                control.lateralGripScale = torqueScale;
-            }
+            vehicleInputs_[racer].motorTorqueScale =
+                cheatResults[racer].torqueScale;
+            vehicleInputs_[racer].lateralGripScale =
+                cheatResults[racer].steeringScale;
         }
     }
 
@@ -7246,11 +7173,11 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 if (fieldCheatSession.vehicleInputs()[0]
                             .motorTorqueScale > 1.0001F ||
                     fieldCheatSession.vehicleInputs()[1]
-                            .motorTorqueScale <= 1.0F)
+                            .motorTorqueScale > 1.0001F)
                 {
                     throw std::runtime_error(
-                        "source Player::CheatUpdate offline human/AI "
-                        "role selection failed");
+                        "source Player::CheatUpdate accepted Computer as "
+                        "a Human/Opponent reference");
                 }
             }
         }

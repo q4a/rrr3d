@@ -63,6 +63,8 @@ void Player::CarState::Reset(Trace* trace) noexcept
     track_ = 0U;
     numLaps = 0U;
     moveInverse = false;
+    cheatSlower = false;
+    cheatFaster = false;
     moveInverseStart_ = -1.0F;
     maximumSpeed_ = 0.0F;
     maximumSpeedTime_ = 0.0F;
@@ -271,6 +273,11 @@ float Player::CarState::GetLap(bool lastCorrect) const noexcept
     return static_cast<float>(numLaps) +
            (pathLength > 0.0001F ? GetDist(lastCorrect) / pathLength
                                  : 0.0F);
+}
+
+float Player::CarState::GetSpeed() const noexcept
+{
+    return speed_;
 }
 
 TraceVec3 Player::CarState::GetMapPos() const noexcept
@@ -501,6 +508,77 @@ Player::BehaviorProgressResult Player::ProgressBehaviors(
     const auto slow = slowEffect.OnProgress(deltaTime, linearSpeed);
     result.slowSpeedLimited = slow.limitSpeed;
     result.slowReleased = slow.released;
+    return result;
+}
+
+Player::CheatResult Player::CheatUpdate(
+    std::uint32_t cheatMask, std::size_t playerId,
+    std::size_t difficulty,
+    const std::vector<CheatPlayerView>& players) noexcept
+{
+    difficulty = std::min<std::size_t>(difficulty, 2U);
+    car.cheatFaster = false;
+    car.cheatSlower = false;
+    CheatResult result;
+    if (cheatMask == cheatDisabled)
+        return result;
+
+    const float ownLap = car.GetLap();
+    const CheatPlayerView* opponent = nullptr;
+    float maximumLapDistance = 0.0F;
+    for (const auto& player : players)
+    {
+        // Race::PlayerList contains computers too, but Player::CheatUpdate
+        // only accepts cHuman and cOpponentMask roles as references.
+        if (!player.active || player.playerId == playerId ||
+            !player.humanOrOpponent)
+            continue;
+        const float lapDistance = player.lap - ownLap;
+        if (opponent == nullptr || maximumLapDistance < lapDistance)
+        {
+            opponent = &player;
+            maximumLapDistance = lapDistance;
+        }
+    }
+    if (opponent == nullptr)
+        return result;
+
+    float distance = std::abs(ownLap - opponent->lap);
+    distance -= std::floor(distance);
+    distance = std::min(distance, 1.0F - distance) *
+               std::max(car.GetPathLength(), 1.0F);
+    if (distance <= humanEasingMinimumDistance[difficulty])
+        return result;
+    const float distancePart = std::clamp(
+        (distance - humanEasingMinimumDistance[difficulty]) /
+            (humanEasingMaximumDistance[difficulty] -
+             humanEasingMinimumDistance[difficulty]),
+        0.0F, 1.0F);
+    if (ownLap > opponent->lap &&
+        (cheatMask & cheatEnableSlower) != 0U)
+    {
+        result.speedLimit =
+            humanEasingMinimumSpeed[difficulty] +
+            (humanEasingMaximumSpeed[difficulty] -
+             humanEasingMinimumSpeed[difficulty]) *
+                distancePart;
+        if (car.GetSpeed() > result.speedLimit)
+        {
+            result.slower = true;
+            car.cheatSlower = true;
+        }
+    }
+    else if ((cheatMask & cheatEnableFaster) != 0U)
+    {
+        result.torqueScale =
+            computerCheatMinimumTorque[difficulty] +
+            (computerCheatMaximumTorque[difficulty] -
+             computerCheatMinimumTorque[difficulty]) *
+                distancePart;
+        result.steeringScale = result.torqueScale;
+        result.faster = true;
+        car.cheatFaster = true;
+    }
     return result;
 }
 

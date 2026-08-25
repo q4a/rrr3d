@@ -1730,3 +1730,22 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - Physics regression завершает гонку из countdown/ранней racing state,
   проверяет результат каждого активного игрока, немедленную готовность
   FinishMenu и идемпотентность наград. 13/13 CTest и map1 smoke проходят.
+
+### Source Player::CheatUpdate owner correction
+
+- Таблицы rubber-banding больше не исполняются внутри race-session. Active
+  `Player::CheatUpdate` владеет поиском reference player, fractional lap
+  distance, Easy/Normal/Hard speed limit и torque/steering coefficients;
+  `CarState` хранит исходные `cheatSlower/cheatFaster`.
+- Подтвердилось функциональное расхождение прежнего порта: reference выбирался
+  среди всех машин, хотя Windows принимает только `cHuman` и роли из
+  `cOpponentMask`. Далёкий Computer больше не заставляет другой Computer
+  необоснованно ускоряться или замедляться; offline AI сравнивается с Human,
+  network AI — с наиболее впереди идущим Human/Opponent.
+- Восстановлен fixed-step order: все `Player::CheatUpdate` выполняются до
+  `AISystem::OnProgress`, поэтому `AICar::ControlState` видит
+  `cheatSlower` в текущем кадре. Jolt adapter получает только готовые source
+  torque/steering scales.
+- Player unit regression проверяет faster, slower и исключение Computer из
+  reference set; integrated AI catch-up/role regressions и map1 physics smoke
+  проходят вместе с 13/13 CTest.

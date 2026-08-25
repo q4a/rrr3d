@@ -124,6 +124,27 @@ public:
         bool slowSpeedLimited = false;
         bool slowReleased = false;
     };
+
+    static constexpr std::uint32_t cheatDisabled = 0U;
+    static constexpr std::uint32_t cheatEnableSlower = 1U << 0U;
+    static constexpr std::uint32_t cheatEnableFaster = 1U << 1U;
+
+    struct CheatPlayerView
+    {
+        std::size_t playerId = 0U;
+        bool humanOrOpponent = false;
+        bool active = true;
+        float lap = 0.0F;
+    };
+
+    struct CheatResult
+    {
+        bool slower = false;
+        bool faster = false;
+        float speedLimit = 0.0F;
+        float torqueScale = 1.0F;
+        float steeringScale = 1.0F;
+    };
     static const std::array<float, 3> computerCheatMinimumTorque;
     static const std::array<float, 3> computerCheatMaximumTorque;
     static const std::array<float, 3> humanArmorScale;
@@ -167,12 +188,15 @@ public:
         float GetPathLength(bool lastCorrect = false) const noexcept;
         float GetDist(bool lastCorrect = false) const noexcept;
         float GetLap(bool lastCorrect = false) const noexcept;
+        float GetSpeed() const noexcept;
         TraceVec3 GetMapPos() const noexcept;
         float GetLastNodeCoordX() const noexcept;
         std::uint32_t GetTrack() const noexcept;
 
         std::uint32_t numLaps = 0U;
         bool moveInverse = false;
+        bool cheatSlower = false;
+        bool cheatFaster = false;
 
     private:
         void SetCurTile(WayNode* value) noexcept;
@@ -218,6 +242,10 @@ public:
     BehaviorProgressResult ProgressBehaviors(
         float deltaTime, float lowLifeLevel,
         float linearSpeed) noexcept;
+    CheatResult CheatUpdate(
+        std::uint32_t cheatMask, std::size_t playerId,
+        std::size_t difficulty,
+        const std::vector<CheatPlayerView>& players) noexcept;
     bool ConsumeEnergyDamageEffectCreated() noexcept;
     std::vector<PlayerGameEvent> TakeGameEvents() noexcept;
 

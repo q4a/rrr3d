@@ -1229,6 +1229,19 @@ Network, video и Steam явно выключены.
   captured picked money берётся из `RaceLifecycle`, а не из уже сброшенного
   Player. Повторный exit не дублирует награды или результаты.
 
+### Source Player::CheatUpdate owner
+
+- `Player::CheatUpdate` перенесён из session adapter в `source::Player` вместе
+  с `CarState::cheatSlower/cheatFaster`. Fixed-step order теперь совпадает с
+  Windows: Player updates предшествуют `AISystem::OnProgress`.
+- Исправлена ошибочная portable-гипотеза «сравнивать с любым самым дальним
+  racer». Source filter допускает только Human/Opponent; обычный Computer не
+  может быть reference для rubber-banding другого Computer. Старый integrated
+  regression фактически закреплял ошибку и заменён прямой source-проверкой.
+- Jolt по-прежнему является backend boundary: вычисленные исходным owner
+  torqueK/steerK отображаются на `motorTorqueScale/lateralGripScale`, а
+  `cheatSlower` потребляется активным `AICar::ControlState` в тот же кадр.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

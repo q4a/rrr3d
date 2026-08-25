@@ -193,6 +193,38 @@ int main()
         std::abs(firstMap.x - 40.0F) > 0.001F)
         return 13;
 
+    std::vector<source::Player::CheatPlayerView> cheatPlayers{
+        {0U, true, true, tracedPlayer.car.GetLap() + 0.25F},
+        {1U, false, true, tracedPlayer.car.GetLap() + 0.49F}};
+    const auto faster = tracedPlayer.CheatUpdate(
+        source::Player::cheatEnableFaster |
+            source::Player::cheatEnableSlower,
+        2U, 1U, cheatPlayers);
+    if (!faster.faster || faster.slower ||
+        faster.torqueScale <= 1.0F ||
+        !tracedPlayer.car.cheatFaster)
+        return 28;
+
+    tracedPlayer.car.Update(
+        trace, {40.0F, 0.0F, 0.0F}, {1.0F, 0.0F, 0.0F},
+        40.0F, 1.0F / 60.0F);
+    cheatPlayers[0].lap = tracedPlayer.car.GetLap() - 0.25F;
+    const auto slower = tracedPlayer.CheatUpdate(
+        source::Player::cheatEnableFaster |
+            source::Player::cheatEnableSlower,
+        2U, 1U, cheatPlayers);
+    if (!slower.slower || slower.faster ||
+        !tracedPlayer.car.cheatSlower)
+        return 29;
+
+    cheatPlayers[0].lap = tracedPlayer.car.GetLap() + 0.05F;
+    cheatPlayers[1].lap = tracedPlayer.car.GetLap() + 0.49F;
+    const auto computersExcluded = tracedPlayer.CheatUpdate(
+        source::Player::cheatEnableFaster,
+        2U, 1U, cheatPlayers);
+    if (computersExcluded.faster || tracedPlayer.car.cheatFaster)
+        return 30;
+
     tracedPlayer.car.Update(
         trace, {75.0F, 0.0F, 0.0F}, {-1.0F, 0.0F, 0.0F},
         10.0F, 1.0F / 60.0F);
