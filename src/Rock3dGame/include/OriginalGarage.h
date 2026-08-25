@@ -70,13 +70,24 @@ struct OriginalWorkshopItem
     std::vector<CarFunction> carFunctions;
 };
 
+struct OriginalGaragePlacementItem
+{
+    std::string record;
+    std::array<float, 3> offset{};
+    std::array<float, 4> rotation{0.0F, 0.0F, 0.0F, 1.0F};
+};
+
 struct OriginalGaragePlacement
 {
     bool active = false;
     bool visible = false;
     bool locked = false;
+    std::array<float, 3> position{};
     std::string defaultItem;
     std::vector<std::string> supportedItems;
+    // Garage::PlaceSlot owns the car-local position and each PlaceItem owns
+    // the record-specific offset/rotation passed to Player::SetSlot.
+    std::vector<OriginalGaragePlacementItem> items;
 };
 
 struct OriginalGarageCar

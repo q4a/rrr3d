@@ -764,7 +764,84 @@ void Player::BindSlots(
     const std::vector<OriginalWorkshopItem>& workshop,
     const std::vector<RacerSlot>& loadout)
 {
+    if (carPresent_)
+    {
+        for (auto* item : GetPrimaryWeaponItems())
+        {
+            if (auto* droid = dynamic_cast<DroidItem*>(item))
+                droid->OnDestroyCar();
+        }
+    }
     slotRack_.Bind(workshop, loadout);
+    if (carRecord_ != nullptr)
+    {
+        for (std::size_t slot = 0U; slot < weaponSlotCount; ++slot)
+        {
+            auto& physicalSlot = slotRack_.GetSlot(
+                static_cast<PlayerSlotType>(
+                    static_cast<std::size_t>(PlayerSlotType::Weapon1) +
+                    slot));
+            const auto* record = physicalSlot.GetRecord();
+            if (record == nullptr)
+                continue;
+            const auto& mount = carRecord_->weaponMounts[slot];
+            const auto slash = record->record.find_last_of("\\/");
+            std::string_view wanted = record->record;
+            wanted.remove_prefix(
+                slash == std::string::npos ? 0U : slash + 1U);
+            const auto placement = std::find_if(
+                mount.placements.begin(), mount.placements.end(),
+                [&](const VehicleWeaponPlacement& item) {
+                    const auto itemSlash =
+                        item.record.find_last_of("\\/");
+                    return item.record.substr(
+                               itemSlash == std::string::npos
+                                   ? 0U
+                                   : itemSlash + 1U) == wanted;
+                });
+            if (placement == mount.placements.end())
+                continue;
+            auto& item = physicalSlot.GetItem();
+            item.SetPos(
+                {mount.position.x + placement->offset.x,
+                 mount.position.y + placement->offset.y,
+                 mount.position.z + placement->offset.z});
+            item.SetRot(
+                {placement->rotation.x, placement->rotation.y,
+                 placement->rotation.z, placement->rotation.w});
+        }
+    }
+    if (carPresent_)
+    {
+        for (auto* item : GetPrimaryWeaponItems())
+        {
+            if (auto* droid = dynamic_cast<DroidItem*>(item))
+                droid->OnCreateCar();
+        }
+    }
+}
+
+void Player::SetSlot(
+    PlayerSlotType type, const OriginalWorkshopItem* record,
+    const std::array<float, 3>& position,
+    const std::array<float, 4>& rotation) noexcept
+{
+    auto& slot = slotRack_.GetSlot(type);
+    if (carPresent_)
+    {
+        if (auto* droid = dynamic_cast<DroidItem*>(&slot.GetItem()))
+            droid->OnDestroyCar();
+    }
+    slot.SetRecord(record);
+    if (record == nullptr)
+        return;
+    slot.GetItem().SetPos(position);
+    slot.GetItem().SetRot(rotation);
+    if (carPresent_)
+    {
+        if (auto* droid = dynamic_cast<DroidItem*>(&slot.GetItem()))
+            droid->OnCreateCar();
+    }
 }
 
 void Player::ApplyMobility(

@@ -316,6 +316,11 @@ public:
     void BindSlots(
         const std::vector<OriginalWorkshopItem>& workshop,
         const std::vector<RacerSlot>& loadout);
+    void SetSlot(
+        PlayerSlotType type, const OriginalWorkshopItem* record,
+        const std::array<float, 3>& position = {},
+        const std::array<float, 4>& rotation =
+            {0.0F, 0.0F, 0.0F, 1.0F}) noexcept;
     void ApplyMobility(Vehicle& vehicle, std::string_view difficulty,
                        bool humanOrOpponent,
                        bool armor4Opened = false) noexcept;

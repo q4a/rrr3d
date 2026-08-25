@@ -97,9 +97,17 @@ const std::array<float, 3>& SlotItem::GetPos() const noexcept
 {
     return position_;
 }
+void SlotItem::SetPos(const std::array<float, 3>& value) noexcept
+{
+    position_ = value;
+}
 const std::array<float, 4>& SlotItem::GetRot() const noexcept
 {
     return rotation_;
+}
+void SlotItem::SetRot(const std::array<float, 4>& value) noexcept
+{
+    rotation_ = value;
 }
 
 void SlotItem::Load(const OriginalWorkshopItem& item)
@@ -240,6 +248,8 @@ Slot::Slot() { CreateItem(SlotType::Base); }
 Slot::Slot(const Slot& other)
 {
     SetRecord(other.record_);
+    GetItem().SetPos(other.GetItem().GetPos());
+    GetItem().SetRot(other.GetItem().GetRot());
     const auto* sourceArmor =
         dynamic_cast<const ArmorItem*>(&other.GetItem());
     auto* targetArmor = dynamic_cast<ArmorItem*>(&GetItem());
@@ -252,6 +262,8 @@ Slot& Slot::operator=(const Slot& other)
     if (this == &other)
         return *this;
     SetRecord(other.record_);
+    GetItem().SetPos(other.GetItem().GetPos());
+    GetItem().SetRot(other.GetItem().GetRot());
     const auto* sourceArmor =
         dynamic_cast<const ArmorItem*>(&other.GetItem());
     auto* targetArmor = dynamic_cast<ArmorItem*>(&GetItem());

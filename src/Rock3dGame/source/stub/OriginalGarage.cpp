@@ -275,6 +275,8 @@ void loadGarageCars(TiXmlElement* root, OriginalGarageCatalog& catalog)
                 boolean(placementNode, "show", false);
             placement.locked =
                 boolean(placementNode, "lock", false);
+            placement.position =
+                realVector<3>(placementNode, "pos", placement.position);
             placement.defaultItem =
                 text(placementNode, "defItem");
             if (auto* items = child(placementNode, "items"))
@@ -283,9 +285,17 @@ void loadGarageCars(TiXmlElement* root, OriginalGarageCatalog& catalog)
                      item != nullptr; item = item->NextSiblingElement())
                 {
                     const auto record = text(item, "record");
-                    if (!record.empty() &&
-                        !contains(placement.supportedItems, record))
+                    if (record.empty())
+                        continue;
+                    if (!contains(placement.supportedItems, record))
                         placement.supportedItems.push_back(record);
+                    OriginalGaragePlacementItem placedItem;
+                    placedItem.record = record;
+                    placedItem.offset = realVector<3>(
+                        item, "offset", placedItem.offset);
+                    placedItem.rotation = realVector<4>(
+                        item, "rot", placedItem.rotation);
+                    placement.items.push_back(std::move(placedItem));
                 }
             }
             if (!placement.defaultItem.empty() &&
@@ -1269,7 +1279,14 @@ bool runOriginalGarageSmokeTest(
             catalog.gamers.back().record != "gamer5" ||
             catalog.gamers.back().bossId != 9U ||
             marauder->placements[0].defaultItem !=
-                workshopRecord("wheel1"))
+                workshopRecord("wheel1") ||
+            dirtdevil->placements[7].position !=
+                std::array<float, 3>{0.0F, 0.0F, 1.1F} ||
+            dirtdevil->placements[7].items.size() != 4U ||
+            dirtdevil->placements[7].items.front().record !=
+                workshopRecord("rocketLauncher") ||
+            dirtdevil->placements[7].items.front().rotation !=
+                std::array<float, 4>{0.0F, 0.0F, 0.0F, 1.0F})
         {
             error = "original garage/workshop catalog mismatch";
             return false;

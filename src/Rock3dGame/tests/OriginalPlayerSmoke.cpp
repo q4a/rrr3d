@@ -80,6 +80,10 @@ int main()
     firstCar.record = "world\\db\\root\\ctCar\\marauder";
     r3d::game::originalrace::Vehicle secondCar;
     secondCar.record = "world\\db\\root\\ctCar\\buggi";
+    secondCar.weaponMounts[0].position = {2.0F, 3.0F, 4.0F};
+    secondCar.weaponMounts[0].placements.push_back(
+        {"world\\race\\workshopRoot\\workshop\\droid",
+         {0.1F, 0.2F, 0.3F, 0.9F}, {0.5F, -0.5F, 1.0F}});
     player.SetCar(&firstCar);
     player.CreateCar(true);
     if (player.GetCarRecord() != &firstCar || !player.HasCar())
@@ -127,6 +131,12 @@ int main()
                       ? nullptr
                       : dynamic_cast<source::DroidItem*>(
                             &droidSlot->GetItem());
+    if (droid == nullptr ||
+        droid->GetPos() !=
+            std::array<float, 3>{2.5F, 2.5F, 5.0F} ||
+        droid->GetRot() !=
+            std::array<float, 4>{0.1F, 0.2F, 0.3F, 0.9F})
+        return 67;
     player.SetLife(60.0F);
     player.CreateCar(true);
     if (droid == nullptr || !droid->IsProgressRegistered())
@@ -138,6 +148,46 @@ int main()
     if (droid->IsProgressRegistered())
         return 61;
     player.CreateCar(true);
+
+    // Garage::InstalSlot replaces the physical object, applies the selected
+    // car's PlaceSlot/PlaceItem transform and immediately connects a Droid
+    // when the car actor already exists.
+    r3d::game::originalrace::OriginalWorkshopItem liveDroidRecord;
+    liveDroidRecord.record =
+        "world\\race\\workshopRoot\\workshop\\droid";
+    liveDroidRecord.type = static_cast<std::uint32_t>(
+        source::SlotType::Droid);
+    r3d::game::originalrace::OriginalWorkshopItem liveReflectorRecord;
+    liveReflectorRecord.record =
+        "world\\race\\workshopRoot\\workshop\\reflector";
+    liveReflectorRecord.type = static_cast<std::uint32_t>(
+        source::SlotType::Reflector);
+    player.SetSlot(
+        source::PlayerSlotType::Weapon1, &liveDroidRecord,
+        {1.0F, 2.0F, 3.0F}, {0.1F, 0.2F, 0.3F, 0.9F});
+    const auto* liveDroidSlot = player.GetSlotInst(
+        source::SlotType::Droid);
+    const auto* liveDroid =
+        liveDroidSlot == nullptr
+            ? nullptr
+            : dynamic_cast<const source::DroidItem*>(
+                  &liveDroidSlot->GetItem());
+    if (liveDroid == nullptr || !liveDroid->IsProgressRegistered() ||
+        liveDroid->GetPos() !=
+            std::array<float, 3>{1.0F, 2.0F, 3.0F} ||
+        liveDroid->GetRot() !=
+            std::array<float, 4>{0.1F, 0.2F, 0.3F, 0.9F})
+        return 65;
+    player.SetSlot(
+        source::PlayerSlotType::Weapon1, &liveReflectorRecord,
+        {-1.0F, 0.5F, 4.0F}, {0.0F, 0.0F, 0.0F, 1.0F});
+    const auto* liveReflectorSlot = player.GetSlotInst(
+        source::SlotType::Reflector);
+    if (liveReflectorSlot == nullptr ||
+        liveReflectorSlot->GetItem().GetPos() !=
+            std::array<float, 3>{-1.0F, 0.5F, 4.0F})
+        return 66;
+    player.SetSlot(source::PlayerSlotType::Weapon1, nullptr);
 
     player.weaponSlots = {2U, source::Player::invalidWeapon, 4U, 5U};
     player.weaponCapacity = {6U, 0U, 3U, 2U};

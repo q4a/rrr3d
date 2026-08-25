@@ -74,7 +74,9 @@ public:
     virtual const std::string& GetMeshPath() const noexcept;
     virtual const std::string& GetTexturePath() const noexcept;
     const std::array<float, 3>& GetPos() const noexcept;
+    void SetPos(const std::array<float, 3>& value) noexcept;
     const std::array<float, 4>& GetRot() const noexcept;
+    void SetRot(const std::array<float, 4>& value) noexcept;
 
     virtual void Load(const OriginalWorkshopItem& item);
 

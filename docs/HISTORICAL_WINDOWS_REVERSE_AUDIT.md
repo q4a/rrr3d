@@ -1298,6 +1298,27 @@ Slot мог остаться от стартового race loadout, из-за �
 Droid с независимым lifecycle, два Reflector с first-slot rule и устойчивую
 identity WeaponItem непосредственно внутри Slot.
 
+### P2.37 — Garage::InstalSlot placement and live replacement — выполнено
+
+Сверка с `eff9338:Race.cpp::Garage::InstalSlot` подтвердила потерю ещё одной
+части исходного состояния. Portable `OriginalGaragePlacement` сохранял лишь
+флаги и строки допустимых предметов, выбрасывая `PlaceSlot::pos` и
+индивидуальные `PlaceItem::offset/rot`. Одновременно `SlotItem` получал
+preview-позу из `workshop.xml`, хотя Windows после выбора машины обязательно
+заменяет её на `place.pos + placeItem.offset` и `placeItem.rot`. Рендерер
+оружия отдельно повторно читал эти значения, поэтому графическое и игровое
+представления одного физического слота расходились.
+
+Каталог гаража теперь сохраняет полные car-specific placement records, а
+`Player::BindSlots` применяет точное крепление активного `Vehicle` к тому же
+Slot-owned предмету, который используется оружием и эффектами. Перенесён
+`Player::SetSlot`: он удаляет прежний полиморфный предмет, задаёт запись и
+трансформацию нового, а при существующей машине отключает старый Droid и
+сразу подключает новый. `SlotItem::SetPos/SetRot` и копирование `Slot`
+сохраняют уже установленную car-specific трансформацию. Регрессии проверяют
+реальные `garage.xml` position/rotation, mount offset и замену живого Droid
+на Reflector без параллельного объекта.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
