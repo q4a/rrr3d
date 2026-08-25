@@ -124,24 +124,6 @@ public:
         bool human) noexcept;
 };
 
-// HumanPlayer::SelectWeapon keeps its own four-slot ordinal and only selects
-// weapons whose current charge is positive.  This deliberately differs from
-// WeaponItem's maxCharge==0 shot gate: the original current-fire action did
-// not auto-select an infinite item with a zero current counter.
-class HumanPlayer
-{
-public:
-    struct Selection
-    {
-        std::size_t slot = 0U;
-        bool found = false;
-    };
-
-    static Selection SelectWeapon(
-        std::span<const WeaponItem> primaryWeapons,
-        std::size_t currentSlot) noexcept;
-};
-
 // One source Weapon map object exists for every installed slot, including
 // Hyper and Mine. This small owner replaces three unrelated session timers.
 struct WeaponRack

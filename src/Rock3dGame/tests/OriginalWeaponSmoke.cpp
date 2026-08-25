@@ -105,17 +105,6 @@ int main()
     if (!dryMinePlan.humanShotEvent || dryMinePlan.shotCount != 0U)
         return 16;
 
-    firstCharge = 0U;
-    secondCharge = 1U;
-    auto selection = source::HumanPlayer::SelectWeapon(primary, 0U);
-    if (!selection.found || selection.slot != 1U)
-        return 17;
-    secondCharge = 0U;
-    selection = source::HumanPlayer::SelectWeapon(primary, 1U);
-    if (selection.found || selection.slot != 0U)
-        return 18;
-
-    std::cout <<
-        "original Weapon/WeaponItem/Logic/HumanPlayer source rules passed\n";
+    std::cout << "original Weapon/WeaponItem/Logic source rules passed\n";
     return 0;
 }

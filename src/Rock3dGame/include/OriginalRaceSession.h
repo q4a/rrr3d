@@ -1,6 +1,7 @@
 #pragma once
 
 #include "OriginalAICar.h"
+#include "OriginalHumanPlayer.h"
 #include "OriginalPlayer.h"
 #include "OriginalProfile.h"
 #include "OriginalRace.h"
@@ -494,6 +495,7 @@ private:
     std::vector<bool> bonusActive_;
     std::vector<std::size_t> bonusNetworkPendingContact_;
     std::vector<source::WeaponRack> weaponRacks_;
+    source::HumanPlayer humanPlayer_;
     std::vector<std::uint32_t> nextNetworkProjectileIds_;
     std::vector<float> repairSeconds_;
     std::vector<source::AIPlayer> aiPlayers_;

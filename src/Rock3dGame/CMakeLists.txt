@@ -50,6 +50,7 @@ else()
         list(APPEND _rrr3d_portable_game_sources
             source/stub/OriginalMainMenu.cpp
             source/stub/OriginalAICar.cpp
+            source/stub/OriginalHumanPlayer.cpp
             source/stub/OriginalPlayer.cpp
             source/stub/OriginalTrace.cpp
             source/stub/OriginalTournament.cpp
@@ -57,6 +58,7 @@ else()
             source/stub/OriginalWeapon.cpp
             include/OriginalMainMenu.h
             include/OriginalAICar.h
+            include/OriginalHumanPlayer.h
             include/OriginalPlayer.h
             include/OriginalTrace.h
             include/OriginalTournament.h
@@ -175,6 +177,19 @@ if(NOT WIN32 AND RRR3D_BUILD_ORIGINAL_MENU)
     add_test(
         NAME rrr3d_original_weapon_smoke
         COMMAND rrr3d_original_weapon_smoke
+    )
+
+    add_executable(rrr3d_original_human_player_smoke
+        tests/OriginalHumanPlayerSmoke.cpp
+    )
+    target_link_libraries(rrr3d_original_human_player_smoke PRIVATE
+        ${PROJECT_NAME}
+    )
+    rrr3d_set_common_target_options(
+        rrr3d_original_human_player_smoke)
+    add_test(
+        NAME rrr3d_original_human_player_smoke
+        COMMAND rrr3d_original_human_player_smoke
     )
 endif()
 

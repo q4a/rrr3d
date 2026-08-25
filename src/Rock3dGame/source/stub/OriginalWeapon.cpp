@@ -227,24 +227,6 @@ Logic::ShotPlan Logic::ShotAll(
     return result;
 }
 
-HumanPlayer::Selection HumanPlayer::SelectWeapon(
-    std::span<const WeaponItem> primaryWeapons,
-    std::size_t currentSlot) noexcept
-{
-    if (primaryWeapons.empty())
-        return {};
-    for (std::size_t offset = 0U;
-         offset < primaryWeapons.size(); ++offset)
-    {
-        const std::size_t slot =
-            (currentSlot + offset) % primaryWeapons.size();
-        const auto& weapon = primaryWeapons[slot];
-        if (weapon.IsInstalled() && weapon.GetCurCharge() > 0U)
-            return {slot, true};
-    }
-    return {0U, false};
-}
-
 void WeaponRack::Reset() noexcept
 {
     for (auto& weapon : primary)

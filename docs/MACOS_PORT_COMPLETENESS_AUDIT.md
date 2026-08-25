@@ -1066,6 +1066,19 @@ Network, video и Steam явно выключены.
 - Unit и resource smoke покрывают infinite ammo, failed prepare, replicated
   charge commit, selection, multi-slot fire и dry human event.
 
+### Source HumanPlayer owner/control block
+
+- Отдельный `source::HumanPlayer` хранит Windows `_curWeapon` и переносит
+  `GetWeaponByIndex`, contiguous `GetWeaponCount`, bounded next/previous и
+  повторный `SelectWeapon` после последнего заряда.
+- SDL device state теперь проходит через source `Control::OnInputProgress`
+  command: accel приоритетнее reverse, оба движения бинарны, left
+  приоритетнее right вместо синтетического взаимного вычитания.
+- Session-local dynamic usable-slot list и ручной direct-slot ordinal search
+  удалены; current/direct/all weapon paths используют один owner.
+- Новый одиннадцатый `OriginalHumanPlayerSmoke` проверяет selection owner,
+  direct ordinal, границы переключения и driving priority.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

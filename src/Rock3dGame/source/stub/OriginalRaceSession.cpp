@@ -1019,6 +1019,7 @@ void OriginalRaceSession::reset()
     racers_.assign(race_.racers.size(), {});
     vehicleInputs_.assign(race_.racers.size(), {});
     weaponRacks_.assign(race_.racers.size(), {});
+    humanPlayer_.SetCurWeapon(0);
     nextNetworkProjectileIds_.assign(race_.racers.size(), 1U);
     repairSeconds_.assign(race_.racers.size(), 0.0F);
     aiPlayers_.clear();
@@ -2777,49 +2778,6 @@ void OriginalRaceSession::updateGameplay(
             queueRespawn(racer, vehicles);
         }
     }
-    if (!racers_.empty() && humanControl.weaponSlot >= 0 &&
-        humanControl.weaponSlot <
-            static_cast<int>(PlayerProfile::weaponSlotCount))
-    {
-        const auto slot =
-            static_cast<std::size_t>(humanControl.weaponSlot);
-        if (racers_[0].weaponSlots[slot] !=
-            RacerRuntime::invalidWeapon)
-        {
-            racers_[0].selectedWeaponSlot = slot;
-            racers_[0].SyncSelectedWeapon(race_.weapons.size());
-        }
-    }
-    if (humanControl.changeWeapon && !racers_.empty())
-    {
-        auto& runtime = racers_[0];
-        std::vector<std::size_t> usable;
-        for (std::size_t slot = 0;
-             slot < runtime.weaponSlots.size(); ++slot)
-        {
-            if (runtime.weaponSlots[slot] ==
-                RacerRuntime::invalidWeapon)
-                continue;
-            usable.push_back(slot);
-        }
-        if (!usable.empty())
-        {
-            const auto current = std::find(
-                usable.begin(), usable.end(),
-                runtime.selectedWeaponSlot);
-            const auto currentIndex =
-                current == usable.end()
-                    ? 0
-                    : static_cast<int>(current - usable.begin());
-            const int wanted = std::clamp(
-                currentIndex +
-                    (humanControl.weaponChange < 0 ? -1 : 1),
-                0, static_cast<int>(usable.size()) - 1);
-            runtime.selectedWeaponSlot =
-                usable[static_cast<std::size_t>(wanted)];
-            runtime.SyncSelectedWeapon(race_.weapons.size());
-        }
-    }
     auto directWeaponWorldTransform =
         [&](std::size_t owner, std::size_t weaponIndex) {
             return compose(
@@ -4153,6 +4111,38 @@ void OriginalRaceSession::updateGameplay(
         events_.push_back(std::move(event));
     };
 
+    auto humanPrimaryItems = [&]() {
+        std::array<source::WeaponItem,
+                   PlayerProfile::weaponSlotCount> result{};
+        for (std::size_t slot = 0U; slot < result.size(); ++slot)
+            result[slot] = primaryWeaponItem(0U, slot);
+        return result;
+    };
+    if (!racers_.empty() && humanControl.weaponSlot >= 0 &&
+        humanControl.weaponSlot <
+            static_cast<int>(PlayerProfile::weaponSlotCount))
+    {
+        const auto slot =
+            static_cast<std::size_t>(humanControl.weaponSlot);
+        auto items = humanPrimaryItems();
+        if (items[slot].IsInstalled())
+        {
+            humanPlayer_.SetCurWeapon(
+                static_cast<int>(slot));
+            racers_[0].selectedWeaponSlot = slot;
+            racers_[0].SyncSelectedWeapon(race_.weapons.size());
+        }
+    }
+    if (humanControl.changeWeapon && !racers_.empty())
+    {
+        auto items = humanPrimaryItems();
+        humanPlayer_.ChangeWeapon(
+            humanControl.weaponChange, items);
+        racers_[0].selectedWeaponSlot = static_cast<std::size_t>(
+            std::max(humanPlayer_.GetCurWeapon(), 0));
+        racers_[0].SyncSelectedWeapon(race_.weapons.size());
+    }
+
     auto placeMine = [&](
         std::size_t owner, const Vec3* replicatedPosition = nullptr,
         std::uint32_t replicatedProjectileId = 0U,
@@ -5347,12 +5337,10 @@ void OriginalRaceSession::updateGameplay(
     if (humanControl.useWeapon && !racers_.empty())
     {
         auto& runtime = racers_.front();
-        std::array<source::WeaponItem,
-                   PlayerProfile::weaponSlotCount> items{};
-        for (std::size_t slot = 0U; slot < items.size(); ++slot)
-            items[slot] = primaryWeaponItem(0U, slot);
-        const auto selection = source::HumanPlayer::SelectWeapon(
-            items, runtime.selectedWeaponSlot);
+        auto items = humanPrimaryItems();
+        humanPlayer_.SetCurWeapon(
+            static_cast<int>(runtime.selectedWeaponSlot));
+        const auto selection = humanPlayer_.SelectWeapon(items);
         runtime.selectedWeaponSlot = selection.slot;
         runtime.SyncSelectedWeapon(race_.weapons.size());
         if (selection.found)
@@ -5372,9 +5360,7 @@ void OriginalRaceSession::updateGameplay(
                            nullptr, 0U, false, true);
                 if (item.GetCurCharge() == 0U)
                 {
-                    const auto next =
-                        source::HumanPlayer::SelectWeapon(
-                            items, selection.slot);
+                    const auto next = humanPlayer_.SelectWeapon(items);
                     runtime.selectedWeaponSlot = next.slot;
                     runtime.SyncSelectedWeapon(
                         race_.weapons.size());
@@ -5389,23 +5375,11 @@ void OriginalRaceSession::updateGameplay(
         auto& runtime = racers_.front();
         const auto requestedOrdinal =
             static_cast<std::size_t>(humanControl.fireWeaponSlot);
-        std::size_t requested = RacerRuntime::invalidWeapon;
-        std::size_t installedOrdinal = 0U;
-        for (std::size_t slot = 0U;
-             slot < runtime.weaponSlots.size(); ++slot)
-        {
-            if (runtime.weaponSlots[slot] ==
-                RacerRuntime::invalidWeapon)
-            {
-                continue;
-            }
-            if (installedOrdinal++ == requestedOrdinal)
-            {
-                requested = slot;
-                break;
-            }
-        }
-        if (requested != RacerRuntime::invalidWeapon)
+        auto items = humanPrimaryItems();
+        const std::size_t requested =
+            humanPlayer_.GetWeaponByIndex(
+                static_cast<int>(requestedOrdinal), items);
+        if (requested < items.size())
         {
             const auto selected = runtime.selectedWeaponSlot;
             runtime.selectedWeaponSlot = requested;
@@ -5430,10 +5404,7 @@ void OriginalRaceSession::updateGameplay(
     {
         auto& runtime = racers_.front();
         const auto selected = runtime.selectedWeaponSlot;
-        std::array<source::WeaponItem,
-                   PlayerProfile::weaponSlotCount> items{};
-        for (std::size_t slot = 0U; slot < items.size(); ++slot)
-            items[slot] = primaryWeaponItem(0U, slot);
+        auto items = humanPrimaryItems();
         const auto plan = source::Logic::ShotAll(items, true);
         emitHumanShot(plan);
         for (std::size_t slot = 0;

@@ -816,6 +816,26 @@ Hyper/Mine/Weapon1..4, readiness selection и `cHumanShot`: обычная по�
 failed prepare, replicated charge, infinite ammo, dry human event,
 auto-selection и multi-slot shot.
 
+### P2.12 — HumanPlayer owner/control — выполнено
+
+Перенесён отдельный active `source::HumanPlayer` вместо продолжения
+session-local selection helpers. Как Windows `_curWeapon`, owner хранит
+текущий физический primary slot и реализует `GetWeaponByIndex`,
+`GetWeaponCount`, `SetCurWeapon`, ограниченные `gaWeaponDown/gaWeaponUp` и
+рекурсивный `SelectWeapon` после расходования последнего заряда.
+
+`HumanPlayer::Control::OnInputProgress` перенесён как backend-neutral command:
+acceleration имеет приоритет над reverse, значения газа/реверса остаются
+бинарными и left имеет приоритет над right при одновременном удержании.
+SDL по-прежнему владеет сырым состоянием устройств, а результат source
+command передаётся в Jolt `VehicleInput`.
+
+Из `OriginalRaceSession` удалены heap-allocated usable-slot vector и ручной
+ordinal search. Direct Shot1..4, current shot, next/previous, auto-select и
+HUD-selected slot проходят через один `HumanPlayer` owner. Добавлен
+одиннадцатый CTest `OriginalHumanPlayerSmoke` для input priority, bounded
+selection, sparse direct ordinal и exhausted-ammo reset.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

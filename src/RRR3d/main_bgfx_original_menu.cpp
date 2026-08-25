@@ -15334,13 +15334,18 @@ int main(int argc, char** argv)
                 rrr3d::input::Action::Accelerate) > 0.0F;
             const bool reverseHeld = input.heldValue(
                 rrr3d::input::Action::Brake) > 0.0F;
-            raceInput.throttle = accelerateHeld ? 1.0F : 0.0F;
-            raceInput.reverse =
-                !accelerateHeld && reverseHeld ? 1.0F : 0.0F;
+            const auto humanDriving =
+                r3d::game::originalrace::source::HumanPlayer::
+                    OnInputProgress(
+                        accelerateHeld, reverseHeld,
+                        input.heldValue(
+                            rrr3d::input::Action::TurnLeft),
+                        input.heldValue(
+                            rrr3d::input::Action::TurnRight));
+            raceInput.throttle = humanDriving.throttle;
+            raceInput.reverse = humanDriving.reverse;
             raceInput.brake = 0.0F;
-            raceInput.steering =
-                input.heldValue(rrr3d::input::Action::TurnLeft) -
-                input.heldValue(rrr3d::input::Action::TurnRight);
+            raceInput.steering = humanDriving.steering;
             if (options->raceRenderSmokeTest)
             {
                 raceInput.steering = renderedFrames >= 90 &&
