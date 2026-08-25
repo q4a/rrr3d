@@ -1319,6 +1319,30 @@ Slot-owned предмету, который используется оружи�
 реальные `garage.xml` position/rotation, mount offset и замену живого Droid
 на Reflector без параллельного объекта.
 
+### P2.38 — ten-slot mount owner and weapon world transform — выполнено
+
+Следующая проверка активного пути показала, что P2.37 ещё не устранил
+параллельное состояние полностью. `Vehicle` загружал из `Garage::Car` только
+`stWeapon1..4`, а `stHyper` и `stMine` отбрасывались. Session и bgfx renderer
+затем повторно искали primary placement в `Vehicle`, не читая трансформацию
+у фактически установленного `SlotItem`. В результате Hyper/Mine создавали
+снаряд или эффект от центра машины; видимый HyperDrive не рисовался, а
+видимая primary-модель и точка выстрела могли разойтись с Player owner.
+
+`Vehicle` теперь хранит исходный десятиэлементный массив `slotMounts` в том
+же порядке, что `Player::SlotType`. Загрузчик читает `active/show/pos` и все
+record-specific `offset/rot` для Wheel–Weapon4. Добавлены обе исходные формы
+`Player::GetSlotInst`: lookup по физической позиции и по полиморфному
+`Slot::Type`. `Player::BindSlots` применяет car-specific transform ко всем
+десяти слотам.
+
+Gameplay transform primary/Hyper/Mine теперь строится из Slot-owned item;
+vehicle placement остаётся только fallback для старой неполной записи.
+Renderer обходит `stHyper..stWeapon4`, поэтому видимый HyperDrive и четыре
+primary-предмета используют тот же owner и ту же позу, что выстрел/эффект.
+Регрессии проверяют ненулевой Hyper offset, его точную world-space позицию в
+attached projectile и полный mount из реального `manticora` в `garage.xml`.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

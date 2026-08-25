@@ -5072,12 +5072,35 @@ void OriginalRaceRenderer::draw(
                         state.linearVelocity);
                 }
             }
-            for (std::size_t slot = 0;
-                 slot < runtime.weaponSlots.size() &&
-                 slot < definition.weaponMounts.size(); ++slot)
+            const std::size_t firstVisibleSlot =
+                static_cast<std::size_t>(
+                    r3d::game::originalrace::GarageSlotType::Hyper);
+            for (std::size_t physicalSlot = firstVisibleSlot;
+                 physicalSlot < definition.slotMounts.size();
+                 ++physicalSlot)
             {
-                const auto weaponIndex = runtime.weaponSlots[slot];
-                const auto& mount = definition.weaponMounts[slot];
+                const std::size_t primarySlot =
+                    physicalSlot >= static_cast<std::size_t>(
+                                        r3d::game::originalrace::
+                                            GarageSlotType::Weapon1)
+                        ? physicalSlot - static_cast<std::size_t>(
+                                             r3d::game::originalrace::
+                                                 GarageSlotType::Weapon1)
+                        : runtime.weaponSlots.size();
+                const auto weaponIndex =
+                    physicalSlot == static_cast<std::size_t>(
+                                        r3d::game::originalrace::
+                                            GarageSlotType::Hyper)
+                        ? runtime.hyperWeapon
+                    : physicalSlot == static_cast<std::size_t>(
+                                          r3d::game::originalrace::
+                                              GarageSlotType::Mine)
+                        ? runtime.mineWeapon
+                    : primarySlot < runtime.weaponSlots.size()
+                        ? runtime.weaponSlots[primarySlot]
+                        : r3d::game::originalrace::
+                              RacerRuntime::invalidWeapon;
+                const auto& mount = definition.slotMounts[physicalSlot];
                 if (refractionPass || !mount.active || !mount.show ||
                     weaponIndex == r3d::game::originalrace::
                                        RacerRuntime::invalidWeapon ||
@@ -5086,28 +5109,45 @@ void OriginalRaceRenderer::draw(
                     weapons_[weaponIndex].nodes.empty())
                     continue;
                 r3d::physics::Transform local;
-                local.position = mount.position;
                 const auto wanted =
                     recordName(race.weapons[weaponIndex].record);
-                const auto placement = std::find_if(
-                    mount.placements.begin(), mount.placements.end(),
-                    [&](const auto& item) {
-                        return recordName(item.record) == wanted;
-                    });
-                if (placement != mount.placements.end())
+                const auto* installed = runtime.GetSlotInst(
+                    static_cast<r3d::game::originalrace::source::
+                                    PlayerSlotType>(physicalSlot));
+                if (installed != nullptr &&
+                    recordName(installed->GetItem().GetRecord()) == wanted)
                 {
-                    local.position.x += placement->offset.x;
-                    local.position.y += placement->offset.y;
-                    local.position.z += placement->offset.z;
-                    local.rotation = placement->rotation;
+                    const auto& position = installed->GetItem().GetPos();
+                    const auto& rotation = installed->GetItem().GetRot();
+                    local.position = {
+                        position[0], position[1], position[2]};
+                    local.rotation = {
+                        rotation[0], rotation[1], rotation[2],
+                        rotation[3]};
+                }
+                else
+                {
+                    local.position = mount.position;
+                    const auto placement = std::find_if(
+                        mount.placements.begin(), mount.placements.end(),
+                        [&](const auto& item) {
+                            return recordName(item.record) == wanted;
+                        });
+                    if (placement != mount.placements.end())
+                    {
+                        local.position.x += placement->offset.x;
+                        local.position.y += placement->offset.y;
+                        local.position.z += placement->offset.z;
+                        local.rotation = placement->rotation;
+                    }
                 }
                 const auto& weaponNode =
                     race.weapons[weaponIndex].visual;
                 auto weaponTransform = weaponNode.transform;
-                if (slot < runtime.weaponSpinRadians.size())
+                if (primarySlot < runtime.weaponSpinRadians.size())
                 {
                     const float halfAngle =
-                        runtime.weaponSpinRadians[slot] * 0.5F;
+                        runtime.weaponSpinRadians[primarySlot] * 0.5F;
                     const r3d::physics::Quat sourceSpin{
                         std::sin(halfAngle), 0.0F, 0.0F,
                         std::cos(halfAngle)};

@@ -2807,38 +2807,95 @@ void OriginalRaceSession::updateGameplay(
         const auto& vehicle = vehicleForRacer(racer);
         return vehicle.physics.clutchImmunity;
     };
+    auto installedWeaponSlot =
+        [&](std::size_t owner, std::size_t weaponIndex,
+            std::optional<std::size_t> primaryMount)
+        -> const source::Slot* {
+            if (owner >= racers_.size() ||
+                weaponIndex >= race_.weapons.size())
+                return nullptr;
+            std::optional<source::PlayerSlotType> physicalType;
+            if (primaryMount &&
+                *primaryMount < PlayerProfile::weaponSlotCount)
+            {
+                physicalType = static_cast<source::PlayerSlotType>(
+                    static_cast<std::size_t>(
+                        source::PlayerSlotType::Weapon1) +
+                    *primaryMount);
+            }
+            else if (racers_[owner].hyperWeapon == weaponIndex)
+            {
+                physicalType = source::PlayerSlotType::Hyper;
+            }
+            else if (racers_[owner].mineWeapon == weaponIndex)
+            {
+                physicalType = source::PlayerSlotType::Mine;
+            }
+            if (!physicalType)
+                return nullptr;
+            const auto* slot =
+                racers_[owner].GetSlotInst(*physicalType);
+            if (slot == nullptr ||
+                recordName(slot->GetItem().GetRecord()) !=
+                    recordName(race_.weapons[weaponIndex].record))
+                return nullptr;
+            return slot;
+        };
+    auto installedSlotTransform = [](const source::Slot& slot) {
+        Transform result;
+        const auto& position = slot.GetItem().GetPos();
+        const auto& rotation = slot.GetItem().GetRot();
+        result.position = {position[0], position[1], position[2]};
+        result.rotation = {
+            rotation[0], rotation[1], rotation[2], rotation[3]};
+        return result;
+    };
     auto directWeaponWorldTransform =
         [&](std::size_t owner, std::size_t weaponIndex) {
+            Transform result = vehicles[owner].body;
+            if (const auto* slot = installedWeaponSlot(
+                    owner, weaponIndex, std::nullopt))
+                result = compose(result, installedSlotTransform(*slot));
             return compose(
-                vehicles[owner].body,
-                race_.weapons[weaponIndex].visual.transform);
+                result, race_.weapons[weaponIndex].visual.transform);
         };
     auto weaponWorldTransform =
         [&](std::size_t owner, std::size_t weaponIndex,
             std::size_t mountSlot) {
             Transform result = vehicles[owner].body;
             const auto& vehicleDefinition = vehicleForRacer(owner);
-            if (mountSlot < vehicleDefinition.weaponMounts.size())
+            if (const auto* slot = installedWeaponSlot(
+                    owner, weaponIndex, mountSlot))
             {
-                const auto& mount =
-                    vehicleDefinition.weaponMounts[mountSlot];
-                Transform local;
-                local.position = mount.position;
-                const auto wanted =
-                    recordName(race_.weapons[weaponIndex].record);
-                const auto placement = std::find_if(
-                    mount.placements.begin(),
-                    mount.placements.end(),
-                    [&](const VehicleWeaponPlacement& item) {
-                        return recordName(item.record) == wanted;
-                    });
-                if (placement != mount.placements.end())
+                result = compose(result, installedSlotTransform(*slot));
+            }
+            else
+            {
+                const std::size_t physicalMount =
+                    static_cast<std::size_t>(GarageSlotType::Weapon1) +
+                    mountSlot;
+                if (physicalMount < vehicleDefinition.slotMounts.size())
                 {
-                    local.position = add(
-                        local.position, placement->offset);
-                    local.rotation = placement->rotation;
+                    const auto& mount =
+                        vehicleDefinition.slotMounts[physicalMount];
+                    Transform local;
+                    local.position = mount.position;
+                    const auto wanted =
+                        recordName(race_.weapons[weaponIndex].record);
+                    const auto placement = std::find_if(
+                        mount.placements.begin(),
+                        mount.placements.end(),
+                        [&](const VehicleSlotPlacement& item) {
+                            return recordName(item.record) == wanted;
+                        });
+                    if (placement != mount.placements.end())
+                    {
+                        local.position = add(
+                            local.position, placement->offset);
+                        local.rotation = placement->rotation;
+                    }
+                    result = compose(result, local);
                 }
-                result = compose(result, local);
             }
             Transform weaponLocal =
                 race_.weapons[weaponIndex].visual.transform;
@@ -9175,7 +9232,22 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
         auto hyperVehicles = vehicles;
         hyperVehicles[0].body.rotation = {};
         {
-            OriginalRaceSession hyperSession(race);
+            Race hyperRace = race;
+            const auto hyperVehicleIndex =
+                hyperRace.racers.front().vehicle;
+            auto& hyperVehicleDefinition =
+                hyperRace.racers.front().hasConfiguredVehicle
+                    ? hyperRace.racers.front().configuredVehicle
+                    : hyperRace.vehicles[hyperVehicleIndex];
+            auto& hyperMount =
+                hyperVehicleDefinition.slotMounts[
+                    static_cast<std::size_t>(GarageSlotType::Hyper)];
+            hyperMount.active = true;
+            hyperMount.show = true;
+            hyperMount.position = {3.0F, 2.0F, 1.0F};
+            hyperMount.placements = {
+                {hyperdrive->record, {}, {0.25F, -0.5F, 0.75F}}};
+            OriginalRaceSession hyperSession(hyperRace);
             PlayerProfile hyperProfile;
             auto& slot =
                 hyperProfile.slots[PlayerProfile::hyperSlot];
@@ -9205,6 +9277,30 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                            projectile.attached &&
                            projectile.directWeapon;
                 });
+            Transform sourceSlotTransform;
+            sourceSlotTransform.position = {3.25F, 1.5F, 1.75F};
+            Transform sourceProjectileTransform;
+            sourceProjectileTransform.position =
+                hyperdrive->projectiles.front().position;
+            sourceProjectileTransform.rotation =
+                hyperdrive->projectiles.front().rotation;
+            const Vec3 expectedAttachedPosition = compose(
+                hyperVehicles[0].body,
+                compose(sourceSlotTransform,
+                        compose(hyperdrive->visual.transform,
+                                sourceProjectileTransform)))
+                                                     .position;
+            const bool attachedPositionMatches = std::any_of(
+                hyperSession.projectiles().begin(),
+                hyperSession.projectiles().end(),
+                [&](const ProjectileRuntime& projectile) {
+                    return projectile.weapon ==
+                               static_cast<std::size_t>(
+                                   hyperdrive - race.weapons.begin()) &&
+                           distanceSquared(
+                               projectile.position,
+                               expectedAttachedPosition) < 0.000001F;
+                });
             const bool syntheticHyperEffect = std::any_of(
                 hyperSession.effects().begin(),
                 hyperSession.effects().end(),
@@ -9218,10 +9314,38 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 std::abs(requests.front().delta.y) > 0.001F ||
                 std::abs(requests.front().delta.z) > 0.001F ||
                 hyperSession.racers().front().hyperCharge != 1U ||
-                !attachedSourceEffect || syntheticHyperEffect)
+                !attachedSourceEffect || !attachedPositionMatches ||
+                syntheticHyperEffect)
             {
+                const auto* installedSlot =
+                    hyperSession.racers().front().GetSlotInst(
+                        source::PlayerSlotType::Hyper);
+                const auto installedPosition =
+                    installedSlot != nullptr
+                        ? installedSlot->GetItem().GetPos()
+                        : std::array<float, 3>{};
+                const auto actualPosition =
+                    hyperSession.projectiles().empty()
+                        ? Vec3{}
+                        : hyperSession.projectiles().back().position;
                 throw std::runtime_error(
-                    "source ptHyper local impulse/linked visual failed");
+                    "source ptHyper slot transform/local impulse/linked "
+                    "visual failed: requests=" +
+                    std::to_string(requests.size()) + " charge=" +
+                    std::to_string(
+                        hyperSession.racers().front().hyperCharge) +
+                    " attached=" +
+                    std::to_string(attachedSourceEffect) + " position=" +
+                    std::to_string(attachedPositionMatches) + " slot=(" +
+                    std::to_string(installedPosition[0]) + "," +
+                    std::to_string(installedPosition[1]) + "," +
+                    std::to_string(installedPosition[2]) + ") actual=(" +
+                    std::to_string(actualPosition.x) + "," +
+                    std::to_string(actualPosition.y) + "," +
+                    std::to_string(actualPosition.z) + ") expected=(" +
+                    std::to_string(expectedAttachedPosition.x) + "," +
+                    std::to_string(expectedAttachedPosition.y) + "," +
+                    std::to_string(expectedAttachedPosition.z) + ")");
             }
             hyperSession.update(
                 1.0F / 60.0F, hyperVehicles, hyperInput);

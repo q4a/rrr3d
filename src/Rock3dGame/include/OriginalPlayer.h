@@ -326,6 +326,8 @@ public:
                        bool armor4Opened = false) noexcept;
     const OriginalWorkshopItem* GetSlot(
         PlayerSlotType type) const noexcept;
+    Slot* GetSlotInst(PlayerSlotType type) noexcept;
+    const Slot* GetSlotInst(PlayerSlotType type) const noexcept;
     Slot* GetSlotInst(SlotType type) noexcept;
     const Slot* GetSlotInst(SlotType type) const noexcept;
 

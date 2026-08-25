@@ -433,19 +433,19 @@ struct TracePoint
     float width = 0.0F;
 };
 
-struct VehicleWeaponPlacement
+struct VehicleSlotPlacement
 {
     std::string record;
     Quat rotation;
     Vec3 offset;
 };
 
-struct VehicleWeaponMount
+struct VehicleSlotMount
 {
     bool active = false;
     bool show = false;
     Vec3 position;
-    std::vector<VehicleWeaponPlacement> placements;
+    std::vector<VehicleSlotPlacement> placements;
 };
 
 struct VehicleNightLight
@@ -484,7 +484,12 @@ struct Vehicle
     // PxWheelSlipEffect instances still own trail/smoke visuals, but are
     // intentionally silent.
     std::vector<bool> wheelSlipSounds;
-    std::array<VehicleWeaponMount, 4> weaponMounts;
+    // Exact Garage::Car::_slot[Player::cSlotTypeEnd] layout. Hyper/Mine
+    // transforms are gameplay state too: their projectiles originate from
+    // the installed WeaponItem actor, not from the car origin.
+    std::array<VehicleSlotMount,
+               static_cast<std::size_t>(GarageSlotType::Count)>
+        slotMounts;
     std::vector<VehicleNightLight> nightLights;
     ObjectDefinition lowLifeEffect;
     Vec3 lowLifeEffectPosition{0.0F, 0.0F, 0.5F};

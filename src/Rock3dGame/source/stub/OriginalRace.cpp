@@ -3250,15 +3250,21 @@ Vehicle loadVehicle(const resource::ResourceFileSystem& resources,
             result.nightLights.push_back(light);
         }
     }
+    static constexpr std::array<std::string_view,
+                                static_cast<std::size_t>(
+                                    GarageSlotType::Count)>
+        slotNames{
+            "stWheel", "stTruba", "stArmor", "stMotor", "stHyper",
+            "stMine", "stWeapon1", "stWeapon2", "stWeapon3",
+            "stWeapon4"};
     for (std::size_t mountIndex = 0;
-         mountIndex < result.weaponMounts.size(); ++mountIndex)
+         mountIndex < result.slotMounts.size(); ++mountIndex)
     {
-        const std::string mountName =
-            "stWeapon" + std::to_string(mountIndex + 1U);
+        const std::string mountName(slotNames[mountIndex]);
         auto* mount = child(garageDefinition, mountName);
         if (mount == nullptr)
             continue;
-        auto& output = result.weaponMounts[mountIndex];
+        auto& output = result.slotMounts[mountIndex];
         output.active =
             boolean(mount, "active", "garage.xml/" + mountName);
         output.show =
@@ -3271,7 +3277,7 @@ Vehicle loadVehicle(const resource::ResourceFileSystem& resources,
         for (auto* item = items->FirstChildElement(); item != nullptr;
              item = item->NextSiblingElement())
         {
-            VehicleWeaponPlacement placement;
+            VehicleSlotPlacement placement;
             placement.record =
                 text(item, "record", "garage.xml/" + mountName);
             placement.rotation =
@@ -5442,6 +5448,28 @@ bool runOriginalRaceResourceSmokeTest(
         {
             error =
                 "active Race did not retain the source workshop catalog";
+            return false;
+        }
+        const auto manticoraVehicle = std::find_if(
+            race.vehicles.begin(), race.vehicles.end(),
+            [](const Vehicle& vehicle) {
+                return basename(vehicle.record) == "manticora";
+            });
+        if (manticoraVehicle == race.vehicles.end() ||
+            !manticoraVehicle->slotMounts[
+                 static_cast<std::size_t>(GarageSlotType::Hyper)].active ||
+            manticoraVehicle->slotMounts[
+                 static_cast<std::size_t>(GarageSlotType::Hyper)]
+                    .placements.empty() ||
+            std::abs(
+                manticoraVehicle->slotMounts[
+                    static_cast<std::size_t>(GarageSlotType::Hyper)]
+                    .placements.front().offset.x +
+                1.5F) > 0.001F)
+        {
+            error =
+                "source Garage::Car Hyper/Mine physical mounts were not "
+                "retained";
             return false;
         }
         const auto windowsDebugRace =

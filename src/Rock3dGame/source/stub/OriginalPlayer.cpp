@@ -775,23 +775,22 @@ void Player::BindSlots(
     slotRack_.Bind(workshop, loadout);
     if (carRecord_ != nullptr)
     {
-        for (std::size_t slot = 0U; slot < weaponSlotCount; ++slot)
+        for (std::size_t slot = 0U;
+             slot < PlayerSlotRack::slotCount; ++slot)
         {
             auto& physicalSlot = slotRack_.GetSlot(
-                static_cast<PlayerSlotType>(
-                    static_cast<std::size_t>(PlayerSlotType::Weapon1) +
-                    slot));
+                static_cast<PlayerSlotType>(slot));
             const auto* record = physicalSlot.GetRecord();
             if (record == nullptr)
                 continue;
-            const auto& mount = carRecord_->weaponMounts[slot];
+            const auto& mount = carRecord_->slotMounts[slot];
             const auto slash = record->record.find_last_of("\\/");
             std::string_view wanted = record->record;
             wanted.remove_prefix(
                 slash == std::string::npos ? 0U : slash + 1U);
             const auto placement = std::find_if(
                 mount.placements.begin(), mount.placements.end(),
-                [&](const VehicleWeaponPlacement& item) {
+                [&](const VehicleSlotPlacement& item) {
                     const auto itemSlash =
                         item.record.find_last_of("\\/");
                     return item.record.substr(
@@ -856,6 +855,18 @@ const OriginalWorkshopItem* Player::GetSlot(
     PlayerSlotType type) const noexcept
 {
     return slotRack_.GetSlot(type).GetRecord();
+}
+
+Slot* Player::GetSlotInst(PlayerSlotType type) noexcept
+{
+    auto& slot = slotRack_.GetSlot(type);
+    return slot.GetRecord() == nullptr ? nullptr : &slot;
+}
+
+const Slot* Player::GetSlotInst(PlayerSlotType type) const noexcept
+{
+    const auto& slot = slotRack_.GetSlot(type);
+    return slot.GetRecord() == nullptr ? nullptr : &slot;
 }
 
 Slot* Player::GetSlotInst(SlotType type) noexcept

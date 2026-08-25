@@ -80,10 +80,14 @@ int main()
     firstCar.record = "world\\db\\root\\ctCar\\marauder";
     r3d::game::originalrace::Vehicle secondCar;
     secondCar.record = "world\\db\\root\\ctCar\\buggi";
-    secondCar.weaponMounts[0].position = {2.0F, 3.0F, 4.0F};
-    secondCar.weaponMounts[0].placements.push_back(
+    secondCar.slotMounts[6].position = {2.0F, 3.0F, 4.0F};
+    secondCar.slotMounts[6].placements.push_back(
         {"world\\race\\workshopRoot\\workshop\\droid",
          {0.1F, 0.2F, 0.3F, 0.9F}, {0.5F, -0.5F, 1.0F}});
+    secondCar.slotMounts[4].position = {4.0F, 5.0F, 6.0F};
+    secondCar.slotMounts[4].placements.push_back(
+        {"world\\race\\workshopRoot\\workshop\\hyperdrive",
+         {0.0F, 0.0F, 1.0F, 0.0F}, {-1.5F, 0.0F, 0.35F}});
     player.SetCar(&firstCar);
     player.CreateCar(true);
     if (player.GetCarRecord() != &firstCar || !player.HasCar())
@@ -111,9 +115,15 @@ int main()
         "world\\race\\workshopRoot\\workshop\\droid";
     droidRecord.type = static_cast<std::uint32_t>(
         source::SlotType::Droid);
+    r3d::game::originalrace::OriginalWorkshopItem hyperRecord;
+    hyperRecord.record =
+        "world\\race\\workshopRoot\\workshop\\hyperdrive";
+    hyperRecord.type = static_cast<std::uint32_t>(
+        source::SlotType::Hyper);
     player.BindSlots(
-        {droidRecord},
-        {{droidRecord.record, "stWeapon1", 1U}});
+        {droidRecord, hyperRecord},
+        {{droidRecord.record, "stWeapon1", 1U},
+         {hyperRecord.record, "stHyper", 1U}});
     player.weaponSlots[0] = 0U;
     player.weaponCapacity[0] = 1U;
     player.weaponCharges[0] = 1U;
@@ -135,7 +145,11 @@ int main()
         droid->GetPos() !=
             std::array<float, 3>{2.5F, 2.5F, 5.0F} ||
         droid->GetRot() !=
-            std::array<float, 4>{0.1F, 0.2F, 0.3F, 0.9F})
+            std::array<float, 4>{0.1F, 0.2F, 0.3F, 0.9F} ||
+        player.GetSlotInst(source::PlayerSlotType::Hyper) == nullptr ||
+        player.GetSlotInst(source::PlayerSlotType::Hyper)
+                ->GetItem().GetPos() !=
+            std::array<float, 3>{2.5F, 5.0F, 6.35F})
         return 67;
     player.SetLife(60.0F);
     player.CreateCar(true);
