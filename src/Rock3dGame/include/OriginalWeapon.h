@@ -116,10 +116,18 @@ public:
     {
         bool rocketPrepare = false;
         bool attached = false;
+        bool linkedToWeapon = false;
         bool ray = false;
         bool homing = false;
         bool ballistic = false;
         bool mineTestsLock = false;
+    };
+
+    struct DestroyResult
+    {
+        bool destroy = false;
+        bool clearWeapon = false;
+        bool clearTarget = false;
     };
 
     enum class BonusContactType : std::uint8_t
@@ -200,6 +208,9 @@ public:
     static SpringPrepareResult SpringPrepare(
         bool hasCar, bool wheelsContact, float speed) noexcept;
     static TypeRules GetTypeRules(std::uint32_t type) noexcept;
+    static DestroyResult OnDestroy(
+        bool senderIsWeapon, bool parentIsWeapon,
+        bool senderIsTarget) noexcept;
     static BonusContactResult BonusContact(
         std::uint32_t type, bool hasTarget, float damage,
         float targetMaximumLife) noexcept;

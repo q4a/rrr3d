@@ -1540,6 +1540,54 @@ void OriginalRaceSession::setNetworkGameplayRole(
     networkOwnedRacers_.resize(racers_.size(), false);
 }
 
+void OriginalRaceSession::releaseRacerProjectileReferences(
+    std::size_t racer) noexcept
+{
+    for (auto& projectile : projectiles_)
+    {
+        const bool senderIsWeapon = projectile.owner == racer;
+        const bool senderIsTarget = projectile.target == racer;
+        bool linkedToWeapon = false;
+        if (senderIsWeapon && projectile.weapon < race_.weapons.size() &&
+            projectile.projectile <
+                race_.weapons[projectile.weapon].projectiles.size())
+        {
+            linkedToWeapon = source::Proj::GetTypeRules(
+                race_.weapons[projectile.weapon]
+                    .projectiles[projectile.projectile].type)
+                                 .linkedToWeapon;
+        }
+        const auto result = source::Proj::OnDestroy(
+            senderIsWeapon, linkedToWeapon, senderIsTarget);
+        if (result.clearTarget)
+            projectile.target = RacerRuntime::invalidWeapon;
+        if (!result.clearWeapon)
+            continue;
+        projectile.damageOwner = RacerRuntime::invalidWeapon;
+        projectile.ownerCollisionArmed = true;
+        if (result.destroy)
+        {
+            projectile.active = false;
+            continue;
+        }
+        if (projectile.attached)
+        {
+            projectile.attached = false;
+            projectile.detachedFromWeapon = true;
+        }
+    }
+    for (auto& mine : mines_)
+    {
+        if (mine.owner != racer)
+            continue;
+        // Mine/Maslo are not parented by LinkToWeapon. OnDestroy therefore
+        // leaves the world actor alive and only clears the weapon/car ref.
+        mine.damageOwner = RacerRuntime::invalidWeapon;
+        mine.linkedToOwner = false;
+        mine.ignoreOwnerCollision = false;
+    }
+}
+
 bool OriginalRaceSession::disconnectNetworkRacer(
     std::size_t racer) noexcept
 {
@@ -1548,6 +1596,7 @@ bool OriginalRaceSession::disconnectNetworkRacer(
 
     auto& runtime = racers_[racer];
     runtime.Disconnect();
+    releaseRacerProjectileReferences(racer);
     if (racer < playerItemRacks_.size())
         playerItemRacks_[racer].OnDestroyCar();
     if (racer < vehicleInputs_.size())
@@ -2740,6 +2789,7 @@ void OriginalRaceSession::destroyRacer(
     auto& runtime = racers_[racer];
     // Player::OnDeath/OnDestroy begins the exact cTimeRestoreCar lifecycle.
     runtime.Destroy();
+    releaseRacerProjectileReferences(racer);
     if (racer < playerItemRacks_.size())
         playerItemRacks_[racer].OnDestroyCar();
     if (racer < vehicleInputs_.size())
@@ -3267,7 +3317,7 @@ void OriginalRaceSession::updateGameplay(
             const auto deathPlan = hasDeathEffect
                 ? projectile.deathEffect.OnDeath(
                       true, targetRacer < vehicles.size(),
-                      projectile.owner < vehicles.size())
+                      projectile.damageOwner < vehicles.size())
                 : source::DeathEffect::SpawnResult{};
             auto addVisual =
                 [&](const ObjectDefinition& visual,
@@ -3354,6 +3404,7 @@ void OriginalRaceSession::updateGameplay(
                 return;
             MineRuntime crater;
             crater.owner = projectile.owner;
+            crater.damageOwner = projectile.damageOwner;
             crater.weapon = projectile.weapon;
             crater.projectile = definition.deathProjectile;
             crater.position = add(position, spawned.position);
@@ -3473,7 +3524,7 @@ void OriginalRaceSession::updateGameplay(
             {
                 const std::size_t target = rayHit.vehicle;
                 applyRacerDamage(
-                    target, projectile.owner, end,
+                    target, projectile.damageOwner, end,
                     std::max(laserUpdate.damage, 0.0F),
                     sourceProjectileDamageType(
                         projectileDefinition.type));
@@ -3502,7 +3553,7 @@ void OriginalRaceSession::updateGameplay(
                 damageDecoration(
                     rayHit.decoration,
                     std::max(laserUpdate.damage, 0.0F),
-                    projectile.owner);
+                    projectile.damageOwner);
             }
             else if (sourceContact)
             {
@@ -3581,7 +3632,7 @@ void OriginalRaceSession::updateGameplay(
                                   seconds);
                     refreshDrobilkaContact(contactPoint);
                     applyRacerDamage(
-                        target, projectile.owner,
+                        target, projectile.damageOwner,
                         contactPoint,
                         std::max(contact.damage, 0.0F),
                         DamageType::Simple);
@@ -3594,7 +3645,7 @@ void OriginalRaceSession::updateGameplay(
                         std::max(
                             projectileDefinition.damage * seconds,
                             0.0F),
-                        projectile.owner, &decorationContact))
+                        projectile.damageOwner, &decorationContact))
                 {
                     refreshDrobilkaContact(decorationContact);
                 }
@@ -3612,7 +3663,7 @@ void OriginalRaceSession::updateGameplay(
             {
                 damageDecorationWithBox(
                     shotTransform, projectileDefinition.collision,
-                    decorationDamage, projectile.owner);
+                    decorationDamage, projectile.damageOwner);
             }
             // GameObject::OnProgress expires only after _timeLife becomes
             // strictly greater than _maxTimeLife.
@@ -3667,9 +3718,13 @@ void OriginalRaceSession::updateGameplay(
         const Vec3 previous = projectile.position;
         const float speed = std::max(projectile.speed, 1.0F);
         projectile.lifeSeconds -= seconds;
-        if (projectile.ballistic)
+        const bool detachedGravity =
+            projectile.detachedFromWeapon &&
+            projectileDefinition.type == 15U;
+        if (projectile.ballistic || detachedGravity)
             projectile.velocity.z -= 20.0F * seconds;
-        Vec3 movement = projectile.ballistic
+        Vec3 movement =
+            (projectile.ballistic || projectile.detachedFromWeapon)
                             ? multiply(projectile.velocity, seconds)
                             : multiply(projectile.direction,
                                        speed * seconds);
@@ -3750,10 +3805,11 @@ void OriginalRaceSession::updateGameplay(
         const OrientedBox projectileBox = orientedBox(
             projectileTransform, projectileDefinition.collision);
         if (!projectile.ownerCollisionArmed &&
-            projectile.owner < vehicles.size() &&
-            projectile.owner < race_.racers.size())
+            projectile.damageOwner < vehicles.size() &&
+            projectile.damageOwner < race_.racers.size())
         {
-            const auto& ownerRacer = race_.racers[projectile.owner];
+            const auto& ownerRacer =
+                race_.racers[projectile.damageOwner];
             const auto& ownerVehicle =
                 ownerRacer.hasConfiguredVehicle
                     ? ownerRacer.configuredVehicle
@@ -3765,7 +3821,7 @@ void OriginalRaceSession::updateGameplay(
             projectile.ownerCollisionArmed = !boxesOverlap(
                 projectileBox,
                 vehicleBox(
-                    vehicles[projectile.owner],
+                    vehicles[projectile.damageOwner],
                     ownerVehicle.physics));
         }
 
@@ -3773,7 +3829,7 @@ void OriginalRaceSession::updateGameplay(
              target < vehicles.size() && target < racers_.size();
              ++target)
         {
-            if ((target == projectile.owner &&
+            if ((target == projectile.damageOwner &&
                  !projectile.ownerCollisionArmed) ||
                 racers_[target].destroyed)
                 continue;
@@ -3823,7 +3879,7 @@ void OriginalRaceSession::updateGameplay(
                                  .damage
                            : projectile.damage);
             applyRacerDamage(
-                target, projectile.owner, contactPoint,
+                target, projectile.damageOwner, contactPoint,
                 std::max(
                     sourceDamage *
                         (sonarContact ? seconds : 1.0F),
@@ -3913,7 +3969,7 @@ void OriginalRaceSession::updateGameplay(
                     break;
                 std::size_t nextTarget = findClosestEnemy(
                     target, 1.57079632679489661923F);
-                if (nextTarget == projectile.owner)
+                if (nextTarget == projectile.damageOwner)
                 {
                     nextTarget = findClosestEnemy(
                         nextTarget, 1.57079632679489661923F);
@@ -3948,7 +4004,8 @@ void OriginalRaceSession::updateGameplay(
             damageDecorationWithBox(
                 liveProjectileTransform,
                 projectileDefinition.collision,
-                projectile.damage * seconds, projectile.owner);
+                projectile.damage * seconds,
+                projectile.damageOwner);
         }
         else if (projectile.active &&
                  !(projectileDefinition.type == 21U &&
@@ -3956,7 +4013,8 @@ void OriginalRaceSession::updateGameplay(
                  damageDecorationWithBox(
                      liveProjectileTransform,
                      projectileDefinition.collision,
-                     projectile.damage, projectile.owner))
+                     projectile.damage,
+                     projectile.damageOwner))
         {
             spawnProjectileImpact(
                 projectile, projectile.position,
@@ -4266,6 +4324,7 @@ void OriginalRaceSession::updateGameplay(
         racers_[owner].gameCar.LockMine(0.4F);
         MineRuntime mine;
         mine.owner = owner;
+        mine.damageOwner = owner;
         mine.weapon = weapon;
         mine.projectile = 0U;
         mine.position = position;
@@ -4433,6 +4492,7 @@ void OriginalRaceSession::updateGameplay(
                 projectileTransform.position = *replicatedPosition;
             ProjectileRuntime runtimeProjectile;
             runtimeProjectile.owner = owner;
+            runtimeProjectile.damageOwner = owner;
             runtimeProjectile.weapon =
                 racers_[owner].hyperWeapon;
             runtimeProjectile.projectile = 0U;
@@ -4587,7 +4647,7 @@ void OriginalRaceSession::updateGameplay(
                 mine.armingTime >= 0.0F);
         }
         applyRacerDamage(
-            racer, mine.owner, contactPoint,
+            racer, mine.damageOwner, contactPoint,
             std::max(
                 mine.type == 20U ? mine.damage * seconds : mine.damage,
                 0.0F),
@@ -4710,6 +4770,7 @@ void OriginalRaceSession::updateGameplay(
                         projectile.secondaryProjectile;
                     MineRuntime core = mine;
                     core.owner = RacerRuntime::invalidWeapon;
+                    core.damageOwner = RacerRuntime::invalidWeapon;
                     core.linkedToOwner = false;
                     core.type = source.type;
                     core.visualVariant = 1U;
@@ -4736,6 +4797,8 @@ void OriginalRaceSession::updateGameplay(
                     {
                         MineRuntime fragment = mine;
                         fragment.owner =
+                            RacerRuntime::invalidWeapon;
+                        fragment.damageOwner =
                             RacerRuntime::invalidWeapon;
                         fragment.linkedToOwner = false;
                         fragment.type = source.type;
@@ -5291,6 +5354,7 @@ void OriginalRaceSession::updateGameplay(
             {
                 ProjectileRuntime runtimeProjectile;
                 runtimeProjectile.owner = shooter;
+                runtimeProjectile.damageOwner = shooter;
                 runtimeProjectile.weapon = firedWeapon;
                 runtimeProjectile.projectile = projectileIndex;
                 runtimeProjectile.mountSlot = firedSlot;
@@ -5332,6 +5396,7 @@ void OriginalRaceSession::updateGameplay(
                         : projectile.speed;
                 ProjectileRuntime runtimeProjectile;
                 runtimeProjectile.owner = shooter;
+                runtimeProjectile.damageOwner = shooter;
                 runtimeProjectile.weapon = firedWeapon;
                 runtimeProjectile.projectile = projectileIndex;
                 runtimeProjectile.mountSlot = firedSlot;
@@ -10273,6 +10338,41 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 throw std::runtime_error(
                     "source GameObject strict lifetime did not expire "
                     "after crossing the limit");
+            }
+
+            OriginalRaceSession destroySession(lifetimeRace);
+            destroySession.applyPlayerProfile(lifetimeProfile);
+            for (int frame = 0; frame < 250; ++frame)
+            {
+                destroySession.update(
+                    1.0F / 60.0F, lifetimeVehicles,
+                    lifetimeInput);
+            }
+            lifetimeInput.useWeapon = true;
+            destroySession.update(
+                1.0F / 60.0F, lifetimeVehicles,
+                lifetimeInput);
+            lifetimeInput.useWeapon = false;
+            if (std::none_of(
+                    destroySession.projectiles().begin(),
+                    destroySession.projectiles().end(),
+                    isLifetimeRay))
+            {
+                throw std::runtime_error(
+                    "source linked projectile destroy regression was not "
+                    "created");
+            }
+            destroySession.disconnectNetworkRacer(0U);
+            destroySession.update(
+                1.0F / 60.0F, lifetimeVehicles,
+                lifetimeInput);
+            if (std::any_of(
+                    destroySession.projectiles().begin(),
+                    destroySession.projectiles().end(),
+                    isLifetimeRay))
+            {
+                throw std::runtime_error(
+                    "source Proj::OnDestroy retained LinkToWeapon child");
             }
         }
 

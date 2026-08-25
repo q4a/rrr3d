@@ -272,6 +272,10 @@ struct RaceEffect
 struct MineRuntime
 {
     std::size_t owner = 0;
+    // Proj::_playerId is cleared when its weapon object is destroyed, while
+    // the owning Player still retains the bonus-projectile id for network
+    // lookup. Keep those two source identities separate.
+    std::size_t damageOwner = RacerRuntime::invalidWeapon;
     std::size_t weapon = 0;
     std::size_t projectile = 0;
     std::uint8_t visualVariant = 0;
@@ -302,6 +306,7 @@ struct MineRuntime
 struct ProjectileRuntime
 {
     std::size_t owner = 0;
+    std::size_t damageOwner = RacerRuntime::invalidWeapon;
     std::size_t weapon = 0;
     std::size_t projectile = 0;
     std::size_t mountSlot = 0;
@@ -329,6 +334,11 @@ struct ProjectileRuntime
     bool attached = false;
     bool directWeapon = false;
     bool ballistic = false;
+    // Fire and Drobilka follow the weapon without SetParent.  Proj::OnDestroy
+    // clears their weapon pointer but does not kill the projectile actor, so
+    // it continues with its last PhysX velocity instead of following a new
+    // car after respawn.
+    bool detachedFromWeapon = false;
     // PhysX can report the shooter's car after a free projectile has left
     // its launch overlap (for example a reflected ptThunder).  The portable
     // vehicle box is coarser than the source shapes, so arm that contact only
@@ -460,6 +470,8 @@ private:
         DamageType damageType = DamageType::Simple,
         bool killCredit = true,
         bool gameObjectAlreadyDestroyed = false);
+    void releaseRacerProjectileReferences(
+        std::size_t racer) noexcept;
     void pushDamageEvent(
         std::size_t target, std::size_t attacker, const Vec3& position,
         float damage, DamageType damageType, bool networkReplicated);

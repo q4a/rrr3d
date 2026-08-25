@@ -495,12 +495,17 @@ Proj::TypeRules Proj::GetTypeRules(std::uint32_t type) noexcept
     case 0U:  // ptRocket
         result.rocketPrepare = true;
         break;
+    case 1U:  // ptHyper
+        result.attached = true;
+        result.linkedToWeapon = true;
+        break;
     case 2U:  // ptTorpeda
         result.rocketPrepare = true;
         result.homing = true;
         break;
     case 3U:  // ptLaser
         result.attached = true;
+        result.linkedToWeapon = true;
         result.ray = true;
         break;
     case 11U: // ptMine
@@ -517,8 +522,13 @@ Proj::TypeRules Proj::GetTypeRules(std::uint32_t type) noexcept
     case 16U: // ptSonar
         result.rocketPrepare = true;
         break;
+    case 17U: // ptSpring
+        result.attached = true;
+        result.linkedToWeapon = true;
+        break;
     case 18U: // ptFrostRay
         result.attached = true;
+        result.linkedToWeapon = true;
         result.ray = true;
         break;
     case 19U: // ptMortira
@@ -536,6 +546,20 @@ Proj::TypeRules Proj::GetTypeRules(std::uint32_t type) noexcept
     default:
         break;
     }
+    return result;
+}
+
+Proj::DestroyResult Proj::OnDestroy(
+    bool senderIsWeapon, bool parentIsWeapon,
+    bool senderIsTarget) noexcept
+{
+    DestroyResult result;
+    if (senderIsWeapon)
+    {
+        result.destroy = parentIsWeapon;
+        result.clearWeapon = true;
+    }
+    result.clearTarget = senderIsTarget;
     return result;
 }
 

@@ -435,9 +435,13 @@ int main()
     const auto fireRules = source::Proj::GetTypeRules(14U);
     const auto mortarRules = source::Proj::GetTypeRules(19U);
     if (!rocketRules.rocketPrepare || rocketRules.ray ||
-        !laserRules.attached || !laserRules.ray ||
+        !laserRules.attached || !laserRules.linkedToWeapon ||
+        !laserRules.ray ||
         !fireRules.rocketPrepare || !fireRules.attached ||
+        fireRules.linkedToWeapon ||
         !mortarRules.rocketPrepare || !mortarRules.ballistic ||
+        !source::Proj::GetTypeRules(1U).linkedToWeapon ||
+        !source::Proj::GetTypeRules(17U).linkedToWeapon ||
         !source::Proj::GetTypeRules(11U).mineTestsLock ||
         source::Proj::GetTypeRules(24U).mineTestsLock)
         return 60;
@@ -460,6 +464,18 @@ int main()
         source::Proj::BonusContact(
             8U, true, 3.0F, 80.0F).take)
         return 61;
+    const auto linkedDestroy = source::Proj::OnDestroy(
+        true, true, false);
+    const auto unlinkedDestroy = source::Proj::OnDestroy(
+        true, false, false);
+    const auto targetDestroy = source::Proj::OnDestroy(
+        false, false, true);
+    if (!linkedDestroy.destroy || !linkedDestroy.clearWeapon ||
+        linkedDestroy.clearTarget || unlinkedDestroy.destroy ||
+        !unlinkedDestroy.clearWeapon ||
+        !targetDestroy.clearTarget || targetDestroy.clearWeapon ||
+        targetDestroy.destroy)
+        return 62;
 
     source::PairPxContactEffect contacts;
     contacts.Reset(3U);
