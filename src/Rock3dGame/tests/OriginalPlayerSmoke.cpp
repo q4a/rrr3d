@@ -1,4 +1,5 @@
 #include "OriginalPlayer.h"
+#include "OriginalWeapon.h"
 
 #include <cmath>
 #include <iostream>
@@ -102,6 +103,25 @@ int main()
     player.OnLapPass(maximumCharges.size());
     if (player.car.numLaps != 1U || player.weaponCharges[0] != 6U)
         return 27;
+
+    source::Weapon shotWeapon({0.5F, {11U}});
+    std::uint32_t shotCharge = 2U;
+    source::WeaponItem shotItem(
+        &shotWeapon, 2U, 2U, &shotCharge);
+    if (!player.Shot(shotItem, true, false, 21U) ||
+        shotCharge != 1U || player.HasBonusProjectile(21U) ||
+        player.GetNextBonusProjectileId() != 1U)
+        return 52;
+    if (!player.Shot(shotItem, true, true, 21U) ||
+        shotCharge != 0U || !player.HasBonusProjectile(21U) ||
+        player.GetNextBonusProjectileId() != 22U)
+        return 53;
+    // NetPlayer::DoShot supplies its replicated charge even if projectile
+    // preparation fails; a failed stMine must not enter _bonusProjs.
+    if (player.Shot(shotItem, false, true, 30U, 5) ||
+        shotCharge != 5U || player.HasBonusProjectile(30U) ||
+        player.GetNextBonusProjectileId() != 22U)
+        return 54;
 
     player.life = 50.0F;
     player.TakeMedpack(7.5F);

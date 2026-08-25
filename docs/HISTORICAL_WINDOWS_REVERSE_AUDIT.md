@@ -1150,6 +1150,23 @@ car viewports получают `NetPlayer` color, а их cache invalidation т�
 учитывает изменение цвета. Resource regression проверяет color-material gate
 для всех 17 поставляемых машин.
 
+### P2.29 — Player::Shot transaction owner — выполнено
+
+Подтвердилось, что `Weapon` и `WeaponItem` были перенесены, но active session
+всё ещё вызывала `WeaponItem::Shot` напрямую в трёх независимых ветках:
+primary, Hyper и Mine. Из-за этого исходный `Player::Shot` не был владельцем
+атомарной операции charge/projectile-id, а регистрация `_bonusProjs` для мины
+дублировалась отдельным session-кодом.
+
+В `source::Player` перенесена backend-neutral транзакция `Shot`. Она принимает
+результат platform-подготовки снаряда, всегда передаёт `newCharge` в
+`WeaponItem` (включая неуспешный replicated shot, как `NetPlayer::DoShot`) и
+регистрирует projectile id только для успешно созданного `stMine`. Все
+primary/Hyper/Mine пути, включая AI и network replay, теперь проходят через
+этого владельца; прямой `WeaponItem::Shot` из session удалён. Player regression
+проверяет local primary, успешную mine-регистрацию и неуспешный replicated
+mine shot без ложного live projectile.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

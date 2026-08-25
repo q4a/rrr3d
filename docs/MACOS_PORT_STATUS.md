@@ -1959,3 +1959,14 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - Garage/Workshop/RaceMain presentation теперь меняет цвет active Player;
   сетевые viewport-машины получают собственный `NetPlayer` color, а cache
   обновляется при `OnSetColor`. Source-палитра из 14 цветов сохранена.
+
+### Source Player::Shot owner follow-up
+
+- Все primary, Hyper и Mine транзакции перенесены с прямых session-вызовов
+  `WeaponItem::Shot` в active `source::Player::Shot`.
+- Сохранена точная граница Windows: backend сообщает, был ли подготовлен
+  хотя бы один снаряд; `newCharge` применяется и при неуспехе, но только
+  успешный `stMine` попадает в Player-owned bonus-projectile registry и
+  продвигает следующий сетевой projectile id.
+- Human, AI и replicated network shots используют один owner; regression
+  отдельно проверяет primary, mine и failed replicated mine переходы.

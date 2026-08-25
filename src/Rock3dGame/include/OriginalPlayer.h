@@ -16,6 +16,8 @@
 namespace r3d::game::originalrace::source
 {
 
+class WeaponItem;
+
 // Slot order deliberately follows Player::SlotType from the Windows source:
 // stHyper, stMine, stWeapon1..stWeapon4.  Player::TakeBonus depends on this
 // order before applying its rounded random selection.
@@ -287,6 +289,9 @@ public:
     void OnLapPass(std::size_t weaponDefinitionCount) noexcept;
     void ReloadWeapons(std::size_t weaponDefinitionCount) noexcept;
     void SyncSelectedWeapon(std::size_t weaponDefinitionCount) noexcept;
+    bool Shot(WeaponItem& item, bool projectileCreated,
+              bool mineSlot, std::uint32_t projectileId,
+              int newCharge = -1) noexcept;
 
     PlayerBonusResult TakeMoney(float value) noexcept;
     PlayerBonusResult TakeMedpack(float value) noexcept;

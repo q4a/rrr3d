@@ -4207,7 +4207,9 @@ void OriginalRaceSession::updateGameplay(
             projectiles.empty() ? nullptr : &projectiles.front();
         if (projectile == nullptr)
         {
-            item.Shot(false, newCharge);
+            racers_[owner].Shot(
+                item, false, true,
+                replicatedProjectileId, newCharge);
             return;
         }
         const Transform weaponTransform =
@@ -4221,7 +4223,9 @@ void OriginalRaceSession::updateGameplay(
             race_, add(rayPosition, {0.0F, 0.0F, 2.0F}));
         if (!hit.hit)
         {
-            item.Shot(false, newCharge);
+            racers_[owner].Shot(
+                item, false, true,
+                replicatedProjectileId, newCharge);
             return;
         }
         // Source MinePrepare uses ComputeAABB(true), while CreatePxBox uses
@@ -4232,13 +4236,13 @@ void OriginalRaceSession::updateGameplay(
             replicatedPosition != nullptr
                 ? *replicatedPosition
                 : add(hit.position, {0.0F, 0.0F, offset});
-        if (!item.Shot(true, newCharge))
-            return;
         const std::uint32_t networkProjectileId =
             networkReplicated && replicatedProjectileId != 0U
                 ? replicatedProjectileId
                 : racers_[owner].GetNextBonusProjectileId();
-        racers_[owner].InsertBonusProjectile(networkProjectileId);
+        if (!racers_[owner].Shot(
+                item, true, true, networkProjectileId, newCharge))
+            return;
         racers_[owner].gameCar.LockMine(0.4F);
         MineRuntime mine;
         mine.owner = owner;
@@ -4327,13 +4331,17 @@ void OriginalRaceSession::updateGameplay(
                 : -1;
         if (weapon.projectiles.empty())
         {
-            item.Shot(false, newCharge);
+            racers_[owner].Shot(
+                item, false, false,
+                replicatedProjectileId, newCharge);
             return;
         }
         const auto& projectile = weapon.projectiles.front();
         if (owner >= vehicles.size())
         {
-            item.Shot(false, newCharge);
+            racers_[owner].Shot(
+                item, false, false,
+                replicatedProjectileId, newCharge);
             return;
         }
         const auto& racerDefinition = race_.racers[owner];
@@ -4353,11 +4361,15 @@ void OriginalRaceSession::updateGameplay(
                 projectile.speed);
             if (!springPreparation.prepared)
             {
-                item.Shot(false, newCharge);
+                racers_[owner].Shot(
+                    item, false, false,
+                    replicatedProjectileId, newCharge);
                 return;
             }
         }
-        if (!item.Shot(true, newCharge))
+        if (!racers_[owner].Shot(
+                item, true, false,
+                replicatedProjectileId, newCharge))
             return;
         const std::uint32_t networkProjectileId =
             networkReplicated && replicatedProjectileId != 0U
@@ -5185,7 +5197,9 @@ void OriginalRaceSession::updateGameplay(
             networkReplicated
                 ? static_cast<int>(item.GetCurCharge()) - 1
                 : -1;
-        if (!item.Shot(projectileCreated, newCharge))
+        if (!runtime.Shot(
+                item, projectileCreated, false,
+                replicatedProjectileId, newCharge))
             return;
         const std::uint32_t networkProjectileId =
             networkReplicated && replicatedProjectileId != 0U
