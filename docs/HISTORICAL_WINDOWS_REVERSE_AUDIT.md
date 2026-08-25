@@ -1766,6 +1766,24 @@ voice/queue, запускает music с нулевым gain и повторяе
 закрывает frame и требует три состояния: музыка удержана, commentator
 остановлен/музыка возобновлена с нуля, fade реально растёт до меню.
 
+### P2.59 — узкая граница `GameMode::Terminate` — выполнено
+
+Следующий соседний метод подтвердил опасное persistence-расхождение. Windows
+при MainMenu Exit вызывает `GameMode::Terminate`: сначала только
+`SaveConfig(user.xml)`, затем `World::Terminate`; destructor выполняет
+`ExitRace(false)` и не сохраняет race/profile/achievement. Portable shutdown
+вместо этого вызывал общий `saveRaceProfile`, поэтому закрытие окна посреди
+или сразу после гонки могло записать runtime player state, achievements и
+выполнить tournament advance, которого исходный Terminate не делает.
+
+Подготовка serializable state отделена от двух операций. Explicit source
+границы продолжают вызывать полный `Race::SaveGame`-эквивалент, а process exit
+вызывает только `OriginalProfileStore::saveConfig` до остановки MusicCat —
+так оставшиеся playlist queues попадают в `user.xml`, но игровой прогресс не
+меняется. Automated shutdown выполняет тот же код во временном profile store;
+profile regression уже требует, что config-only write не создаёт `race.xml`,
+`Profile/*` и `achievment.xml`.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

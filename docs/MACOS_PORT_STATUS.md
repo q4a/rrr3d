@@ -2186,3 +2186,12 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   fade-формулу до настроенной Music volume.
 - Finish smoke теперь закрывает frame и проверяет hold/stop/resume/fade, а не
   только визуальные строки и постановку last-place voice в очередь.
+
+### Source GameMode termination follow-up
+
+- Process exit теперь повторяет `GameMode::Terminate`: сохраняет только
+  `user.xml` с актуальными MusicCat queues до audio shutdown.
+- Удалён shutdown-вызов полного `saveRaceProfile`; закрытие окна больше не
+  записывает текущую гонку/achievements и не продвигает tournament.
+- Полное сохранение остаётся только на явных исходных Race/Menu boundaries;
+  automated shutdown проверяет config path в изолированном временном store.

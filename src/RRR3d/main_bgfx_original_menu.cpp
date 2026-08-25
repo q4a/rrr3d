@@ -6456,6 +6456,50 @@ int main(int argc, char** argv)
                     });
         }
     };
+    auto makePersistedProfileState = [&]() {
+#ifdef RRR3D_AUDIO
+        // GameMode::SaveConfig serializes the remaining MusicCat queues.  Do
+        // this before every atomic user.xml write so a clean launch continues
+        // the source shuffle order, but never resumes a PCM cursor mid-track.
+        profileState.config.menuMusicPlaylist =
+            musicPlaylistString(music.playlist());
+        profileState.config.gameMusicPlaylist =
+            musicPlaylistString(gameMusic.playlist());
+#endif
+        // GameMode::SaveConfig always writes both values, even when they
+        // originated in first-launch autodetection.
+        profileState.configFileSerialized = true;
+        profileState.preferredCameraSerialized = true;
+        profileState.discreteVideoCardSerialized = true;
+        profileState.languageSerialized = true;
+        profileState.commentatorStyleSerialized = true;
+        auto persistedState = profileState;
+#ifdef RRR3D_NETWORK
+        // Race::_snClientProfile is transient.  Network host rules and the
+        // received championship profile must never replace the client's
+        // offline PlayerProfile or locally configured match defaults.
+        if (networkClientOfflineProfile)
+            persistedState.player = *networkClientOfflineProfile;
+        if (networkClientLocalConfig)
+            persistedState.config = *networkClientLocalConfig;
+#endif
+        if (championshipPlayerBeforeSkirmish)
+        {
+            persistedState =
+                r3d::game::originalrace::
+                    makeOriginalSkirmishPersistenceState(
+                        profileState,
+                        *championshipPlayerBeforeSkirmish);
+        }
+        return persistedState;
+    };
+    auto saveGameConfig = [&]() {
+        const auto persistedState = makePersistedProfileState();
+        std::string configError;
+        if (!profileStore.saveConfig(persistedState, configError))
+            std::cerr << "Unable to save original GameMode config: "
+                      << configError << '\n';
+    };
     auto saveRaceProfile = [&]() {
         if (!raceSession.racers().empty())
         {
@@ -6487,37 +6531,7 @@ int main(int argc, char** argv)
                     << '\n';
             }
         }
-#ifdef RRR3D_AUDIO
-        // GameMode::SaveConfig serializes the remaining MusicCat queues.  Do
-        // this before every atomic user.xml write so a clean launch continues
-        // the source shuffle order, but never resumes a PCM cursor mid-track.
-        profileState.config.menuMusicPlaylist =
-            musicPlaylistString(music.playlist());
-        profileState.config.gameMusicPlaylist =
-            musicPlaylistString(gameMusic.playlist());
-#endif
-        // GameMode::SaveConfig always writes both values, even when they
-        // originated in first-launch autodetection.
-        profileState.languageSerialized = true;
-        profileState.commentatorStyleSerialized = true;
-        auto persistedState = profileState;
-#ifdef RRR3D_NETWORK
-        // Race::_snClientProfile is transient.  Network host rules and the
-        // received championship profile must never replace the client's
-        // offline PlayerProfile or locally configured match defaults.
-        if (networkClientOfflineProfile)
-            persistedState.player = *networkClientOfflineProfile;
-        if (networkClientLocalConfig)
-            persistedState.config = *networkClientLocalConfig;
-#endif
-        if (championshipPlayerBeforeSkirmish)
-        {
-            persistedState =
-                r3d::game::originalrace::
-                    makeOriginalSkirmishPersistenceState(
-                        profileState,
-                        *championshipPlayerBeforeSkirmish);
-        }
+        const auto persistedState = makePersistedProfileState();
         std::string profileError;
         if (!profileStore.save(persistedState, profileError))
             std::cerr << "Unable to save original profile: "
@@ -22312,6 +22326,13 @@ int main(int argc, char** argv)
         }
     }
 
+#ifdef RRR3D_PHYSICS
+    // MainMenu2 Exit -> Menu::Terminate -> GameMode::Terminate persists only
+    // user.xml.  Race/profile/achievement writes occur at their explicit
+    // source menu/race boundaries, never as a side effect of process exit.
+    // Automated runs write this same boundary into their temporary store.
+    saveGameConfig();
+#endif
 #ifdef RRR3D_AUDIO
 #ifdef RRR3D_PHYSICS
     stopRaceAudio();
@@ -22337,11 +22358,6 @@ int main(int argc, char** argv)
     }
 #endif
 #ifdef RRR3D_PHYSICS
-    // Automated fixtures must be observational.  In particular, an absent
-    // user.xml is part of the first-launch contract under test and must not
-    // be converted into a persisted profile by normal shutdown cleanup.
-    if (sourceNormalInteractiveLaunch)
-        saveRaceProfile();
     if (userChat.inputVisible())
         SDL_StopTextInput(window);
     for (auto& line : gameDebugVisual)
