@@ -2909,15 +2909,21 @@ void OriginalRaceSession::updateGameplay(
                 ? sourceRacer.configuredVehicle
                 : race_.vehicles.at(sourceRacer.vehicle);
         const auto behaviorProgress = runtime.ProgressBehaviors(
-            seconds, vehicleDefinition.lowLifeLevel);
+            seconds, vehicleDefinition.lowLifeLevel,
+            racer < vehicles.size()
+                ? length3(vehicles[racer].linearVelocity)
+                : 0.0F);
         runtime.speedBoostSeconds =
             std::max(0.0F, runtime.speedBoostSeconds - seconds);
-        runtime.slowSeconds =
-            std::max(0.0F, runtime.slowSeconds - seconds);
-        if (runtime.slowSeconds <= 0.0F)
+        if (behaviorProgress.slowSpeedLimited &&
+            racer < vehicles.size())
         {
-            runtime.slowWeapon = RacerRuntime::invalidWeapon;
-            runtime.slowProjectile = RacerRuntime::invalidWeapon;
+            const Vec3 wanted = multiply(
+                normalized3(vehicles[racer].linearVelocity),
+                source::SlowEffect::maximumSpeed);
+            velocityRequests_.push_back(
+                {racer,
+                 subtract(wanted, vehicles[racer].linearVelocity)});
         }
         runtime.clutchSeconds =
             std::max(0.0F, runtime.clutchSeconds - seconds);
@@ -3389,7 +3395,7 @@ void OriginalRaceSession::updateGameplay(
                     sourceProjectileDamageType(
                         projectileDefinition.type));
                 if (projectileDefinition.type == 18U &&
-                    racers_[target].slowSeconds <= 0.0F)
+                    !racers_[target].slowEffect.IsEffectMaked())
                 {
                     const float duration =
                         projectileDefinition.tertiaryVisual
@@ -3398,11 +3404,9 @@ void OriginalRaceSession::updateGameplay(
                             ? projectileDefinition.tertiaryVisual
                                   .maximumTimeLife
                             : 1.0F;
-                    racers_[target].slowSeconds = duration;
-                    racers_[target].slowWeapon =
-                        projectile.weapon;
-                    racers_[target].slowProjectile =
-                        projectile.projectile;
+                    racers_[target].slowEffect.Attach(
+                        duration, projectile.weapon,
+                        projectile.projectile);
                 }
             }
             else if (sourceRay &&
@@ -9913,11 +9917,13 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             frostSession.update(
                 1.0F / 60.0F, frostVehicles, frostInput);
             if (frostSession.racers()[1].life >= lifeBeforeFrost ||
-                std::abs(
-                    frostSession.racers()[1].slowSeconds - 1.0F) >
+                std::abs(frostSession.racers()[1]
+                             .slowEffect.GetRemainingSeconds() - 1.0F) >
                     0.001F ||
-                frostSession.racers()[1].slowWeapon != frostWeapon ||
-                frostSession.racers()[1].slowProjectile != 0U)
+                frostSession.racers()[1].slowEffect.GetWeapon() !=
+                    frostWeapon ||
+                frostSession.racers()[1]
+                        .slowEffect.GetProjectile() != 0U)
             {
                 throw std::runtime_error(
                     "source FrostRay SlowEffect child was not created");
@@ -9941,7 +9947,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             }
             frostSession.update(
                 1.0F / 60.0F, frostVehicles, frostInput);
-            if (frostSession.racers()[1].slowSeconds >= 0.99F ||
+            if (frostSession.racers()[1]
+                    .slowEffect.GetRemainingSeconds() >= 0.99F ||
                 energyDamageCount() != 1)
             {
                 throw std::runtime_error(
@@ -9955,10 +9962,12 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 frostSession.update(
                     1.0F / 60.0F, frostVehicles, frostInput);
             }
-            if (frostSession.racers()[1].slowSeconds > 0.0F ||
-                frostSession.racers()[1].slowWeapon !=
+            if (frostSession.racers()[1]
+                    .slowEffect.IsEffectMaked() ||
+                frostSession.racers()[1].slowEffect.GetWeapon() !=
                     RacerRuntime::invalidWeapon ||
-                frostSession.racers()[1].slowProjectile !=
+                frostSession.racers()[1]
+                        .slowEffect.GetProjectile() !=
                     RacerRuntime::invalidWeapon ||
                 energyDamageCount() != 0)
             {

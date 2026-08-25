@@ -425,4 +425,70 @@ float ImmortalEffect::GetDamageAlpha() const noexcept
     return 1.0F + 2.5F * (1.0F - alpha);
 }
 
+void SlowEffect::Reset() noexcept
+{
+    maximumTimeLife_ = -1.0F;
+    timeLife_ = 0.0F;
+    weapon_ = GameObject::undefinedPlayerId;
+    projectile_ = GameObject::undefinedPlayerId;
+    effectMaked_ = false;
+}
+
+bool SlowEffect::Attach(
+    float maximumTimeLife, std::size_t weapon,
+    std::size_t projectile) noexcept
+{
+    // FrostRayUpdate only adds the behavior when Find<SlowEffect>() fails;
+    // repeated ray contacts do not refresh the child effect's lifetime.
+    if (effectMaked_)
+        return false;
+    maximumTimeLife_ = maximumTimeLife;
+    timeLife_ = 0.0F;
+    weapon_ = weapon;
+    projectile_ = projectile;
+    effectMaked_ = true;
+    return true;
+}
+
+SlowEffect::ProgressResult SlowEffect::OnProgress(
+    float deltaTime, float linearSpeed) noexcept
+{
+    ProgressResult result;
+    if (!effectMaked_)
+        return result;
+    // SlowEffect::OnProgress normalizes and clamps the actor velocity to 20
+    // only while it is moving faster than both source thresholds.
+    result.limitSpeed =
+        linearSpeed > 1.0F && linearSpeed > maximumSpeed;
+    timeLife_ += deltaTime;
+    if (maximumTimeLife_ > 0.0F && timeLife_ > maximumTimeLife_)
+    {
+        Reset();
+        result.released = true;
+    }
+    return result;
+}
+
+bool SlowEffect::IsEffectMaked() const noexcept
+{
+    return effectMaked_;
+}
+
+float SlowEffect::GetRemainingSeconds() const noexcept
+{
+    if (!effectMaked_ || maximumTimeLife_ <= 0.0F)
+        return 0.0F;
+    return std::max(maximumTimeLife_ - timeLife_, 0.0F);
+}
+
+std::size_t SlowEffect::GetWeapon() const noexcept
+{
+    return weapon_;
+}
+
+std::size_t SlowEffect::GetProjectile() const noexcept
+{
+    return projectile_;
+}
+
 } // namespace r3d::game::originalrace::source

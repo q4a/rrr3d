@@ -4930,21 +4930,22 @@ void OriginalRaceRenderer::draw(
         if (racer < racerRuntime.size())
         {
             const auto& runtime = racerRuntime[racer];
-            if (runtime.slowSeconds > 0.0F &&
-                runtime.slowWeapon < race.weapons.size() &&
-                runtime.slowWeapon < projectiles_.size() &&
-                runtime.slowProjectile <
-                    race.weapons[runtime.slowWeapon]
+            const auto slowWeapon = runtime.slowEffect.GetWeapon();
+            const auto slowProjectile =
+                runtime.slowEffect.GetProjectile();
+            if (runtime.slowEffect.IsEffectMaked() &&
+                slowWeapon < race.weapons.size() &&
+                slowWeapon < projectiles_.size() &&
+                slowProjectile <
+                    race.weapons[slowWeapon]
                         .projectiles.size() &&
-                runtime.slowProjectile <
-                    projectiles_[runtime.slowWeapon].size())
+                slowProjectile < projectiles_[slowWeapon].size())
             {
                 const auto& slowDefinition =
-                    race.weapons[runtime.slowWeapon]
-                        .projectiles[runtime.slowProjectile];
+                    race.weapons[slowWeapon]
+                        .projectiles[slowProjectile];
                 const auto& slowAssets =
-                    projectiles_[runtime.slowWeapon]
-                                [runtime.slowProjectile];
+                    projectiles_[slowWeapon][slowProjectile];
                 if (!slowDefinition.tertiaryVisual.visualNodes.empty() ||
                     !slowDefinition.tertiaryVisual
                          .particleEmitters.empty())
@@ -4958,7 +4959,10 @@ void OriginalRaceRenderer::draw(
                     drawDefinition(
                         slowAssets.tertiaryVisual,
                         slowDefinition.tertiaryVisual, state.body,
-                        std::max(total - runtime.slowSeconds, 0.0F),
+                        std::max(
+                            total - runtime.slowEffect
+                                        .GetRemainingSeconds(),
+                            0.0F),
                         state.linearVelocity);
                 }
             }

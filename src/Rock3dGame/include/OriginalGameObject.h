@@ -193,5 +193,35 @@ private:
     bool effectMaked_ = false;
 };
 
+class SlowEffect
+{
+public:
+    static constexpr float maximumSpeed = 20.0F;
+
+    struct ProgressResult
+    {
+        bool limitSpeed = false;
+        bool released = false;
+    };
+
+    void Reset() noexcept;
+    bool Attach(float maximumTimeLife, std::size_t weapon,
+                std::size_t projectile) noexcept;
+    ProgressResult OnProgress(
+        float deltaTime, float linearSpeed) noexcept;
+
+    bool IsEffectMaked() const noexcept;
+    float GetRemainingSeconds() const noexcept;
+    std::size_t GetWeapon() const noexcept;
+    std::size_t GetProjectile() const noexcept;
+
+private:
+    float maximumTimeLife_ = -1.0F;
+    float timeLife_ = 0.0F;
+    std::size_t weapon_ = GameObject::undefinedPlayerId;
+    std::size_t projectile_ = GameObject::undefinedPlayerId;
+    bool effectMaked_ = false;
+};
+
 } // namespace source
 } // namespace r3d::game::originalrace

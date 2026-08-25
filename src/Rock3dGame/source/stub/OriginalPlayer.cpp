@@ -461,7 +461,7 @@ PlayerBonusResult Player::TakeBonus(
 }
 
 Player::BehaviorProgressResult Player::ProgressBehaviors(
-    float deltaTime, float lowLifeLevel) noexcept
+    float deltaTime, float lowLifeLevel, float linearSpeed) noexcept
 {
     BehaviorProgressResult result;
     result.gameObject = GameObject::OnProgress(deltaTime);
@@ -473,6 +473,9 @@ Player::BehaviorProgressResult Player::ProgressBehaviors(
     const auto lowLife = lowLifePoints.OnProgress(*this, deltaTime);
     result.lowLifeActivated = lowLife.activated;
     result.lowLifeReleased = lowLife.released;
+    const auto slow = slowEffect.OnProgress(deltaTime, linearSpeed);
+    result.slowSpeedLimited = slow.limitSpeed;
+    result.slowReleased = slow.released;
     return result;
 }
 
@@ -531,6 +534,7 @@ void Player::Destroy() noexcept
     lowLifePoints.Reset(lowLifePoints.GetLifeLevel());
     energyDamageEffect.Reset();
     immortalEffect.Reset();
+    slowEffect.Reset();
     Immortal(0.0F);
     touchAttacker = undefinedPlayerId;
     touchAttributionSeconds = 0.0F;
@@ -564,6 +568,7 @@ void Player::Disconnect() noexcept
     lowLifePoints.Reset(lowLifePoints.GetLifeLevel());
     energyDamageEffect.Reset();
     immortalEffect.Reset();
+    slowEffect.Reset();
     restoreSeconds = 0.0F;
     Immortal(0.0F);
     touchAttacker = undefinedPlayerId;

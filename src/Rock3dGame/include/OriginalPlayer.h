@@ -69,6 +69,8 @@ public:
         GameObject::ProgressResult gameObject;
         bool lowLifeActivated = false;
         bool lowLifeReleased = false;
+        bool slowSpeedLimited = false;
+        bool slowReleased = false;
     };
     static const std::array<float, 3> computerCheatMinimumTorque;
     static const std::array<float, 3> computerCheatMaximumTorque;
@@ -156,7 +158,8 @@ public:
         const std::vector<std::uint32_t>& maximumCharges,
         float randomUnit) noexcept;
     BehaviorProgressResult ProgressBehaviors(
-        float deltaTime, float lowLifeLevel) noexcept;
+        float deltaTime, float lowLifeLevel,
+        float linearSpeed) noexcept;
     bool OnDamageBehaviors(DamageType damageType) noexcept;
 
     void SetFinished(bool value, float time = -1.0F) noexcept;
@@ -202,9 +205,6 @@ public:
     std::uint32_t rewardMoney = 0;
     std::uint32_t rewardPoints = 0;
     float speedBoostSeconds = 0.0F;
-    float slowSeconds = 0.0F;
-    std::size_t slowWeapon = invalidWeapon;
-    std::size_t slowProjectile = invalidWeapon;
     float clutchSeconds = 0.0F;
     float mineLockSeconds = 0.0F;
     float springLockSeconds = 0.0F;
@@ -215,6 +215,7 @@ public:
     LowLifePoints lowLifePoints;
     DamageEffect energyDamageEffect{DamageType::Energy, 0.5F};
     ImmortalEffect immortalEffect;
+    SlowEffect slowEffect;
     CarState car;
 };
 

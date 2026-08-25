@@ -16495,8 +16495,14 @@ int main(int argc, char** argv)
                     physicsWorld->setWheelTractionEnabled(
                         racer,
                         raceSession.racers()[racer].clutchSeconds <= 0.0F);
-                    if (raceSession.racers()[racer].slowSeconds > 0.0F)
-                        physicsWorld->clampLinearSpeed(racer, 20.0F);
+                    if (raceSession.racers()[racer]
+                            .slowEffect.IsEffectMaked())
+                    {
+                        physicsWorld->clampLinearSpeed(
+                            racer,
+                            r3d::game::originalrace::source::
+                                SlowEffect::maximumSpeed);
+                    }
                 }
                 auto vehicleInputs = raceSession.vehicleInputs();
                 if (options->raceRenderSmokeTest)

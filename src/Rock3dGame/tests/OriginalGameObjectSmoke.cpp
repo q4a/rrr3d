@@ -129,6 +129,24 @@ int main()
         shieldEffect.GetEffectSeconds() != 0.0F)
         return 25;
 
+    source::SlowEffect slowEffect;
+    if (!slowEffect.Attach(1.0F, 4U, 2U) ||
+        slowEffect.Attach(5.0F, 7U, 3U) ||
+        slowEffect.GetWeapon() != 4U ||
+        slowEffect.GetProjectile() != 2U)
+        return 26;
+    if (!slowEffect.OnProgress(0.25F, 30.0F).limitSpeed ||
+        slowEffect.OnProgress(0.25F, 15.0F).limitSpeed ||
+        std::abs(slowEffect.GetRemainingSeconds() - 0.5F) > 0.0001F)
+        return 27;
+    if (slowEffect.OnProgress(0.5F, 30.0F).released ||
+        !slowEffect.IsEffectMaked())
+        return 28;
+    const auto slowReleased = slowEffect.OnProgress(0.001F, 30.0F);
+    if (!slowReleased.limitSpeed || !slowReleased.released ||
+        slowEffect.IsEffectMaked())
+        return 29;
+
     std::cout << "original GameObject/DestrObj/effect behavior source "
                  "rules passed\n";
     return 0;
