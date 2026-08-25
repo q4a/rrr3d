@@ -1,5 +1,6 @@
 #pragma once
 
+#include "OriginalGameData.h"
 #include "OriginalMainMenu.h"
 #include "OriginalRaceSession.h"
 #include "renderer/Renderer.h"
@@ -26,6 +27,7 @@ public:
     bool initialize(
         r3d::renderer::GraphicsDevice& device,
         const r3d::resource::ResourceFileSystem& resources,
+        const r3d::game::originalgamedata::Catalog& gameData,
         const r3d::game::originalrace::Race& race,
         std::string_view language, std::string_view difficulty,
         bool campaign, std::string& error);
@@ -41,6 +43,8 @@ public:
               r3d::renderer::Shader shader,
               r3d::renderer::Shader meshShader,
               bool enableRaceState = true) const;
+    [[nodiscard]] std::string_view localizedLapName() const noexcept;
+    [[nodiscard]] std::string_view localizedPriceName() const noexcept;
 
 private:
     struct ImageAsset

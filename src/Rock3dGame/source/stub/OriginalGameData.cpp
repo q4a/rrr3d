@@ -8,6 +8,7 @@
 #include <charconv>
 #include <cctype>
 #include <exception>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -133,6 +134,83 @@ CommentatorBusyAction parseBusy(const TiXmlElement* parent,
         return CommentatorBusyAction::Replace;
     throw resource::ResourceError(
         std::string(source) + ": invalid busy action " + value);
+}
+
+void appendUtf8(std::string& result, std::uint32_t codePoint)
+{
+    if (codePoint <= 0x7fU)
+    {
+        result.push_back(static_cast<char>(codePoint));
+    }
+    else if (codePoint <= 0x7ffU)
+    {
+        result.push_back(static_cast<char>(0xc0U | (codePoint >> 6U)));
+        result.push_back(static_cast<char>(0x80U | (codePoint & 0x3fU)));
+    }
+    else if (codePoint <= 0xffffU)
+    {
+        result.push_back(static_cast<char>(0xe0U | (codePoint >> 12U)));
+        result.push_back(
+            static_cast<char>(0x80U | ((codePoint >> 6U) & 0x3fU)));
+        result.push_back(static_cast<char>(0x80U | (codePoint & 0x3fU)));
+    }
+    else
+    {
+        result.push_back(static_cast<char>(0xf0U | (codePoint >> 18U)));
+        result.push_back(
+            static_cast<char>(0x80U | ((codePoint >> 12U) & 0x3fU)));
+        result.push_back(
+            static_cast<char>(0x80U | ((codePoint >> 6U) & 0x3fU)));
+        result.push_back(static_cast<char>(0x80U | (codePoint & 0x3fU)));
+    }
+}
+
+std::string decodeUtf16Le(const std::vector<std::uint8_t>& bytes,
+                          std::string_view path)
+{
+    if (bytes.size() < 2U || (bytes.size() % 2U) != 0U ||
+        bytes[0] != 0xffU || bytes[1] != 0xfeU)
+    {
+        throw resource::ResourceError(
+            std::string(path) + ": expected UTF-16LE with BOM");
+    }
+    std::string result;
+    result.reserve(bytes.size());
+    for (std::size_t offset = 2U; offset < bytes.size(); offset += 2U)
+    {
+        const std::uint16_t first = static_cast<std::uint16_t>(
+            bytes[offset] |
+            (static_cast<std::uint16_t>(bytes[offset + 1U]) << 8U));
+        std::uint32_t codePoint = first;
+        if (first >= 0xd800U && first <= 0xdbffU)
+        {
+            if (offset + 3U >= bytes.size())
+            {
+                throw resource::ResourceError(
+                    std::string(path) + ": truncated surrogate pair");
+            }
+            offset += 2U;
+            const std::uint16_t second = static_cast<std::uint16_t>(
+                bytes[offset] |
+                (static_cast<std::uint16_t>(bytes[offset + 1U]) << 8U));
+            if (second < 0xdc00U || second > 0xdfffU)
+            {
+                throw resource::ResourceError(
+                    std::string(path) + ": invalid surrogate pair");
+            }
+            codePoint = 0x10000U +
+                        ((static_cast<std::uint32_t>(first) - 0xd800U)
+                         << 10U) +
+                        (static_cast<std::uint32_t>(second) - 0xdc00U);
+        }
+        else if (first >= 0xdc00U && first <= 0xdfffU)
+        {
+            throw resource::ResourceError(
+                std::string(path) + ": unexpected low surrogate");
+        }
+        appendUtf8(result, codePoint);
+    }
+    return result;
 }
 
 } // namespace
@@ -271,6 +349,55 @@ const Language* findLanguage(const Catalog& catalog,
             return &language;
     }
     return nullptr;
+}
+
+StringLibrary loadOriginalStringLibrary(
+    const resource::ResourceFileSystem& resources,
+    const Language& language)
+{
+    const auto decoded =
+        decodeUtf16Le(resources.readBinary(language.file), language.file);
+    StringLibrary strings;
+    std::istringstream stream(decoded);
+    std::string id;
+    while (stream)
+    {
+        std::string token;
+        stream >> token;
+        if (token.empty())
+            continue;
+        if (token.front() != '"')
+        {
+            id = std::move(token);
+            continue;
+        }
+
+        token.erase(0, 1);
+        const auto quote = token.find('"');
+        if (quote != std::string::npos)
+        {
+            token.erase(quote, 1);
+        }
+        else
+        {
+            char value = '\0';
+            while (stream.get(value) && value != '"')
+                token.push_back(value);
+        }
+        if (id.empty())
+            continue;
+
+        std::size_t escapedNewline = 0U;
+        while ((escapedNewline = token.find("\\n", escapedNewline)) !=
+               std::string::npos)
+        {
+            token.replace(escapedNewline, 2U, 1U, '\n');
+            ++escapedNewline;
+        }
+        strings[id] = std::move(token);
+        id.clear();
+    }
+    return strings;
 }
 
 } // namespace r3d::game::originalgamedata

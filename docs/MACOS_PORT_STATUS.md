@@ -2082,3 +2082,14 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - `forHuman`, `repeatPlayer` и prefix/suffix generation получают настоящий
   битовый `Player::GetId`; countdown/race-finish без `EventData` используют
   source `undefinedId`, а не ошибочный индекс машины 0.
+
+### Shared StringLibrary/HUD localization follow-up
+
+- Устранён несовместимый `readText` UTF-16LE path, из-за которого HUD всегда
+  молча оставлял английские fallback labels при выбранном другом языке.
+- Windows `StringLibrary::Load` теперь один раз реализован в game-side
+  `OriginalGameData` и используется MainMenu2, HUD, minimap notifications и
+  finish overlay; duplicate/malformed/`\\n` behavior больше не расходится.
+- Russian Metal smoke печатает и отображает `Круг`/`Награда`; все player,
+  place, money/points и finish-format keys берутся из той же выбранной
+  сериализованной language library.

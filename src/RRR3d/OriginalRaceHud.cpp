@@ -78,72 +78,13 @@ void drawTintedAsset(
                 pipeline, {}, material);
 }
 
-std::string decodeUtf16Le(std::string_view bytes)
-{
-    if (bytes.size() < 2U ||
-        static_cast<unsigned char>(bytes[0]) != 0xffU ||
-        static_cast<unsigned char>(bytes[1]) != 0xfeU)
-        return std::string(bytes);
-    std::string result;
-    for (std::size_t index = 2; index + 1U < bytes.size(); index += 2U)
-    {
-        const auto value = static_cast<std::uint16_t>(
-            static_cast<unsigned char>(bytes[index]) |
-            (static_cast<unsigned char>(bytes[index + 1U]) << 8U));
-        if (value < 0x80U)
-        {
-            result.push_back(static_cast<char>(value));
-        }
-        else if (value < 0x800U)
-        {
-            result.push_back(static_cast<char>(0xc0U | (value >> 6U)));
-            result.push_back(
-                static_cast<char>(0x80U | (value & 0x3fU)));
-        }
-        else
-        {
-            result.push_back(static_cast<char>(0xe0U | (value >> 12U)));
-            result.push_back(static_cast<char>(
-                0x80U | ((value >> 6U) & 0x3fU)));
-            result.push_back(
-                static_cast<char>(0x80U | (value & 0x3fU)));
-        }
-    }
-    return result;
-}
-
-std::string localizedValue(std::string_view text,
+std::string localizedValue(
+                           const r3d::game::originalgamedata::
+                               StringLibrary& strings,
                            std::string_view key)
 {
-    const std::string prefix = std::string(key) + " \"";
-    std::size_t line = 0;
-    while (line < text.size())
-    {
-        const auto end = text.find_first_of("\r\n", line);
-        const auto length =
-            (end == std::string_view::npos ? text.size() : end) - line;
-        const auto value = text.substr(line, length);
-        if (value.rfind(prefix, 0) == 0 && value.size() > prefix.size() &&
-            value.back() == '"')
-        {
-            std::string result(
-                value.substr(prefix.size(),
-                             value.size() - prefix.size() - 1U));
-            std::size_t escapedNewline = 0;
-            while ((escapedNewline =
-                        result.find("\\n", escapedNewline)) !=
-                   std::string::npos)
-                result.replace(escapedNewline, 2, 1, '\n');
-            return result;
-        }
-        if (end == std::string_view::npos)
-            break;
-        line = end + 1U;
-        while (line < text.size() &&
-               (text[line] == '\r' || text[line] == '\n'))
-            ++line;
-    }
-    return {};
+    const auto found = strings.find(std::string(key));
+    return found == strings.end() ? std::string{} : found->second;
 }
 
 std::string formatNamePlace(std::string format, std::uint32_t place,
@@ -201,6 +142,7 @@ bool OriginalRaceHud::loadImage(
 bool OriginalRaceHud::initialize(
     GraphicsDevice& device,
     const r3d::resource::ResourceFileSystem& resources,
+    const r3d::game::originalgamedata::Catalog& gameData,
     const originalrace::Race& race, std::string_view language,
     std::string_view difficulty, bool campaign, std::string& error)
 {
@@ -414,12 +356,18 @@ bool OriginalRaceHud::initialize(
     }
     try
     {
-        std::string localizationPath =
-            "Data/" + std::string(language) + ".txt";
-        if (!resources.exists(localizationPath))
-            localizationPath = "Data/english.txt";
+        const auto* selectedLanguage =
+            r3d::game::originalgamedata::findLanguage(
+                gameData, language);
+        if (selectedLanguage == nullptr)
+        {
+            throw r3d::resource::ResourceError(
+                "HUD language is absent from game.xml: " +
+                std::string(language));
+        }
         const auto localization =
-            decodeUtf16Le(resources.readText(localizationPath));
+            r3d::game::originalgamedata::loadOriginalStringLibrary(
+                resources, *selectedLanguage);
         if (const auto value = localizedValue(localization, "svLap");
             !value.empty())
             lapName_ = value;
@@ -463,9 +411,11 @@ bool OriginalRaceHud::initialize(
                 name.empty() ? identity.name : std::move(name));
         }
     }
-    catch (const std::exception&)
+    catch (const std::exception& exception)
     {
-        // The original English strings above are the fallback locale.
+        error = exception.what();
+        shutdown(device);
+        return false;
     }
     buildMiniMap(device, race);
     error.clear();
@@ -569,6 +519,16 @@ void OriginalRaceHud::shutdown(GraphicsDevice& device) noexcept
     uiSeconds_ = 0.0F;
     finishStarted_ = -1.0F;
     finishVisible_ = false;
+}
+
+std::string_view OriginalRaceHud::localizedLapName() const noexcept
+{
+    return lapName_;
+}
+
+std::string_view OriginalRaceHud::localizedPriceName() const noexcept
+{
+    return priceName_;
 }
 
 void OriginalRaceHud::setText(GraphicsDevice& device, TextAsset& output,

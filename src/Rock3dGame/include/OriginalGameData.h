@@ -4,6 +4,7 @@
 #include <map>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 
 namespace r3d::resource
@@ -77,5 +78,15 @@ Catalog loadOriginalGameDataCatalog(
 
 const Language* findLanguage(const Catalog& catalog,
                              std::string_view name) noexcept;
+
+using StringLibrary =
+    std::unordered_map<std::string, std::string>;
+
+// Literal ResourceManager::StringLibrary::Load token-stream behavior over
+// the shipped UTF-16LE files, including its malformed-line recovery and
+// last-duplicate-wins Set semantics.
+StringLibrary loadOriginalStringLibrary(
+    const resource::ResourceFileSystem& resources,
+    const Language& language);
 
 } // namespace r3d::game::originalgamedata

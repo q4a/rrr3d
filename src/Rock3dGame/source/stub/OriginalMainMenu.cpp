@@ -242,136 +242,9 @@ Image loadImage(const resource::ResourceFileSystem& resources,
     return result;
 }
 
-void appendUtf8(std::string& result, std::uint32_t codePoint)
-{
-    if (codePoint <= 0x7fU)
-    {
-        result.push_back(static_cast<char>(codePoint));
-    }
-    else if (codePoint <= 0x7ffU)
-    {
-        result.push_back(static_cast<char>(0xc0U | (codePoint >> 6U)));
-        result.push_back(static_cast<char>(0x80U | (codePoint & 0x3fU)));
-    }
-    else if (codePoint <= 0xffffU)
-    {
-        result.push_back(static_cast<char>(0xe0U | (codePoint >> 12U)));
-        result.push_back(
-            static_cast<char>(0x80U | ((codePoint >> 6U) & 0x3fU)));
-        result.push_back(static_cast<char>(0x80U | (codePoint & 0x3fU)));
-    }
-    else
-    {
-        result.push_back(static_cast<char>(0xf0U | (codePoint >> 18U)));
-        result.push_back(
-            static_cast<char>(0x80U | ((codePoint >> 12U) & 0x3fU)));
-        result.push_back(
-            static_cast<char>(0x80U | ((codePoint >> 6U) & 0x3fU)));
-        result.push_back(static_cast<char>(0x80U | (codePoint & 0x3fU)));
-    }
-}
-
-std::string decodeUtf16Le(const std::vector<std::uint8_t>& bytes,
-                          std::string_view path)
-{
-    if (bytes.size() < 2 || (bytes.size() % 2U) != 0U || bytes[0] != 0xffU ||
-        bytes[1] != 0xfeU)
-    {
-        throw resource::ResourceError(std::string(path) +
-                                      ": expected UTF-16LE with BOM");
-    }
-
-    std::string result;
-    result.reserve(bytes.size());
-    for (std::size_t offset = 2; offset < bytes.size(); offset += 2)
-    {
-        const std::uint16_t first = static_cast<std::uint16_t>(
-            bytes[offset] | (static_cast<std::uint16_t>(bytes[offset + 1])
-                             << 8U));
-        std::uint32_t codePoint = first;
-        if (first >= 0xd800U && first <= 0xdbffU)
-        {
-            if (offset + 3 >= bytes.size())
-                throw resource::ResourceError(std::string(path) +
-                                              ": truncated surrogate pair");
-            offset += 2;
-            const std::uint16_t second = static_cast<std::uint16_t>(
-                bytes[offset] |
-                (static_cast<std::uint16_t>(bytes[offset + 1]) << 8U));
-            if (second < 0xdc00U || second > 0xdfffU)
-                throw resource::ResourceError(std::string(path) +
-                                              ": invalid surrogate pair");
-            codePoint = 0x10000U +
-                        ((static_cast<std::uint32_t>(first) - 0xd800U)
-                         << 10U) +
-                        (static_cast<std::uint32_t>(second) - 0xdc00U);
-        }
-        else if (first >= 0xdc00U && first <= 0xdfffU)
-        {
-            throw resource::ResourceError(std::string(path) +
-                                          ": unexpected low surrogate");
-        }
-        appendUtf8(result, codePoint);
-    }
-    return result;
-}
-
-std::unordered_map<std::string, std::string> loadStringLibrary(
-    const resource::ResourceFileSystem& resources, std::string_view path)
-{
-    const auto decoded = decodeUtf16Le(resources.readBinary(path), path);
-    std::unordered_map<std::string, std::string> strings;
-    std::istringstream stream(decoded);
-    std::string id;
-    while (stream)
-    {
-        std::string token;
-        stream >> token;
-        if (token.empty())
-            continue;
-
-        if (token.front() != '"')
-        {
-            id = std::move(token);
-            continue;
-        }
-
-        // Literal StringLibrary::Load token-stream semantics.  In
-        // particular, the shipped French scMaslo record lacks its closing
-        // quote; the Windows loader consumes up to the next quote instead of
-        // rejecting the complete localization file.
-        token.erase(0, 1);
-        const auto quote = token.find('"');
-        if (quote != std::string::npos)
-        {
-            token.erase(quote, 1);
-        }
-        else
-        {
-            char value = '\0';
-            while (stream.get(value) && value != '"')
-                token.push_back(value);
-        }
-        if (id.empty())
-            continue;
-
-        std::size_t escapedNewline = 0;
-        while ((escapedNewline = token.find("\\n", escapedNewline)) !=
-               std::string::npos)
-        {
-            token.replace(escapedNewline, 2, 1, '\n');
-            ++escapedNewline;
-        }
-        // The legacy StringLibrary::Set uses map assignment, so the last
-        // duplicate definition wins (russian.txt contains one intentionally).
-        strings[id] = std::move(token);
-        id.clear();
-    }
-    return strings;
-}
-
-std::string languagePath(const resource::ResourceFileSystem& resources,
-                         std::string& language)
+originalgamedata::Language languageDefinition(
+    const resource::ResourceFileSystem& resources,
+    std::string& language)
 {
     std::transform(language.begin(), language.end(), language.begin(),
                    [](unsigned char value) {
@@ -388,7 +261,7 @@ std::string languagePath(const resource::ResourceFileSystem& resources,
         throw resource::ResourceError(
             "game.xml does not declare requested language: " + language);
     }
-    return selected->file;
+    return *selected;
 }
 
 } // namespace
@@ -501,8 +374,10 @@ Model loadOriginalMainMenu(const resource::ResourceFileSystem& resources,
     const auto catalog = loadAndValidateCatalog(resources, model.audit);
     validateGuiResources(resources, catalog, model.audit);
 
-    auto strings =
-        loadStringLibrary(resources, languagePath(resources, language));
+    const auto selectedLanguage =
+        languageDefinition(resources, language);
+    auto strings = originalgamedata::loadOriginalStringLibrary(
+        resources, selectedLanguage);
     model.language = std::move(language);
     model.audit.localizedStrings = strings.size();
     for (const char* key : itemStringKeys)

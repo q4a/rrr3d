@@ -1582,6 +1582,24 @@ Portable audio раньше повторно и независимо разби�
 voice параметры. Audio, Jolt, 13 offline tests и 240-frame Metal race smoke
 проходят с общей таблицей.
 
+### P2.50 — общий `StringLibrary::Load` и локализация HUD — выполнено
+
+Аудит HUD обнаружил не визуальное приближение, а полностью неработающий
+language path. `OriginalRaceHud` передавал UTF-16LE файл в
+`ResourceFileSystem::readText`; тот корректно отвергает NUL bytes, после чего
+HUD без сообщения проглатывал exception и оставлял английские `Lap`,
+`Reward`, places и player names. Поэтому смена языка работала в меню, но не в
+HUD/finish overlay.
+
+Точная token-stream транскрипция Windows `StringLibrary::Load` вынесена из
+MainMenu2 в общий `OriginalGameData` component. И MainMenu2, и HUD теперь
+читают один `Language::file` через binary UTF-16LE decoder и одну таблицу с
+last-duplicate-wins/escaped-newline/malformed-French semantics. HUD больше не
+скрывает ошибку и не подменяет выбранный язык английскими строками; invalid
+serialized language останавливает инициализацию с точной ошибкой ресурса.
+Русский 240-frame Metal regression подтверждает `Круг` и `Награда`, а также
+локализованные place/name/reward labels и gamer tokens через тот же каталог.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

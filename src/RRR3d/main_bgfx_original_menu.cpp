@@ -4058,7 +4058,8 @@ int main(int argc, char** argv)
         !workshopRenderer.initialize(
             *device, *resources, *originalGarage, *originalRace,
             physicsError) ||
-        !raceHud.initialize(*device, *resources, *originalRace,
+        !raceHud.initialize(*device, *resources,
+                            originalGameDataCatalog, *originalRace,
                             activeLanguage,
                             profileState.player.difficulty,
                             true,
@@ -4148,7 +4149,11 @@ int main(int argc, char** argv)
               << originalRace->trackInstances.size()
               << " original track placements, car "
               << originalRace->vehicle.record
-              << ", Jolt backend with original db.xml parameters\n";
+              << ", Jolt backend with original db.xml parameters\n"
+              << "Original HUD localization (" << activeLanguage
+              << "): lap='" << raceHud.localizedLapName()
+              << "', reward='" << raceHud.localizedPriceName()
+              << "'\n";
 #endif
 
 #ifdef RRR3D_AUDIO
@@ -6660,7 +6665,8 @@ int main(int argc, char** argv)
                     static_cast<std::uint32_t>(pixelHeight),
                     reloadError) ||
                 !raceHud.initialize(
-                    *device, *resources, *originalRace,
+                    *device, *resources, originalGameDataCatalog,
+                    *originalRace,
                     activeLanguage, profileState.player.difficulty,
                     championshipMode,
                     reloadError))
