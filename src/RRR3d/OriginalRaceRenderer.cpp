@@ -5350,8 +5350,7 @@ void OriginalRaceRenderer::draw(
         parent.rotation = mine.rotation;
         if (mine.type == 10U)
         {
-            const float scale =
-                std::clamp(mine.seconds / 0.25F, 0.0F, 1.0F);
+            const float scale = mine.armingAlpha;
             parent.scale = {scale, scale, scale};
         }
         drawDefinition(*asset, *visual, parent, mine.seconds,

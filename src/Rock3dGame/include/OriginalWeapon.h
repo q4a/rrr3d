@@ -66,6 +66,29 @@ public:
         bool apply = false;
     };
 
+    struct LaunchResult
+    {
+        Vec3 direction;
+        Vec3 linearVelocity;
+        float speed = 0.0F;
+    };
+
+    struct MineUpdateResult
+    {
+        float timer = -1.0F;
+        float visualScale = -1.0F;
+        bool armed = true;
+    };
+
+    struct ImpulseContactResult
+    {
+        float damage = 0.0F;
+        std::uint32_t hitCount = 0U;
+        bool applyDamage = false;
+        bool findNextTarget = false;
+        bool destroy = false;
+    };
+
     static ContactResult SpeedArrowContact(
         Vec3 worldDirection, float damage) noexcept;
     static ContactResult LushaContact(
@@ -97,6 +120,20 @@ public:
         Quat rotation, float angleSpeed, float deltaTime) noexcept;
     static TorqueResult RocketContactTorque(
         Vec3 contactPoint, Vec3 linearVelocity, float mass) noexcept;
+    static LaunchResult CalcSpeed(
+        Vec3 worldDirection, Vec3 weaponVelocity, float sourceSpeed,
+        float speedRelativeMinimum, bool speedRelative) noexcept;
+    static MineUpdateResult MineUpdate(
+        float timer, float deltaTime, float delay = 0.25F) noexcept;
+    static bool MineContactAllowed(
+        bool hasTarget, bool testMineLock, bool mineBugEnabled,
+        bool targetMineLocked, float armingTimer,
+        bool targetIsOwner) noexcept;
+    static bool MineRipUpdate(
+        float timeLife, float splitTime, bool death) noexcept;
+    static ImpulseContactResult ImpulseContact(
+        bool hasContactActor, bool hasTarget, bool contactIsTarget,
+        std::uint32_t hitCount, float damage) noexcept;
 };
 
 // GameBase.cpp::ShotEffect receives one OnShot callback only after

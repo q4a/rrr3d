@@ -336,6 +336,59 @@ int main()
             10.0F).apply)
         return 50;
 
+    const auto relativeLaunch = source::Proj::CalcSpeed(
+        {1.0F, 0.0F, 0.5F}, {5.0F, 0.0F, 0.0F},
+        10.0F, 13.0F, true);
+    const auto minimumLaunch = source::Proj::CalcSpeed(
+        {1.0F, 0.0F, 0.5F}, {5.0F, 0.0F, 0.0F},
+        10.0F, 13.0F, false);
+    if (std::abs(relativeLaunch.direction.z) > 0.001F ||
+        std::abs(relativeLaunch.speed - 14.472136F) > 0.001F ||
+        std::abs(minimumLaunch.speed - 17.472136F) > 0.001F)
+        return 51;
+
+    const auto armingMine = source::Proj::MineUpdate(
+        0.0F, 0.1F);
+    const auto armedMine = source::Proj::MineUpdate(
+        armingMine.timer, 0.15F);
+    if (armingMine.armed ||
+        std::abs(armingMine.visualScale - 0.4F) > 0.001F ||
+        !armedMine.armed || armedMine.timer != -1.0F ||
+        armedMine.visualScale != 1.0F)
+        return 52;
+    if (source::Proj::MineContactAllowed(
+            true, true, true, true, -1.0F, false) ||
+        source::Proj::MineContactAllowed(
+            true, false, false, false, 0.1F, true) ||
+        !source::Proj::MineContactAllowed(
+            true, false, false, false, 0.1F, false) ||
+        !source::Proj::MineContactAllowed(
+            true, false, false, false, -1.0F, true))
+        return 53;
+    if (source::Proj::MineRipUpdate(2.0F, 2.0F, false) ||
+        !source::Proj::MineRipUpdate(2.001F, 2.0F, false) ||
+        source::Proj::MineRipUpdate(3.0F, 2.0F, true))
+        return 54;
+
+    const auto firstImpulse = source::Proj::ImpulseContact(
+        true, true, true, 0U, 12.0F);
+    const auto thirdImpulse = source::Proj::ImpulseContact(
+        true, true, true, 2U, 12.0F);
+    const auto untargetedImpulse = source::Proj::ImpulseContact(
+        true, false, false, 0U, 12.0F);
+    if (!firstImpulse.applyDamage ||
+        firstImpulse.damage != 12.0F ||
+        firstImpulse.hitCount != 1U ||
+        !firstImpulse.findNextTarget || firstImpulse.destroy ||
+        thirdImpulse.damage != 4.0F ||
+        thirdImpulse.hitCount != 3U || !thirdImpulse.destroy ||
+        !untargetedImpulse.applyDamage ||
+        untargetedImpulse.damage != 12.0F ||
+        !untargetedImpulse.destroy ||
+        source::Proj::ImpulseContact(
+            true, true, false, 0U, 12.0F).applyDamage)
+        return 55;
+
     source::PairPxContactEffect contacts;
     contacts.Reset(3U);
     const source::PairPxContactEffect::Key contactKey{4U, 9U};

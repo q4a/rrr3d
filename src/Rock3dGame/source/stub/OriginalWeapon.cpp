@@ -310,6 +310,101 @@ Proj::TorqueResult Proj::RocketContactTorque(
     return result;
 }
 
+Proj::LaunchResult Proj::CalcSpeed(
+    Vec3 worldDirection, Vec3 weaponVelocity, float sourceSpeed,
+    float speedRelativeMinimum, bool speedRelative) noexcept
+{
+    LaunchResult result;
+    result.direction = normalized(worldDirection);
+    result.speed = sourceSpeed;
+    const float forwardSpeed =
+        std::max(dot(result.direction, weaponVelocity), 0.0F);
+    if (speedRelative)
+        result.speed += forwardSpeed;
+    else if (speedRelativeMinimum > 0.0F)
+    {
+        result.speed = std::max(
+            result.speed, speedRelativeMinimum + forwardSpeed);
+    }
+
+    if (std::abs(result.direction.z) < 0.707F)
+    {
+        result.direction.z = 0.0F;
+        result.direction = normalized(result.direction);
+    }
+    result.linearVelocity = {
+        result.direction.x * result.speed,
+        result.direction.y * result.speed,
+        result.direction.z * result.speed};
+    return result;
+}
+
+Proj::MineUpdateResult Proj::MineUpdate(
+    float timer, float deltaTime, float delay) noexcept
+{
+    MineUpdateResult result;
+    result.timer = timer;
+    if (timer < 0.0F)
+        return result;
+
+    result.timer += deltaTime;
+    result.visualScale = std::clamp(
+        delay > 0.0F ? result.timer / delay : 1.0F,
+        0.0F, 1.0F);
+    if (result.visualScale == 1.0F)
+        result.timer = -1.0F;
+    result.armed = result.timer == -1.0F;
+    return result;
+}
+
+bool Proj::MineContactAllowed(
+    bool hasTarget, bool testMineLock, bool mineBugEnabled,
+    bool targetMineLocked, float armingTimer,
+    bool targetIsOwner) noexcept
+{
+    if (!hasTarget ||
+        (testMineLock && targetMineLocked && mineBugEnabled))
+    {
+        return false;
+    }
+    return armingTimer == -1.0F || !targetIsOwner;
+}
+
+bool Proj::MineRipUpdate(
+    float timeLife, float splitTime, bool death) noexcept
+{
+    return timeLife > splitTime && !death;
+}
+
+Proj::ImpulseContactResult Proj::ImpulseContact(
+    bool hasContactActor, bool hasTarget, bool contactIsTarget,
+    std::uint32_t hitCount, float damage) noexcept
+{
+    ImpulseContactResult result;
+    result.hitCount = hitCount;
+    if (!hasContactActor)
+        return result;
+    if (hasTarget && contactIsTarget)
+    {
+        result.damage = damage /
+                        static_cast<float>(hitCount + 1U);
+        result.applyDamage = true;
+        result.hitCount = hitCount + 1U;
+        if (result.hitCount > 2U)
+            result.destroy = true;
+        else
+            result.findNextTarget = true;
+        return result;
+    }
+    if (!hasTarget)
+    {
+        result.damage = damage;
+        result.applyDamage = true;
+        result.destroy = true;
+    }
+    return result;
+}
+
 void ShotEffect::Reset() noexcept
 {
     shotCount_ = 0U;

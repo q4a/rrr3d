@@ -3778,11 +3778,23 @@ void OriginalRaceSession::updateGameplay(
             const bool targetedImpulse =
                 projectileDefinition.type == 21U &&
                 projectile.target < racers_.size();
+            const auto impulseContact =
+                projectileDefinition.type == 21U
+                    ? source::Proj::ImpulseContact(
+                          true, targetedImpulse,
+                          !targetedImpulse ||
+                              target == projectile.target,
+                          projectile.hitCount,
+                          projectileDefinition.damage)
+                    : source::Proj::ImpulseContactResult{};
+            if (projectileDefinition.type == 21U &&
+                !impulseContact.applyDamage)
+            {
+                continue;
+            }
             const float sourceDamage =
-                targetedImpulse
-                    ? projectileDefinition.damage /
-                          static_cast<float>(
-                              projectile.hitCount + 1U)
+                projectileDefinition.type == 21U
+                    ? impulseContact.damage
                     : projectile.damage;
             applyRacerDamage(
                 target, projectile.owner, contactPoint,
@@ -3860,14 +3872,16 @@ void OriginalRaceSession::updateGameplay(
             }
             if (projectileDefinition.type == 21U)
             {
-                if (!targetedImpulse ||
-                    ++projectile.hitCount > 2U)
+                projectile.hitCount = impulseContact.hitCount;
+                if (impulseContact.destroy)
                 {
                     spawnProjectileImpact(
                         projectile, projectile.position, target);
                     projectile.active = false;
                     break;
                 }
+                if (!impulseContact.findNextTarget)
+                    break;
                 std::size_t nextTarget = findClosestEnemy(
                     target, 1.57079632679489661923F);
                 if (nextTarget == projectile.owner)
@@ -4533,7 +4547,7 @@ void OriginalRaceSession::updateGameplay(
         {
             return applyMasloContact(
                 racer, mine.position, mine.damage,
-                mine.seconds < 0.25F);
+                mine.armingTime >= 0.0F);
         }
         applyRacerDamage(
             racer, mine.owner, contactPoint,
@@ -4608,6 +4622,15 @@ void OriginalRaceSession::updateGameplay(
         if (!mine.active)
             continue;
         mine.seconds += seconds;
+        if (mine.type == 10U || mine.type == 11U ||
+            mine.type == 12U || mine.type == 24U)
+        {
+            const auto arming = source::Proj::MineUpdate(
+                mine.armingTime, seconds);
+            mine.armingTime = arming.timer;
+            if (arming.visualScale >= 0.0F)
+                mine.armingAlpha = arming.visualScale;
+        }
         if (length2(mine.velocity) > 0.0F ||
             std::abs(mine.velocity.z) > 0.0F)
         {
@@ -4639,12 +4662,10 @@ void OriginalRaceSession::updateGameplay(
         if (mine.type == 12U)
         {
             const auto& projectile =
-                race_.weapons[mine.weapon].projectiles.front();
-            const float splitTime =
-                projectile.angularSpeed > 0.0F
-                    ? projectile.angularSpeed
-                    : 2.0F;
-            if (mine.seconds >= splitTime)
+                race_.weapons[mine.weapon]
+                    .projectiles.at(mine.projectile);
+            if (source::Proj::MineRipUpdate(
+                    mine.seconds, projectile.angularSpeed, false))
             {
                 if (projectile.secondaryProjectile.valid)
                 {
@@ -4658,6 +4679,8 @@ void OriginalRaceSession::updateGameplay(
                     core.damage = source.damage;
                     core.impulseSpeed = source.speed;
                     core.seconds = 0.0F;
+                    core.armingTime = 0.0F;
+                    core.armingAlpha = 0.0F;
                     core.maximumLife =
                         source.minimumLife > 0.0F
                             ? sampleSourceRange(
@@ -4683,6 +4706,8 @@ void OriginalRaceSession::updateGameplay(
                         fragment.damage = source.damage;
                         fragment.impulseSpeed = source.speed;
                         fragment.seconds = 0.0F;
+                        fragment.armingTime = -1.0F;
+                        fragment.armingAlpha = 1.0F;
                         fragment.maximumLife =
                             source.minimumLife > 0.0F
                                 ? sampleSourceRange(
@@ -4707,27 +4732,24 @@ void OriginalRaceSession::updateGameplay(
                 continue;
             if (mine.ignoreOwnerCollision && racer == mine.owner)
                 continue;
-            const bool armingOwner =
-                mine.linkedToOwner &&
-                racer == mine.owner &&
-                mine.seconds < 0.25F;
             const bool targetMineLocked =
                 racers_[racer].gameCar.IsMineLocked();
-            bool sourceContactLocked = false;
+            bool sourceContactAllowed = true;
             if (mine.type == 10U)
             {
-                sourceContactLocked =
-                    mine.seconds < 0.25F ||
-                    targetMineLocked;
+                sourceContactAllowed =
+                    mine.armingTime == -1.0F &&
+                    !targetMineLocked;
             }
             else if (mine.type != 20U)
             {
                 const bool testsMineLock =
                     mine.type == 11U || mine.type == 12U;
-                sourceContactLocked =
-                    armingOwner ||
-                    (testsMineLock && enableMineBug_ &&
-                     targetMineLocked);
+                sourceContactAllowed =
+                    source::Proj::MineContactAllowed(
+                        true, testsMineLock, enableMineBug_,
+                        targetMineLocked, mine.armingTime,
+                        mine.linkedToOwner && racer == mine.owner);
             }
             Transform mineTransform;
             mineTransform.position = mine.position;
@@ -4743,7 +4765,7 @@ void OriginalRaceSession::updateGameplay(
                     vehicleDefinition.physics);
             const OrientedBox mineBox =
                 orientedBox(mineTransform, mine.collision);
-            if (sourceContactLocked ||
+            if (!sourceContactAllowed ||
                 !boxesOverlap(targetBox, mineBox))
                 continue;
             const Vec3 contactPoint =
@@ -5157,7 +5179,6 @@ void OriginalRaceSession::updateGameplay(
             const Vec3 sourceDirection = normalized3(
                 rotate(shotTransform.rotation,
                        {1.0F, 0.0F, 0.0F}));
-            Vec3 launchDirection = sourceDirection;
             // Proj::CalcSpeed levels only projectiles prepared through
             // RocketPrepare. Laser/FrostRay/Drobilka keep the weapon actor's
             // full 3D direction; applying CalcSpeed to them changed both ray
@@ -5167,13 +5188,15 @@ void OriginalRaceSession::updateGameplay(
                 projectile.type == 14U || projectile.type == 16U ||
                 projectile.type == 19U || projectile.type == 21U ||
                 projectile.type == 22U || projectile.type == 23U;
-            if (rocketPrepared &&
-                std::abs(launchDirection.z) < 0.707F)
-                launchDirection = normalized2(launchDirection);
-            const float forwardVehicleSpeed = std::max(
-                dot3(launchDirection,
-                     vehicles[shooter].linearVelocity),
-                0.0F);
+            const auto sourceLaunch = source::Proj::CalcSpeed(
+                sourceVec(sourceDirection),
+                sourceVec(vehicles[shooter].linearVelocity),
+                projectile.speed, projectile.relativeSpeedMinimum,
+                projectile.relativeSpeed);
+            const Vec3 launchDirection =
+                rocketPrepared
+                    ? runtimeVec(sourceLaunch.direction)
+                    : sourceDirection;
             // HumanPlayer::Shot(WeaponType) asks Player for the closest
             // enemy in pi/5.5, except sphereGun which passes viewAngle=0.
             const float homingViewAngle =
@@ -5254,18 +5277,10 @@ void OriginalRaceSession::updateGameplay(
             }
             else if (!rayProjectile)
             {
-                float speed = projectile.speed;
-                if (projectile.relativeSpeed)
-                {
-                    speed += forwardVehicleSpeed;
-                }
-                else if (projectile.relativeSpeedMinimum > 0.0F)
-                {
-                    speed = std::max(
-                        speed,
-                        projectile.relativeSpeedMinimum +
-                            forwardVehicleSpeed);
-                }
+                const float speed =
+                    rocketPrepared
+                        ? sourceLaunch.speed
+                        : projectile.speed;
                 ProjectileRuntime runtimeProjectile;
                 runtimeProjectile.owner = shooter;
                 runtimeProjectile.weapon = firedWeapon;
@@ -9484,9 +9499,16 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                            projectile.weapon == thunderWeapon &&
                            projectile.projectile == 0U;
                 });
+            // Proj::CalcSpeed adds the vehicle projection before it levels
+            // shallow launch directions onto the XY plane.
+            const float expectedSourceSpeed =
+                thunder->projectiles.front().speed +
+                80.0F * std::cos(sourcePitch);
             if (sourceProjectile ==
                     thunderSession.projectiles().end() ||
-                std::abs(sourceProjectile->speed - 120.0F) > 0.001F ||
+                std::abs(
+                    sourceProjectile->speed - expectedSourceSpeed) >
+                    0.001F ||
                 std::abs(sourceProjectile->lifeSeconds - 5.0F) >
                     0.001F ||
                 std::abs(sourceProjectile->direction.z) > 0.001F ||

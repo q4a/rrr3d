@@ -280,6 +280,10 @@ struct MineRuntime
     Vec3 velocity;
     ProjectileCollisionBox collision;
     float seconds = 0.0F;
+    // Proj::_time1 is distinct from GameObject::_timeLife. MineUpdate turns
+    // it from the arming elapsed time into the -1 armed sentinel.
+    float armingTime = 0.0F;
+    float armingAlpha = 0.0F;
     float damage = 0.0F;
     float impulseSpeed = 0.0F;
     float maximumLife = -1.0F;
