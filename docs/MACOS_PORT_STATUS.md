@@ -2146,3 +2146,16 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   использует XInput thresholds 7849/8689 и 30/255. Удалён несовместимый
   keyboard `Back -> Backspace` alias; источник использует `Escape` для
   `vkBack`, а Backspace сериализует через keyboard `vkButtonX` как `X`.
+
+### Complete GameMode options serialization follow-up
+
+- `LoadGameOpt` различает absent и partial `quality`/`volume`: первый случай
+  вызывает исходные autodetect policy, второй сохраняет constructor values
+  для отсутствующих дочерних полей.
+- `frameRateMode` принимает только `sfrNone`/`sfrFixed`, `prefCamera` — только
+  `pcThirdPerson`/`pcIsometric`; invalid camera token снова включает
+  обязательный StartOptions path. Придуманный `sfrVSync` удалён.
+- Сняты отсутствовавшие в Windows loader ограничения volume 0..2 и
+  cameraDistance 0.6..2.5. UI по-прежнему предлагает штатные source ranges,
+  но существующий Windows `user.xml` теперь читается и пишется без изменения
+  его float state.

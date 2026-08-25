@@ -1695,6 +1695,27 @@ XInput thresholds; `ControlsFrame` больше не содержит собст
 `None` подтверждён как буквальное имя `cVirtualKeyEnd`, поэтому удаление
 binding не локализуется.
 
+### P2.56 — полный `GameMode::LoadGameOpt/SaveGameOpt` — выполнено
+
+После ControlManager целиком сопоставлены соседние quality, resolution,
+volume, gameplay, language/commentator, camera и discrete-video ветви.
+Подтвердились четыре переносных отклонения. Portable loader ограничивал три
+volume значениями 0..2 и cameraDistance 0.6..2.5, хотя Windows передаёт
+сериализованные float без clamp. Любая строка `frameRateMode` сохранялась,
+несмотря на двухэлементный исходный enum (`sfrNone`, `sfrFixed`), а любой
+неизвестный `prefCamera` ошибочно считался валидным `pcIsometric`.
+
+Также восстановлено важное различие целого отсутствующего узла и частичного:
+без `<quality>` вызывается `Environment::AutodetectQuality` (на Metal это
+middle shadow, high environment/light/post, anisotropic 8x, no MSAA,
+`sfrFixed`), но существующий частичный узел оставляет пропуски на constructor
+low/linear/no-MSAA. Аналогично отсутствие `<volume>` вызывает значения
+1.2/0.8/1.2, тогда как пропуски внутри существующего узла сохраняют исходную
+громкость XAudio voice 1.0. `SReadEnum` теперь отклоняет invented tokens,
+no-clamp float round-trip и обе partial-node ветви закреплены profile smoke.
+Удалён последний тестовый токен `sfrVSync`, которого в Windows enum никогда
+не существовало.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

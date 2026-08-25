@@ -104,6 +104,28 @@ float parseFloat(const char* text, float fallback)
     }
 }
 
+bool sourceFrameRateMode(std::string_view token) noexcept
+{
+    // Environment::cSyncFrameRateStr
+    return token == "sfrNone" || token == "sfrFixed";
+}
+
+QualityConfig environmentConstructorQuality()
+{
+    QualityConfig quality;
+    // Environment's constructor values. LoadGameOpt only calls
+    // AutodetectQuality when the complete <quality> node is absent; a
+    // partial node leaves every omitted setting at these values.
+    quality.filtering = 0U;
+    quality.msaa = 0U;
+    quality.shadow = 0U;
+    quality.environment = 0U;
+    quality.light = 0U;
+    quality.postEffect = 0U;
+    quality.frameRateMode = "sfrFixed";
+    return quality;
+}
+
 std::string cleanFileName(std::string name)
 {
     name.erase(std::remove_if(name.begin(), name.end(), [](char item) {
@@ -186,20 +208,36 @@ void loadConfig(const std::filesystem::path& path, UserConfig& config,
         return;
     auto* root = document.RootElement();
     auto* quality = child(root, "quality");
-    config.quality.filtering = parseUnsigned(
-        value(quality, "filtering"), config.quality.filtering);
-    config.quality.msaa =
-        parseUnsigned(value(quality, "msaa"), config.quality.msaa);
-    config.quality.shadow =
-        parseUnsigned(value(quality, "shadow"), config.quality.shadow);
-    config.quality.environment = parseUnsigned(
-        value(quality, "environment"), config.quality.environment);
-    config.quality.light =
-        parseUnsigned(value(quality, "light"), config.quality.light);
-    config.quality.postEffect = parseUnsigned(
-        value(quality, "postEffect"), config.quality.postEffect);
-    if (const char* token = value(quality, "frameRateMode"))
-        config.quality.frameRateMode = token;
+    if (quality != nullptr)
+    {
+        config.quality = environmentConstructorQuality();
+        config.quality.filtering = parseUnsigned(
+            value(quality, "filtering"), config.quality.filtering);
+        config.quality.msaa = parseUnsigned(
+            value(quality, "msaa"), config.quality.msaa);
+        config.quality.shadow = parseUnsigned(
+            value(quality, "shadow"), config.quality.shadow);
+        config.quality.environment = parseUnsigned(
+            value(quality, "environment"),
+            config.quality.environment);
+        config.quality.light = parseUnsigned(
+            value(quality, "light"), config.quality.light);
+        config.quality.postEffect = parseUnsigned(
+            value(quality, "postEffect"),
+            config.quality.postEffect);
+        if (const char* token = value(quality, "frameRateMode");
+            token != nullptr && sourceFrameRateMode(token))
+        {
+            config.quality.frameRateMode = token;
+        }
+    }
+    else
+    {
+        // Fully capable Metal follows the highest supported choices from
+        // Environment::AutodetectQuality (shadow deliberately stops at
+        // middle, MSAA remains disabled, filtering stops at anisotropic 8x).
+        config.quality = QualityConfig{};
+    }
 
     if (const char* resolution = value(root, "resolution"))
     {
@@ -208,15 +246,27 @@ void loadConfig(const std::filesystem::path& path, UserConfig& config,
     }
 
     auto* volume = child(root, "volume");
-    config.musicVolume = std::clamp(
-        parseFloat(value(volume, "musicVolume"), config.musicVolume),
-        0.0F, 2.0F);
-    config.effectsVolume = std::clamp(
-        parseFloat(value(volume, "effectsVolume"), config.effectsVolume),
-        0.0F, 2.0F);
-    config.voiceVolume = std::clamp(
-        parseFloat(value(volume, "voiceVolume"), config.voiceVolume),
-        0.0F, 2.0F);
+    if (volume != nullptr)
+    {
+        // XAudio submix voices start at 1.0. A partial node does not call
+        // Logic::AutodetectVolume for its omitted categories.
+        config.musicVolume = 1.0F;
+        config.effectsVolume = 1.0F;
+        config.voiceVolume = 1.0F;
+        config.musicVolume = parseFloat(
+            value(volume, "musicVolume"), config.musicVolume);
+        config.effectsVolume = parseFloat(
+            value(volume, "effectsVolume"), config.effectsVolume);
+        config.voiceVolume = parseFloat(
+            value(volume, "voiceVolume"), config.voiceVolume);
+    }
+    else
+    {
+        // Logic::AutodetectVolume
+        config.musicVolume = 1.2F;
+        config.effectsVolume = 0.8F;
+        config.voiceVolume = 1.2F;
+    }
     config.maxPlayers =
         parseUnsigned(value(root, "maxPlayers"), config.maxPlayers);
     config.maxComputers =
@@ -256,15 +306,18 @@ void loadConfig(const std::filesystem::path& path, UserConfig& config,
     }
     if (const char* token = value(root, "prefCamera"))
     {
-        config.preferredCamera =
-            std::string(token) == "pcThirdPerson"
-                ? PreferredCamera::ThirdPerson
-                : PreferredCamera::Isometric;
-        preferredCameraSerialized = true;
+        if (std::string_view(token) == "pcThirdPerson" ||
+            std::string_view(token) == "pcIsometric")
+        {
+            config.preferredCamera =
+                std::string_view(token) == "pcThirdPerson"
+                    ? PreferredCamera::ThirdPerson
+                    : PreferredCamera::Isometric;
+            preferredCameraSerialized = true;
+        }
     }
-    config.cameraDistance = std::clamp(
-        parseFloat(value(root, "cameraDistance"), config.cameraDistance),
-        0.6F, 2.5F);
+    config.cameraDistance = parseFloat(
+        value(root, "cameraDistance"), config.cameraDistance);
     readControlMap(child(root, "controls"), "ctKeyboard",
                    originalcontrol::ControllerType::Keyboard,
                    config.keyboardControls);
@@ -987,6 +1040,45 @@ bool runOriginalProfileFlowSmokeTest(std::string& error)
              reinterpret_cast<std::uintptr_t>(&state)));
     std::error_code fileError;
     std::filesystem::remove_all(smokeDirectory, fileError);
+    const auto partialDirectory = smokeDirectory / "partial";
+    std::filesystem::create_directories(partialDirectory, fileError);
+    TiXmlDocument partialOptions;
+    partialOptions.Parse(
+        "<root><quality><filtering>2</filtering>"
+        "<frameRateMode>sfrVSync</frameRateMode></quality>"
+        "<volume><musicVolume>2.5</musicVolume></volume>"
+        "<prefCamera>pcInvented</prefCamera>"
+        "<cameraDistance>4.5</cameraDistance></root>");
+    if (fileError || !partialOptions.SaveFile(
+                         (partialDirectory / "user.xml").string()))
+    {
+        std::filesystem::remove_all(smokeDirectory, fileError);
+        error = "unable to create partial GameMode options regression";
+        return false;
+    }
+    OriginalProfileStore partialStore(partialDirectory);
+    std::string partialWarning;
+    const auto partialState = partialStore.load(partialWarning);
+    if (!partialWarning.empty() ||
+        partialState.config.quality.filtering != 2U ||
+        partialState.config.quality.msaa != 0U ||
+        partialState.config.quality.shadow != 0U ||
+        partialState.config.quality.environment != 0U ||
+        partialState.config.quality.light != 0U ||
+        partialState.config.quality.postEffect != 0U ||
+        partialState.config.quality.frameRateMode != "sfrFixed" ||
+        std::abs(partialState.config.musicVolume - 2.5F) > 0.001F ||
+        std::abs(partialState.config.effectsVolume - 1.0F) > 0.001F ||
+        std::abs(partialState.config.voiceVolume - 1.0F) > 0.001F ||
+        partialState.preferredCameraSerialized ||
+        std::abs(partialState.config.cameraDistance - 4.5F) > 0.001F)
+    {
+        std::filesystem::remove_all(smokeDirectory, fileError);
+        error =
+            "partial GameMode options did not preserve constructor/"
+            "SReadEnum/no-clamp semantics";
+        return false;
+    }
     OriginalProfileStore smokeStore(smokeDirectory);
     auto networkState = state;
     const auto networkName = beginOriginalChampionshipProfile(
@@ -997,12 +1089,12 @@ bool runOriginalProfileFlowSmokeTest(std::string& error)
     networkState.config.quality.environment = 1U;
     networkState.config.quality.light = 0U;
     networkState.config.quality.postEffect = 1U;
-    networkState.config.quality.frameRateMode = "sfrVSync";
+    networkState.config.quality.frameRateMode = "sfrNone";
     networkState.config.resolutionWidth = 1600U;
     networkState.config.resolutionHeight = 900U;
-    networkState.config.musicVolume = 0.25F;
-    networkState.config.effectsVolume = 0.5F;
-    networkState.config.voiceVolume = 0.75F;
+    networkState.config.musicVolume = 2.25F;
+    networkState.config.effectsVolume = -0.25F;
+    networkState.config.voiceVolume = 2.75F;
     networkState.config.maxPlayers = 5U;
     networkState.config.maxComputers = 3U;
     networkState.config.upgradeMaxLevel = 3U;
@@ -1018,7 +1110,7 @@ bool runOriginalProfileFlowSmokeTest(std::string& error)
     networkState.config.commentatorStyle = "russian";
     networkState.config.preferredCamera =
         PreferredCamera::ThirdPerson;
-    networkState.config.cameraDistance = 1.75F;
+    networkState.config.cameraDistance = 3.25F;
     networkState.config.keyboardControls["gaShot"] = "Z";
     networkState.config.gamepadControls["gaShot"] = "Y";
     networkState.config.menuMusicPlaylist = "0,2";
@@ -1075,12 +1167,12 @@ bool runOriginalProfileFlowSmokeTest(std::string& error)
         loadedConfig.quality.environment != 1U ||
         loadedConfig.quality.light != 0U ||
         loadedConfig.quality.postEffect != 1U ||
-        loadedConfig.quality.frameRateMode != "sfrVSync" ||
+        loadedConfig.quality.frameRateMode != "sfrNone" ||
         loadedConfig.resolutionWidth != 1600U ||
         loadedConfig.resolutionHeight != 900U ||
-        std::abs(loadedConfig.musicVolume - 0.25F) > 0.001F ||
-        std::abs(loadedConfig.effectsVolume - 0.5F) > 0.001F ||
-        std::abs(loadedConfig.voiceVolume - 0.75F) > 0.001F ||
+        std::abs(loadedConfig.musicVolume - 2.25F) > 0.001F ||
+        std::abs(loadedConfig.effectsVolume + 0.25F) > 0.001F ||
+        std::abs(loadedConfig.voiceVolume - 2.75F) > 0.001F ||
         loadedConfig.maxPlayers != 5U ||
         loadedConfig.maxComputers != 3U ||
         loadedConfig.upgradeMaxLevel != 3U ||
@@ -1094,7 +1186,7 @@ bool runOriginalProfileFlowSmokeTest(std::string& error)
         loadedConfig.language != "russian" ||
         loadedConfig.commentatorStyle != "russian" ||
         loadedConfig.preferredCamera != PreferredCamera::ThirdPerson ||
-        std::abs(loadedConfig.cameraDistance - 1.75F) > 0.001F ||
+        std::abs(loadedConfig.cameraDistance - 3.25F) > 0.001F ||
         loadedConfig.keyboardControls.at("gaShot") != "Z" ||
         loadedConfig.gamepadControls.at("gaShot") != "Y" ||
         loadedConfig.menuMusicPlaylist != "0,2" ||
@@ -1329,7 +1421,9 @@ bool OriginalProfileStore::save(const ProfileState& state,
     append(*quality, "light", state.config.quality.light);
     append(*quality, "postEffect", state.config.quality.postEffect);
     append(*quality, "frameRateMode",
-           state.config.quality.frameRateMode);
+           sourceFrameRateMode(state.config.quality.frameRateMode)
+               ? state.config.quality.frameRateMode
+               : std::string("sfrFixed"));
     append(*config, "resolution",
            std::to_string(state.config.resolutionWidth) + " " +
                std::to_string(state.config.resolutionHeight));
