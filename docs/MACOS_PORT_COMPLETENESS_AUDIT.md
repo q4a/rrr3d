@@ -81,7 +81,7 @@ Windows target не компилируется.
 | Race menu | `RaceMenu2.cpp` | source-derived `GamersFrame`/`RaceMainFrame`/`GarageFrame`/`CarFrame`/`WorkshopFrame`/`SpaceshipFrame`/`AngarFrame`/`AchievmentFrame` | Частично | Gamers, главный экран, Garage, Workshop, Angar и Achievment используют исходные panels/buttons/icons/portraits/slots/stats, `Misc/garage`, `Misc/space2`, `Misc/angar`, все 17 машин, семь gamer planets, шесть tournament planets, девять reward cards, camera/lamp/HDR transforms и shadow maps, `csSlots`/`csAutoObserver`, исходные View3d meshes и source data/transactions. Legacy widget/animation object graph ещё не воспроизведён |
 | Options UI | `OptionsMenu.cpp` | source-derived modal bgfx view | Частично | Перенесены исходные четыре вкладки, координаты, PNG, 12/8/5/18 строк, scroll, steppers, volume bars, обе control-колонки и Apply/Cancel draft semantics. Первый запуск также использует отдельный `StartOptionsMenu`: sentinel `Select`, четыре source stepper, camera gate и Apply persistence. Legacy widget animation/event objects не компилируются; визуальная проверка на разблокированном Mac ещё нужна |
 | Finish/final UI | `FinishMenu.cpp`, `FinalMenu.cpp`, `Menu::OnFinishClose` | source-derived FinishMenu, finish transition и FinalMenu | Перенесено | Активные экраны используют исходные assets/layout/timing/input; pass fail/complete, planet unlock и final movie branches сопоставлены с Windows source |
-| Profile serialization | исходный profile/config code | `OriginalProfile.cpp`, user XML | Частично | Перенесены нужные поля и различие между default `pcIsometric` и отсутствующим `prefCamera`, которое запускает first-run UI; source-инвариант планет, `Race::MakeProfileName/NewProfile` и `DelProfile/SaveLib`: New Game создаёт `profileN`, `skirmish` временный, удаление последнего профиля сохраняет пустой library и не воскрешает XML reference. Полная схема ещё не доказана |
+| Profile serialization | `GameMode::SaveGameOpt`, `Race::SaveGame`, `SnProfile/SkProfile` | `OriginalProfile.cpp`, source-compatible XML | Перенесено | Все поля `user.xml`, `race.xml`, `Profile/*.xml` и `achievment.xml` проходят disk round-trip; сохранены misspelled `dfficulty`, absent-camera first-run gate, offline/network cursors, temporary `skirmish`, ten slots/charges и `CompletePlanet` expansion скрытых планет |
 | Tournament/progression | `GameMode.cpp`, `Race.cpp`, menus | parser `tournamet.xml` + source-derived entry flow, advance и finish transitions | Частично | Continue/New/Load/Difficulty, отдельный SkProfile, `GamersFrame`, gamerId selection, pass/planet completion и final branch перенесены; legacy object/event graph ещё не компилируется |
 | Race loading transition | `GameMode::StartRace/DoStartRace`, `Menu::msInfo`, `InfoMenu` | deferred bgfx loading state | Перенесено | Оригинальный `loadingFrame.dds` показывается не менее двух кадров до синхронной загрузки world/Jolt/render/audio state; modal input, aspect fit и последующий переход в HUD покрыты integrated race smoke |
 | Garage/workshop/tournament data | `RaceMenu2`, `DataBase`, `garage.xml`, `workshop.xml`, `tournamet.xml`, `achievment.xml` | `OriginalGarage.cpp` + source-derived Gamers/Garage/Workshop/Angar/Achievment frames | Частично | Каталог, семь gamers и Viper achievement gate, source available/secret/locked order, buy/sell/install/swap/recharge/upgrade, reward purchase, campaign confirmations, charge-inclusive 50% resale, colors, stats фактической комплектации и bonus preview перенесены. 3D goods/slots/planets/boss cars читают исходные mesh/texture/vehicle transforms и повторяют `ViewPort3d` fitting/rotation. Legacy widget objects ещё отсутствуют |
@@ -1410,6 +1410,20 @@ Network, video и Steam явно выключены.
 - Session lifecycle, MineRip/death branches и bgfx renderer читают один
   snapshot. Regression заменяет live item descriptor после выстрела и
   подтверждает сохранение прежних `77/321/9.25` у летящего projectile.
+
+### Complete profile/config serialization owner
+
+- Сопоставлены все поля `GameMode::SaveGameOpt/LoadGameOpt`,
+  `Race::SaveGame/LoadGame`, `SnProfile` и `SkProfile`: quality, resolution,
+  volumes, gameplay options, controls, обе MusicCat playlists, profile lists,
+  tutorial, tournament, human/car/color/economy и все десять slots/charges.
+- Загрузка `planetsCompleted` теперь вызывает один portable
+  `Race::CompletePlanet`-эквивалент. Финальная турнирная планета `4`
+  автоматически добавляет скрытую планету `5`, а повторные записи не
+  дублируются — именно так Windows восстанавливает `race.xml`.
+- `lastProfile/lastNetProfile` разрешаются только через общий source profile
+  list. Полный disk round-trip дополнительно проверяет achievement items,
+  conditions/iterations и намеренно ошибочное имя `dfficulty`.
 
 ## Очередь дальнейшего переноса
 

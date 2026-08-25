@@ -151,6 +151,12 @@ struct ProfileState
 // change source-provenance assertions.
 ProfileState makeOriginalDefaultProfileState();
 
+// Race::CompletePlanet is also used while loading race.xml. Completing the
+// fifth tournament planet unlocks every non-tournament planet, and repeated
+// serialized entries remain unique.
+void completeOriginalPlanet(
+    ProfileState& state, std::uint32_t planetIndex);
+
 // Source-equivalent Race::MakeProfileName/NewProfile helpers used by the
 // portable MainMenu2 flow.  Championship profiles are persistent; the
 // original SkProfile named "skirmish" is temporary and is never added to

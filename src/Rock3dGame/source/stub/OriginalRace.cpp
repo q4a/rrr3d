@@ -4920,28 +4920,7 @@ TournamentAdvance completeOriginalTournamentTrack(
         }
 
         if (result.planetChampion)
-        {
-            const auto rememberCompleted =
-                [&](std::uint32_t completed) {
-                if (std::find(
-                        profile.planetsCompleted.begin(),
-                        profile.planetsCompleted.end(), completed) ==
-                    profile.planetsCompleted.end())
-                {
-                    profile.planetsCompleted.push_back(completed);
-                }
-            };
-            rememberCompleted(planet);
-            if (planet == originalTournamentPlanetCount - 1U)
-            {
-                for (std::uint32_t hidden =
-                         originalTournamentPlanetCount;
-                     hidden < profile.player.planets.size(); ++hidden)
-                {
-                    rememberCompleted(hidden);
-                }
-            }
-        }
+            completeOriginalPlanet(profile, planet);
     }
     catch (...)
     {

@@ -335,14 +335,24 @@ void loadRaceLibrary(const std::filesystem::path& path,
     state.profiles = splitList(value(root, "profiles"));
     state.networkProfiles = splitList(value(root, "netProfiles"));
     state.lastProfile.clear();
+    state.lastNetworkProfile.clear();
     state.player.name.clear();
+    const auto hasProfile = [&](const std::string& name) {
+        return std::find(
+                   state.profiles.begin(), state.profiles.end(), name) !=
+                   state.profiles.end() ||
+               std::find(
+                   state.networkProfiles.begin(),
+                   state.networkProfiles.end(), name) !=
+                   state.networkProfiles.end();
+    };
     if (const char* token = value(root, "lastProfile");
         token != nullptr && *token != '\0')
     {
         const auto lastProfile = cleanFileName(token);
-        if (std::find(
-                state.profiles.begin(), state.profiles.end(),
-                lastProfile) != state.profiles.end())
+        // Race::LoadGame resolves both cursors through FindProfile, whose
+        // source list contains offline and network profiles together.
+        if (hasProfile(lastProfile))
         {
             state.lastProfile = lastProfile;
             state.player.name = lastProfile;
@@ -353,11 +363,17 @@ void loadRaceLibrary(const std::filesystem::path& path,
         state.lastProfile = cleanFileName(state.profiles.front());
         state.player.name = state.lastProfile;
     }
-    if (const char* token = value(root, "lastNetProfile"))
-        state.lastNetworkProfile = cleanFileName(token);
+    if (const char* token = value(root, "lastNetProfile");
+        token != nullptr && *token != '\0')
+    {
+        const auto lastProfile = cleanFileName(token);
+        if (hasProfile(lastProfile))
+            state.lastNetworkProfile = lastProfile;
+    }
     state.planetsCompleted.clear();
     for (const auto& token : splitList(value(root, "planetsCompleted")))
-        state.planetsCompleted.push_back(parseUnsigned(token.c_str(), 0U));
+        completeOriginalPlanet(
+            state, parseUnsigned(token.c_str(), 0U));
     state.tutorialStage =
         parseUnsigned(value(root, "tutorialStage"), state.tutorialStage);
 }
@@ -590,6 +606,30 @@ ProfileState makeOriginalDefaultProfileState()
     return state;
 }
 
+void completeOriginalPlanet(
+    ProfileState& state, std::uint32_t planetIndex)
+{
+    const auto remember = [&](std::uint32_t index) {
+        if (std::find(
+                state.planetsCompleted.begin(),
+                state.planetsCompleted.end(), index) ==
+            state.planetsCompleted.end())
+        {
+            state.planetsCompleted.push_back(index);
+        }
+    };
+    remember(planetIndex);
+
+    constexpr std::uint32_t tournamentPlanetCount = 5U;
+    if (planetIndex != tournamentPlanetCount - 1U)
+        return;
+    for (std::uint32_t hidden = tournamentPlanetCount;
+         hidden < state.player.planets.size(); ++hidden)
+    {
+        remember(hidden);
+    }
+}
+
 std::string makeOriginalProfileName(
     const ProfileState& state, std::string_view base)
 {
@@ -771,6 +811,17 @@ bool runOriginalProfileFlowSmokeTest(std::string& error)
         error = "Race::_tutorialStage did not start at source stage zero";
         return false;
     }
+    state.planetsCompleted.clear();
+    completeOriginalPlanet(state, 4U);
+    completeOriginalPlanet(state, 4U);
+    completeOriginalPlanet(state, 2U);
+    if (state.planetsCompleted !=
+        std::vector<std::uint32_t>{4U, 5U, 2U})
+    {
+        error =
+            "Race::CompletePlanet final/hidden planet expansion failed";
+        return false;
+    }
     state.profiles = {"profile1", "profile3"};
     state.player.name = "profile1";
     state.player.money = 999U;
@@ -898,7 +949,64 @@ bool runOriginalProfileFlowSmokeTest(std::string& error)
     auto networkState = state;
     const auto networkName = beginOriginalChampionshipProfile(
         networkState, "gdEasy", true);
+    networkState.config.quality.filtering = 1U;
+    networkState.config.quality.msaa = 2U;
+    networkState.config.quality.shadow = 0U;
+    networkState.config.quality.environment = 1U;
+    networkState.config.quality.light = 0U;
+    networkState.config.quality.postEffect = 1U;
+    networkState.config.quality.frameRateMode = "sfrVSync";
+    networkState.config.resolutionWidth = 1600U;
+    networkState.config.resolutionHeight = 900U;
+    networkState.config.musicVolume = 0.25F;
+    networkState.config.effectsVolume = 0.5F;
+    networkState.config.voiceVolume = 0.75F;
+    networkState.config.maxPlayers = 5U;
+    networkState.config.maxComputers = 3U;
+    networkState.config.upgradeMaxLevel = 3U;
+    networkState.config.weaponMaxLevel = 2U;
+    networkState.config.lapsCount = 7U;
+    networkState.config.springBorders = false;
+    networkState.config.enableHud = false;
+    networkState.config.enableMineBug = false;
+    networkState.config.disableVideo = true;
+    networkState.config.fullScreen = false;
+    networkState.config.discreteVideoCard = false;
+    networkState.config.language = "russian";
+    networkState.config.commentatorStyle = "russian";
+    networkState.config.preferredCamera =
+        PreferredCamera::ThirdPerson;
+    networkState.config.cameraDistance = 1.75F;
+    networkState.config.keyboardControls["gaShot"] = "Z";
+    networkState.config.gamepadControls["gaShot"] = "Y";
+    networkState.config.menuMusicPlaylist = "0,2";
+    networkState.config.gameMusicPlaylist = "9,3,1";
+    networkState.tutorialStage = 2U;
+    networkState.planetsCompleted = {1U, 4U, 5U};
+    networkState.achievementPoints = 87U;
+    networkState.achievementItems["achSmoke"] = {
+        7U, {{"state", "2"}},
+        {{"reward0", "world\\race\\workshop",
+          workshopReference("rocketGun")}}};
+    networkState.achievementConditions["condSmoke"] = {
+        8U, {{"value", "12"}}};
+    networkState.achievementIterations["condSmoke"] = 3U;
+    networkState.player.carChanged = true;
+    networkState.player.minimumDifficulty = 2U;
+    networkState.player.currentPlanet = 3U;
+    networkState.player.currentTrack = 7U;
+    networkState.player.planets[3] = {1U, 2U};
+    networkState.player.currentPass = 2U;
+    networkState.player.currentCar =
+        "world\\db\\root\\ctCar\\marauder";
+    networkState.player.playerId = 0U;
+    networkState.player.gamerId = 13U;
+    networkState.player.networkSlot = 4U;
+    networkState.player.color = {0.1F, 0.2F, 0.3F, 0.4F};
     networkState.player.money = 456U;
+    networkState.player.points = 321U;
+    networkState.player.slots[7] = {
+        workshopReference("rocketGun"), 6U, true};
     if (networkName != "profile4" ||
         networkState.profiles != state.profiles ||
         networkState.networkProfiles !=
@@ -914,14 +1022,66 @@ bool runOriginalProfileFlowSmokeTest(std::string& error)
     }
     std::string networkWarning;
     auto reloadedNetwork = smokeStore.load(networkWarning);
+    const auto& loadedConfig = reloadedNetwork.config;
     if (!networkWarning.empty() ||
         reloadedNetwork.lastProfile != "profile2" ||
         reloadedNetwork.lastNetworkProfile != "profile4" ||
         reloadedNetwork.player.name != "profile2" ||
+        loadedConfig.quality.filtering != 1U ||
+        loadedConfig.quality.msaa != 2U ||
+        loadedConfig.quality.shadow != 0U ||
+        loadedConfig.quality.environment != 1U ||
+        loadedConfig.quality.light != 0U ||
+        loadedConfig.quality.postEffect != 1U ||
+        loadedConfig.quality.frameRateMode != "sfrVSync" ||
+        loadedConfig.resolutionWidth != 1600U ||
+        loadedConfig.resolutionHeight != 900U ||
+        std::abs(loadedConfig.musicVolume - 0.25F) > 0.001F ||
+        std::abs(loadedConfig.effectsVolume - 0.5F) > 0.001F ||
+        std::abs(loadedConfig.voiceVolume - 0.75F) > 0.001F ||
+        loadedConfig.maxPlayers != 5U ||
+        loadedConfig.maxComputers != 3U ||
+        loadedConfig.upgradeMaxLevel != 3U ||
+        loadedConfig.weaponMaxLevel != 2U ||
+        loadedConfig.lapsCount != 7U || loadedConfig.springBorders ||
+        loadedConfig.enableHud || loadedConfig.enableMineBug ||
+        !loadedConfig.disableVideo || loadedConfig.fullScreen ||
+        loadedConfig.discreteVideoCard ||
+        loadedConfig.language != "russian" ||
+        loadedConfig.commentatorStyle != "russian" ||
+        loadedConfig.preferredCamera != PreferredCamera::ThirdPerson ||
+        std::abs(loadedConfig.cameraDistance - 1.75F) > 0.001F ||
+        loadedConfig.keyboardControls.at("gaShot") != "Z" ||
+        loadedConfig.gamepadControls.at("gaShot") != "Y" ||
+        loadedConfig.menuMusicPlaylist != "0,2" ||
+        loadedConfig.gameMusicPlaylist != "9,3,1" ||
+        reloadedNetwork.tutorialStage != 2U ||
+        reloadedNetwork.planetsCompleted !=
+            std::vector<std::uint32_t>{1U, 4U, 5U} ||
+        reloadedNetwork.achievementPoints != 87U ||
+        reloadedNetwork.achievementItems["achSmoke"].classId != 7U ||
+        reloadedNetwork.achievementItems["achSmoke"].records.size() != 1U ||
+        reloadedNetwork.achievementConditions["condSmoke"].classId != 8U ||
+        reloadedNetwork.achievementIterations["condSmoke"] != 3U ||
         !smokeStore.selectProfile(
             reloadedNetwork, "profile4", error, true) ||
         reloadedNetwork.player.name != "profile4" ||
-        reloadedNetwork.player.money != 456U)
+        !reloadedNetwork.player.carChanged ||
+        reloadedNetwork.player.minimumDifficulty != 2U ||
+        reloadedNetwork.player.currentPlanet != 3U ||
+        reloadedNetwork.player.currentTrack != 7U ||
+        reloadedNetwork.player.currentPass != 2U ||
+        reloadedNetwork.player.planets[3].state != 1U ||
+        reloadedNetwork.player.planets[3].pass != 2U ||
+        reloadedNetwork.player.gamerId != 13U ||
+        reloadedNetwork.player.networkSlot != 4U ||
+        std::abs(reloadedNetwork.player.color[2] - 0.3F) > 0.001F ||
+        reloadedNetwork.player.money != 456U ||
+        reloadedNetwork.player.points != 321U ||
+        reloadedNetwork.player.slots[7].record !=
+            workshopReference("rocketGun") ||
+        reloadedNetwork.player.slots[7].charge != 6U ||
+        !reloadedNetwork.player.slots[7].hasCharge)
     {
         std::filesystem::remove_all(smokeDirectory, fileError);
         if (error.empty())

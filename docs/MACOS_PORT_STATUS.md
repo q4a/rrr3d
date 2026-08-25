@@ -2022,3 +2022,14 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - Общий handle не копирует visual graph для каждого projectile; regression
   меняет live descriptor и доказывает, что уже созданный снаряд сохраняет
   прежние speed/maxDist/damage.
+
+### Complete source profile schema follow-up
+
+- `OriginalProfileStore` теперь покрывает полные source schemas
+  `user.xml`, `race.xml`, `Profile/*.xml` и `achievment.xml`, включая обе
+  библиотеки профилей, десять slots/charge и temporary `SkProfile`.
+- Восстановлен вызов `Race::CompletePlanet` при загрузке: значение `4`
+  раскрывает скрытую планету `5`, дубликаты удаляются, profile cursors
+  проверяются через общий список, как Windows `FindProfile`.
+- Расширенный disk regression меняет и возвращает все группы config,
+  tournament/player и achievement полей.

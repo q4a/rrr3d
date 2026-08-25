@@ -1470,6 +1470,31 @@ Integrated regression после первого выстрела устанав�
 и первоначальные `77/321/9.25`. Полная Debug-сборка, 13 offline tests,
 resource audit, map1 Jolt physics и 240-frame Metal race smoke проходят.
 
+### P2.45 — полная схема profile/config и `CompletePlanet` load — выполнено
+
+Прямая сверка `GameMode::SaveGameOpt/LoadGameOpt`, `Race::SaveGame/LoadGame`,
+`SnProfile` и `SkProfile` подтвердила полный набор реально сохраняемых полей.
+Закомментированные в Windows `SaveWorkshop/SaveGarage/SaveAIPlayers` не были
+ошибочно объявлены отсутствующей функциональностью: source profile сохраняет
+assortment через tournament progress, а установленную комплектацию — через
+десять `human/slotN` references и charge attributes.
+
+Обнаружился один настоящий разрыв. Windows `Race::LoadGame` применяет каждый
+индекс `planetsCompleted` через `CompletePlanet`, а portable loader напрямую
+копировал числа. Поэтому загрузка записи `4` не открывала скрытую планету `5`,
+а дубликаты оставались в состоянии. Добавлен единый
+`completeOriginalPlanet`, используемый и tournament finish, и disk loader;
+финальная турнирная планета расширяет hidden range `5..N`, как
+`cTournamentPlanetCount == 5`. `lastProfile/lastNetProfile` также теперь
+проходят общий `FindProfile`-эквивалент вместо принятия несуществующего имени.
+
+Profile flow regression выполняет disk round-trip всех quality/resolution/
+volume/gameplay/control/music полей, обеих profile libraries, tutorial и
+completed planets, полного human/car/color/economy/tournament/slot state, а
+также achievement items, records, conditions и iterations. Сохранены
+source-ключ `dfficulty`, absent `prefCamera` first-run semantics и временность
+`SkProfile`.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
