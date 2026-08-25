@@ -268,10 +268,10 @@ void applyMobilityLoadout(
     std::string_view difficulty, bool humanOrOpponent,
     bool armor4Opened = false)
 {
-    source::PlayerSlotRack slots;
-    slots.Bind(workshop, loadout);
-    slots.ApplyMobility(vehicle, difficulty, humanOrOpponent,
-                        armor4Opened);
+    source::Player player;
+    player.BindSlots(workshop, loadout);
+    player.ApplyMobility(
+        vehicle, difficulty, humanOrOpponent, armor4Opened);
 }
 
 void appendPlayerIdentities(
@@ -4088,6 +4088,7 @@ Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources,
     auto* database = databaseDocument.RootElement();
 
     Race race;
+    race.workshop = loadOriginalWorkshop(resources);
     loadPlayerIdentities(race, resources, tournament);
     race.touchBorderDamage = vector2(
         garageDocument.RootElement(), "touchBorderDamage", "garage.xml");
@@ -5064,7 +5065,9 @@ void applyOriginalPlayerProfile(
     if (race.racers.empty() ||
         race.racers.front().vehicle >= race.vehicles.size())
         return;
-    const auto workshop = loadOriginalWorkshop(resources);
+    if (race.workshop.empty())
+        race.workshop = loadOriginalWorkshop(resources);
+    const auto& workshop = race.workshop;
     auto& human = race.racers.front();
     human.color = profile.color;
     human.gamerId = profile.gamerId;
@@ -5434,6 +5437,13 @@ bool runOriginalRaceResourceSmokeTest(
     try
     {
         const auto workshop = loadOriginalWorkshop(resources);
+        if (race.workshop.size() != workshop.size() ||
+            race.workshop.empty())
+        {
+            error =
+                "active Race did not retain the source workshop catalog";
+            return false;
+        }
         const auto windowsDebugRace =
             loadFirstOriginalRace(resources, true);
         const auto patagonisDebugTrack = std::find_if(

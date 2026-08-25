@@ -52,21 +52,39 @@ int main()
     armorFunction.life = 40.0F;
     armor.carFunctions.push_back(armorFunction);
 
+    original::OriginalWorkshopItem droid;
+    droid.record = "world\\race\\workshopRoot\\workshop\\droid";
+    droid.type = 8U;
+    original::OriginalWorkshopItem reflector;
+    reflector.record =
+        "world\\race\\workshopRoot\\workshop\\reflector";
+    reflector.type = 9U;
+
     std::vector<original::OriginalWorkshopItem> workshop{
-        wheel, motor, armor};
+        wheel, motor, armor, droid, reflector};
     std::vector<original::RacerSlot> loadout{
         {wheel.record, "stWheel", 0U},
         {motor.record, "stMotor", 0U},
-        {armor.record, "stArmor", 0U}};
+        {armor.record, "stArmor", 0U},
+        {droid.record, "stWeapon1", 1U},
+        {reflector.record, "stWeapon3", 1U}};
 
     source::PlayerSlotRack rack;
     rack.Bind(workshop, loadout);
-    if (rack.GetSlot(source::SlotType::Wheel).GetType() !=
+    if (rack.GetSlot(source::PlayerSlotType::Wheel).GetType() !=
             source::SlotType::Wheel ||
-        rack.GetSlot(source::SlotType::Wheel)
+        rack.GetSlot(source::PlayerSlotType::Wheel)
                 .GetItem().IsMobilityItem() == nullptr ||
-        rack.GetSlot(source::SlotType::Weapon).GetType() !=
-            source::SlotType::Base)
+        rack.GetSlot(source::PlayerSlotType::Weapon1).GetType() !=
+            source::SlotType::Droid ||
+        rack.GetSlot(source::PlayerSlotType::Weapon2).GetType() !=
+            source::SlotType::Base ||
+        rack.GetSlot(source::PlayerSlotType::Weapon3).GetType() !=
+            source::SlotType::Reflector ||
+        rack.GetSlotInst(source::SlotType::Droid) !=
+            &rack.GetSlot(source::PlayerSlotType::Weapon1) ||
+        rack.GetSlotInst(source::SlotType::Reflector) !=
+            &rack.GetSlot(source::PlayerSlotType::Weapon3))
         return 1;
 
     original::Vehicle car;
@@ -92,7 +110,7 @@ int main()
     if (!near(car.maximumLife, 75.0F))
         return 3;
     const auto& armorItem = dynamic_cast<const source::ArmorItem&>(
-        rack.GetSlot(source::SlotType::Armor).GetItem());
+        rack.GetSlot(source::PlayerSlotType::Armor).GetItem());
     if (!armorItem.CheckArmor4() ||
         armorItem.GetName() != "scArmor4" ||
         armorItem.GetMeshPath() != "Data/Upgrade/armor4.r3d")

@@ -2,6 +2,7 @@
 
 #include "OriginalGameObject.h"
 #include "OriginalGameCar.h"
+#include "OriginalSlot.h"
 #include "OriginalTrace.h"
 #include "OriginalWeapon.h"
 
@@ -302,6 +303,16 @@ public:
     const PlayerItemRack& GetItemRack() const noexcept;
     WeaponRack& GetWeaponRack() noexcept;
     const WeaponRack& GetWeaponRack() const noexcept;
+    void BindSlots(
+        const std::vector<OriginalWorkshopItem>& workshop,
+        const std::vector<RacerSlot>& loadout);
+    void ApplyMobility(Vehicle& vehicle, std::string_view difficulty,
+                       bool humanOrOpponent,
+                       bool armor4Opened = false) noexcept;
+    const OriginalWorkshopItem* GetSlot(
+        PlayerSlotType type) const noexcept;
+    Slot* GetSlotInst(SlotType type) noexcept;
+    const Slot* GetSlotInst(SlotType type) const noexcept;
 
     std::uint32_t GetMoney() const noexcept;
     void SetMoney(std::uint32_t value) noexcept;
@@ -443,6 +454,7 @@ private:
     std::vector<PlayerGameEvent> gameEvents_;
     std::vector<std::uint32_t> bonusProjectileIds_;
     std::uint32_t nextBonusProjectileId_ = 1U;
+    PlayerSlotRack slotRack_;
     WeaponRack weaponRack_;
     PlayerItemRack itemRack_;
 };

@@ -31,6 +31,24 @@ enum class SlotType : std::uint8_t
     Count = 10U,
 };
 
+// Physical indices of Player::_slot[] from Player::SlotType. They are not
+// the same as the serialized Slot::Type above: all four weapon positions may
+// contain Weapon, Droid or Reflector items independently.
+enum class PlayerSlotType : std::uint8_t
+{
+    Wheel = 0U,
+    Truba = 1U,
+    Armor = 2U,
+    Motor = 3U,
+    Hyper = 4U,
+    Mine = 5U,
+    Weapon1 = 6U,
+    Weapon2 = 7U,
+    Weapon3 = 8U,
+    Weapon4 = 9U,
+    Count = 10U,
+};
+
 class MobilityItem;
 
 // Backend-neutral part of the original SlotItem.  Mesh/texture fields keep
@@ -150,8 +168,8 @@ public:
     Slot();
     Slot(Slot&&) noexcept = default;
     Slot& operator=(Slot&&) noexcept = default;
-    Slot(const Slot&) = delete;
-    Slot& operator=(const Slot&) = delete;
+    Slot(const Slot& other);
+    Slot& operator=(const Slot& other);
 
     SlotItem& CreateItem(SlotType type);
     void SetRecord(const OriginalWorkshopItem* record);
@@ -165,14 +183,14 @@ private:
     std::unique_ptr<SlotItem> item_;
 };
 
-// Original Player owns one Slot for every serialized type.  This rack now
-// owns selection and Player::ApplyMobility accumulation instead of leaving
-// those rules in the XML loader.
+// Original Player owns one Slot for every physical Player::SlotType. The
+// contained Slot still exposes its serialized Slot::Type, enabling
+// GetSlotInst(Slot::Type) to return the first matching physical position.
 class PlayerSlotRack
 {
 public:
     static constexpr std::size_t slotCount =
-        static_cast<std::size_t>(SlotType::Count);
+        static_cast<std::size_t>(PlayerSlotType::Count);
 
     void Bind(const std::vector<OriginalWorkshopItem>& workshop,
               const std::vector<RacerSlot>& loadout);
@@ -180,8 +198,10 @@ public:
                        bool humanOrOpponent,
                        bool armor4Opened = false) noexcept;
 
-    Slot& GetSlot(SlotType type) noexcept;
-    const Slot& GetSlot(SlotType type) const noexcept;
+    Slot& GetSlot(PlayerSlotType type) noexcept;
+    const Slot& GetSlot(PlayerSlotType type) const noexcept;
+    Slot* GetSlotInst(SlotType type) noexcept;
+    const Slot* GetSlotInst(SlotType type) const noexcept;
 
 private:
     std::array<Slot, slotCount> slots_{};

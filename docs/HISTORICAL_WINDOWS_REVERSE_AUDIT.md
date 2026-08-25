@@ -1232,6 +1232,25 @@ ShotEffect теперь получают Weapon из Player-owner; visible-count
 Player regression проверяет cooldown одного встроенного Weapon и связывает
 Droid с тем же объектом, исключая отдельный тестовый surrogate.
 
+### P2.34 — Player::_slot[] physical layout and mobility owner — выполнено
+
+Подтвердилась структурная ошибка в уже перенесённом `PlayerSlotRack`: массив
+индексировался по сериализованному `Slot::Type`. В оригинале же
+`Player::_slot[]` индексируется отдельным `Player::SlotType`; поэтому
+`stWeapon1..stWeapon4` могут одновременно содержать обычный Weapon, Droid или
+Reflector. Portable rack схлопывал все такие записи в одну позицию и не мог
+повторить `GetSlotInst(Slot::Type)`.
+
+Добавлен точный physical `PlayerSlotType`, `Bind` разбирает все десять имён
+`stWheel..stWeapon4`, а class lookup возвращает первый совпавший Slot в
+физическом порядке. Rack встроен в active `Player`; перенесены Player-owned
+`BindSlots`, `GetSlot`, обе формы `GetSlotInst` и `ApplyMobility`. `Race`
+удерживает стабильный оригинальный workshop catalog, поэтому active slots не
+ссылаются на временные XML-объекты. Racer setup связывает loadout до
+`CreateCar`; предрасчёт configured vehicle теперь также проходит через
+`Player::ApplyMobility`, а не напрямую через rack-helper. Regression
+проверяет одновременно Droid в Weapon1, пустой Weapon2 и Reflector в Weapon3.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

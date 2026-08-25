@@ -1147,6 +1147,8 @@ void OriginalRaceSession::reset()
             playerId, static_cast<int>(sourceRacer.gamerId),
             sourceRacer.netSlot, sourceRacer.name,
             sourceRacer.netName, sourceRacer.color);
+        racers_[index].BindSlots(
+            race_.workshop, sourceRacer.loadout);
         racers_[index].SetCar(&vehicle);
         for (std::size_t weaponIndex = 0;
              weaponIndex < race_.weapons.size(); ++weaponIndex)

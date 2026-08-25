@@ -627,6 +627,37 @@ const WeaponRack& Player::GetWeaponRack() const noexcept
     return weaponRack_;
 }
 
+void Player::BindSlots(
+    const std::vector<OriginalWorkshopItem>& workshop,
+    const std::vector<RacerSlot>& loadout)
+{
+    slotRack_.Bind(workshop, loadout);
+}
+
+void Player::ApplyMobility(
+    Vehicle& vehicle, std::string_view difficulty,
+    bool humanOrOpponent, bool armor4Opened) noexcept
+{
+    slotRack_.ApplyMobility(
+        vehicle, difficulty, humanOrOpponent, armor4Opened);
+}
+
+const OriginalWorkshopItem* Player::GetSlot(
+    PlayerSlotType type) const noexcept
+{
+    return slotRack_.GetSlot(type).GetRecord();
+}
+
+Slot* Player::GetSlotInst(SlotType type) noexcept
+{
+    return slotRack_.GetSlotInst(type);
+}
+
+const Slot* Player::GetSlotInst(SlotType type) const noexcept
+{
+    return slotRack_.GetSlotInst(type);
+}
+
 std::uint32_t Player::GetMoney() const noexcept { return money_; }
 
 void Player::SetMoney(std::uint32_t value) noexcept { money_ = value; }

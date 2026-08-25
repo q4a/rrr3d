@@ -1,5 +1,6 @@
 #pragma once
 
+#include "OriginalGarage.h"
 #include "physics/OriginalVehiclePhysics.h"
 
 #include <array>
@@ -814,6 +815,8 @@ struct Race
     std::vector<std::uint32_t> tracePath;
     std::vector<std::vector<std::uint32_t>> tracePaths;
     std::vector<TrackCatalogEntry> trackCatalog;
+    // Stable RecordLib-equivalent storage used by active Player::_slot[].
+    std::vector<OriginalWorkshopItem> workshop;
     std::vector<Vehicle> vehicles;
     std::vector<WeaponDefinition> weapons;
     std::vector<AchievementDefinition> achievements;

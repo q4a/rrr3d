@@ -29,6 +29,31 @@ SlotType slotType(std::uint32_t value) noexcept
                : SlotType::Base;
 }
 
+std::size_t physicalSlot(std::string_view value) noexcept
+{
+    if (value == "stWheel")
+        return static_cast<std::size_t>(PlayerSlotType::Wheel);
+    if (value == "stTruba")
+        return static_cast<std::size_t>(PlayerSlotType::Truba);
+    if (value == "stArmor")
+        return static_cast<std::size_t>(PlayerSlotType::Armor);
+    if (value == "stMotor")
+        return static_cast<std::size_t>(PlayerSlotType::Motor);
+    if (value == "stHyper")
+        return static_cast<std::size_t>(PlayerSlotType::Hyper);
+    if (value == "stMine")
+        return static_cast<std::size_t>(PlayerSlotType::Mine);
+    constexpr std::string_view weaponPrefix = "stWeapon";
+    if (value.starts_with(weaponPrefix) &&
+        value.size() == weaponPrefix.size() + 1U &&
+        value.back() >= '1' && value.back() <= '4')
+    {
+        return static_cast<std::size_t>(PlayerSlotType::Weapon1) +
+               static_cast<std::size_t>(value.back() - '1');
+    }
+    return PlayerSlotRack::slotCount;
+}
+
 void addTire(const MobilityItem::Tire& input,
              r3d::physics::WheelDescription::TireFunction& output) noexcept
 {
@@ -205,6 +230,29 @@ float ArmorItem::CalcLife(const CarFunc& function) const noexcept
 
 Slot::Slot() { CreateItem(SlotType::Base); }
 
+Slot::Slot(const Slot& other)
+{
+    SetRecord(other.record_);
+    const auto* sourceArmor =
+        dynamic_cast<const ArmorItem*>(&other.GetItem());
+    auto* targetArmor = dynamic_cast<ArmorItem*>(&GetItem());
+    if (sourceArmor != nullptr && targetArmor != nullptr)
+        targetArmor->InstalArmor4(sourceArmor->IsArmor4Installed());
+}
+
+Slot& Slot::operator=(const Slot& other)
+{
+    if (this == &other)
+        return *this;
+    SetRecord(other.record_);
+    const auto* sourceArmor =
+        dynamic_cast<const ArmorItem*>(&other.GetItem());
+    auto* targetArmor = dynamic_cast<ArmorItem*>(&GetItem());
+    if (sourceArmor != nullptr && targetArmor != nullptr)
+        targetArmor->InstalArmor4(sourceArmor->IsArmor4Installed());
+    return *this;
+}
+
 SlotItem& Slot::CreateItem(SlotType type)
 {
     switch (type)
@@ -264,7 +312,43 @@ void PlayerSlotRack::Bind(
         if (found == workshop.end())
             continue;
         const auto type = slotType(found->type);
-        slots_[static_cast<std::size_t>(type)].SetRecord(&*found);
+        std::size_t target = physicalSlot(loadoutSlot.type);
+        if (target >= slots_.size())
+        {
+            switch (type)
+            {
+            case SlotType::Wheel:
+                target = static_cast<std::size_t>(PlayerSlotType::Wheel);
+                break;
+            case SlotType::Truba:
+                target = static_cast<std::size_t>(PlayerSlotType::Truba);
+                break;
+            case SlotType::Armor:
+                target = static_cast<std::size_t>(PlayerSlotType::Armor);
+                break;
+            case SlotType::Motor:
+                target = static_cast<std::size_t>(PlayerSlotType::Motor);
+                break;
+            case SlotType::Hyper:
+                target = static_cast<std::size_t>(PlayerSlotType::Hyper);
+                break;
+            case SlotType::Mine:
+                target = static_cast<std::size_t>(PlayerSlotType::Mine);
+                break;
+            case SlotType::Weapon:
+            case SlotType::Droid:
+            case SlotType::Reflector:
+                target = static_cast<std::size_t>(PlayerSlotType::Weapon1);
+                while (target < slots_.size() &&
+                       slots_[target].GetRecord() != nullptr)
+                    ++target;
+                break;
+            default:
+                break;
+            }
+        }
+        if (target < slots_.size())
+            slots_[target].SetRecord(&*found);
     }
 }
 
@@ -321,13 +405,29 @@ void PlayerSlotRack::ApplyMobility(
     }
 }
 
-Slot& PlayerSlotRack::GetSlot(SlotType type) noexcept
+Slot& PlayerSlotRack::GetSlot(PlayerSlotType type) noexcept
 {
     return slots_[static_cast<std::size_t>(type)];
 }
-const Slot& PlayerSlotRack::GetSlot(SlotType type) const noexcept
+const Slot& PlayerSlotRack::GetSlot(PlayerSlotType type) const noexcept
 {
     return slots_[static_cast<std::size_t>(type)];
+}
+
+Slot* PlayerSlotRack::GetSlotInst(SlotType type) noexcept
+{
+    const auto found = std::find_if(
+        slots_.begin(), slots_.end(),
+        [type](const Slot& slot) { return slot.GetType() == type; });
+    return found == slots_.end() ? nullptr : &*found;
+}
+
+const Slot* PlayerSlotRack::GetSlotInst(SlotType type) const noexcept
+{
+    const auto found = std::find_if(
+        slots_.begin(), slots_.end(),
+        [type](const Slot& slot) { return slot.GetType() == type; });
+    return found == slots_.end() ? nullptr : &*found;
 }
 
 } // namespace r3d::game::originalrace::source

@@ -1319,6 +1319,21 @@ Network, video и Steam явно выключены.
 - Player regression покрывает fired/not-ready/progress/ready и привязку Droid
   к встроенному primary Weapon.
 
+### Source Player::_slot[] physical layout and mobility owner
+
+- Исправлена прежняя модель `PlayerSlotRack`: serialized `Slot::Type`
+  (`Weapon`/`Droid`/`Reflector`) отделён от physical `Player::SlotType`
+  (`stWeapon1..stWeapon4`). Четыре оружейных места больше не схлопываются.
+- Active Player владеет полным physical rack и предоставляет source-derived
+  `GetSlot`/`GetSlotInst`; поиск по class type возвращает первое совпадение в
+  исходном порядке физических слотов.
+- Полный workshop catalog сохраняется внутри `Race` как стабильное хранилище
+  Record-ссылок. Каждый racer связывает свой loadout до `CreateCar`, а
+  mobility accumulation вызывается через `Player::ApplyMobility`.
+- Slot regression покрывает раздельные Weapon1/Weapon2/Weapon3 с
+  Droid/empty/Reflector и class lookup, resource audit — наличие полного
+  workshop catalog в active Race.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity
