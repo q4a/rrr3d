@@ -99,6 +99,30 @@ int main()
         player.ProgressBlock(1.0F) !=
             source::PlayerBlockMove::Unblocked)
         return 20;
+
+    source::Player progressPlayer;
+    progressPlayer.Reset(80.0F, 1U);
+    progressPlayer.SetBlockTime(0.2F);
+    const std::vector<source::Player::CheatPlayerView> progressViews{
+        {0U, true, true, 0.0F},
+        {1U, false, true, 1.0F}};
+    const auto progress = progressPlayer.OnProgress(
+        0.1F, true, source::Player::cheatDisabled,
+        0U, 1U, progressViews);
+    if (progress.cheat.faster || progress.cheat.slower ||
+        progress.restore != source::PlayerRestoreStep::None ||
+        progress.blockMove != source::PlayerBlockMove::Coast)
+        return 31;
+    progressPlayer.Destroy();
+    progressPlayer.car.cheatFaster = true;
+    progressPlayer.car.cheatSlower = true;
+    const auto destroyedProgress = progressPlayer.OnProgress(
+        0.25F, false, source::Player::cheatEnableFaster,
+        0U, 1U, progressViews);
+    if (destroyedProgress.restore != source::PlayerRestoreStep::None ||
+        progressPlayer.car.cheatFaster ||
+        progressPlayer.car.cheatSlower)
+        return 32;
     player.ApplyRaceReward();
     if (player.money != 119U || player.points != 20U)
         return 10;

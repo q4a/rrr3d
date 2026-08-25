@@ -1749,3 +1749,24 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - Player unit regression проверяет faster, slower и исключение Computer из
   reference set; integrated AI catch-up/role regressions и map1 physics smoke
   проходят вместе с 13/13 CTest.
+
+### Source Player::OnProgress fixed-step owner block
+
+- Остатки `Player::OnProgress` больше не разбросаны между началом и концом
+  session update. Active `source::Player` одним вызовом владеет
+  `CheatUpdate`, destroy/restore branch, сбросом cheat flags без машины и
+  `_block` countdown; Jolt adapter оставляет у себя только `CarState::Update`
+  из фактической physics pose и применение готовой команды к vehicle input.
+- Исправлено подтверждённое расхождение стартового отсчёта: Windows вызывает
+  `Player::OnProgress` на каждом fixed step и ограничивает `_goRace` только
+  для `AISystem`. Порт раньше полностью пропускал Player/CarState во время
+  countdown. Теперь trace ownership, start brake и cheat state готовы до
+  первого AI frame.
+- Restore и block снова исполняются до `AISystem::OnProgress`. При этом
+  выявлен скрытый adapter bug: после source `AIPlayer::FreeCar` порт всё равно
+  присваивал пустой результат `aiInput`, стирая уже выставленный финишный
+  brake. Запись AI input теперь выполняется только при `HasCar()`, поэтому
+  финишировавшие компьютеры остаются заторможенными и не продолжают гонку.
+- Player unit regression покрывает общий owner и destroyed branch;
+  campaign AI finish regression, 13/13 non-network CTest, map1 physics и
+  FinishMenu smoke проходят.

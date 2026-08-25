@@ -461,6 +461,9 @@ private:
     void updateProgress(std::size_t racer,
                         const r3d::physics::VehicleState& vehicle,
                         float seconds);
+    std::vector<source::Player::ProgressResult> progressPlayers(
+        float seconds,
+        const std::vector<r3d::physics::VehicleState>& vehicles);
     r3d::physics::VehicleInput aiInput(
         std::size_t racer,
         const r3d::physics::VehicleState& vehicle,

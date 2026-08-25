@@ -1242,6 +1242,19 @@ Network, video и Steam явно выключены.
   torqueK/steerK отображаются на `motorTorqueScale/lateralGripScale`, а
   `cheatSlower` потребляется активным `AICar::ControlState` в тот же кадр.
 
+### Source Player::OnProgress owner and countdown order
+
+- Подтвердилось, что portable countdown пропускал весь `Player::OnProgress`,
+  хотя исходный `Race::OnFixedStep` ограничивает флагом `_goRace` только AI.
+  Player/CarState, cheat cleanup и start block теперь обновляются и до
+  зелёного сигнала.
+- Restore и block возвращены внутрь одного `source::Player::OnProgress` owner
+  и выполняются перед AI. Session лишь адаптирует pose/raycast/input на Jolt.
+- Правильный порядок обнаружил вторую ошибку: session вызывал `aiInput` даже
+  после `AIPlayer::FreeCar` и пустой командой стирал финишный brake. Условие
+  `HasCar()` восстановило исходную семантику `AIPlayer::OnProgress` и убрало
+  движение компьютеров после финиша.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

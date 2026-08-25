@@ -582,6 +582,33 @@ Player::CheatResult Player::CheatUpdate(
     return result;
 }
 
+Player::ProgressResult Player::OnProgress(
+    float deltaTime, bool carPresent,
+    std::uint32_t cheatMask, std::size_t playerId,
+    std::size_t difficulty,
+    const std::vector<CheatPlayerView>& players) noexcept
+{
+    ProgressResult result;
+    if (carPresent)
+    {
+        // CarState::Update is executed by the physics adapter immediately
+        // before this call.  The remaining order is the original
+        // Player::OnProgress order: CheatUpdate, restore/reset fallback and
+        // finally the finish/start block move.
+        result.cheat = CheatUpdate(
+            cheatMask, playerId, difficulty, players);
+    }
+    else
+    {
+        result.restore = ProgressRestore(deltaTime);
+        car.cheatFaster = false;
+        car.cheatSlower = false;
+    }
+
+    result.blockMove = ProgressBlock(deltaTime);
+    return result;
+}
+
 bool Player::ConsumeEnergyDamageEffectCreated() noexcept
 {
     const bool result = energyDamageEffectCreated_;

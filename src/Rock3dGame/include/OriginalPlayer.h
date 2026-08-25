@@ -145,6 +145,13 @@ public:
         float torqueScale = 1.0F;
         float steeringScale = 1.0F;
     };
+
+    struct ProgressResult
+    {
+        CheatResult cheat;
+        PlayerRestoreStep restore = PlayerRestoreStep::None;
+        PlayerBlockMove blockMove = PlayerBlockMove::Unblocked;
+    };
     static const std::array<float, 3> computerCheatMinimumTorque;
     static const std::array<float, 3> computerCheatMaximumTorque;
     static const std::array<float, 3> humanArmorScale;
@@ -243,6 +250,11 @@ public:
         float deltaTime, float lowLifeLevel,
         float linearSpeed) noexcept;
     CheatResult CheatUpdate(
+        std::uint32_t cheatMask, std::size_t playerId,
+        std::size_t difficulty,
+        const std::vector<CheatPlayerView>& players) noexcept;
+    ProgressResult OnProgress(
+        float deltaTime, bool carPresent,
         std::uint32_t cheatMask, std::size_t playerId,
         std::size_t difficulty,
         const std::vector<CheatPlayerView>& players) noexcept;

@@ -2460,6 +2460,87 @@ void OriginalRaceSession::updateProgress(
     }
 }
 
+std::vector<source::Player::ProgressResult>
+OriginalRaceSession::progressPlayers(
+    float seconds,
+    const std::vector<r3d::physics::VehicleState>& vehicles)
+{
+    // Race::OnFixedStep calls every Player::OnProgress first and only then
+    // AISystem::OnProgress. Keep physics-backed CarState::Update adjacent to
+    // its Player owner while leaving Jolt pose queries in this adapter.
+    for (std::size_t racer = 0U;
+         racer < racers_.size() && racer < vehicles.size(); ++racer)
+    {
+        if (!racers_[racer].disconnected)
+            updateProgress(racer, vehicles[racer], seconds);
+    }
+
+    const auto difficultyIndex =
+        initialPlayerProfile_.difficulty == "gdEasy"
+            ? 0U
+            : initialPlayerProfile_.difficulty == "gdHard" ? 2U : 1U;
+    std::vector<source::Player::CheatPlayerView> cheatPlayers;
+    cheatPlayers.reserve(racers_.size());
+    for (std::size_t racer = 0U; racer < racers_.size(); ++racer)
+    {
+        cheatPlayers.push_back(
+            {racer,
+             racer < race_.racers.size() && race_.racers[racer].human,
+             !racers_[racer].disconnected,
+             racers_[racer].car.GetLap()});
+    }
+
+    std::vector<source::Player::ProgressResult> results(racers_.size());
+    for (std::size_t racer = 0U;
+         racer < racers_.size() && racer < vehicles.size(); ++racer)
+    {
+        auto& runtime = racers_[racer];
+        if (runtime.disconnected)
+            continue;
+        const std::uint32_t cheatMask =
+            racer < aiPlayers_.size() &&
+                    racer < race_.racers.size() &&
+                    !race_.racers[racer].human
+                ? aiPlayers_[racer].GetCheat()
+                : (racer == 0U && networkGameplayEnabled_
+                       ? source::Player::cheatEnableFaster
+                       : source::Player::cheatDisabled);
+        results[racer] = runtime.OnProgress(
+            seconds, !runtime.destroyed, cheatMask, racer,
+            difficultyIndex, cheatPlayers);
+
+        if (results[racer].restore ==
+            source::PlayerRestoreStep::QueueRespawn)
+        {
+            queueRespawn(racer, vehicles);
+        }
+        else if (results[racer].restore ==
+                     source::PlayerRestoreStep::ActivateCar &&
+                 racer < playerItemRacks_.size())
+        {
+            playerItemRacks_[racer].OnCreateCar();
+        }
+
+        // Player only calls GameCar::SetMoveCar while its car object exists.
+        if (runtime.destroyed ||
+            results[racer].blockMove ==
+                source::PlayerBlockMove::Unblocked ||
+            racer >= vehicleInputs_.size())
+        {
+            continue;
+        }
+        auto& control = vehicleInputs_[racer];
+        control.throttle = 0.0F;
+        control.reverse = 0.0F;
+        control.steering = 0.0F;
+        control.brake =
+            results[racer].blockMove == source::PlayerBlockMove::Brake
+                ? 1.0F
+                : 0.0F;
+    }
+    return results;
+}
+
 void OriginalRaceSession::updateAiTracks(
     const std::vector<r3d::physics::VehicleState>& vehicles)
 {
@@ -2704,26 +2785,6 @@ void OriginalRaceSession::updateGameplay(
                       sourceRacer.vehicle, race_.vehicles.size() - 1U));
         return vehicle.physics.clutchImmunity;
     };
-    for (std::size_t racer = 0;
-         racer < racers_.size() && racer < vehicles.size(); ++racer)
-    {
-        auto& runtime = racers_[racer];
-        if (runtime.disconnected)
-            continue;
-        if (!runtime.destroyed)
-            continue;
-        vehicleInputs_[racer] = {};
-        const auto restore = runtime.ProgressRestore(seconds);
-        if (restore == source::PlayerRestoreStep::QueueRespawn)
-        {
-            queueRespawn(racer, vehicles);
-        }
-        else if (restore == source::PlayerRestoreStep::ActivateCar &&
-                 racer < playerItemRacks_.size())
-        {
-            playerItemRacks_[racer].OnCreateCar();
-        }
-    }
     auto directWeaponWorldTransform =
         [&](std::size_t owner, std::size_t weaponIndex) {
             return compose(
@@ -5989,6 +6050,9 @@ void OriginalRaceSession::update(
         effects_.end());
     if (phase_ == RacePhase::Countdown)
     {
+        // Windows Race::OnFixedStep progresses Player state throughout the
+        // countdown; only AISystem is gated by GoRace.
+        progressPlayers(seconds, vehicles);
         if (networkCountdownControlled_)
             return;
         countdownSeconds_ = std::max(0.0F, countdownSeconds_ - seconds);
@@ -6016,7 +6080,10 @@ void OriginalRaceSession::update(
     const bool finishTimerRunning =
         phase_ == RacePhase::Finished && finishSecondsRemaining_ > 0.0F;
     if (phase_ == RacePhase::Finished && !finishTimerRunning)
+    {
+        progressPlayers(seconds, vehicles);
         return;
+    }
 
     if (finishTimerRunning)
     {
@@ -6031,52 +6098,15 @@ void OriginalRaceSession::update(
         if (racers_[0].speedBoostSeconds > 0.0F)
             vehicleInputs_[0].throttle = 1.0F;
     }
-    // Player::CarState::Update resolves curTile/lastNode before AICar and
-    // Race consume them.  Doing the same here prevents AI from steering for
-    // the previous branch for one frame and keeps HUD/place state coherent.
-    for (std::size_t racer = 0U;
-         racer < racers_.size() && racer < vehicles.size(); ++racer)
-        updateProgress(racer, vehicles[racer], seconds);
-    const auto difficultyIndex =
-        initialPlayerProfile_.difficulty == "gdEasy"
-            ? 0U
-            : initialPlayerProfile_.difficulty == "gdHard" ? 2U : 1U;
-    std::vector<source::Player::CheatPlayerView> cheatPlayers;
-    cheatPlayers.reserve(racers_.size());
-    for (std::size_t racer = 0U; racer < racers_.size(); ++racer)
-    {
-        cheatPlayers.push_back(
-            {racer,
-             racer < race_.racers.size() && race_.racers[racer].human,
-             !racers_[racer].disconnected,
-             racers_[racer].car.GetLap()});
-    }
-    std::vector<source::Player::CheatResult> cheatResults(
-        racers_.size());
-    // Player::OnProgress/CheatUpdate precedes AISystem::OnProgress in the
-    // Windows fixed-step order, so AICar observes cheatSlower this frame.
-    for (std::size_t racer = 0U;
-         racer < racers_.size() && racer < vehicles.size(); ++racer)
-    {
-        if (racers_[racer].destroyed)
-            continue;
-        const std::uint32_t cheatMask =
-            racer < aiPlayers_.size() &&
-                    racer < race_.racers.size() &&
-                    !race_.racers[racer].human
-                ? aiPlayers_[racer].GetCheat()
-                : (racer == 0U && networkGameplayEnabled_
-                       ? source::Player::cheatEnableFaster
-                       : source::Player::cheatDisabled);
-        cheatResults[racer] = racers_[racer].CheatUpdate(
-            cheatMask, racer, difficultyIndex, cheatPlayers);
-    }
+    const auto playerProgress = progressPlayers(seconds, vehicles);
 
     updateAiTracks(vehicles);
     for (std::size_t racer = 1;
          racer < racers_.size() && racer < vehicles.size(); ++racer)
     {
         if (!race_.racers[racer].human &&
+            racer < aiPlayers_.size() &&
+            aiPlayers_[racer].HasCar() &&
             (!networkGameplayEnabled_ ||
              (racer < networkOwnedRacers_.size() &&
               networkOwnedRacers_[racer])))
@@ -6086,6 +6116,7 @@ void OriginalRaceSession::update(
         }
     }
     if (debugHumanAiControl_ && !vehicleInputs_.empty() &&
+        !aiPlayers_.empty() && aiPlayers_.front().HasCar() &&
         !racers_.front().finished && !racers_.front().destroyed &&
         !vehicles.empty())
     {
@@ -6096,31 +6127,16 @@ void OriginalRaceSession::update(
     }
 
     for (std::size_t racer = 0U;
-         racer < cheatResults.size() &&
+         racer < playerProgress.size() &&
          racer < vehicleInputs_.size(); ++racer)
     {
-        if (cheatResults[racer].faster)
+        if (playerProgress[racer].cheat.faster)
         {
             vehicleInputs_[racer].motorTorqueScale =
-                cheatResults[racer].torqueScale;
+                playerProgress[racer].cheat.torqueScale;
             vehicleInputs_[racer].lateralGripScale =
-                cheatResults[racer].steeringScale;
+                playerProgress[racer].cheat.steeringScale;
         }
-    }
-
-    for (std::size_t racer = 0U;
-         racer < racers_.size() && racer < vehicleInputs_.size(); ++racer)
-    {
-        auto& runtime = racers_[racer];
-        const auto blockMove = runtime.ProgressBlock(seconds);
-        if (blockMove == source::PlayerBlockMove::Unblocked)
-            continue;
-        auto& control = vehicleInputs_[racer];
-        control.throttle = 0.0F;
-        control.reverse = 0.0F;
-        control.steering = 0.0F;
-        control.brake =
-            blockMove == source::PlayerBlockMove::Brake ? 1.0F : 0.0F;
     }
 
     updateGameplay(seconds, vehicles, humanControl);
