@@ -1472,14 +1472,16 @@ void drawGroups(GraphicsDevice& device,
                 float opacity = 1.0F,
                 const std::array<float, 4>* tint = nullptr,
                 float textureOffsetX = 0.0F,
-                float textureDiffuseScale = 1.0F)
+                float textureDiffuseScale = 1.0F,
+                float textureScaleX = 1.0F)
 {
     if (asset.textures.empty())
         return;
     const auto geometryPipeline = nodePipeline(pipeline, node);
     auto materialState =
         [&asset, elapsedSeconds, reflectionStrength, lighting, node,
-         opacity, tint, textureOffsetX, textureDiffuseScale](
+         opacity, tint, textureOffsetX, textureDiffuseScale,
+         textureScaleX](
             const auto& material, std::size_t materialIndex) {
             MaterialState state;
             const float frame =
@@ -1553,6 +1555,7 @@ void drawGroups(GraphicsDevice& device,
                     asset.normalTextures[materialIndex];
             state.textureTransform =
                 materialTextureTransform(material, frame);
+            state.textureTransform[0] *= textureScaleX;
             state.textureTransform[2] += textureOffsetX;
             return state;
         };
@@ -3620,6 +3623,7 @@ void OriginalRaceRenderer::draw(
         Transform model;
         float reflectionStrength = 0.0F;
         float textureDiffuseScale = 1.0F;
+        float textureScaleX = 1.0F;
         r3d::game::originalrace::LightingMode lighting =
             r3d::game::originalrace::LightingMode::Standard;
         float distanceSquared = 0.0F;
@@ -3645,7 +3649,8 @@ void OriginalRaceRenderer::draw(
                           float objectAnimationSeconds = -1.0F,
                           const std::array<
                               std::array<float, 4>, 4>*
-                              nodeTints = nullptr) {
+                              nodeTints = nullptr,
+                          float textureScaleX = 1.0F) {
         if (cullingCamera != nullptr &&
             !boundsVisible(
                 objectBounds(asset, nodes, parent),
@@ -3727,7 +3732,7 @@ void OriginalRaceRenderer::draw(
                            pipeline, animationSeconds, reflectionStrength,
                            nodeLighting, DrawLayer::Opaque,
                            &nodes[index], 1.0F, nodeTint, 0.0F,
-                           textureDiffuseScale);
+                           textureDiffuseScale, textureScaleX);
             }
             if (deferredActor ||
                 std::any_of(
@@ -3745,7 +3750,8 @@ void OriginalRaceRenderer::draw(
                     model.matrix[14] - cameraPosition_.z;
                 deferredVisuals.push_back(
                     {&asset.nodes[index], &nodes[index], model,
-                     reflectionStrength, textureDiffuseScale, nodeLighting,
+                     reflectionStrength, textureDiffuseScale,
+                     textureScaleX, nodeLighting,
                      dx * dx + dy * dy + dz * dz, opacity,
                      renderStage(nodeGraphOrder, cullOpacityActor),
                      deferredActor ? DrawLayer::All
@@ -4751,7 +4757,8 @@ void OriginalRaceRenderer::draw(
                 trailOverride = nullptr,
             float opacity = 1.0F,
             float emissionEndSeconds =
-                std::numeric_limits<float>::infinity()) {
+                std::numeric_limits<float>::infinity(),
+            float textureScaleX = 1.0F) {
             // DataBase::AddToGraph gives gtEffect only gpColor. It never
             // registers effect actors in either osViewCubeMap or
             // osReflWater, so GraphManager does not render their geometry or
@@ -4779,7 +4786,7 @@ void OriginalRaceRenderer::draw(
             const bool actorVisible = drawObject(
                 asset, definition.visualNodes, parent,
                 definition.graphOrder, cullOpacityActor, opacity,
-                nullptr, age, nodeTints);
+                nullptr, age, nodeTints, textureScaleX);
             if (!actorVisible)
                 return;
             if (!refractionPass && !reflectionPass &&
@@ -5275,7 +5282,10 @@ void OriginalRaceRenderer::draw(
         }
         drawDefinition(
             asset, definition.visual, parent,
-            projectile.ageSeconds, projectile.velocity);
+            projectile.ageSeconds, projectile.velocity,
+            nullptr, 1.0F,
+            std::numeric_limits<float>::infinity(),
+            projectile.beamTextureScale);
         if (projectile.attached)
         {
             const float distance =
@@ -5657,7 +5667,8 @@ void OriginalRaceRenderer::draw(
                        deferred.lighting, deferred.layer,
                        deferred.node, deferred.opacity,
                        deferred.hasTint ? &deferred.tint : nullptr,
-                       0.0F, deferred.textureDiffuseScale);
+                       0.0F, deferred.textureDiffuseScale,
+                       deferred.textureScaleX);
         }
         for (const auto& deferred : deferredParticles)
         {

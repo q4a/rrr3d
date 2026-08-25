@@ -3504,6 +3504,10 @@ void OriginalRaceSession::updateGameplay(
                 sourceRay ? laserUpdate.distance : 0.0F;
             projectile.beamWidthScale =
                 sourceRay ? laserUpdate.beamWidthScale : 1.0F;
+            projectile.beamTextureScale =
+                sourceRay && laserUpdate.textureScale > 0.0F
+                    ? laserUpdate.textureScale
+                    : 1.0F;
             const Vec3 end = add(
                 projectile.position,
                 multiply(projectile.direction,
@@ -10323,10 +10327,15 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 lifetimeSession.projectiles().begin(),
                 lifetimeSession.projectiles().end(), isLifetimeRay);
             if (lifetimeRay == lifetimeSession.projectiles().end() ||
-                std::abs(lifetimeRay->lifeSeconds) > 0.001F)
+                std::abs(lifetimeRay->lifeSeconds) > 0.001F ||
+                lifetimeRay->impactDistance <= 0.0F ||
+                std::abs(
+                    lifetimeRay->beamTextureScale -
+                    lifetimeRay->impactDistance / 10.0F) > 0.001F)
             {
                 throw std::runtime_error(
-                    "source GameObject lifetime expired at equality");
+                    "source GameObject lifetime/laser sampler state "
+                    "failed at equality");
             }
             lifetimeSession.update(
                 0.001F, lifetimeVehicles, lifetimeInput);

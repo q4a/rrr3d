@@ -325,6 +325,9 @@ struct ProjectileRuntime
     float maximumLifeSeconds = 0.0F;
     float ageSeconds = 0.0F;
     float beamWidthScale = 1.0F;
+    // LaserUpdate writes sampler[0].scale.x = beamLength / 10 for the
+    // distorted laser only; geometry scale and UV scale are independent.
+    float beamTextureScale = 1.0F;
     float reflectionCooldown = 0.0F;
     // Proj::RocketUpdate stores its current clearance above TrackPlane in
     // _vec1.z and only lowers it when the terrain rises into the projectile.
