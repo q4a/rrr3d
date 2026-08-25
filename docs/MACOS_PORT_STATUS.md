@@ -2176,3 +2176,13 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - Race-render regression детерминированно seed-ит default profile во
   временном store, поэтому Tournament Load/ProfileFrame coverage не зависит
   от истории ручных запусков при пустом shipped `race.xml`.
+
+### Source FinishMenu audio-close follow-up
+
+- Menu MusicCat остаётся paused на своей позиции во время всей таблицы
+  результатов; преждевременное проигрывание меню поверх FinishMenu удалено.
+- `Menu::OnFinishClose -> GameMode::OnFinishFrameClose` останавливает очередь
+  диктора, возобновляет menu track с gain 0 и повторяет односекундную source
+  fade-формулу до настроенной Music volume.
+- Finish smoke теперь закрывает frame и проверяет hold/stop/resume/fade, а не
+  только визуальные строки и постановку last-place voice в очередь.

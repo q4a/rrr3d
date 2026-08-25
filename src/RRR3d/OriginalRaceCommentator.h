@@ -52,6 +52,7 @@ public:
         std::size_t racer, std::uint32_t place,
         std::string& error);
     void pause(bool paused) noexcept;
+    [[nodiscard]] bool speaking() const noexcept;
     [[nodiscard]] std::size_t commentCount() const noexcept;
     [[nodiscard]] std::size_t loadedVoiceCount() const noexcept;
 

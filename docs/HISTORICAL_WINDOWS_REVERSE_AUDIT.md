@@ -1749,6 +1749,23 @@ profile во временном store. Это сохраняет покрыти�
 ProfileFrame и delete dialog при поставляемом пустом `race.xml`, не используя
 профили, случайно оставшиеся от ручных запусков.
 
+### P2.58 — `GameMode::OnFinishFrameClose` audio lifecycle — выполнено
+
+Сверка FinishMenu выявила реальное расхождение порядка. Windows в
+`ExitRace` останавливает game MusicCat, но оставляет menu MusicCat на паузе
+всё время таблицы результатов. Лишь `Menu::OnFinishClose` вызывает
+`Commentator::Stop`, `FadeOutMusic(0)` (source gain 0 с возвратом к 1 за одну
+секунду) и `_menuMusic->Pause(false)`. Portable path раньше возобновлял menu
+music уже при показе результатов и не очищал незавершённую очередь диктора
+при закрытии.
+
+`stopRaceAudio` теперь различает переход в FinishMenu и обычное возвращение в
+меню. Finish удерживает menu MusicCat на сохранённой позиции; close очищает
+voice/queue, запускает music с нулевым gain и повторяет исходную формулу
+`gain += (1-gain)*dt/1s` поверх SDL Music bus. Finish regression теперь сам
+закрывает frame и требует три состояния: музыка удержана, commentator
+остановлен/музыка возобновлена с нуля, fade реально растёт до меню.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

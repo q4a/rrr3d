@@ -444,6 +444,11 @@ void OriginalRaceCommentator::pause(bool paused) noexcept
         audio_.setVoicePaused(voice_, paused);
 }
 
+bool OriginalRaceCommentator::speaking() const noexcept
+{
+    return isSpeaking();
+}
+
 std::size_t OriginalRaceCommentator::commentCount() const noexcept
 {
     return comments_.size();

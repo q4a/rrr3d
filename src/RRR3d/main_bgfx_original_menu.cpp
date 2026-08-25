@@ -4467,6 +4467,16 @@ int main(int argc, char** argv)
         !gameMusic.currentTrack().has_value();
     bool gameMusicZeroStartObserved =
         !options->raceRenderSmokeTest;
+    // GameMode::_fadeMusic is the gain of its one shared music source.  Keep
+    // an equivalent factor over the SDL Music bus for the only active source
+    // fade used by OnFinishFrameClose.
+    float sourceMenuMusicGain = 1.0F;
+    bool finishMenuAudioHeldObserved =
+        !options->finishMenuSmokeTest;
+    bool finishMenuAudioCloseObserved =
+        !options->finishMenuSmokeTest;
+    bool finishMenuMusicFadeObserved =
+        !options->finishMenuSmokeTest;
 #endif
 
     enum class OriginalMusicDialogSource
@@ -4843,6 +4853,9 @@ int main(int argc, char** argv)
     };
     auto startRaceAudio = [&]() {
         stopAllRaceLoops();
+        sourceMenuMusicGain = 1.0F;
+        audio.setBusVolume(r3d::audio::Bus::Music,
+                           profileState.config.musicVolume);
         audio.setBusVolume(r3d::audio::Bus::Effects,
                            profileState.config.effectsVolume);
         if (!music.pause(true, audioError) ||
@@ -4873,7 +4886,7 @@ int main(int argc, char** argv)
              ++racer)
             startRacerMotorAudio(racer);
     };
-    auto stopRaceAudio = [&]() {
+    auto stopRaceAudio = [&](bool resumeMenuMusic = true) {
         stopAllRaceLoops();
         for (const auto& source : shotEffectAudio)
             audio.stop(source.voice);
@@ -4889,7 +4902,12 @@ int main(int argc, char** argv)
         // GameMode::ExitRace calls Stop rather than Pause+Next.  The next
         // playlist entry remains untouched until the following DoStartRace.
         gameMusic.stop();
-        music.pause(false, audioError);
+        if (!music.pause(!resumeMenuMusic, audioError))
+        {
+            std::cerr
+                << "Original ExitRace menu MusicCat transition failed: "
+                << audioError << '\n';
+        }
     };
 #endif
 #endif
@@ -10336,8 +10354,11 @@ int main(int argc, char** argv)
         // GameMode::ExitRace always stops the race commentator/audio before
         // Menu::ExitRaceGoFinish, on both the host and a receiving client.
         // The Commentator object remains alive for cPlayerFinish* events.
-        stopRaceAudio();
+        stopRaceAudio(false);
         commentator.pause(false);
+        finishMenuAudioHeldObserved =
+            finishMenuAudioHeldObserved ||
+            (music.paused() && !gameMusic.currentVoiceActive());
 #endif
         std::vector<std::size_t> order(
             raceSession.racers().size(), 0U);
@@ -10467,7 +10488,25 @@ int main(int argc, char** argv)
         finishMenuShown = false;
         finishAnimationSeconds = 0.0F;
         finishVoiceIndex = 0U;
-        finishLastVoiceDispatched = false;
+#ifdef RRR3D_AUDIO
+        // GameMode::OnFinishFrameClose: discard any remaining place call,
+        // start menu music from the MusicCat's stored position at zero source
+        // gain, then let OnFrame approach full gain over one second.
+        commentator.stop();
+        sourceMenuMusicGain = 0.0F;
+        audio.setBusVolume(r3d::audio::Bus::Music, 0.0F);
+        if (!music.pause(false, audioError))
+        {
+            std::cerr
+                << "Original OnFinishFrameClose menu music failed: "
+                << audioError << '\n';
+        }
+        finishMenuAudioCloseObserved =
+            finishMenuAudioCloseObserved ||
+            (!commentator.speaking() && !music.paused() &&
+             std::abs(audio.busVolume(r3d::audio::Bus::Music)) <
+                 0.0001F);
+#endif
         const auto raceMenuPath = [&]() {
             return championshipMode
                        ? std::vector<MenuScreen>{
@@ -17300,6 +17339,25 @@ int main(int argc, char** argv)
             runtimeSmokeFailed = true;
             running = false;
         }
+        if (sourceMenuMusicGain < 1.0F)
+        {
+            // GameMode::OnFrame applies
+            //   gain += (1 - gain) * dt / 1 second
+            // after OnFinishFrameClose::FadeOutMusic(0).
+            sourceMenuMusicGain = std::clamp(
+                sourceMenuMusicGain +
+                    (1.0F - sourceMenuMusicGain) * frameSeconds,
+                0.0F, 1.0F);
+            audio.setBusVolume(
+                r3d::audio::Bus::Music,
+                profileState.config.musicVolume *
+                    sourceMenuMusicGain);
+            finishMenuMusicFadeObserved =
+                finishMenuMusicFadeObserved ||
+                (sourceMenuMusicGain > 0.0F &&
+                 sourceMenuMusicGain < 1.0F &&
+                 audio.busVolume(r3d::audio::Bus::Music) > 0.0F);
+        }
 #endif
         if (!finalMusic.update(audioError))
         {
@@ -17320,6 +17378,15 @@ int main(int argc, char** argv)
             runtimeSmokeFailed = true;
             running = false;
         }
+
+#ifdef RRR3D_PHYSICS
+        if (options->finishMenuSmokeTest &&
+            finishMenuShown && finishLastVoiceDispatched &&
+            renderedFrames >= 240U)
+        {
+            closeFinishMenu();
+        }
+#endif
 
         if (running && options->audioSmokeTest &&
             musicSmokePhase != MusicSmokePhase::Complete)
@@ -22177,7 +22244,10 @@ int main(int argc, char** argv)
                 if (!finishMenuFrameObserved ||
                     finishRows.size() != 3U
 #ifdef RRR3D_AUDIO
-                    || !finishLastVoiceDispatched
+                    || !finishLastVoiceDispatched ||
+                    !finishMenuAudioHeldObserved ||
+                    !finishMenuAudioCloseObserved ||
+                    !finishMenuMusicFadeObserved
 #endif
                 )
                 {
@@ -22188,6 +22258,10 @@ int main(int argc, char** argv)
 #ifdef RRR3D_AUDIO
                         << ", lastVoice="
                         << finishLastVoiceDispatched
+                        << ", audio="
+                        << finishMenuAudioHeldObserved << '/'
+                        << finishMenuAudioCloseObserved << '/'
+                        << finishMenuMusicFadeObserved
 #endif
                         << '\n';
                     runtimeSmokeFailed = true;
@@ -22199,7 +22273,8 @@ int main(int argc, char** argv)
                         << renderedFrames
                         << " frames: player frames, photos, cups, "
                            "Money/Points, picked-money, alternating reveal, "
-                           "global commentator queue and last-place event "
+                           "global commentator queue, last-place event and "
+                           "OnFinishFrameClose commentator/menu-music fade "
                            "verified without profile writes\n";
                 }
             }
