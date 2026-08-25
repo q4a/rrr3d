@@ -1622,6 +1622,23 @@ int main(int argc, char** argv)
     originalaudio::MusicCatalog originalMusicCatalog;
 #endif
 #ifdef RRR3D_PHYSICS
+    const bool sourceNormalInteractiveLaunch =
+        options->smokeFrames == 0U &&
+        !options->verifyResources &&
+        !options->physicsSmokeTest;
+    const auto runtimeProfileDirectory =
+        sourceNormalInteractiveLaunch
+            ? rrr3d::platform::save_directory()
+            : std::filesystem::temp_directory_path() /
+                  ("rrr3d-runtime-profile-smoke-" +
+                   std::to_string(reinterpret_cast<std::uintptr_t>(
+                       &*options)));
+    if (!sourceNormalInteractiveLaunch)
+    {
+        std::error_code cleanupError;
+        std::filesystem::remove_all(
+            runtimeProfileDirectory, cleanupError);
+    }
     std::optional<r3d::game::originalrace::Race> originalRace;
     std::optional<r3d::game::originalrace::Race> originalGarageScene;
     std::optional<r3d::game::originalrace::Race> originalAngarScene;
@@ -1629,9 +1646,27 @@ int main(int argc, char** argv)
         originalGarage;
     std::optional<r3d::physics::WorldDescription> physicsDescription;
     r3d::game::originalrace::OriginalProfileStore profileStore(
-        rrr3d::platform::save_directory(), dataDirectory);
+        runtimeProfileDirectory, dataDirectory);
     std::string profileWarning;
     auto profileState = profileStore.load(profileWarning);
+    if (options->raceRenderSmokeTest &&
+        profileState.profiles.empty())
+    {
+        // The shipped race.xml is intentionally empty.  The integrated
+        // fixture must build its own Load/ProfileFrame scenario instead of
+        // depending on profiles left in the player's Application Support by
+        // an earlier interactive run.
+        profileState =
+            r3d::game::originalrace::makeOriginalDefaultProfileState();
+        std::string seedError;
+        if (!profileStore.save(profileState, seedError))
+        {
+            std::cerr
+                << "Unable to seed isolated race-render profile: "
+                << seedError << '\n';
+            return EXIT_FAILURE;
+        }
+    }
     const auto achievementOpened =
         [&](std::string_view name) {
             const auto item = profileState.achievementItems.find(
@@ -1655,14 +1690,14 @@ int main(int argc, char** argv)
     // start at their target screen; the dedicated fixture forces this path.
     bool sourcePreferredCameraAutodetect =
         options->startOptionsSmokeTest ||
-        (options->smokeFrames == 0U &&
+        (sourceNormalInteractiveLaunch &&
          !profileState.preferredCameraSerialized);
     // Metal on Apple Silicon is one capable unified GPU.  Report it through
     // the source's "discrete" compatibility bit so CheckStartupMenu keeps
     // sfrFixed without showing a misleading Windows hybrid-GPU warning.
     constexpr bool sourceCurrentDiscreteVideoCard = true;
     bool sourceDiscreteVideoChanged =
-        options->smokeFrames == 0U &&
+        sourceNormalInteractiveLaunch &&
         (!profileState.discreteVideoCardSerialized ||
          profileState.config.discreteVideoCard !=
              sourceCurrentDiscreteVideoCard);
@@ -1715,6 +1750,35 @@ int main(int argc, char** argv)
                 "game.xml does not declare requested language: " +
                 activeLanguage);
         }
+#ifdef RRR3D_PHYSICS
+        if (!profileState.configFileSerialized &&
+            sourceNormalInteractiveLaunch)
+        {
+            // GameMode::LoadConfig catches an unavailable user.xml, calls
+            // ResetConfig (whose language/commentator autodetection depends
+            // on the already-loaded game.xml), then immediately SaveConfig.
+            // Its first-launch camera/GPU flags remain active for this run
+            // even though all values now exist on disk.
+            profileState.config.language = activeLanguage;
+            profileState.config.discreteVideoCard =
+                sourceCurrentDiscreteVideoCard;
+            std::string configError;
+            if (!profileStore.saveConfig(profileState, configError))
+            {
+                throw r3d::resource::ResourceError(
+                    "unable to recover original user.xml: " +
+                    configError);
+            }
+            profileState.configFileSerialized = true;
+            profileState.preferredCameraSerialized = true;
+            profileState.discreteVideoCardSerialized = true;
+            profileState.languageSerialized = true;
+            profileState.commentatorStyleSerialized = true;
+            std::cout
+                << "Original GameMode::ResetConfig -> SaveConfig: "
+                << profileStore.saveDirectory() / "user.xml" << '\n';
+        }
+#endif
         model.emplace(
             menu::loadOriginalMainMenu(
                 *resources, originalGameDataCatalog, activeLanguage));
@@ -22198,9 +22262,10 @@ int main(int argc, char** argv)
     }
 #endif
 #ifdef RRR3D_PHYSICS
-    if (!options->finishMenuSmokeTest &&
-        !options->gamersFrameSmokeTest &&
-        !options->finalMenuSmokeTest)
+    // Automated fixtures must be observational.  In particular, an absent
+    // user.xml is part of the first-launch contract under test and must not
+    // be converted into a persisted profile by normal shutdown cleanup.
+    if (sourceNormalInteractiveLaunch)
         saveRaceProfile();
     if (userChat.inputVisible())
         SDL_StopTextInput(window);
@@ -22215,6 +22280,12 @@ int main(int argc, char** argv)
     angarRenderer.shutdown(*device);
     garageRenderer.shutdown(*device);
     raceRenderer.shutdown(*device);
+    if (!sourceNormalInteractiveLaunch)
+    {
+        std::error_code cleanupError;
+        std::filesystem::remove_all(
+            runtimeProfileDirectory, cleanupError);
+    }
 #endif
     releaseResources();
     device.reset();

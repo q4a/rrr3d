@@ -1716,6 +1716,39 @@ no-clamp float round-trip и обе partial-node ветви закреплены
 Удалён последний тестовый токен `sfrVSync`, которого в Windows enum никогда
 не существовало.
 
+### P2.57 — `GameMode::ResetConfig` и первый `SaveConfig` — выполнено
+
+Продолжение сверки startup path выявило различие жизненного цикла, которое не
+видно при обычном XML round-trip. Windows при недоступном `user.xml` вызывает
+`ResetConfig`, после autodetect языка/диктора немедленно выполняет
+`SaveConfig`, и только затем `CheckStartupMenu` открывает обязательный выбор
+камеры. Portable runtime до этого сохранял файл лишь после нажатия Apply,
+поэтому выход из первого StartOptions повторял его на следующем запуске и не
+повторял исходную политику восстановления.
+
+`ProfileState` теперь отдельно хранит presence самого `user.xml`, а
+`OriginalProfileStore::saveConfig` является точной узкой границей
+`GameMode::SaveConfig`: атомарно пишет только `user.xml`, не создавая
+`race.xml`, `Profile/*` или `achievment.xml`. Active startup вызывает её после
+загрузки `game.xml` и platform locale autodetect, но сохраняет текущие
+first-run camera/discrete flags до завершения `CheckStartupMenu`. Regression
+проверяет absent/present переход, все serialized presence fields и отсутствие
+побочных записей игрового прогресса.
+
+Заодно исправлена обнаруженная этим regression инфраструктурная утечка:
+physics/startup/audio/render smoke завершались через общий shutdown и могли
+вызвать `saveRaceProfile` в настоящем Application Support; ProfileFrame
+fixtures также могли сохранить состояние раньше shutdown. Теперь весь
+`OriginalProfileStore` automated-запуска направлен в очищаемый уникальный
+временный каталог. Только обычный интерактивный запуск видит настоящий save
+directory; fixtures остаются наблюдательными и не создают `user.xml` на
+чистом профиле.
+
+Integrated race-render fixture теперь сам создаёт один default championship
+profile во временном store. Это сохраняет покрытие Tournament Load,
+ProfileFrame и delete dialog при поставляемом пустом `race.xml`, не используя
+профили, случайно оставшиеся от ручных запусков.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

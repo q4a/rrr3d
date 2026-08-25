@@ -193,7 +193,7 @@ void readControlMap(TiXmlNode* controls, const char* controller,
     }
 }
 
-void loadConfig(const std::filesystem::path& path, UserConfig& config,
+bool loadConfig(const std::filesystem::path& path, UserConfig& config,
                 bool& preferredCameraSerialized,
                 bool& discreteVideoCardSerialized,
                 bool& languageSerialized,
@@ -205,7 +205,7 @@ void loadConfig(const std::filesystem::path& path, UserConfig& config,
     commentatorStyleSerialized = false;
     TiXmlDocument document(path.string());
     if (!document.LoadFile() || document.RootElement() == nullptr)
-        return;
+        return false;
     auto* root = document.RootElement();
     auto* quality = child(root, "quality");
     if (quality != nullptr)
@@ -328,6 +328,7 @@ void loadConfig(const std::filesystem::path& path, UserConfig& config,
         config.menuMusicPlaylist = token;
     if (const char* token = value(child(root, "gameMusic"), "playList"))
         config.gameMusicPlaylist = token;
+    return true;
 }
 
 std::vector<std::string> splitList(const char* text)
@@ -634,6 +635,71 @@ void appendControls(
                originalcontrol::canonicalVirtualKeyName(
                    controllerType, key));
     }
+}
+
+bool saveUserConfig(const std::filesystem::path& destination,
+                    const ProfileState& state, std::string& error)
+{
+    TiXmlDocument configDocument;
+    configDocument.LinkEndChild(
+        new TiXmlDeclaration("1.0", "UTF-8", ""));
+    auto* config = new TiXmlElement("root");
+    configDocument.LinkEndChild(config);
+    auto* quality = new TiXmlElement("quality");
+    config->LinkEndChild(quality);
+    append(*quality, "filtering", state.config.quality.filtering);
+    append(*quality, "msaa", state.config.quality.msaa);
+    append(*quality, "shadow", state.config.quality.shadow);
+    append(*quality, "environment", state.config.quality.environment);
+    append(*quality, "light", state.config.quality.light);
+    append(*quality, "postEffect", state.config.quality.postEffect);
+    append(*quality, "frameRateMode",
+           sourceFrameRateMode(state.config.quality.frameRateMode)
+               ? state.config.quality.frameRateMode
+               : std::string("sfrFixed"));
+    append(*config, "resolution",
+           std::to_string(state.config.resolutionWidth) + " " +
+               std::to_string(state.config.resolutionHeight));
+    auto* volume = new TiXmlElement("volume");
+    config->LinkEndChild(volume);
+    append(*volume, "musicVolume", state.config.musicVolume);
+    append(*volume, "effectsVolume", state.config.effectsVolume);
+    append(*volume, "voiceVolume", state.config.voiceVolume);
+    append(*config, "maxPlayers", state.config.maxPlayers);
+    append(*config, "maxComputers", state.config.maxComputers);
+    append(*config, "upgradeMaxLevel", state.config.upgradeMaxLevel);
+    append(*config, "weaponMaxLevel", state.config.weaponMaxLevel);
+    append(*config, "springBorders", state.config.springBorders);
+    append(*config, "lapsCount", state.config.lapsCount);
+    append(*config, "enableHUD", state.config.enableHud);
+    append(*config, "enableMineBug", state.config.enableMineBug);
+    append(*config, "disableVideo", state.config.disableVideo);
+    append(*config, "fullScreen", state.config.fullScreen);
+    append(*config, "language", state.config.language);
+    append(*config, "commentatorStyle",
+           state.config.commentatorStyle);
+    append(*config, "prefCamera",
+           state.config.preferredCamera == PreferredCamera::ThirdPerson
+               ? "pcThirdPerson"
+               : "pcIsometric");
+    append(*config, "cameraDistance", state.config.cameraDistance);
+    append(*config, "discreteVideoCard",
+           state.config.discreteVideoCard);
+    auto* controls = new TiXmlElement("controls");
+    config->LinkEndChild(controls);
+    appendControls(*controls, "ctKeyboard",
+                   originalcontrol::ControllerType::Keyboard,
+                   state.config.keyboardControls);
+    appendControls(*controls, "ctGamepad",
+                   originalcontrol::ControllerType::Gamepad,
+                   state.config.gamepadControls);
+    auto* menuMusic = new TiXmlElement("menuMusic");
+    config->LinkEndChild(menuMusic);
+    append(*menuMusic, "playList", state.config.menuMusicPlaylist);
+    auto* gameMusic = new TiXmlElement("gameMusic");
+    config->LinkEndChild(gameMusic);
+    append(*gameMusic, "playList", state.config.gameMusicPlaylist);
+    return saveAtomic(configDocument, destination, error);
 }
 
 TiXmlElement* appendReference(TiXmlNode& parent, const char* name,
@@ -1060,6 +1126,7 @@ bool runOriginalProfileFlowSmokeTest(std::string& error)
     std::string partialWarning;
     const auto partialState = partialStore.load(partialWarning);
     if (!partialWarning.empty() ||
+        !partialState.configFileSerialized ||
         partialState.config.quality.filtering != 2U ||
         partialState.config.quality.msaa != 0U ||
         partialState.config.quality.shadow != 0U ||
@@ -1077,6 +1144,43 @@ bool runOriginalProfileFlowSmokeTest(std::string& error)
         error =
             "partial GameMode options did not preserve constructor/"
             "SReadEnum/no-clamp semantics";
+        return false;
+    }
+    const auto configOnlyDirectory = smokeDirectory / "config-only";
+    OriginalProfileStore configOnlyStore(configOnlyDirectory);
+    std::string configOnlyWarning;
+    auto configOnlyState = configOnlyStore.load(configOnlyWarning);
+    configOnlyState.config.language = "russian";
+    configOnlyState.config.commentatorStyle = "russian";
+    if (!configOnlyWarning.empty() ||
+        configOnlyState.configFileSerialized ||
+        !configOnlyStore.saveConfig(configOnlyState, error) ||
+        !std::filesystem::is_regular_file(
+            configOnlyDirectory / "user.xml", fileError) ||
+        std::filesystem::exists(
+            configOnlyDirectory / "race.xml", fileError) ||
+        std::filesystem::exists(
+            configOnlyDirectory / "achievment.xml", fileError) ||
+        std::filesystem::exists(
+            configOnlyDirectory / "Profile", fileError))
+    {
+        std::filesystem::remove_all(smokeDirectory, fileError);
+        if (error.empty())
+            error = "GameMode::SaveConfig wrote non-config profile state";
+        return false;
+    }
+    configOnlyState = configOnlyStore.load(configOnlyWarning);
+    if (!configOnlyWarning.empty() ||
+        !configOnlyState.configFileSerialized ||
+        !configOnlyState.preferredCameraSerialized ||
+        !configOnlyState.discreteVideoCardSerialized ||
+        !configOnlyState.languageSerialized ||
+        !configOnlyState.commentatorStyleSerialized ||
+        configOnlyState.config.language != "russian" ||
+        configOnlyState.config.commentatorStyle != "russian")
+    {
+        std::filesystem::remove_all(smokeDirectory, fileError);
+        error = "GameMode::ResetConfig/SaveConfig presence state was lost";
         return false;
     }
     OriginalProfileStore smokeStore(smokeDirectory);
@@ -1158,6 +1262,7 @@ bool runOriginalProfileFlowSmokeTest(std::string& error)
     auto reloadedNetwork = smokeStore.load(networkWarning);
     const auto& loadedConfig = reloadedNetwork.config;
     if (!networkWarning.empty() ||
+        !reloadedNetwork.configFileSerialized ||
         reloadedNetwork.lastProfile != "profile2" ||
         reloadedNetwork.lastNetworkProfile != "profile4" ||
         reloadedNetwork.player.name != "profile2" ||
@@ -1279,7 +1384,7 @@ ProfileState OriginalProfileStore::load(std::string& warning) const
     warning.clear();
     try
     {
-        loadConfig(
+        state.configFileSerialized = loadConfig(
             loadPath("user.xml"), state.config,
             state.preferredCameraSerialized,
             state.discreteVideoCardSerialized,
@@ -1407,66 +1512,7 @@ bool OriginalProfileStore::save(const ProfileState& state,
                                 std::string& error) const
 {
     error.clear();
-    TiXmlDocument configDocument;
-    configDocument.LinkEndChild(
-        new TiXmlDeclaration("1.0", "UTF-8", ""));
-    auto* config = new TiXmlElement("root");
-    configDocument.LinkEndChild(config);
-    auto* quality = new TiXmlElement("quality");
-    config->LinkEndChild(quality);
-    append(*quality, "filtering", state.config.quality.filtering);
-    append(*quality, "msaa", state.config.quality.msaa);
-    append(*quality, "shadow", state.config.quality.shadow);
-    append(*quality, "environment", state.config.quality.environment);
-    append(*quality, "light", state.config.quality.light);
-    append(*quality, "postEffect", state.config.quality.postEffect);
-    append(*quality, "frameRateMode",
-           sourceFrameRateMode(state.config.quality.frameRateMode)
-               ? state.config.quality.frameRateMode
-               : std::string("sfrFixed"));
-    append(*config, "resolution",
-           std::to_string(state.config.resolutionWidth) + " " +
-               std::to_string(state.config.resolutionHeight));
-    auto* volume = new TiXmlElement("volume");
-    config->LinkEndChild(volume);
-    append(*volume, "musicVolume", state.config.musicVolume);
-    append(*volume, "effectsVolume", state.config.effectsVolume);
-    append(*volume, "voiceVolume", state.config.voiceVolume);
-    append(*config, "maxPlayers", state.config.maxPlayers);
-    append(*config, "maxComputers", state.config.maxComputers);
-    append(*config, "upgradeMaxLevel", state.config.upgradeMaxLevel);
-    append(*config, "weaponMaxLevel", state.config.weaponMaxLevel);
-    append(*config, "springBorders", state.config.springBorders);
-    append(*config, "lapsCount", state.config.lapsCount);
-    append(*config, "enableHUD", state.config.enableHud);
-    append(*config, "enableMineBug", state.config.enableMineBug);
-    append(*config, "disableVideo", state.config.disableVideo);
-    append(*config, "fullScreen", state.config.fullScreen);
-    append(*config, "language", state.config.language);
-    append(*config, "commentatorStyle",
-           state.config.commentatorStyle);
-    append(*config, "prefCamera",
-           state.config.preferredCamera == PreferredCamera::ThirdPerson
-               ? "pcThirdPerson"
-               : "pcIsometric");
-    append(*config, "cameraDistance", state.config.cameraDistance);
-    append(*config, "discreteVideoCard",
-           state.config.discreteVideoCard);
-    auto* controls = new TiXmlElement("controls");
-    config->LinkEndChild(controls);
-    appendControls(*controls, "ctKeyboard",
-                   originalcontrol::ControllerType::Keyboard,
-                   state.config.keyboardControls);
-    appendControls(*controls, "ctGamepad",
-                   originalcontrol::ControllerType::Gamepad,
-                   state.config.gamepadControls);
-    auto* menuMusic = new TiXmlElement("menuMusic");
-    config->LinkEndChild(menuMusic);
-    append(*menuMusic, "playList", state.config.menuMusicPlaylist);
-    auto* gameMusic = new TiXmlElement("gameMusic");
-    config->LinkEndChild(gameMusic);
-    append(*gameMusic, "playList", state.config.gameMusicPlaylist);
-    if (!saveAtomic(configDocument, saveDirectory_ / "user.xml", error))
+    if (!saveConfig(state, error))
         return false;
 
     TiXmlDocument raceDocument;
@@ -1628,6 +1674,13 @@ bool OriginalProfileStore::save(const ProfileState& state,
     }
     return saveAtomic(
         achievementDocument, saveDirectory_ / "achievment.xml", error);
+}
+
+bool OriginalProfileStore::saveConfig(const ProfileState& state,
+                                      std::string& error) const
+{
+    error.clear();
+    return saveUserConfig(saveDirectory_ / "user.xml", state, error);
 }
 
 const std::filesystem::path&

@@ -125,6 +125,12 @@ struct AchievementConditionProfile
 struct ProfileState
 {
     UserConfig config;
+    // GameMode::LoadConfig catches only an unavailable user.xml, calls
+    // ResetConfig and immediately writes the recovered config before the
+    // first-launch StartOptions menu is shown.  Keep file presence separate
+    // from individual field presence so the portable startup can preserve
+    // that two-phase behavior.
+    bool configFileSerialized = false;
     // GameMode::LoadGameOpt distinguishes an absent serialized camera from
     // the pcIsometric default.  The distinction drives StartOptionsMenu on
     // first launch and must survive the portable XML adapter.
@@ -202,6 +208,10 @@ public:
                        std::string& error, bool network = false) const;
     bool deleteProfile(ProfileState& state, std::string_view name,
                        std::string& error, bool network = false) const;
+    // Exact GameMode::SaveConfig boundary: writes user.xml only.  Race,
+    // profile and achievement persistence belongs to Race::SaveGame and is
+    // deliberately not touched by first-launch config recovery.
+    bool saveConfig(const ProfileState& state, std::string& error) const;
     bool save(const ProfileState& state, std::string& error) const;
 
     const std::filesystem::path& saveDirectory() const noexcept;

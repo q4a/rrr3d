@@ -2159,3 +2159,20 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   cameraDistance 0.6..2.5. UI по-прежнему предлагает штатные source ranges,
   но существующий Windows `user.xml` теперь читается и пишется без изменения
   его float state.
+
+### Source first-launch config recovery follow-up
+
+- Отсутствующий `user.xml` теперь отдельно отличается от файла с частично
+  отсутствующими полями; после source language/commentator autodetect startup
+  немедленно выполняет `GameMode::ResetConfig -> SaveConfig`.
+- Узкий `saveConfig` пишет только `user.xml`: первый запуск больше не создаёт
+  преждевременно `race.xml`, профиль или achievements.
+- Как в Windows, записанный default `pcIsometric` не отменяет StartOptions в
+  текущем процессе: camera-autodetect и discrete-GPU state завершаются только
+  в `CheckStartupMenu`.
+- Все automated smoke paths используют отдельный временный profile store и
+  отделены как от normal shutdown persistence, так и от ранних ProfileFrame
+  save operations; настоящий Application Support больше не изменяется.
+- Race-render regression детерминированно seed-ит default profile во
+  временном store, поэтому Tournament Load/ProfileFrame coverage не зависит
+  от истории ручных запусков при пустом shipped `race.xml`.
