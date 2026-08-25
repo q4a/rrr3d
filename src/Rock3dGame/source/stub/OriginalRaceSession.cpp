@@ -1057,7 +1057,6 @@ void OriginalRaceSession::reset()
     aiPlayers_.clear();
     racers_.assign(race_.racers.size(), {});
     vehicleInputs_.assign(race_.racers.size(), {});
-    weaponRacks_.assign(race_.racers.size(), {});
     humanPlayer_.SetCurWeapon(0);
     aiPlayers_.reserve(race_.racers.size());
     aiSystem_.Reset(sourceTrace_.GetTrackCount());
@@ -1330,18 +1329,19 @@ void OriginalRaceSession::reset()
                 projectileTypes);
             runtimeWeapon.Reset();
         };
+        auto& weaponRack = racers_[index].GetWeaponRack();
         for (std::size_t slot = 0U;
              slot < PlayerProfile::weaponSlotCount; ++slot)
         {
             configureWeapon(
-                weaponRacks_[index].primary[slot],
+                weaponRack.primary[slot],
                 racers_[index].weaponSlots[slot]);
         }
         configureWeapon(
-            weaponRacks_[index].hyper,
+            weaponRack.hyper,
             racers_[index].hyperWeapon);
         configureWeapon(
-            weaponRacks_[index].mine,
+            weaponRack.mine,
             racers_[index].mineWeapon);
         auto& itemRack = racers_[index].GetItemRack();
         itemRack.Reset();
@@ -1359,7 +1359,7 @@ void OriginalRaceSession::reset()
             if (definition.itemType == WeaponItemType::Droid)
             {
                 itemRack.BindDroid(
-                    slot, &weaponRacks_[index].primary[slot],
+                    slot, &weaponRack.primary[slot],
                     definition.maximumCharge,
                     racers_[index].weaponCapacity[slot],
                     &racers_[index].weaponCharges[slot],
@@ -1369,7 +1369,7 @@ void OriginalRaceSession::reset()
             else if (definition.itemType == WeaponItemType::Reflector)
             {
                 itemRack.BindReflector(
-                    slot, &weaponRacks_[index].primary[slot],
+                    slot, &weaponRack.primary[slot],
                     definition.maximumCharge,
                     racers_[index].weaponCapacity[slot],
                     &racers_[index].weaponCharges[slot],
@@ -3977,22 +3977,23 @@ void OriginalRaceSession::updateGameplay(
             const ProjectileDefinition& projectile) {
             if (weapon >= race_.weapons.size())
                 return;
-            if (owner < weaponRacks_.size())
+            if (owner < racers_.size())
             {
+                auto& rack = racers_[owner].GetWeaponRack();
                 source::Weapon* sourceWeapon = nullptr;
                 if (soundSource < PlayerProfile::weaponSlotCount)
                 {
                     sourceWeapon =
-                        &weaponRacks_[owner].primary[soundSource];
+                        &rack.primary[soundSource];
                 }
                 else if (soundSource == PlayerProfile::weaponSlotCount)
                 {
-                    sourceWeapon = &weaponRacks_[owner].hyper;
+                    sourceWeapon = &rack.hyper;
                 }
                 else if (soundSource ==
                          PlayerProfile::weaponSlotCount + 1U)
                 {
-                    sourceWeapon = &weaponRacks_[owner].mine;
+                    sourceWeapon = &rack.mine;
                 }
                 if (sourceWeapon != nullptr)
                     sourceWeapon->OnProjectilePrepared();
@@ -4054,7 +4055,7 @@ void OriginalRaceSession::updateGameplay(
 
     auto primaryWeaponItem = [&](std::size_t owner,
                                  std::size_t slot) {
-        if (owner >= racers_.size() || owner >= weaponRacks_.size() ||
+        if (owner >= racers_.size() ||
             slot >= PlayerProfile::weaponSlotCount)
             return source::WeaponItem{};
         auto& runtime = racers_[owner];
@@ -4064,13 +4065,13 @@ void OriginalRaceSession::updateGameplay(
             return source::WeaponItem{};
         const auto& definition = race_.weapons[weapon];
         return source::WeaponItem(
-            &weaponRacks_[owner].primary[slot],
+            &runtime.GetWeaponRack().primary[slot],
             definition.maximumCharge, runtime.weaponCapacity[slot],
             &runtime.weaponCharges[slot], definition.chargeStep,
             definition.damage);
     };
     auto hyperWeaponItem = [&](std::size_t owner) {
-        if (owner >= racers_.size() || owner >= weaponRacks_.size())
+        if (owner >= racers_.size())
             return source::WeaponItem{};
         auto& runtime = racers_[owner];
         if (runtime.hyperWeapon == RacerRuntime::invalidWeapon ||
@@ -4078,12 +4079,12 @@ void OriginalRaceSession::updateGameplay(
             return source::WeaponItem{};
         const auto& definition = race_.weapons[runtime.hyperWeapon];
         return source::WeaponItem(
-            &weaponRacks_[owner].hyper, definition.maximumCharge,
+            &runtime.GetWeaponRack().hyper, definition.maximumCharge,
             runtime.hyperCapacity, &runtime.hyperCharge,
             definition.chargeStep, definition.damage);
     };
     auto mineWeaponItem = [&](std::size_t owner) {
-        if (owner >= racers_.size() || owner >= weaponRacks_.size())
+        if (owner >= racers_.size())
             return source::WeaponItem{};
         auto& runtime = racers_[owner];
         if (runtime.mineWeapon == RacerRuntime::invalidWeapon ||
@@ -4091,7 +4092,7 @@ void OriginalRaceSession::updateGameplay(
             return source::WeaponItem{};
         const auto& definition = race_.weapons[runtime.mineWeapon];
         return source::WeaponItem(
-            &weaponRacks_[owner].mine, definition.maximumCharge,
+            &runtime.GetWeaponRack().mine, definition.maximumCharge,
             runtime.mineCapacity, &runtime.mines,
             definition.chargeStep, definition.damage);
     };
@@ -4146,8 +4147,7 @@ void OriginalRaceSession::updateGameplay(
             return;
         const std::size_t weapon = racers_[owner].mineWeapon;
         if (weapon == RacerRuntime::invalidWeapon ||
-            weapon >= race_.weapons.size() ||
-            owner >= weaponRacks_.size())
+            weapon >= race_.weapons.size())
             return;
         auto item = mineWeaponItem(owner);
         if (!networkReplicated && !sourceReadinessOverride &&
@@ -4247,15 +4247,14 @@ void OriginalRaceSession::updateGameplay(
         racers_[humanRacer_].mineWeapon < race_.weapons.size())
     {
         const bool maslo =
-            humanRacer_ < weaponRacks_.size() &&
-            weaponRacks_[humanRacer_].mine.IsMaslo();
+            racers_[humanRacer_].GetWeaponRack().mine.IsMaslo();
         if (humanControl.mineAnalogBinding || maslo)
         {
             const float alpha =
                 std::clamp(humanControl.mineHeld, 0.0F, 1.0F);
             const float sourceDelay = (1.0F - alpha) * 0.6F;
-            if (humanRacer_ < weaponRacks_.size() &&
-                weaponRacks_[humanRacer_].mine.IsReadyShot(sourceDelay))
+            if (racers_[humanRacer_].GetWeaponRack().mine.IsReadyShot(
+                    sourceDelay))
             {
                 source::Logic::ShotPlan humanShot;
                 humanShot.humanShotEvent = true;
@@ -4273,9 +4272,8 @@ void OriginalRaceSession::updateGameplay(
             racers_[owner].hyperWeapon ==
                 RacerRuntime::invalidWeapon ||
             racers_[owner].hyperWeapon >= race_.weapons.size() ||
-            owner >= weaponRacks_.size() ||
             (!networkReplicated &&
-             !weaponRacks_[owner].hyper.IsReadyShot()))
+             !racers_[owner].GetWeaponRack().hyper.IsReadyShot()))
             return;
         auto item = hyperWeaponItem(owner);
         const auto& weapon =
@@ -5101,7 +5099,6 @@ void OriginalRaceSession::updateGameplay(
             bool sourceReadinessOverride = false) {
         if (shooter >= vehicles.size() ||
             shooter >= racers_.size() ||
-            shooter >= weaponRacks_.size() ||
             racers_[shooter].GetFinished() ||
             racers_[shooter].destroyed)
             return;
@@ -5559,8 +5556,7 @@ void OriginalRaceSession::updateGameplay(
             state.capacity = runtime.weaponCapacity[slot];
             state.charge = runtime.weaponCharges[slot];
             state.ready =
-                racer < weaponRacks_.size() &&
-                weaponRacks_[racer].primary[slot].IsReadyShot(
+                runtime.GetWeaponRack().primary[slot].IsReadyShot(
                     std::max(weapon.shotDelay, 0.25F));
             attackWeapons[attackWeaponCount++] = state;
         }
@@ -5587,8 +5583,7 @@ void OriginalRaceSession::updateGameplay(
         {
             context.mine.installed = true;
             context.mine.oil =
-                racer < weaponRacks_.size() &&
-                weaponRacks_[racer].mine.IsMaslo();
+                runtime.GetWeaponRack().mine.IsMaslo();
             context.mine.capacity = runtime.mineCapacity;
             context.mine.charge = runtime.mines;
         }
@@ -5929,8 +5924,8 @@ void OriginalRaceSession::update(
         return;
     // Weapon is a registered GameObject in Windows, so _shotTime advances
     // during the visible countdown as well as during active racing.
-    for (auto& rack : weaponRacks_)
-        rack.OnProgress(seconds);
+    for (auto& player : racers_)
+        player.GetWeaponRack().OnProgress(seconds);
     // AutoProj is a registered GameObject before GoRace. Its MineUpdate
     // therefore advances during the visible countdown even though race time
     // itself has not started. This is most visible on ptMaslo, whose model

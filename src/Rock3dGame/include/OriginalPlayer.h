@@ -300,6 +300,8 @@ public:
               int newCharge = -1) noexcept;
     PlayerItemRack& GetItemRack() noexcept;
     const PlayerItemRack& GetItemRack() const noexcept;
+    WeaponRack& GetWeaponRack() noexcept;
+    const WeaponRack& GetWeaponRack() const noexcept;
 
     std::uint32_t GetMoney() const noexcept;
     void SetMoney(std::uint32_t value) noexcept;
@@ -441,6 +443,7 @@ private:
     std::vector<PlayerGameEvent> gameEvents_;
     std::vector<std::uint32_t> bonusProjectileIds_;
     std::uint32_t nextBonusProjectileId_ = 1U;
+    WeaponRack weaponRack_;
     PlayerItemRack itemRack_;
 };
 

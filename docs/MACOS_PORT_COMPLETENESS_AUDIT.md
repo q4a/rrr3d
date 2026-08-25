@@ -1306,6 +1306,19 @@ Network, video и Steam явно выключены.
 - Session parallel `playerItemRacks_` удалён. Regression проверяет полный
   bind/create/progress/free lifecycle активного Player.
 
+### Source Player weapon-object owner
+
+- `WeaponRack` четырёх primary slots, Hyper и Mine встроен в active Player;
+  отдельный `OriginalRaceSession::weaponRacks_` удалён.
+- Readiness/cooldown, `IsMaslo`, успешные projectile callbacks и
+  `ShotEffect` принадлежат тому же Player, что charge, selected slot и
+  physical Droid/Reflector items. AI и Human используют один owner.
+- Как зарегистрированные Windows GameObjects, Player-owned Weapon продолжают
+  progress во время countdown; session только обходит активных Players и
+  исполняет backend-neutral tick.
+- Player regression покрывает fired/not-ready/progress/ready и привязку Droid
+  к встроенному primary Weapon.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

@@ -551,7 +551,6 @@ private:
     std::vector<source::AutoProj> bonusProjectiles_;
     std::vector<float> bonusScales_;
     std::vector<std::size_t> bonusNetworkPendingContact_;
-    std::vector<source::WeaponRack> weaponRacks_;
     source::HumanPlayer humanPlayer_;
     std::vector<source::AIPlayer> aiPlayers_;
     source::AISystem aiSystem_{4U};

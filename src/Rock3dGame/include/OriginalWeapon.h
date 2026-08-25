@@ -455,8 +455,9 @@ private:
     std::array<ReflectorItem, slotCount> reflectors_{};
 };
 
-// One source Weapon map object exists for every installed slot, including
-// Hyper and Mine. This small owner replaces three unrelated session timers.
+// One source Weapon map object exists for every installed Player slot,
+// including Hyper and Mine. The rack is embedded in Player and replaces the
+// old parallel session timers without changing the backend projectile step.
 struct WeaponRack
 {
     static constexpr std::size_t primarySlotCount = 4U;

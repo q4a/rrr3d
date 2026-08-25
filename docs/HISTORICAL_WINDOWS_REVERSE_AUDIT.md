@@ -1218,6 +1218,20 @@ destroy/restore/disconnect/exit переходе.
 callback. Player regression проверяет регистрацию Droid, исходное лечение на
 5 единиц и обязательное отключение progress при `FreeCar`.
 
+### P2.33 — Player weapon-object owner — выполнено
+
+Подтвердилась оставшаяся половина того же обхода: четыре primary `Weapon`,
+Hyper и Mine хранились в `OriginalRaceSession::weaponRacks_`. Хотя charge уже
+принадлежал Player, readiness timer, `IsMaslo`, `ShotEffect::OnShot` и ссылки
+Droid/Reflector смотрели в отдельный массив session.
+
+`WeaponRack` перенесён внутрь active `source::Player`. Все primary/hyper/mine
+shot transactions, AI readiness, analog oil trigger и per-projectile
+ShotEffect теперь получают Weapon из Player-owner; visible-countdown progress
+обходит Players и обновляет их собственные racks. Session-массив удалён.
+Player regression проверяет cooldown одного встроенного Weapon и связывает
+Droid с тем же объектом, исключая отдельный тестовый surrogate.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

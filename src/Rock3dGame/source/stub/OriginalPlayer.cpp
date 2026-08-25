@@ -617,6 +617,16 @@ const PlayerItemRack& Player::GetItemRack() const noexcept
     return itemRack_;
 }
 
+WeaponRack& Player::GetWeaponRack() noexcept
+{
+    return weaponRack_;
+}
+
+const WeaponRack& Player::GetWeaponRack() const noexcept
+{
+    return weaponRack_;
+}
+
 std::uint32_t Player::GetMoney() const noexcept { return money_; }
 
 void Player::SetMoney(std::uint32_t value) noexcept { money_ = value; }

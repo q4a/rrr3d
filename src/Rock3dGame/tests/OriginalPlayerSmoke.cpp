@@ -90,12 +90,23 @@ int main()
         player.car.numLaps != 0U)
         return 58;
 
-    source::Weapon droidWeapon;
+    auto& playerWeapons = player.GetWeaponRack();
+    source::Weapon::Desc droidWeaponDescription;
+    droidWeaponDescription.shotDelay = 0.5F;
+    droidWeaponDescription.projectileTypes = {1U};
+    playerWeapons.primary[0].SetDesc(droidWeaponDescription);
+    playerWeapons.primary[0].Reset();
+    playerWeapons.primary[0].OnShot();
+    if (playerWeapons.primary[0].IsReadyShot())
+        return 62;
+    playerWeapons.OnProgress(0.51F);
+    if (!playerWeapons.primary[0].IsReadyShot())
+        return 63;
     std::uint32_t droidCharge = 1U;
     auto& physicalItems = player.GetItemRack();
     physicalItems.Reset();
     physicalItems.BindDroid(
-        0U, &droidWeapon, 1U, 1U, &droidCharge,
+        0U, &playerWeapons.primary[0], 1U, 1U, &droidCharge,
         17.0F, 0.1F);
     player.SetLife(60.0F);
     player.CreateCar(true);
