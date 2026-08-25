@@ -1,6 +1,7 @@
 #pragma once
 
 #include "OriginalGameObject.h"
+#include "OriginalPlayer.h"
 #include "OriginalWeapon.h"
 
 #include <array>
@@ -52,6 +53,18 @@ public:
         GameObject& target, std::size_t senderPlayerId,
         float supportedValue, float authoritativeLife,
         bool authoritativeDeath, DamageType damageType) noexcept;
+
+    struct TakeBonusResult
+    {
+        PlayerBonusResult player;
+        bool taken = false;
+    };
+
+    static TakeBonusResult TakeBonus(
+        Player* player, GameObject* bonus, PlayerBonusType type,
+        float value,
+        const std::vector<std::uint32_t>& maximumCharges,
+        float randomUnit) noexcept;
 };
 
 } // namespace r3d::game::originalrace::source

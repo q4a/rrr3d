@@ -1061,6 +1061,14 @@ void OriginalRaceSession::reset()
         decorationObjects_.push_back(std::move(object));
     }
     bonusActive_.assign(race_.bonuses.size(), true);
+    bonusObjects_.clear();
+    bonusObjects_.reserve(race_.bonuses.size());
+    for (std::size_t index = 0U; index < race_.bonuses.size(); ++index)
+    {
+        source::GameObject bonus;
+        bonus.ResetGameObject(-1.0F);
+        bonusObjects_.push_back(std::move(bonus));
+    }
     bonusNetworkPendingContact_.assign(
         race_.bonuses.size(), RacerRuntime::invalidWeapon);
     events_.clear();
@@ -4852,44 +4860,24 @@ void OriginalRaceSession::updateGameplay(
         if (racer >= racers_.size() ||
             bonusIndex >= race_.bonuses.size() ||
             bonusIndex >= bonusActive_.size() ||
+            bonusIndex >= bonusObjects_.size() ||
             !bonusActive_[bonusIndex] || racers_[racer].destroyed)
             return false;
         auto& runtime = racers_[racer];
-        PickSlot pickSlot = PickSlot::None;
+        source::PlayerBonusType sourceType;
         switch (kind)
         {
         case BonusKind::Money:
-            runtime.TakeMoney(value);
-            break;
-        case BonusKind::Medpack:
-            runtime.TakeMedpack(value);
+            sourceType = source::PlayerBonusType::Money;
             break;
         case BonusKind::Ammunition:
-        {
-            std::vector<std::uint32_t> weaponMaximumCharges;
-            weaponMaximumCharges.reserve(race_.weapons.size());
-            for (const auto& weapon : race_.weapons)
-                weaponMaximumCharges.push_back(weapon.maximumCharge);
-            const auto result = runtime.TakeAmmunition(
-                value, weaponMaximumCharges, sourceRandomUnit());
-            switch (result.slot)
-            {
-            case source::PlayerBonusSlot::Primary:
-                pickSlot = PickSlot::Primary;
-                break;
-            case source::PlayerBonusSlot::Hyper:
-                pickSlot = PickSlot::Hyper;
-                break;
-            case source::PlayerBonusSlot::Mine:
-                pickSlot = PickSlot::Mine;
-                break;
-            case source::PlayerBonusSlot::None:
-                break;
-            }
+            sourceType = source::PlayerBonusType::Charge;
             break;
-        }
+        case BonusKind::Medpack:
+            sourceType = source::PlayerBonusType::Medpack;
+            break;
         case BonusKind::Shield:
-            runtime.TakeImmortal(value);
+            sourceType = source::PlayerBonusType::Immortal;
             break;
         case BonusKind::Speed:
         case BonusKind::SlowHazard:
@@ -4898,7 +4886,39 @@ void OriginalRaceSession::updateGameplay(
         case BonusKind::Unknown:
             return false;
         }
-        bonusActive_[bonusIndex] = false;
+        std::vector<std::uint32_t> weaponMaximumCharges;
+        weaponMaximumCharges.reserve(race_.weapons.size());
+        for (const auto& weapon : race_.weapons)
+            weaponMaximumCharges.push_back(weapon.maximumCharge);
+        // The Windows code advances rand() only for the ammunition branch.
+        // Consuming it for money/medpack/shield changes every later AI and
+        // gameplay random decision in the shared source sequence.
+        const float bonusRandomUnit =
+            sourceType == source::PlayerBonusType::Charge
+                ? sourceRandomUnit()
+                : 0.0F;
+        const auto result = source::Logic::TakeBonus(
+            &runtime, &bonusObjects_[bonusIndex], sourceType,
+            value, weaponMaximumCharges, bonusRandomUnit);
+        if (!result.taken)
+            return false;
+        PickSlot pickSlot = PickSlot::None;
+        switch (result.player.slot)
+        {
+        case source::PlayerBonusSlot::Primary:
+            pickSlot = PickSlot::Primary;
+            break;
+        case source::PlayerBonusSlot::Hyper:
+            pickSlot = PickSlot::Hyper;
+            break;
+        case source::PlayerBonusSlot::Mine:
+            pickSlot = PickSlot::Mine;
+            break;
+        case source::PlayerBonusSlot::None:
+            break;
+        }
+        bonusActive_[bonusIndex] =
+            !bonusObjects_[bonusIndex].destroyed;
         spawnBonusDeathEffect(bonusIndex);
         RaceEvent event;
         event.kind = RaceEventKind::Bonus;

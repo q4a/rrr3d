@@ -195,6 +195,21 @@ int main()
         damageTarget.GetLife() != -2.0F)
         return 26;
 
+    source::Player bonusPlayer;
+    bonusPlayer.Reset(100.0F, 1U);
+    source::GameObject bonusObject;
+    bonusObject.ResetGameObject(-1.0F);
+    const auto moneyBonus = source::Logic::TakeBonus(
+        &bonusPlayer, &bonusObject,
+        source::PlayerBonusType::Money, 25.0F, {}, 0.0F);
+    if (!moneyBonus.taken || !bonusObject.destroyed ||
+        bonusPlayer.pickedMoney != 25U)
+        return 27;
+    if (source::Logic::TakeBonus(
+            &bonusPlayer, &bonusObject,
+            source::PlayerBonusType::Money, 25.0F, {}, 0.0F).taken)
+        return 28;
+
     std::cout << "original Weapon/WeaponItem/Droid/Reflector/Logic "
                  "source rules passed\n";
     return 0;

@@ -23,6 +23,14 @@ enum class PlayerBonusSlot : std::uint8_t
     Mine,
 };
 
+enum class PlayerBonusType : std::uint8_t
+{
+    Money,
+    Charge,
+    Medpack,
+    Immortal,
+};
+
 struct PlayerBonusResult
 {
     PlayerBonusSlot slot = PlayerBonusSlot::None;
@@ -134,6 +142,10 @@ public:
     PlayerBonusResult TakeImmortal(float value) noexcept;
     PlayerBonusResult TakeAmmunition(
         float value,
+        const std::vector<std::uint32_t>& maximumCharges,
+        float randomUnit) noexcept;
+    PlayerBonusResult TakeBonus(
+        PlayerBonusType type, float value,
         const std::vector<std::uint32_t>& maximumCharges,
         float randomUnit) noexcept;
 

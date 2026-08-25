@@ -487,6 +487,7 @@ private:
     // no longer the authority for damage or death.
     std::vector<source::DestrObj> decorationObjects_;
     std::vector<bool> bonusActive_;
+    std::vector<source::GameObject> bonusObjects_;
     std::vector<std::size_t> bonusNetworkPendingContact_;
     std::vector<source::WeaponRack> weaponRacks_;
     std::vector<source::PlayerItemRack> playerItemRacks_;

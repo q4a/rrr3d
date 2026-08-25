@@ -445,6 +445,26 @@ PlayerBonusResult Player::TakeAmmunition(
     return result;
 }
 
+PlayerBonusResult Player::TakeBonus(
+    PlayerBonusType type, float value,
+    const std::vector<std::uint32_t>& maximumCharges,
+    float randomUnit) noexcept
+{
+    switch (type)
+    {
+    case PlayerBonusType::Money:
+        return TakeMoney(value);
+    case PlayerBonusType::Charge:
+        return TakeAmmunition(
+            value, maximumCharges, randomUnit);
+    case PlayerBonusType::Medpack:
+        return TakeMedpack(value);
+    case PlayerBonusType::Immortal:
+        return TakeImmortal(value);
+    }
+    return {};
+}
+
 void Player::SetFinished(bool value, float time) noexcept
 {
     finished = value;
