@@ -641,6 +641,16 @@ bool OriginalNetworkSession::sendOwnedPlayerMineContactMap(
     return true;
 }
 
+bool OriginalNetworkSession::hostGoWaitComplete() const noexcept
+{
+    return impl_->models.hostGoWaitComplete();
+}
+
+bool OriginalNetworkSession::hostRaceFinishComplete() const noexcept
+{
+    return impl_->models.hostRaceFinishComplete();
+}
+
 bool OriginalNetworkSession::connect(
     const Endpoint& endpoint, std::string& error)
 {

@@ -155,6 +155,8 @@ public:
         std::uint32_t modelId, std::uint32_t projectileObjectId,
         const std::array<float, 3>& point, std::string& error);
 
+    [[nodiscard]] bool hostGoWaitComplete() const noexcept;
+    [[nodiscard]] bool hostRaceFinishComplete() const noexcept;
     [[nodiscard]] bool initialized() const noexcept;
     [[nodiscard]] SessionSnapshot snapshot() const;
 

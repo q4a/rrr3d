@@ -15824,17 +15824,8 @@ int main(int argc, char** argv)
                 if (networkHostRequested &&
                     networkSnapshot.models.raceActive)
                 {
-                    const bool allHumansWaiting =
-                        !networkSnapshot.models.players.empty() &&
-                        std::none_of(
-                            networkSnapshot.models.players.begin(),
-                            networkSnapshot.models.players.end(),
-                            [](const auto& player) {
-                                return player.playerId == 0U &&
-                                       !player.raceGoWait;
-                            });
                     if (networkHostRaceGoSeconds < 0.0F &&
-                        allHumansWaiting)
+                        networkSession.hostGoWaitComplete())
                     {
                         networkHostRaceGoSeconds = 0.0F;
                     }
@@ -16225,16 +16216,7 @@ int main(int argc, char** argv)
                 !networkHostFinishTimerStarted &&
                 localHumanFinished)
             {
-                const bool allHumansFinished =
-                    !networkSnapshot.models.players.empty() &&
-                    std::none_of(
-                        networkSnapshot.models.players.begin(),
-                        networkSnapshot.models.players.end(),
-                        [](const auto& player) {
-                            return player.playerId == 0U &&
-                                   !player.raceFinish;
-                        });
-                if (allHumansFinished)
+                if (networkSession.hostRaceFinishComplete())
                 {
                     raceSession.startNetworkFinishTimer();
                     networkHostFinishTimerStarted = true;

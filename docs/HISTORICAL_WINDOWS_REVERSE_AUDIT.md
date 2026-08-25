@@ -1905,6 +1905,31 @@ Portable Race теперь хранит пять неизменяемых ком
 переиспользование шаблонов для ID 6/7 и восстановление семи AI после shrink;
 network regression поднимает полный восьмиместный матч.
 
+### P2.66 — `NetRace` roster и synchronisation gates — выполнено
+
+Продолжение сверки `NetRace::StartRace`, `NetRace::CheckGoWait`,
+`NetRace::CheckFinish`, `NetGame::RegPlayer` и `NetGame::UnregPlayer`
+обнаружило зависимость portable-кода от порядка `unordered_map`. Windows
+хранит `_aiPlayers` в insertion-ordered `List`, создаёт компьютеров по
+возрастанию `cComputer1+i` и при уменьшении состава удаляет именно
+`_aiPlayers.back()`. Portable собирал AI из hash-map и удалял последний
+элемент её нестабильной итерации, поэтому после изменения опций мог оставить
+непрерывно не тот набор ID, например `cComputer2` без `cComputer1`.
+
+Перед удалением AI теперь восстанавливается исходный порядок по player ID и
+model ID; shrink всегда удаляет наибольший активный `cComputer`, а regrow
+создаёт точный непрерывный диапазон. Regression проверяет переход 2 → 1 AI и
+повторный полный матч с двумя Human и `cComputer1..6` при лимите восьми мест.
+
+Кроме того, из монолитного main перенесены собственно правила двух source
+методов. `CheckGoWait` на host ждёт только удалённых `netOpponents` — локальный
+Human вызывает проверку своим `cRaceStartWait`, но не входит в её цикл.
+`CheckFinish`, напротив, требует `RaceFinish` от всех Human/Opponent, включая
+host. Runtime теперь спрашивает эти условия у `OriginalNetworkModels`, где
+находится исходный NetPlayer graph; disconnect автоматически меняет результат
+за счёт удаления модели. Loopback regression отдельно фиксирует обе разные
+границы и запрещает client-side принятие host-решения.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

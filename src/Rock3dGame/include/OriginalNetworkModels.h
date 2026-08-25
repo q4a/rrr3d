@@ -299,6 +299,11 @@ public:
         std::uint32_t modelId, std::uint32_t projectileObjectId,
         const std::array<float, 3>& point, std::string& error);
 
+    // NetRace::CheckGoWait waits only for netOpponents: the host reaches the
+    // method through its own cRaceStartWait event and is not part of that
+    // loop. CheckFinish instead waits for every Human/Opponent NetPlayer.
+    [[nodiscard]] bool hostGoWaitComplete() const noexcept;
+    [[nodiscard]] bool hostRaceFinishComplete() const noexcept;
     [[nodiscard]] bool acceptsConnections() const noexcept;
     [[nodiscard]] NetworkModelSnapshot snapshot() const;
 

@@ -1662,8 +1662,18 @@ bool OriginalNetworkModels::Impl::makeComputers(std::string& error)
         if (model != nullptr && model->state().playerId != 0U)
             computers.push_back(model);
     }
+    std::sort(
+        computers.begin(), computers.end(),
+        [](const PortableNetPlayer* left, const PortableNetPlayer* right) {
+            if (left->state().playerId != right->state().playerId)
+                return left->state().playerId < right->state().playerId;
+            return left->state().modelId < right->state().modelId;
+        });
     while (computers.size() > computerCount)
     {
+        // NetGame::_aiPlayers is an insertion-ordered List. Because
+        // NetRace creates cComputer1+i in ascending order, back() is the
+        // highest active computer ID, independent of NetModel hash storage.
         auto* model = computers.back();
         computers.pop_back();
         service.player()->DeleteModel(model, false);
@@ -2186,6 +2196,37 @@ bool OriginalNetworkModels::sendOwnedPlayerMineContactMap(
     }
     found->second->sendMineContactMap(projectileObjectId, point);
     return true;
+}
+
+bool OriginalNetworkModels::hostGoWaitComplete() const noexcept
+{
+    if (!impl_->service.isServer() || !impl_->value.raceActive ||
+        impl_->value.raceGoStage >= 4)
+    {
+        return false;
+    }
+    return std::none_of(
+        impl_->value.players.begin(), impl_->value.players.end(),
+        [](const NetworkPlayerState& player) {
+            // On the host every non-owner cHuman model is an Opponent. AI
+            // models are deliberately absent from NetRace::CheckGoWait.
+            return player.playerId == 0U && !player.owner &&
+                   !player.raceGoWait;
+        });
+}
+
+bool OriginalNetworkModels::hostRaceFinishComplete() const noexcept
+{
+    if (!impl_->service.isServer() || !impl_->value.raceActive ||
+        impl_->value.raceGoStage < 4)
+    {
+        return false;
+    }
+    return std::none_of(
+        impl_->value.players.begin(), impl_->value.players.end(),
+        [](const NetworkPlayerState& player) {
+            return player.playerId == 0U && !player.raceFinish;
+        });
 }
 
 bool OriginalNetworkModels::acceptsConnections() const noexcept

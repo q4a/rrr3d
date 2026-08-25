@@ -451,6 +451,31 @@ int main()
             return 12;
         }
 
+        // NetRace::CheckGoWait excludes the host's own Human and waits only
+        // for netOpponents. The client cannot satisfy the host-only gate on
+        // its local model graph.
+        if (serverModels.hostGoWaitComplete() ||
+            clientModels.hostGoWaitComplete() ||
+            !clientModels.setLocalPlayerGoWait(true, error) ||
+            !pump(server, client, [&]() {
+                return serverModels.hostGoWaitComplete();
+            }, clock, 4000U))
+        {
+            std::cerr << "NetRace::CheckGoWait source gate mismatch\n";
+            return 29;
+        }
+        const auto serverBeforeGo = serverModels.snapshot();
+        const auto* hostBeforeGo = ownedPlayer(serverBeforeGo);
+        if (hostBeforeGo == nullptr || hostBeforeGo->raceGoWait ||
+            !serverModels.setRaceGoStage(4, error) ||
+            !pump(server, client, [&]() {
+                return clientModels.snapshot().raceGoStage == 4;
+            }, clock, 4000U))
+        {
+            std::cerr << "NetRace host-independent go gate failed\n";
+            return 29;
+        }
+
         auto movingHost = *ownedPlayer(serverModels.snapshot());
         movingHost.vehicle.position[0] += 1.0F;
         movingHost.vehicle.moveState = 3U;
@@ -688,6 +713,17 @@ int main()
             }, clock, 4000U))
             return 14;
 
+        // CheckFinish is intentionally different from CheckGoWait: every
+        // Human/Opponent, including the host, must publish RaceFinish.
+        if (serverModels.hostRaceFinishComplete() ||
+            clientModels.hostRaceFinishComplete() ||
+            !serverModels.setLocalPlayerFinished(true, error) ||
+            !serverModels.hostRaceFinishComplete())
+        {
+            std::cerr << "NetRace::CheckFinish source gate mismatch\n";
+            return 30;
+        }
+
         std::vector<NetworkRaceResult> results(2U);
         results[0].playerModelId = hostModelId;
         results[0].playerPoints = 110;
@@ -726,10 +762,24 @@ int main()
         if (!pump(server, client, [&]() {
                 const auto state2 = clientModels.snapshot();
                 const auto serverState2 = serverModels.snapshot();
+                const auto sourceComputerRoster = [](const auto& state) {
+                    return std::count_if(
+                               state.players.begin(), state.players.end(),
+                               [](const NetworkPlayerState& player) {
+                                   return player.playerId != 0U;
+                               }) == 1 &&
+                           std::any_of(
+                               state.players.begin(), state.players.end(),
+                               [](const NetworkPlayerState& player) {
+                                   return player.playerId == 1U;
+                               });
+                };
                 return state2.raceActive && state2.results.empty() &&
                        state2.match.maxComputers == 1U &&
                        state2.players.size() == 3U &&
                        serverState2.players.size() == 3U &&
+                       sourceComputerRoster(state2) &&
+                       sourceComputerRoster(serverState2) &&
                        std::all_of(
                            state2.players.begin(), state2.players.end(),
                            [](const NetworkPlayerState& player) {
@@ -792,10 +842,27 @@ int main()
             restartedRace && pump(server, client, [&]() {
                 const auto expectedPlayers =
                     static_cast<std::size_t>(match.maxPlayers);
-                return serverModels.snapshot().players.size() ==
-                           expectedPlayers &&
-                       clientModels.snapshot().players.size() ==
-                           expectedPlayers;
+                const auto exactComputerIds = [](
+                                                  const auto& state,
+                                                  std::size_t count) {
+                    std::array<bool, 8> found{};
+                    for (const auto& player : state.players)
+                    {
+                        if (player.playerId < found.size())
+                            found[player.playerId] = true;
+                    }
+                    for (std::size_t id = 1U; id < found.size(); ++id)
+                        if (found[id] != (id <= count))
+                            return false;
+                    return true;
+                };
+                const auto serverState = serverModels.snapshot();
+                const auto clientState2 = clientModels.snapshot();
+                const auto computerCount = expectedPlayers - 2U;
+                return serverState.players.size() == expectedPlayers &&
+                       clientState2.players.size() == expectedPlayers &&
+                       exactComputerIds(serverState, computerCount) &&
+                       exactComputerIds(clientState2, computerCount);
             }, clock, 4000U);
         if (!restoredComputers)
         {
