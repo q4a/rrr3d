@@ -9,6 +9,45 @@ namespace source = r3d::game::originalrace::source;
 
 int main()
 {
+    source::GameModeRaceState gameMode;
+    gameMode.Reset(false);
+    if (gameMode.CountdownStage() != source::GameModeRaceState::goRaceWait ||
+        gameMode.CountdownSeconds() != 4.0F || gameMode.IsRaceGo())
+        return 12;
+    if (gameMode.OnFrame(0.99F).countdownStage)
+        return 13;
+    auto gameAdvance = gameMode.OnFrame(0.02F);
+    if (!gameAdvance.countdownStage ||
+        *gameAdvance.countdownStage != source::GameModeRaceState::goRace1)
+        return 14;
+    gameMode.Pause(true);
+    if (gameMode.OnFrame(2.0F).countdownStage ||
+        gameMode.CountdownStage() != source::GameModeRaceState::goRace1)
+        return 15;
+    gameMode.Pause(false);
+    gameMode.OnFrame(0.99F);
+    if (gameMode.CountdownStage() != source::GameModeRaceState::goRace2)
+        return 16;
+    const auto external = gameMode.SynchronizeCountdown(
+        source::GameModeRaceState::goRaceWait);
+    if (!external || gameMode.CountdownSeconds() != 3.0F ||
+        gameMode.OnFrame(5.0F).countdownStage)
+        return 17;
+    const auto externalGo = gameMode.SynchronizeCountdown(
+        source::GameModeRaceState::goRace);
+    if (!externalGo || !externalGo->raceStarted || !gameMode.IsRaceGo())
+        return 18;
+    gameMode.RunFinishTimer();
+    if (gameMode.OnFrame(3.0F).finishTimeEnded ||
+        gameMode.IsFinishPresentationReady())
+        return 19;
+    if (!gameMode.OnFrame(0.01F).finishTimeEnded ||
+        !gameMode.IsFinishPresentationReady())
+        return 20;
+    gameMode.Reset(true);
+    if (!gameMode.IsRaceGo() || gameMode.CountdownSeconds() != 0.0F)
+        return 21;
+
     std::array<source::Player, 2U> runPlayers{};
     for (auto& player : runPlayers)
     {

@@ -524,12 +524,7 @@ private:
     source::PairPxContactEffect pairContactEffect_;
     RacePhase phase_ = RacePhase::Countdown;
     RacePhase phaseBeforePause_ = RacePhase::Countdown;
-    float countdownSeconds_ = 4.0F;
     float elapsedSeconds_ = 0.0F;
-    float finishSecondsRemaining_ = -1.0F;
-    int countdownDisplay_ = 3;
-    std::int32_t countdownStage_ = 0;
-    bool networkCountdownControlled_ = false;
     bool networkFinishControlled_ = false;
     bool networkGameplayEnabled_ = false;
     bool networkGameplayHost_ = false;
@@ -576,6 +571,7 @@ private:
         initialAchievementIterations_;
     source::AchievmentModel achievementModel_;
     source::RaceRunState raceRunState_;
+    source::GameModeRaceState gameModeRaceState_;
     source::RaceLifecycle raceLifecycle_;
     source::RacePlaceModel racePlaceModel_;
     bool campaign_ = true;

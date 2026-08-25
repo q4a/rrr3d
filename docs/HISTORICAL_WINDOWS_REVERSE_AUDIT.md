@@ -1022,6 +1022,21 @@ opponents сохраняют исходное значение `true`; `ExitRace
 reflection flag, стартовую перезарядку и exit teardown. 13 non-network CTest,
 resource verifier, map1 physics и 240-frame Metal/Jolt render smoke проходят.
 
+### P2.21 — GameMode race clock owner — выполнено
+
+Перенесён независимый от Win32/D3D9 временной автомат исходного
+`GameMode`: `cGoRaceWait`, `cGoRace1..3`, `cGoRace`, `_goRaceTime`,
+`_finishTime`, pause и внешний network-stage. `OriginalRaceSession` больше
+не владеет параллельными countdown/finish числами и получает только переходы
+от active `GameModeRaceState`.
+
+Offline-путь повторяет `Menu::StartRace -> GoRaceTimer` и исходный
+`cGoRaceLag=1`; network-путь останавливает локальные часы и применяет стадии
+хоста. Finish теперь посылает эквивалент `cRaceFinishTimeEnd` именно при
+`(_finishTime += dt) > 3.0f`, а pause не расходует ни один таймер. Unit
+regression покрывает offline, external network, pause, DEBUG_PX и граничные
+три секунды; 13 non-network CTest проходят.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

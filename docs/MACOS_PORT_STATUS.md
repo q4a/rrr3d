@@ -1865,3 +1865,14 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   bonus/decoration map objects больше не остаются активными за меню.
 - Повторный вызов idempotent, результаты/награды FinishMenu сохраняются.
   Unit, integrated map1 physics и FinishMenu renderer smoke проходят.
+
+### Source GameMode race clocks follow-up
+
+- `GameMode::_goRaceTime/_finishTime` перенесены в active
+  `source::GameModeRaceState`; session больше не является владельцем
+  countdown и finish clocks.
+- Сохранены `cGoRaceLag=1`, последовательность wait/1/2/3/go, немедленный
+  `DEBUG_PX`, host-controlled network stages и остановка обоих clocks при
+  pause.
+- Finish transition использует точное исходное условие `> 3.0f`; unit и
+  13/13 non-network CTest проходят.

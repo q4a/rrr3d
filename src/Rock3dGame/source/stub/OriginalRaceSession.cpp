@@ -1039,18 +1039,12 @@ OriginalRaceSession::OriginalRaceSession(
 
 void OriginalRaceSession::reset()
 {
+    gameModeRaceState_.Reset(legacyWindowsDebug_);
     // DEBUG_PX makes GameMode::DoStartRace call GoRace(cGoRace) directly,
     // bypassing cGoRaceWait and the three visible countdown stages.
-    phase_ = legacyWindowsDebug_ ? RacePhase::Racing
-                                : RacePhase::Countdown;
+    phase_ = gameModeRaceState_.IsRaceGo() ? RacePhase::Racing
+                                          : RacePhase::Countdown;
     phaseBeforePause_ = phase_;
-    // GameMode::DoStartRace first emits cGoRaceWait. GoRaceTimer then uses
-    // cGoRaceLag=1 and advances cGoRace1..cGoRace in one-second steps. The
-    // car is therefore blocked for four seconds, not three.
-    countdownSeconds_ = legacyWindowsDebug_ ? 0.0F : 4.0F;
-    countdownDisplay_ = legacyWindowsDebug_ ? 0 : 3;
-    countdownStage_ = legacyWindowsDebug_ ? 4 : 0;
-    networkCountdownControlled_ = false;
     networkFinishControlled_ = false;
     networkGameplayEnabled_ = false;
     networkGameplayHost_ = false;
@@ -1058,7 +1052,6 @@ void OriginalRaceSession::reset()
     humanRacer_ = RacerRuntime::invalidWeapon;
     networkOwnedRacers_.clear();
     elapsedSeconds_ = 0.0F;
-    finishSecondsRemaining_ = -1.0F;
     racers_.assign(race_.racers.size(), {});
     vehicleInputs_.assign(race_.racers.size(), {});
     weaponRacks_.assign(race_.racers.size(), {});
@@ -2005,6 +1998,7 @@ OriginalRaceSession::applyDecorationDamageInternal(
 
 void OriginalRaceSession::setPaused(bool paused) noexcept
 {
+    gameModeRaceState_.Pause(paused);
     if (paused && phase_ != RacePhase::Paused)
     {
         phaseBeforePause_ = phase_;
@@ -2019,17 +2013,19 @@ void OriginalRaceSession::setPaused(bool paused) noexcept
 void OriginalRaceSession::synchronizeNetworkCountdown(
     std::int32_t stage) noexcept
 {
-    if (stage < 0 || stage > 4)
+    const auto transition =
+        gameModeRaceState_.SynchronizeCountdown(stage);
+    if (!transition)
         return;
 
-    networkCountdownControlled_ = true;
     const RacePhase targetPhase =
-        stage == 4 ? RacePhase::Racing : RacePhase::Countdown;
+        transition->raceStarted ? RacePhase::Racing
+                                : RacePhase::Countdown;
     if (phase_ == RacePhase::Paused)
         phaseBeforePause_ = targetPhase;
     else
         phase_ = targetPhase;
-    if (stage == 4)
+    if (transition->raceStarted)
     {
         const auto humanPosition = std::find_if(
             racers_.begin(), racers_.end(),
@@ -2041,16 +2037,9 @@ void OriginalRaceSession::synchronizeNetworkCountdown(
         raceRunState_.GoRace(human);
     }
 
-    const int display = stage <= 1 ? 3 : 4 - stage;
-    countdownSeconds_ = static_cast<float>(display);
-    if (countdownStage_ != stage || stage == 1 || stage == 4)
-    {
-        countdownStage_ = stage;
-        countdownDisplay_ = display;
-        events_.push_back(
-            {RaceEventKind::CountdownChanged, 0, 0, {},
-             static_cast<float>(display)});
-    }
+    events_.push_back(
+        {RaceEventKind::CountdownChanged, 0, 0, {},
+         gameModeRaceState_.CountdownSeconds()});
 }
 
 void OriginalRaceSession::setNetworkFinishControlled(
@@ -2058,14 +2047,15 @@ void OriginalRaceSession::setNetworkFinishControlled(
 {
     networkFinishControlled_ = controlled;
     if (controlled && phase_ == RacePhase::Finished)
-        finishSecondsRemaining_ = -1.0F;
+        gameModeRaceState_.CancelFinishTimer();
 }
 
 void OriginalRaceSession::startNetworkFinishTimer() noexcept
 {
     if (networkFinishControlled_ && phase_ == RacePhase::Finished &&
-        finishSecondsRemaining_ < 0.0F)
-        finishSecondsRemaining_ = 3.0F;
+        !gameModeRaceState_.IsFinishTimerRunning() &&
+        !gameModeRaceState_.IsFinishPresentationReady())
+        gameModeRaceState_.RunFinishTimer();
 }
 
 void OriginalRaceSession::synchronizeNetworkFinishResults(
@@ -2093,7 +2083,7 @@ void OriginalRaceSession::synchronizeNetworkFinishResults(
     raceLifecycle_.LoadResults(std::move(sourceResults));
     for (const auto& result : raceLifecycle_.GetResults())
         completeRacer(result, elapsedSeconds_);
-    finishSecondsRemaining_ = 0.0F;
+    gameModeRaceState_.FinishImmediately();
 }
 
 RacePhase OriginalRaceSession::phase() const noexcept
@@ -2103,12 +2093,12 @@ RacePhase OriginalRaceSession::phase() const noexcept
 
 float OriginalRaceSession::countdownSeconds() const noexcept
 {
-    return countdownSeconds_;
+    return gameModeRaceState_.CountdownSeconds();
 }
 
 std::int32_t OriginalRaceSession::countdownStage() const noexcept
 {
-    return countdownStage_;
+    return gameModeRaceState_.CountdownStage();
 }
 
 float OriginalRaceSession::elapsedSeconds() const noexcept
@@ -2119,7 +2109,7 @@ float OriginalRaceSession::elapsedSeconds() const noexcept
 bool OriginalRaceSession::finishPresentationReady() const noexcept
 {
     return phase_ == RacePhase::Finished &&
-           finishSecondsRemaining_ == 0.0F;
+           gameModeRaceState_.IsFinishPresentationReady();
 }
 
 const std::vector<r3d::physics::VehicleInput>&
@@ -2484,8 +2474,10 @@ void OriginalRaceSession::updateProgress(
         case source::RaceLifecycleEventKind::RaceFinish:
             kind = RaceEventKind::RaceFinish;
             phase_ = RacePhase::Finished;
-            finishSecondsRemaining_ =
-                networkFinishControlled_ ? -1.0F : 3.0F;
+            if (networkFinishControlled_)
+                gameModeRaceState_.CancelFinishTimer();
+            else
+                gameModeRaceState_.RunFinishTimer();
             break;
         case source::RaceLifecycleEventKind::PassLap:
             kind = RaceEventKind::Lap;
@@ -5987,7 +5979,7 @@ void OriginalRaceSession::completeRaceForExit(
     }
     phase_ = RacePhase::Finished;
     phaseBeforePause_ = phase_;
-    finishSecondsRemaining_ = 0.0F;
+    gameModeRaceState_.FinishImmediately();
 }
 
 void OriginalRaceSession::update(
@@ -6093,29 +6085,17 @@ void OriginalRaceSession::update(
                            return effect.seconds <= 0.0F;
                        }),
         effects_.end());
+    const auto gameModeAdvance = gameModeRaceState_.OnFrame(seconds);
     if (phase_ == RacePhase::Countdown)
     {
         // Windows Race::OnFixedStep progresses Player state throughout the
         // countdown; only AISystem is gated by GoRace.
         progressPlayers(seconds, vehicles);
-        if (networkCountdownControlled_)
-            return;
-        countdownSeconds_ = std::max(0.0F, countdownSeconds_ - seconds);
-        const std::int32_t stage = countdownSeconds_ <= 0.0F
-            ? 4
-            : std::clamp(
-                  4 - static_cast<std::int32_t>(
-                          std::ceil(countdownSeconds_)),
-                  0, 3);
-        const int display = stage <= 1 ? 3 : 4 - stage;
-        if (stage != countdownStage_)
-        {
-            countdownStage_ = stage;
-            countdownDisplay_ = display;
-            events_.push_back({RaceEventKind::CountdownChanged, 0, 0, {},
-                               static_cast<float>(display)});
-        }
-        if (countdownSeconds_ <= 0.0F)
+        if (gameModeAdvance.countdownStage)
+            events_.push_back(
+                {RaceEventKind::CountdownChanged, 0, 0, {},
+                 gameModeRaceState_.CountdownSeconds()});
+        if (gameModeAdvance.raceStarted)
         {
             const auto humanPosition = std::find_if(
                 racers_.begin(), racers_.end(),
@@ -6131,17 +6111,13 @@ void OriginalRaceSession::update(
     }
 
     const bool finishTimerRunning =
-        phase_ == RacePhase::Finished && finishSecondsRemaining_ > 0.0F;
+        phase_ == RacePhase::Finished &&
+        (gameModeRaceState_.IsFinishTimerRunning() ||
+         gameModeAdvance.finishTimeEnded);
     if (phase_ == RacePhase::Finished && !finishTimerRunning)
     {
         progressPlayers(seconds, vehicles);
         return;
-    }
-
-    if (finishTimerRunning)
-    {
-        finishSecondsRemaining_ =
-            std::max(0.0F, finishSecondsRemaining_ - seconds);
     }
 
     RaceControl sourceHumanControl = humanControl;
@@ -6227,7 +6203,7 @@ void OriginalRaceSession::update(
     updatePlaces(vehicles);
     updateAchievements(seconds);
     if (phase_ == RacePhase::Finished &&
-        finishSecondsRemaining_ == 0.0F)
+        gameModeRaceState_.IsFinishPresentationReady())
     {
         completeRemainingRacers(vehicles);
         updatePlaces(vehicles);
