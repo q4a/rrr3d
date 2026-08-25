@@ -1981,3 +1981,13 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   вызывает `ResetPickMoney`; `SetFinished` остаётся единственным переходом,
   который одновременно включает постоянную неуязвимость финишировавшей
   машины.
+
+### Source WeaponItem current-charge owner follow-up
+
+- `WeaponItem` теперь буквально владеет `_curCharge`, как Windows-класс;
+  resource/profile arrays служат только входом при первоначальном binding.
+- AI, HUD, выбор оружия, бонусы, lap reload, primary/Hyper/Mine и network
+  paths переведены на один Slot-owned предмет. Staging-копия намеренно не
+  изменяется после binding, что исключает прежнее расхождение владельцев.
+- Weapon, Player, lifecycle и integrated race regressions проверяют shot,
+  failed replicated `newCharge`, reload и detached/attached lifecycle.

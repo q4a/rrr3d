@@ -794,7 +794,7 @@ void WeaponItem::Bind(
     weapon_ = weapon;
     maximumCharge_ = maximumCharge;
     countCharge_ = countCharge;
-    currentCharge_ = currentCharge;
+    currentCharge_ = currentCharge != nullptr ? *currentCharge : 0U;
     chargeStep_ = chargeStep;
     damage_ = damage;
     chargeCost_ = chargeCost;
@@ -803,25 +803,21 @@ void WeaponItem::Bind(
 bool WeaponItem::Shot(bool projectileCreated, int newCharge) noexcept
 {
     bool result = false;
-    if (currentCharge_ != nullptr &&
-        (*currentCharge_ > 0U || maximumCharge_ == 0U))
+    if (currentCharge_ > 0U || maximumCharge_ == 0U)
     {
         result = carAttached_ && weapon_ != nullptr && projectileCreated;
         if (newCharge == -1)
         {
             newCharge = result
-                            ? static_cast<int>(*currentCharge_) - 1
-                            : static_cast<int>(*currentCharge_);
+                            ? static_cast<int>(currentCharge_) - 1
+                            : static_cast<int>(currentCharge_);
         }
     }
 
-    if (currentCharge_ != nullptr)
-    {
-        // Player.cpp applies this even when the charge gate or projectile
-        // preparation failed.  That detail is required by NetPlayer::DoShot.
-        *currentCharge_ = static_cast<std::uint32_t>(
-            std::max(newCharge, 0));
-    }
+    // Player.cpp applies this even when the charge gate or projectile
+    // preparation failed. That detail is required by NetPlayer::DoShot.
+    currentCharge_ = static_cast<std::uint32_t>(
+        std::max(newCharge, 0));
     if (weapon_ != nullptr)
         weapon_->OnShot(result);
     return result;
@@ -829,8 +825,7 @@ bool WeaponItem::Shot(bool projectileCreated, int newCharge) noexcept
 
 void WeaponItem::Reload() noexcept
 {
-    if (currentCharge_ != nullptr)
-        *currentCharge_ = countCharge_;
+    currentCharge_ = countCharge_;
 }
 
 bool WeaponItem::IsReadyShot(float delay) const noexcept
@@ -847,14 +842,12 @@ bool WeaponItem::IsReadyShot() const noexcept
 
 bool WeaponItem::IsInstalled() const noexcept
 {
-    return carAttached_ && weapon_ != nullptr &&
-           currentCharge_ != nullptr;
+    return carAttached_ && weapon_ != nullptr;
 }
 
 bool WeaponItem::HasShotCharge() const noexcept
 {
-    return currentCharge_ != nullptr &&
-           (*currentCharge_ > 0U || maximumCharge_ == 0U);
+    return currentCharge_ > 0U || maximumCharge_ == 0U;
 }
 
 std::uint32_t WeaponItem::GetMaxCharge() const noexcept
@@ -879,13 +872,12 @@ void WeaponItem::SetCntCharge(std::uint32_t value) noexcept
 
 std::uint32_t WeaponItem::GetCurCharge() const noexcept
 {
-    return currentCharge_ != nullptr ? *currentCharge_ : 0U;
+    return currentCharge_;
 }
 
 void WeaponItem::SetCurCharge(std::uint32_t value) noexcept
 {
-    if (currentCharge_ != nullptr)
-        *currentCharge_ = value;
+    currentCharge_ = value;
 }
 
 std::uint32_t WeaponItem::GetChargeStep() const noexcept

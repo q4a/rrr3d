@@ -80,8 +80,10 @@ int main()
             source::Player::HeadLightMode::Two ||
         runPlayers.back().GetHeadLight() !=
             source::Player::HeadLightMode::One ||
-        runPlayers.front().weaponCharges[0] != 4U ||
-        runPlayers.back().weaponCharges[0] != 4U ||
+        runPlayers.front().GetPrimaryWeaponItems()[0]
+                ->GetCurCharge() != 4U ||
+        runPlayers.back().GetPrimaryWeaponItems()[0]
+                ->GetCurCharge() != 4U ||
         run.StartRace(runPlayers, &runPlayers.front(), true, 1U))
         return 9;
     run.GoRace(&runPlayers.front());

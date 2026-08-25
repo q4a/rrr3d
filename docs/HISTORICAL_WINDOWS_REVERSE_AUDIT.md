@@ -1384,6 +1384,23 @@ session regression; удаление этого staging требует отде�
 порядка profile/loadout binding. Regression проверяет весь mutable API и
 общую storage identity с текущим зарядом.
 
+### P2.41 — literal WeaponItem current-charge ownership — выполнено
+
+Прямое сравнение с `source/game/Player.cpp` подтвердило, что предыдущая
+«общая storage identity» всё ещё была неверной: Windows `WeaponItem` содержит
+собственное поле `_curCharge`, сохраняет и загружает его сам. Указатель на
+`RacerRuntime::weaponCharges/hyperCharge/mines` теперь используется только
+один раз при `BindWeaponItems` как источник уже разобранного profile/loadout;
+выстрел, network `newCharge`, reload и ammunition bonus меняют только
+Slot-owned `WeaponItem`.
+
+Убраны последние active чтения staging-полей из AI, lap reload, Hyper/Spring,
+Mine, ShotAll, network-shot, selected-weapon и regression paths. Публичные
+массивы пока сохранены исключительно как временный результат resource/profile
+разбора до создания предметов — после binding они намеренно не синхронизируются
+обратно. Regression отдельно доказывает эту границу и повторяет исходные
+`Get/SetCurCharge` semantics у подключённого и отключённого автомобиля.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

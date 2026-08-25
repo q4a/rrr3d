@@ -24,18 +24,19 @@ int main()
     if (!selection.found || selection.slot != 1U ||
         human.GetCurWeapon() != 1)
         return 1;
-    charges[1] = 0U;
+    items[1].SetCurCharge(0U);
     selection = human.SelectWeapon(itemPointers);
     if (!selection.found || selection.slot != 2U ||
         human.GetCurWeapon() != 2)
         return 2;
-    charges[2] = 0U;
+    items[2].SetCurCharge(0U);
     selection = human.SelectWeapon(itemPointers);
     if (selection.found || selection.slot != 0U ||
         human.GetCurWeapon() != 0)
         return 3;
 
-    charges = {1U, 1U, 1U};
+    for (auto& item : items)
+        item.SetCurCharge(1U);
     human.ChangeWeapon(1, itemPointers);
     human.ChangeWeapon(1, itemPointers);
     human.ChangeWeapon(1, itemPointers);

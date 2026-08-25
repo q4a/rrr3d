@@ -300,10 +300,10 @@ private:
     ShotEffect shotEffect_;
 };
 
-// Backend-neutral transcription of Player::WeaponItem.  The Windows object
-// owned its charge fields directly; the portable Player already owns the
-// profile-backed storage, so this class binds to that storage instead of
-// creating a second, divergent copy.
+// Backend-neutral transcription of Player::WeaponItem. The Windows object
+// owns its charge fields directly. The pointer accepted by Bind is only a
+// load-time source for the staged RacerRuntime setup; live mutations stay in
+// this object.
 class WeaponItem : public SlotItem
 {
 public:
@@ -358,7 +358,7 @@ private:
     bool carAttached_ = false;
     std::uint32_t maximumCharge_ = 0U;
     std::uint32_t countCharge_ = 0U;
-    std::uint32_t* currentCharge_ = nullptr;
+    std::uint32_t currentCharge_ = 0U;
     std::uint32_t chargeStep_ = 1U;
     float damage_ = 0.0F;
     int chargeCost_ = 0;

@@ -1363,6 +1363,18 @@ Network, video и Steam явно выключены.
   Droid, first Reflector, профильную установку и полный create/free/reload
   lifecycle.
 
+### Source WeaponItem current-charge owner
+
+- Текущее количество зарядов перенесено буквально из Windows-поля
+  `WeaponItem::_curCharge`; staging-массивы `RacerRuntime` используются лишь
+  для первоначального resource/profile binding и после него не являются
+  runtime-состоянием.
+- Human, AI, HUD, profile writer, bonuses, lap reload, Hyper/Mine, ShotAll и
+  network replication читают или меняют установленный Slot-owned item через
+  исходные `GetCurCharge/SetCurCharge/Reload/Shot`.
+- Regression проверяет, что live выстрелы и reload не мутируют входную
+  staging-копию, включая failed replicated shot с явным `newCharge`.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

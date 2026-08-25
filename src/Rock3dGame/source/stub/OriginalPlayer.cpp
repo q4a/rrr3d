@@ -730,7 +730,7 @@ void Player::SyncSelectedWeapon(
         const auto items = GetPrimaryWeaponItems();
         ammunition = items[slot] != nullptr
                          ? items[slot]->GetCurCharge()
-                         : weaponCharges[slot];
+                         : 0U;
         return;
     }
     selectedWeapon = invalidWeapon;

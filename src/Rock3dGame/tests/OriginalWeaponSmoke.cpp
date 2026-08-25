@@ -88,14 +88,15 @@ int main()
         return 8;
     if (item.Shot(false) || charge != 2U || !item.IsReadyShot())
         return 9;
-    if (!item.Shot(true) || charge != 1U || item.IsReadyShot())
+    if (!item.Shot(true) || item.GetCurCharge() != 1U ||
+        charge != 2U || item.IsReadyShot())
         return 10;
     item.Reload();
-    if (charge != 4U)
+    if (item.GetCurCharge() != 4U || charge != 2U)
         return 11;
     item.OnDestroyCar();
     if (item.IsInstalled() || item.IsReadyShot() ||
-        item.GetWeapon() != nullptr || item.Shot(true) || charge != 4U)
+        item.GetWeapon() != nullptr || item.Shot(true) || charge != 2U)
         return 11;
     item.SetMaxCharge(9U);
     item.SetCntCharge(5U);
@@ -106,7 +107,7 @@ int main()
     if (item.GetMaxCharge() != 9U || item.GetCntCharge() != 5U ||
         item.GetCurCharge() != 3U || item.GetChargeStep() != 3U ||
         std::abs(item.GetDamage() - 13.5F) > 0.0001F ||
-        item.GetChargeCost() != 125 || charge != 3U)
+        item.GetChargeCost() != 125 || charge != 2U)
         return 11;
 
     // maxCharge==0 is the original infinite-ammunition sentinel.  It must
@@ -125,7 +126,8 @@ int main()
     source::WeaponItem replicated(
         &rack.hyper, 7U, 3U, &charge);
     replicated.OnCreateCar();
-    if (replicated.Shot(false, 1) || charge != 1U)
+    if (replicated.Shot(false, 1) ||
+        replicated.GetCurCharge() != 1U || charge != 3U)
         return 13;
 
     rack.primary[0].SetDesc(

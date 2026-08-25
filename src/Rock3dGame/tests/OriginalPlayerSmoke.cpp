@@ -249,22 +249,28 @@ int main()
     const auto hyper = player.TakeAmmunition(
         0.5F, maximumCharges, 0.0F);
     if (hyper.slot != source::PlayerBonusSlot::Hyper ||
-        hyper.weapon != 0U || player.hyperCharge != 2U)
+        hyper.weapon != 0U ||
+        player.GetHyperWeaponItem()->GetCurCharge() != 2U ||
+        player.hyperCharge != 0U)
         return 3;
     const auto mine = player.TakeAmmunition(
         0.5F, maximumCharges, 0.0F);
     if (mine.slot != source::PlayerBonusSlot::Mine ||
-        mine.weapon != 1U || player.mines != 4U)
+        mine.weapon != 1U ||
+        player.GetMineWeaponItem()->GetCurCharge() != 4U ||
+        player.mines != 1U)
         return 4;
 
     player.ReloadWeapons(maximumCharges.size());
-    if (player.weaponCharges[0] != 6U ||
-        player.weaponCharges[2] != 3U ||
-        player.weaponCharges[3] != 2U ||
-        player.hyperCharge != 2U || player.mines != 4U)
+    if (firstWeaponItems[0]->GetCurCharge() != 6U ||
+        firstWeaponItems[2]->GetCurCharge() != 3U ||
+        firstWeaponItems[3]->GetCurCharge() != 2U ||
+        player.GetHyperWeaponItem()->GetCurCharge() != 2U ||
+        player.GetMineWeaponItem()->GetCurCharge() != 4U)
         return 5;
     player.OnLapPass(maximumCharges.size());
-    if (player.car.numLaps != 1U || player.weaponCharges[0] != 6U)
+    if (player.car.numLaps != 1U ||
+        firstWeaponItems[0]->GetCurCharge() != 6U)
         return 27;
 
     source::Weapon shotWeapon({0.5F, {11U}});
@@ -273,17 +279,20 @@ int main()
         &shotWeapon, 2U, 2U, &shotCharge);
     shotItem.OnCreateCar();
     if (!player.Shot(shotItem, true, false, 21U) ||
-        shotCharge != 1U || player.HasBonusProjectile(21U) ||
+        shotItem.GetCurCharge() != 1U || shotCharge != 2U ||
+        player.HasBonusProjectile(21U) ||
         player.GetNextBonusProjectileId() != 1U)
         return 52;
     if (!player.Shot(shotItem, true, true, 21U) ||
-        shotCharge != 0U || !player.HasBonusProjectile(21U) ||
+        shotItem.GetCurCharge() != 0U || shotCharge != 2U ||
+        !player.HasBonusProjectile(21U) ||
         player.GetNextBonusProjectileId() != 22U)
         return 53;
     // NetPlayer::DoShot supplies its replicated charge even if projectile
     // preparation fails; a failed stMine must not enter _bonusProjs.
     if (player.Shot(shotItem, false, true, 30U, 5) ||
-        shotCharge != 5U || player.HasBonusProjectile(30U) ||
+        shotItem.GetCurCharge() != 5U || shotCharge != 2U ||
+        player.HasBonusProjectile(30U) ||
         player.GetNextBonusProjectileId() != 22U)
         return 54;
 

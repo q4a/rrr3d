@@ -5144,7 +5144,7 @@ void OriginalRaceSession::updateGameplay(
         runtime.SyncSelectedWeapon(race_.weapons.size());
         if (runtime.selectedWeapon == RacerRuntime::invalidWeapon ||
             runtime.selectedWeapon >= race_.weapons.size() ||
-            runtime.selectedWeaponSlot >= runtime.weaponCharges.size())
+            runtime.selectedWeaponSlot >= PlayerProfile::weaponSlotCount)
             return;
         const std::size_t firedSlot = runtime.selectedWeaponSlot;
         const std::size_t firedWeapon = runtime.selectedWeapon;
@@ -7069,7 +7069,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     1.0F / 60.0F,
                     brakeHyperVehicles, input);
                 if (brakeHyperSession.vehicleInputs()[1].brake < 0.9F ||
-                    brakeHyperSession.racers()[1].hyperCharge != 2U)
+                    brakeHyperSession.racers()[1]
+                            .GetHyperWeaponItem()->GetCurCharge() != 2U)
                 {
                     throw std::runtime_error(
                         "source AICar corner brake/Hyper exclusion failed");
@@ -7119,7 +7120,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 offTraceAttackSession.update(
                     1.0F / 60.0F,
                     offTraceAttackVehicles, input);
-                if (offTraceAttackSession.racers()[1].hyperCharge != 2U ||
+                if (offTraceAttackSession.racers()[1]
+                            .GetHyperWeaponItem()->GetCurCharge() != 2U ||
                     !offTraceAttackSession.takeVelocityRequests().empty())
                 {
                     throw std::runtime_error(
@@ -7862,9 +7864,10 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 throw std::runtime_error(
                     "source TakeBonus slot-order regression lacks loadout");
             }
-            ammunitionRuntime.hyperCharge = 0U;
-            ammunitionRuntime.mines = 0U;
-            ammunitionRuntime.weaponCharges[0] = 0U;
+            ammunitionRuntime.GetHyperWeaponItem()->SetCurCharge(0U);
+            ammunitionRuntime.GetMineWeaponItem()->SetCurCharge(0U);
+            ammunitionRuntime.GetPrimaryWeaponItems()[0]
+                ->SetCurCharge(0U);
             unsigned sourceSeed = 0U;
             for (; sourceSeed < 4096U; ++sourceSeed)
             {
@@ -7893,9 +7896,12 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 });
             if (ammunitionEvent == ammunitionSession.events().end() ||
                 ammunitionEvent->pickSlot != PickSlot::Hyper ||
-                ammunitionRuntime.hyperCharge == 0U ||
-                ammunitionRuntime.mines != 0U ||
-                ammunitionRuntime.weaponCharges[0] != 0U)
+                ammunitionRuntime.GetHyperWeaponItem()
+                        ->GetCurCharge() == 0U ||
+                ammunitionRuntime.GetMineWeaponItem()
+                        ->GetCurCharge() != 0U ||
+                ammunitionRuntime.GetPrimaryWeaponItems()[0]
+                        ->GetCurCharge() != 0U)
             {
                 throw std::runtime_error(
                     "source Player::TakeBonus stHyper..stWeapon4 order failed");
@@ -8868,9 +8874,11 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             reloadSession.update(
                 1.0F / 60.0F,
                 reloadVehicles, reloadInput);
-            if (reloadSession.racers()[0].weaponCharges[0] != 1U ||
-                reloadSession.racers()[0].hyperCharge != 1U ||
-                reloadSession.racers()[0].mines != 1U)
+            const auto& reloadRacer = reloadSession.racers()[0];
+            if (reloadRacer.GetPrimaryWeaponItems()[0]->GetCurCharge() !=
+                    1U ||
+                reloadRacer.GetHyperWeaponItem()->GetCurCharge() != 1U ||
+                reloadRacer.GetMineWeaponItem()->GetCurCharge() != 1U)
             {
                 throw std::runtime_error(
                     "source lap reload precondition shot failed");
@@ -8900,9 +8908,10 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 reloadVehicles, reloadInput);
             placeReloadOnSegment(0U);
             if (reloadSession.racers()[0].car.numLaps != 1U ||
-                reloadSession.racers()[0].weaponCharges[0] != 2U ||
-                reloadSession.racers()[0].hyperCharge != 2U ||
-                reloadSession.racers()[0].mines != 2U)
+                reloadRacer.GetPrimaryWeaponItems()[0]->GetCurCharge() !=
+                    2U ||
+                reloadRacer.GetHyperWeaponItem()->GetCurCharge() != 2U ||
+                reloadRacer.GetMineWeaponItem()->GetCurCharge() != 2U)
             {
                 throw std::runtime_error(
                     "source Player::OnLapPass ReloadWeapons failed");
@@ -9061,13 +9070,25 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 throw std::runtime_error(
                     "source previous-weapon transition failed");
             weaponInput = {};
+            const auto readPrimaryCharges = [](const RacerRuntime& racer) {
+                std::array<std::uint32_t, PlayerProfile::weaponSlotCount>
+                    charges{};
+                const auto items = racer.GetPrimaryWeaponItems();
+                for (std::size_t slot = 0U; slot < items.size(); ++slot)
+                {
+                    charges[slot] = items[slot] != nullptr
+                                        ? items[slot]->GetCurCharge()
+                                        : 0U;
+                }
+                return charges;
+            };
             const auto beforeAll =
-                weaponSession.racers().front().weaponCharges;
+                readPrimaryCharges(weaponSession.racers().front());
             weaponInput.useAllWeapons = true;
             weaponSession.update(
                 1.0F / 60.0F, vehicles, weaponInput);
             const auto afterAll =
-                weaponSession.racers().front().weaponCharges;
+                readPrimaryCharges(weaponSession.racers().front());
             if (afterAll[0] + 1U != beforeAll[0] ||
                 afterAll[1] + 1U != beforeAll[1])
             {
@@ -9129,12 +9150,12 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 weaponSession.update(
                     1.0F / 60.0F, vehicles, weaponInput);
             const auto beforeDirect =
-                weaponSession.racers().front().weaponCharges;
+                readPrimaryCharges(weaponSession.racers().front());
             weaponInput.fireWeaponSlot = 1;
             weaponSession.update(
                 1.0F / 60.0F, vehicles, weaponInput);
             const auto afterDirect =
-                weaponSession.racers().front().weaponCharges;
+                readPrimaryCharges(weaponSession.racers().front());
             if (afterDirect[0] != beforeDirect[0] ||
                 afterDirect[1] + 1U != beforeDirect[1] ||
                 weaponSession.racers().front().selectedWeaponSlot != 0U)
@@ -9213,7 +9234,10 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                            event.racer == 0U;
                 });
             if (!infiniteShot ||
-                infiniteSession.racers().front().weaponCharges[0] != 0U)
+                infiniteSession.racers()
+                        .front()
+                        .GetPrimaryWeaponItems()[0]
+                        ->GetCurCharge() != 0U)
             {
                 throw std::runtime_error(
                     "source WeaponItem maxCharge==0 shot failed");
@@ -9330,7 +9354,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     0.001F ||
                 std::abs(requests.front().delta.y) > 0.001F ||
                 std::abs(requests.front().delta.z) > 0.001F ||
-                hyperSession.racers().front().hyperCharge != 1U ||
+                hyperSession.racers()
+                        .front()
+                        .GetHyperWeaponItem()->GetCurCharge() != 1U ||
                 !attachedSourceEffect || !attachedPositionMatches ||
                 syntheticHyperEffect)
             {
@@ -9350,7 +9376,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     "visual failed: requests=" +
                     std::to_string(requests.size()) + " charge=" +
                     std::to_string(
-                        hyperSession.racers().front().hyperCharge) +
+                        hyperSession.racers()
+                            .front()
+                            .GetHyperWeaponItem()->GetCurCharge()) +
                     " attached=" +
                     std::to_string(attachedSourceEffect) + " position=" +
                     std::to_string(attachedPositionMatches) + " slot=(" +
@@ -9366,7 +9394,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             }
             hyperSession.update(
                 1.0F / 60.0F, hyperVehicles, hyperInput);
-            if (hyperSession.racers().front().hyperCharge != 1U)
+            if (hyperSession.racers()
+                    .front()
+                    .GetHyperWeaponItem()->GetCurCharge() != 1U)
             {
                 throw std::runtime_error(
                     "source ptHyper shotDelay cooldown failed");
@@ -9404,7 +9434,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 std::abs(requests.front().delta.y) > 0.001F ||
                 std::abs(requests.front().delta.z - 17.0F) >
                     0.001F ||
-                springSession.racers().front().hyperCharge != 0U ||
+                springSession.racers()
+                        .front()
+                        .GetHyperWeaponItem()->GetCurCharge() != 0U ||
                 springSession.racers().front()
                         .gameCar.GetSpringTime() < 1.49F ||
                 !springSession.vehicleInputs().front().springLocked)
@@ -9433,7 +9465,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 1.0F / 60.0F, hyperVehicles, springInput);
             if (airborneSpringSession.racers()
                     .front()
-                    .hyperCharge != 1U ||
+                    .GetHyperWeaponItem()->GetCurCharge() != 1U ||
                 !airborneSpringSession
                      .takeVelocityRequests()
                      .empty())
@@ -11048,7 +11080,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             rejectedMineSession.update(
                 1.0F / 60.0F, outsideVehicles, mineInput);
             if (!rejectedMineSession.mines().empty() ||
-                rejectedMineSession.racers().front().mines != 1U)
+                rejectedMineSession.racers()
+                        .front()
+                        .GetMineWeaponItem()->GetCurCharge() != 1U)
             {
                 throw std::runtime_error(
                     "source MinePrepare failed raycast consumed a mine");
@@ -11690,7 +11724,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             {
                 if (shotSource.racers()[0].weaponSlots[slot] !=
                         RacerRuntime::invalidWeapon &&
-                    shotSource.racers()[0].weaponCharges[slot] > 0U)
+                    shotSource.racers()[0]
+                            .GetPrimaryWeaponItems()[slot]
+                            ->GetCurCharge() > 0U)
                 {
                     shotSlot = slot;
                     break;
