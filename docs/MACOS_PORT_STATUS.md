@@ -1970,3 +1970,14 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   продвигает следующий сетевой projectile id.
 - Human, AI и replicated network shots используют один owner; regression
   отдельно проверяет primary, mine и failed replicated mine переходы.
+
+### Source Player race-result/economy owner follow-up
+
+- `money`, `points`, collected money, place и finished закрыты внутри
+  active `source::Player`; перенесён полный исходный Get/Set/Reset API.
+- Session lifecycle, profile adapter, place ordering, AI/fire gates, HUD,
+  FinishMenu и network results больше не обходят Player прямой записью.
+- `Race::CompleteRace`-эквивалент сохраняет collected money в result и затем
+  вызывает `ResetPickMoney`; `SetFinished` остаётся единственным переходом,
+  который одновременно включает постоянную неуязвимость финишировавшей
+  машины.

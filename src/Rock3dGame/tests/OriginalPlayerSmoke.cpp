@@ -16,7 +16,8 @@ int main()
         source::Player::humanId, 7, 3U, "Tyler", "Network Tyler",
         {0.2F, 0.3F, 0.4F, 1.0F});
     if (player.life != 80.0F || player.maximumLife != 80.0F ||
-        player.place != 3U || player.finished || player.destroyed)
+        player.GetPlace() != 3U || player.GetFinished() ||
+        player.destroyed)
         return 1;
     if (std::abs(player.car.GetSize() - 7.5F) > 0.001F ||
         std::abs(player.car.GetRadius() - 3.75F) > 0.001F)
@@ -30,6 +31,14 @@ int main()
     if (player.GetHeadLight() != source::Player::HeadLightMode::None ||
         !player.GetReflScene())
         return 45;
+    player.SetMoney(10U);
+    player.SetPoints(5U);
+    player.AddMoney(-3);
+    player.AddPoints(2);
+    if (player.GetMoney() != 7U || player.GetPoints() != 7U)
+        return 55;
+    player.SetMoney(0U);
+    player.SetPoints(0U);
     player.SetHeadlight(source::Player::HeadLightMode::Two);
     player.SetReflScene(false);
     if (player.GetHeadLight() != source::Player::HeadLightMode::Two ||
@@ -131,8 +140,12 @@ int main()
     if (player.life != player.maximumLife)
         return 7;
     player.TakeMoney(19.9F);
+    player.ResetPickMoney();
+    if (player.GetPickMoney() != 0U)
+        return 56;
+    player.TakeMoney(19.9F);
     player.TakeImmortal(4.5F);
-    if (player.pickedMoney != 19U ||
+    if (player.GetPickMoney() != 19U ||
         std::abs(player.shieldSeconds - 4.5F) > 0.001F ||
         player.immortalEffect.GetFadeInTime() != 0.0F)
         return 8;
@@ -154,7 +167,7 @@ int main()
         return 22;
 
     player.Complete(1U, 100U, 20U, 10.0F);
-    if (!player.finished || player.place != 1U ||
+    if (!player.GetFinished() || player.GetPlace() != 1U ||
         player.FinishBrake(10.29F) != 0.0F ||
         player.FinishBrake(10.3F) != 1.0F)
         return 9;
@@ -212,7 +225,7 @@ int main()
     if (bonusProjectilePlayer.HasBonusProjectile(12U))
         return 37;
     player.ApplyRaceReward();
-    if (player.money != 119U || player.points != 20U)
+    if (player.GetMoney() != 119U || player.GetPoints() != 20U)
         return 10;
 
     player.Destroy();
@@ -497,7 +510,8 @@ int main()
         return 25;
 
     player.Disconnect();
-    if (!player.disconnected || !player.destroyed || player.finished ||
+    if (!player.disconnected || !player.destroyed ||
+        player.GetFinished() ||
         player.life != 0.0F)
         return 18;
 

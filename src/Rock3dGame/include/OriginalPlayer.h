@@ -293,6 +293,16 @@ public:
               bool mineSlot, std::uint32_t projectileId,
               int newCharge = -1) noexcept;
 
+    std::uint32_t GetMoney() const noexcept;
+    void SetMoney(std::uint32_t value) noexcept;
+    std::uint32_t GetPoints() const noexcept;
+    void SetPoints(std::uint32_t value) noexcept;
+    std::uint32_t GetPickMoney() const noexcept;
+    void ResetPickMoney() noexcept;
+    std::uint32_t GetPlace() const noexcept;
+    void SetPlace(std::uint32_t value) noexcept;
+    bool GetFinished() const noexcept;
+
     PlayerBonusResult TakeMoney(float value) noexcept;
     PlayerBonusResult TakeMedpack(float value) noexcept;
     PlayerBonusResult TakeImmortal(float value) noexcept;
@@ -357,7 +367,6 @@ public:
         std::uint32_t maximumCharge, float value) noexcept;
 
     std::size_t nextPathNode = 1;
-    std::uint32_t place = 1;
     std::uint32_t ammunition = 10;
     std::uint32_t mines = 0;
     std::uint32_t mineCapacity = 0;
@@ -374,16 +383,12 @@ public:
     std::uint32_t hyperCharge = 0;
     std::uint32_t hyperCapacity = 0;
     std::size_t mineWeapon = invalidWeapon;
-    std::uint32_t money = 0;
-    std::uint32_t points = 0;
-    std::uint32_t pickedMoney = 0;
     std::uint32_t rewardMoney = 0;
     std::uint32_t rewardPoints = 0;
     float speedBoostSeconds = 0.0F;
     float restoreSeconds = 0.0F;
     float finishTime = -1.0F;
     float blockSeconds = -1.0F;
-    bool finished = false;
     bool disconnected = false;
     LowLifePoints lowLifePoints;
     DamageEffect energyDamageEffect{DamageType::Energy, 0.5F};
@@ -412,6 +417,11 @@ private:
     std::string netName_;
     std::array<float, 4> color_{1.0F, 1.0F, 1.0F, 1.0F};
     std::uint32_t cheatEnable_ = cheatDisabled;
+    std::uint32_t money_ = 0U;
+    std::uint32_t points_ = 0U;
+    std::uint32_t pickedMoney_ = 0U;
+    std::uint32_t place_ = 1U;
+    bool finished_ = false;
     HeadLightMode headLight_ = HeadLightMode::None;
     // Portable counterpart of CarState::mapObj. Player::ReleaseCar detaches
     // both spot lights and the night-flare actor without changing the

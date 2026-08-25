@@ -217,7 +217,7 @@ std::vector<std::string> OriginalGameDebug::lines(
             "  countdown " + std::to_string(session.countdownStage()) +
             "  time " + floatText(session.elapsedSeconds()) + " s");
         result.push_back(
-            "Place " + std::to_string(racer.place) + "/" +
+            "Place " + std::to_string(racer.GetPlace()) + "/" +
             std::to_string(race.racers.size()) + "  lap " +
             std::to_string(racer.car.numLaps) + "/" +
             std::to_string(race.lapCount) + "  next node " +

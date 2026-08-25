@@ -1005,7 +1005,7 @@ void OriginalRaceHud::update(
     const auto white = menu::Rgba8{255, 255, 255, 255};
 
     const auto placeIndex = std::min<std::size_t>(
-        player.place > 0U ? player.place - 1U : 0U,
+        player.GetPlace() > 0U ? player.GetPlace() - 1U : 0U,
         placeNames_.size() - 1U);
     setText(device, place_, placeNames_[placeIndex],
             30.0F, true, white);
@@ -1480,7 +1480,8 @@ void OriginalRaceHud::update(
         const auto name = racerName(race, session, racerIndex);
         const auto& runtime = session.racers()[racerIndex];
         setText(device, label.name,
-                formatNamePlace(namePlaceFormat_, runtime.place, name),
+                formatNamePlace(
+                    namePlaceFormat_, runtime.GetPlace(), name),
                 15.0F, true, white);
         const bool atEdge = project(
             vehicles[racerIndex].body.position,
@@ -1517,8 +1518,8 @@ void OriginalRaceHud::update(
     std::stable_sort(
         labelOrder.begin(), labelOrder.end(),
         [&](std::size_t first, std::size_t second) {
-            return session.racers()[opponentRacers[first]].place >
-                   session.racers()[opponentRacers[second]].place;
+            return session.racers()[opponentRacers[first]].GetPlace() >
+                   session.racers()[opponentRacers[second]].GetPlace();
         });
     for (std::size_t order = 0; order < labelOrder.size(); ++order)
     {
@@ -1564,8 +1565,8 @@ void OriginalRaceHud::update(
         std::stable_sort(
             order.begin(), order.end(),
             [&](std::size_t first, std::size_t second) {
-                return session.racers()[first].place <
-                       session.racers()[second].place;
+                return session.racers()[first].GetPlace() <
+                       session.racers()[second].GetPlace();
             });
         for (std::size_t row = 0; row < finishRows_.size(); ++row)
         {
@@ -1584,7 +1585,9 @@ void OriginalRaceHud::update(
                 session.resultForRacer(output.racer);
             const auto place =
                 std::min<std::size_t>(
-                    runtime.place > 0 ? runtime.place - 1U : row,
+                    runtime.GetPlace() > 0
+                        ? runtime.GetPlace() - 1U
+                        : row,
                     race.rewardMoney.size() - 1U);
             const auto rewardMoney =
                 sourceResult != nullptr
@@ -1604,7 +1607,7 @@ void OriginalRaceHud::update(
             std::string value = std::to_string(rewardMoney);
             const auto pickedMoney =
                 sourceResult != nullptr ? sourceResult->pickedMoney
-                                        : runtime.pickedMoney;
+                                        : runtime.GetPickMoney();
             if (pickedMoney > 0)
                 value += " + " + std::to_string(pickedMoney);
             value += "\n" + std::to_string(rewardPoints);

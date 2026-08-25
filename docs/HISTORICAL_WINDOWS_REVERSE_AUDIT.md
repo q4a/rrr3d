@@ -1167,6 +1167,23 @@ primary/Hyper/Mine пути, включая AI и network replay, теперь �
 проверяет local primary, успешную mine-регистрацию и неуспешный replicated
 mine shot без ложного live projectile.
 
+### P2.30 — Player result/economy state owner — выполнено
+
+Подтвердился ещё один архитектурный обход: `money`, `points`, `_pickMoney`,
+`place` и `finished` оставались публичными portable-полями. Session, HUD,
+FinishMenu, network result adapter и smoke fixtures меняли их напрямую,
+хотя в `eff9338:Player.h` эти поля закрыты и доступны только через
+`Get/SetMoney`, `Get/SetPoints`, `GetPickMoney/ResetPickMoney`,
+`Get/SetPlace` и `Get/SetFinished`.
+
+Полный API перенесён в active `source::Player`, поля закрыты. Race start и
+profile write, place sorting, AI gates, finish completion, campaign rewards,
+HUD и сетевой result snapshot теперь читают одного Player-owner. Особенно
+важный finish transition больше не обнуляет собранные деньги присваиванием:
+он вызывает исходный `ResetPickMoney` после копирования значения в
+`RaceLifecycle::Result`; fixture также проходит через `SetFinished`, сохраняя
+побочный immortal flag. Player regression покрывает Set/Get/Add и reset.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

@@ -391,7 +391,7 @@ void Player::Reset(float newMaximumLife,
 {
     *this = Player{};
     ResetGameObject(std::max(newMaximumLife, 1.0F));
-    place = initialPlace;
+    SetPlace(initialPlace);
     car.Reset(trace);
 }
 
@@ -588,11 +588,32 @@ bool Player::Shot(WeaponItem& item, bool projectileCreated,
     return result;
 }
 
+std::uint32_t Player::GetMoney() const noexcept { return money_; }
+
+void Player::SetMoney(std::uint32_t value) noexcept { money_ = value; }
+
+std::uint32_t Player::GetPoints() const noexcept { return points_; }
+
+void Player::SetPoints(std::uint32_t value) noexcept { points_ = value; }
+
+std::uint32_t Player::GetPickMoney() const noexcept
+{
+    return pickedMoney_;
+}
+
+void Player::ResetPickMoney() noexcept { pickedMoney_ = 0U; }
+
+std::uint32_t Player::GetPlace() const noexcept { return place_; }
+
+void Player::SetPlace(std::uint32_t value) noexcept { place_ = value; }
+
+bool Player::GetFinished() const noexcept { return finished_; }
+
 PlayerBonusResult Player::TakeMoney(float value) noexcept
 {
     const auto amount = static_cast<std::uint32_t>(
         std::max(value, 0.0F));
-    pickedMoney += amount;
+    pickedMoney_ += amount;
     return {PlayerBonusSlot::None, invalidWeapon, amount};
 }
 
@@ -987,7 +1008,7 @@ void Player::OnImmortalStatusEvent(bool status) noexcept
 
 void Player::SetFinished(bool value, float time) noexcept
 {
-    finished = value;
+    finished_ = value;
     SetImmortalFlag(value);
     if (value)
         finishTime = time;
@@ -1001,27 +1022,29 @@ void Player::Complete(std::uint32_t resultPlace,
                       float time) noexcept
 {
     SetFinished(true, time);
-    place = resultPlace;
+    SetPlace(resultPlace);
     rewardMoney = resultMoney;
     rewardPoints = resultPoints;
 }
 
 void Player::AddMoney(std::int32_t value) noexcept
 {
-    const auto result = static_cast<std::int64_t>(money) + value;
-    money = static_cast<std::uint32_t>(std::max<std::int64_t>(result, 0));
+    const auto result = static_cast<std::int64_t>(GetMoney()) + value;
+    SetMoney(static_cast<std::uint32_t>(
+        std::max<std::int64_t>(result, 0)));
 }
 
 void Player::AddPoints(std::int32_t value) noexcept
 {
-    const auto result = static_cast<std::int64_t>(points) + value;
-    points = static_cast<std::uint32_t>(
-        std::max<std::int64_t>(result, 0));
+    const auto result = static_cast<std::int64_t>(GetPoints()) + value;
+    SetPoints(static_cast<std::uint32_t>(
+        std::max<std::int64_t>(result, 0)));
 }
 
 void Player::ApplyRaceReward() noexcept
 {
-    AddMoney(static_cast<std::int32_t>(rewardMoney + pickedMoney));
+    AddMoney(static_cast<std::int32_t>(
+        rewardMoney + GetPickMoney()));
     AddPoints(static_cast<std::int32_t>(rewardPoints));
 }
 
@@ -1207,7 +1230,8 @@ PlayerBlockMove Player::ProgressBlock(float seconds) noexcept
 
 float Player::FinishBrake(float elapsedSeconds) const noexcept
 {
-    return finished && elapsedSeconds - finishTime >= finishBlockSeconds
+    return GetFinished() &&
+                   elapsedSeconds - finishTime >= finishBlockSeconds
                ? 1.0F
                : 0.0F;
 }

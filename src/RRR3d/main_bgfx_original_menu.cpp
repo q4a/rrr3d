@@ -6271,7 +6271,7 @@ int main(int argc, char** argv)
             const auto humanRacer = raceSession.humanRacer();
             if (championshipMode &&
                 humanRacer < raceSession.racers().size() &&
-                raceSession.racers()[humanRacer].finished &&
+                raceSession.racers()[humanRacer].GetFinished() &&
                 !raceProgressSaved)
             {
                 const auto completedTrack = selectedTrack;
@@ -7072,17 +7072,17 @@ int main(int argc, char** argv)
             const auto* sourceResult =
                 raceSession.resultForRacer(index);
             result.playerModelId = networkRaceModelOrder[index];
-            result.playerPoints = toSourceInt(racer.points);
-            result.playerMoney = toSourceInt(racer.money);
+            result.playerPoints = toSourceInt(racer.GetPoints());
+            result.playerMoney = toSourceInt(racer.GetMoney());
             result.money = toSourceInt(
                 sourceResult != nullptr ? sourceResult->money
                                         : racer.rewardMoney);
             result.pickedMoney = toSourceInt(
                 sourceResult != nullptr ? sourceResult->pickedMoney
-                                        : racer.pickedMoney);
+                                        : racer.GetPickMoney());
             result.place = sourceResult != nullptr
                                ? sourceResult->place
-                               : racer.place;
+                               : racer.GetPlace();
             result.points = toSourceInt(
                 sourceResult != nullptr ? sourceResult->points
                                         : racer.rewardPoints);
@@ -10156,14 +10156,14 @@ int main(int argc, char** argv)
             std::remove_if(
                 order.begin(), order.end(),
                 [&](std::size_t racer) {
-                    return !raceSession.racers()[racer].finished;
+                    return !raceSession.racers()[racer].GetFinished();
                 }),
             order.end());
         std::stable_sort(
             order.begin(), order.end(),
             [&](std::size_t first, std::size_t second) {
-                return raceSession.racers()[first].place <
-                       raceSession.racers()[second].place;
+                return raceSession.racers()[first].GetPlace() <
+                       raceSession.racers()[second].GetPlace();
             });
         if (order.size() > 3U)
             order.resize(3U);
@@ -10200,7 +10200,7 @@ int main(int argc, char** argv)
                                                 : result.rewardMoney);
                 const auto pickedMoney =
                     sourceResult != nullptr ? sourceResult->pickedMoney
-                                            : result.pickedMoney;
+                                            : result.GetPickMoney();
                 if (pickedMoney > 0U)
                 {
                     rewardMoney +=
@@ -10267,8 +10267,8 @@ int main(int argc, char** argv)
         menuStack = {MenuScreen::Main, MenuScreen::Finish};
         menuSelection = 0;
         std::cout << "Original FinishMenu: place "
-                  << player.place << ", money +"
-                  << player.rewardMoney + player.pickedMoney
+                  << player.GetPlace() << ", money +"
+                  << player.rewardMoney + player.GetPickMoney()
                   << ", points +" << player.rewardPoints << '\n';
     };
     auto closeFinishMenu = [&]() {
@@ -10395,13 +10395,14 @@ int main(int argc, char** argv)
         for (std::size_t index = 0U; index < count; ++index)
         {
             auto& racer = smokeRacers[index];
-            racer.finished = true;
-            racer.place = static_cast<std::uint32_t>(index + 1U);
+            racer.SetFinished(true);
+            racer.SetPlace(static_cast<std::uint32_t>(index + 1U));
             const auto reward = std::min(
                 index, originalRace->rewardMoney.size() - 1U);
             racer.rewardMoney = originalRace->rewardMoney[reward];
             racer.rewardPoints = originalRace->rewardPoints[reward];
-            racer.pickedMoney = index == 0U ? 25U : 0U;
+            if (index == 0U)
+                racer.TakeMoney(25.0F);
         }
         showFinishMenu(false);
     }
@@ -15861,7 +15862,7 @@ int main(int argc, char** argv)
             }
             const bool localHumanFinished =
                 humanRacer < raceSession.racers().size() &&
-                raceSession.racers()[humanRacer].finished;
+                raceSession.racers()[humanRacer].GetFinished();
             if (networkMatchStarted && localHumanFinished &&
                 !networkLocalFinishPublished)
             {
@@ -20732,7 +20733,7 @@ int main(int argc, char** argv)
                         raceSession.racers()[finishRows[index].racer];
                     commentator.finishPlace(
                         *originalRace, finishRows[index].racer,
-                        result.place, audioError);
+                        result.GetPlace(), audioError);
                     ++finishVoiceIndex;
                 }
 #endif
@@ -20841,7 +20842,7 @@ int main(int argc, char** argv)
                         raceSession.racers().begin(),
                         raceSession.racers().end(),
                         [](const auto& racer) {
-                            return racer.finished;
+                            return racer.GetFinished();
                     });
                     if (finishedCount >= 4)
                     {
@@ -20852,18 +20853,19 @@ int main(int argc, char** argv)
                         {
                             const auto& candidate =
                                 raceSession.racers()[racer];
-                            if (!candidate.finished)
+                            if (!candidate.GetFinished())
                                 continue;
                             if (lastRacer == raceSession.racers().size() ||
-                                candidate.place >
-                                    raceSession.racers()[lastRacer].place)
+                                candidate.GetPlace() >
+                                    raceSession.racers()[lastRacer]
+                                        .GetPlace())
                                 lastRacer = racer;
                         }
                         if (lastRacer < raceSession.racers().size())
                         {
                             commentator.finishPlace(
                                 *originalRace, lastRacer,
-                                raceSession.racers()[lastRacer].place,
+                                raceSession.racers()[lastRacer].GetPlace(),
                                 audioError);
                         }
                     }
@@ -21743,9 +21745,9 @@ int main(int argc, char** argv)
                               [&](const auto& racer) {
                                   return !racer.IsHuman() &&
                                          !racer.disconnected &&
-                                         racer.place <
+                                         racer.GetPlace() <
                                              raceSession.racers()[humanRacer]
-                                                 .place;
+                                                 .GetPlace();
                               }));
                 const std::size_t expectedAheadAi =
                     expectedCompetitiveAi > 0U ? 1U : 0U;

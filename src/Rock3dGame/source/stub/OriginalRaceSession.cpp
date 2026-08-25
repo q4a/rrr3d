@@ -1190,8 +1190,8 @@ void OriginalRaceSession::reset()
         if (index == 0)
         {
             auto& runtime = racers_[index];
-            runtime.money = initialPlayerProfile_.money;
-            runtime.points = initialPlayerProfile_.points;
+            runtime.SetMoney(initialPlayerProfile_.money);
+            runtime.SetPoints(initialPlayerProfile_.points);
             const bool hasProfileLoadout = std::any_of(
                 initialPlayerProfile_.slots.begin(),
                 initialPlayerProfile_.slots.end(),
@@ -1437,8 +1437,8 @@ void OriginalRaceSession::writePlayerProfile(
     if (humanRacer_ >= racers_.size())
         return;
     const auto& runtime = racers_[humanRacer_];
-    profile.money = runtime.money;
-    profile.points = runtime.points;
+    profile.money = runtime.GetMoney();
+    profile.points = runtime.GetPoints();
     auto writeWeapon = [&](std::size_t profileSlot,
                            std::size_t weapon,
                            std::uint32_t charge) {
@@ -2399,7 +2399,7 @@ void OriginalRaceSession::updateProgress(
     float seconds)
 {
     auto& runtime = racers_[racer];
-    if (runtime.finished || runtime.destroyed)
+    if (runtime.GetFinished() || runtime.destroyed)
         return;
 
     const auto state = runtime.car.Update(
@@ -2445,7 +2445,7 @@ void OriginalRaceSession::updateProgress(
     const auto leader = std::min_element(
         racers_.begin(), racers_.end(),
         [](const RacerRuntime& first, const RacerRuntime& second) {
-            return first.place < second.place;
+            return first.GetPlace() < second.GetPlace();
         });
     const std::size_t leaderIndex =
         leader == racers_.end()
@@ -2468,9 +2468,9 @@ void OriginalRaceSession::updateProgress(
     player.human = localHuman;
     player.opponent = runtime.IsOpponent();
     player.disconnected = runtime.disconnected;
-    player.finished = runtime.finished;
+    player.finished = runtime.GetFinished();
     player.laps = runtime.car.numLaps;
-    player.pickedMoney = runtime.pickedMoney;
+    player.pickedMoney = runtime.GetPickMoney();
     const auto sourceResult = raceLifecycle_.OnLapPass(
         player, race_.lapCount, activePlayerCount, hasHuman,
         leaderIndex, race_.rewardMoney, race_.rewardPoints);
@@ -2610,7 +2610,7 @@ void OriginalRaceSession::updateAiTracks(
             (networkGameplayEnabled_ &&
              (racer >= networkOwnedRacers_.size() ||
               !networkOwnedRacers_[racer])) ||
-            racers_[racer].destroyed || racers_[racer].finished)
+            racers_[racer].destroyed || racers_[racer].GetFinished())
             continue;
         const auto& carState = racers_[racer].car;
         // AISystem::ComputeTracks only inserts AI players whose live
@@ -2635,7 +2635,7 @@ r3d::physics::VehicleInput OriginalRaceSession::aiInput(
     float seconds)
 {
     if (racer >= racers_.size() || racer >= aiPlayers_.size() ||
-        racers_[racer].finished || racers_[racer].destroyed)
+        racers_[racer].GetFinished() || racers_[racer].destroyed)
         return {};
 
     const auto& racerDefinition = race_.racers[racer];
@@ -2689,8 +2689,8 @@ void OriginalRaceSession::updatePlaces(
         source::RacePlacePlayer player;
         player.playerId = racer;
         player.disconnected = runtime.disconnected;
-        player.finished = runtime.finished;
-        player.place = runtime.place;
+        player.finished = runtime.GetFinished();
+        player.place = runtime.GetPlace();
         player.lap =
             racer < vehicles.size()
                 ? lapPosition(racer, vehicles[racer])
@@ -2705,14 +2705,14 @@ void OriginalRaceSession::updatePlaces(
     const auto sourceUpdate = racePlaceModel_.Update(
         players, !raceLifecycle_.GetResults().empty());
     for (std::size_t place = 0; place < sourceUpdate.order.size(); ++place)
-        racers_[sourceUpdate.order[place]].place =
-            static_cast<std::uint32_t>(place + 1U);
+        racers_[sourceUpdate.order[place]].SetPlace(
+            static_cast<std::uint32_t>(place + 1U));
     std::uint32_t disconnectedPlace =
         static_cast<std::uint32_t>(sourceUpdate.order.size() + 1U);
     for (auto& racer : racers_)
     {
         if (racer.disconnected)
-            racer.place = disconnectedPlace++;
+            racer.SetPlace(disconnectedPlace++);
     }
     for (const auto& sourceEvent : sourceUpdate.events)
     {
@@ -5169,7 +5169,7 @@ void OriginalRaceSession::updateGameplay(
         if (shooter >= vehicles.size() ||
             shooter >= racers_.size() ||
             shooter >= weaponRacks_.size() ||
-            racers_[shooter].finished ||
+            racers_[shooter].GetFinished() ||
             racers_[shooter].destroyed)
             return;
         auto& runtime = racers_[shooter];
@@ -5852,7 +5852,7 @@ void OriginalRaceSession::updateAchievements(float seconds)
         }));
     if (humanRacer_ < racers_.size())
     {
-        raceState.humanPlace = racers_[humanRacer_].place;
+        raceState.humanPlace = racers_[humanRacer_].GetPlace();
         raceState.humanLaps = racers_[humanRacer_].car.numLaps;
     }
     for (const std::size_t achievement : achievementModel_.Process(
@@ -5878,13 +5878,13 @@ void OriginalRaceSession::completeRemainingRacers(
         player.human = racers_[racer].IsHuman();
         player.opponent = racers_[racer].IsOpponent();
         player.disconnected = racers_[racer].disconnected;
-        player.finished = racers_[racer].finished;
+        player.finished = racers_[racer].GetFinished();
         player.laps = racers_[racer].car.numLaps;
         player.lapPosition =
             racer < vehicles.size()
                 ? lapPosition(racer, vehicles[racer])
                 : lastCorrectLapPosition(racer);
-        player.pickedMoney = racers_[racer].pickedMoney;
+        player.pickedMoney = racers_[racer].GetPickMoney();
         players.push_back(player);
     }
     const auto completed = raceLifecycle_.CompleteRemaining(
@@ -5912,7 +5912,7 @@ void OriginalRaceSession::completeRacer(
         result.place, result.money, result.points, finishTime);
     // Race::CompleteRace captures this value in Result and immediately calls
     // Player::ResetPickMoney. Finish UI and network use RaceLifecycle::Result.
-    runtime.pickedMoney = 0U;
+    runtime.ResetPickMoney();
     // Race::CompleteRace always follows SetFinished/SetPlace with this
     // finite control block. Player::OnProgress owns the countdown and then
     // leaves the surviving physical car under mcBrake.
@@ -5941,7 +5941,7 @@ void OriginalRaceSession::applyCampaignRewards() noexcept
         if (result.playerId >= racers_.size())
             continue;
         auto& runtime = racers_[result.playerId];
-        if (runtime.disconnected || !runtime.finished)
+        if (runtime.disconnected || !runtime.GetFinished())
             continue;
         runtime.AddMoney(static_cast<std::int32_t>(
             result.money + result.pickedMoney));
@@ -6160,7 +6160,8 @@ void OriginalRaceSession::update(
 
     elapsedSeconds_ += seconds;
     if (humanRacer_ < vehicleInputs_.size() &&
-        humanRacer_ < racers_.size() && !racers_[humanRacer_].finished)
+        humanRacer_ < racers_.size() &&
+        !racers_[humanRacer_].GetFinished())
     {
         vehicleInputs_[humanRacer_] = sourceHumanControl.driving;
         if (racers_[humanRacer_].speedBoostSeconds > 0.0F)
@@ -6186,7 +6187,7 @@ void OriginalRaceSession::update(
     if (debugHumanAiControl_ && humanRacer_ < vehicleInputs_.size() &&
         humanRacer_ < aiPlayers_.size() &&
         aiPlayers_[humanRacer_].HasCar() &&
-        !racers_[humanRacer_].finished &&
+        !racers_[humanRacer_].GetFinished() &&
         !racers_[humanRacer_].destroyed &&
         humanRacer_ < vehicles.size())
     {
@@ -6492,8 +6493,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             auto& reorderedRacers =
                 const_cast<std::vector<RacerRuntime>&>(
                     reorderedSession.racers());
-            reorderedRacers[1].money = 4321U;
-            reorderedRacers[1].points = 765U;
+            reorderedRacers[1].SetMoney(4321U);
+            reorderedRacers[1].SetPoints(765U);
             PlayerProfile reorderedProfile;
             reorderedSession.writePlayerProfile(reorderedProfile);
             if (reorderedProfile.money != 4321U ||
@@ -6508,7 +6509,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             OriginalRaceSession exitSession(race);
             auto& exitRacers = const_cast<std::vector<RacerRuntime>&>(
                 exitSession.racers());
-            exitRacers.front().pickedMoney = 17U;
+            exitRacers.front().TakeMoney(17.0F);
             exitSession.completeRaceForExit(vehicles);
             const auto* humanResult = exitSession.resultForRacer(0U);
             const auto activeCount = static_cast<std::size_t>(std::count_if(
@@ -6519,8 +6520,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             if (!exitSession.finishPresentationReady() ||
                 exitSession.results().size() != activeCount ||
                 humanResult == nullptr || humanResult->pickedMoney != 17U ||
-                !exitRacers.front().finished ||
-                exitRacers.front().pickedMoney != 0U ||
+                !exitRacers.front().GetFinished() ||
+                exitRacers.front().GetPickMoney() != 0U ||
                 exitRacers.front().car.GetLastNode() != nullptr ||
                 std::any_of(
                     exitSession.decorationActive().begin(),
@@ -6540,16 +6541,16 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 !exitSession.effects().empty() ||
                 !exitSession.mines().empty() ||
                 !exitSession.projectiles().empty() ||
-                exitRacers.front().money !=
+                exitRacers.front().GetMoney() !=
                     humanResult->money + humanResult->pickedMoney ||
-                exitRacers.front().points != humanResult->points)
+                exitRacers.front().GetPoints() != humanResult->points)
             {
                 throw std::runtime_error(
                     "Race::ExitRace did not complete/rank/save all players");
             }
-            const auto settledMoney = exitRacers.front().money;
+            const auto settledMoney = exitRacers.front().GetMoney();
             exitSession.completeRaceForExit(vehicles);
-            if (exitRacers.front().money != settledMoney ||
+            if (exitRacers.front().GetMoney() != settledMoney ||
                 exitSession.results().size() != activeCount)
             {
                 throw std::runtime_error(
@@ -6655,13 +6656,13 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
         networkCountdownSession.synchronizeNetworkFinishResults(
             networkResults);
         if (!networkCountdownSession.finishPresentationReady() ||
-            !networkCountdownSession.racers()[0].finished ||
-            networkCountdownSession.racers()[0].place != 1U ||
+            !networkCountdownSession.racers()[0].GetFinished() ||
+            networkCountdownSession.racers()[0].GetPlace() != 1U ||
             networkCountdownSession.racers()[0].rewardMoney != 300U ||
-            networkCountdownSession.racers()[0].pickedMoney != 0U ||
+            networkCountdownSession.racers()[0].GetPickMoney() != 0U ||
             networkCountdownSession.resultForRacer(0U) == nullptr ||
             networkCountdownSession.resultForRacer(0U)->pickedMoney != 25U ||
-            networkCountdownSession.racers()[1].place != 2U)
+            networkCountdownSession.racers()[1].GetPlace() != 2U)
         {
             throw std::runtime_error(
                 "network ExitRace results were not applied to FinishMenu");
@@ -8721,7 +8722,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     });
                 const auto& coasting =
                     aiFinishSession.vehicleInputs()[racer];
-                if (!runtime.finished || runtime.car.numLaps != 1U ||
+                if (!runtime.GetFinished() ||
+                    runtime.car.numLaps != 1U ||
                     aiFinishSession.racerHasAiController(racer) ||
                     !emittedFinish || coasting.throttle > 0.1F ||
                     coasting.reverse > 0.1F ||
@@ -8730,7 +8732,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     throw std::runtime_error(
                         "campaign AI did not finish and release AICar");
                 }
-                if (runtime.place > 3U &&
+                if (runtime.GetPlace() > 3U &&
                     (runtime.rewardMoney != 0U ||
                      runtime.rewardPoints != 0U))
                 {
@@ -8792,8 +8794,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                  racer < aiFinishSession.racers().size(); ++racer)
             {
                 const auto& runtime = aiFinishSession.racers()[racer];
-                if (runtime.money != expectedMoney[racer] ||
-                    runtime.points != expectedPoints[racer])
+                if (runtime.GetMoney() != expectedMoney[racer] ||
+                    runtime.GetPoints() != expectedPoints[racer])
                 {
                     throw std::runtime_error(
                         "campaign result was not awarded to every racer");
@@ -8804,9 +8806,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             for (std::size_t racer = 0U;
                  racer < aiFinishSession.racers().size(); ++racer)
             {
-                if (aiFinishSession.racers()[racer].money !=
+                if (aiFinishSession.racers()[racer].GetMoney() !=
                         expectedMoney[racer] ||
-                    aiFinishSession.racers()[racer].points !=
+                    aiFinishSession.racers()[racer].GetPoints() !=
                         expectedPoints[racer])
                 {
                     throw std::runtime_error(
@@ -8967,7 +8969,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 1.0F / 60.0F,
                 finishVehicles, finishInput);
             placeFinishOnSegment(0U);
-            if (!finishImmortalSession.racers()[0].finished)
+            if (!finishImmortalSession.racers()[0].GetFinished())
             {
                 throw std::runtime_error(
                     "source finished-immortality precondition failed");

@@ -19,7 +19,8 @@ struct BonusDeathOrder final : source::GameObjectListener
         r3d::game::originalrace::DamageType,
         source::GameObject*) noexcept override
     {
-        moneyAtDeath = player == nullptr ? 0U : player->pickedMoney;
+        moneyAtDeath =
+            player == nullptr ? 0U : player->GetPickMoney();
     }
 };
 
@@ -231,7 +232,7 @@ int main()
         &bonusPlayer, &bonusObject,
         source::PlayerBonusType::Money, 25.0F, {}, 0.0F);
     if (!moneyBonus.taken || !bonusObject.destroyed ||
-        bonusPlayer.pickedMoney != 25U ||
+        bonusPlayer.GetPickMoney() != 25U ||
         bonusDeathOrder.moneyAtDeath != 0U)
         return 27;
     if (source::Logic::TakeBonus(

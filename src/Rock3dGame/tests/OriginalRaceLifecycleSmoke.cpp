@@ -68,7 +68,8 @@ int main()
         !run.IsStartRace() || run.IsRaceGo() ||
         !runPlayers.front().IsBlock() ||
         runPlayers.back().IsBlock() ||
-        runPlayers.front().finished || runPlayers.back().finished ||
+        runPlayers.front().GetFinished() ||
+        runPlayers.back().GetFinished() ||
         runPlayers.front().GetHeadLight() !=
             source::Player::HeadLightMode::Two ||
         runPlayers.back().GetHeadLight() !=
