@@ -2346,6 +2346,25 @@ source reset. Unit regression покрывает два recordless fragment; int
 одноразовую регистрацию новых live MapObj. Jolt остаётся только физическим
 backend этих же частей.
 
+### P2.89 — `ResurrectObj` world detach и particle-end death — выполнено
+
+Portable `ResurrectObj::OnDeath` прежде выполнял только `GameObject::Resc()`.
+В Windows `Resurrect()` дополнительно получает world position/rotation,
+вынимает собственный MapObj из include owner и вставляет его в глобальную
+Map; благодаря этому `FxSystemWaitingEnd` переживает уничтожение parent до
+исчезновения последней частицы.
+
+В `GameObject` восстановлены backend-neutral `GetWorldPos/GetWorldRot`,
+`SetWorldPos/SetWorldRot` и иерархический world scale с parent
+scale/rotation/translation. Map-aware overload `ResurrectObj::OnDeath`
+теперь после одноразового revive извлекает тот же `unique_ptr`, сохраняет
+world pose и передаёт его `Map::InsertMapObj`; повторная смерть остаётся
+финальной. Соответствующий overload `FxSystemWaitingEnd` начинает fading, а
+существующий particle-end progress завершает объект. Regression использует
+повёрнутого и масштабированного parent, проверяет переход include →
+`ctEffects`, pointer identity, новый ID/`item0`, сохранённую world pose и
+окончательное удаление после нулевого particle count.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

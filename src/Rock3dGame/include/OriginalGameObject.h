@@ -101,6 +101,11 @@ public:
     void SetScale(Vector3 value) noexcept;
     const Quaternion& GetRot() const noexcept;
     void SetRot(Quaternion value) noexcept;
+    Vector3 GetWorldPos() const noexcept;
+    void SetWorldPos(Vector3 value) noexcept;
+    Vector3 GetWorldScale() const noexcept;
+    Quaternion GetWorldRot() const noexcept;
+    void SetWorldRot(Quaternion value) noexcept;
 
     // State serialized by GameObject::SaveProxy/LoadProxy. Record source
     // state (graph/physics definition and maxLife) is copied separately.
@@ -326,6 +331,7 @@ class ResurrectObj
 public:
     void Reset() noexcept;
     bool OnDeath(GameObject& owner) noexcept;
+    bool OnDeath(GameObject& owner, Map& map);
     bool IsResurrect() const noexcept;
 
 private:
@@ -346,6 +352,7 @@ public:
 
     void Reset() noexcept;
     ProgressResult OnDeath(GameObject& owner) noexcept;
+    ProgressResult OnDeath(GameObject& owner, Map& map);
     ProgressResult OnProgress(
         GameObject& owner, std::size_t liveParticles) noexcept;
     bool IsFading() const noexcept;

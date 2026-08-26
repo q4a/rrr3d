@@ -2,6 +2,7 @@
 #include "OriginalLogic.h"
 #include "OriginalMap.h"
 
+#include <cmath>
 #include <iostream>
 #include <stdexcept>
 
@@ -379,6 +380,78 @@ int main()
             source::GameObject::Vector3{2.0F, 2.0F, 2.0F} ||
         releasedFirst->GetGameObj().IsObjectDestroyed())
         return 24;
+
+    source::Map resurrectionMap(&logic);
+    auto& effectParentMapObject = resurrectionMap.AddMapObj(
+        source::MapObjCategory::Decoration,
+        source::GameObjType::GameObj,
+        "world\\db\\root\\ctDecoration\\parent", 0U);
+    auto& effectParent = effectParentMapObject.GetGameObj();
+    effectParent.ResetGameObject(-1.0F);
+    effectParent.SetPos({10.0F, 20.0F, 30.0F});
+    effectParent.SetScale({2.0F, 2.0F, 2.0F});
+    effectParent.SetRot({0.0F, 0.0F, 0.7071068F, 0.7071068F});
+    auto& effectRecord =
+        resurrectionMap.GetRecordLib(source::MapObjCategory::Effects)
+            .GetOrCreateRecord(
+                "world\\db\\root\\ctEffects\\spark2",
+                source::GameObjType::GameObj);
+    auto& includedEffect = effectParent.GetIncludeList().Add(
+        effectRecord, 77U);
+    auto& effectObject = includedEffect.GetGameObj();
+    effectObject.ResetGameObject(-1.0F);
+    effectObject.SetPos({1.0F, 0.0F, 0.0F});
+    effectObject.SetScale({0.5F, 1.0F, 1.0F});
+    const auto worldEffectPosition = effectObject.GetWorldPos();
+    const auto worldEffectScale = effectObject.GetWorldScale();
+    const auto worldEffectRotation = effectObject.GetWorldRot();
+    const auto near = [](float first, float second) {
+        return std::abs(first - second) < 0.0001F;
+    };
+    if (!near(worldEffectPosition[0], 10.0F) ||
+        !near(worldEffectPosition[1], 22.0F) ||
+        !near(worldEffectPosition[2], 30.0F) ||
+        !near(worldEffectScale[0], 1.0F) ||
+        !near(worldEffectScale[1], 2.0F) ||
+        !near(worldEffectScale[2], 2.0F) ||
+        !near(worldEffectRotation[2], 0.7071068F) ||
+        !near(worldEffectRotation[3], 0.7071068F))
+        return 25;
+    if (!effectObject.Death())
+        return 26;
+    source::FxSystemWaitingEnd waitingEnd;
+    const auto detached = waitingEnd.OnDeath(
+        effectObject, resurrectionMap);
+    const auto detachedEffectId = includedEffect.GetId();
+    if (!detached.beginFading || !waitingEnd.IsFading() ||
+        !waitingEnd.IsResurrect() || effectObject.destroyed ||
+        effectParent.GetIncludeList().GetLiveCount() != 0U ||
+        !effectParent.GetChildren().empty() ||
+        includedEffect.GetOwner() !=
+            &resurrectionMap.GetMapObjList(
+                source::MapObjCategory::Effects) ||
+        includedEffect.GetParent() != nullptr ||
+        includedEffect.GetName() != "item0" ||
+        detachedEffectId != 2U ||
+        resurrectionMap.GetMapObj(detachedEffectId, true) !=
+            &includedEffect ||
+        effectObject.GetLogic() != &logic ||
+        !near(effectObject.GetPos()[0], worldEffectPosition[0]) ||
+        !near(effectObject.GetPos()[1], worldEffectPosition[1]) ||
+        !near(effectObject.GetPos()[2], worldEffectPosition[2]) ||
+        !near(effectObject.GetRot()[2], worldEffectRotation[2]) ||
+        !near(effectObject.GetRot()[3], worldEffectRotation[3]))
+        return 27;
+    if (waitingEnd.OnDeath(effectObject, resurrectionMap).beginFading ||
+        waitingEnd.OnProgress(effectObject, 1U).finalDeath ||
+        !waitingEnd.OnProgress(effectObject, 0U).finalDeath)
+        return 28;
+    const auto removedEffects =
+        resurrectionMap.GetMapObjList(source::MapObjCategory::Effects)
+            .OnProgress(0.0F);
+    if (removedEffects.removed != 1U ||
+        resurrectionMap.GetMapObj(detachedEffectId, true) != nullptr)
+        return 29;
 
     std::cout << "original Map ownership, trace, death plane, category "
                  "registry and global ID rules passed\n";

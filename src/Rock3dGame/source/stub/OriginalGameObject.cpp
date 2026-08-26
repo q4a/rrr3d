@@ -71,6 +71,60 @@ SyncQuaternion inverseSync(SyncQuaternion value) noexcept
     return {-value.x, -value.y, -value.z, value.w};
 }
 
+GameObject::Quaternion normalizedProxy(
+    GameObject::Quaternion value) noexcept
+{
+    const float length = std::sqrt(
+        value[0] * value[0] + value[1] * value[1] +
+        value[2] * value[2] + value[3] * value[3]);
+    if (length <= 0.000001F)
+        return {0.0F, 0.0F, 0.0F, 1.0F};
+    return {value[0] / length, value[1] / length,
+            value[2] / length, value[3] / length};
+}
+
+GameObject::Quaternion multiplyProxy(
+    GameObject::Quaternion left,
+    GameObject::Quaternion right) noexcept
+{
+    left = normalizedProxy(left);
+    right = normalizedProxy(right);
+    return normalizedProxy({
+        left[3] * right[0] + left[0] * right[3] +
+            left[1] * right[2] - left[2] * right[1],
+        left[3] * right[1] - left[0] * right[2] +
+            left[1] * right[3] + left[2] * right[0],
+        left[3] * right[2] + left[0] * right[1] -
+            left[1] * right[0] + left[2] * right[3],
+        left[3] * right[3] - left[0] * right[0] -
+            left[1] * right[1] - left[2] * right[2]});
+}
+
+GameObject::Quaternion inverseProxy(
+    GameObject::Quaternion value) noexcept
+{
+    value = normalizedProxy(value);
+    return {-value[0], -value[1], -value[2], value[3]};
+}
+
+GameObject::Vector3 rotateProxy(
+    GameObject::Quaternion rotation,
+    GameObject::Vector3 value) noexcept
+{
+    rotation = normalizedProxy(rotation);
+    const GameObject::Vector3 twiceCross{
+        2.0F * (rotation[1] * value[2] - rotation[2] * value[1]),
+        2.0F * (rotation[2] * value[0] - rotation[0] * value[2]),
+        2.0F * (rotation[0] * value[1] - rotation[1] * value[0])};
+    return {
+        value[0] + rotation[3] * twiceCross[0] +
+            rotation[1] * twiceCross[2] - rotation[2] * twiceCross[1],
+        value[1] + rotation[3] * twiceCross[1] +
+            rotation[2] * twiceCross[0] - rotation[0] * twiceCross[2],
+        value[2] + rotation[3] * twiceCross[2] +
+            rotation[0] * twiceCross[1] - rotation[1] * twiceCross[0]};
+}
+
 SyncQuaternion rotationSync(
     SyncQuaternion current, SyncQuaternion next) noexcept
 {
@@ -205,6 +259,71 @@ const GameObject::Quaternion& GameObject::GetRot() const noexcept
 void GameObject::SetRot(Quaternion value) noexcept
 {
     rotation_ = value;
+}
+
+GameObject::Vector3 GameObject::GetWorldPos() const noexcept
+{
+    if (parent_ == nullptr)
+        return position_;
+    const auto parentScale = parent_->GetWorldScale();
+    const Vector3 scaled{
+        position_[0] * parentScale[0],
+        position_[1] * parentScale[1],
+        position_[2] * parentScale[2]};
+    const auto rotated = rotateProxy(parent_->GetWorldRot(), scaled);
+    const auto parentPosition = parent_->GetWorldPos();
+    return {parentPosition[0] + rotated[0],
+            parentPosition[1] + rotated[1],
+            parentPosition[2] + rotated[2]};
+}
+
+void GameObject::SetWorldPos(Vector3 value) noexcept
+{
+    if (parent_ == nullptr)
+    {
+        SetPos(value);
+        return;
+    }
+    const auto parentPosition = parent_->GetWorldPos();
+    const auto parentScale = parent_->GetWorldScale();
+    auto local = rotateProxy(
+        inverseProxy(parent_->GetWorldRot()),
+        {value[0] - parentPosition[0],
+         value[1] - parentPosition[1],
+         value[2] - parentPosition[2]});
+    for (std::size_t axis = 0U; axis < local.size(); ++axis)
+    {
+        if (std::abs(parentScale[axis]) > 0.000001F)
+            local[axis] /= parentScale[axis];
+        else
+            local[axis] = 0.0F;
+    }
+    SetPos(local);
+}
+
+GameObject::Vector3 GameObject::GetWorldScale() const noexcept
+{
+    if (parent_ == nullptr)
+        return scale_;
+    const auto parentScale = parent_->GetWorldScale();
+    return {scale_[0] * parentScale[0],
+            scale_[1] * parentScale[1],
+            scale_[2] * parentScale[2]};
+}
+
+GameObject::Quaternion GameObject::GetWorldRot() const noexcept
+{
+    return parent_ == nullptr
+        ? rotation_
+        : multiplyProxy(parent_->GetWorldRot(), rotation_);
+}
+
+void GameObject::SetWorldRot(Quaternion value) noexcept
+{
+    SetRot(parent_ == nullptr
+               ? value
+               : multiplyProxy(
+                     inverseProxy(parent_->GetWorldRot()), value));
 }
 
 void GameObject::CopyProxyStateFrom(const GameObject& value) noexcept
@@ -833,6 +952,29 @@ bool ResurrectObj::OnDeath(GameObject& owner) noexcept
     return true;
 }
 
+bool ResurrectObj::OnDeath(GameObject& owner, Map& map)
+{
+    if (!OnDeath(owner))
+        return false;
+    auto* mapObject = owner.GetMapObj();
+    auto* collection = mapObject != nullptr
+        ? mapObject->GetOwner()
+        : nullptr;
+    if (collection == nullptr || collection->GetOwner() == nullptr)
+        return true;
+
+    const auto worldPosition = owner.GetWorldPos();
+    const auto worldRotation = owner.GetWorldRot();
+    auto detached = collection->Extract(mapObject);
+    if (detached == nullptr)
+        return true;
+    detached->SetName({});
+    owner.SetWorldPos(worldPosition);
+    owner.SetWorldRot(worldRotation);
+    map.InsertMapObj(std::move(detached));
+    return true;
+}
+
 bool ResurrectObj::IsResurrect() const noexcept
 {
     return resurrect_;
@@ -849,6 +991,16 @@ FxSystemWaitingEnd::ProgressResult FxSystemWaitingEnd::OnDeath(
 {
     ProgressResult result;
     result.beginFading = ResurrectObj::OnDeath(owner);
+    if (result.beginFading)
+        fading_ = true;
+    return result;
+}
+
+FxSystemWaitingEnd::ProgressResult FxSystemWaitingEnd::OnDeath(
+    GameObject& owner, Map& map)
+{
+    ProgressResult result;
+    result.beginFading = ResurrectObj::OnDeath(owner, map);
     if (result.beginFading)
         fading_ = true;
     return result;
