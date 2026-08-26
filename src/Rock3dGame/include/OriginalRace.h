@@ -377,6 +377,12 @@ struct ObjectInstance
     // Map::MapObjList::InsertItem assigns one monotonically increasing ID
     // while loading ctEffects..ctBonus. Network RPCs use this global ID.
     std::uint32_t mapObjectId = 0U;
+    // MapObjects::LoadItem assigns the XML element name after proxy load.
+    std::string name;
+    float life = -1.0F;
+    float maximumTimeLife = -1.0F;
+    float timeLife = 0.0F;
+    bool hasProxyState = false;
 };
 
 struct DecorationFragmentState
@@ -653,6 +659,11 @@ struct BonusInstance
     std::uint32_t projectileType = 0U;
     bool modelSize = true;
     std::uint32_t mapObjectId = 0U;
+    std::string name;
+    float life = -1.0F;
+    float maximumTimeLife = -1.0F;
+    float timeLife = 0.0F;
+    bool hasProxyState = false;
 };
 
 enum class Weather

@@ -3910,6 +3910,26 @@ void assignRacerMapObjectIds(Race& race)
         racer.mapObjectId = next++;
 }
 
+void loadMapProxyState(TiXmlElement* item, ObjectInstance& instance)
+{
+    instance.name = item->Value() != nullptr ? item->Value() : "";
+    instance.life = optionalScalar(item, "life", -1.0F);
+    instance.maximumTimeLife =
+        optionalScalar(item, "maxTimeLife", -1.0F);
+    instance.timeLife = optionalScalar(item, "timeLife", 0.0F);
+    instance.hasProxyState = true;
+}
+
+void loadMapProxyState(TiXmlElement* item, BonusInstance& instance)
+{
+    instance.name = item->Value() != nullptr ? item->Value() : "";
+    instance.life = optionalScalar(item, "life", -1.0F);
+    instance.maximumTimeLife =
+        optionalScalar(item, "maxTimeLife", -1.0F);
+    instance.timeLife = optionalScalar(item, "timeLife", 0.0F);
+    instance.hasProxyState = true;
+}
+
 void loadMap(const resource::ResourceFileSystem& resources,
              TiXmlElement* database, Race& race)
 {
@@ -3942,8 +3962,11 @@ void loadMap(const resource::ResourceFileSystem& resources,
                                               ": no collision mesh");
             race.trackDefinitions.push_back(std::move(definition));
         }
-        race.trackInstances.push_back(
-            {entry->second, elementTransform(item, race.levelPath)});
+        ObjectInstance instance;
+        instance.definition = entry->second;
+        instance.transform = elementTransform(item, race.levelPath);
+        loadMapProxyState(item, instance);
+        race.trackInstances.push_back(std::move(instance));
     }
 
     definitions.clear();
@@ -3965,8 +3988,11 @@ void loadMap(const resource::ResourceFileSystem& resources,
                     record + ": decoration has no original visual");
             race.decorationDefinitions.push_back(std::move(definition));
         }
-        race.decorationInstances.push_back(
-            {entry->second, elementTransform(item, race.levelPath)});
+        ObjectInstance instance;
+        instance.definition = entry->second;
+        instance.transform = elementTransform(item, race.levelPath);
+        loadMapProxyState(item, instance);
+        race.decorationInstances.push_back(std::move(instance));
     }
 
     auto* bonusItems = require(map, "ctBonus/items", race.levelPath);
@@ -3984,6 +4010,7 @@ void loadMap(const resource::ResourceFileSystem& resources,
             resources, database, modelRecord,
             "db.xml/map projectile death effect");
         bonus.transform = elementTransform(item, race.levelPath);
+        loadMapProxyState(item, bonus);
         bonus.projectileType = optionalUnsigned(
             bonusRecord, "proj/type", 0U);
         if (child(bonusRecord, "proj/size") != nullptr)
@@ -4156,6 +4183,7 @@ Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources,
         instance.transform.position = vector3(item, "pos", race.levelPath);
         instance.transform.scale = vector3(item, "scale", race.levelPath);
         instance.transform.rotation = quaternion(item, "rot", race.levelPath);
+        loadMapProxyState(item, instance);
         race.trackInstances.push_back(instance);
     }
 
@@ -4178,8 +4206,11 @@ Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources,
                     record + ": decoration has no original visual");
             race.decorationDefinitions.push_back(std::move(definition));
         }
-        race.decorationInstances.push_back(
-            {entry->second, elementTransform(item, race.levelPath)});
+        ObjectInstance instance;
+        instance.definition = entry->second;
+        instance.transform = elementTransform(item, race.levelPath);
+        loadMapProxyState(item, instance);
+        race.decorationInstances.push_back(std::move(instance));
     }
 
     auto* bonusItems = require(map, "ctBonus/items", race.levelPath);
@@ -4197,6 +4228,7 @@ Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources,
             resources, database, modelRecord,
             "db.xml/map projectile death effect");
         bonus.transform = elementTransform(item, race.levelPath);
+        loadMapProxyState(item, bonus);
         bonus.projectileType = optionalUnsigned(
             bonusRecord, "proj/type", 0U);
         if (child(bonusRecord, "proj/size") != nullptr)
@@ -4506,10 +4538,12 @@ Race loadOriginalGarageScene(
                 ": CarFrame decoration has no original visual");
         result.decorationDefinitions.push_back(std::move(definition));
     }
-    result.decorationInstances.push_back({0U, {}});
+    result.decorationInstances.push_back(
+        {0U, {}, 0U, {}, -1.0F, -1.0F, 0.0F, false});
     Transform question;
     question.position = {0.0F, 0.0F, 0.39F};
-    result.decorationInstances.push_back({1U, question});
+    result.decorationInstances.push_back(
+        {1U, question, 0U, {}, -1.0F, -1.0F, 0.0F, false});
 
     result.racers.reserve(result.vehicles.size());
     for (std::size_t index = 0; index < result.vehicles.size(); ++index)
@@ -4613,8 +4647,10 @@ Race loadOriginalAngarScene(
     // source setters SetPitchAngle(-pi/2), SetRollAngle(-pi/2).
     space.transform.rotation = multiply(roll, pitch);
 
-    result.decorationInstances.push_back({0U, {}});
-    result.decorationInstances.push_back({1U, {}});
+    result.decorationInstances.push_back(
+        {0U, {}, 0U, {}, -1.0F, -1.0F, 0.0F, false});
+    result.decorationInstances.push_back(
+        {1U, {}, 0U, {}, -1.0F, -1.0F, 0.0F, false});
 
     // Environment::ewAngar + Environment::wtAngar.
     result.environment.weather = Weather::Fair;
@@ -7192,6 +7228,14 @@ bool runOriginalRaceResourceSmokeTest(
             race.tracePath.size() != 6 ||
             race.decorationInstances.size() != 234 ||
             race.bonuses.size() != 7 ||
+            race.decorationInstances.front().name != "semaphore0" ||
+            !race.decorationInstances.front().hasProxyState ||
+            !near(race.decorationInstances.front().life, -1.0F) ||
+            race.trackInstances.front().name != "track20" ||
+            !race.trackInstances.front().hasProxyState ||
+            race.bonuses.front().name != "money0" ||
+            !race.bonuses.front().hasProxyState ||
+            !near(race.bonuses.front().maximumTimeLife, 0.0F) ||
             race.decorationInstances.front().mapObjectId != 1U ||
             race.decorationInstances.back().mapObjectId != 234U ||
             race.trackInstances.front().mapObjectId != 235U ||

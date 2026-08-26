@@ -2231,6 +2231,21 @@ Regressions подтверждают, что AssignSource сохраняет Log
 life/name, а concrete replacement сбрасывает name/life/parent, сохраняя
 связи самого MapObj с Player, record proxy и ID.
 
+### P2.83 — `.r3dMap` instance name и proxy lifetime state — выполнено
+
+Windows `MapObjects::LoadItem` загружает proxy-поля concrete `GameObject`, а
+затем назначает имя из XML element (`semaphore0`, `track20`, `money0`).
+Portable parser сохранял только record/transform и подставлял полный record
+path как имя. Также терялись `life`, `maxTimeLife` и `timeLife` placement-а.
+
+`ObjectInstance` и `BonusInstance` теперь хранят эти поля и признак реальной
+proxy-загрузки. Оба map loading paths читают element name и три source
+lifetime value. `OriginalRaceSession` сначала применяет record maximum life,
+затем proxy override и имя — в порядке `MapObjRec::Load`/`LoadProxy`/
+`LoadItem`. Synthetic regression fixtures без proxy state сохраняют прежнюю
+явную инициализацию. Parser regression проверяет реальные `semaphore0`,
+`track20`, `money0` и bonus `maxTimeLife=0` из `map1.r3dMap`.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

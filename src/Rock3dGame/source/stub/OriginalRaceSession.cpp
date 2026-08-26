@@ -1130,6 +1130,14 @@ void OriginalRaceSession::reset()
             definition.maximumLife >= 0.0F
                 ? definition.maximumLife
                 : -1.0F);
+        if (instance.hasProxyState)
+        {
+            object->SetLife(instance.life);
+            object->SetMaxTimeLife(instance.maximumTimeLife);
+            object->SetTimeLife(instance.timeLife);
+        }
+        if (!instance.name.empty())
+            mapObject.SetName(instance.name);
         decorationLife_.push_back(object->GetLife());
     }
     auto& trackObjects =
@@ -1145,7 +1153,16 @@ void OriginalRaceSession::reset()
             source::MapObjCategory::Track,
             source::GameObjType::GameObj, definition.record,
             instance.mapObjectId, index);
-        mapObject.GetGameObj().ResetGameObject(-1.0F);
+        auto& object = mapObject.GetGameObj();
+        object.ResetGameObject(-1.0F);
+        if (instance.hasProxyState)
+        {
+            object.SetLife(instance.life);
+            object.SetMaxTimeLife(instance.maximumTimeLife);
+            object.SetTimeLife(instance.timeLife);
+        }
+        if (!instance.name.empty())
+            mapObject.SetName(instance.name);
     }
     bonusActive_.assign(race_.bonuses.size(), true);
     bonusObjects().Reserve(race_.bonuses.size());
@@ -1157,7 +1174,16 @@ void OriginalRaceSession::reset()
             source::MapObjCategory::Bonus,
             source::GameObjType::Proj, bonus.record,
             bonus.mapObjectId, index);
-        mapObject.GetGameObj().ResetGameObject(-1.0F);
+        auto& object = mapObject.GetGameObj();
+        object.ResetGameObject(-1.0F);
+        if (bonus.hasProxyState)
+        {
+            object.SetLife(bonus.life);
+            object.SetMaxTimeLife(bonus.maximumTimeLife);
+            object.SetTimeLife(bonus.timeLife);
+        }
+        if (!bonus.name.empty())
+            mapObject.SetName(bonus.name);
         auto* projectile = mapObject.GetAutoProj();
         projectile->Reset(bonus.projectileType);
         bonusScales_[index] = projectile->GetModelScale();
