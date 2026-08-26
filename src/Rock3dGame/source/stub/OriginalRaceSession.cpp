@@ -3212,6 +3212,21 @@ void OriginalRaceSession::updateGameplay(
                     contact.longitudinalSlip,
                     contact.lateralSlip);
             }
+            float leadWheelSpeed = 0.0F;
+            const auto speedWheelCount = std::min(
+                vehicles[racer].wheelAngularSpeeds.size(),
+                vehicleDefinition.physics.wheels.size());
+            for (std::size_t wheel = 0U;
+                 wheel < speedWheelCount; ++wheel)
+            {
+                if (!vehicleDefinition.physics.wheels[wheel].driven)
+                    continue;
+                leadWheelSpeed =
+                    vehicles[racer].wheelAngularSpeeds[wheel] *
+                    vehicleDefinition.physics.wheels[wheel].radius;
+                break;
+            }
+            runtime.gameCar.SetLeadWheelSpeed(leadWheelSpeed);
         }
         runtime.gameCar.OnProgress(seconds);
         if (racer < vehicleInputs_.size())

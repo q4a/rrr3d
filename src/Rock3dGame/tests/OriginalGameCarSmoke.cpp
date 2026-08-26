@@ -132,6 +132,50 @@ int main()
         !car.GetChildren().empty())
         return 29;
 
+    car.BindAnimationChildren(true, 2U);
+    const auto* trackChild = car.GetAnimationChild(0U);
+    const auto* cushionChild = car.GetAnimationChild(1U);
+    if (car.GetAnimationChildCount() != 2U ||
+        trackChild == nullptr || cushionChild == nullptr ||
+        trackChild->GetParent() != &car ||
+        cushionChild->GetParent() != &car ||
+        !trackChild->HasTrackAnimation() ||
+        trackChild->GetBehaviors().GetCount() != 1U ||
+        trackChild->GetBehaviors().Find(
+            source::BehaviorType::GusenizaAnim) == nullptr ||
+        cushionChild->GetCushionAnimationCount() != 2U ||
+        cushionChild->GetBehaviors().GetCount() != 2U ||
+        cushionChild->GetListenerCount() != 2U ||
+        cushionChild->GetBehaviors().Find(
+            source::BehaviorType::PodushkaAnim) == nullptr)
+        return 30;
+    car.SetLeadWheelSpeed(5.0F);
+    const auto animationProgress = car.OnProgress(0.5F);
+    if (animationProgress.animationChildrenProgressed != 2U ||
+        animationProgress.animationBehaviorsProgressed != 3U ||
+        std::abs(car.GetTrackTextureOffset() - 0.5F) > 0.0001F ||
+        std::abs(car.GetCushionAngle(0U) -
+                 0.25F * 3.14159265358979323846F) > 0.0001F ||
+        car.GetCushionAngle(0U) != car.GetCushionAngle(1U))
+        return 31;
+    car.SetLeadWheelSpeed(0.1F);
+    if (car.GetLeadWheelSpeed() != 0.0F)
+        return 32;
+    source::GameCar copiedAnimationCar = car;
+    if (copiedAnimationCar.GetAnimationChildCount() != 2U ||
+        copiedAnimationCar.GetAnimationChild(0U)->GetParent() !=
+            &copiedAnimationCar ||
+        copiedAnimationCar.GetAnimationChild(1U)->GetListenerCount() != 2U ||
+        copiedAnimationCar.GetTrackTextureOffset() !=
+            car.GetTrackTextureOffset() ||
+        copiedAnimationCar.GetCushionAngle(1U) !=
+            car.GetCushionAngle(1U))
+        return 33;
+    car.ReleaseAnimationChildren();
+    if (car.GetAnimationChildCount() != 0U ||
+        !car.GetChildren().empty())
+        return 34;
+
     source::PxWheelSlipEffect slip;
     const auto quiet = slip.OnProgress(true, 0.4F, 0.7F, true);
     if (quiet.active || quiet.makeEffect || !quiet.stopSound)

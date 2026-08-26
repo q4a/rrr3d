@@ -665,6 +665,9 @@ void Player::CreateCar(bool newRace) noexcept
             gameCar.BindWheels(
                 carRecord_->wheelSlipEffects,
                 carRecord_->wheelSlipSounds);
+            gameCar.BindAnimationChildren(
+                !carRecord_->trackVisuals.empty(),
+                carRecord_->cushionVisuals.size());
         }
         car.OnCreateCar(newRace);
         Resc();
@@ -690,6 +693,7 @@ void Player::FreeCar(bool freeState) noexcept
                 .GetItem().OnDestroyCar();
     }
     carPresent_ = false;
+    gameCar.ReleaseAnimationChildren();
     gameCar.ReleaseWheels();
     gameCar.ReleaseSoundMotor();
     car.OnFreeCar(freeState);

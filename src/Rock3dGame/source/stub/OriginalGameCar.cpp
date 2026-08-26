@@ -46,6 +46,7 @@ GameCar& GameCar::operator=(const GameCar& other) noexcept
 {
     if (this == &other)
         return *this;
+    ReleaseAnimationChildren();
     ReleaseWheels();
     ReleaseSoundMotor();
     GameObject::operator=(other);
@@ -53,6 +54,7 @@ GameCar& GameCar::operator=(const GameCar& other) noexcept
     clutchTime_ = other.clutchTime_;
     springTime_ = other.springTime_;
     mineTime_ = other.mineTime_;
+    leadWheelSpeed_ = other.leadWheelSpeed_;
     rpmVolumeRange_ = other.rpmVolumeRange_;
     rpmFrequencyRange_ = other.rpmFrequencyRange_;
     soundMotorMix_ = other.soundMotorMix_;
@@ -87,6 +89,14 @@ GameCar& GameCar::operator=(const GameCar& other) noexcept
             wheels_[index]->SetParent(this);
         }
     }
+    for (const auto& child : other.animationChildren_)
+    {
+        if (child == nullptr)
+            continue;
+        auto copy = std::make_unique<CarAnimationChild>(*child);
+        copy->SetParent(this);
+        animationChildren_.push_back(std::move(copy));
+    }
     return *this;
 }
 
@@ -99,6 +109,7 @@ GameCar& GameCar::operator=(GameCar&& other) noexcept
 
 GameCar::~GameCar()
 {
+    ReleaseAnimationChildren();
     ReleaseWheels();
     ReleaseSoundMotor();
 }
@@ -109,6 +120,7 @@ void GameCar::Reset() noexcept
     clutchTime_ = 0.0F;
     springTime_ = 0.0F;
     mineTime_ = 0.0F;
+    leadWheelSpeed_ = 0.0F;
     if (soundMotor_ != nullptr)
         soundMotor_->Reset();
     soundMotorMix_ = {};
@@ -120,6 +132,15 @@ GameCar::ProgressResult GameCar::OnProgress(float deltaTime) noexcept
     const auto gameObject = GameObject::OnProgress(deltaTime);
     result.behaviorsProgressed = gameObject.behaviorsProgressed;
     result.behaviorsRemoved = gameObject.behaviorsRemoved;
+    for (auto& child : animationChildren_)
+    {
+        if (child == nullptr)
+            continue;
+        const auto childResult = child->OnProgress(deltaTime);
+        ++result.animationChildrenProgressed;
+        result.animationBehaviorsProgressed +=
+            childResult.behaviorsProgressed;
+    }
     for (auto& wheel : wheels_)
     {
         if (wheel == nullptr)
@@ -249,6 +270,87 @@ CarWheel* GameCar::GetWheel(std::size_t wheel) noexcept
 const CarWheel* GameCar::GetWheel(std::size_t wheel) const noexcept
 {
     return wheel < wheels_.size() ? wheels_[wheel].get() : nullptr;
+}
+
+void GameCar::BindAnimationChildren(
+    bool trackAnimation, std::size_t cushionAnimations)
+{
+    ReleaseAnimationChildren();
+    if (trackAnimation)
+    {
+        auto child = std::make_unique<CarAnimationChild>(true, 0U);
+        child->SetParent(this);
+        animationChildren_.push_back(std::move(child));
+    }
+    if (cushionAnimations > 0U)
+    {
+        auto child = std::make_unique<CarAnimationChild>(
+            false, cushionAnimations);
+        child->SetParent(this);
+        animationChildren_.push_back(std::move(child));
+    }
+}
+
+void GameCar::ReleaseAnimationChildren() noexcept
+{
+    for (auto& child : animationChildren_)
+        if (child != nullptr)
+            child->SetParent(nullptr);
+    animationChildren_.clear();
+}
+
+void GameCar::SetLeadWheelSpeed(float value) noexcept
+{
+    leadWheelSpeed_ = std::abs(value) > 0.1F ? value : 0.0F;
+}
+
+float GameCar::GetLeadWheelSpeed() const noexcept
+{
+    return leadWheelSpeed_;
+}
+
+float GameCar::GetTrackTextureOffset() const noexcept
+{
+    const auto found = std::find_if(
+        animationChildren_.begin(), animationChildren_.end(),
+        [](const auto& child) {
+            return child != nullptr && child->HasTrackAnimation();
+        });
+    return found != animationChildren_.end()
+               ? (*found)->GetTrackTextureOffset()
+               : 1.0F;
+}
+
+float GameCar::GetCushionAngle(std::size_t index) const noexcept
+{
+    for (const auto& child : animationChildren_)
+    {
+        if (child != nullptr &&
+            index < child->GetCushionAnimationCount())
+        {
+            return child->GetCushionAngle(index);
+        }
+    }
+    return 0.0F;
+}
+
+std::size_t GameCar::GetAnimationChildCount() const noexcept
+{
+    return animationChildren_.size();
+}
+
+CarAnimationChild* GameCar::GetAnimationChild(
+    std::size_t index) noexcept
+{
+    return index < animationChildren_.size()
+               ? animationChildren_[index].get() : nullptr;
+}
+
+const CarAnimationChild* GameCar::GetAnimationChild(
+    std::size_t index) const noexcept
+{
+    return index < animationChildren_.size()
+               ? animationChildren_[index].get() : nullptr;
 }
 
 bool GameCar::LockClutch(float strength, bool clutchImmunity) noexcept
@@ -559,6 +661,147 @@ float PodushkaAnim::OnProgress(
 float PodushkaAnim::GetAngle() const noexcept
 {
     return angle_;
+}
+
+class CarAnimationChild::TrackBehavior final : public Behavior
+{
+public:
+    TrackBehavior(Behaviors* owner, CarAnimationChild* child) noexcept
+        : Behavior(owner), child_(child)
+    {
+    }
+
+    void OnProgress(float deltaTime) noexcept override
+    {
+        if (child_ == nullptr)
+            return;
+        const auto* car = dynamic_cast<const GameCar*>(child_->GetParent());
+        child_->trackAnimation_.OnProgress(
+            deltaTime, car != nullptr ? car->GetLeadWheelSpeed() : 0.0F);
+    }
+
+private:
+    CarAnimationChild* child_ = nullptr;
+};
+
+class CarAnimationChild::CushionBehavior final : public Behavior
+{
+public:
+    CushionBehavior(Behaviors* owner, CarAnimationChild* child,
+                    std::size_t index) noexcept
+        : Behavior(owner), child_(child), index_(index)
+    {
+    }
+
+    void OnProgress(float deltaTime) noexcept override
+    {
+        if (child_ == nullptr ||
+            index_ >= child_->cushionAnimations_.size())
+            return;
+        const auto* car = dynamic_cast<const GameCar*>(child_->GetParent());
+        child_->cushionAnimations_[index_].OnProgress(
+            deltaTime, car != nullptr ? car->GetLeadWheelSpeed() : 0.0F);
+    }
+
+private:
+    CarAnimationChild* child_ = nullptr;
+    std::size_t index_ = 0U;
+};
+
+CarAnimationChild::CarAnimationChild() = default;
+
+CarAnimationChild::CarAnimationChild(
+    bool trackAnimation, std::size_t cushionAnimations)
+{
+    Configure(trackAnimation, cushionAnimations);
+}
+
+CarAnimationChild::CarAnimationChild(
+    const CarAnimationChild& other) : GameObject(other)
+{
+    *this = other;
+}
+
+CarAnimationChild& CarAnimationChild::operator=(
+    const CarAnimationChild& other) noexcept
+{
+    if (this == &other)
+        return *this;
+    GameObject::operator=(other);
+    trackAnimation_ = other.trackAnimation_;
+    cushionAnimations_ = other.cushionAnimations_;
+    hasTrackAnimation_ = other.hasTrackAnimation_;
+    BindBehaviors();
+    return *this;
+}
+
+CarAnimationChild::CarAnimationChild(
+    CarAnimationChild&& other) : CarAnimationChild(other) {}
+
+CarAnimationChild& CarAnimationChild::operator=(
+    CarAnimationChild&& other) noexcept
+{
+    return *this = static_cast<const CarAnimationChild&>(other);
+}
+
+CarAnimationChild::~CarAnimationChild()
+{
+    GetBehaviors().Clear();
+    SetParent(nullptr);
+}
+
+void CarAnimationChild::BindBehaviors()
+{
+    GetBehaviors().Clear();
+    if (hasTrackAnimation_)
+    {
+        GetBehaviors().Add<TrackBehavior>(
+            BehaviorType::GusenizaAnim, this);
+    }
+    for (std::size_t index = 0U;
+         index < cushionAnimations_.size(); ++index)
+    {
+        GetBehaviors().Add<CushionBehavior>(
+            BehaviorType::PodushkaAnim, this, index);
+    }
+}
+
+void CarAnimationChild::Configure(
+    bool trackAnimation, std::size_t cushionAnimations)
+{
+    trackAnimation_.Reset();
+    cushionAnimations_.assign(cushionAnimations, PodushkaAnim{});
+    hasTrackAnimation_ = trackAnimation;
+    BindBehaviors();
+}
+
+GameObject::ProgressResult CarAnimationChild::OnProgress(
+    float deltaTime) noexcept
+{
+    return GameObject::OnProgress(deltaTime);
+}
+
+bool CarAnimationChild::HasTrackAnimation() const noexcept
+{
+    return hasTrackAnimation_ &&
+           GetBehaviors().Find(BehaviorType::GusenizaAnim) != nullptr;
+}
+
+std::size_t CarAnimationChild::GetCushionAnimationCount() const noexcept
+{
+    return cushionAnimations_.size();
+}
+
+float CarAnimationChild::GetTrackTextureOffset() const noexcept
+{
+    return trackAnimation_.GetTextureOffset();
+}
+
+float CarAnimationChild::GetCushionAngle(
+    std::size_t index) const noexcept
+{
+    return index < cushionAnimations_.size()
+               ? cushionAnimations_[index].GetAngle() : 0.0F;
 }
 
 } // namespace r3d::game::originalrace::source

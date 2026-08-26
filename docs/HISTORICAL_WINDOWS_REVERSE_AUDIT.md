@@ -2493,6 +2493,22 @@ Copy/move пересобирает parent/listener связи; `FreeCar` уда�
 behavior. Regression проверяет hierarchy, exact type, silent wheel, единый
 transition, copy rebinding и полный cleanup.
 
+### P2.97 — car include graph для `GusenizaAnim`/`PodushkaAnim` — выполнено
+
+Гусеница и подушки визуально использовали исходные формулы, но state хранился
+в renderer и зависел от количества renderFrame-вызовов. Их serialized child
+MapObj, parent GameCar и concrete types 13/14 отсутствовали, поэтому это была
+верная картинка без исходного object lifecycle.
+
+`GameCar` теперь создаёт included animation children из загруженного ctCar:
+один `btGusenizaAnim` для гусеничного actor и два `btPodushkaAnim` для tags
+1/2 одного cushion actor. Session вычисляет первый lead-wheel axle speed с
+радиусом и source dead-zone 0.1 м/с. Child behaviors прогрессируют из car pass
+перед `CarWheel`; Metal читает готовые UV offset и независимые tag angles и
+больше не владеет animation clocks. Copy/move восстанавливает parent/listener
+graph, а `FreeCar` удаляет include actors. Regression проверяет exact types,
+1+2 layout, порядок/результат progress, dead-zone, copy rebinding и cleanup.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

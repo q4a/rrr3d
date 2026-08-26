@@ -257,10 +257,6 @@ private:
     std::vector<std::uint32_t> wheelTrailResetCounts_;
     std::vector<std::vector<float>> wheelSmokeStartTimes_;
     std::vector<std::vector<float>> wheelSmokeEndTimes_;
-    std::vector<r3d::game::originalrace::source::GusenizaAnim>
-        vehicleTrackAnimations_;
-    std::vector<r3d::game::originalrace::source::PodushkaAnim>
-        vehicleCushionAnimations_;
     // ActorManager::RayUser fade timers for original gpCullOpacity actors.
     std::vector<float> trackCullOpacityTimes_;
     std::vector<float> decorationCullOpacityTimes_;
@@ -276,7 +272,6 @@ private:
     // for the orthographic camera and by 0.25 for perspective cameras.
     float pointSpriteScale_ = 0.25F;
     float wheelTrailUpdateSeconds_ = -1.0F;
-    float vehicleAnimationUpdateSeconds_ = -1.0F;
     bool adaptedLuminanceAIsCurrent_ = false;
     bool luminanceAdaptationInitialized_ = false;
     bool sunShaftResourcesEnabled_ = false;

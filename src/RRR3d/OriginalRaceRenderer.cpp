@@ -2882,11 +2882,8 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
     vehicleShieldEffects_.clear();
     vehicleShieldScales_.clear();
     vehicleDeathEffects_.clear();
-    vehicleTrackAnimations_.clear();
-    vehicleCushionAnimations_.clear();
     wheelSmokeStartTimes_.clear();
     wheelSmokeEndTimes_.clear();
-    vehicleAnimationUpdateSeconds_ = -1.0F;
     bonuses_.clear();
     bonusDeathEffects_.clear();
     weapons_.clear();
@@ -5009,7 +5006,7 @@ void OriginalRaceRenderer::draw(
         }
         if (!refractionPass &&
             racer < vehicleTrackVisuals_.size() &&
-            racer < vehicleTrackAnimations_.size())
+            racer < racerRuntime.size())
         {
             const auto& animatedAsset =
                 vehicleTrackVisuals_[racer];
@@ -5017,7 +5014,7 @@ void OriginalRaceRenderer::draw(
                 animatedAsset.nodes.size(),
                 definition.trackVisuals.size());
             const float sourceTextureOffset =
-                vehicleTrackAnimations_[racer].GetTextureOffset();
+                racerRuntime[racer].gameCar.GetTrackTextureOffset();
             for (std::size_t index = 0; index < count; ++index)
             {
                 const auto& node = definition.trackVisuals[index];
@@ -5034,18 +5031,18 @@ void OriginalRaceRenderer::draw(
         }
         if (!refractionPass &&
             racer < vehicleCushionVisuals_.size() &&
-            racer < vehicleCushionAnimations_.size())
+            racer < racerRuntime.size())
         {
             const auto& animatedAsset =
                 vehicleCushionVisuals_[racer];
             const auto count = std::min(
                 animatedAsset.nodes.size(),
                 definition.cushionVisuals.size());
-            const float angle =
-                vehicleCushionAnimations_[racer].GetAngle();
-            const float halfAngle = angle * 0.5F;
             for (std::size_t index = 0; index < count; ++index)
             {
+                const float halfAngle =
+                    racerRuntime[racer].gameCar
+                        .GetCushionAngle(index) * 0.5F;
                 const auto& node = definition.cushionVisuals[index];
                 const auto center =
                     meshGroupCenter(animatedAsset.nodes[index]);
@@ -5938,15 +5935,16 @@ void OriginalRaceRenderer::drawShadowCasters(
             }
         }
         if (racer < vehicleCushionVisuals_.size() &&
-            racer < vehicleCushionAnimations_.size())
+            racer < racerRuntime.size())
         {
             const auto count = std::min(
                 vehicleCushionVisuals_[racer].nodes.size(),
                 definition.cushionVisuals.size());
-            const float halfAngle =
-                vehicleCushionAnimations_[racer].GetAngle() * 0.5F;
             for (std::size_t index = 0; index < count; ++index)
             {
+                const float halfAngle =
+                    racerRuntime[racer].gameCar
+                        .GetCushionAngle(index) * 0.5F;
                 const auto& node = definition.cushionVisuals[index];
                 const auto center = meshGroupCenter(
                     vehicleCushionVisuals_[racer].nodes[index]);
@@ -6042,62 +6040,6 @@ void OriginalRaceRenderer::renderFrame(
     const r3d::game::originalrace::QualityConfig& quality,
     std::int32_t countdownStage, bool debugTraceVisible)
 {
-    const bool resetVehicleAnimation =
-        vehicleAnimationUpdateSeconds_ < 0.0F ||
-        elapsedSeconds < vehicleAnimationUpdateSeconds_;
-    if (resetVehicleAnimation)
-    {
-        vehicleTrackAnimations_.assign(
-            vehicles.size(),
-            r3d::game::originalrace::source::GusenizaAnim{});
-        vehicleCushionAnimations_.assign(
-            vehicles.size(),
-            r3d::game::originalrace::source::PodushkaAnim{});
-    }
-    else
-    {
-        vehicleTrackAnimations_.resize(vehicles.size());
-        vehicleCushionAnimations_.resize(vehicles.size());
-    }
-    const float vehicleAnimationDelta =
-        resetVehicleAnimation
-            ? 0.0F
-            : std::max(elapsedSeconds -
-                           vehicleAnimationUpdateSeconds_,
-                       0.0F);
-    const std::size_t animatedVehicleCount =
-        std::min(vehicles.size(), race.racers.size());
-    for (std::size_t racer = 0; racer < animatedVehicleCount; ++racer)
-    {
-        const auto vehicleIndex = race.racers[racer].vehicle;
-        if (vehicleIndex >= race.vehicles.size())
-            continue;
-        const auto& definition =
-            activeVehicleDefinition(race, racerRuntime, racer);
-        const auto& state = vehicles[racer];
-        float leadWheelSpeed = 0.0F;
-        const auto wheelCount = std::min(
-            state.wheelAngularSpeeds.size(),
-            definition.physics.wheels.size());
-        for (std::size_t wheel = 0; wheel < wheelCount; ++wheel)
-        {
-            if (!definition.physics.wheels[wheel].driven)
-                continue;
-            leadWheelSpeed =
-                state.wheelAngularSpeeds[wheel] *
-                definition.physics.wheels[wheel].radius;
-            break;
-        }
-        // GameCar::GetLeadWheelSpeed suppresses axle jitter below 0.1 m/s.
-        if (std::abs(leadWheelSpeed) <= 0.1F)
-            leadWheelSpeed = 0.0F;
-        vehicleTrackAnimations_[racer].OnProgress(
-            vehicleAnimationDelta, leadWheelSpeed);
-        vehicleCushionAnimations_[racer].OnProgress(
-            vehicleAnimationDelta, leadWheelSpeed);
-    }
-    vehicleAnimationUpdateSeconds_ = elapsedSeconds;
-
     if (wheelTrailUpdateSeconds_ < 0.0F ||
         elapsedSeconds < wheelTrailUpdateSeconds_)
     {

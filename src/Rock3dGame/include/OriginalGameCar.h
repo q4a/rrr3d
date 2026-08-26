@@ -11,6 +11,7 @@ namespace r3d::game::originalrace::source
 
 class SoundMotor;
 class CarWheel;
+class CarAnimationChild;
 
 struct SoundMotorMix
 {
@@ -48,6 +49,8 @@ public:
         std::size_t behaviorsRemoved = 0U;
         std::size_t wheelsProgressed = 0U;
         std::size_t wheelBehaviorsProgressed = 0U;
+        std::size_t animationChildrenProgressed = 0U;
+        std::size_t animationBehaviorsProgressed = 0U;
     };
 
     GameCar();
@@ -81,6 +84,17 @@ public:
     std::size_t GetWheelCount() const noexcept;
     CarWheel* GetWheel(std::size_t wheel) noexcept;
     const CarWheel* GetWheel(std::size_t wheel) const noexcept;
+    void BindAnimationChildren(
+        bool trackAnimation, std::size_t cushionAnimations);
+    void ReleaseAnimationChildren() noexcept;
+    void SetLeadWheelSpeed(float value) noexcept;
+    float GetLeadWheelSpeed() const noexcept;
+    float GetTrackTextureOffset() const noexcept;
+    float GetCushionAngle(std::size_t index) const noexcept;
+    std::size_t GetAnimationChildCount() const noexcept;
+    CarAnimationChild* GetAnimationChild(std::size_t index) noexcept;
+    const CarAnimationChild* GetAnimationChild(
+        std::size_t index) const noexcept;
 
     bool LockClutch(float strength, bool clutchImmunity) noexcept;
     void CancelClutch() noexcept;
@@ -108,6 +122,8 @@ private:
     std::array<float, 2> rpmVolumeRange_{0.0F, 1.0F};
     std::array<float, 2> rpmFrequencyRange_{0.0F, 1.0F};
     std::vector<std::unique_ptr<CarWheel>> wheels_;
+    std::vector<std::unique_ptr<CarAnimationChild>> animationChildren_;
+    float leadWheelSpeed_ = 0.0F;
 };
 
 // Backend-neutral owner for GameBase.cpp::SoundMotor. SDL owns the two
@@ -212,6 +228,40 @@ public:
 
 private:
     float angle_ = 0.0F;
+};
+
+// Serialized car include actors keep their own behavior owners. Guseniza has
+// one type-13 behavior; Podushka has two type-14 behaviors targeting tags 1
+// and 2 on the same included actor in the shipped database.
+class CarAnimationChild : public GameObject
+{
+public:
+    CarAnimationChild();
+    CarAnimationChild(bool trackAnimation,
+                      std::size_t cushionAnimations);
+    CarAnimationChild(const CarAnimationChild& other);
+    CarAnimationChild& operator=(
+        const CarAnimationChild& other) noexcept;
+    CarAnimationChild(CarAnimationChild&& other);
+    CarAnimationChild& operator=(CarAnimationChild&& other) noexcept;
+    ~CarAnimationChild() override;
+
+    void Configure(bool trackAnimation,
+                   std::size_t cushionAnimations);
+    GameObject::ProgressResult OnProgress(float deltaTime) noexcept;
+    bool HasTrackAnimation() const noexcept;
+    std::size_t GetCushionAnimationCount() const noexcept;
+    float GetTrackTextureOffset() const noexcept;
+    float GetCushionAngle(std::size_t index) const noexcept;
+
+private:
+    class TrackBehavior;
+    class CushionBehavior;
+    void BindBehaviors();
+
+    GusenizaAnim trackAnimation_;
+    std::vector<PodushkaAnim> cushionAnimations_;
+    bool hasTrackAnimation_ = false;
 };
 
 } // namespace r3d::game::originalrace::source
