@@ -1,5 +1,6 @@
 #include "OriginalGameObject.h"
 
+#include "OriginalLogic.h"
 #include "OriginalMap.h"
 #include "OriginalMapObj.h"
 
@@ -1140,29 +1141,35 @@ void TouchDeath::OnContact(
         target->Death(DamageType::DeathPlane);
 }
 
-void ResurrectObj::Reset() noexcept
+ResurrectObj::ResurrectObj(Behaviors* owner) noexcept
+    : Behavior(owner)
 {
-    resurrect_ = false;
 }
 
-bool ResurrectObj::OnDeath(GameObject& owner) noexcept
+void ResurrectObj::OnProgress(float) noexcept {}
+
+void ResurrectObj::OnDeath(
+    GameObject& sender, DamageType, GameObject*) noexcept
+{
+    Resurrect(sender);
+}
+
+bool ResurrectObj::Resurrect(GameObject& owner) noexcept
 {
     if (resurrect_)
         return false;
     resurrect_ = true;
     owner.Resc();
-    return true;
-}
-
-bool ResurrectObj::OnDeath(GameObject& owner, Map& map)
-{
-    if (!OnDeath(owner))
-        return false;
     auto* mapObject = owner.GetMapObj();
     auto* collection = mapObject != nullptr
         ? mapObject->GetOwner()
         : nullptr;
     if (collection == nullptr || collection->GetOwner() == nullptr)
+        return true;
+
+    auto* logic = owner.GetLogic();
+    auto* map = logic != nullptr ? logic->GetMap() : nullptr;
+    if (map == nullptr)
         return true;
 
     const auto worldPosition = owner.GetWorldPos();
@@ -1173,7 +1180,7 @@ bool ResurrectObj::OnDeath(GameObject& owner, Map& map)
     detached->SetName({});
     owner.SetWorldPos(worldPosition);
     owner.SetWorldRot(worldRotation);
-    map.InsertMapObj(std::move(detached));
+    map->InsertMapObj(std::move(detached));
     return true;
 }
 
@@ -1182,67 +1189,29 @@ bool ResurrectObj::IsResurrect() const noexcept
     return resurrect_;
 }
 
-void FxSystemWaitingEnd::Reset() noexcept
-{
-    ResurrectObj::Reset();
-    fading_ = false;
-}
-
-FxSystemWaitingEnd::ProgressResult FxSystemWaitingEnd::OnDeath(
-    GameObject& owner) noexcept
-{
-    ProgressResult result;
-    result.beginFading = ResurrectObj::OnDeath(owner);
-    if (result.beginFading)
-        fading_ = true;
-    return result;
-}
-
-FxSystemWaitingEnd::ProgressResult FxSystemWaitingEnd::OnDeath(
-    GameObject& owner, Map& map)
-{
-    ProgressResult result;
-    result.beginFading = ResurrectObj::OnDeath(owner, map);
-    if (result.beginFading)
-        fading_ = true;
-    return result;
-}
-
-FxSystemWaitingEnd::ProgressResult FxSystemWaitingEnd::OnProgress(
-    GameObject& owner, std::size_t liveParticles) noexcept
-{
-    ProgressResult result;
-    if (!IsResurrect() || liveParticles != 0U || owner.destroyed)
-        return result;
-    result.finalDeath = owner.Death();
-    return result;
-}
-
-bool FxSystemWaitingEnd::IsFading() const noexcept
-{
-    return fading_;
-}
-
 FxSystemWaitingEndBehavior::FxSystemWaitingEndBehavior(
     Behaviors* owner) noexcept
-    : Behavior(owner)
+    : ResurrectObj(owner)
 {
 }
 
 void FxSystemWaitingEndBehavior::OnProgress(float) noexcept
 {
     auto* owner = GetGameObj();
-    if (owner == nullptr)
+    if (owner == nullptr || !IsResurrect() ||
+        liveParticles_ != 0U || owner->destroyed)
         return;
-    const auto result = state_.OnProgress(*owner, liveParticles_);
-    finalDeath_ = finalDeath_ || result.finalDeath;
+    finalDeath_ = owner->Death() || finalDeath_;
 }
 
 void FxSystemWaitingEndBehavior::OnDeath(
     GameObject& sender, DamageType, GameObject*) noexcept
 {
-    const auto result = state_.OnDeath(sender);
-    beginFading_ = beginFading_ || result.beginFading;
+    if (Resurrect(sender))
+    {
+        fading_ = true;
+        beginFading_ = true;
+    }
 }
 
 void FxSystemWaitingEndBehavior::SetLiveParticleCount(
@@ -1253,12 +1222,12 @@ void FxSystemWaitingEndBehavior::SetLiveParticleCount(
 
 bool FxSystemWaitingEndBehavior::IsResurrect() const noexcept
 {
-    return state_.IsResurrect();
+    return ResurrectObj::IsResurrect();
 }
 
 bool FxSystemWaitingEndBehavior::IsFading() const noexcept
 {
-    return state_.IsFading();
+    return fading_;
 }
 
 bool FxSystemWaitingEndBehavior::ConsumeBeginFading() noexcept

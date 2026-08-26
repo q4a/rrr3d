@@ -2621,6 +2621,24 @@ teardown уже уничтоженной машины. Прямой helper-call 
 сохранение touch attacker при `DeathPlane`; полные offline/network/physics и
 360-frame Metal smoke прошли.
 
+### P2.104 — concrete `ResurrectObj` и source-наследование type 2 — выполнено
+
+Отдельных shipped object records с behavior type 1 не найдено: в активных
+ресурсах это базовый класс многочисленных type-2 `FxSystemWaitingEnd`.
+Portable код, однако, держал `ResurrectObj` и `FxSystemWaitingEnd` как
+автономные state helpers, а concrete type 2 содержал их композицией. Это
+повторяло результат, но не Windows class/listener graph.
+
+`ResurrectObj` теперь является concrete type-1 `Behavior`; первый death
+выполняет `Resc`, находит `Logic::Map`, извлекает включённый `MapObj`, очищает
+имя, сохраняет world pose и передаёт ownership в `Map::InsertMapObj`.
+`FxSystemWaitingEndBehavior` наследует его, как Windows-класс, и добавляет
+только fading и финальный `Death` после исчезновения частиц. Параллельные
+state helpers и ручная передача `Map` удалены. Regression исполняет полный
+listener-driven include detach/insert, проверяет type-1 самостоятельную
+двухступенчатую смерть, world transform, ownership и type-2 particle end;
+offline/network/physics и 360-frame Metal smoke прошли.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

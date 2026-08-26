@@ -459,22 +459,17 @@ int main()
 
     source::GameObject particleOwner;
     particleOwner.ResetGameObject(-1.0F);
-    source::FxSystemWaitingEnd waitingEnd;
-    if (!particleOwner.Death() ||
-        !waitingEnd.OnDeath(particleOwner).beginFading ||
-        particleOwner.destroyed || !waitingEnd.IsResurrect())
+    auto& resurrectBehavior = particleOwner.GetBehaviors()
+        .Add<source::ResurrectObj>(
+            source::BehaviorType::ResurrectObj);
+    if (!particleOwner.Death() || particleOwner.destroyed ||
+        !resurrectBehavior.IsResurrect() ||
+        particleOwner.GetBehaviors().Find(
+            source::BehaviorType::ResurrectObj) !=
+            &resurrectBehavior)
         return 32;
-    if (waitingEnd.OnDeath(particleOwner).beginFading ||
-        waitingEnd.OnProgress(particleOwner, 3U).finalDeath ||
-        particleOwner.destroyed)
+    if (!particleOwner.Death() || !particleOwner.destroyed)
         return 33;
-    if (!waitingEnd.OnProgress(particleOwner, 0U).finalDeath ||
-        !particleOwner.destroyed ||
-        waitingEnd.OnProgress(particleOwner, 0U).finalDeath)
-        return 34;
-    waitingEnd.Reset();
-    if (waitingEnd.IsResurrect() || waitingEnd.IsFading())
-        return 35;
 
     source::EventEffect eventEffect;
     if (!eventEffect.MakeEffect() || eventEffect.MakeEffect() ||

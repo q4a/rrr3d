@@ -456,50 +456,31 @@ public:
         GameObject& sender, GameObject* target) noexcept override;
 };
 
-// GameBase.h::ResurrectObj intercepts the first Death notification, revives
-// the effect GameObject and lets its backend adapter detach the actor from an
-// owning include list while preserving its world transform.  A second Death
-// is final.
-class ResurrectObj
+// Concrete serialized type-1 behavior. It intercepts the first Death,
+// revives the object and detaches an included MapObj into Logic::Map while
+// preserving its world transform. A second Death is final.
+class ResurrectObj : public Behavior
 {
 public:
-    void Reset() noexcept;
-    bool OnDeath(GameObject& owner) noexcept;
-    bool OnDeath(GameObject& owner, Map& map);
+    explicit ResurrectObj(Behaviors* owner) noexcept;
+
+    void OnProgress(float deltaTime) noexcept override;
+    void OnDeath(GameObject& sender, DamageType damageType,
+                 GameObject* target) noexcept override;
     bool IsResurrect() const noexcept;
+
+protected:
+    bool Resurrect(GameObject& owner) noexcept;
 
 private:
     bool resurrect_ = false;
-};
-
-// FxSystemWaitingEnd enters particle fading on the intercepted death and
-// issues the final GameObject::Death only after all already emitted particles
-// have expired. Particle counting itself remains a renderer boundary.
-class FxSystemWaitingEnd : public ResurrectObj
-{
-public:
-    struct ProgressResult
-    {
-        bool beginFading = false;
-        bool finalDeath = false;
-    };
-
-    void Reset() noexcept;
-    ProgressResult OnDeath(GameObject& owner) noexcept;
-    ProgressResult OnDeath(GameObject& owner, Map& map);
-    ProgressResult OnProgress(
-        GameObject& owner, std::size_t liveParticles) noexcept;
-    bool IsFading() const noexcept;
-
-private:
-    bool fading_ = false;
 };
 
 // Concrete Behavior counterpart of the source FxSystemWaitingEnd class.
 // The graphics backend supplies only the current live-particle count; death
 // interception, resurrection and the final Death notification remain in the
 // GameObject listener/progress graph.
-class FxSystemWaitingEndBehavior final : public Behavior
+class FxSystemWaitingEndBehavior final : public ResurrectObj
 {
 public:
     explicit FxSystemWaitingEndBehavior(Behaviors* owner) noexcept;
@@ -515,8 +496,8 @@ public:
     bool ConsumeFinalDeath() noexcept;
 
 private:
-    FxSystemWaitingEnd state_;
     std::size_t liveParticles_ = 0U;
+    bool fading_ = false;
     bool beginFading_ = false;
     bool finalDeath_ = false;
 };

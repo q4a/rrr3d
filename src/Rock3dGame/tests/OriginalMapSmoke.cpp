@@ -421,13 +421,15 @@ int main()
         !near(worldEffectRotation[2], 0.7071068F) ||
         !near(worldEffectRotation[3], 0.7071068F))
         return 25;
+    auto& waitingEnd = effectObject.GetBehaviors()
+        .Add<source::FxSystemWaitingEndBehavior>(
+            source::BehaviorType::FxSystemWaitingEnd);
+    waitingEnd.SetLiveParticleCount(1U);
     if (!effectObject.Death())
         return 26;
-    source::FxSystemWaitingEnd waitingEnd;
-    const auto detached = waitingEnd.OnDeath(
-        effectObject, resurrectionMap);
     const auto detachedEffectId = includedEffect.GetId();
-    if (!detached.beginFading || !waitingEnd.IsFading() ||
+    if (!waitingEnd.ConsumeBeginFading() ||
+        !waitingEnd.IsFading() ||
         !waitingEnd.IsResurrect() || effectObject.destroyed ||
         effectParent.GetIncludeList().GetLiveCount() != 0U ||
         !effectParent.GetChildren().empty() ||
@@ -446,9 +448,13 @@ int main()
         !near(effectObject.GetRot()[2], worldEffectRotation[2]) ||
         !near(effectObject.GetRot()[3], worldEffectRotation[3]))
         return 27;
-    if (waitingEnd.OnDeath(effectObject, resurrectionMap).beginFading ||
-        waitingEnd.OnProgress(effectObject, 1U).finalDeath ||
-        !waitingEnd.OnProgress(effectObject, 0U).finalDeath)
+    effectObject.OnProgress(0.0F);
+    if (effectObject.destroyed ||
+        waitingEnd.ConsumeFinalDeath())
+        return 28;
+    waitingEnd.SetLiveParticleCount(0U);
+    effectObject.OnProgress(0.0F);
+    if (!waitingEnd.ConsumeFinalDeath() || !effectObject.destroyed)
         return 28;
     const auto removedEffects =
         resurrectionMap.GetMapObjList(source::MapObjCategory::Effects)
