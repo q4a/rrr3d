@@ -2032,6 +2032,31 @@ Backend-neutral `source::MapObj/MapObjects` теперь воспроизвод�
 `Misc/Crush` special filter, callback-before-delete и полную Death/Clear
 семантику.
 
+### P2.72 — runtime `Map` category/ID registry — выполнено
+
+Следующая сверка `Map.cpp` показала, что `mapObjectId` оставался лишь числом в
+парсерных структурах. Сетевые lookup-функции линейно сканировали разные
+массивы и не видели source-фазы `lsDeath`: Windows хранит семь
+`MapObjList` и одну ordered table `_objects`, где ID 0 означает null, мёртвый
+объект скрывается обычным lookup, но доступен с `includeDead` до следующего
+container progress.
+
+Добавлен backend-neutral `source::Map`. Он владеет всеми семью category
+lists, назначает или принимает исходный global ID, запрещает ноль/дубликаты,
+удаляет registry entry через callback контейнера, реализует `DelMapObj`,
+`GetMapObjCount`, `GetSemaphore`, `Clear` и сброс `_lastId`. Race session
+теперь регистрирует в нём все 234 decoration, 52 track, 7 bonus и стартовые
+car objects первой карты; network decoration/car/bonus resolution идёт через
+единый реестр, а не через три `find_if`.
+
+Regression отдельно фиксирует source-окно dead/includeDead/remove, category
+ownership, exact semaphore lookup, explicit и автоматически следующий ID,
+duplicate rejection и reset ID до единицы. Session regression проверяет
+реальные IDs map1 и исчезновение разрушенной decoration из реестра. Остался
+отдельный следующий шаг: `Player::FreeCar/CreateCar` должен удалить car
+`MapObj` и выдать новый ID при respawn, как в Windows; текущий первый ID уже
+точен, но пока остаётся статичным в течение заезда.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

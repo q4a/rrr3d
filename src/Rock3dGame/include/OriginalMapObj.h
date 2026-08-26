@@ -14,6 +14,7 @@ class AutoProj;
 class GameObject;
 class DestrObj;
 class MapObjects;
+class MapObjectsObserver;
 
 // MapObj.h::GameObjType.  These values are serialized by name in the
 // Windows data, so keep their source order even where a platform adapter
@@ -86,6 +87,8 @@ public:
     void SetPlayerId(std::size_t value) noexcept;
     std::uint32_t GetId() const noexcept;
     void SetId(std::uint32_t value) noexcept;
+    std::size_t GetSourceIndex() const noexcept;
+    void SetSourceIndex(std::size_t value) noexcept;
     bool IsSpecial() const noexcept;
 
 private:
@@ -94,6 +97,7 @@ private:
     MapObjects* owner_ = nullptr;
     std::size_t playerId_ = static_cast<std::size_t>(-1);
     std::uint32_t id_ = 0U;
+    std::size_t sourceIndex_ = static_cast<std::size_t>(-1);
     GameObjType type_ = GameObjType::GameObj;
     MapObjCategory category_ = MapObjCategory::Effects;
     std::unique_ptr<GameObject> gameObj_;
@@ -102,6 +106,13 @@ private:
     std::string record_;
     std::string recordParent_;
     GameObject* parent_ = nullptr;
+};
+
+class MapObjectsObserver
+{
+public:
+    virtual ~MapObjectsObserver() = default;
+    virtual void OnMapObjRemoving(MapObj& value) noexcept = 0;
 };
 
 // Source MapObjects deletes a dead object only after its OnProgress callback
@@ -119,6 +130,7 @@ public:
 
     MapObjects() = default;
     explicit MapObjects(GameObject* owner) noexcept;
+    void SetObserver(MapObjectsObserver* value) noexcept;
 
     MapObj& Add(GameObjType type, std::string baseName = "obj");
     MapObj& Add(GameObjType type, MapObjCategory category,
@@ -148,6 +160,7 @@ private:
     bool ProgressSlot(std::size_t slot, float deltaTime) noexcept;
 
     GameObject* owner_ = nullptr;
+    MapObjectsObserver* observer_ = nullptr;
     std::vector<std::unique_ptr<MapObj>> objects_;
     bool locked_ = false;
 };

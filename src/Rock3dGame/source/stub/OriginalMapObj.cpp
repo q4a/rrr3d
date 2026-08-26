@@ -121,6 +121,14 @@ std::size_t MapObj::GetPlayerId() const noexcept { return playerId_; }
 void MapObj::SetPlayerId(std::size_t value) noexcept { playerId_ = value; }
 std::uint32_t MapObj::GetId() const noexcept { return id_; }
 void MapObj::SetId(std::uint32_t value) noexcept { id_ = value; }
+std::size_t MapObj::GetSourceIndex() const noexcept
+{
+    return sourceIndex_;
+}
+void MapObj::SetSourceIndex(std::size_t value) noexcept
+{
+    sourceIndex_ = value;
+}
 
 bool MapObj::IsSpecial() const noexcept
 {
@@ -129,6 +137,10 @@ bool MapObj::IsSpecial() const noexcept
 }
 
 MapObjects::MapObjects(GameObject* owner) noexcept : owner_(owner) {}
+void MapObjects::SetObserver(MapObjectsObserver* value) noexcept
+{
+    observer_ = value;
+}
 
 MapObj& MapObjects::Add(GameObjType type, std::string baseName)
 {
@@ -162,7 +174,11 @@ void MapObjects::Clear() noexcept
     for (auto& object : objects_)
     {
         if (object != nullptr)
+        {
+            if (observer_ != nullptr)
+                observer_->OnMapObjRemoving(*object);
             object->GetGameObj().DestroyObject();
+        }
     }
     objects_.clear();
 }
@@ -191,6 +207,8 @@ bool MapObjects::Remove(std::size_t slot) noexcept
 {
     if (locked_ || slot >= objects_.size() || objects_[slot] == nullptr)
         return false;
+    if (observer_ != nullptr)
+        observer_->OnMapObjRemoving(*objects_[slot]);
     objects_[slot]->GetGameObj().DestroyObject();
     objects_[slot].reset();
     return true;

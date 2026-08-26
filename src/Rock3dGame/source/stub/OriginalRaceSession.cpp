@@ -1071,6 +1071,16 @@ OriginalRaceSession::OriginalRaceSession(
     reset();
 }
 
+source::MapObjects& OriginalRaceSession::decorationObjects() noexcept
+{
+    return map_.GetMapObjList(source::MapObjCategory::Decoration);
+}
+
+source::MapObjects& OriginalRaceSession::bonusObjects() noexcept
+{
+    return map_.GetMapObjList(source::MapObjCategory::Bonus);
+}
+
 void OriginalRaceSession::reset()
 {
     gameModeRaceState_.Reset(legacyWindowsDebug_);
@@ -1099,19 +1109,21 @@ void OriginalRaceSession::reset()
     aiAttackTargetsScratch_.assign(race_.racers.size(), {});
     previousPositions_.assign(race_.racers.size(), {});
     racePlaceModel_.Reset();
+    map_.Clear();
     decorationActive_.assign(race_.decorationInstances.size(), true);
     decorationLife_.clear();
     decorationLife_.reserve(race_.decorationInstances.size());
-    decorationObjects_.Clear();
-    decorationObjects_.Reserve(race_.decorationInstances.size());
-    for (const auto& instance : race_.decorationInstances)
+    decorationObjects().Reserve(race_.decorationInstances.size());
+    for (std::size_t index = 0U;
+         index < race_.decorationInstances.size(); ++index)
     {
+        const auto& instance = race_.decorationInstances[index];
         const auto& definition =
             race_.decorationDefinitions.at(instance.definition);
-        auto& mapObject = decorationObjects_.Add(
-            source::GameObjType::DestrObj,
-            source::MapObjCategory::Decoration, definition.record,
-            instance.mapObjectId);
+        auto& mapObject = map_.AddMapObj(
+            source::MapObjCategory::Decoration,
+            source::GameObjType::DestrObj, definition.record,
+            instance.mapObjectId, index);
         auto* object = mapObject.GetDestrObj();
         object->ResetGameObject(
             definition.maximumLife >= 0.0F
@@ -1119,17 +1131,31 @@ void OriginalRaceSession::reset()
                 : -1.0F);
         decorationLife_.push_back(object->GetLife());
     }
+    auto& trackObjects =
+        map_.GetMapObjList(source::MapObjCategory::Track);
+    trackObjects.Reserve(race_.trackInstances.size());
+    for (std::size_t index = 0U;
+         index < race_.trackInstances.size(); ++index)
+    {
+        const auto& instance = race_.trackInstances[index];
+        const auto& definition =
+            race_.trackDefinitions.at(instance.definition);
+        auto& mapObject = map_.AddMapObj(
+            source::MapObjCategory::Track,
+            source::GameObjType::GameObj, definition.record,
+            instance.mapObjectId, index);
+        mapObject.GetGameObj().ResetGameObject(-1.0F);
+    }
     bonusActive_.assign(race_.bonuses.size(), true);
-    bonusObjects_.Clear();
-    bonusObjects_.Reserve(race_.bonuses.size());
+    bonusObjects().Reserve(race_.bonuses.size());
     bonusScales_.assign(race_.bonuses.size(), -1.0F);
     for (std::size_t index = 0U; index < race_.bonuses.size(); ++index)
     {
         const auto& bonus = race_.bonuses[index];
-        auto& mapObject = bonusObjects_.Add(
-            source::GameObjType::Proj,
-            source::MapObjCategory::Bonus, bonus.record,
-            bonus.mapObjectId);
+        auto& mapObject = map_.AddMapObj(
+            source::MapObjCategory::Bonus,
+            source::GameObjType::Proj, bonus.record,
+            bonus.mapObjectId, index);
         mapObject.GetGameObj().ResetGameObject(-1.0F);
         auto* projectile = mapObject.GetAutoProj();
         projectile->Reset(bonus.projectileType);
@@ -1162,6 +1188,11 @@ void OriginalRaceSession::reset()
     campaignRewardsApplied_ = false;
     raceLifecycle_.Reset();
     raceRunState_.Reset();
+    // Static categories which the active backend does not need still
+    // consumed MapObj IDs during Map::Load. Player::CreateCar then asks Map
+    // for the next ID; it never trusts an ID stored on a player descriptor.
+    if (race_.firstDynamicMapObjectId > 0U)
+        map_.ReserveIdsThrough(race_.firstDynamicMapObjectId - 1U);
     for (std::size_t index = 0; index < racers_.size(); ++index)
     {
         const auto& sourceRacer = race_.racers[index];
@@ -1171,6 +1202,11 @@ void OriginalRaceSession::reset()
                 ? sourceRacer.configuredVehicle
                 : race_.vehicles.at(std::min(
                       vehicleIndex, race_.vehicles.size() - 1U));
+        auto& racerMapObject = map_.AddMapObj(
+            source::MapObjCategory::Car,
+            source::GameObjType::RockCar, vehicle.record, index);
+        racerMapObject.SetPlayerId(index);
+        racerMapObject.GetGameObj().ResetGameObject(-1.0F);
         racers_[index].Reset(
             vehicle.maximumLife,
             static_cast<std::uint32_t>(index + 1U), &sourceTrace_);
@@ -1978,7 +2014,7 @@ bool OriginalRaceSession::damageDecoration(
 {
     if (hit >= decorationActive_.size() ||
         hit >= race_.decorationInstances.size() ||
-        decorationObjects_.Get(hit) == nullptr ||
+        decorationObjects().Get(hit) == nullptr ||
         !decorationActive_[hit])
         return false;
     const auto definition = race_.decorationInstances[hit].definition;
@@ -2032,7 +2068,7 @@ OriginalRaceSession::applyDecorationDamageInternal(
     }
 
     const float appliedDamage = damage;
-    auto* mapObject = decorationObjects_.Get(hit);
+    auto* mapObject = decorationObjects().Get(hit);
     if (mapObject == nullptr || mapObject->GetDestrObj() == nullptr)
         return {decorationLife_[hit], false};
     auto& object = *mapObject->GetDestrObj();
@@ -2060,7 +2096,7 @@ OriginalRaceSession::applyDecorationDamageInternal(
     decorationActive_[hit] = false;
     if (!object.HasPendingDestruction())
         return {decorationLife_[hit], true};
-    decorationObjects_.ProgressOne(hit, 0.0F);
+    decorationObjects().ProgressOne(hit, 0.0F);
     const Vec3 position =
         race_.decorationInstances[hit].transform.position;
     RaceEvent destroyedEvent;
@@ -2291,42 +2327,36 @@ bool OriginalRaceSession::racerHasAiController(
 std::size_t OriginalRaceSession::racerForMapObjectId(
     std::uint32_t mapObjectId) const noexcept
 {
-    const auto found = std::find_if(
-        race_.racers.begin(), race_.racers.end(),
-        [mapObjectId](const Racer& racer) {
-            return racer.mapObjectId == mapObjectId;
-        });
-    return found == race_.racers.end()
-               ? RacerRuntime::invalidWeapon
-               : static_cast<std::size_t>(found - race_.racers.begin());
+    const auto* object = map_.GetMapObj(mapObjectId);
+    if (object == nullptr ||
+        object->GetCategory() != source::MapObjCategory::Car ||
+        object->GetSourceIndex() >= racers_.size())
+        return RacerRuntime::invalidWeapon;
+    return object->GetSourceIndex();
 }
 
 std::size_t OriginalRaceSession::decorationForMapObjectId(
     std::uint32_t mapObjectId) const noexcept
 {
-    const auto found = std::find_if(
-        race_.decorationInstances.begin(),
-        race_.decorationInstances.end(),
-        [mapObjectId](const ObjectInstance& instance) {
-            return instance.mapObjectId == mapObjectId;
-        });
-    return found == race_.decorationInstances.end()
-               ? RacerRuntime::invalidWeapon
-               : static_cast<std::size_t>(
-                     found - race_.decorationInstances.begin());
+    const auto* object = map_.GetMapObj(mapObjectId);
+    if (object == nullptr ||
+        object->GetCategory() !=
+            source::MapObjCategory::Decoration ||
+        object->GetSourceIndex() >=
+            race_.decorationInstances.size())
+        return RacerRuntime::invalidWeapon;
+    return object->GetSourceIndex();
 }
 
 std::size_t OriginalRaceSession::bonusForMapObjectId(
     std::uint32_t mapObjectId) const noexcept
 {
-    const auto found = std::find_if(
-        race_.bonuses.begin(), race_.bonuses.end(),
-        [mapObjectId](const BonusInstance& bonus) {
-            return bonus.mapObjectId == mapObjectId;
-        });
-    return found == race_.bonuses.end()
-               ? RacerRuntime::invalidWeapon
-               : static_cast<std::size_t>(found - race_.bonuses.begin());
+    const auto* object = map_.GetMapObj(mapObjectId);
+    if (object == nullptr ||
+        object->GetCategory() != source::MapObjCategory::Bonus ||
+        object->GetSourceIndex() >= race_.bonuses.size())
+        return RacerRuntime::invalidWeapon;
+    return object->GetSourceIndex();
 }
 
 const std::vector<RaceEvent>& OriginalRaceSession::events() const noexcept
@@ -5011,7 +5041,7 @@ void OriginalRaceSession::updateGameplay(
                         localAngularDelta)});
         }
         bonusActive_[bonusIndex] = false;
-        if (auto* object = bonusObjects_.Get(bonusIndex))
+        if (auto* object = bonusObjects().Get(bonusIndex))
             object->GetGameObj().Death(DamageType::Mine);
         return true;
     };
@@ -5034,7 +5064,7 @@ void OriginalRaceSession::updateGameplay(
         if (racer >= racers_.size() ||
             bonusIndex >= race_.bonuses.size() ||
             bonusIndex >= bonusActive_.size() ||
-            bonusObjects_.Get(bonusIndex) == nullptr ||
+            bonusObjects().Get(bonusIndex) == nullptr ||
             !bonusActive_[bonusIndex] || racers_[racer].destroyed)
             return false;
         auto& runtime = racers_[racer];
@@ -5076,7 +5106,7 @@ void OriginalRaceSession::updateGameplay(
             sourceType == source::PlayerBonusType::Charge
                 ? sourceRandomUnit()
                 : 0.0F;
-        auto* bonusObject = bonusObjects_.Get(bonusIndex);
+        auto* bonusObject = bonusObjects().Get(bonusIndex);
         const auto result = source::Logic::TakeBonus(
             &runtime, &bonusObject->GetGameObj(), sourceType,
             sourceValue, weaponMaximumCharges, bonusRandomUnit);
@@ -5194,10 +5224,10 @@ void OriginalRaceSession::updateGameplay(
                 applyMasloContact(
                     racer, bonus.transform.position,
                     bonus.value,
-                    bonusObjects_.Get(bonusIndex) != nullptr &&
-                        bonusObjects_.Get(bonusIndex)
+                    bonusObjects().Get(bonusIndex) != nullptr &&
+                        bonusObjects().Get(bonusIndex)
                             ->GetAutoProj() != nullptr &&
-                        bonusObjects_.Get(bonusIndex)
+                        bonusObjects().Get(bonusIndex)
                             ->GetAutoProj()->IsArming());
                 continue;
             }
@@ -6087,8 +6117,7 @@ void OriginalRaceSession::completeRaceForExit(
         pendingNetworkMineContacts_.clear();
         std::fill(decorationActive_.begin(), decorationActive_.end(), false);
         std::fill(bonusActive_.begin(), bonusActive_.end(), false);
-        decorationObjects_.Clear();
-        bonusObjects_.Clear();
+        map_.Clear();
         std::fill(vehicleInputs_.begin(), vehicleInputs_.end(),
                   r3d::physics::VehicleInput{});
         pairContactEffect_.Reset(race_.contactSoundPaths.size());
@@ -6117,13 +6146,13 @@ void OriginalRaceSession::update(
     // therefore advances during the visible countdown even though race time
     // itself has not started. This is most visible on ptMaslo, whose model
     // grows from scale zero during the original 0.25-second arming window.
-    bonusObjects_.OnProgress(seconds);
+    bonusObjects().OnProgress(seconds);
     for (std::size_t index = 0U;
-         index < bonusObjects_.GetSlotCount(); ++index)
+         index < bonusObjects().GetSlotCount(); ++index)
     {
         if (index >= bonusActive_.size() || !bonusActive_[index])
             continue;
-        const auto* mapObject = bonusObjects_.Get(index);
+        const auto* mapObject = bonusObjects().Get(index);
         if (mapObject == nullptr || mapObject->GetAutoProj() == nullptr)
             continue;
         if (index < bonusScales_.size())
@@ -8422,6 +8451,17 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             shieldBonus.transform.position =
                 vehicles.front().body.position;
             shieldBonus.transform.position.z += 100.0F;
+            // This fixture extends serialized ctBonus, so Map::Load assigns
+            // its ID before Player::CreateCar allocates dynamic car IDs.
+            shieldBonus.mapObjectId =
+                shieldRace.firstDynamicMapObjectId++;
+            for (std::size_t index = 0U;
+                 index < shieldRace.racers.size(); ++index)
+            {
+                shieldRace.racers[index].mapObjectId =
+                    shieldRace.firstDynamicMapObjectId +
+                    static_cast<std::uint32_t>(index);
+            }
             shieldRace.bonuses.push_back(std::move(shieldBonus));
 
             OriginalRaceSession shieldSession(shieldRace);
@@ -11943,6 +11983,18 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 networkRace.decorationInstances.begin());
             OriginalRaceSession mapHost(networkRace);
             mapHost.setNetworkGameplayRole(true, true, hostOwned);
+            if (mapHost.decorationForMapObjectId(
+                    destructible->mapObjectId) != decorationIndex ||
+                mapHost.racerForMapObjectId(
+                    networkRace.racers.front().mapObjectId) != 0U ||
+                (!networkRace.bonuses.empty() &&
+                 mapHost.bonusForMapObjectId(
+                     networkRace.bonuses.front().mapObjectId) != 0U))
+            {
+                throw std::runtime_error(
+                    "source Map global ID registry did not resolve "
+                    "decoration/car/bonus owners");
+            }
             const float decorationInitial =
                 mapHost.decorationLife()[decorationIndex];
             const auto mapAuthoritative =
@@ -11968,7 +12020,10 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     destructible->mapObjectId, 0U, 1.0F,
                     DamageType::Energy, true, 0.0F, true);
             if (!mapSynchronized.death ||
-                mapClient.decorationActive()[decorationIndex])
+                mapClient.decorationActive()[decorationIndex] ||
+                mapClient.decorationForMapObjectId(
+                    destructible->mapObjectId) !=
+                    RacerRuntime::invalidWeapon)
             {
                 throw std::runtime_error(
                     "source client NetRace::Damage2 death sync failed");

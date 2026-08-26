@@ -5,7 +5,7 @@
 #include "OriginalGameObject.h"
 #include "OriginalHumanPlayer.h"
 #include "OriginalLogic.h"
-#include "OriginalMapObj.h"
+#include "OriginalMap.h"
 #include "OriginalPlayer.h"
 #include "OriginalProfile.h"
 #include "OriginalRace.h"
@@ -472,6 +472,8 @@ public:
 private:
     bool legacyWindowsDebug_ = false;
     using TraceNodeRef = source::Trace::NodeRef;
+    source::MapObjects& decorationObjects() noexcept;
+    source::MapObjects& bonusObjects() noexcept;
 
     const std::vector<std::uint32_t>& tracePathAt(
         std::size_t path) const;
@@ -562,9 +564,8 @@ private:
     std::vector<float> decorationLife_;
     // Active source owner. The parallel arrays are renderer/physics views,
     // no longer the authority for damage or death.
-    source::MapObjects decorationObjects_;
+    source::Map map_;
     std::vector<bool> bonusActive_;
-    source::MapObjects bonusObjects_;
     std::vector<float> bonusScales_;
     std::vector<std::size_t> bonusNetworkPendingContact_;
     source::HumanPlayer humanPlayer_;

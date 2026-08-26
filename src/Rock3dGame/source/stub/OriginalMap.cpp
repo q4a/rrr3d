@@ -1,0 +1,182 @@
+#include "OriginalMap.h"
+
+#include "OriginalGameObject.h"
+
+#include <algorithm>
+#include <stdexcept>
+#include <string_view>
+
+namespace r3d::game::originalrace::source
+{
+namespace
+{
+
+std::string_view recordName(std::string_view value) noexcept
+{
+    const auto slash = value.find_last_of("/\\");
+    return slash == std::string_view::npos
+        ? value
+        : value.substr(slash + 1U);
+}
+
+} // namespace
+
+Map::Map()
+{
+    for (auto& category : categories_)
+        category.SetObserver(this);
+}
+
+Map::~Map()
+{
+    Clear();
+}
+
+std::size_t Map::CategoryIndex(MapObjCategory value) noexcept
+{
+    const auto index = static_cast<std::size_t>(value);
+    return index < 7U ? index : 0U;
+}
+
+MapObj& Map::AddMapObj(
+    MapObjCategory category, GameObjType type, std::string record,
+    std::size_t sourceIndex)
+{
+    while (objects_.contains(++lastId_))
+    {
+    }
+    return AddMapObj(
+        category, type, std::move(record), lastId_, sourceIndex);
+}
+
+MapObj& Map::AddMapObj(
+    MapObjCategory category, GameObjType type, std::string record,
+    std::uint32_t sourceId, std::size_t sourceIndex)
+{
+    if (sourceId == defaultMapObjId || objects_.contains(sourceId))
+    {
+        const auto found = objects_.find(sourceId);
+        const std::string existing =
+            found != objects_.end() && found->second != nullptr
+                ? found->second->GetRecord()
+                : std::string("<null>");
+        throw std::invalid_argument(
+            "MapObj ID " + std::to_string(sourceId) +
+            " is not unique/nonzero for '" + record +
+            "' (existing '" + existing + "')");
+    }
+    auto& result = categories_[CategoryIndex(category)].Add(
+        type, category, std::move(record), sourceId);
+    result.SetSourceIndex(sourceIndex);
+    Register(result, sourceId);
+    return result;
+}
+
+void Map::Register(MapObj& value, std::uint32_t id)
+{
+    value.SetId(id);
+    objects_.emplace(id, &value);
+    lastId_ = std::max(lastId_, id);
+}
+
+bool Map::DelMapObj(MapObj* value) noexcept
+{
+    if (value == nullptr)
+        return false;
+    for (auto& category : categories_)
+    {
+        for (std::size_t slot = 0U;
+             slot < category.GetSlotCount(); ++slot)
+        {
+            if (category.Get(slot) == value)
+                return category.Remove(slot);
+        }
+    }
+    return false;
+}
+
+void Map::ReserveIdsThrough(std::uint32_t value) noexcept
+{
+    lastId_ = std::max(lastId_, value);
+}
+
+void Map::Clear() noexcept
+{
+    for (auto& category : categories_)
+        category.Clear();
+    objects_.clear();
+    lastId_ = defaultMapObjId;
+}
+
+std::size_t Map::GetMapObjCount(
+    std::string_view record, MapObjCategory category) const noexcept
+{
+    const auto& objects = categories_[CategoryIndex(category)];
+    std::size_t count = 0U;
+    for (std::size_t slot = 0U; slot < objects.GetSlotCount(); ++slot)
+    {
+        const auto* object = objects.Get(slot);
+        count += object != nullptr && object->GetRecord() == record
+            ? 1U
+            : 0U;
+    }
+    return count;
+}
+
+const Map::Objects& Map::GetObjects() const noexcept { return objects_; }
+
+MapObjects& Map::GetMapObjList(MapObjCategory category) noexcept
+{
+    return categories_[CategoryIndex(category)];
+}
+const MapObjects& Map::GetMapObjList(
+    MapObjCategory category) const noexcept
+{
+    return categories_[CategoryIndex(category)];
+}
+
+MapObj* Map::GetMapObj(std::uint32_t id, bool includeDead) noexcept
+{
+    return const_cast<MapObj*>(
+        static_cast<const Map*>(this)->GetMapObj(id, includeDead));
+}
+const MapObj* Map::GetMapObj(
+    std::uint32_t id, bool includeDead) const noexcept
+{
+    if (id == defaultMapObjId)
+        return nullptr;
+    const auto found = objects_.find(id);
+    if (found == objects_.end() || found->second == nullptr)
+        return nullptr;
+    const auto* object = found->second;
+    return includeDead || object->GetGameObj().GetLiveState() !=
+                              GameObject::LiveState::Death
+        ? object
+        : nullptr;
+}
+
+MapObj* Map::GetSemaphore() noexcept
+{
+    auto& decorations =
+        GetMapObjList(MapObjCategory::Decoration);
+    for (std::size_t slot = 0U;
+         slot < decorations.GetSlotCount(); ++slot)
+    {
+        auto* object = decorations.Get(slot);
+        if (object != nullptr &&
+            recordName(object->GetRecord()) == "semaphore")
+            return object;
+    }
+    return nullptr;
+}
+
+std::uint32_t Map::GetLastId() const noexcept { return lastId_; }
+
+void Map::OnMapObjRemoving(MapObj& value) noexcept
+{
+    const auto found = objects_.find(value.GetId());
+    if (found != objects_.end() && found->second == &value)
+        objects_.erase(found);
+}
+
+} // namespace r3d::game::originalrace::source

@@ -58,6 +58,7 @@ else()
             source/stub/OriginalGameCar.cpp
             source/stub/OriginalLogic.cpp
             source/stub/OriginalMainMenu.cpp
+            source/stub/OriginalMap.cpp
             source/stub/OriginalMapObj.cpp
             source/stub/OriginalAICar.cpp
             source/stub/OriginalHumanPlayer.cpp
@@ -73,6 +74,7 @@ else()
             include/OriginalGameCar.h
             include/OriginalLogic.h
             include/OriginalMainMenu.h
+            include/OriginalMap.h
             include/OriginalMapObj.h
             include/OriginalAICar.h
             include/OriginalHumanPlayer.h
@@ -222,6 +224,18 @@ if(NOT WIN32 AND RRR3D_BUILD_ORIGINAL_MENU)
     add_test(
         NAME rrr3d_original_map_obj_smoke
         COMMAND rrr3d_original_map_obj_smoke
+    )
+
+    add_executable(rrr3d_original_map_smoke
+        tests/OriginalMapSmoke.cpp
+    )
+    target_link_libraries(rrr3d_original_map_smoke PRIVATE
+        ${PROJECT_NAME}
+    )
+    rrr3d_set_common_target_options(rrr3d_original_map_smoke)
+    add_test(
+        NAME rrr3d_original_map_smoke
+        COMMAND rrr3d_original_map_smoke
     )
 
     add_executable(rrr3d_original_game_car_smoke
