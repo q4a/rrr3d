@@ -2934,6 +2934,29 @@ gameplay owner. Regression покрывает setters, границы перед
 descriptor, copy/reset и immunity; профильные mobility-значения поступают в
 `GameCar` при `Player::CreateCar` после применения исходного loadout.
 
+### P2.119 — source `RockCar` ownership — выполнено
+
+Оригинальный Windows `RockCar` не является пустым названием поверх
+`GameCar`: он владеет вложенной коллекцией `Weapons` и в своём
+`OnProgress` обновляет её сразу после автомобиля. В portable-коде этот класс
+отсутствовал, `WeaponRack` находился напрямую в `Player`, а session отдельно
+продвигала его таймеры в начале каждого кадра. Это оставляло два независимых
+владельца lifecycle и делало возможным двойное обновление cooldown при
+дальнейшем переносе object graph.
+
+Добавлен backend-neutral `RockCar : GameCar`, владеющий полным набором из
+четырёх primary, Hyper и Mine weapon objects. `Player::gameCar` теперь имеет
+исходный тип, `BindWeaponItems` и совместимый `GetWeaponRack` обращаются к
+`RockCar::GetWeapons`, а отдельное поле из `Player` удалено. Во время гонки
+единый `RockCar::OnProgress` обновляет физико-игровое состояние и оружие один
+раз после синхронизации колёс. Countdown и завершённое состояние также
+продвигают тот же source owner, сохраняя исходную готовность оружия до
+`GoRace`; session больше не владеет weapon timers.
+
+Сериализация `RockCar::Weapons` и MapObj include-list остаются границей
+следующего этапа object-graph migration: Jolt и bgfx по-прежнему получают
+готовые команды, но gameplay-владение уже не дублируется в adapter.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

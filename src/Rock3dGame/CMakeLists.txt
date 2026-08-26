@@ -63,6 +63,7 @@ else()
             source/stub/OriginalAICar.cpp
             source/stub/OriginalHumanPlayer.cpp
             source/stub/OriginalPlayer.cpp
+            source/stub/OriginalRockCar.cpp
             source/stub/OriginalRaceLifecycle.cpp
             source/stub/OriginalSlot.cpp
             source/stub/OriginalTrace.cpp
@@ -79,6 +80,7 @@ else()
             include/OriginalAICar.h
             include/OriginalHumanPlayer.h
             include/OriginalPlayer.h
+            include/OriginalRockCar.h
             include/OriginalRaceLifecycle.h
             include/OriginalSlot.h
             include/OriginalTrace.h

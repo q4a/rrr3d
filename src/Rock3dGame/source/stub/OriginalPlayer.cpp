@@ -814,7 +814,7 @@ void Player::BindWeaponItems(
         const auto physicalType = static_cast<PlayerSlotType>(
             static_cast<std::size_t>(PlayerSlotType::Weapon1) + slot);
         auto* item = ensureItem(physicalType, weaponSlots[slot]);
-        bind(item, &weaponRack_.primary[slot],
+        bind(item, &gameCar.GetWeapons().primary[slot],
              weaponSlots[slot], weaponCapacity[slot],
              &weaponCharges[slot]);
         const std::size_t definitionIndex = weaponSlots[slot];
@@ -825,7 +825,7 @@ void Player::BindWeaponItems(
         if (auto* droid = dynamic_cast<DroidItem*>(item))
         {
             droid->Bind(
-                &weaponRack_.primary[slot],
+                &gameCar.GetWeapons().primary[slot],
                 definition.maximumCharge, weaponCapacity[slot],
                 &weaponCharges[slot], definition.repairValue,
                 definition.repairPeriod);
@@ -833,7 +833,7 @@ void Player::BindWeaponItems(
         else if (auto* reflector = dynamic_cast<ReflectorItem*>(item))
         {
             reflector->Bind(
-                &weaponRack_.primary[slot],
+                &gameCar.GetWeapons().primary[slot],
                 definition.maximumCharge, weaponCapacity[slot],
                 &weaponCharges[slot], definition.reflectValue);
         }
@@ -842,9 +842,10 @@ void Player::BindWeaponItems(
         item->SetChargeCost(definition.chargeCost);
     }
     bind(ensureItem(PlayerSlotType::Hyper, hyperWeapon),
-         &weaponRack_.hyper, hyperWeapon, hyperCapacity, &hyperCharge);
+         &gameCar.GetWeapons().hyper, hyperWeapon, hyperCapacity,
+         &hyperCharge);
     bind(ensureItem(PlayerSlotType::Mine, mineWeapon),
-         &weaponRack_.mine, mineWeapon, mineCapacity, &mines);
+         &gameCar.GetWeapons().mine, mineWeapon, mineCapacity, &mines);
 }
 
 std::array<WeaponItem*, Player::weaponSlotCount>
@@ -948,12 +949,12 @@ bool Player::Shot(WeaponItem& item, bool projectileCreated,
 
 WeaponRack& Player::GetWeaponRack() noexcept
 {
-    return weaponRack_;
+    return gameCar.GetWeapons();
 }
 
 const WeaponRack& Player::GetWeaponRack() const noexcept
 {
-    return weaponRack_;
+    return gameCar.GetWeapons();
 }
 
 void Player::BindSlots(

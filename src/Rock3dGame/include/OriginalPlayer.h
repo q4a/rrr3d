@@ -1,7 +1,7 @@
 #pragma once
 
 #include "OriginalGameObject.h"
-#include "OriginalGameCar.h"
+#include "OriginalRockCar.h"
 #include "OriginalSlot.h"
 #include "OriginalTrace.h"
 #include "OriginalWeapon.h"
@@ -437,7 +437,7 @@ public:
     DamageEffect energyDamageEffect{DamageType::Energy, 0.5F};
     ImmortalEffect immortalEffect;
     SlowEffect slowEffect;
-    GameCar gameCar;
+    RockCar gameCar;
     CarState car;
 
 protected:
@@ -487,7 +487,6 @@ private:
     std::vector<std::uint32_t> bonusProjectileIds_;
     std::uint32_t nextBonusProjectileId_ = 1U;
     PlayerSlotRack slotRack_;
-    WeaponRack weaponRack_;
 };
 
 } // namespace r3d::game::originalrace::source

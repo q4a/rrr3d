@@ -6616,10 +6616,6 @@ void OriginalRaceSession::update(
               r3d::physics::VehicleInput{});
     if (phase_ == RacePhase::Paused)
         return;
-    // Weapon is a registered GameObject in Windows, so _shotTime advances
-    // during the visible countdown as well as during active racing.
-    for (auto& player : racers_)
-        player.GetWeaponRack().OnProgress(seconds);
     // AutoProj is a registered GameObject before GoRace. Its MineUpdate
     // therefore advances during the visible countdown even though race time
     // itself has not started. This is most visible on ptMaslo, whose model
@@ -6741,6 +6737,11 @@ void OriginalRaceSession::update(
     const auto gameModeAdvance = gameModeRaceState_.OnFrame(seconds);
     if (phase_ == RacePhase::Countdown)
     {
+        // RockCar and its nested Weapons are registered GameObjects before
+        // GoRace. Progress the complete source owner during countdown; in
+        // racing updateGameplay performs this once after wheel state sync.
+        for (auto& player : racers_)
+            player.gameCar.OnProgress(seconds);
         // Windows Race::OnFixedStep progresses Player state throughout the
         // countdown; only AISystem is gated by GoRace.
         progressPlayers(seconds, vehicles);
@@ -6769,6 +6770,8 @@ void OriginalRaceSession::update(
          gameModeAdvance.finishTimeEnded);
     if (phase_ == RacePhase::Finished && !finishTimerRunning)
     {
+        for (auto& player : racers_)
+            player.gameCar.OnProgress(seconds);
         progressPlayers(seconds, vehicles);
         return;
     }

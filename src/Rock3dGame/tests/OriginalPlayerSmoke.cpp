@@ -152,6 +152,8 @@ int main()
         return 58;
 
     auto& playerWeapons = player.GetWeaponRack();
+    if (&playerWeapons != &player.gameCar.GetWeapons())
+        return 78;
     source::Weapon::Desc droidWeaponDescription;
     droidWeaponDescription.shotDelay = 0.5F;
     droidWeaponDescription.projectiles.resize(1U);
@@ -161,7 +163,7 @@ int main()
     playerWeapons.primary[0].OnShot();
     if (playerWeapons.primary[0].IsReadyShot())
         return 62;
-    playerWeapons.OnProgress(0.51F);
+    player.gameCar.OnProgress(0.51F);
     if (!playerWeapons.primary[0].IsReadyShot())
         return 63;
     r3d::game::originalrace::OriginalWorkshopItem droidRecord;
