@@ -4843,12 +4843,7 @@ void OriginalRaceSession::updateGameplay(
         const auto* projectile =
             projectiles.empty() ? nullptr : &projectiles.front();
         if (projectile == nullptr)
-        {
-            racers_[owner].Shot(
-                *item, false, true,
-                replicatedProjectileId, newCharge);
             return;
-        }
         const Transform weaponTransform =
             directWeaponWorldTransform(owner, weapon);
         Transform localProjectile;
@@ -4859,12 +4854,7 @@ void OriginalRaceSession::updateGameplay(
         const auto hit = raycastTrackPlane(
             race_, add(rayPosition, {0.0F, 0.0F, 2.0F}));
         if (!hit.hit)
-        {
-            racers_[owner].Shot(
-                *item, false, true,
-                replicatedProjectileId, newCharge);
             return;
-        }
         // Source MinePrepare uses ComputeAABB(true), while CreatePxBox uses
         // ComputeAABB(false).  Using the contact box here lifted the maslo
         // plane by 0.85 m even though its source model offset is only 0.05 m.
@@ -4877,10 +4867,6 @@ void OriginalRaceSession::updateGameplay(
             networkReplicated && replicatedProjectileId != 0U
                 ? replicatedProjectileId
                 : racers_[owner].GetNextBonusProjectileId();
-        if (!racers_[owner].Shot(
-                *item, true, true, networkProjectileId, newCharge))
-            return;
-        racers_[owner].gameCar.LockMine(0.4F);
         MineRuntime mine;
         mine.owner = owner;
         mine.damageOwner = owner;
@@ -4914,6 +4900,15 @@ void OriginalRaceSession::updateGameplay(
         }
         configureMineSourceObject(
             logic_, mine, *projectile, liveWeapon, owner);
+        if (mine.sourceObject == nullptr)
+            return;
+        if (!racers_[owner].Shot(
+                *item, true, true, networkProjectileId, newCharge))
+        {
+            mine.sourceObject->Death();
+            return;
+        }
+        racers_[owner].gameCar.LockMine(0.4F);
         pushShotEffect(
             owner, weapon, PlayerProfile::weaponSlotCount + 1U,
             weaponTransform, *projectile);
@@ -4987,20 +4982,10 @@ void OriginalRaceSession::updateGameplay(
         const auto description = liveWeapon->GetDescHandle();
         const auto& projectiles = description->projectiles;
         if (projectiles.empty())
-        {
-            racers_[owner].Shot(
-                *item, false, false,
-                replicatedProjectileId, newCharge);
             return;
-        }
         const auto& projectile = projectiles.front();
         if (owner >= vehicles.size())
-        {
-            racers_[owner].Shot(
-                *item, false, false,
-                replicatedProjectileId, newCharge);
             return;
-        }
         const Vec3 position = vehicles[owner].body.position;
         const float sampledMinimumLife = sampleSourceRange(
             projectile.minimumLife, projectile.maximumLife);
@@ -5018,6 +5003,7 @@ void OriginalRaceSession::updateGameplay(
 
         source::Proj::SpringPrepareResult springPreparation;
         std::unique_ptr<source::Proj> springSourceObject;
+        std::optional<ProjectileRuntime> preparedHyperProjectile;
         if (projectile.type == 17U)
         {
             source::Proj::ShotContext springContext;
@@ -5037,17 +5023,59 @@ void OriginalRaceSession::updateGameplay(
             springPreparation =
                 springSourceObject->PrepareSpring();
             if (!springPreparation.prepared)
-            {
-                racers_[owner].Shot(
-                    *item, false, false,
-                    replicatedProjectileId, newCharge);
                 return;
-            }
+        }
+        else if (projectile.type == 1U)
+        {
+            ProjectileRuntime runtimeProjectile;
+            runtimeProjectile.owner = owner;
+            runtimeProjectile.damageOwner = owner;
+            runtimeProjectile.weapon =
+                racers_[owner].hyperWeapon;
+            runtimeProjectile.weaponDescription = description;
+            runtimeProjectile.descriptionProjectile = 0U;
+            const auto& sourceProjectiles =
+                race_.weapons[racers_[owner].hyperWeapon].projectiles;
+            const auto sourceProjectile = std::find_if(
+                sourceProjectiles.begin(), sourceProjectiles.end(),
+                [](const ProjectileDefinition& candidate) {
+                    return !candidate.spawnOnParentDeath;
+                });
+            runtimeProjectile.projectile =
+                sourceProjectile == sourceProjectiles.end()
+                    ? 0U
+                    : static_cast<std::size_t>(std::distance(
+                          sourceProjectiles.begin(), sourceProjectile));
+            runtimeProjectile.position = projectileTransform.position;
+            runtimeProjectile.direction = normalized3(
+                rotate(
+                    projectileTransform.rotation,
+                    {1.0F, 0.0F, 0.0F}));
+            runtimeProjectile.rotation = projectileTransform.rotation;
+            runtimeProjectile.lifeSeconds = duration;
+            runtimeProjectile.maximumLifeSeconds = duration;
+            runtimeProjectile.attached = true;
+            runtimeProjectile.directWeapon = true;
+            configureProjectileSourceObject(
+                logic_, runtimeProjectile, projectile, liveWeapon,
+                nullptr, owner);
+            if (runtimeProjectile.sourceObject == nullptr)
+                return;
+            duration = runtimeProjectile.sourceObject
+                           ->PrepareMaximumLife(sampledMinimumLife);
+            runtimeProjectile.lifeSeconds = duration;
+            runtimeProjectile.maximumLifeSeconds = duration;
+            preparedHyperProjectile.emplace(
+                std::move(runtimeProjectile));
         }
         if (!racers_[owner].Shot(
                 *item, true, false,
                 replicatedProjectileId, newCharge))
+        {
+            if (preparedHyperProjectile.has_value())
+                preparedHyperProjectile->sourceObject->Death();
             return;
+        }
         if (springSourceObject != nullptr)
         {
             logic_.RegGameObj(springSourceObject.release());
@@ -5078,48 +5106,9 @@ void OriginalRaceSession::updateGameplay(
                      vehicles[owner].body.rotation,
                      {projectile.speed, 0.0F, 0.0F})});
         }
-        if (projectile.type == 1U)
-        {
-            ProjectileRuntime runtimeProjectile;
-            runtimeProjectile.owner = owner;
-            runtimeProjectile.damageOwner = owner;
-            runtimeProjectile.weapon =
-                racers_[owner].hyperWeapon;
-            runtimeProjectile.weaponDescription = description;
-            runtimeProjectile.descriptionProjectile = 0U;
-            const auto& sourceProjectiles =
-                race_.weapons[racers_[owner].hyperWeapon].projectiles;
-            const auto sourceProjectile = std::find_if(
-                sourceProjectiles.begin(), sourceProjectiles.end(),
-                [](const ProjectileDefinition& candidate) {
-                    return !candidate.spawnOnParentDeath;
-                });
-            runtimeProjectile.projectile =
-                sourceProjectile == sourceProjectiles.end()
-                    ? 0U
-                    : static_cast<std::size_t>(std::distance(
-                          sourceProjectiles.begin(), sourceProjectile));
-            runtimeProjectile.position =
-                projectileTransform.position;
-            runtimeProjectile.direction = normalized3(
-                rotate(
-                    projectileTransform.rotation,
-                    {1.0F, 0.0F, 0.0F}));
-            runtimeProjectile.rotation =
-                projectileTransform.rotation;
-            runtimeProjectile.lifeSeconds = duration;
-            runtimeProjectile.maximumLifeSeconds = duration;
-            runtimeProjectile.attached = true;
-            runtimeProjectile.directWeapon = true;
-            configureProjectileSourceObject(
-                logic_, runtimeProjectile, projectile, liveWeapon,
-                nullptr, owner);
-            duration = runtimeProjectile.sourceObject
-                           ->PrepareMaximumLife(sampledMinimumLife);
-            runtimeProjectile.lifeSeconds = duration;
-            runtimeProjectile.maximumLifeSeconds = duration;
-            projectiles_.push_back(std::move(runtimeProjectile));
-        }
+        if (preparedHyperProjectile.has_value())
+            projectiles_.push_back(
+                std::move(*preparedHyperProjectile));
         RaceEvent hyperEvent;
         hyperEvent.kind = RaceEventKind::HyperActivated;
         hyperEvent.racer = owner;

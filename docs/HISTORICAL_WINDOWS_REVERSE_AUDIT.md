@@ -3655,6 +3655,27 @@ death behavior и source ownership выполняется до Jolt-развет
 session и повторный ray callback; гипотетический immediate ray также получает
 source damage attribution и корректно умирает через `Logic`.
 
+### P2.155 — concrete Mine и Hyper charge transaction — выполнено
+
+Mine и Hyper оставались двумя отдельными исключениями из восстановленного
+порядка shot transaction. Mine сначала списывал charge/регистрировал bonus id
+и блокировал машину, а concrete `Proj` создавал после этого. Обычный Hyper
+также списывал charge до создания linked source projectile и вычисления его
+lifetime. Отказные ветви дополнительно вызывали synthetic
+`Player::Shot(false)`, хотя Windows просто возвращается после неуспешного
+`PrepareProj`.
+
+Mine теперь сначала выполняет track placement и concrete
+`Weapon::CreateShot`, после чего единожды коммитит charge/bonus id и только
+затем применяет `LockMine`. Hyper создаёт linked source projectile и получает
+maximum lifetime до charge commit; при неожиданном отказе транзакции source
+object переводится в Death. Spring сохраняет требуемую двухфазную схему:
+concrete `PrepareSource`/wheel gate/`PrepareSpring`, затем charge commit,
+регистрация и один `OnProjectilePrepared`. Все synthetic failed-shot вызовы
+из Mine/Hyper/Spring удалены. Существующие regressions подтвердили placement,
+network mine ids, attached Hyper, Spring impulse/lock и отсутствие расхода
+заряда у airborne Spring.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
