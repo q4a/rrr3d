@@ -1,0 +1,88 @@
+--- a/Jolt/Physics/Constraints/ConstraintPart/AxisConstraintPart.h
++++ b/Jolt/Physics/Constraints/ConstraintPart/AxisConstraintPart.h
+@@ -490,6 +490,26 @@
+ 		}
+ 
+ 		return false;
++	}
++
++	/// Clamp the accumulated velocity lambda and immediately undo the excess.
++	/// This is useful for legacy contact modifiers that change a constraint's
++	/// normal-force limit after the unconstrained lambda has been calculated.
++	inline bool					ClampVelocityConstraint(Body &ioBody1, Body &ioBody2, Vec3Arg inWorldSpaceAxis, float inMinLambda, float inMaxLambda)
++	{
++		float total_lambda = Clamp(mTotalLambda, inMinLambda, inMaxLambda);
++		EMotionType motion_type1 = ioBody1.GetMotionType();
++		MotionProperties *motion_properties1 = ioBody1.GetMotionPropertiesUnchecked();
++		EMotionType motion_type2 = ioBody2.GetMotionType();
++		MotionProperties *motion_properties2 = ioBody2.GetMotionPropertiesUnchecked();
++		if (motion_type1 == EMotionType::Dynamic)
++		{
++			if (motion_type2 == EMotionType::Dynamic)
++				return TemplatedSolveVelocityConstraintApplyLambda<EMotionType::Dynamic, EMotionType::Dynamic>(motion_properties1, motion_properties1->GetInverseMass(), motion_properties2, motion_properties2->GetInverseMass(), inWorldSpaceAxis, total_lambda);
++			return TemplatedSolveVelocityConstraintApplyLambda<EMotionType::Dynamic, EMotionType::Static>(motion_properties1, motion_properties1->GetInverseMass(), motion_properties2, 0.0f, inWorldSpaceAxis, total_lambda);
++		}
++		JPH_ASSERT(motion_type2 == EMotionType::Dynamic);
++		return TemplatedSolveVelocityConstraintApplyLambda<EMotionType::Static, EMotionType::Dynamic>(motion_properties1, 0.0f, motion_properties2, motion_properties2->GetInverseMass(), inWorldSpaceAxis, total_lambda);
+ 	}
+ 
+ 	/// Iteratively update the velocity constraint. Makes sure d/dt C(...) = 0, where C is the constraint equation.
+--- a/Jolt/Physics/Vehicle/VehicleConstraint.h
++++ b/Jolt/Physics/Vehicle/VehicleConstraint.h
+@@ -89,6 +89,12 @@
+ 	void						SetCombineFriction(const CombineFunction &inCombineFriction) { mCombineFriction = inCombineFriction; }
+ 	const CombineFunction &		GetCombineFriction() const					{ return mCombineFriction; }
+ 
++	/// Callback that converts the unconstrained combined suspension impulse
++	/// into the maximum impulse allowed for this wheel and solver step.
++	using SuspensionMaxImpulseCallback = function<float(uint inWheelIndex, float inSuspensionImpulse, Vec3Arg inContactNormal, float inDeltaTime)>;
++	void						SetSuspensionMaxImpulseCallback(const SuspensionMaxImpulseCallback &inCallback) { mSuspensionMaxImpulseCallback = inCallback; }
++	const SuspensionMaxImpulseCallback &GetSuspensionMaxImpulseCallback() const { return mSuspensionMaxImpulseCallback; }
++
+ 	/// Callback function to notify of current stage in PhysicsStepListener::OnStep.
+ 	using StepCallback = function<void(VehicleConstraint &inVehicle, const PhysicsStepListenerContext &inContext)>;
+ 
+@@ -242,6 +248,7 @@
+ 		ioLongitudinalFriction = sqrt(ioLongitudinalFriction * body_friction);
+ 		ioLateralFriction = sqrt(ioLateralFriction * body_friction);
+ 	};
++	SuspensionMaxImpulseCallback mSuspensionMaxImpulseCallback;
+ 
+ 	// Callbacks
+ 	StepCallback				mPreStepCallback;
+--- a/Jolt/Physics/Vehicle/VehicleConstraint.cpp
++++ b/Jolt/Physics/Vehicle/VehicleConstraint.cpp
+@@ -553,7 +553,9 @@
+ 	bool impulse = false;
+ 
+ 	// Solve suspension
++	uint wheel_index = 0;
+ 	for (Wheel *w : mWheels)
++	{
+ 		if (w->mContactBody != nullptr)
+ 		{
+ 			Vec3 neg_contact_normal = -w->mContactNormal;
+@@ -565,7 +567,23 @@
+ 			// When reaching the minimal suspension length only allow forces pushing the bodies away
+ 			if (w->mSuspensionMaxUpPart.IsActive())
+ 				impulse |= w->mSuspensionMaxUpPart.SolveVelocityConstraint(*mBody, *w->mContactBody, neg_contact_normal, 0.0f, FLT_MAX);
++
++			if (mSuspensionMaxImpulseCallback)
++			{
++				float spring_lambda = w->mSuspensionPart.GetTotalLambda();
++				float hard_point_lambda = w->mSuspensionMaxUpPart.GetTotalLambda();
++				float total_lambda = spring_lambda + hard_point_lambda;
++				float maximum_lambda = max(0.0f, mSuspensionMaxImpulseCallback(wheel_index, total_lambda, w->mContactNormal, inDeltaTime));
++				if (total_lambda > maximum_lambda && total_lambda > 0.0f)
++				{
++					float scale = maximum_lambda / total_lambda;
++					impulse |= w->mSuspensionPart.ClampVelocityConstraint(*mBody, *w->mContactBody, neg_contact_normal, 0.0f, spring_lambda * scale);
++					impulse |= w->mSuspensionMaxUpPart.ClampVelocityConstraint(*mBody, *w->mContactBody, neg_contact_normal, 0.0f, hard_point_lambda * scale);
++				}
++			}
+ 		}
++		++wheel_index;
++	}
+ 
+ 	// Solve the horizontal movement of the vehicle
+ 	impulse |= mController->SolveLongitudinalAndLateralConstraints(inDeltaTime);

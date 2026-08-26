@@ -240,6 +240,12 @@ struct WheelContactState
     Vec3 normal{0.0F, 0.0F, 1.0F};
     float longitudinalSlip = 0.0F;
     float lateralSlip = 0.0F;
+    // CarWheel::MyContactModify records the raw normal reaction in units of
+    // one static wheel load, then clamps the force to 1.5g (or zero for a
+    // clutch/tireSpring release). Keep both values visible at the adapter
+    // boundary for source debug and parity checks.
+    float normalReaction = 0.0F;
+    float normalImpulse = 0.0F;
     bool hasContact = false;
 };
 

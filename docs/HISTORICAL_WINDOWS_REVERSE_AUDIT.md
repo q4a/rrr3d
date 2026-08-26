@@ -2773,6 +2773,31 @@ Windows PhysX сообщает колесу suspension/contact position и axle 
 lifetime. Regression проверяет независимость от backend quaternion,
 накопление spin, зеркальный поворот и очистку motion state.
 
+### P2.112 — `MyContactModify` normal-force contract — выполнено
+
+Jolt adapter уже вычислял исходный `tireSpring` cutoff и предел реакции
+`1.5g`, но применял результат только как максимум tire-friction impulse.
+Windows `CarWheel::MyContactModify` меняет сам `normalForce`: при clutch/oil
+lock он равен нулю, при превышении `tireSpring` опора отпускается полностью,
+иначе подвеска ограничена полутора статическими реакциями. Поэтому прежний
+порт сохранял неограниченную опору подвески и мог давать неверные удары,
+отскоки и устойчивость кузова.
+
+К закреплённой версии Jolt применяется узкий воспроизводимый CMake patch:
+после вычисления unconstrained suspension lambda constraint вызывает adapter
+и ограничивает накопленные spring/hard-point lambda прямо внутри solver.
+Это важно для корректного warm-start; послешаговая компенсация создавала бы
+ложную обратную связь. Поскольку Jolt вызывает constraint callback несколько
+раз за solver-step, `tireSpring` release защёлкивается на весь текущий шаг и
+потребляется один раз за непрерывный contact episode; иначе одна PhysX-ветвь
+ошибочно повторялась бы на каждой внутренней итерации и навсегда оставляла
+машину на днище. Clutch release остаётся непрерывным. Ray contact намеренно
+остаётся активным: так `CarWheel::OnProgress` по-прежнему видит contact/slip
+для следов и звука, как в PhysX callback. В
+`WheelContactState` экспортируются source `_nReac` и уже разрешённый normal
+impulse, поэтому debug/parity проверки больше не вынуждены угадывать их по
+движению кузова.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
