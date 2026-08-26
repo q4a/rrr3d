@@ -959,12 +959,14 @@ int main()
     batchDescription.shotDelay = 0.2F;
     batchDescription.projectiles.resize(2U);
     batchDescription.projectiles[0].type = 0U;
+    batchDescription.projectiles[0].weaponListIndex = 4U;
     batchDescription.projectiles[0].position = {1.0F, 0.0F, 0.0F};
     batchDescription.projectiles[0].speed = 10.0F;
     batchDescription.projectiles[0].maximumDistance = 20.0F;
     batchDescription.projectiles[1] =
         batchDescription.projectiles[0];
     batchDescription.projectiles[1].type = 2U;
+    batchDescription.projectiles[1].weaponListIndex = 7U;
     source::Weapon batchWeapon(batchDescription);
     batchWeapon.SetLogic(&autoProjectileLogic);
     batchWeapon.SetWorldPos({5.0F, 6.0F, 7.0F});
@@ -977,6 +979,8 @@ int main()
         autoProjectileLogic.GetGameObjCount() != 2U ||
         batchWeapon.GetShotEffect().GetShotCount() != 2U ||
         batchWeapon.GetShotTime() != 0.0F ||
+        batchProjectiles[0]->GetDesc().weaponListIndex != 4U ||
+        batchProjectiles[1]->GetDesc().weaponListIndex != 7U ||
         batchProjectiles[0]->GetShot().target !=
             source::Proj::Vec3{9.0F, 8.0F, 7.0F} ||
         batchProjectiles[0]->GetWorldPos() !=

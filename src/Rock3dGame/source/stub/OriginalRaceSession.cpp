@@ -5821,17 +5821,8 @@ void OriginalRaceSession::updateGameplay(
             shooter, firedWeapon, firedSlot).position;
         std::size_t target = racers_.size();
         std::vector<Vec3> networkCoordinates;
-        struct BackendShotContext
-        {
-            std::size_t projectile = 0U;
-            Transform transform;
-            Vec3 direction;
-            float sampledMinimumLife = -1.0F;
-        };
         std::vector<source::Weapon::ShotContext> sourceContexts;
-        std::vector<BackendShotContext> backendContexts;
         sourceContexts.reserve(itemProjectiles.size());
-        backendContexts.reserve(itemProjectiles.size());
 
         // HumanPlayer::Shot(WeaponType) resolves one target for the complete
         // Weapon::Desc batch, not independently for each descriptor.
@@ -5851,22 +5842,12 @@ void OriginalRaceSession::updateGameplay(
                 &racerMapObjects_[homingTarget]->GetGameObj();
         }
 
-        std::size_t sourceProjectileIndex = 0U;
         for (std::size_t projectileIndex = 0;
              projectileIndex < itemProjectiles.size();
              ++projectileIndex)
         {
             const auto& projectile =
                 itemProjectiles[projectileIndex];
-            while (sourceProjectileIndex < weapon->projectiles.size() &&
-                   weapon->projectiles[sourceProjectileIndex]
-                       .spawnOnParentDeath)
-                ++sourceProjectileIndex;
-            const std::size_t backendProjectileIndex =
-                sourceProjectileIndex < weapon->projectiles.size()
-                    ? sourceProjectileIndex
-                    : projectileIndex;
-            ++sourceProjectileIndex;
             auto shotTransform = projectileWorldTransform(
                 shooter, firedWeapon, firedSlot, projectile);
             if (replicatedOrigin != nullptr)
@@ -5887,9 +5868,6 @@ void OriginalRaceSession::updateGameplay(
             sourceContext.launchVelocity = sourceVec(
                 multiply(sourceDirection, projectile.speed));
             sourceContexts.push_back(sourceContext);
-            backendContexts.push_back(
-                {backendProjectileIndex, shotTransform,
-                 sourceDirection, sampledMinimumLife});
         }
 
         source::Weapon::ProjList sourceProjectiles;
@@ -5900,24 +5878,47 @@ void OriginalRaceSession::updateGameplay(
             return;
         runtime.SyncSelectedWeapon(race_.weapons.size());
 
-        std::size_t createdProjectile = 0U;
-        for (std::size_t projectileIndex = 0;
-             projectileIndex < itemProjectiles.size();
-             ++projectileIndex)
+        const auto fallbackProjectileIndex =
+            [&](std::size_t preparedOrdinal) {
+                std::size_t visibleOrdinal = 0U;
+                for (std::size_t index = 0U;
+                     index < weapon->projectiles.size(); ++index)
+                {
+                    if (weapon->projectiles[index].spawnOnParentDeath)
+                        continue;
+                    if (visibleOrdinal++ == preparedOrdinal)
+                        return index;
+                }
+                return std::min(
+                    preparedOrdinal,
+                    weapon->projectiles.empty()
+                        ? std::size_t{0U}
+                        : weapon->projectiles.size() - 1U);
+            };
+        for (std::size_t preparedOrdinal = 0U;
+             preparedOrdinal < sourceProjectiles.size();
+             ++preparedOrdinal)
         {
-            const auto& projectile = itemProjectiles[projectileIndex];
-            if (!source::Proj::PreparationRouteFor(projectile.type).valid)
+            auto* sourceObject = sourceProjectiles[preparedOrdinal];
+            if (sourceObject == nullptr)
                 continue;
-            if (createdProjectile >= sourceProjectiles.size())
-                break;
-            auto* sourceObject =
-                sourceProjectiles[createdProjectile++];
-            const auto& backend = backendContexts[projectileIndex];
+            const auto& projectile = sourceObject->GetDesc();
             const std::size_t backendProjectileIndex =
-                backend.projectile;
-            const auto& shotTransform = backend.transform;
+                projectile.weaponListIndex < weapon->projectiles.size()
+                    ? projectile.weaponListIndex
+                    : fallbackProjectileIndex(preparedOrdinal);
+            Transform shotTransform;
+            const auto& sourcePosition = sourceObject->GetWorldPos();
+            const auto& sourceRotation = sourceObject->GetWorldRot();
+            shotTransform.position = {
+                sourcePosition[0], sourcePosition[1], sourcePosition[2]};
+            shotTransform.rotation = {
+                sourceRotation[0], sourceRotation[1],
+                sourceRotation[2], sourceRotation[3]};
             const Vec3 projectileOrigin = shotTransform.position;
-            const Vec3 sourceDirection = backend.direction;
+            const Vec3 sourceDirection = normalized3(
+                rotate(shotTransform.rotation,
+                       {1.0F, 0.0F, 0.0F}));
             Vec3 launchDirection = sourceDirection;
 
             ProjectileRuntime runtimeProjectile;
@@ -5934,7 +5935,7 @@ void OriginalRaceSession::updateGameplay(
                 multiply(sourceDirection, projectile.speed);
             runtimeProjectile.sourceObject = sourceObject;
             const float sampledMinimumLife =
-                backend.sampledMinimumLife;
+                sourceObject->GetMaxTimeLife();
             if (networkCoordinates.empty())
                 networkCoordinates.push_back(projectileOrigin);
 

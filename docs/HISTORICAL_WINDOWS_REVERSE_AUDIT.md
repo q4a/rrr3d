@@ -3838,6 +3838,28 @@ listener graph; crater и MineRip children остаются автономным
 только для размещения, visual/audio routing и network identity, которым
 реально нужен индекс racer вне source `Proj`.
 
+### P2.164 — concrete `ProjList` как единственный результат shot batch — выполнено
+
+После `Weapon::CreateShot` primary session повторно обходила входной
+`itemProjectiles`, самостоятельно пропускала invalid prepare routes и по
+отдельному `BackendShotContext` сопоставляла очередной `Proj` с transform,
+lifetime и renderer asset. При частичном отказе подготовки список созданных
+объектов сжимается, поэтому такая индексная догадка могла привязать следующий
+живой `Proj` к descriptor/asset предыдущего отклонённого элемента. Это также
+оставляло единственный production-вызов статического
+`PreparationRouteFor(type)` вне concrete object.
+
+Каждый загруженный `ProjectileDefinition` теперь сохраняет исходную позицию
+в `Weapon::Desc::projList`; identity переживает фильтрацию death-projectile
+records и копирование в `WeaponItem`. После shot transaction session итерирует
+только фактически возвращённый `ProjList`: descriptor, world transform,
+rotation, sampled lifetime и preparation route читаются из самого `Proj`, а
+стабильный list index выбирает уже загруженный bgfx asset. Параллельные
+`BackendShotContext`, повторный input loop и session-вызов
+`PreparationRouteFor` удалены. Parser regression проверяет identity всех
+загруженных projectiles, а source batch test — её сохранение у каждого
+созданного concrete object.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

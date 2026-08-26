@@ -2991,6 +2991,7 @@ void loadWeapons(const resource::ResourceFileSystem& resources,
                     definition.damage = weapon.damage;
                 const std::size_t projectileIndex =
                     weapon.projectiles.size();
+                definition.weaponListIndex = projectileIndex;
                 weapon.projectiles.push_back(std::move(definition));
 
                 // DeathEffect::OnDeath instantiates the effect record attached
@@ -3029,6 +3030,7 @@ void loadWeapons(const resource::ResourceFileSystem& resources,
                         spawned.spawnOnParentDeath = true;
                         const std::size_t spawnedIndex =
                             weapon.projectiles.size();
+                        spawned.weaponListIndex = spawnedIndex;
                         weapon.projectiles[projectileIndex]
                             .deathProjectile = spawnedIndex;
                         weapon.projectiles.push_back(std::move(spawned));
@@ -3040,6 +3042,7 @@ void loadWeapons(const resource::ResourceFileSystem& resources,
         if (weapon.projectiles.empty())
         {
             ProjectileDefinition projectile;
+            projectile.weaponListIndex = 0U;
             projectile.damage = weapon.damage;
             weapon.projectiles.push_back(projectile);
         }
@@ -6125,6 +6128,19 @@ bool runOriginalRaceResourceSmokeTest(
                         return visual.meshPath.find("Data/Upgrade/wheel") !=
                                std::string::npos;
                     });
+        }
+        for (const auto& weapon : race.weapons)
+        {
+            for (std::size_t index = 0U;
+                 index < weapon.projectiles.size(); ++index)
+            {
+                if (weapon.projectiles[index].weaponListIndex != index)
+                {
+                    error =
+                        "Weapon::Desc projectile list identity mismatch";
+                    return false;
+                }
+            }
         }
         std::size_t fixedPlaneCount = 0U;
         std::size_t billboardCount = 0U;

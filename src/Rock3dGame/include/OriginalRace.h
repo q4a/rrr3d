@@ -554,6 +554,11 @@ struct ProjectileDefinition
     static constexpr std::size_t invalidProjectile =
         std::numeric_limits<std::size_t>::max();
 
+    // Stable position in Weapon::Desc::projList. The Windows object graph
+    // retained this identity through the descriptor iterator used by
+    // Weapon::CreateShot; the portable renderer needs the same position
+    // after the concrete Proj has been returned in a filtered ProjList.
+    std::size_t weaponListIndex = invalidProjectile;
     std::uint32_t type = 0;
     ObjectDefinition visual;
     ObjectDefinition secondaryVisual;
