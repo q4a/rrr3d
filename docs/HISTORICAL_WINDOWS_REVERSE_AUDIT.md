@@ -2078,6 +2078,27 @@ Physics regression фиксирует весь переход: initial nonzero I
 `CreateCar(false)`, недоступность старого ID и неизменность ID при ручном
 reset. Network regression отдельно проверяет удаление car ID при disconnect.
 
+### P2.74 — полное runtime-владение `Map::Trace/ground` — выполнено
+
+После P2.72 реестр уже принадлежал `source::Map`, но два объекта исходного
+класса оставались отдельными полями `OriginalRaceSession`: четырёхполосный
+`Trace` и `TouchDeath` плоскости Z=0. Это сохраняло поведение, но не
+оригинальную границу владения `Map::Map(World*)` и позволяло этим состояниям
+расходиться при дальнейших изменениях мира.
+
+`source::Map` теперь постоянно владеет ground `MapObj`, его `TouchDeath` и
+`Trace(4)`. AI system, `Player::CarState`, поиск длины пути, lap progression
+и Jolt contact adapter получают один `Map::GetTrace`; пересечение физической
+плоскости вызывает `Map::GetGroundTouchDeath`. Платформенные части остаются
+адаптерами: Jolt представляет бесконечную plane shape, а gameplay death type
+и owner соответствуют Windows.
+
+Сохранена важная семантика оригинала: `Map::Clear` сбрасывает семь списков и
+ID namespace, но не уничтожает постоянные ground и Trace. `buildSourceTrace`
+очищает и загружает Trace отдельно, как source `Map::Load`. Regression
+проверяет owner/ID ground, четыре полосы, сохранение Trace через `Clear` и
+настоящий `dtDeathPlane` contact.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

@@ -1,6 +1,8 @@
 #pragma once
 
+#include "OriginalGameObject.h"
 #include "OriginalMapObj.h"
+#include "OriginalTrace.h"
 
 #include <array>
 #include <cstddef>
@@ -52,6 +54,12 @@ public:
     const MapObj* GetMapObj(
         std::uint32_t id, bool includeDead = false) const noexcept;
     MapObj* GetSemaphore() noexcept;
+    MapObj& GetGround() noexcept;
+    const MapObj& GetGround() const noexcept;
+    TouchDeath& GetGroundTouchDeath() noexcept;
+    const TouchDeath& GetGroundTouchDeath() const noexcept;
+    Trace& GetTrace() noexcept;
+    const Trace& GetTrace() const noexcept;
     std::uint32_t GetLastId() const noexcept;
 
 private:
@@ -61,6 +69,12 @@ private:
 
     std::array<MapObjects, 7U> categories_;
     Objects objects_;
+    // Map.cpp owns these for the complete lifetime of the world.  The Jolt
+    // adapter supplies the physical Z=0 plane; this object retains its
+    // source gameplay identity and TouchDeath behavior.
+    MapObj ground_;
+    TouchDeath groundTouchDeath_;
+    Trace trace_{4U};
     std::uint32_t lastId_ = defaultMapObjId;
 };
 

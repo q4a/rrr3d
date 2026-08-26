@@ -170,6 +170,19 @@ MapObj* Map::GetSemaphore() noexcept
     return nullptr;
 }
 
+MapObj& Map::GetGround() noexcept { return ground_; }
+const MapObj& Map::GetGround() const noexcept { return ground_; }
+TouchDeath& Map::GetGroundTouchDeath() noexcept
+{
+    return groundTouchDeath_;
+}
+const TouchDeath& Map::GetGroundTouchDeath() const noexcept
+{
+    return groundTouchDeath_;
+}
+Trace& Map::GetTrace() noexcept { return trace_; }
+const Trace& Map::GetTrace() const noexcept { return trace_; }
+
 std::uint32_t Map::GetLastId() const noexcept { return lastId_; }
 
 void Map::OnMapObjRemoving(MapObj& value) noexcept

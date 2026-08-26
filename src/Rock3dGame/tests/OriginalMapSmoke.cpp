@@ -9,6 +9,16 @@ namespace source = r3d::game::originalrace::source;
 int main()
 {
     source::Map map;
+    if (map.GetTrace().GetTrackCount() != 4U ||
+        map.GetGround().GetId() != source::Map::defaultMapObjId ||
+        map.GetGround().GetOwner() != nullptr ||
+        !map.GetObjects().empty())
+        return 1;
+
+    auto* tracePoint = map.GetTrace().AddPoint(17U);
+    auto* tracePath = map.GetTrace().AddPath();
+    tracePath->Add(tracePoint);
+
     auto& semaphore = map.AddMapObj(
         source::MapObjCategory::Decoration,
         source::GameObjType::DestrObj,
@@ -30,7 +40,7 @@ int main()
         map.GetMapObjCount(
             "world\\db\\root\\ctTrack\\track1",
             source::MapObjCategory::Track) != 1U)
-        return 1;
+        return 2;
 
     auto& bonus = map.AddMapObj(
         source::MapObjCategory::Bonus,
@@ -38,7 +48,7 @@ int main()
         "world\\db\\root\\ctBonus\\money", 5U);
     if (bonus.GetId() != 10U || map.GetMapObj(10U) != &bonus ||
         bonus.GetSourceIndex() != 5U)
-        return 2;
+        return 3;
 
     bool duplicateRejected = false;
     try
@@ -52,7 +62,7 @@ int main()
         duplicateRejected = true;
     }
     if (!duplicateRejected || map.GetObjects().size() != 3U)
-        return 3;
+        return 4;
 
     // Map::GetMapObj hides lsDeath by default, while includeDead preserves
     // access until MapObjects finishes the progress callback and removal.
@@ -60,27 +70,29 @@ int main()
         r3d::game::originalrace::DamageType::Simple);
     if (map.GetMapObj(7U) != nullptr ||
         map.GetMapObj(7U, true) != &semaphore)
-        return 4;
+        return 5;
     const auto special = map.GetMapObjList(
         source::MapObjCategory::Decoration).OnProgressSpecial(0.0F);
     if (special.progressed != 1U || special.removed != 1U ||
         map.GetMapObj(7U, true) != nullptr ||
         map.GetObjects().size() != 2U || map.GetSemaphore() != nullptr)
-        return 5;
+        return 6;
 
     if (!map.DelMapObj(&track) || map.DelMapObj(&track) ||
         map.GetMapObj(9U, true) != nullptr ||
         map.GetObjects().size() != 1U)
-        return 6;
+        return 7;
 
     map.Clear();
-    if (!map.GetObjects().empty() || map.GetLastId() != 0U)
-        return 7;
+    if (!map.GetObjects().empty() || map.GetLastId() != 0U ||
+        map.GetTrace().GetPathCount() != 1U ||
+        map.GetTrace().FindPoint(17U) != tracePoint)
+        return 8;
     auto& first = map.AddMapObj(
         source::MapObjCategory::Effects,
         source::GameObjType::GameObj, "Effect\\smoke", 0U);
     if (first.GetId() != 1U || map.GetMapObj(1U) != &first)
-        return 8;
+        return 9;
 
     map.Clear();
     map.ReserveIdsThrough(293U);
@@ -88,9 +100,17 @@ int main()
         source::MapObjCategory::Car,
         source::GameObjType::RockCar, "Car\\marauder", 0U);
     if (firstCar.GetId() != 294U)
-        return 9;
+        return 10;
 
-    std::cout << "original Map category registry and global ID rules "
-                 "passed\n";
+    source::GameObject fallingObject;
+    fallingObject.ResetGameObject(25.0F);
+    if (!map.GetGroundTouchDeath().OnContact(&fallingObject) ||
+        fallingObject.GetLiveState() !=
+            source::GameObject::LiveState::Death ||
+        map.GetGroundTouchDeath().OnContact(nullptr))
+        return 11;
+
+    std::cout << "original Map ownership, trace, death plane, category "
+                 "registry and global ID rules passed\n";
     return 0;
 }

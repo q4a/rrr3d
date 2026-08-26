@@ -1104,7 +1104,7 @@ void OriginalRaceSession::reset()
     vehicleInputs_.assign(race_.racers.size(), {});
     humanPlayer_.SetCurWeapon(0);
     aiPlayers_.reserve(race_.racers.size());
-    aiSystem_.Reset(sourceTrace_.GetTrackCount());
+    aiSystem_.Reset(map_.GetTrace().GetTrackCount());
     aiSystemEntriesScratch_.clear();
     aiSystemEntriesScratch_.reserve(race_.racers.size());
     aiAttackTargetsScratch_.assign(race_.racers.size(), {});
@@ -1205,7 +1205,7 @@ void OriginalRaceSession::reset()
                       vehicleIndex, race_.vehicles.size() - 1U));
         racers_[index].Reset(
             vehicle.maximumLife,
-            static_cast<std::uint32_t>(index + 1U), &sourceTrace_);
+            static_cast<std::uint32_t>(index + 1U), &map_.GetTrace());
         const int playerId =
             sourceRacer.playerId != source::Player::undefinedId
                 ? sourceRacer.playerId
@@ -1470,7 +1470,7 @@ void OriginalRaceSession::reset()
         if (player.IsComputer() || player.IsHuman())
         {
             aiPlayers_.emplace_back(
-                &player, player.IsHuman(), sourceTrace_.GetTrackCount());
+                &player, player.IsHuman(), map_.GetTrace().GetTrackCount());
             // The release/debug build distinction is represented by enabled
             // state. Keeping a dormant Human AI owner permits DEBUG_PX to be
             // selected at runtime without giving Human any cheat flags.
@@ -1482,7 +1482,7 @@ void OriginalRaceSession::reset()
         {
             // Net opponents receive authoritative vehicle snapshots and do
             // not own an AIPlayer in the Windows NetPlayer constructor.
-            aiPlayers_.emplace_back(sourceTrace_.GetTrackCount());
+            aiPlayers_.emplace_back(map_.GetTrace().GetTrackCount());
         }
     }
     raceRunState_.StartRace(
@@ -2449,20 +2449,21 @@ const TracePoint& OriginalRaceSession::tracePoint(
 
 void OriginalRaceSession::buildSourceTrace()
 {
-    sourceTrace_.Clear();
+    auto& sourceTrace = map_.GetTrace();
+    sourceTrace.Clear();
     for (const auto& pointData : race_.tracePoints)
     {
-        auto* point = sourceTrace_.AddPoint(pointData.id);
+        auto* point = sourceTrace.AddPoint(pointData.id);
         point->SetPos(pointData.position);
         point->SetSize(pointData.width);
     }
     const auto appendPath = [&](const std::vector<std::uint32_t>& nodes) {
         if (nodes.size() < 2U)
             return;
-        auto* path = sourceTrace_.AddPath();
+        auto* path = sourceTrace.AddPath();
         for (const auto id : nodes)
         {
-            auto* point = sourceTrace_.FindPoint(id);
+            auto* point = sourceTrace.FindPoint(id);
             if (point == nullptr)
                 throw std::runtime_error(
                     "Original race trace path is unresolved");
@@ -2478,7 +2479,7 @@ void OriginalRaceSession::buildSourceTrace()
     {
         appendPath(race_.tracePath);
     }
-    if (sourceTrace_.GetPathCount() == 0U)
+    if (sourceTrace.GetPathCount() == 0U)
         throw std::runtime_error("Original race trace has no paths");
 }
 
@@ -2491,7 +2492,7 @@ OriginalRaceSession::racerTraceNode(std::size_t racer) const noexcept
 
 float OriginalRaceSession::tracePathLength(std::size_t path) const
 {
-    const auto* value = sourceTrace_.GetPath(path);
+    const auto* value = map_.GetTrace().GetPath(path);
     return value != nullptr ? value->GetLength() : 0.0F;
 }
 
@@ -2520,7 +2521,7 @@ void OriginalRaceSession::updateProgress(
         return;
 
     const auto state = runtime.car.Update(
-        sourceTrace_, vehicle.body.position,
+        map_.GetTrace(), vehicle.body.position,
         normalized3(forward(vehicle.body.rotation)),
         vehicle.speed, seconds);
     if (state.lostControl)
@@ -4147,7 +4148,7 @@ void OriginalRaceSession::updateGameplay(
         // car shape crossing that plane receives Death(dtDeathPlane).
         if (body.center.z - verticalRadius > 0.0F)
             continue;
-        if (!groundTouchDeath_.OnContact(&racers_[racer]))
+        if (!map_.GetGroundTouchDeath().OnContact(&racers_[racer]))
             continue;
         destroyRacer(
             racer, vehicles[racer].body.position,

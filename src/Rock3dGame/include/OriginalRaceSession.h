@@ -550,8 +550,6 @@ private:
     void applyCampaignRewards() noexcept;
 
     const Race& race_;
-    source::Trace sourceTrace_{4U};
-    source::TouchDeath groundTouchDeath_;
     source::PairPxContactEffect pairContactEffect_;
     RacePhase phase_ = RacePhase::Countdown;
     RacePhase phaseBeforePause_ = RacePhase::Countdown;
@@ -568,6 +566,7 @@ private:
     std::vector<float> decorationLife_;
     // Active source owner. The parallel arrays are renderer/physics views,
     // no longer the authority for damage or death.
+    // Source Map owns the global objects, Trace and permanent death plane.
     source::Map map_;
     std::vector<bool> bonusActive_;
     std::vector<float> bonusScales_;
