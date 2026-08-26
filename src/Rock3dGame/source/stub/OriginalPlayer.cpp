@@ -1077,21 +1077,6 @@ void Player::SyncSelectedWeapon(
     ammunition = 0U;
 }
 
-bool Player::Shot(WeaponItem& item, bool projectileCreated,
-                  bool mineSlot, std::uint32_t projectileId,
-                  int newCharge) noexcept
-{
-    // Player::Shot is the transaction owner in the Windows source. The
-    // renderer/physics adapter reports whether Weapon::CreateShot prepared
-    // at least one projectile; WeaponItem then commits the exact local or
-    // replicated charge. Only a successfully prepared stMine projectile is
-    // retained in Player::_bonusProjs and advances _nextBonusProjId.
-    const bool result = item.Shot(projectileCreated, newCharge);
-    if (result && mineSlot)
-        InsertBonusProjectile(projectileId);
-    return result;
-}
-
 RockCar::Weapons& Player::GetWeaponRack() noexcept
 {
     return gameCar.GetWeapons();

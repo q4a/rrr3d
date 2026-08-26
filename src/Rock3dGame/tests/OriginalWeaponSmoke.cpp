@@ -418,12 +418,17 @@ int main()
         hyperWeapon.IsReadyShot() || mineWeapon.IsReadyShot())
         return 8;
 
+    source::Logic itemShotLogic;
+    std::array<source::Weapon::ShotContext, 2U> itemShotContexts{};
+    for (auto& context : itemShotContexts)
+        context.logic = &itemShotLogic;
     std::uint32_t charge = 2U;
     source::WeaponItem item(
         &primaryWeapon2, 7U, 4U, &charge, 2U, 12.5F, 100);
     primaryWeapon2.OnProgress(0.3F);
     if (item.IsInstalled() || item.IsReadyShot() ||
-        item.GetWeapon() != nullptr || item.Shot(true) || charge != 2U)
+        item.GetWeapon() != nullptr || item.Shot(itemShotContexts) ||
+        charge != 2U || itemShotLogic.GetGameObjCount() != 0U)
         return 8;
     item.OnCreateCar();
     if (!item.IsInstalled() || !item.IsReadyShot() ||
@@ -433,17 +438,29 @@ int main()
         std::abs(item.GetDamage() - 12.5F) > 0.0001F ||
         item.GetChargeCost() != 100)
         return 8;
-    if (item.Shot(false) || charge != 2U || !item.IsReadyShot())
+    auto rejectedItemContexts = itemShotContexts;
+    for (auto& context : rejectedItemContexts)
+        context.preparationAccepted = false;
+    if (item.Shot(rejectedItemContexts) || charge != 2U ||
+        !item.IsReadyShot() || itemShotLogic.GetGameObjCount() != 0U)
         return 9;
-    if (!item.Shot(true) || item.GetCurCharge() != 1U ||
-        charge != 2U || item.IsReadyShot())
+    source::Weapon::ProjList itemProjectilesCreated;
+    if (!item.Shot(itemShotContexts, -1, &itemProjectilesCreated) ||
+        itemProjectilesCreated.size() != 2U ||
+        item.GetCurCharge() != 1U || charge != 2U ||
+        item.IsReadyShot() || itemShotLogic.GetGameObjCount() != 2U)
+        return 10;
+    for (auto* projectile : itemProjectilesCreated)
+        projectile->Death();
+    if (itemShotLogic.ProgressGameObjs(0.0F).removed != 2U)
         return 10;
     item.Reload();
     if (item.GetCurCharge() != 4U || charge != 2U)
         return 11;
     item.OnDestroyCar();
     if (item.IsInstalled() || item.IsReadyShot() ||
-        item.GetWeapon() != nullptr || item.Shot(true) || charge != 2U)
+        item.GetWeapon() != nullptr || item.Shot(itemShotContexts) ||
+        charge != 2U || itemShotLogic.GetGameObjCount() != 0U)
         return 11;
     item.SetMaxCharge(9U);
     item.SetCntCharge(5U);
@@ -489,7 +506,15 @@ int main()
         &mineWeapon, 0U, 0U, &charge);
     infinite.OnCreateCar();
     mineWeapon.OnProgress(1.0F);
-    if (!infinite.HasShotCharge() || !infinite.Shot(true) || charge != 0U)
+    std::array<source::Weapon::ShotContext, 1U> mineShotContexts{};
+    mineShotContexts.front().logic = &itemShotLogic;
+    source::Weapon::ProjList mineProjectilesCreated;
+    if (!infinite.HasShotCharge() ||
+        !infinite.Shot(mineShotContexts, -1, &mineProjectilesCreated) ||
+        mineProjectilesCreated.size() != 1U || charge != 0U)
+        return 12;
+    mineProjectilesCreated.front()->Death();
+    if (itemShotLogic.ProgressGameObjs(0.0F).removed != 1U)
         return 12;
 
     // NetPlayer::DoShot supplies an explicit current-1 charge.  WeaponItem
@@ -498,7 +523,10 @@ int main()
     source::WeaponItem replicated(
         &hyperWeapon, 7U, 3U, &charge);
     replicated.OnCreateCar();
-    if (replicated.Shot(false, 1) ||
+    std::array<source::Weapon::ShotContext, 1U> rejectedHyperContexts{};
+    rejectedHyperContexts.front().logic = &itemShotLogic;
+    rejectedHyperContexts.front().preparationAccepted = false;
+    if (replicated.Shot(rejectedHyperContexts, 1) ||
         replicated.GetCurCharge() != 1U || charge != 3U)
         return 13;
 

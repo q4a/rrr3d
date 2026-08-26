@@ -2339,29 +2339,6 @@ bool WeaponItem::Shot(
     return result;
 }
 
-bool WeaponItem::Shot(bool projectileCreated, int newCharge) noexcept
-{
-    bool result = false;
-    if (currentCharge_ > 0U || maximumCharge_ == 0U)
-    {
-        result = carAttached_ && weapon_ != nullptr && projectileCreated;
-        if (newCharge == -1)
-        {
-            newCharge = result
-                            ? static_cast<int>(currentCharge_) - 1
-                            : static_cast<int>(currentCharge_);
-        }
-    }
-
-    // Player.cpp applies this even when the charge gate or projectile
-    // preparation failed. That detail is required by NetPlayer::DoShot.
-    currentCharge_ = static_cast<std::uint32_t>(
-        std::max(newCharge, 0));
-    if (weapon_ != nullptr)
-        weapon_->OnShot(result);
-    return result;
-}
-
 void WeaponItem::Reload() noexcept
 {
     currentCharge_ = countCharge_;

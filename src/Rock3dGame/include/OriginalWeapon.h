@@ -775,9 +775,6 @@ public:
         std::span<const Weapon::ShotContext> contexts,
         int newCharge = -1,
         Weapon::ProjList* projectiles = nullptr);
-    // Deferred backend commit retained for Mine/Hyper/Spring while those
-    // transactions still perform their Jolt gate before entering this owner.
-    bool Shot(bool projectileCreated, int newCharge = -1) noexcept;
     void Reload() noexcept;
     bool IsReadyShot(float delay) const noexcept;
     bool IsReadyShot() const noexcept;

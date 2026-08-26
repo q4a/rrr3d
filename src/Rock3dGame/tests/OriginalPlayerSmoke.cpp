@@ -1,7 +1,9 @@
+#include "OriginalLogic.h"
 #include "OriginalPlayer.h"
 #include "OriginalRace.h"
 #include "OriginalWeapon.h"
 
+#include <array>
 #include <cmath>
 #include <iostream>
 #include <type_traits>
@@ -351,22 +353,42 @@ int main()
     source::WeaponItem shotItem(
         &shotWeapon, 2U, 2U, &shotCharge);
     shotItem.OnCreateCar();
-    if (!player.Shot(shotItem, true, false, 21U) ||
+    source::Logic shotLogic;
+    std::array<source::Weapon::ShotContext, 1U> shotContexts{};
+    shotContexts.front().logic = &shotLogic;
+    source::Weapon::ProjList firstShotProjectiles;
+    if (!player.Shot(
+            shotItem, shotContexts, false, 21U, -1,
+            &firstShotProjectiles) ||
+        firstShotProjectiles.size() != 1U ||
         shotItem.GetCurCharge() != 1U || shotCharge != 2U ||
         player.HasBonusProjectile(21U) ||
         player.GetNextBonusProjectileId() != 1U)
         return 52;
-    if (!player.Shot(shotItem, true, true, 21U) ||
+    source::Weapon::ProjList secondShotProjectiles;
+    if (!player.Shot(
+            shotItem, shotContexts, true, 21U, -1,
+            &secondShotProjectiles) ||
+        secondShotProjectiles.size() != 1U ||
         shotItem.GetCurCharge() != 0U || shotCharge != 2U ||
         !player.HasBonusProjectile(21U) ||
         player.GetNextBonusProjectileId() != 22U)
         return 53;
     // NetPlayer::DoShot supplies its replicated charge even if projectile
     // preparation fails; a failed stMine must not enter _bonusProjs.
-    if (player.Shot(shotItem, false, true, 30U, 5) ||
+    auto rejectedShotContexts = shotContexts;
+    rejectedShotContexts.front().preparationAccepted = false;
+    if (player.Shot(
+            shotItem, rejectedShotContexts, true, 30U, 5) ||
         shotItem.GetCurCharge() != 5U || shotCharge != 2U ||
         player.HasBonusProjectile(30U) ||
         player.GetNextBonusProjectileId() != 22U)
+        return 54;
+    for (auto* projectile : firstShotProjectiles)
+        projectile->Death();
+    for (auto* projectile : secondShotProjectiles)
+        projectile->Death();
+    if (shotLogic.ProgressGameObjs(0.0F).removed != 2U)
         return 54;
 
     player.SetLife(50.0F);

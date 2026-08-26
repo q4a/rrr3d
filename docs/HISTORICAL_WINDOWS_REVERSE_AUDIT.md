@@ -3799,6 +3799,24 @@ airborne Spring не регистрируется, не расходует за�
 map objects, у которых в Windows нет `WeaponItem` владельца. Все live race
 shot paths больше не используют булевую transaction-заглушку.
 
+### P2.162 — удаление булевого shot transaction bypass — выполнено
+
+После перевода всех live fire путей на concrete batch в `WeaponItem` и
+`Player` ещё сохранялись старые overload-ы `Shot(bool projectileCreated)`.
+Они позволяли списать charge, сбросить timer и зарегистрировать mine id без
+создания единого source `Proj`; gameplay их уже не вызывал, но unit-сценарии
+продолжали закреплять этот переходный контракт и оставляли простой путь для
+его случайного возврата.
+
+Булевые overload-ы полностью удалены из публичного API и реализации.
+Проверки installed/uninstalled, отказа backend preparation, бесконечного
+боезапаса и replicated charge теперь проходят через настоящий `ShotContext`,
+`Logic`, `Weapon::CreateShot` и возвращаемый `ProjList`. Player regression
+также создаёт реальные mine objects, подтверждает добавление bonus id только
+после успешной подготовки и затем завершает их через исходный lifecycle.
+Таким образом, любой новый вызов `Player/WeaponItem::Shot` обязан создать
+concrete projectile transaction; одного внешнего boolean больше недостаточно.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

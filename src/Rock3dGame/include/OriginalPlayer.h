@@ -337,9 +337,6 @@ public:
         bool mineSlot, std::uint32_t projectileId,
         int newCharge = -1,
         Weapon::ProjList* projectiles = nullptr);
-    bool Shot(WeaponItem& item, bool projectileCreated,
-              bool mineSlot, std::uint32_t projectileId,
-              int newCharge = -1) noexcept;
     RockCar::Weapons& GetWeaponRack() noexcept;
     const RockCar::Weapons& GetWeaponRack() const noexcept;
     void BindSlots(
