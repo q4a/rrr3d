@@ -720,7 +720,9 @@ GameObject::DamageResult GameObject::Damage(
     const auto damageListeners = listeners_;
     for (auto* listener : damageListeners)
     {
-        if (listener != nullptr)
+        if (listener != nullptr &&
+            std::find(listeners_.begin(), listeners_.end(), listener) !=
+                listeners_.end())
             listener->OnDamage(*this, value, damageType);
     }
 
@@ -786,7 +788,9 @@ void GameObject::LowLife(Behavior* behavior) noexcept
     const auto lowLifeListeners = listeners_;
     for (auto* listener : lowLifeListeners)
     {
-        if (listener != nullptr)
+        if (listener != nullptr &&
+            std::find(listeners_.begin(), listeners_.end(), listener) !=
+                listeners_.end())
             listener->OnLowLife(*this, behavior);
     }
 }
@@ -796,7 +800,9 @@ void GameObject::OnContact(GameObject* target) noexcept
     const auto contactListeners = listeners_;
     for (auto* listener : contactListeners)
     {
-        if (listener != nullptr)
+        if (listener != nullptr &&
+            std::find(listeners_.begin(), listeners_.end(), listener) !=
+                listeners_.end())
             listener->OnContact(*this, target);
     }
 }
@@ -842,7 +848,12 @@ bool GameObject::DestroyObject() noexcept
     const auto destroyListeners = listeners_;
     for (auto* listener : destroyListeners)
     {
-        if (listener != nullptr)
+        // A listener callback may release a child behavior and remove its
+        // listener later in this snapshot. The Windows ref-counted listener
+        // list never dispatches an entry after that removal.
+        if (listener != nullptr &&
+            std::find(listeners_.begin(), listeners_.end(), listener) !=
+                listeners_.end())
             listener->OnDestroy(*this);
     }
     return true;
@@ -860,7 +871,9 @@ void GameObject::SendDeath(
     const auto deathListeners = listeners_;
     for (auto* listener : deathListeners)
     {
-        if (listener != nullptr)
+        if (listener != nullptr &&
+            std::find(listeners_.begin(), listeners_.end(), listener) !=
+                listeners_.end())
             listener->OnDeath(*this, damageType, target);
     }
 }

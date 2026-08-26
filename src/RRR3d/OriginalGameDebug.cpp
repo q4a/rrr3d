@@ -226,8 +226,8 @@ std::vector<std::string> OriginalGameDebug::lines(
         result.push_back(
             "Wrong way " +
             std::string(racer.car.moveInverse ? "YES" : "no") +
-            "  life " + floatText(racer.life) + "/" +
-            floatText(racer.maximumLife) + "  resets " +
+            "  life " + floatText(racer.GetLife()) + "/" +
+            floatText(racer.GetMaxLife()) + "  resets " +
             std::to_string(vehicle.resetCount));
         result.push_back("Position " + vectorText(vehicle.body.position));
         result.push_back(

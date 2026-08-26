@@ -45,6 +45,18 @@ struct TrackingListener final : source::GameObjectListener
     }
 };
 
+struct RemovingDestroyListener final : source::GameObjectListener
+{
+    source::GameObjectListener* remove = nullptr;
+    bool called = false;
+
+    void OnDestroy(source::GameObject& sender) noexcept override
+    {
+        called = true;
+        sender.RemoveListener(remove);
+    }
+};
+
 struct TrackingBehavior final : source::Behavior
 {
     TrackingBehavior(source::Behaviors* owner, int identifier,
@@ -407,6 +419,17 @@ int main()
         listened.RemoveListener(&listener) ||
         listened.GetListenerCount() != 0U)
         return 58;
+
+    source::GameObject mutatingDispatch;
+    TrackingListener removedDuringDestroy;
+    RemovingDestroyListener remover;
+    remover.remove = &removedDuringDestroy;
+    mutatingDispatch.InsertListener(&remover);
+    mutatingDispatch.InsertListener(&removedDuringDestroy);
+    if (!mutatingDispatch.DestroyObject() || !remover.called ||
+        !removedDuringDestroy.order.empty() ||
+        mutatingDispatch.GetListenerCount() != 1U)
+        return 100;
 
     source::DestrObj destructible;
     destructible.ResetGameObject(10.0F);

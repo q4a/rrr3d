@@ -16257,7 +16257,7 @@ int main(int argc, char** argv)
                 humanRacer < raceSession.racers().size())
                 minimumRacePlayerLife = std::min(
                     minimumRacePlayerLife,
-                    raceSession.racers()[humanRacer].life);
+                    raceSession.racers()[humanRacer].GetLife());
             raceUseWeaponRequested = false;
             raceUseAllWeaponsRequested = false;
             raceUseMineRequested = false;
@@ -18175,7 +18175,7 @@ int main(int argc, char** argv)
                  racer < garageRacerRuntime.size(); ++racer)
             {
                 auto& runtime = garageRacerRuntime[racer];
-                runtime.destroyed =
+                runtime.gameCar.destroyed =
                     presentationCarLocked ||
                     racer != selectedRacer;
                 runtime.weaponSlots.fill(

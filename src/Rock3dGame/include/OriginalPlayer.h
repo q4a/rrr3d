@@ -107,12 +107,10 @@ struct ResetCarPose
 using ResetCarRayCast =
     std::function<ResetCarRayKind(const TraceVec3&)>;
 
-// Portable transcription of the gameplay-owned portion of Player.  Renderer
-// actor ownership and the PhysX RockCar pointer remain backend boundaries,
-// while race state, inventory, bonuses, finish blocking and restore lifecycle
-// retain the source class's rules.  Fields remain visible during the staged
-// object-graph migration because HUD/network adapters still consume them.
-class Player : public GameObject
+// Windows Player is a GameObjListener, while its RockCar owns physical life,
+// damage and behaviors. Renderer/physics remain backend boundaries; race
+// state, inventory, finish blocking and restore lifecycle stay here.
+class Player : public GameObjectListener, public RockCarEventSink
 {
 public:
     // Race::Player identifiers from the original Windows runtime.  These
@@ -123,6 +121,8 @@ public:
     static constexpr int opponentBit = 8;
     static constexpr int opponentMask = 0x0000FF00;
     static constexpr unsigned defaultNetSlot = 0U;
+    static constexpr std::size_t undefinedPlayerId =
+        GameObject::undefinedPlayerId;
 
     static constexpr std::size_t invalidWeapon =
         std::numeric_limits<std::size_t>::max();
@@ -136,6 +136,7 @@ public:
     static const std::array<float, 3> humanEasingMaximumSpeed;
 
     Player();
+    ~Player() override = default;
 
     struct BehaviorProgressResult
     {
@@ -264,6 +265,26 @@ public:
 
     void Reset(float newMaximumLife, std::uint32_t initialPlace,
                Trace* trace = nullptr) noexcept;
+    GameObject::DamageResult Damage(
+        std::size_t senderPlayerId, float value,
+        DamageType damageType = DamageType::Simple) noexcept;
+    GameObject::DamageResult Damage(
+        std::size_t senderPlayerId, float value, float newLife,
+        bool death, DamageType damageType) noexcept;
+    bool Death(
+        DamageType damageType = DamageType::Simple,
+        GameObject* target = nullptr) noexcept;
+    bool Resc() noexcept;
+    void Healt(float value) noexcept;
+    void Immortal(float time) noexcept;
+    void SetImmortalFlag(bool value) noexcept;
+    bool IsImmortal() const noexcept;
+    float GetLife() const noexcept;
+    void SetLife(float value) noexcept;
+    float GetMaxLife() const noexcept;
+    void SetMaxLife(float value) noexcept;
+    float GetShieldSeconds() const noexcept;
+    bool IsDestroyed() const noexcept;
     void ConfigureIdentity(
         int playerId, int sourceGamerId, unsigned sourceNetSlot,
         std::string sourceName, std::string sourceNetName,
@@ -361,6 +382,10 @@ public:
     BehaviorProgressResult ProgressBehaviors(
         float deltaTime, float lowLifeLevel,
         float linearSpeed) noexcept;
+    void PrepareBehaviors(
+        float lowLifeLevel, float linearSpeed) noexcept;
+    BehaviorProgressResult FinishBehaviorProgress(
+        float deltaTime) noexcept;
     bool AttachSlowEffect(
         float maximumTimeLife, std::size_t weapon,
         std::size_t projectile) noexcept;
@@ -441,12 +466,16 @@ public:
     CarState car;
 
 protected:
-    void OnDeathEvent(
-        DamageType damageType, GameObject* target) noexcept override;
-    void OnDamageDispatchEvent(
+    void OnDestroy(GameObject& sender) noexcept override;
+    void OnLowLife(
+        GameObject& sender, Behavior* behavior) noexcept override;
+    void OnDeath(
+        GameObject& sender, DamageType damageType,
+        GameObject* target) noexcept override;
+    void OnRockCarDamageDispatch(
         std::size_t senderPlayerId, float value,
         DamageType damageType) noexcept override;
-    void OnKillDispatchEvent(
+    void OnRockCarKillDispatch(
         std::size_t senderPlayerId, float value,
         DamageType damageType) noexcept override;
 

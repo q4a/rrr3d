@@ -42,6 +42,7 @@ public:
 
     struct ProgressResult
     {
+        GameObject::ProgressResult gameObject;
         std::size_t behaviorsProgressed = 0U;
         std::size_t behaviorsRemoved = 0U;
         std::size_t wheelsProgressed = 0U;

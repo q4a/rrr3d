@@ -945,7 +945,7 @@ WorldRayHit raycastWorld(
     for (std::size_t vehicle = 0;
          vehicle < vehicles.size() && vehicle < racers.size(); ++vehicle)
     {
-        if (vehicle == ignoredVehicle || racers[vehicle].destroyed)
+        if (vehicle == ignoredVehicle || racers[vehicle].IsDestroyed())
             continue;
         const auto& racer = race.racers.at(vehicle);
         const auto& definition =
@@ -1038,7 +1038,7 @@ ResetRayHit raycastResetWorld(
          ++vehicle)
     {
         if (vehicle != ownVehicle && vehicle < racers.size() &&
-            racers[vehicle].destroyed)
+            racers[vehicle].IsDestroyed())
         {
             continue;
         }
@@ -1911,8 +1911,8 @@ void OriginalRaceSession::appendPlayerGameEvents(
         {
         case source::PlayerGameEventKind::Damage:
             event.kind = RaceEventKind::Damage;
-            event.authoritativeLife = racers_[racer].life;
-            event.authoritativeDeath = racers_[racer].destroyed;
+            event.authoritativeLife = racers_[racer].GetLife();
+            event.authoritativeDeath = racers_[racer].IsDestroyed();
             break;
         case source::PlayerGameEventKind::Kill:
             event.kind = RaceEventKind::Kill;
@@ -1944,7 +1944,7 @@ bool OriginalRaceSession::applyRacerDamageInternal(
     bool incomingAlreadySupported, bool synchronizeState,
     float targetLife, bool death, bool networkReplicated)
 {
-    if (target >= racers_.size() || racers_[target].destroyed)
+    if (target >= racers_.size() || racers_[target].IsDestroyed())
         return false;
     if (networkGameplayEnabled_ && !networkReplicated)
     {
@@ -1983,18 +1983,19 @@ bool OriginalRaceSession::applyRacerDamageInternal(
         pushDamageEvent(
             target, attacker, position, incoming, damageType,
             networkReplicated);
-        events_[damageEvent].authoritativeLife = racers_[target].life;
-        events_[damageEvent].authoritativeDeath = racers_[target].destroyed;
+        events_[damageEvent].authoritativeLife = racers_[target].GetLife();
+        events_[damageEvent].authoritativeDeath =
+            racers_[target].IsDestroyed();
         return false;
     }
 
     auto& runtime = racers_[target];
     const auto damageResult = synchronizeState
         ? source::Logic::Damage(
-              runtime, attacker, incoming, targetLife, death,
+              runtime.gameCar, attacker, incoming, targetLife, death,
               damageType)
         : source::Logic::Damage(
-              runtime, attacker, incoming, damageType);
+              runtime.gameCar, attacker, incoming, damageType);
     // Listener dispatch belongs after GameObject::Damage. In particular, a
     // non-authoritative Windows client waits for the host packet and must not
     // start local shield/damage effects for its outbound request.
@@ -2038,7 +2039,7 @@ NetworkDamageResult OriginalRaceSession::applyNetworkPlayerDamage(
         true, synchronizeState, targetLife, death, true);
     if (target >= racers_.size())
         return {};
-    return {racers_[target].life, racers_[target].destroyed};
+    return {racers_[target].GetLife(), racers_[target].IsDestroyed()};
 }
 
 NetworkDamageResult OriginalRaceSession::applyNetworkMapObjectDamage(
@@ -2801,7 +2802,7 @@ void OriginalRaceSession::updateProgress(
     float seconds)
 {
     auto& runtime = racers_[racer];
-    if (runtime.GetFinished() || runtime.destroyed)
+    if (runtime.GetFinished() || runtime.IsDestroyed())
         return;
 
     const auto state = runtime.car.Update(
@@ -2965,7 +2966,7 @@ OriginalRaceSession::progressPlayers(
         if (runtime.disconnected)
             continue;
         results[racer] = runtime.OnProgress(
-            seconds, !runtime.destroyed, runtime.GetCheat(), racer,
+            seconds, !runtime.IsDestroyed(), runtime.GetCheat(), racer,
             difficultyIndex, cheatPlayers);
 
         if (results[racer].restore ==
@@ -2981,7 +2982,7 @@ OriginalRaceSession::progressPlayers(
         }
 
         // Player only calls GameCar::SetMoveCar while its car object exists.
-        if (runtime.destroyed ||
+        if (runtime.IsDestroyed() ||
             results[racer].blockMove ==
                 source::PlayerBlockMove::Unblocked ||
             racer >= vehicleInputs_.size())
@@ -3012,7 +3013,7 @@ void OriginalRaceSession::updateAiTracks(
             (networkGameplayEnabled_ &&
              (racer >= networkOwnedRacers_.size() ||
               !networkOwnedRacers_[racer])) ||
-            racers_[racer].destroyed || racers_[racer].GetFinished())
+            racers_[racer].IsDestroyed() || racers_[racer].GetFinished())
             continue;
         const auto& carState = racers_[racer].car;
         // AISystem::ComputeTracks only inserts AI players whose live
@@ -3037,7 +3038,7 @@ r3d::physics::VehicleInput OriginalRaceSession::aiInput(
     float seconds)
 {
     if (racer >= racers_.size() || racer >= aiPlayers_.size() ||
-        racers_[racer].GetFinished() || racers_[racer].destroyed)
+        racers_[racer].GetFinished() || racers_[racer].IsDestroyed())
         return {};
 
     const auto& vehicleDefinition = vehicleForRacer(racer);
@@ -3205,7 +3206,7 @@ void OriginalRaceSession::destroyRacer(
     bool gameObjectAlreadyDestroyed)
 {
     if (racer >= racers_.size() || racer >= race_.racers.size() ||
-        (racers_[racer].destroyed && !gameObjectAlreadyDestroyed))
+        (racers_[racer].IsDestroyed() && !gameObjectAlreadyDestroyed))
         return;
     auto& runtime = racers_[racer];
     // Player::OnDeath/OnDestroy begins the exact cTimeRestoreCar lifecycle.
@@ -3425,11 +3426,8 @@ void OriginalRaceSession::updateGameplay(
     {
         auto& runtime = racers_[racer];
         const auto& vehicleDefinition = vehicleForRacer(racer);
-        const auto behaviorProgress = runtime.ProgressBehaviors(
-            seconds, vehicleDefinition.lowLifeLevel,
-            racer < vehicles.size()
-                ? length3(vehicles[racer].linearVelocity)
-                : 0.0F);
+        const auto behaviorProgress =
+            runtime.FinishBehaviorProgress(seconds);
         runtime.speedBoostSeconds =
             std::max(0.0F, runtime.speedBoostSeconds - seconds);
         if (behaviorProgress.slowSpeedLimited &&
@@ -3442,7 +3440,7 @@ void OriginalRaceSession::updateGameplay(
                 {racer,
                  subtract(wanted, vehicles[racer].linearVelocity)});
         }
-        if (!externalVehicleFixedStep_ && !runtime.destroyed &&
+        if (!externalVehicleFixedStep_ && !runtime.IsDestroyed() &&
             racer < vehicles.size())
         {
             const auto& vehicle = vehicles[racer];
@@ -3490,7 +3488,7 @@ void OriginalRaceSession::updateGameplay(
             vehicleInputs_[racer].springLocked =
                 runtime.gameCar.IsSpringLocked();
         }
-        if (runtime.destroyed)
+        if (runtime.IsDestroyed())
             continue;
         if (behaviorProgress.lowLifeActivated)
         {
@@ -3499,7 +3497,7 @@ void OriginalRaceSession::updateGameplay(
                  racer < vehicles.size()
                      ? vehicles[racer].body.position
                      : Vec3{},
-                 runtime.life / runtime.maximumLife});
+                 runtime.GetLife() / runtime.GetMaxLife()});
         }
     }
 
@@ -3509,7 +3507,7 @@ void OriginalRaceSession::updateGameplay(
             DamageType damageType) {
             if (target >= racers_.size() ||
                 target >= vehicles.size() ||
-                racers_[target].destroyed)
+                racers_[target].IsDestroyed())
                 return false;
             return applyRacerDamageInternal(
                 target, attacker, position, sourceDamage, damageType,
@@ -3538,7 +3536,7 @@ void OriginalRaceSession::updateGameplay(
         [&](std::size_t target, std::size_t attacker,
             float damage, Vec3 position) {
         if (target >= racers_.size() || damage <= 0.0F ||
-            racers_[target].destroyed)
+            racers_[target].IsDestroyed())
             return;
         applyRacerDamage(
             target, attacker, position, damage,
@@ -3564,7 +3562,7 @@ void OriginalRaceSession::updateGameplay(
          !legacyWindowsDebug_ && racer < vehicles.size() &&
          racer < racers_.size(); ++racer)
     {
-        if (racers_[racer].destroyed)
+        if (racers_[racer].IsDestroyed())
             continue;
         for (const auto& contact : vehicles[racer].bodyContacts)
         {
@@ -4090,7 +4088,7 @@ void OriginalRaceSession::updateGameplay(
                      target < racers_.size(); ++target)
                 {
                     if (target == projectile.owner ||
-                        racers_[target].destroyed)
+                        racers_[target].IsDestroyed())
                         continue;
                     const auto& vehicleDefinition =
                         vehicleForRacer(target);
@@ -4175,7 +4173,7 @@ void OriginalRaceSession::updateGameplay(
         {
             const bool hasTarget =
                 projectile.target < racers_.size() &&
-                !racers_[projectile.target].destroyed;
+                !racers_[projectile.target].IsDestroyed();
             const auto update = source::Proj::TorpedaUpdate(
                 seconds, sourceVec(projectile.position),
                 sourceQuat(projectile.rotation),
@@ -4308,7 +4306,7 @@ void OriginalRaceSession::updateGameplay(
         {
             if ((target == projectile.damageOwner &&
                  !projectile.ownerCollisionArmed) ||
-                racers_[target].destroyed)
+                racers_[target].IsDestroyed())
                 continue;
             if (projectileDefinition.type == 21U &&
                 projectile.target < racers_.size() &&
@@ -4510,7 +4508,7 @@ void OriginalRaceSession::updateGameplay(
     {
         if (humanControl.reset &&
             source::HumanPlayer::ResetCar(
-                !racers_[humanRacer_].destroyed,
+                !racers_[humanRacer_].IsDestroyed(),
                 vehicles[humanRacer_].contactCount > 0U,
                 !vehicles[humanRacer_].bodyContacts.empty()))
             queueRespawn(humanRacer_, vehicles);
@@ -4520,7 +4518,7 @@ void OriginalRaceSession::updateGameplay(
     for (std::size_t racer = 0;
          racer < vehicles.size() && racer < racers_.size(); ++racer)
     {
-        if (racers_[racer].destroyed)
+        if (racers_[racer].IsDestroyed())
             continue;
         const auto& definition = vehicleForRacer(racer);
         const OrientedBox body =
@@ -4533,9 +4531,10 @@ void OriginalRaceSession::updateGameplay(
         // car shape crossing that plane receives Death(dtDeathPlane).
         if (body.center.z - verticalRadius > 0.0F)
             continue;
-        const bool wasDestroyed = racers_[racer].destroyed;
-        map_.GetGround().GetGameObj().OnContact(&racers_[racer]);
-        if (wasDestroyed || !racers_[racer].destroyed)
+        const bool wasDestroyed = racers_[racer].IsDestroyed();
+        map_.GetGround().GetGameObj().OnContact(
+            &racers_[racer].gameCar);
+        if (wasDestroyed || !racers_[racer].IsDestroyed())
             continue;
         destroyRacer(
             racer, vehicles[racer].body.position,
@@ -4550,7 +4549,7 @@ void OriginalRaceSession::updateGameplay(
               networkOwnedRacers_[racer])) &&
             racer < aiPlayers_.size() &&
             aiPlayers_[racer].TakeResetCar() &&
-            !racers_[racer].destroyed)
+            !racers_[racer].IsDestroyed())
             queueRespawn(racer, vehicles);
     }
 
@@ -4712,7 +4711,7 @@ void OriginalRaceSession::updateGameplay(
         bool networkReplicated = false,
         bool sourceReadinessOverride = false) {
         if (owner >= vehicles.size() || owner >= racers_.size() ||
-            racers_[owner].destroyed)
+            racers_[owner].IsDestroyed())
             return;
         const std::size_t weapon = racers_[owner].mineWeapon;
         if (weapon == RacerRuntime::invalidWeapon ||
@@ -4855,7 +4854,7 @@ void OriginalRaceSession::updateGameplay(
         std::uint32_t replicatedProjectileId = 0U,
         bool networkReplicated = false) {
         if (owner >= racers_.size() ||
-            racers_[owner].destroyed ||
+            racers_[owner].IsDestroyed() ||
             racers_[owner].hyperWeapon ==
                 RacerRuntime::invalidWeapon ||
             racers_[owner].hyperWeapon >= race_.weapons.size() ||
@@ -5163,7 +5162,7 @@ void OriginalRaceSession::updateGameplay(
     auto applyMineContact = [&](MineRuntime& mine, std::size_t racer,
                                 const Vec3& contactPoint) {
         if (!mine.active || racer >= vehicles.size() ||
-            racer >= racers_.size() || racers_[racer].destroyed)
+            racer >= racers_.size() || racers_[racer].IsDestroyed())
             return false;
         const auto& vehicleDefinition = vehicleForRacer(racer);
         if (mine.type == 10U)
@@ -5367,7 +5366,7 @@ void OriginalRaceSession::updateGameplay(
         for (std::size_t racer = 0;
              racer < vehicles.size() && racer < racers_.size(); ++racer)
         {
-            if (racers_[racer].destroyed)
+            if (racers_[racer].IsDestroyed())
                 continue;
             if (mine.ignoreOwnerCollision && racer == mine.owner)
                 continue;
@@ -5480,7 +5479,7 @@ void OriginalRaceSession::updateGameplay(
             bonusIndex >= bonusActive_.size() ||
             !bonusActive_[bonusIndex] ||
             racer >= racers_.size() || racer >= vehicles.size() ||
-            racers_[racer].destroyed)
+            racers_[racer].IsDestroyed())
             return false;
         const auto& bonus = race_.bonuses[bonusIndex];
         const auto bonusRules =
@@ -5550,12 +5549,12 @@ void OriginalRaceSession::updateGameplay(
             bonusIndex >= race_.bonuses.size() ||
             bonusIndex >= bonusActive_.size() ||
             bonusObjects().Get(bonusIndex) == nullptr ||
-            !bonusActive_[bonusIndex] || racers_[racer].destroyed)
+            !bonusActive_[bonusIndex] || racers_[racer].IsDestroyed())
             return false;
         auto& runtime = racers_[racer];
         const auto sourceBonus = source::Proj::BonusContact(
             race_.bonuses[bonusIndex].projectileType, true, value,
-            runtime.maximumLife);
+            runtime.GetMaxLife());
         const float sourceValue =
             sourceBonus.take ? sourceBonus.value : value;
         source::PlayerBonusType sourceType;
@@ -5647,7 +5646,7 @@ void OriginalRaceSession::updateGameplay(
             if ((networkGameplayEnabled_ &&
                  (racer >= networkOwnedRacers_.size() ||
                   !networkOwnedRacers_[racer])) ||
-                runtime.destroyed)
+                runtime.IsDestroyed())
                 continue;
             const auto& bonus = race_.bonuses[bonusIndex];
             const auto& vehicleDefinition = vehicleForRacer(racer);
@@ -5764,7 +5763,7 @@ void OriginalRaceSession::updateGameplay(
         if (shooter >= vehicles.size() ||
             shooter >= racers_.size() ||
             racers_[shooter].GetFinished() ||
-            racers_[shooter].destroyed)
+            racers_[shooter].IsDestroyed())
             return;
         auto& runtime = racers_[shooter];
         runtime.SyncSelectedWeapon(race_.weapons.size());
@@ -6177,7 +6176,7 @@ void OriginalRaceSession::updateGameplay(
         source::AICar::AttackTarget state;
         state.active =
             target < vehicles.size() &&
-            !racers_[target].destroyed &&
+            !racers_[target].IsDestroyed() &&
             !racers_[target].disconnected;
         if (target < vehicles.size())
             state.position = vehicles[target].body.position;
@@ -6195,7 +6194,7 @@ void OriginalRaceSession::updateGameplay(
             (networkGameplayEnabled_ &&
              (racer >= networkOwnedRacers_.size() ||
               !networkOwnedRacers_[racer])) ||
-            runtime.destroyed ||
+            runtime.IsDestroyed() ||
             racer >= aiPlayers_.size() ||
             runtime.car.GetLiveTile() == nullptr)
         {
@@ -6304,7 +6303,7 @@ void OriginalRaceSession::updateGameplay(
         std::min(vehicles.size(), racers_.size());
     for (std::size_t first = 0; first < collisionRacers; ++first)
     {
-        if (racers_[first].destroyed)
+        if (racers_[first].IsDestroyed())
             continue;
         for (const auto& contact : vehicles[first].bodyContacts)
         {
@@ -6314,7 +6313,7 @@ void OriginalRaceSession::updateGameplay(
                 contact.otherVehicle >= collisionRacers)
                 continue;
             const std::size_t second = contact.otherVehicle;
-            if (racers_[second].destroyed)
+            if (racers_[second].IsDestroyed())
                 continue;
             float forcePart = 0.0F;
             const float damage = damageFromContact(
@@ -6374,7 +6373,7 @@ void OriginalRaceSession::updateGameplay(
     for (std::size_t racer = 0;
          racer < vehicles.size() && racer < racers_.size(); ++racer)
     {
-        if (racers_[racer].destroyed)
+        if (racers_[racer].IsDestroyed())
             continue;
         for (const auto& contact : vehicles[racer].bodyContacts)
         {
@@ -6629,6 +6628,14 @@ void OriginalRaceSession::update(
     // progresses the one RockCar owned by the car MapObj, matching Windows
     // object ordering without a second session-owned OnProgress call.
     synchronizeRacerGameCars(vehicles);
+    for (std::size_t racer = 0U; racer < racers_.size(); ++racer)
+    {
+        racers_[racer].PrepareBehaviors(
+            vehicleForRacer(racer).lowLifeLevel,
+            racer < vehicles.size()
+                ? length3(vehicles[racer].linearVelocity)
+                : 0.0F);
+    }
     // AutoProj is a registered GameObject before GoRace. Its MineUpdate
     // therefore advances during the visible countdown even though race time
     // itself has not started. This is most visible on ptMaslo, whose model
@@ -6785,7 +6792,7 @@ void OriginalRaceSession::update(
     RaceControl sourceHumanControl = humanControl;
     const bool humanCarPresent =
         humanRacer_ < racers_.size() && humanRacer_ < vehicles.size() &&
-        !racers_[humanRacer_].destroyed &&
+        !racers_[humanRacer_].IsDestroyed() &&
         !racers_[humanRacer_].disconnected;
     const auto humanGate = source::HumanPlayer::EvaluateControl(
         humanRacer_ >= racers_.size() || racers_[humanRacer_].IsBlock(),
@@ -6839,7 +6846,7 @@ void OriginalRaceSession::update(
         humanRacer_ < aiPlayers_.size() &&
         aiPlayers_[humanRacer_].HasCar() &&
         !racers_[humanRacer_].GetFinished() &&
-        !racers_[humanRacer_].destroyed &&
+        !racers_[humanRacer_].IsDestroyed() &&
         humanRacer_ < vehicles.size())
     {
         // AIDebug F7 flips AICar::_enbAI for the human car. Reuse the same
@@ -7047,13 +7054,13 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     static_cast<float>(index) * 100.0F;
             }
             const float maximumLife =
-                supportSession.racers().front().maximumLife;
+                supportSession.racers().front().GetMaxLife();
             supportSession.applyNetworkPlayerDamage(
                 0U, supportVehicles.size() > 1U ? 1U : 0U,
                 supportVehicles.front().body.position, 20.0F,
                 DamageType::Simple, supportVehicles.front());
             const float damagedLife =
-                supportSession.racers().front().life;
+                supportSession.racers().front().GetLife();
             if (std::abs(damagedLife - (maximumLife - 20.0F)) > 0.001F)
             {
                 throw std::runtime_error(
@@ -7065,7 +7072,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 supportSession.update(
                     7.0F / 60.0F, supportVehicles, supportInput);
             }
-            if (std::abs(supportSession.racers().front().life -
+            if (std::abs(supportSession.racers().front().GetLife() -
                          (damagedLife + 5.0F)) > 0.001F)
             {
                 throw std::runtime_error(
@@ -8460,7 +8467,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             vehicles[0].body.position = mapMine->transform.position;
             vehicles[0].body.position.z += 1.0F;
             const float lifeBeforeMine =
-                hazardSession.racers().front().life;
+                hazardSession.racers().front().GetLife();
             hazardSession.update(
                 1.0F / 60.0F, vehicles, hazardInput);
             const auto mineVelocity =
@@ -8486,7 +8493,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                            effect.bonus == mineIndex;
                 });
             if (hazardSession.bonusActive()[mineIndex] ||
-                hazardSession.racers().front().life >= lifeBeforeMine ||
+                hazardSession.racers().front().GetLife() >=
+                    lifeBeforeMine ||
                 mineVelocity.empty() ||
                 mineVelocity.front().delta.z <= 0.0F ||
                 !hasDamageEvent || hasFalsePickup ||
@@ -8605,14 +8613,14 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 medpackVehicles[0].body.position, 5.0F,
                 DamageType::Simple, medpackVehicles[0]);
             const float lifeBefore =
-                medpackSession.racers().front().life;
+                medpackSession.racers().front().GetLife();
             const float sourceMedpackValue =
                 sourceMedpack->value > 0.0F
                     ? sourceMedpack->value
-                    : medpackSession.racers().front().maximumLife;
+                    : medpackSession.racers().front().GetMaxLife();
             const float expectedLife = std::min(
                 lifeBefore + sourceMedpackValue,
-                medpackSession.racers().front().maximumLife);
+                medpackSession.racers().front().GetMaxLife());
             medpackVehicles[0].body.position =
                 medpackRace.bonuses.front().transform.position;
             medpackSession.update(
@@ -8626,7 +8634,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 });
             if (medpackSession.bonusActive().front() || !picked ||
                 std::abs(
-                    medpackSession.racers().front().life -
+                    medpackSession.racers().front().GetLife() -
                     expectedLife) > 0.001F)
             {
                 throw std::runtime_error(
@@ -8821,7 +8829,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             }
         }
 
-        const float lifeBeforeBorder = session.racers().front().life;
+        const float lifeBeforeBorder =
+            session.racers().front().GetLife();
         vehicles[0].speed = 25.0F;
         vehicles[0].linearVelocity = {-25.0F, 5.0F, 0.0F};
         vehicles[0].bodyContacts = {
@@ -8845,7 +8854,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                        request.delta.y > -3.25F;
             });
         if (!hasFrictionVectorRedirect ||
-            session.racers().front().life >= lifeBeforeBorder)
+            session.racers().front().GetLife() >= lifeBeforeBorder)
             throw std::runtime_error(
                 "source friction-vector spring-border transition failed");
 
@@ -9019,8 +9028,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                  {1.0F, 0.0F, 0.0F}, 25.0F, 4000000.0F}};
             for (int frame = 0;
                  frame < 100 &&
-                 lowLifeSession.racers().front().life /
-                         lowLifeSession.racers().front().maximumLife >=
+                 lowLifeSession.racers().front().GetLife() /
+                         lowLifeSession.racers().front().GetMaxLife() >=
                      sourceVehicle.lowLifeLevel;
                  ++frame)
             {
@@ -9040,8 +9049,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 });
             if (!lowLifeSession.racers().front()
                      .lowLifePoints.IsEffectMaked() ||
-                lowLifeSession.racers().front().destroyed ||
-                lowLifeSession.racers().front().life <= 0.0F ||
+                lowLifeSession.racers().front().IsDestroyed() ||
+                lowLifeSession.racers().front().GetLife() <= 0.0F ||
                 lowLifeSession.racers().front()
                         .lowLifePoints.GetEffectSeconds() <= 0.0F ||
                 !hasLowLifeEvent)
@@ -9103,7 +9112,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             shieldVehicles[0].body.position.x += 3.25F;
             shieldSession.update(
                 1.0F / 60.0F, shieldVehicles, shieldInput);
-            if (shieldSession.racers().front().shieldSeconds > 0.0F ||
+            if (shieldSession.racers().front().GetShieldSeconds() > 0.0F ||
                 !shieldSession.bonusActive().back())
             {
                 throw std::runtime_error(
@@ -9114,7 +9123,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             shieldSession.update(
                 1.0F / 60.0F, shieldVehicles, shieldInput);
             const auto& picked = shieldSession.racers().front();
-            if (std::abs(picked.shieldSeconds - 10.0F) > 0.001F ||
+            if (std::abs(picked.GetShieldSeconds() - 10.0F) > 0.001F ||
                 picked.immortalEffect.GetEffectSeconds() != 0.0F ||
                 picked.immortalEffect.GetFadeInTime() != 0.0F ||
                 picked.immortalEffect.GetFadeOutTime() >= 0.0F)
@@ -9123,7 +9132,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     "source ImmortalEffect activation transition failed");
             }
 
-            const float lifeBeforeShieldDamage = picked.life;
+            const float lifeBeforeShieldDamage = picked.GetLife();
             shieldVehicles[0].speed = 25.0F;
             shieldVehicles[0].linearVelocity =
                 {-25.0F, 5.0F, 0.0F};
@@ -9142,7 +9151,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                            event.damageType == DamageType::Touch;
                 });
             const auto& damaged = shieldSession.racers().front();
-            if (damaged.life != lifeBeforeShieldDamage ||
+            if (damaged.GetLife() != lifeBeforeShieldDamage ||
                 !hasImmortalDamage ||
                 damaged.immortalEffect.GetDamageTime() != 0.0F ||
                 std::abs(
@@ -9160,14 +9169,14 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             shieldVehicles[0].linearVelocity = {};
             shieldVehicles[0].bodyContacts.clear();
             unsigned expirySteps = 0U;
-            while (shieldSession.racers().front().shieldSeconds > 0.0F &&
+            while (shieldSession.racers().front().GetShieldSeconds() > 0.0F &&
                    expirySteps++ < 110U)
             {
                 shieldSession.update(
                     0.1F, shieldVehicles, shieldInput);
             }
             const auto& fading = shieldSession.racers().front();
-            if (fading.shieldSeconds != 0.0F ||
+            if (fading.GetShieldSeconds() != 0.0F ||
                 fading.immortalEffect.GetFadeOutTime() < 0.0F ||
                 fading.immortalEffect.GetFadeOutTime() >= 0.5F ||
                 fading.immortalEffect.GetEffectSeconds() <= 0.0F)
@@ -9214,7 +9223,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                  {1.0F, 0.0F, 0.0F}, 25.0F, 4000000.0F}};
             for (int frame = 0;
                  frame < 100 &&
-                 !deathSession.racers().front().destroyed;
+                 !deathSession.racers().front().IsDestroyed();
                  ++frame)
             {
                 deathSession.update(
@@ -9255,8 +9264,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     [](const DeathEffectDefinition& effect) {
                         return !effect.visual.soundPaths.empty();
                     }));
-            if (!deathSession.racers().front().destroyed ||
-                deathSession.racers().front().life != 0.0F ||
+            if (!deathSession.racers().front().IsDestroyed() ||
+                deathSession.racers().front().GetLife() != 0.0F ||
                 deathSession.racers().front()
                     .lowLifePoints.IsEffectMaked() ||
                 deathSession.racerMapObjectId(0U) !=
@@ -9278,7 +9287,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             deathVehicles[0].linearVelocity = {};
             for (int step = 0; step < 19; ++step)
                 deathSession.update(0.1F, deathVehicles, deathInput);
-            if (!deathSession.racers().front().destroyed ||
+            if (!deathSession.racers().front().IsDestroyed() ||
                 !deathSession.takeRespawns().empty())
             {
                 throw std::runtime_error(
@@ -9292,9 +9301,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 deathRespawns = deathSession.takeRespawns();
             }
             if (deathRespawns.size() != 1U ||
-                deathSession.racers().front().life !=
-                    deathSession.racers().front().maximumLife ||
-                !deathSession.racers().front().destroyed ||
+                deathSession.racers().front().GetLife() !=
+                    deathSession.racers().front().GetMaxLife() ||
+                !deathSession.racers().front().IsDestroyed() ||
                 deathSession.racerMapObjectId(0U) !=
                     source::Map::defaultMapObjId)
             {
@@ -9304,7 +9313,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             deathSession.update(0.1F, deathVehicles, deathInput);
             const auto deathRestoredMapObjectId =
                 deathSession.racerMapObjectId(0U);
-            if (deathSession.racers().front().destroyed ||
+            if (deathSession.racers().front().IsDestroyed() ||
                 deathRestoredMapObjectId <= deathInitialMapObjectId ||
                 deathSession.racerForMapObjectId(
                     deathRestoredMapObjectId) != 0U ||
@@ -9336,9 +9345,10 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 overboardSession.update(
                     1.0F / 60.0F, overboardVehicles,
                     overboardInput);
-                if (overboardSession.racers()[1].touchAttacker != 0U ||
+                if (overboardSession.racers()[1]
+                        .gameCar.touchAttacker != 0U ||
                     overboardSession.racers()[1]
-                            .touchAttributionSeconds <= 0.0F)
+                            .gameCar.touchAttributionSeconds <= 0.0F)
                 {
                     throw std::runtime_error(
                         "source three-second touch attribution was not set");
@@ -9359,7 +9369,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                                event.damageType ==
                                    DamageType::DeathPlane;
                     });
-                if (!overboardSession.racers()[1].destroyed ||
+                if (!overboardSession.racers()[1].IsDestroyed() ||
                     !attributedOverboard ||
                     !overboardSession.takeRespawns().empty())
                 {
@@ -9370,11 +9380,11 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
 
             vehicles[1].body.position = vehicles[0].body.position;
             vehicles[1].speed = 5.0F;
-            const float firstLife = session.racers()[0].life;
-            const float secondLife = session.racers()[1].life;
+            const float firstLife = session.racers()[0].GetLife();
+            const float secondLife = session.racers()[1].GetLife();
             session.update(1.0F / 60.0F, vehicles, input);
-            if (session.racers()[0].life != firstLife ||
-                session.racers()[1].life != secondLife)
+            if (session.racers()[0].GetLife() != firstLife ||
+                session.racers()[1].GetLife() != secondLife)
                 throw std::runtime_error(
                     "car proximity caused damage without a body contact");
 
@@ -9382,7 +9392,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 {r3d::physics::CollisionSurface::Vehicle, 1U,
                  {-1.0F, 0.0F, 0.0F}, 20.0F, 1200000.0F}};
             session.update(1.0F / 60.0F, vehicles, input);
-            if (session.racers()[1].life >= secondLife)
+            if (session.racers()[1].GetLife() >= secondLife)
                 throw std::runtime_error(
                     "source car-contact damage transition failed");
             vehicles[0].bodyContacts.clear();
@@ -9403,15 +9413,15 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     {r3d::physics::CollisionSurface::Vehicle, 1U,
                      {-1.0F, 0.0F, 0.0F}, 20.0F, 1200000.0F}};
                 const float beforeFirstContact =
-                    repeatedContactSession.racers()[1].life;
+                    repeatedContactSession.racers()[1].GetLife();
                 repeatedContactSession.update(
                     1.0F / 60.0F, repeatedVehicles, input);
                 const float afterFirstContact =
-                    repeatedContactSession.racers()[1].life;
+                    repeatedContactSession.racers()[1].GetLife();
                 repeatedContactSession.update(
                     1.0F / 60.0F, repeatedVehicles, input);
                 const float afterSecondContact =
-                    repeatedContactSession.racers()[1].life;
+                    repeatedContactSession.racers()[1].GetLife();
                 if (!(afterFirstContact < beforeFirstContact) ||
                     !(afterSecondContact < afterFirstContact))
                 {
@@ -9441,14 +9451,14 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     {r3d::physics::CollisionSurface::Vehicle, 1U,
                      {-1.0F, 0.0F, 0.0F}, 20.0F, 1200000.0F}};
                 const float firstEnergyLife =
-                    energySession.racers()[0].life;
+                    energySession.racers()[0].GetLife();
                 const float secondEnergyLife =
-                    energySession.racers()[1].life;
+                    energySession.racers()[1].GetLife();
                 energySession.update(
                     1.0F / 60.0F, energyVehicles, input);
-                if (!(energySession.racers()[0].life < firstEnergyLife) ||
+                if (!(energySession.racers()[0].GetLife() < firstEnergyLife) ||
                     std::abs(
-                        energySession.racers()[1].life -
+                        energySession.racers()[1].GetLife() -
                         secondEnergyLife) > 0.001F)
                 {
                     throw std::runtime_error(
@@ -9817,7 +9827,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     "source finished-immortality precondition failed");
             }
             const float finishedLife =
-                finishImmortalSession.racers()[0].life;
+                finishImmortalSession.racers()[0].GetLife();
             finishVehicles[1].body.position = add(
                 finishVehicles[0].body.position,
                 {1000.0F, 1000.0F, 0.0F});
@@ -9835,9 +9845,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     return event.kind == RaceEventKind::Damage &&
                            event.racer == 0U;
                 });
-            if (finishImmortalSession.racers()[0].destroyed ||
+            if (finishImmortalSession.racers()[0].IsDestroyed() ||
                 std::abs(
-                    finishImmortalSession.racers()[0].life -
+                    finishImmortalSession.racers()[0].GetLife() -
                     finishedLife) > 0.001F ||
                 !finishedDamageEvent)
             {
@@ -10547,7 +10557,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 drobilkaBox.center,
                 targetDefinition.physics.shapePosition);
             const float lifeBeforeDrobilka =
-                drobilkaSession.racers()[1].life;
+                drobilkaSession.racers()[1].GetLife();
             drobilkaSession.update(
                 1.0F / 60.0F, drobilkaVehicles,
                 drobilkaInput);
@@ -10569,7 +10579,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 drobilka->projectiles.front().angularSpeed / 60.0F;
             if (sourceContactEffect ==
                     drobilkaSession.effects().end() ||
-                drobilkaSession.racers()[1].life >=
+                drobilkaSession.racers()[1].GetLife() >=
                     lifeBeforeDrobilka ||
                 std::abs(
                     drobilkaSession.racers()[0]
@@ -10715,14 +10725,14 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             legacySonarVehicles[1].body.position =
                 activeLegacySonar->position;
             const float lifeBeforeLegacySonar =
-                legacySonarSession.racers()[1].life;
+                legacySonarSession.racers()[1].GetLife();
             constexpr float legacySonarStep = 0.1F;
             legacySonarSession.update(
                 legacySonarStep, legacySonarVehicles,
                 legacySonarInput);
             const float legacySonarDamage =
                 lifeBeforeLegacySonar -
-                legacySonarSession.racers()[1].life;
+                legacySonarSession.racers()[1].GetLife();
             const auto legacySonarImpulse =
                 legacySonarSession.takeVelocityRequests();
             // SonarContact already multiplies damage by contact.deltaTime.
@@ -10906,7 +10916,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 returnedBox.center,
                 ownerVehicle.physics.shapePosition);
             const float ownerLife =
-                thunderSession.racers().front().life;
+                thunderSession.racers().front().GetLife();
             thunderSession.update(
                 stepSeconds, outsideVehicles, thunderInput);
             sourceProjectile = std::find_if(
@@ -10920,7 +10930,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 });
             if (sourceProjectile !=
                     thunderSession.projectiles().end() ||
-                thunderSession.racers().front().life >= ownerLife)
+                thunderSession.racers().front().GetLife() >= ownerLife)
             {
                 throw std::runtime_error(
                     "source projectile-to-owner contact after launch "
@@ -11162,9 +11172,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     projectile->target == 2U;
             }
             if (!handedOff ||
-                !impulseSession.racers()[1].destroyed ||
-                impulseSession.racers()[1].life >=
-                    impulseSession.racers()[1].maximumLife)
+                !impulseSession.racers()[1].IsDestroyed() ||
+                impulseSession.racers()[1].GetLife() >=
+                    impulseSession.racers()[1].GetMaxLife())
             {
                 throw std::runtime_error(
                     "source lethal ImpulseContact FindClosestEnemy(pi/2) "
@@ -11420,10 +11430,10 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 targetCenter,
                 targetDefinition.physics.shapePosition);
             const float lifeBeforeFrost =
-                frostSession.racers()[1].life;
+                frostSession.racers()[1].GetLife();
             frostSession.update(
                 1.0F / 60.0F, frostVehicles, frostInput);
-            if (frostSession.racers()[1].life >= lifeBeforeFrost ||
+            if (frostSession.racers()[1].GetLife() >= lifeBeforeFrost ||
                 std::abs(frostSession.racers()[1]
                              .slowEffect.GetRemainingSeconds() - 1.0F) >
                     0.001F ||
@@ -11814,7 +11824,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 vehicleBox(
                     mortarVehicles[1], targetDefinition.physics));
             const float lifeBeforeCrater =
-                mortarSession.racers()[1].life;
+                mortarSession.racers()[1].GetLife();
             mortarSession.update(
                 1.0F / 60.0F, mortarVehicles, mortarInput);
             const auto crater = std::find_if(
@@ -11833,7 +11843,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     0.001F ||
                 std::abs(crater->collision.halfExtents.z - 0.05F) >
                     0.001F ||
-                mortarSession.racers()[1].life >= lifeBeforeCrater)
+                mortarSession.racers()[1].GetLife() >= lifeBeforeCrater)
             {
                 throw std::runtime_error(
                     "source mortar ptCrater contact field was not spawned: "
@@ -11853,7 +11863,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     std::to_string(lifeBeforeCrater) +
                     ", lifeAfter=" +
                     std::to_string(
-                        mortarSession.racers()[1].life));
+                        mortarSession.racers()[1].GetLife()));
             }
             const bool hasSourceMortarDeath = std::any_of(
                 mortarSession.effects().begin(),
@@ -11870,16 +11880,16 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     "source mortar DeathEffect transform was not emitted");
             }
             const float firstCraterLife =
-                mortarSession.racers()[1].life;
+                mortarSession.racers()[1].GetLife();
             const float ownerLifeBeforeCrater =
-                mortarSession.racers()[0].life;
+                mortarSession.racers()[0].GetLife();
             mortarVehicles[0].body = mortarVehicles[1].body;
             mortarSession.update(
                 1.0F / 60.0F, mortarVehicles, mortarInput);
             if (mortarSession.mines().empty() ||
-                mortarSession.racers()[1].life >= firstCraterLife ||
+                mortarSession.racers()[1].GetLife() >= firstCraterLife ||
                 std::abs(
-                    mortarSession.racers()[0].life -
+                    mortarSession.racers()[0].GetLife() -
                     ownerLifeBeforeCrater) > 0.001F)
             {
                 throw std::runtime_error(
@@ -12212,7 +12222,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 add(mineCenter, {0.0F, 0.25F, 0.0F}),
                 targetDefinition.physics.shapePosition);
             const float lifeBefore =
-                contactSession.racers()[1].life;
+                contactSession.racers()[1].GetLife();
             RaceControl sourceInput;
             sourceInput.useMine = true;
             contactSession.update(
@@ -12226,7 +12236,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                            request.delta.z > 0.0F;
                 });
             if (!contactSession.mines().empty() ||
-                contactSession.racers()[1].life >=
+                contactSession.racers()[1].GetLife() >=
                     lifeBefore ||
                 !hasVerticalImpulse ||
                 !contactSession.racers()[0]
@@ -12246,7 +12256,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             advanceMineCountdown(
                 protonSession, sourceVehicles);
             const float lifeBefore =
-                protonSession.racers()[0].life;
+                protonSession.racers()[0].GetLife();
             RaceControl sourceInput;
             sourceInput.useMine = true;
             protonSession.update(
@@ -12254,7 +12264,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             sourceInput.useMine = false;
             if (protonSession.mines().size() != 1U ||
                 protonSession.mines().front().type != 24U ||
-                protonSession.racers()[0].life != lifeBefore)
+                protonSession.racers()[0].GetLife() != lifeBefore)
             {
                 throw std::runtime_error(
                     "source ptMineProton owner arming window failed");
@@ -12266,7 +12276,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     sourceInput);
             }
             if (!protonSession.mines().empty() ||
-                protonSession.racers()[0].life >= lifeBefore)
+                protonSession.racers()[0].GetLife() >= lifeBefore)
             {
                 throw std::runtime_error(
                     "source ptMineProton contact was not dispatched");
@@ -12588,7 +12598,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 true, false, clientOwned);
 
             const float initialLife =
-                networkSession.racers().front().life;
+                networkSession.racers().front().GetLife();
             const auto deferred =
                 networkSession.applyNetworkPlayerDamage(
                     0U, 1U, vehicles[0].body.position, 7.0F,
@@ -12718,7 +12728,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             if (!networkSession.disconnectNetworkRacer(1U) ||
                 networkSession.disconnectNetworkRacer(1U) ||
                 !networkSession.racers()[1].disconnected ||
-                !networkSession.racers()[1].destroyed ||
+                !networkSession.racers()[1].IsDestroyed() ||
                 networkSession.racerHasAiController(1U) ||
                 networkSession.racerMapObjectId(1U) !=
                     source::Map::defaultMapObjId ||
@@ -12870,7 +12880,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 true, false, clientOwned);
             bonusTarget.synchronizeNetworkCountdown(4);
             const float synchronizedLife = std::max(
-                bonusTarget.racers().front().maximumLife - 5.0F,
+                bonusTarget.racers().front().GetMaxLife() - 5.0F,
                 1.0F);
             bonusTarget.applyNetworkPlayerDamage(
                 0U, RacerRuntime::invalidWeapon,
@@ -12878,14 +12888,14 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 DamageType::Simple, vehicles[0], true,
                 synchronizedLife, false);
             const float lifeBeforeBonus =
-                bonusTarget.racers().front().life;
+                bonusTarget.racers().front().GetLife();
             const float sourceNetworkBonusValue =
                 sourceBonus->value > 0.0F
                     ? sourceBonus->value
-                    : bonusTarget.racers().front().maximumLife;
+                    : bonusTarget.racers().front().GetMaxLife();
             const float expectedBonusLife = std::min(
                 lifeBeforeBonus + sourceNetworkBonusValue,
-                bonusTarget.racers().front().maximumLife);
+                bonusTarget.racers().front().GetMaxLife());
             bonusTarget.queueNetworkBonus(
                 {0U, bonusIndex, sourceBonus->kind,
                  sourceNetworkBonusValue});
@@ -12903,7 +12913,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             if (bonusEvent == bonusTarget.events().end() ||
                 bonusTarget.bonusActive()[bonusIndex] ||
                 std::abs(
-                    bonusTarget.racers().front().life -
+                    bonusTarget.racers().front().GetLife() -
                     expectedBonusLife) > 0.001F)
             {
                 throw std::runtime_error(

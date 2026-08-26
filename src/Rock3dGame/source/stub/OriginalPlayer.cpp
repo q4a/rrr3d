@@ -22,7 +22,7 @@ public:
         if (player_ == nullptr)
             return;
         const auto result = player_->lowLifePoints.OnProgress(
-            *player_, deltaTime, this);
+            player_->gameCar, deltaTime, this);
         player_->lowLifeActivated_ =
             player_->lowLifeActivated_ || result.activated;
         player_->lowLifeReleased_ =
@@ -124,7 +124,10 @@ Player::Player()
 
 void Player::BindSourceBehaviors()
 {
-    auto& behaviors = GetBehaviors();
+    gameCar.SetEventSink(this);
+    gameCar.ClearListenerList();
+    gameCar.InsertListener(this);
+    auto& behaviors = gameCar.GetBehaviors();
     behaviors.Clear();
     behaviors.Add<LowLifeBehavior>(
         BehaviorType::LowLifePoints, this);
@@ -138,7 +141,7 @@ void Player::BindSourceBehaviors()
 void Player::ClearSlowBehavior() noexcept
 {
     slowEffect.Reset();
-    auto& behaviors = GetBehaviors();
+    auto& behaviors = gameCar.GetBehaviors();
     if (auto* behavior = behaviors.Find(BehaviorType::SlowEffect))
         behaviors.Delete(behavior);
 }
@@ -526,9 +529,57 @@ void Player::Reset(float newMaximumLife,
 {
     *this = Player{};
     BindSourceBehaviors();
-    ResetGameObject(std::max(newMaximumLife, 1.0F));
+    gameCar.ResetGameObject(std::max(newMaximumLife, 1.0F));
     SetPlace(initialPlace);
     car.Reset(trace);
+}
+
+GameObject::DamageResult Player::Damage(
+    std::size_t senderPlayerId, float value,
+    DamageType damageType) noexcept
+{
+    return gameCar.Damage(senderPlayerId, value, damageType);
+}
+
+GameObject::DamageResult Player::Damage(
+    std::size_t senderPlayerId, float value, float newLife,
+    bool death, DamageType damageType) noexcept
+{
+    return gameCar.Damage(
+        senderPlayerId, value, newLife, death, damageType);
+}
+
+bool Player::Death(
+    DamageType damageType, GameObject* target) noexcept
+{
+    return gameCar.Death(damageType, target);
+}
+
+bool Player::Resc() noexcept { return gameCar.Resc(); }
+void Player::Healt(float value) noexcept { gameCar.Healt(value); }
+void Player::Immortal(float time) noexcept { gameCar.Immortal(time); }
+void Player::SetImmortalFlag(bool value) noexcept
+{
+    gameCar.SetImmortalFlag(value);
+}
+bool Player::IsImmortal() const noexcept { return gameCar.IsImmortal(); }
+float Player::GetLife() const noexcept { return gameCar.GetLife(); }
+void Player::SetLife(float value) noexcept { gameCar.SetLife(value); }
+float Player::GetMaxLife() const noexcept
+{
+    return gameCar.GetMaxLife();
+}
+void Player::SetMaxLife(float value) noexcept
+{
+    gameCar.SetMaxLife(value);
+}
+float Player::GetShieldSeconds() const noexcept
+{
+    return gameCar.shieldSeconds;
+}
+bool Player::IsDestroyed() const noexcept
+{
+    return gameCar.destroyed;
 }
 
 void Player::ConfigureIdentity(
@@ -657,6 +708,8 @@ void Player::CreateCar(bool newRace) noexcept
     if (!carPresent_)
     {
         carPresent_ = true;
+        gameCar.SetEventSink(this);
+        gameCar.InsertListener(this);
         if (carRecord_ != nullptr)
         {
             gameCar.ConfigureMotor({
@@ -739,6 +792,7 @@ void Player::FreeCar(bool freeState) noexcept
                 .GetItem().OnDestroyCar();
     }
     carPresent_ = false;
+    gameCar.RemoveListener(this);
     gameCar.ReleaseAnimationChildren();
     gameCar.ReleaseWheels();
     gameCar.ReleaseSoundMotor();
@@ -1105,18 +1159,18 @@ PlayerBonusResult Player::TakeMoney(float value) noexcept
 
 PlayerBonusResult Player::TakeMedpack(float value) noexcept
 {
-    const float previous = life;
+    const float previous = GetLife();
     Healt(value);
     return {PlayerBonusSlot::None, invalidWeapon,
             static_cast<std::uint32_t>(
-                std::max(life - previous, 0.0F))};
+                std::max(GetLife() - previous, 0.0F))};
 }
 
 PlayerBonusResult Player::TakeImmortal(float value) noexcept
 {
     Immortal(std::max(value, 0.0F));
     return {PlayerBonusSlot::None, invalidWeapon,
-            static_cast<std::uint32_t>(shieldSeconds)};
+            static_cast<std::uint32_t>(GetShieldSeconds())};
 }
 
 PlayerBonusResult Player::TakeAmmunition(
@@ -1210,14 +1264,28 @@ PlayerBonusResult Player::TakeBonus(
 Player::BehaviorProgressResult Player::ProgressBehaviors(
     float deltaTime, float lowLifeLevel, float linearSpeed) noexcept
 {
-    BehaviorProgressResult result;
+    PrepareBehaviors(lowLifeLevel, linearSpeed);
+    const auto carProgress = gameCar.OnProgress(deltaTime);
+    auto result = FinishBehaviorProgress(deltaTime);
+    result.gameObject = carProgress.gameObject;
+    return result;
+}
+
+void Player::PrepareBehaviors(
+    float lowLifeLevel, float linearSpeed) noexcept
+{
     lowLifePoints.SetLifeLevel(lowLifeLevel);
     lowLifeActivated_ = false;
     lowLifeReleased_ = false;
     behaviorLinearSpeed_ = linearSpeed;
     slowSpeedLimited_ = false;
     slowReleased_ = false;
-    result.gameObject = GameObject::OnProgress(deltaTime);
+}
+
+Player::BehaviorProgressResult Player::FinishBehaviorProgress(
+    float deltaTime) noexcept
+{
+    BehaviorProgressResult result;
     for (std::size_t slot = 0U; slot < weaponSlotCount; ++slot)
     {
         auto& item = slotRack_.GetSlot(
@@ -1226,7 +1294,8 @@ Player::BehaviorProgressResult Player::ProgressBehaviors(
                          .GetItem();
         if (auto* droid = dynamic_cast<DroidItem*>(&item))
             droid->OnProgress(
-                deltaTime, life, maximumLife, destroyed);
+                deltaTime, gameCar.life, gameCar.maximumLife,
+                gameCar.destroyed);
     }
     result.lowLifeActivated = lowLifeActivated_;
     result.lowLifeReleased = lowLifeReleased_;
@@ -1239,7 +1308,7 @@ bool Player::AttachSlowEffect(
     float maximumTimeLife, std::size_t weapon,
     std::size_t projectile) noexcept
 {
-    auto& behaviors = GetBehaviors();
+    auto& behaviors = gameCar.GetBehaviors();
     // Proj::FrostRayUpdate checks Find<SlowEffect>() before adding. Repeated
     // ray contacts therefore neither replace the model nor restart lifetime.
     if (behaviors.Find(BehaviorType::SlowEffect) != nullptr ||
@@ -1367,7 +1436,7 @@ Player* Player::FindClosestEnemy(
     for (Player* candidate : players)
     {
         if (candidate == nullptr || candidate == this ||
-            candidate->destroyed || candidate->disconnected)
+            candidate->IsDestroyed() || candidate->disconnected)
         {
             continue;
         }
@@ -1465,10 +1534,27 @@ std::vector<PlayerGameEvent> Player::TakeGameEvents() noexcept
     return result;
 }
 
-void Player::OnDeathEvent(
-    DamageType damageType, GameObject* target) noexcept
+void Player::OnDestroy(GameObject& sender) noexcept
+{
+    if (&sender == &gameCar)
+        FreeCar(false);
+}
+
+void Player::OnLowLife(
+    GameObject& sender, Behavior*) noexcept
+{
+    if (&sender != &gameCar)
+        return;
+    lowLifeActivated_ = true;
+}
+
+void Player::OnDeath(
+    GameObject& sender, DamageType damageType,
+    GameObject* target) noexcept
 {
     (void)target;
+    if (&sender != &gameCar)
+        return;
     if (damageType == DamageType::DeathPlane)
     {
         gameEvents_.push_back(
@@ -1482,11 +1568,11 @@ void Player::OnDeathEvent(
              GameObject::undefinedPlayerId, 0.0F, damageType});
     }
     gameEvents_.push_back(
-        {PlayerGameEventKind::Death, GetTouchPlayerId(), 0.0F,
+        {PlayerGameEventKind::Death, gameCar.GetTouchPlayerId(), 0.0F,
          damageType});
 }
 
-void Player::OnDamageDispatchEvent(
+void Player::OnRockCarDamageDispatch(
     std::size_t senderPlayerId, float value,
     DamageType damageType) noexcept
 {
@@ -1495,7 +1581,7 @@ void Player::OnDamageDispatchEvent(
          damageType});
 }
 
-void Player::OnKillDispatchEvent(
+void Player::OnRockCarKillDispatch(
     std::size_t senderPlayerId, float value,
     DamageType damageType) noexcept
 {
@@ -1556,8 +1642,8 @@ void Player::Destroy() noexcept
     ClearSlowBehavior();
     gameCar.Reset();
     Immortal(0.0F);
-    touchAttacker = undefinedPlayerId;
-    touchAttributionSeconds = 0.0F;
+    gameCar.touchAttacker = undefinedPlayerId;
+    gameCar.touchAttributionSeconds = 0.0F;
     restoreSeconds = restoreCarSeconds;
     // GameObject::Death destroys the MapObj immediately afterwards. The
     // portable owner combines that OnDestroy callback here so render/audio
@@ -1567,7 +1653,7 @@ void Player::Destroy() noexcept
 
 PlayerRestoreStep Player::ProgressRestore(float seconds) noexcept
 {
-    if (!destroyed)
+    if (!IsDestroyed())
         return PlayerRestoreStep::None;
     if (restoreSeconds < 0.0F)
     {
@@ -1578,7 +1664,7 @@ PlayerRestoreStep Player::ProgressRestore(float seconds) noexcept
     restoreSeconds = std::max(0.0F, restoreSeconds - seconds);
     if (restoreSeconds > 0.0F)
         return PlayerRestoreStep::None;
-    SetLife(maximumLife);
+    SetLife(GetMaxLife());
     restoreSeconds = -1.0F;
     return PlayerRestoreStep::QueueRespawn;
 }
@@ -1691,8 +1777,8 @@ void Player::Disconnect() noexcept
     gameCar.Reset();
     restoreSeconds = 0.0F;
     Immortal(0.0F);
-    touchAttacker = undefinedPlayerId;
-    touchAttributionSeconds = 0.0F;
+    gameCar.touchAttacker = undefinedPlayerId;
+    gameCar.touchAttributionSeconds = 0.0F;
     ClearBonusProjectiles();
     FreeCar(true);
 }

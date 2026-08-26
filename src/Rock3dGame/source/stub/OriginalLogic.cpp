@@ -195,7 +195,7 @@ Logic::TakeBonusResult Logic::TakeBonus(
     const std::vector<std::uint32_t>& maximumCharges,
     float randomUnit) noexcept
 {
-    if (player == nullptr || bonus == nullptr || player->destroyed ||
+    if (player == nullptr || bonus == nullptr || player->IsDestroyed() ||
         bonus->destroyed)
         return {};
     return {player->TakeBonus(

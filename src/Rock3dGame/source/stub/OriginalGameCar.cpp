@@ -229,6 +229,7 @@ GameCar::ProgressResult GameCar::OnProgress(float deltaTime) noexcept
 {
     ProgressResult result;
     const auto gameObject = GameObject::OnProgress(deltaTime);
+    result.gameObject = gameObject;
     result.behaviorsProgressed = gameObject.behaviorsProgressed;
     result.behaviorsRemoved = gameObject.behaviorsRemoved;
     for (auto& child : animationChildren_)
@@ -831,7 +832,9 @@ void GameCar::BindSoundMotor(
 
 void GameCar::ReleaseSoundMotor() noexcept
 {
-    GetBehaviors().Clear();
+    if (auto* behavior =
+            GetBehaviors().Find(BehaviorType::SoundMotor))
+        GetBehaviors().Delete(behavior);
     soundMotor_.reset();
     soundMotorMix_ = {};
 }

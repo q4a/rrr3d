@@ -3022,6 +3022,33 @@ object graph, один раз формирует эквивалентную го
 границе. Copy, slip accessors, динамические группы и повёрнутый visual offset
 закреплены regression-проверками.
 
+### P2.123 — car-owned life and `Player` listener graph — выполнено
+
+Обратное сравнение подтвердило архитектурную ошибку portable-класса:
+Windows `Player` наследуется от `GameObjListener`, а не от `GameObject`.
+Жизнь, immortality, damage/death, low-life и car behaviors принадлежат
+`CarState::gameObj`, то есть конкретному `RockCar`. В порте те же состояния
+жили во втором `GameObject` внутри `Player`, параллельно уже существовавшей
+машине.
+
+`Player` теперь снова является listener исходного `RockCar`. Все damage и
+authoritative network life переходы направлены в одну car-owned модель;
+medpack, shield, droid repair, slow/energy/low-life behaviors, HUD/debug и
+respawn читают тот же объект. `RockCar` передаёт source damage/kill dispatch
+своему player owner, сохраняя порядок `Damage`, `Kill`, special death,
+`Death`. Session подготавливает входы behaviors до единственного
+`Logic::OnProgress` и после него только забирает результаты, поэтому второй
+скрытый progress не появился.
+
+При переносе выявлены две связанные lifecycle-ошибки. `ReleaseSoundMotor`
+раньше очищал всю коллекцию car behaviors вместо одного `SoundMotor`; теперь
+он удаляет только свой элемент. Кроме того, listener мог удалить следующий
+behavior во время destroy/death dispatch, а snapshot продолжал вызывать уже
+освобождённый адрес. Dispatch теперь проверяет, что snapshot-entry всё ещё
+зарегистрирован. Regression закрепляет отсутствие наследования `Player` от
+`GameObject`, единую life identity, исходный event order и безопасное
+удаление listener во время callback.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

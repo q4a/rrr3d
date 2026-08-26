@@ -4,6 +4,7 @@
 
 #include <cmath>
 #include <iostream>
+#include <type_traits>
 #include <vector>
 
 namespace source = r3d::game::originalrace::source;
@@ -12,14 +13,17 @@ int main()
 {
     source::Player player;
     player.Reset(80.0F, 3U);
-    if (player.GetBehaviors().GetCount() != 3U ||
-        player.GetBehaviors().Find(
+    static_assert(!std::is_base_of_v<source::GameObject, source::Player>);
+    if (player.gameCar.GetLife() != player.GetLife() ||
+        player.gameCar.GetEventSink() != &player ||
+        player.gameCar.GetBehaviors().GetCount() != 3U ||
+        player.gameCar.GetBehaviors().Find(
             source::BehaviorType::LowLifePoints) == nullptr ||
-        player.GetBehaviors().Find(
+        player.gameCar.GetBehaviors().Find(
             source::BehaviorType::ImmortalEffect) == nullptr ||
-        player.GetBehaviors().Find(
+        player.gameCar.GetBehaviors().Find(
             source::BehaviorType::DamageEffect) == nullptr ||
-        player.GetListenerCount() != 3U)
+        player.gameCar.GetListenerCount() != 4U)
         return 71;
 
     // FrostRayUpdate dynamically adds SlowEffect only once. Its state expires
@@ -29,10 +33,10 @@ int main()
     slowPlayer.Reset(100.0F, 1U);
     if (!slowPlayer.AttachSlowEffect(0.5F, 4U, 2U) ||
         slowPlayer.AttachSlowEffect(2.0F, 5U, 3U) ||
-        slowPlayer.GetBehaviors().GetCount() != 4U ||
-        slowPlayer.GetBehaviors().Find(
+        slowPlayer.gameCar.GetBehaviors().GetCount() != 4U ||
+        slowPlayer.gameCar.GetBehaviors().Find(
             source::BehaviorType::SlowEffect) == nullptr ||
-        slowPlayer.GetListenerCount() != 4U)
+        slowPlayer.gameCar.GetListenerCount() != 5U)
         return 72;
     const auto slowActive = slowPlayer.ProgressBehaviors(
         0.25F, 0.35F, 30.0F);
@@ -45,33 +49,35 @@ int main()
         0.251F, 0.35F, 30.0F);
     if (!slowReleased.slowSpeedLimited || !slowReleased.slowReleased ||
         slowPlayer.slowEffect.IsEffectMaked() ||
-        slowPlayer.GetBehaviors().Find(
+        slowPlayer.gameCar.GetBehaviors().Find(
             source::BehaviorType::SlowEffect) == nullptr)
         return 74;
     const auto slowRemoved = slowPlayer.ProgressBehaviors(
         0.0F, 0.35F, 30.0F);
     if (slowRemoved.gameObject.behaviorsRemoved != 1U ||
         slowRemoved.gameObject.behaviorsProgressed != 3U ||
-        slowPlayer.GetBehaviors().GetCount() != 3U ||
-        slowPlayer.GetBehaviors().Find(
+        slowPlayer.gameCar.GetBehaviors().GetCount() != 3U ||
+        slowPlayer.gameCar.GetBehaviors().Find(
             source::BehaviorType::SlowEffect) != nullptr ||
-        slowPlayer.GetListenerCount() != 3U)
+        slowPlayer.gameCar.GetListenerCount() != 4U)
         return 75;
     if (!slowPlayer.AttachSlowEffect(1.0F, 1U, 1U))
         return 76;
     slowPlayer.Destroy();
-    if (slowPlayer.GetBehaviors().Find(
-            source::BehaviorType::SlowEffect) != nullptr ||
-        slowPlayer.GetBehaviors().GetCount() != 3U ||
-        slowPlayer.GetListenerCount() != 3U)
+    if (slowPlayer.gameCar.GetBehaviors().Find(
+            source::BehaviorType::SlowEffect) != nullptr)
         return 77;
+    if (slowPlayer.gameCar.GetBehaviors().GetCount() != 3U)
+        return 78;
+    if (slowPlayer.gameCar.GetListenerCount() != 3U)
+        return 79;
     player.car.SetSize(7.5F);
     player.ConfigureIdentity(
         source::Player::humanId, 7, 3U, "Tyler", "Network Tyler",
         {0.2F, 0.3F, 0.4F, 1.0F});
-    if (player.life != 80.0F || player.maximumLife != 80.0F ||
+    if (player.GetLife() != 80.0F || player.GetMaxLife() != 80.0F ||
         player.GetPlace() != 3U || player.GetFinished() ||
-        player.destroyed)
+        player.IsDestroyed())
         return 1;
     if (std::abs(player.car.GetSize() - 7.5F) > 0.001F ||
         std::abs(player.car.GetRadius() - 3.75F) > 0.001F)
@@ -356,12 +362,12 @@ int main()
         player.GetNextBonusProjectileId() != 22U)
         return 54;
 
-    player.life = 50.0F;
+    player.SetLife(50.0F);
     player.TakeMedpack(7.5F);
-    if (std::abs(player.life - 57.5F) > 0.001F)
+    if (std::abs(player.GetLife() - 57.5F) > 0.001F)
         return 6;
     player.TakeMedpack(100.0F);
-    if (player.life != player.maximumLife)
+    if (player.GetLife() != player.GetMaxLife())
         return 7;
     player.TakeMoney(19.9F);
     player.ResetPickMoney();
@@ -370,12 +376,12 @@ int main()
     player.TakeMoney(19.9F);
     player.TakeImmortal(4.5F);
     if (player.GetPickMoney() != 19U ||
-        std::abs(player.shieldSeconds - 4.5F) > 0.001F ||
+        std::abs(player.GetShieldSeconds() - 4.5F) > 0.001F ||
         player.immortalEffect.GetFadeInTime() != 0.0F)
         return 8;
-    const float immortalLife = player.life;
+    const float immortalLife = player.GetLife();
     player.Damage(1U, 5.0F, r3d::game::originalrace::DamageType::Energy);
-    if (player.life != immortalLife ||
+    if (player.GetLife() != immortalLife ||
         player.immortalEffect.GetDamageTime() != 0.0F ||
         !player.ConsumeEnergyDamageEffectCreated())
         return 21;
@@ -453,15 +459,17 @@ int main()
         return 10;
 
     player.Destroy();
-    if (!player.destroyed || player.life != 0.0F || player.HasCar() ||
+    if (!player.IsDestroyed() || player.GetLife() != 0.0F ||
+        player.HasCar() ||
         player.HasAttachedLights() ||
         player.ProgressRestore(1.0F) != source::PlayerRestoreStep::None ||
         player.ProgressRestore(1.0F) !=
             source::PlayerRestoreStep::QueueRespawn ||
-        player.life != player.maximumLife || !player.destroyed ||
+        player.GetLife() != player.GetMaxLife() ||
+        !player.IsDestroyed() ||
         player.ProgressRestore(0.01F) !=
             source::PlayerRestoreStep::ActivateCar ||
-        player.destroyed || !player.HasCar() ||
+        player.IsDestroyed() || !player.HasCar() ||
         !player.HasAttachedLights())
         return 11;
 
@@ -734,9 +742,9 @@ int main()
         return 25;
 
     player.Disconnect();
-    if (!player.disconnected || !player.destroyed ||
+    if (!player.disconnected || !player.IsDestroyed() ||
         player.GetFinished() ||
-        player.life != 0.0F)
+        player.GetLife() != 0.0F)
         return 18;
 
     std::cout << "original Player source rules passed\n";

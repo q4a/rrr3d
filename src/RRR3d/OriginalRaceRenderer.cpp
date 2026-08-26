@@ -4954,7 +4954,7 @@ void OriginalRaceRenderer::draw(
     for (std::size_t racer = 0; racer < racerCount; ++racer)
     {
         if (racer < racerRuntime.size() &&
-            racerRuntime[racer].destroyed)
+            racerRuntime[racer].IsDestroyed())
             continue;
         // HumanPlayer disables gpReflScene on the source car. AI cars remain
         // in the cube map, and every car remains eligible for gpReflWater.
@@ -5683,7 +5683,7 @@ void OriginalRaceRenderer::draw(
     for (std::size_t racer = 0; racer < racerCount; ++racer)
     {
         if (racer >= racerRuntime.size() ||
-            racerRuntime[racer].destroyed ||
+            racerRuntime[racer].IsDestroyed() ||
             racer >= vehicleShieldEffects_.size() ||
             racer >= vehicleShieldScales_.size())
             continue;
@@ -5887,7 +5887,7 @@ void OriginalRaceRenderer::drawShadowCasters(
     for (std::size_t racer = 0; racer < racerCount; ++racer)
     {
         if (racer < racerRuntime.size() &&
-            racerRuntime[racer].destroyed)
+            racerRuntime[racer].IsDestroyed())
             continue;
         const auto vehicleIndex = race.racers[racer].vehicle;
         if (vehicleIndex >= race.vehicles.size())

@@ -1283,7 +1283,8 @@ void OriginalRaceHud::update(
         countdownImage_ = -1;
 
     lifeFraction_ =
-        std::clamp(player.life / std::max(player.maximumLife, 1.0F),
+        std::clamp(
+            player.GetLife() / std::max(player.GetMaxLife(), 1.0F),
                    0.0F, 1.0F);
 
     mapMarkers_.clear();
@@ -1387,7 +1388,7 @@ void OriginalRaceHud::update(
         const bool hasRacer =
             overlay.racer < session.racers().size() &&
             overlay.racer < vehicles.size() &&
-            !session.racers()[overlay.racer].destroyed;
+            !session.racers()[overlay.racer].IsDestroyed();
         if (!hasRacer)
         {
             overlay.alpha = std::max(
@@ -1411,7 +1412,7 @@ void OriginalRaceHud::update(
             elapsed < overlay.visibleUntil || overlay.alpha > 0.0F;
         const auto& runtime = session.racers()[overlay.racer];
         overlay.life = std::clamp(
-            runtime.life / std::max(runtime.maximumLife, 1.0F),
+            runtime.GetLife() / std::max(runtime.GetMaxLife(), 1.0F),
             0.0F, 1.0F);
         overlay.x = std::clamp(
             overlay.x, opponentLifeBack_.width * 0.5F,
@@ -1435,7 +1436,7 @@ void OriginalRaceHud::update(
         const bool atEdge = project(
             vehicles[racerIndex].body.position,
             {1.0F, -0.5F, 0.0F}, label.x, label.y);
-        label.visible = !runtime.destroyed && !runtime.disconnected;
+        label.visible = !runtime.IsDestroyed() && !runtime.disconnected;
         bool hasLifeOverlay = false;
         if (label.visible)
         {
