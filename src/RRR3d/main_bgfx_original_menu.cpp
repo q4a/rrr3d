@@ -17131,50 +17131,9 @@ int main(int argc, char** argv)
                 for (std::size_t index = 0U;
                      index < syncCount; ++index)
                 {
-                    const auto physicalBody = raceVehicles[index].body;
-                    const auto graphPose = raceSession.racerFramePose(
-                        index,
-                        {{physicalBody.position.x,
-                          physicalBody.position.y,
-                          physicalBody.position.z},
-                         {physicalBody.rotation.x,
-                          physicalBody.rotation.y,
-                          physicalBody.rotation.z,
-                          physicalBody.rotation.w}},
-                        frameSeconds);
-                    const r3d::physics::Quat graphRotation{
-                        graphPose.rotation.x,
-                        graphPose.rotation.y,
-                        graphPose.rotation.z,
-                        graphPose.rotation.w};
-                    const r3d::physics::Quat inversePhysicalRotation{
-                        -physicalBody.rotation.x,
-                        -physicalBody.rotation.y,
-                        -physicalBody.rotation.z,
-                        physicalBody.rotation.w};
-                    const auto graphFromPhysical = multiplyObserverQuat(
-                        graphRotation, inversePhysicalRotation);
-                    auto& rendered = raceRenderVehicles[index];
-                    rendered.body.position = {
-                        graphPose.position.x,
-                        graphPose.position.y,
-                        graphPose.position.z};
-                    rendered.body.rotation = graphRotation;
-                    for (auto& wheel : rendered.wheels)
-                    {
-                        const r3d::physics::Vec3 relative{
-                            wheel.position.x - physicalBody.position.x,
-                            wheel.position.y - physicalBody.position.y,
-                            wheel.position.z - physicalBody.position.z};
-                        const auto rotated = rotateObserverVector(
-                            relative, graphFromPhysical);
-                        wheel.position = {
-                            rendered.body.position.x + rotated.x,
-                            rendered.body.position.y + rotated.y,
-                            rendered.body.position.z + rotated.z};
-                        wheel.rotation = multiplyObserverQuat(
-                            graphFromPhysical, wheel.rotation);
-                    }
+                    raceRenderVehicles[index] =
+                        raceSession.racerFrameState(
+                            index, raceVehicles[index], frameSeconds);
                 }
             }
             for (std::size_t index = 0;

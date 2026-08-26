@@ -53,6 +53,13 @@ public:
         std::size_t animationBehaviorsProgressed = 0U;
     };
 
+    using PxSyncPose = GameObjectFrameSync::Pose;
+    struct PxSyncState
+    {
+        PxSyncPose body;
+        std::vector<PxSyncPose> wheels;
+    };
+
     GameCar();
     GameCar(const GameCar& other);
     GameCar& operator=(const GameCar& other) noexcept;
@@ -62,6 +69,13 @@ public:
 
     void Reset() noexcept;
     ProgressResult OnProgress(float deltaTime) noexcept;
+    // Windows GameCar::OnPxSync owns graph synchronization for both the
+    // car actor and every child CarWheel. The Jolt adapter supplies completed
+    // world poses; this source object returns the poses consumed by bgfx.
+    PxSyncState OnPxSync(
+        PxSyncPose physicalBody,
+        const std::vector<PxSyncPose>& physicalWheels,
+        float deltaTime) noexcept;
 
     void BindSoundMotor(
         const std::array<float, 2>& rpmVolumeRange,
@@ -185,6 +199,11 @@ public:
     ~CarWheel() override;
 
     void Configure(bool slipEffect, bool slipSound);
+    const GameObjectFrameSync::Pose& PxSyncWheel(
+        GameObjectFrameSync::Pose physicalBody,
+        GameObjectFrameSync::Pose graphBody,
+        GameObjectFrameSync::Pose physicalWheel) noexcept;
+    const GameObjectFrameSync::Pose& GetPxSyncPose() const noexcept;
     void SetContact(bool hasContact, float longitudinalSlip,
                     float lateralSlip) noexcept;
     GameObject::ProgressResult OnProgress(float deltaTime) noexcept;
@@ -202,6 +221,7 @@ private:
     bool hasContact_ = false;
     bool slipEffectEnabled_ = false;
     bool slipSoundEnabled_ = false;
+    GameObjectFrameSync::Pose pxSyncPose_;
 };
 
 class GusenizaAnim

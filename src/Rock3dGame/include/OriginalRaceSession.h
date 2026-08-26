@@ -464,9 +464,9 @@ public:
         source::GameObjectFrameSync::Pose pose,
         source::GameObjectFrameSync::Vector linearVelocity,
         bool awake) noexcept;
-    source::GameObjectFrameSync::Pose racerFramePose(
+    r3d::physics::VehicleState racerFrameState(
         std::size_t racer,
-        source::GameObjectFrameSync::Pose physicsPose,
+        const r3d::physics::VehicleState& physicsState,
         float deltaTime) noexcept;
     source::SoundMotorMix racerMotorMix(
         std::size_t racer) const noexcept;

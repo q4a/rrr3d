@@ -127,6 +127,35 @@ int main()
         copiedWheelCar.GetWheel(0U)->GetListenerCount() != 1U ||
         !copiedWheelCar.GetWheelSlipResult(0U).active)
         return 28;
+    constexpr float halfQuarterTurn = 0.70710678118654752440F;
+    const source::GameObjectFrameSync::Pose physicalBody{
+        {}, {0.0F, 0.0F, halfQuarterTurn, halfQuarterTurn}};
+    const source::GameObjectFrameSync::Pose graphBody{};
+    const source::GameObjectFrameSync::Pose physicalWheel{
+        {0.0F, 1.0F, 0.0F},
+        {0.0F, 0.0F, halfQuarterTurn, halfQuarterTurn}};
+    const auto& wheelPose = car.GetWheel(0U)->PxSyncWheel(
+        physicalBody, graphBody, physicalWheel);
+    if (std::abs(wheelPose.position.x - 1.0F) > 0.0001F ||
+        std::abs(wheelPose.position.y) > 0.0001F ||
+        std::abs(wheelPose.rotation.z) > 0.0001F ||
+        std::abs(wheelPose.rotation.w - 1.0F) > 0.0001F)
+        return 35;
+    car.GetFrameSync().Reset();
+    car.GetFrameSync().SetPosSync2(
+        {2.0F, 0.0F, 0.0F}, {1.0F, 0.0F, 0.0F});
+    const auto syncedCar = car.OnPxSync(
+        {}, {{{1.0F, 0.0F, 0.0F}, {}},
+             {{-1.0F, 0.0F, 0.0F}, {}}},
+        0.0F);
+    if (std::abs(syncedCar.body.position.x - 2.0F) > 0.0001F ||
+        syncedCar.wheels.size() != 2U ||
+        std::abs(syncedCar.wheels[0].position.x - 3.0F) > 0.0001F ||
+        std::abs(syncedCar.wheels[1].position.x - 1.0F) > 0.0001F)
+        return 36;
+    car.Reset();
+    if (car.GetFrameSync().HasActiveCorrection())
+        return 37;
     car.ReleaseWheels();
     if (car.GetWheelCount() != 0U ||
         !car.GetChildren().empty())

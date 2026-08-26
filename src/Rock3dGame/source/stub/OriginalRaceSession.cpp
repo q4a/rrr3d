@@ -2400,7 +2400,7 @@ OriginalRaceSession::synchronizeRacerNetworkPose(
 {
     if (racer >= racers_.size())
         return {};
-    return racers_[racer].GetFrameSync().OnNetworkPose(
+    return racers_[racer].gameCar.GetFrameSync().OnNetworkPose(
         physicsPosition, graphPosition, graphRotation,
         targetPosition, targetRotation);
 }
@@ -2413,20 +2413,63 @@ void OriginalRaceSession::synchronizeRacerPhysicsState(
 {
     if (racer >= racers_.size())
         return;
-    racers_[racer].GetFrameSync().OnPhysicsState(
+    racers_[racer].gameCar.GetFrameSync().OnPhysicsState(
         pose, linearVelocity, awake);
 }
 
-source::GameObjectFrameSync::Pose
-OriginalRaceSession::racerFramePose(
+physics::VehicleState OriginalRaceSession::racerFrameState(
     std::size_t racer,
-    source::GameObjectFrameSync::Pose physicsPose,
+    const physics::VehicleState& physicsState,
     float deltaTime) noexcept
 {
     if (racer >= racers_.size())
-        return physicsPose;
-    return racers_[racer].GetFrameSync().OnFrame(
-        physicsPose, deltaTime);
+        return physicsState;
+
+    const source::GameObjectFrameSync::Pose physicalBody{
+        {physicsState.body.position.x,
+         physicsState.body.position.y,
+         physicsState.body.position.z},
+        {physicsState.body.rotation.x,
+         physicsState.body.rotation.y,
+         physicsState.body.rotation.z,
+         physicsState.body.rotation.w}};
+    std::vector<source::GameObjectFrameSync::Pose> physicalWheels;
+    physicalWheels.reserve(physicsState.wheels.size());
+    for (const auto& wheel : physicsState.wheels)
+    {
+        physicalWheels.push_back({
+            {wheel.position.x, wheel.position.y, wheel.position.z},
+            {wheel.rotation.x, wheel.rotation.y,
+             wheel.rotation.z, wheel.rotation.w}});
+    }
+    const auto graph = racers_[racer].gameCar.OnPxSync(
+        physicalBody, physicalWheels, deltaTime);
+
+    physics::VehicleState state = physicsState;
+    state.body.position = {
+        graph.body.position.x,
+        graph.body.position.y,
+        graph.body.position.z};
+    state.body.rotation = {
+        graph.body.rotation.x,
+        graph.body.rotation.y,
+        graph.body.rotation.z,
+        graph.body.rotation.w};
+    const std::size_t wheelCount = std::min(
+        state.wheels.size(), graph.wheels.size());
+    for (std::size_t index = 0U; index < wheelCount; ++index)
+    {
+        state.wheels[index].position = {
+            graph.wheels[index].position.x,
+            graph.wheels[index].position.y,
+            graph.wheels[index].position.z};
+        state.wheels[index].rotation = {
+            graph.wheels[index].rotation.x,
+            graph.wheels[index].rotation.y,
+            graph.wheels[index].rotation.z,
+            graph.wheels[index].rotation.w};
+    }
+    return state;
 }
 
 source::SoundMotorMix OriginalRaceSession::racerMotorMix(

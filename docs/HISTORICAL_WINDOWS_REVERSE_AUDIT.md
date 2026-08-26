@@ -2674,6 +2674,26 @@ offline/network render path сначала читает source frame pose и з�
 network channels. Regression проверяет half-step position/quaternion/velocity,
 sleep freeze и wake; offline/network/physics и 360-frame Metal smoke прошли.
 
+### P2.107 — `GameCar::OnPxSync` и `CarWheel::PxSyncWheel` — выполнено
+
+В `eff9338:prog/Rock3dGame/source/game/GameCar.cpp` кадровая синхронизация
+кузова принадлежит `GameCar::OnPxSync`, который затем вызывает
+`CarWheel::PxSyncWheel` для каждого дочернего колеса. В порте вычисление
+`graphFromPhysical`, перенос мировых позиций колёс и quaternion composition
+находились прямо в `main_bgfx_original_menu.cpp`; кроме того, активный
+`GameObjectFrameSync` ошибочно принадлежал `Player`, а не его `GameCar`.
+
+Теперь `GameCar` владеет полным source PxSync-проходом, каждый `CarWheel`
+хранит вычисленную graph pose, а `OriginalRaceSession` только преобразует
+между source pose и backend-neutral `VehicleState`. Jolt по-прежнему
+поставляет физические world transforms вместо PhysX `NxWheelShape`, но
+иерархия и порядок source-вызовов восстановлены. Network/physics sync также
+маршрутизируются в `Player::gameCar`; `GameCar::Reset` очищает старую
+коррекцию при смерти/respawn. Ручная wheel-математика удалена из SDL/bgfx
+adapter. Regression покрывает body-relative position/rotation колеса,
+целый `GameCar::OnPxSync` и reset lifetime; offline/network/physics и
+360-frame Metal smoke прошли.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

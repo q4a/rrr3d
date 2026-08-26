@@ -6,6 +6,61 @@
 namespace r3d::game::originalrace::source
 {
 
+namespace
+{
+
+using SyncVector = GameObjectFrameSync::Vector;
+using SyncQuaternion = GameObjectFrameSync::Quaternion;
+
+SyncQuaternion normalizedSync(SyncQuaternion value) noexcept
+{
+    const float length = std::sqrt(
+        value.x * value.x + value.y * value.y +
+        value.z * value.z + value.w * value.w);
+    if (length <= 0.000001F)
+        return {};
+    value.x /= length;
+    value.y /= length;
+    value.z /= length;
+    value.w /= length;
+    return value;
+}
+
+SyncQuaternion multiplySync(
+    SyncQuaternion left, SyncQuaternion right) noexcept
+{
+    return normalizedSync({
+        left.w * right.x + left.x * right.w +
+            left.y * right.z - left.z * right.y,
+        left.w * right.y - left.x * right.z +
+            left.y * right.w + left.z * right.x,
+        left.w * right.z + left.x * right.y -
+            left.y * right.x + left.z * right.w,
+        left.w * right.w - left.x * right.x -
+            left.y * right.y - left.z * right.z});
+}
+
+SyncVector rotateSync(
+    SyncVector value, SyncQuaternion rotation) noexcept
+{
+    rotation = normalizedSync(rotation);
+    const SyncVector axis{rotation.x, rotation.y, rotation.z};
+    const SyncVector cross{
+        axis.y * value.z - axis.z * value.y,
+        axis.z * value.x - axis.x * value.z,
+        axis.x * value.y - axis.y * value.x};
+    const SyncVector cross2{
+        axis.y * cross.z - axis.z * cross.y,
+        axis.z * cross.x - axis.x * cross.z,
+        axis.x * cross.y - axis.y * cross.x};
+    return {
+        value.x + 2.0F * (rotation.w * cross.x + cross2.x),
+        value.y + 2.0F * (rotation.w * cross.y + cross2.y),
+        value.z + 2.0F * (rotation.w * cross.z + cross2.z)};
+}
+
+} // namespace
+
 class GameCar::SoundMotorBehavior final : public Behavior
 {
 public:
@@ -121,6 +176,7 @@ void GameCar::Reset() noexcept
     springTime_ = 0.0F;
     mineTime_ = 0.0F;
     leadWheelSpeed_ = 0.0F;
+    GetFrameSync().Reset();
     if (soundMotor_ != nullptr)
         soundMotor_->Reset();
     soundMotorMix_ = {};
@@ -170,6 +226,26 @@ GameCar::ProgressResult GameCar::OnProgress(float deltaTime) noexcept
         result.springReleased = springTime_ == 0.0F;
     }
     return result;
+}
+
+GameCar::PxSyncState GameCar::OnPxSync(
+    PxSyncPose physicalBody,
+    const std::vector<PxSyncPose>& physicalWheels,
+    float deltaTime) noexcept
+{
+    PxSyncState state;
+    state.body = GetFrameSync().OnFrame(physicalBody, deltaTime);
+    const std::size_t count = std::min(
+        wheels_.size(), physicalWheels.size());
+    state.wheels.reserve(count);
+    for (std::size_t index = 0U; index < count; ++index)
+    {
+        if (wheels_[index] == nullptr)
+            continue;
+        state.wheels.push_back(wheels_[index]->PxSyncWheel(
+            physicalBody, state.body, physicalWheels[index]));
+    }
+    return state;
 }
 
 void GameCar::BindSoundMotor(
@@ -552,6 +628,7 @@ CarWheel& CarWheel::operator=(const CarWheel& other) noexcept
     hasContact_ = other.hasContact_;
     slipEffectEnabled_ = other.slipEffectEnabled_;
     slipSoundEnabled_ = other.slipSoundEnabled_;
+    pxSyncPose_ = other.pxSyncPose_;
     if (slipEffectEnabled_)
     {
         GetBehaviors().Add<WheelSlipBehavior>(
@@ -583,11 +660,43 @@ void CarWheel::Configure(bool slipEffect, bool slipSound)
     lateralSlip_ = 0.0F;
     slipEffectEnabled_ = slipEffect;
     slipSoundEnabled_ = slipEffect && slipSound;
+    pxSyncPose_ = {};
     if (slipEffectEnabled_)
     {
         GetBehaviors().Add<WheelSlipBehavior>(
             BehaviorType::PxWheelSlipEffect, this);
     }
+}
+
+const GameObjectFrameSync::Pose& CarWheel::PxSyncWheel(
+    GameObjectFrameSync::Pose physicalBody,
+    GameObjectFrameSync::Pose graphBody,
+    GameObjectFrameSync::Pose physicalWheel) noexcept
+{
+    const SyncQuaternion physicalRotation =
+        normalizedSync(physicalBody.rotation);
+    const SyncQuaternion graphFromPhysical = multiplySync(
+        graphBody.rotation,
+        {-physicalRotation.x, -physicalRotation.y,
+         -physicalRotation.z, physicalRotation.w});
+    const SyncVector relative{
+        physicalWheel.position.x - physicalBody.position.x,
+        physicalWheel.position.y - physicalBody.position.y,
+        physicalWheel.position.z - physicalBody.position.z};
+    const SyncVector rotated = rotateSync(
+        relative, graphFromPhysical);
+    pxSyncPose_.position = {
+        graphBody.position.x + rotated.x,
+        graphBody.position.y + rotated.y,
+        graphBody.position.z + rotated.z};
+    pxSyncPose_.rotation = multiplySync(
+        graphFromPhysical, physicalWheel.rotation);
+    return pxSyncPose_;
+}
+
+const GameObjectFrameSync::Pose& CarWheel::GetPxSyncPose() const noexcept
+{
+    return pxSyncPose_;
 }
 
 void CarWheel::SetContact(
