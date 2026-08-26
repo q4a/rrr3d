@@ -1232,6 +1232,11 @@ Proj::ProgressRoute Proj::RouteProgress() const noexcept
     return ProgressRouteFor(description_.type);
 }
 
+Proj::PreparationRoute Proj::RoutePreparation() const noexcept
+{
+    return PreparationRouteFor(description_.type);
+}
+
 float Proj::PrepareMaximumLife(
     float speed, float maximumDistance,
     float sampledMinimumLife) noexcept

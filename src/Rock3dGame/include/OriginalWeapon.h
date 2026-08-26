@@ -505,6 +505,7 @@ public:
         DamageType damageType = DamageType::Simple) noexcept;
     ContactRoute RouteContact(bool targetDestroyed) const noexcept;
     ProgressRoute RouteProgress() const noexcept;
+    PreparationRoute RoutePreparation() const noexcept;
     void ProgressDrobilka(float deltaTime) noexcept;
 
     Proj();

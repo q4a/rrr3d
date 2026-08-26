@@ -1519,6 +1519,11 @@ int main()
         rocketProjectile.RouteContact(true).handler !=
             source::Proj::ContactHandler::None)
         return 130;
+    if (rocketProjectile.RoutePreparation().handler !=
+            source::Proj::PrepareHandler::Rocket ||
+        !rocketProjectile.RoutePreparation().rocketPrepare ||
+        rocketProjectile.RoutePreparation().attached)
+        return 149;
     const auto rocketProgress = source::Proj::ProgressRouteFor(0U);
     const auto torpedaProgress = source::Proj::ProgressRouteFor(2U);
     const auto laserProgress = source::Proj::ProgressRouteFor(3U);

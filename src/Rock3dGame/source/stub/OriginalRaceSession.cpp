@@ -5969,20 +5969,15 @@ void OriginalRaceSession::updateGameplay(
         const auto shotDescription = liveWeapon->GetDescHandle();
         const auto& itemProjectiles =
             shotDescription->projectiles;
-        const bool projectileCreated = !itemProjectiles.empty();
         const int newCharge =
             networkReplicated
                 ? static_cast<int>(item->GetCurCharge()) - 1
                 : -1;
-        if (!runtime.Shot(
-                *item, projectileCreated, false,
-                replicatedProjectileId, newCharge))
-            return;
         const std::uint32_t networkProjectileId =
             networkReplicated && replicatedProjectileId != 0U
                 ? replicatedProjectileId
                 : runtime.GetNextBonusProjectileId();
-        runtime.SyncSelectedWeapon(race_.weapons.size());
+        bool shotCommitted = false;
         const Vec3 eventOrigin = weaponWorldTransform(
             shooter, firedWeapon, firedSlot).position;
         std::size_t target = racers_.size();
@@ -6008,19 +6003,9 @@ void OriginalRaceSession::updateGameplay(
             if (replicatedOrigin != nullptr)
                 shotTransform.position = *replicatedOrigin;
             const Vec3 projectileOrigin = shotTransform.position;
-            if (networkCoordinates.empty())
-                networkCoordinates.push_back(projectileOrigin);
             const Vec3 sourceDirection = normalized3(
                 rotate(shotTransform.rotation,
                        {1.0F, 0.0F, 0.0F}));
-            // Proj::CalcSpeed levels only projectiles prepared through
-            // RocketPrepare. Laser/FrostRay/Drobilka keep the weapon actor's
-            // full 3D direction; applying CalcSpeed to them changed both ray
-            // hits and visible beam alignment on slopes.
-            const auto projectileRules =
-                source::Proj::PreparationRouteFor(projectile.type);
-            const bool rocketPrepared =
-                projectileRules.rocketPrepare;
             Vec3 launchDirection = sourceDirection;
             // HumanPlayer::Shot(WeaponType) asks Player for the closest
             // enemy in pi/5.5, except sphereGun which passes viewAngle=0.
@@ -6039,13 +6024,62 @@ void OriginalRaceSession::updateGameplay(
                 sourceTarget =
                     &racerMapObjects_[homingTarget]->GetGameObj();
             }
+
+            ProjectileRuntime runtimeProjectile;
+            runtimeProjectile.owner = shooter;
+            runtimeProjectile.damageOwner = shooter;
+            runtimeProjectile.weapon = firedWeapon;
+            runtimeProjectile.projectile = backendProjectileIndex;
+            runtimeProjectile.weaponDescription = shotDescription;
+            runtimeProjectile.descriptionProjectile = projectileIndex;
+            runtimeProjectile.mountSlot = firedSlot;
+            runtimeProjectile.position = projectileOrigin;
+            runtimeProjectile.direction = sourceDirection;
+            runtimeProjectile.rotation = shotTransform.rotation;
+            runtimeProjectile.speed = projectile.speed;
+            runtimeProjectile.velocity =
+                multiply(sourceDirection, projectile.speed);
+            runtimeProjectile.maximumDistance =
+                projectile.maximumDistance > 0.0F
+                    ? projectile.maximumDistance
+                    : 100.0F;
+            runtimeProjectile.damage = projectile.damage;
+            runtimeProjectile.angularSpeed = projectile.angularSpeed;
+            const float sampledMinimumLife = sampleSourceRange(
+                projectile.minimumLife, projectile.maximumLife);
+            runtimeProjectile.maximumLifeSeconds = sampledMinimumLife;
+            runtimeProjectile.lifeSeconds = sampledMinimumLife;
+            configureProjectileSourceObject(
+                logic_, runtimeProjectile, projectile, liveWeapon,
+                sourceTarget, shooter);
+            if (runtimeProjectile.sourceObject == nullptr)
+                continue;
+            if (!shotCommitted)
+            {
+                if (!runtime.Shot(
+                        *item, true, false,
+                        replicatedProjectileId, newCharge))
+                {
+                    runtimeProjectile.sourceObject->Death();
+                    return;
+                }
+                shotCommitted = true;
+                runtime.SyncSelectedWeapon(race_.weapons.size());
+            }
+            if (networkCoordinates.empty())
+                networkCoordinates.push_back(projectileOrigin);
+
+            // The concrete projectile has now completed PrepareProj. Its
+            // copied descriptor, rather than the session definition, owns
+            // the backend route for the rest of this transaction.
+            const auto projectileRules =
+                runtimeProjectile.sourceObject->RoutePreparation();
+            const bool rocketPrepared = projectileRules.rocketPrepare;
             const bool rayProjectile = projectileRules.ray;
             const bool attachedProjectile =
                 projectileRules.attached;
             const float projectileDistance =
-                projectile.maximumDistance > 0.0F
-                    ? projectile.maximumDistance
-                    : 100.0F;
+                runtimeProjectile.maximumDistance;
             float targetDistance = projectileDistance;
             std::size_t projectileTarget = racers_.size();
             std::size_t projectileDecoration =
@@ -6074,18 +6108,6 @@ void OriginalRaceSession::updateGameplay(
                         : projectileDistance));
             if (attachedProjectile)
             {
-                ProjectileRuntime runtimeProjectile;
-                runtimeProjectile.owner = shooter;
-                runtimeProjectile.damageOwner = shooter;
-                runtimeProjectile.weapon = firedWeapon;
-                runtimeProjectile.projectile = backendProjectileIndex;
-                runtimeProjectile.weaponDescription = shotDescription;
-                runtimeProjectile.descriptionProjectile =
-                    projectileIndex;
-                runtimeProjectile.mountSlot = firedSlot;
-                runtimeProjectile.position = projectileOrigin;
-                runtimeProjectile.direction = sourceDirection;
-                runtimeProjectile.rotation = shotTransform.rotation;
                 if (projectile.type == 14U)
                 {
                     // FireUpdate copies the mounted weapon actor velocity on
@@ -6093,21 +6115,7 @@ void OriginalRaceSession::updateGameplay(
                     runtimeProjectile.velocity =
                         vehicles[shooter].linearVelocity;
                 }
-                runtimeProjectile.maximumDistance =
-                    projectileDistance;
-                runtimeProjectile.damage = projectile.damage;
-                runtimeProjectile.angularSpeed =
-                    projectile.angularSpeed;
-                const float sampledMinimumLife = sampleSourceRange(
-                    projectile.minimumLife,
-                    projectile.maximumLife);
-                runtimeProjectile.maximumLifeSeconds =
-                    sampledMinimumLife;
-                runtimeProjectile.lifeSeconds = sampledMinimumLife;
                 runtimeProjectile.attached = true;
-                configureProjectileSourceObject(
-                    logic_, runtimeProjectile, projectile, liveWeapon,
-                    sourceTarget, shooter);
                 runtimeProjectile.maximumLifeSeconds =
                     runtimeProjectile.sourceObject->PrepareMaximumLife(
                         sampledMinimumLife);
@@ -6117,37 +6125,9 @@ void OriginalRaceSession::updateGameplay(
             }
             else if (!rayProjectile)
             {
-                float speed = projectile.speed;
-                ProjectileRuntime runtimeProjectile;
-                runtimeProjectile.owner = shooter;
-                runtimeProjectile.damageOwner = shooter;
-                runtimeProjectile.weapon = firedWeapon;
-                runtimeProjectile.projectile = backendProjectileIndex;
-                runtimeProjectile.weaponDescription = shotDescription;
-                runtimeProjectile.descriptionProjectile =
-                    projectileIndex;
-                runtimeProjectile.mountSlot = firedSlot;
-                runtimeProjectile.position = projectileOrigin;
-                runtimeProjectile.direction = launchDirection;
-                runtimeProjectile.rotation = shotTransform.rotation;
-                runtimeProjectile.speed = speed;
-                runtimeProjectile.velocity =
-                    multiply(launchDirection, speed);
-                runtimeProjectile.maximumDistance =
-                    projectileDistance;
-                runtimeProjectile.damage = projectile.damage;
-                runtimeProjectile.angularSpeed =
-                    projectile.angularSpeed;
-                const float sampledMinimumLife = sampleSourceRange(
-                    projectile.minimumLife, projectile.maximumLife);
-                runtimeProjectile.maximumLifeSeconds =
-                    sampledMinimumLife;
-                runtimeProjectile.lifeSeconds = sampledMinimumLife;
+                float speed = runtimeProjectile.speed;
                 runtimeProjectile.ballistic =
                     projectileRules.ballistic;
-                configureProjectileSourceObject(
-                    logic_, runtimeProjectile, projectile, liveWeapon,
-                    sourceTarget, shooter);
                 if (rocketPrepared)
                 {
                     const auto sourceLaunch =
@@ -6183,10 +6163,11 @@ void OriginalRaceSession::updateGameplay(
             else if (projectileTarget < racers_.size())
             {
                 target = projectileTarget;
-                applyRacerDamage(
-                    target, shooter, end,
+                applyProjectileDamage(
+                    *runtimeProjectile.sourceObject, target, end,
                     std::max(projectile.damage, 0.0F),
-                    source::Proj::DamageTypeFor(projectile.type));
+                    runtimeProjectile.sourceObject->RouteContact(false)
+                        .damageType);
             }
             else if (projectileDecoration < decorationActive_.size())
             {
@@ -6194,16 +6175,8 @@ void OriginalRaceSession::updateGameplay(
                     projectileDecoration,
                     std::max(projectile.damage, 0.0F), shooter);
             }
-            if (rayProjectile && liveWeapon != nullptr)
-            {
-                // The source ray Proj completes in its first update.  The
-                // Jolt adapter resolves it synchronously, but the successful
-                // PrepareProj callback still belongs to Weapon::CreateShot.
-                liveWeapon->OnProjectilePrepared(
-                    {projectile.position.x,
-                     projectile.position.y,
-                     projectile.position.z});
-            }
+            if (rayProjectile && !attachedProjectile)
+                runtimeProjectile.sourceObject->Death();
             RaceEffect fired;
             fired.kind = RaceEventKind::WeaponFired;
             fired.origin = projectileOrigin;
@@ -6222,6 +6195,8 @@ void OriginalRaceSession::updateGameplay(
                     shooter, firedWeapon, firedSlot),
                 projectile);
         }
+        if (!shotCommitted)
+            return;
         RaceEvent shotEvent;
         shotEvent.kind = RaceEventKind::WeaponFired;
         shotEvent.racer = shooter;

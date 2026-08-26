@@ -3636,6 +3636,25 @@ state. Runtime mines и обе фазы map hazard/network contact вызыва�
 Прямых `ContactRouteFor` вызовов в race session больше нет. Regression
 проверяет различие Maslo и Mine при mine-lock и выключенном mine bug.
 
+### P2.154 — единая concrete primary-shot transaction — выполнено
+
+Primary fire сначала списывал charge по одному лишь признаку непустого списка
+descriptor, затем session выбирала `PreparationRouteFor(type)` и только внутри
+отдельных attached/free ветвей создавала настоящий `Proj`. Это инвертировало
+Windows-порядок `Weapon::CreateShot -> PrepareProj -> WeaponItem::Shot` и
+оставляло отдельную ray-ветвь со вторым ручным `OnProjectilePrepared`; для
+Laser/Frost внутренний ShotEffect получал два callback на один снаряд.
+
+Теперь каждый primary descriptor сначала проходит единый concrete
+`Weapon::CreateShot` и регистрацию в `Logic`. Только первый успешно
+подготовленный `Proj` коммитит charge, а каждый backend runtime читает
+attached/ray/rocket/homing/ballistic route из собственного `_desc` через
+`RoutePreparation`. Общая подготовка position, rotation, lifetime, target,
+death behavior и source ownership выполняется до Jolt-разветвления. Удалены
+последние статические `PreparationRouteFor`/`DamageTypeFor` обращения primary
+session и повторный ray callback; гипотетический immediate ray также получает
+source damage attribution и корректно умирает через `Logic`.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
