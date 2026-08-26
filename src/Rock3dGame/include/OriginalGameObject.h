@@ -625,6 +625,37 @@ private:
     bool targetChild_ = false;
 };
 
+// Concrete type-6 listener used by projectile and vehicle GameObjects. The
+// backend supplies only the two relationships which depended on PhysX actor
+// identity; the spawn decision itself is produced by the Death callback.
+class DeathEffectBehavior final : public Behavior
+{
+public:
+    explicit DeathEffectBehavior(
+        Behaviors* owner,
+        bool effectPhysicsIgnoreSenderCar = false,
+        bool targetChild = false) noexcept;
+
+    void OnProgress(float deltaTime) noexcept override;
+    void OnDeath(GameObject& sender, DamageType damageType,
+                 GameObject* target) noexcept override;
+
+    void Reset(bool effectPhysicsIgnoreSenderCar = false,
+               bool targetChild = false) noexcept;
+    void SetSpawnContext(bool logicAvailable,
+                         bool senderIsWeaponProjectile) noexcept;
+    DeathEffect::SpawnResult ConsumeSpawnResult() noexcept;
+    bool IsEffectMaked() const noexcept;
+    bool GetEffectPxIgnoreSenderCar() const noexcept;
+    bool GetTargetChild() const noexcept;
+
+private:
+    DeathEffect state_;
+    DeathEffect::SpawnResult pending_;
+    bool logicAvailable_ = false;
+    bool senderIsWeaponProjectile_ = false;
+};
+
 class LifeEffect : public EventEffect
 {
 public:

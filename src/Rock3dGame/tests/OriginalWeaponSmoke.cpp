@@ -76,6 +76,31 @@ int main()
             std::array<float, 3U>{1.0F, 2.0F, 3.0F})
         return 6;
 
+    source::Proj projectileObject;
+    projectileObject.ConfigureDeathEffect(true, true);
+    auto* projectileDeathBehavior =
+        projectileObject.GetDeathEffectBehavior();
+    source::GameObject projectileTarget;
+    projectileTarget.ResetGameObject(100.0F);
+    if (projectileDeathBehavior == nullptr ||
+        projectileDeathBehavior->GetGameObj() != &projectileObject ||
+        projectileObject.GetBehaviors().Find(
+            source::BehaviorType::DeathEffect) !=
+            projectileDeathBehavior ||
+        projectileObject.GetListenerCount() != 1U)
+        return 6;
+    const auto projectileDeath =
+        projectileObject.DestroyWithEffect(
+            &projectileTarget, true, true);
+    if (!projectileObject.destroyed ||
+        !projectileDeath.createEffect ||
+        !projectileDeath.targetChild ||
+        !projectileDeath.ignoreSenderCar ||
+        !projectileDeathBehavior->IsEffectMaked() ||
+        projectileObject.DestroyWithEffect(
+            &projectileTarget, true, true).createEffect)
+        return 6;
+
     source::WeaponRack rack;
     std::array<r3d::game::originalrace::ProjectileDefinition, 2U>
         itemProjectiles{};

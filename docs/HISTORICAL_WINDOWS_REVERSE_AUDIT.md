@@ -2566,6 +2566,25 @@ count. Reset сохраняет description, но очищает timer/object/ef
 dispatch, точную позицию, copy rebinding и прежние charge/readiness правила;
 offline/network/physics/Metal проверки прошли.
 
+### P2.101 — `Proj : GameObject` и concrete `DeathEffect` — выполнено
+
+Fast/attached projectile runtime хранил backend-neutral `DeathEffect` как
+обычное поле и непосредственно вызывал `OnDeath(...)` перед созданием impact.
+Хотя флаги `targetChild`/`effectPxIgnoreSenderCar` учитывались, отсутствовали
+исходные `Proj` owner, serialized type 6, listener dispatch и базовый progress.
+
+`source::Proj` теперь наследует `GameObject` (его уже перенесённые type rules
+остались теми же static helpers) и создаёт concrete `DeathEffectBehavior` для
+projectile records, где такой эффект действительно сериализован. Каждый live
+`ProjectileRuntime` владеет стабильным Proj object, прогрессирует его один раз
+за session tick и завершает через `GameObject::Death(target)`. Behavior получает
+реальный target car GameObject, формирует единственный spawn-plan в listener
+callback и сохраняет ignore-sender/target-child семантику; прежний прямой
+session call удалён. Подготовка всех free/attached/hyper projectile путей
+создаёт этот graph до регистрации runtime. Regression проверяет type/listener,
+target identity, single-spawn и flags; nested death projectile, disconnect,
+network, physics и Metal smoke прошли.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

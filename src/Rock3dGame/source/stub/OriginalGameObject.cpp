@@ -1449,6 +1449,67 @@ void DeathEffect::SetTargetChild(bool value) noexcept
     targetChild_ = value;
 }
 
+DeathEffectBehavior::DeathEffectBehavior(
+    Behaviors* owner, bool effectPhysicsIgnoreSenderCar,
+    bool targetChild) noexcept
+    : Behavior(owner),
+      state_(effectPhysicsIgnoreSenderCar, targetChild)
+{
+}
+
+void DeathEffectBehavior::OnProgress(float) noexcept {}
+
+void DeathEffectBehavior::OnDeath(
+    GameObject&, DamageType, GameObject* target) noexcept
+{
+    const auto result = state_.OnDeath(
+        logicAvailable_, target != nullptr,
+        senderIsWeaponProjectile_);
+    if (result.createEffect)
+        pending_ = result;
+}
+
+void DeathEffectBehavior::Reset(
+    bool effectPhysicsIgnoreSenderCar,
+    bool targetChild) noexcept
+{
+    state_.Reset(effectPhysicsIgnoreSenderCar, targetChild);
+    pending_ = {};
+    logicAvailable_ = false;
+    senderIsWeaponProjectile_ = false;
+}
+
+void DeathEffectBehavior::SetSpawnContext(
+    bool logicAvailable,
+    bool senderIsWeaponProjectile) noexcept
+{
+    logicAvailable_ = logicAvailable;
+    senderIsWeaponProjectile_ = senderIsWeaponProjectile;
+}
+
+DeathEffect::SpawnResult
+DeathEffectBehavior::ConsumeSpawnResult() noexcept
+{
+    const auto result = pending_;
+    pending_ = {};
+    return result;
+}
+
+bool DeathEffectBehavior::IsEffectMaked() const noexcept
+{
+    return state_.IsEffectMaked();
+}
+
+bool DeathEffectBehavior::GetEffectPxIgnoreSenderCar() const noexcept
+{
+    return state_.GetEffectPxIgnoreSenderCar();
+}
+
+bool DeathEffectBehavior::GetTargetChild() const noexcept
+{
+    return state_.GetTargetChild();
+}
+
 void LifeEffect::Reset() noexcept
 {
     EventEffect::Reset();

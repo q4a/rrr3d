@@ -48,6 +48,27 @@ const ProjectileDefinition* runtimeProjectileDefinition(
     return &race.weapons[mine.weapon].projectiles[mine.projectile];
 }
 
+bool hasDeathEffect(const ProjectileDefinition& definition) noexcept
+{
+    return !definition.deathEffect.visual.record.empty() ||
+           !definition.deathEffect.visual.visualNodes.empty() ||
+           !definition.deathEffect.visual.particleEmitters.empty() ||
+           !definition.deathEffect.visual.soundPaths.empty();
+}
+
+void configureProjectileSourceObject(
+    ProjectileRuntime& projectile,
+    const ProjectileDefinition& definition)
+{
+    projectile.sourceObject = std::make_shared<source::Proj>();
+    if (hasDeathEffect(definition))
+    {
+        projectile.sourceObject->ConfigureDeathEffect(
+            definition.deathEffect.effectPhysicsIgnoreSenderCar,
+            definition.deathEffect.targetChild);
+    }
+}
+
 Vec3 subtract(Vec3 first, Vec3 second)
 {
     return {first.x - second.x, first.y - second.y, first.z - second.z};
@@ -3563,16 +3584,21 @@ void OriginalRaceSession::updateGameplay(
             if (definition == nullptr ||
                 projectile.weapon >= race_.weapons.size())
                 return;
-            const bool hasDeathEffect =
-                !definition->deathEffect.visual.record.empty() ||
-                !definition->deathEffect.visual.visualNodes.empty() ||
-                !definition->deathEffect.visual.particleEmitters.empty() ||
-                !definition->deathEffect.visual.soundPaths.empty();
-            const auto deathPlan = hasDeathEffect
-                ? projectile.deathEffect.OnDeath(
-                      true, targetRacer < vehicles.size(),
+            const bool hasSourceDeathEffect = hasDeathEffect(*definition);
+            source::GameObject* targetObject = nullptr;
+            if (targetRacer < racerMapObjects_.size() &&
+                racerMapObjects_[targetRacer] != nullptr)
+            {
+                targetObject =
+                    &racerMapObjects_[targetRacer]->GetGameObj();
+            }
+            const auto deathPlan = hasSourceDeathEffect
+                ? projectile.sourceObject->DestroyWithEffect(
+                      targetObject, true,
                       projectile.damageOwner < vehicles.size())
                 : source::DeathEffect::SpawnResult{};
+            if (!hasSourceDeathEffect)
+                projectile.sourceObject->Death();
             auto addVisual =
                 [&](const ObjectDefinition& visual,
                     std::uint8_t variant, Vec3 offset = {},
@@ -3678,6 +3704,7 @@ void OriginalRaceSession::updateGameplay(
     {
         if (!projectile.active)
             continue;
+        projectile.sourceObject->OnProgress(seconds);
         const auto* runtimeDefinition = runtimeProjectileDefinition(
             race_, projectile);
         if (runtimeDefinition == nullptr)
@@ -4758,10 +4785,9 @@ void OriginalRaceSession::updateGameplay(
             runtimeProjectile.maximumLifeSeconds = duration;
             runtimeProjectile.attached = true;
             runtimeProjectile.directWeapon = true;
-            runtimeProjectile.deathEffect.Reset(
-                projectile.deathEffect.effectPhysicsIgnoreSenderCar,
-                projectile.deathEffect.targetChild);
-            projectiles_.push_back(runtimeProjectile);
+            configureProjectileSourceObject(
+                runtimeProjectile, projectile);
+            projectiles_.push_back(std::move(runtimeProjectile));
         }
         RaceEvent hyperEvent;
         hyperEvent.kind = RaceEventKind::HyperActivated;
@@ -5651,10 +5677,9 @@ void OriginalRaceSession::updateGameplay(
                 runtimeProjectile.lifeSeconds =
                     runtimeProjectile.maximumLifeSeconds;
                 runtimeProjectile.attached = true;
-                runtimeProjectile.deathEffect.Reset(
-                    projectile.deathEffect.effectPhysicsIgnoreSenderCar,
-                    projectile.deathEffect.targetChild);
-                projectiles_.push_back(runtimeProjectile);
+                configureProjectileSourceObject(
+                    runtimeProjectile, projectile);
+                projectiles_.push_back(std::move(runtimeProjectile));
             }
             else if (!rayProjectile)
             {
@@ -5692,15 +5717,14 @@ void OriginalRaceSession::updateGameplay(
                     runtimeProjectile.maximumLifeSeconds;
                 runtimeProjectile.ballistic =
                     projectileRules.ballistic;
-                runtimeProjectile.deathEffect.Reset(
-                    projectile.deathEffect.effectPhysicsIgnoreSenderCar,
-                    projectile.deathEffect.targetChild);
+                configureProjectileSourceObject(
+                    runtimeProjectile, projectile);
                 if (projectileRules.homing)
                 {
                     runtimeProjectile.homingDelay = 0.4F;
                     runtimeProjectile.target = homingTarget;
                 }
-                projectiles_.push_back(runtimeProjectile);
+                projectiles_.push_back(std::move(runtimeProjectile));
                 end = add(
                     projectileOrigin,
                     multiply(

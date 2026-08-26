@@ -127,6 +127,47 @@ Proj::Quat slerp(
 
 } // namespace
 
+Proj::Proj()
+{
+    ResetGameObject(-1.0F);
+}
+
+void Proj::ConfigureDeathEffect(
+    bool effectPhysicsIgnoreSenderCar,
+    bool targetChild) noexcept
+{
+    GetBehaviors().Clear();
+    ResetGameObject(-1.0F);
+    deathEffect_ = &GetBehaviors().Add<DeathEffectBehavior>(
+        BehaviorType::DeathEffect,
+        effectPhysicsIgnoreSenderCar, targetChild);
+}
+
+DeathEffect::SpawnResult Proj::DestroyWithEffect(
+    GameObject* target, bool logicAvailable,
+    bool senderIsWeaponProjectile) noexcept
+{
+    if (deathEffect_ == nullptr)
+    {
+        Death(DamageType::Simple, target);
+        return {};
+    }
+    deathEffect_->SetSpawnContext(
+        logicAvailable, senderIsWeaponProjectile);
+    Death(DamageType::Simple, target);
+    return deathEffect_->ConsumeSpawnResult();
+}
+
+DeathEffectBehavior* Proj::GetDeathEffectBehavior() noexcept
+{
+    return deathEffect_;
+}
+
+const DeathEffectBehavior* Proj::GetDeathEffectBehavior() const noexcept
+{
+    return deathEffect_;
+}
+
 Proj::ContactResult Proj::SpeedArrowContact(
     Vec3 worldDirection, float damage) noexcept
 {

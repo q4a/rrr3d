@@ -16,7 +16,7 @@ namespace r3d::game::originalrace::source
 
 // Gameplay-owned contact rules from Proj. PhysX actor lookup and the final
 // Jolt velocity/momentum writes remain backend adapters.
-class Proj
+class Proj : public GameObject
 {
 public:
     struct Vec3
@@ -219,6 +219,20 @@ public:
     static BonusContactResult BonusContact(
         std::uint32_t type, bool hasTarget, float damage,
         float targetMaximumLife) noexcept;
+
+    Proj();
+    ~Proj() override = default;
+    void ConfigureDeathEffect(
+        bool effectPhysicsIgnoreSenderCar,
+        bool targetChild) noexcept;
+    DeathEffect::SpawnResult DestroyWithEffect(
+        GameObject* target, bool logicAvailable,
+        bool senderIsWeaponProjectile) noexcept;
+    DeathEffectBehavior* GetDeathEffectBehavior() noexcept;
+    const DeathEffectBehavior* GetDeathEffectBehavior() const noexcept;
+
+private:
+    DeathEffectBehavior* deathEffect_ = nullptr;
 };
 
 // MapObj.cpp registers gotProj as AutoProj.  Unlike a weapon shot, this

@@ -369,9 +369,11 @@ struct ProjectileRuntime
     // after the projectile has separated once instead of ignoring the owner
     // for its entire lifetime.
     bool ownerCollisionArmed = false;
-    // The source behavior belongs to this concrete projectile actor.  It
-    // permits one distinguished death effect and carries target/pair flags.
-    source::DeathEffect deathEffect;
+    // Proj is a source GameObject. Stable shared storage survives the local
+    // construction-to-vector transfer while preserving its concrete type-6
+    // DeathEffect listener identity.
+    std::shared_ptr<source::Proj> sourceObject =
+        std::make_shared<source::Proj>();
     bool active = true;
 };
 
