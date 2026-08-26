@@ -699,7 +699,11 @@ void Player::CreateCar(bool newRace) noexcept
                  carRecord_->physics.steerAngle,
                  carRecord_->physics.steerSpeed,
                  carRecord_->physics.steerRotation,
-                 carRecord_->physics.gravitySteering},
+                 carRecord_->physics.gravitySteering,
+                 carRecord_->physics.steeringControl,
+                 carRecord_->physics.clutchImmunity,
+                 carRecord_->physics.tireSpring,
+                 carRecord_->disableColor},
                 wheelDynamics);
             gameCar.BindAnimationChildren(
                 !carRecord_->trackVisuals.empty(),

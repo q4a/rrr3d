@@ -14,8 +14,8 @@ int main()
         car.GetListenerCount() != 0U)
         return 1;
 
-    if (!car.LockClutch(1.5F, false) ||
-        car.LockClutch(-2.0F, false) ||
+    if (!car.LockClutch(1.5F) ||
+        car.LockClutch(-2.0F) ||
         !car.IsClutchLocked() ||
         car.ConsumeClutchStrength() != 1.5F ||
         car.ConsumeClutchStrength() != 0.0F)
@@ -26,8 +26,10 @@ int main()
     const auto clutchRelease = car.OnFixedStepDrive(0.38F, {}, {});
     if (!clutchRelease.clutchReleased || car.IsClutchLocked())
         return 3;
-    if (car.LockClutch(1.0F, true))
+    car.SetClutchImmunity(true);
+    if (car.LockClutch(1.0F))
         return 4;
+    car.SetClutchImmunity(false);
 
     car.LockSpring();
     car.LockMine(0.4F);
@@ -102,6 +104,14 @@ int main()
 
     car.ConfigureMotor({7500.0F, 3.42F, 7000.0F, 1000.0F,
                         2000.0F, 0.805F, 400.0F, 10.0F, true});
+    if (car.GetMotorDesc().maximumTorque != 2000.0F ||
+        car.GetMaxSpeed() != 10.0F)
+        return 57;
+    car.SetCurGear(99);
+    if (car.GetCurGear() != 5 || car.GearUp() != 5 ||
+        car.GearDown() != 4)
+        return 58;
+    car.SetCurGear(-99);
     car.BindSoundMotor(volumeRange, frequencyRange);
     const auto firstGear = car.OnFixedStepDrive(
         1.0F / 120.0F, {1.0F, 0.0F, 0.0F, 0.0F},
@@ -115,6 +125,8 @@ int main()
             0.01F ||
         firstGear.brakeTorque != 400.0F)
         return 38;
+    if (car.GearUp() != 2 || car.GearDown() != 1)
+        return 59;
     const auto shifted = car.OnFixedStepDrive(
         1.0F / 120.0F, {1.0F, 0.0F, 0.0F, 0.0F},
         {5.0F, 5.0F, 5.0F, 10000.0F, true, true});
@@ -184,7 +196,8 @@ int main()
     car.ConfigureDynamics(
         {{0.5F, 0.6F, 0.7F}, 2.0F, 0.2F, 0.3F,
          maximumSteerAngle, steerSpeed,
-         3.14159265358979323846F, false},
+         3.14159265358979323846F, false,
+         0.12F, false, 2.5F, true},
         {{-1.0F, true, false, false, 0.5F},
          {1.0F, false, true, false, 0.4F}});
     const auto* firstWheel = car.GetWheel(0U);
@@ -203,8 +216,35 @@ int main()
         !firstWheel->IsDriven() || firstWheel->IsSteering() ||
         secondWheel->IsDriven() || !secondWheel->IsSteering() ||
         firstWheel->GetRadius() != 0.5F ||
-        secondWheel->GetRadius() != 0.4F)
+        secondWheel->GetRadius() != 0.4F ||
+        car.GetKSteerControl() != 0.12F ||
+        car.GetSteerSpeed() != steerSpeed ||
+        car.GetSteerRot() != 3.14159265358979323846F ||
+        car.GetAngDamping() !=
+            std::array<float, 3U>{0.5F, 0.6F, 0.7F} ||
+        car.GetFlyYTorque() != 2.0F ||
+        car.GetClampXTorque() != 0.2F ||
+        car.GetClampYTorque() != 0.3F ||
+        car.IsGravEngine() || car.IsClutchImmunity() ||
+        car.GetTireSpring() != 2.5F || !car.GetDisableColor())
         return 25;
+    car.SetSteerWheelAngle(100.0F);
+    if (car.GetSteerWheelAngle() != maximumSteerAngle)
+        return 60;
+    car.SetSteerWheelAngle(0.0F);
+    car.SetKSteerControl(0.2F);
+    car.SetSteerSpeed(steerSpeed);
+    car.SetSteerRot(3.14159265358979323846F);
+    car.SetAngDamping({0.5F, 0.6F, 0.7F});
+    car.SetFlyYTourque(2.0F);
+    car.SetClampXTourque(0.2F);
+    car.SetClampYTourque(0.3F);
+    car.SetGravEngine(false);
+    car.SetTireSpring(2.5F);
+    car.SetDisableColor(true);
+    if (car.GetKSteerControl() != 0.2F)
+        return 61;
+    car.SetKSteerControl(0.12F);
     car.OnFixedStepDrive(
         1.0F / 120.0F, {1.0F, 0.0F, 0.0F, 0.0F},
         {2.0F, 2.0F, 2.0F, 6.0F, true, true});
@@ -262,7 +302,7 @@ int main()
         springLocked.airbornePitchAcceleration != 0.0F)
         return 47;
     car.Reset();
-    if (!car.LockClutch(0.0F, false))
+    if (!car.LockClutch(0.0F))
         return 48;
     const auto clutchSteering = car.OnFixedStepDrive(
         1.0F / 120.0F, {0.0F, 0.0F, 0.0F, 1.0F},
@@ -304,6 +344,9 @@ int main()
         !copiedWheelCar.GetWheel(0U)->HasSlipEffect() ||
         copiedWheelCar.GetWheel(0U)->GetListenerCount() != 1U ||
         !copiedWheelCar.GetWheelSlipResult(0U).active ||
+        copiedWheelCar.GetKSteerControl() != 0.12F ||
+        copiedWheelCar.GetTireSpring() != 2.5F ||
+        !copiedWheelCar.GetDisableColor() ||
         std::abs(
             copiedWheelCar.GetWheel(0U)->GetNormalReaction() - 1.25F) >
             0.0001F)

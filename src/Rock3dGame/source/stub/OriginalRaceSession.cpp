@@ -3048,7 +3048,7 @@ r3d::physics::VehicleInput OriginalRaceSession::aiInput(
     sourceVehicle.speed = vehicle.speed;
     sourceVehicle.size = racers_[racer].car.GetSize();
     sourceVehicle.steeringControl =
-        vehicleDefinition.physics.steeringControl;
+        racers_[racer].gameCar.GetKSteerControl();
     sourceVehicle.mapObject = true;
     sourceVehicle.cheatSlower = racers_[racer].car.cheatSlower;
 
@@ -3242,10 +3242,8 @@ void OriginalRaceSession::updateGameplay(
     const RaceControl& humanControl)
 {
     const auto clutchImmune = [&](std::size_t racer) {
-        if (racer >= race_.racers.size())
-            return false;
-        const auto& vehicle = vehicleForRacer(racer);
-        return vehicle.physics.clutchImmunity;
+        return racer < racers_.size() &&
+               racers_[racer].gameCar.IsClutchImmunity();
     };
     auto installedWeaponSlot =
         [&](std::size_t owner, std::size_t weaponIndex,
@@ -5119,8 +5117,7 @@ void OriginalRaceSession::updateGameplay(
         if (!sourceResult.lockClutch)
             return false;
         if (!racers_[racer].gameCar.LockClutch(
-                sourceResult.clutchStrength,
-                clutchImmune(racer)))
+                sourceResult.clutchStrength))
             return false;
         const auto& vehicleDefinition = vehicleForRacer(racer);
         const Quat inverseRotation{
@@ -6196,7 +6193,6 @@ void OriginalRaceSession::updateGameplay(
             continue;
         }
 
-        const auto& vehicleDefinition = vehicleForRacer(racer);
         source::AICar::VehicleState sourceVehicle;
         sourceVehicle.position = vehicles[racer].body.position;
         sourceVehicle.direction =
@@ -6206,7 +6202,7 @@ void OriginalRaceSession::updateGameplay(
         sourceVehicle.speed = vehicles[racer].speed;
         sourceVehicle.size = runtime.car.GetSize();
         sourceVehicle.steeringControl =
-            vehicleDefinition.physics.steeringControl;
+            runtime.gameCar.GetKSteerControl();
         sourceVehicle.mapObject = true;
 
         std::array<source::AICar::AttackWeapon,

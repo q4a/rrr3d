@@ -288,18 +288,18 @@ std::vector<std::string> OriginalGameDebug::lines(
             "Mass " + floatText(description.mass) + "  COM " +
             vectorText(description.centerOfMass));
         result.push_back(
-            "Max speed " + floatText(description.maximumSpeed * 3.6F) +
+            "Max speed " + floatText(sourceCar.GetMaxSpeed() * 3.6F) +
             " km/h  max RPM " + floatText(description.maximumRpm, 0) +
             "  torque " + floatText(description.maximumTorque));
         result.push_back(
             "Brake torque " + floatText(description.brakeTorque) +
             "  diff ratio " + floatText(description.differentialRatio) +
-            "  tire spring " + floatText(description.tireSpring));
+            "  tire spring " + floatText(sourceCar.GetTireSpring()));
         result.push_back(
             "Steer angle/speed/rotation " +
             floatText(description.steerAngle) + "/" +
-            floatText(description.steerSpeed) + "/" +
-            floatText(description.steerRotation));
+            floatText(sourceCar.GetSteerSpeed()) + "/" +
+            floatText(sourceCar.GetSteerRot()));
         for (std::size_t index = 0U; index < description.wheels.size(); ++index)
         {
             const auto& wheel = description.wheels[index];

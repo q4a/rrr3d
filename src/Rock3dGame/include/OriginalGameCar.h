@@ -117,6 +117,10 @@ public:
         float steerSpeed = 0.0F;
         float steerRotation = 0.0F;
         bool gravitySteering = false;
+        float steeringControl = 1.0F;
+        bool clutchImmunity = false;
+        float tireSpring = 0.0F;
+        bool disableColor = false;
     };
 
     struct WheelDynamics
@@ -173,10 +177,32 @@ public:
     DriveCommand OnFixedStepDrive(
         float deltaTime, FixedStepInput input,
         FixedStepState state) noexcept;
+    int GearUp() noexcept;
+    int GearDown() noexcept;
+    const MotorDescription& GetMotorDesc() const noexcept;
+    void SetMotorDesc(MotorDescription value) noexcept;
     MoveCarState GetMoveCar() const noexcept;
+    void SetMoveCar(MoveCarState value) noexcept;
     SteerWheelState GetSteerWheel() const noexcept;
+    void SetSteerWheel(SteerWheelState value) noexcept;
     float GetSteerWheelAngle() const noexcept;
+    void SetSteerWheelAngle(float value) noexcept;
     int GetCurGear() const noexcept;
+    void SetCurGear(int value) noexcept;
+    float GetKSteerControl() const noexcept;
+    void SetKSteerControl(float value) noexcept;
+    float GetSteerSpeed() const noexcept;
+    void SetSteerSpeed(float value) noexcept;
+    float GetSteerRot() const noexcept;
+    void SetSteerRot(float value) noexcept;
+    std::array<float, 3U> GetAngDamping() const noexcept;
+    void SetAngDamping(std::array<float, 3U> value) noexcept;
+    float GetFlyYTorque() const noexcept;
+    void SetFlyYTourque(float value) noexcept;
+    float GetClampXTorque() const noexcept;
+    void SetClampXTourque(float value) noexcept;
+    float GetClampYTorque() const noexcept;
+    void SetClampYTourque(float value) noexcept;
     float GetMotorTorqueK() const noexcept;
     void SetMotorTorqueK(float value) noexcept;
     float GetWheelSteerK() const noexcept;
@@ -189,6 +215,16 @@ public:
     float GetLeadWheelSpeed() const noexcept;
     float GetDrivenWheelSpeed() const noexcept;
     float GetRPM() const noexcept;
+    bool IsGravEngine() const noexcept;
+    void SetGravEngine(bool value) noexcept;
+    bool IsClutchImmunity() const noexcept;
+    void SetClutchImmunity(bool value) noexcept;
+    float GetMaxSpeed() const noexcept;
+    void SetMaxSpeed(float value) noexcept;
+    float GetTireSpring() const noexcept;
+    void SetTireSpring(float value) noexcept;
+    bool GetDisableColor() const noexcept;
+    void SetDisableColor(bool value) noexcept;
 
     void BindSoundMotor(
         const std::array<float, 2>& rpmVolumeRange,
@@ -227,7 +263,7 @@ public:
     const CarAnimationChild* GetAnimationChild(
         std::size_t index) const noexcept;
 
-    bool LockClutch(float strength, bool clutchImmunity) noexcept;
+    bool LockClutch(float strength) noexcept;
     void CancelClutch() noexcept;
     bool IsClutchLocked() const noexcept;
     float GetClutchTime() const noexcept;
@@ -261,6 +297,9 @@ private:
     SteerWheelState steerWheel_ = SteerWheelState::None;
     int currentGear_ = -1;
     float steeringAngle_ = 0.0F;
+    float steeringControl_ = 1.0F;
+    float maximumSpeed_ = 0.0F;
+    float tireSpring_ = 0.0F;
     // Source GameCar::_motorTorqueK/_wheelSteerK. They are runtime state,
     // not serialized ctCar parameters and default to the neutral multiplier.
     float motorTorqueK_ = 1.0F;
@@ -268,6 +307,8 @@ private:
     bool anyWheelContact_ = false;
     bool wheelsContact_ = false;
     bool bodyContact_ = false;
+    bool clutchImmunity_ = false;
+    bool disableColor_ = false;
 };
 
 // Backend-neutral owner for GameBase.cpp::SoundMotor. SDL owns the two

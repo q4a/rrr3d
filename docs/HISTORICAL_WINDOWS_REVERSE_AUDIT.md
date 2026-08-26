@@ -2908,6 +2908,32 @@ backend telemetry для автономных physics tests, но больше �
 игровой объект в активном runtime. Regression проверяет оба порядка выбора
 колеса, радиусы, знаки, dead zones, RPM-формулу, copy/reset и track animation.
 
+### P2.118 — live source `GameCar` descriptor contract — выполнено
+
+Обратное сравнение публичного Windows `GameCar` выявило следующий системный
+обход исходного владельца. Serialized параметры машины попадали в Jolt spawn
+и частично в собранную `DriveCommand`, но у portable `GameCar` отсутствовали
+исходные `Get/SetMotorDesc`, `GearUp/GearDown`, setters move/steer/gear и весь
+набор живых параметров: `kSteerControl`, steer speed/rotation, angular
+damping, airborne pitch, roll/pitch clamps, gravity steering, clutch
+immunity, max speed, tire spring и disable-color.
+
+Контракт восстановлен в source object. `ConfigureMotor/ConfigureDynamics`
+теперь являются только adapter-входами и заполняют те же живые поля, которые
+менял Windows-код. Fixed-step пользуется source setters и gear methods,
+ограничитель скорости читает `GetMaxSpeed`, а steering/stabilization уже
+формируются из изменяемого descriptor state. `LockClutch` снова имеет
+исходную сигнатуру с одним strength и сам проверяет `IsClutchImmunity` вместо
+того, чтобы получать этот флаг от session.
+
+Оба AI пути берут `kSteerControl` из своей живой `GameCar`, oil/Maslo contact
+берёт там же clutch immunity, а game-debug показывает source max speed,
+tire spring и steer runtime values. Vehicle definition/Jolt spawn остаются
+backend-конфигурацией геометрии и solver, но больше не выступают параллельным
+gameplay owner. Regression покрывает setters, границы передач/угла, motor
+descriptor, copy/reset и immunity; профильные mobility-значения поступают в
+`GameCar` при `Player::CreateCar` после применения исходного loadout.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

@@ -126,11 +126,16 @@ GameCar& GameCar::operator=(const GameCar& other) noexcept
     steerWheel_ = other.steerWheel_;
     currentGear_ = other.currentGear_;
     steeringAngle_ = other.steeringAngle_;
+    steeringControl_ = other.steeringControl_;
+    maximumSpeed_ = other.maximumSpeed_;
+    tireSpring_ = other.tireSpring_;
     motorTorqueK_ = other.motorTorqueK_;
     wheelSteerK_ = other.wheelSteerK_;
     anyWheelContact_ = other.anyWheelContact_;
     wheelsContact_ = other.wheelsContact_;
     bodyContact_ = other.bodyContact_;
+    clutchImmunity_ = other.clutchImmunity_;
+    disableColor_ = other.disableColor_;
     rpmVolumeRange_ = other.rpmVolumeRange_;
     rpmFrequencyRange_ = other.rpmFrequencyRange_;
     soundMotorMix_ = other.soundMotorMix_;
@@ -269,7 +274,14 @@ GameCar::PxSyncState GameCar::OnPxSync(
 
 void GameCar::ConfigureMotor(MotorDescription description) noexcept
 {
-    motor_ = description;
+    SetMotorDesc(description);
+    currentGear_ = -1;
+    moveCar_ = MoveCarState::None;
+}
+
+void GameCar::SetMotorDesc(MotorDescription value) noexcept
+{
+    motor_ = value;
     motor_.brakeTorque = std::max(motor_.brakeTorque, 0.0F);
     motor_.differentialRatio = std::max(
         motor_.differentialRatio, 0.0F);
@@ -282,8 +294,8 @@ void GameCar::ConfigureMotor(MotorDescription description) noexcept
     motor_.restBrakeTorque = std::max(
         motor_.restBrakeTorque, 0.0F);
     motor_.maximumSpeed = std::max(motor_.maximumSpeed, 0.0F);
-    currentGear_ = -1;
-    moveCar_ = MoveCarState::None;
+    maximumSpeed_ = motor_.maximumSpeed;
+    currentGear_ = std::min(currentGear_, 5);
 }
 
 void GameCar::ConfigureDynamics(
@@ -298,6 +310,10 @@ void GameCar::ConfigureDynamics(
     dynamics_.maximumSteerAngle =
         std::max(dynamics_.maximumSteerAngle, 0.0F);
     dynamics_.steerSpeed = std::max(dynamics_.steerSpeed, 0.0F);
+    steeringControl_ = dynamics_.steeringControl;
+    clutchImmunity_ = dynamics_.clutchImmunity;
+    tireSpring_ = dynamics_.tireSpring;
+    disableColor_ = dynamics_.disableColor;
     steeringAngle_ = 0.0F;
     const std::size_t count = std::min(wheels_.size(), wheels.size());
     for (std::size_t index = 0U; index < count; ++index)
@@ -369,13 +385,13 @@ GameCar::DriveCommand GameCar::OnFixedStepDrive(
     input.brake = std::clamp(input.brake, 0.0F, 1.0F);
     input.steering = std::clamp(input.steering, -1.0F, 1.0F);
     if (input.brake > 0.0001F)
-        moveCar_ = MoveCarState::Brake;
+        SetMoveCar(MoveCarState::Brake);
     else if (input.reverse > 0.0001F)
-        moveCar_ = MoveCarState::Back;
+        SetMoveCar(MoveCarState::Back);
     else if (input.throttle > 0.0001F)
-        moveCar_ = MoveCarState::Accel;
+        SetMoveCar(MoveCarState::Accel);
     else
-        moveCar_ = MoveCarState::None;
+        SetMoveCar(MoveCarState::None);
 
     command.brakeTorque = motor_.restBrakeTorque;
     switch (moveCar_)
@@ -384,7 +400,7 @@ GameCar::DriveCommand GameCar::OnFixedStepDrive(
         command.rpm = calcRpm(currentGear_);
         break;
     case MoveCarState::Brake:
-        currentGear_ = -1;
+        SetCurGear(-1);
         command.rpm = calcRpm(currentGear_);
         command.brakeTorque = motor_.brakeTorque * input.brake;
         break;
@@ -396,7 +412,7 @@ GameCar::DriveCommand GameCar::OnFixedStepDrive(
         }
         else
         {
-            currentGear_ = 0;
+            SetCurGear(0);
             command.rpm = calcRpm(currentGear_);
             if (command.rpm < motor_.maximumRpm)
             {
@@ -408,14 +424,14 @@ GameCar::DriveCommand GameCar::OnFixedStepDrive(
     case MoveCarState::Accel:
         if (state.signedSpeed < -directionDeadZone)
         {
-            currentGear_ = -1;
+            SetCurGear(-1);
             command.rpm = calcRpm(currentGear_);
             command.brakeTorque = motor_.brakeTorque;
         }
         else
         {
             if (currentGear_ <= 0)
-                currentGear_ = 1;
+                SetCurGear(1);
             command.rpm = calcRpm(currentGear_);
             command.motorTorque = calcTorque(currentGear_) *
                 input.throttle * motorTorqueK_;
@@ -430,13 +446,13 @@ GameCar::DriveCommand GameCar::OnFixedStepDrive(
     {
         if (command.rpm < motor_.maximumRpm / 1.8F &&
             currentGear_ > 1)
-            --currentGear_;
+            GearDown();
         if (command.rpm >= motor_.maximumRpm &&
             currentGear_ < static_cast<int>(gearRatios.size() - 1U))
-            ++currentGear_;
+            GearUp();
     }
-    if (motor_.maximumSpeed > 0.0F &&
-        state.absoluteSpeed > motor_.maximumSpeed)
+    if (maximumSpeed_ > 0.0F &&
+        state.absoluteSpeed > maximumSpeed_)
         command.motorTorque = command.brakeTorque;
     command.gear = currentGear_;
     command.lateralGripScale = wheelSteerK_;
@@ -444,38 +460,38 @@ GameCar::DriveCommand GameCar::OnFixedStepDrive(
     const float targetSteering =
         input.steering * dynamics_.maximumSteerAngle;
     if (std::abs(input.steering) <= 0.0001F)
-        steerWheel_ = SteerWheelState::None;
+        SetSteerWheel(SteerWheelState::None);
     else if (input.manualSteering)
-        steerWheel_ = SteerWheelState::Manual;
+        SetSteerWheel(SteerWheelState::Manual);
     else if (input.steering > 0.0F)
-        steerWheel_ = SteerWheelState::OnLeft;
+        SetSteerWheel(SteerWheelState::OnLeft);
     else
-        steerWheel_ = SteerWheelState::OnRight;
+        SetSteerWheel(SteerWheelState::OnRight);
 
     if (steerWheel_ == SteerWheelState::Manual)
     {
-        steeringAngle_ = targetSteering;
+        SetSteerWheelAngle(targetSteering);
     }
     else if (steerWheel_ == SteerWheelState::OnLeft)
     {
-        steeringAngle_ = dynamics_.steerSpeed > 0.0F
+        SetSteerWheelAngle(dynamics_.steerSpeed > 0.0F
             ? std::min(
                   std::max(steeringAngle_, 0.0F) +
                       dynamics_.steerSpeed * deltaTime,
                   dynamics_.maximumSteerAngle)
-            : dynamics_.maximumSteerAngle;
+            : dynamics_.maximumSteerAngle);
     }
     else if (steerWheel_ == SteerWheelState::OnRight)
     {
-        steeringAngle_ = dynamics_.steerSpeed > 0.0F
+        SetSteerWheelAngle(dynamics_.steerSpeed > 0.0F
             ? std::max(
                   std::min(steeringAngle_, 0.0F) -
                       dynamics_.steerSpeed * deltaTime,
                   -dynamics_.maximumSteerAngle)
-            : -dynamics_.maximumSteerAngle;
+            : -dynamics_.maximumSteerAngle);
     }
     else
-        steeringAngle_ = 0.0F;
+        SetSteerWheelAngle(0.0F);
     command.steeringAngle = steeringAngle_;
     command.rearWheelX = 0.0F;
     for (auto& wheel : wheels_)
@@ -523,9 +539,33 @@ GameCar::DriveCommand GameCar::OnFixedStepDrive(
     return command;
 }
 
+int GameCar::GearUp() noexcept
+{
+    if (currentGear_ < 5)
+        ++currentGear_;
+    return currentGear_;
+}
+
+int GameCar::GearDown() noexcept
+{
+    if (currentGear_ > -1)
+        --currentGear_;
+    return currentGear_;
+}
+
+const GameCar::MotorDescription& GameCar::GetMotorDesc() const noexcept
+{
+    return motor_;
+}
+
 GameCar::MoveCarState GameCar::GetMoveCar() const noexcept
 {
     return moveCar_;
+}
+
+void GameCar::SetMoveCar(MoveCarState value) noexcept
+{
+    moveCar_ = value;
 }
 
 GameCar::SteerWheelState GameCar::GetSteerWheel() const noexcept
@@ -533,14 +573,102 @@ GameCar::SteerWheelState GameCar::GetSteerWheel() const noexcept
     return steerWheel_;
 }
 
+void GameCar::SetSteerWheel(SteerWheelState value) noexcept
+{
+    steerWheel_ = value;
+}
+
 float GameCar::GetSteerWheelAngle() const noexcept
 {
     return steeringAngle_;
 }
 
+void GameCar::SetSteerWheelAngle(float value) noexcept
+{
+    steeringAngle_ = std::clamp(
+        value, -dynamics_.maximumSteerAngle,
+        dynamics_.maximumSteerAngle);
+}
+
 int GameCar::GetCurGear() const noexcept
 {
     return currentGear_;
+}
+
+void GameCar::SetCurGear(int value) noexcept
+{
+    currentGear_ = std::clamp(value, -1, 5);
+}
+
+float GameCar::GetKSteerControl() const noexcept
+{
+    return steeringControl_;
+}
+
+void GameCar::SetKSteerControl(float value) noexcept
+{
+    steeringControl_ = value;
+    dynamics_.steeringControl = value;
+}
+
+float GameCar::GetSteerSpeed() const noexcept
+{
+    return dynamics_.steerSpeed;
+}
+
+void GameCar::SetSteerSpeed(float value) noexcept
+{
+    dynamics_.steerSpeed = value;
+}
+
+float GameCar::GetSteerRot() const noexcept
+{
+    return dynamics_.steerRotation;
+}
+
+void GameCar::SetSteerRot(float value) noexcept
+{
+    dynamics_.steerRotation = value;
+}
+
+std::array<float, 3U> GameCar::GetAngDamping() const noexcept
+{
+    return dynamics_.angularDamping;
+}
+
+void GameCar::SetAngDamping(std::array<float, 3U> value) noexcept
+{
+    dynamics_.angularDamping = value;
+}
+
+float GameCar::GetFlyYTorque() const noexcept
+{
+    return dynamics_.airbornePitchAcceleration;
+}
+
+void GameCar::SetFlyYTourque(float value) noexcept
+{
+    dynamics_.airbornePitchAcceleration = value;
+}
+
+float GameCar::GetClampXTorque() const noexcept
+{
+    return dynamics_.clampRollAngle;
+}
+
+void GameCar::SetClampXTourque(float value) noexcept
+{
+    dynamics_.clampRollAngle = value;
+}
+
+float GameCar::GetClampYTorque() const noexcept
+{
+    return dynamics_.clampPitchAngle;
+}
+
+void GameCar::SetClampYTourque(float value) noexcept
+{
+    dynamics_.clampPitchAngle = value;
 }
 
 float GameCar::GetMotorTorqueK() const noexcept
@@ -633,6 +761,60 @@ float GameCar::GetRPM() const noexcept
         std::abs((*found)->GetAxleSpeed()) * ratio *
         motor_.differentialRatio * 60.0F / radiansPerRevolution;
     return std::min(rpm, motor_.maximumRpm);
+}
+
+bool GameCar::IsGravEngine() const noexcept
+{
+    return dynamics_.gravitySteering;
+}
+
+void GameCar::SetGravEngine(bool value) noexcept
+{
+    dynamics_.gravitySteering = value;
+}
+
+bool GameCar::IsClutchImmunity() const noexcept
+{
+    return clutchImmunity_;
+}
+
+void GameCar::SetClutchImmunity(bool value) noexcept
+{
+    clutchImmunity_ = value;
+    dynamics_.clutchImmunity = value;
+}
+
+float GameCar::GetMaxSpeed() const noexcept
+{
+    return maximumSpeed_;
+}
+
+void GameCar::SetMaxSpeed(float value) noexcept
+{
+    maximumSpeed_ = value;
+    motor_.maximumSpeed = value;
+}
+
+float GameCar::GetTireSpring() const noexcept
+{
+    return tireSpring_;
+}
+
+void GameCar::SetTireSpring(float value) noexcept
+{
+    tireSpring_ = value;
+    dynamics_.tireSpring = value;
+}
+
+bool GameCar::GetDisableColor() const noexcept
+{
+    return disableColor_;
+}
+
+void GameCar::SetDisableColor(bool value) noexcept
+{
+    disableColor_ = value;
+    dynamics_.disableColor = value;
 }
 
 void GameCar::BindSoundMotor(
@@ -837,9 +1019,9 @@ const CarAnimationChild* GameCar::GetAnimationChild(
                ? animationChildren_[index].get() : nullptr;
 }
 
-bool GameCar::LockClutch(float strength, bool clutchImmunity) noexcept
+bool GameCar::LockClutch(float strength) noexcept
 {
-    if (clutchImmunity || clutchTime_ > 0.0F)
+    if (clutchImmunity_ || clutchTime_ > 0.0F)
         return false;
     clutchTime_ = clutchLockSeconds;
     clutchStrength_ = strength;
