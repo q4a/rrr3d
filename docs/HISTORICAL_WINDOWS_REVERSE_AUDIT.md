@@ -3215,6 +3215,28 @@ Regression проверяет полиморфизм `AutoProj -> Proj`, пол�
 include/model parent graph, сохранение transform/lifetime, общий scratch timer
 и синхронное увеличение model scale.
 
+### P2.131 — concrete `Proj::ComputeAABB` и отказ `PrepareProj` — выполнено
+
+Формула исходного `ComputeAABB(false)` уже применялась загрузчиком ресурсов,
+но результат сохранялся только как готовый contact box. Живой `Proj` не имел
+ни функции `ComputeAABB`, ни отдельного local AABB модели, поэтому ветвь
+`ComputeAABB(true)` для размещения mines оставалась заранее вычисленным float,
+а не частью concrete source object.
+
+`ProjectileDefinition` и map `BonusInstance` теперь сохраняют точный model
+AABB отдельно от contact collision. Обе исходные ветви перенесены в
+`Proj::ComputeAABB`: serialized `size/offset` объединяется с моделью только
+при `modelSize`, model-only расчёт начинается с origin, а отсутствие модели
+даёт оригинальный fallback cube `0.1`. Loader строит weapon/bonus collision и
+surface placement через эту функцию; `AutoProj` получает те же model bounds.
+
+Также `ShotContext` переносит результат backend-подготовки. Если mine raycast,
+Spring wheel-contact либо создание Jolt actor не удалось, `Weapon::CreateShot`
+теперь атомарно возвращает отказ до allocation/registration: shot timer,
+charge-side callback и `Behaviors::OnShot` не изменяются. Regression проверяет
+объединение смещённого serialized box с model AABB, model-only/fallback ветви
+и отсутствие побочных эффектов неуспешного PrepareProj.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

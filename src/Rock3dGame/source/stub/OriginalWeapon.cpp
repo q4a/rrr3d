@@ -323,6 +323,11 @@ const ProjectileDefinition& Proj::GetDesc() const noexcept
     return description_;
 }
 
+ProjectileCollisionBox Proj::ComputeAABB(bool onlyModel) const noexcept
+{
+    return ComputeAABB(description_, onlyModel);
+}
+
 GameObject* Proj::GetSourceWeapon() const noexcept { return weapon_; }
 GameObject* Proj::GetSourceTarget() const noexcept { return target_; }
 std::size_t Proj::GetSourcePlayerId() const noexcept { return playerId_; }
@@ -851,6 +856,71 @@ Proj::BonusContactResult Proj::BonusContact(
     return result;
 }
 
+ProjectileCollisionBox Proj::ComputeAABB(
+    const ProjectileDefinition& description,
+    bool onlyModel) noexcept
+{
+    const auto serializedBox = [&]() {
+        ProjectileCollisionBox box;
+        box.center = description.offset;
+        box.halfExtents = {
+            std::max(description.size.x * 0.5F, 0.0F),
+            std::max(description.size.y * 0.5F, 0.0F),
+            std::max(description.size.z * 0.5F, 0.0F)};
+        return box;
+    };
+    if (!description.modelSize || !description.modelBoundsValid)
+    {
+        if (!onlyModel)
+            return serializedBox();
+        // AABB(IdentityVector * 0.1f) in the original constructor.
+        return {{}, {0.05F, 0.05F, 0.05F}};
+    }
+
+    ProjectileCollisionBox result = onlyModel
+        ? ProjectileCollisionBox{}
+        : serializedBox();
+    const Vec3 firstMinimum{
+        result.center.x - result.halfExtents.x,
+        result.center.y - result.halfExtents.y,
+        result.center.z - result.halfExtents.z};
+    const Vec3 firstMaximum{
+        result.center.x + result.halfExtents.x,
+        result.center.y + result.halfExtents.y,
+        result.center.z + result.halfExtents.z};
+    const Vec3 modelMinimum{
+        description.modelBounds.center.x -
+            description.modelBounds.halfExtents.x,
+        description.modelBounds.center.y -
+            description.modelBounds.halfExtents.y,
+        description.modelBounds.center.z -
+            description.modelBounds.halfExtents.z};
+    const Vec3 modelMaximum{
+        description.modelBounds.center.x +
+            description.modelBounds.halfExtents.x,
+        description.modelBounds.center.y +
+            description.modelBounds.halfExtents.y,
+        description.modelBounds.center.z +
+            description.modelBounds.halfExtents.z};
+    const Vec3 minimum{
+        std::min(firstMinimum.x, modelMinimum.x),
+        std::min(firstMinimum.y, modelMinimum.y),
+        std::min(firstMinimum.z, modelMinimum.z)};
+    const Vec3 maximum{
+        std::max(firstMaximum.x, modelMaximum.x),
+        std::max(firstMaximum.y, modelMaximum.y),
+        std::max(firstMaximum.z, modelMaximum.z)};
+    result.center = {
+        (minimum.x + maximum.x) * 0.5F,
+        (minimum.y + maximum.y) * 0.5F,
+        (minimum.z + maximum.z) * 0.5F};
+    result.halfExtents = {
+        (maximum.x - minimum.x) * 0.5F,
+        (maximum.y - minimum.y) * 0.5F,
+        (maximum.z - minimum.z) * 0.5F};
+    return result;
+}
+
 bool AutoProj::UsesMineUpdate(std::uint32_t type) noexcept
 {
     switch (type)
@@ -1201,7 +1271,7 @@ Proj* Weapon::CreateShot(
     Weapon* weapon, const ProjectileDefinition& description,
     const ShotContext& context)
 {
-    if (context.logic == nullptr)
+    if (context.logic == nullptr || !context.preparationAccepted)
         return nullptr;
 
     auto* projectile = new Proj();

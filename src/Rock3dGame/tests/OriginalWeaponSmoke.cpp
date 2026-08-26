@@ -693,6 +693,49 @@ int main()
         autoProjectileLogic.GetGameObjCount() != 0U ||
         factoryTarget.GetListenerCount() != 0U)
         return 106;
+    source::Proj::ShotContext rejectedFactoryContext = factoryContext;
+    rejectedFactoryContext.preparationAccepted = false;
+    factoryWeapon.OnProgress(0.5F);
+    const float rejectedShotTime = factoryWeapon.GetShotTime();
+    const auto rejectedShotEffects =
+        factoryWeapon.GetShotEffect().GetShotCount();
+    if (source::Weapon::CreateShot(
+            &factoryWeapon, factoryDescription,
+            rejectedFactoryContext) != nullptr ||
+        autoProjectileLogic.GetGameObjCount() != 0U ||
+        factoryWeapon.GetShotTime() != rejectedShotTime ||
+        factoryWeapon.GetShotEffect().GetShotCount() !=
+            rejectedShotEffects)
+        return 107;
+
+    r3d::game::originalrace::ProjectileDefinition boundsDescription;
+    boundsDescription.size = {2.0F, 4.0F, 6.0F};
+    boundsDescription.offset = {1.0F, -1.0F, 2.0F};
+    boundsDescription.modelSize = true;
+    boundsDescription.modelBoundsValid = true;
+    boundsDescription.modelBounds.center = {2.0F, 0.0F, -2.0F};
+    boundsDescription.modelBounds.halfExtents = {1.0F, 2.0F, 1.0F};
+    const auto contactBounds =
+        source::Proj::ComputeAABB(boundsDescription, false);
+    const auto placementBounds =
+        source::Proj::ComputeAABB(boundsDescription, true);
+    boundsDescription.modelSize = false;
+    const auto fallbackModelBounds =
+        source::Proj::ComputeAABB(boundsDescription, true);
+    const auto nearVector = [](const auto& value, float x, float y,
+                               float z) {
+        return std::abs(value.x - x) < 0.0001F &&
+               std::abs(value.y - y) < 0.0001F &&
+               std::abs(value.z - z) < 0.0001F;
+    };
+    if (!nearVector(contactBounds.center, 1.5F, -0.5F, 1.0F) ||
+        !nearVector(contactBounds.halfExtents, 1.5F, 2.5F, 4.0F) ||
+        !nearVector(placementBounds.center, 1.5F, 0.0F, -1.5F) ||
+        !nearVector(placementBounds.halfExtents, 1.5F, 2.0F, 1.5F) ||
+        !nearVector(fallbackModelBounds.center, 0.0F, 0.0F, 0.0F) ||
+        !nearVector(
+            fallbackModelBounds.halfExtents, 0.05F, 0.05F, 0.05F))
+        return 108;
     autoProjectileLogic.RegGameObj(new source::GameObject());
     autoProjectileLogic.CleanGameObjs();
     if (autoProjectileLogic.GetGameObjCount() != 0U)

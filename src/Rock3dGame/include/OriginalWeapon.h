@@ -57,6 +57,9 @@ public:
         ShotDesc shot;
         std::size_t playerId = GameObject::undefinedPlayerId;
         bool linkToWeapon = false;
+        // PrepareProj can reject mine placement, Spring without complete
+        // wheel contact, or a backend actor which failed to materialize.
+        bool preparationAccepted = true;
         float maximumLife = -1.0F;
         Vec3 position{};
         Quat rotation{};
@@ -247,6 +250,9 @@ public:
     static BonusContactResult BonusContact(
         std::uint32_t type, bool hasTarget, float damage,
         float targetMaximumLife) noexcept;
+    static ProjectileCollisionBox ComputeAABB(
+        const ProjectileDefinition& description,
+        bool onlyModel) noexcept;
 
     Proj();
     ~Proj() override;
@@ -289,6 +295,7 @@ public:
     MapObj* GetSourceModel2() noexcept;
     const MapObj* GetSourceModel2() const noexcept;
     const ProjectileDefinition& GetDesc() const noexcept;
+    ProjectileCollisionBox ComputeAABB(bool onlyModel) const noexcept;
     GameObject* GetSourceWeapon() const noexcept;
     GameObject* GetSourceTarget() const noexcept;
     std::size_t GetSourcePlayerId() const noexcept;

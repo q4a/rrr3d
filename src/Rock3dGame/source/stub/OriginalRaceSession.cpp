@@ -1380,6 +1380,8 @@ void OriginalRaceSession::reset()
         sourceDescription.size = bonus.size;
         sourceDescription.offset = bonus.offset;
         sourceDescription.collision = bonus.collision;
+        sourceDescription.modelBounds = bonus.modelBounds;
+        sourceDescription.modelBoundsValid = bonus.modelBoundsValid;
         sourceDescription.speed = bonus.speed;
         sourceDescription.damage = bonus.value;
         sourceDescription.modelSize = bonus.modelSize;

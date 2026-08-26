@@ -4,6 +4,7 @@
 #include "OriginalProfile.h"
 #include "OriginalSlot.h"
 #include "OriginalTournament.h"
+#include "OriginalWeapon.h"
 #include "resource/R3DMeshAsset.h"
 #include "resource/ResourceFileSystem.h"
 
@@ -2737,45 +2738,35 @@ LocalBounds objectLocalBounds(
 ProjectileCollisionBox projectileCollisionBox(
     const resource::ResourceFileSystem& resources,
     const ObjectDefinition& visual, Vec3 size, Vec3 offset,
-    bool modelSize)
+    bool modelSize, ProjectileCollisionBox* modelBounds = nullptr,
+    bool* modelBoundsValid = nullptr)
 {
     // Exact Proj::ComputeAABB(false) construction: serialized size is a full
     // box dimension, offset moves that box, and modelSize adds the actor's
     // transformed local visual AABB.  AABB::Add also preserves the serialized
     // size on axes where it is zero.
-    const Vec3 dimensions{
-        std::max(size.x * 0.5F, 0.0F),
-        std::max(size.y * 0.5F, 0.0F),
-        std::max(size.z * 0.5F, 0.0F)};
-    LocalBounds bounds;
-    bounds.minimum = {offset.x - dimensions.x,
-                      offset.y - dimensions.y,
-                      offset.z - dimensions.z};
-    bounds.maximum = {offset.x + dimensions.x,
-                      offset.y + dimensions.y,
-                      offset.z + dimensions.z};
-    bounds.valid = true;
-
-    if (modelSize)
+    ProjectileDefinition description;
+    description.size = size;
+    description.offset = offset;
+    description.modelSize = modelSize;
+    const LocalBounds model = objectLocalBounds(resources, visual);
+    if (model.valid)
     {
-        const LocalBounds model = objectLocalBounds(resources, visual);
-        if (model.valid)
-        {
-            includePoint(bounds, model.minimum);
-            includePoint(bounds, model.maximum);
-        }
+        description.modelBoundsValid = true;
+        description.modelBounds.center = {
+            (model.minimum.x + model.maximum.x) * 0.5F,
+            (model.minimum.y + model.maximum.y) * 0.5F,
+            (model.minimum.z + model.maximum.z) * 0.5F};
+        description.modelBounds.halfExtents = {
+            (model.maximum.x - model.minimum.x) * 0.5F,
+            (model.maximum.y - model.minimum.y) * 0.5F,
+            (model.maximum.z - model.minimum.z) * 0.5F};
     }
-
-    ProjectileCollisionBox result;
-    result.center = {
-        (bounds.minimum.x + bounds.maximum.x) * 0.5F,
-        (bounds.minimum.y + bounds.maximum.y) * 0.5F,
-        (bounds.minimum.z + bounds.maximum.z) * 0.5F};
-    result.halfExtents = {
-        (bounds.maximum.x - bounds.minimum.x) * 0.5F,
-        (bounds.maximum.y - bounds.minimum.y) * 0.5F,
-        (bounds.maximum.z - bounds.minimum.z) * 0.5F};
-    return result;
+    if (modelBounds != nullptr)
+        *modelBounds = description.modelBounds;
+    if (modelBoundsValid != nullptr)
+        *modelBoundsValid = description.modelBoundsValid;
+    return source::Proj::ComputeAABB(description, false);
 }
 
 void loadWeapons(const resource::ResourceFileSystem& resources,
@@ -2862,17 +2853,14 @@ void loadWeapons(const resource::ResourceFileSystem& resources,
         definition.damage = optionalScalar(projectile, "damage", 0.0F);
         definition.collision = projectileCollisionBox(
             resources, definition.visual, definition.size,
-            definition.offset, definition.modelSize);
-        if (definition.modelSize)
-        {
-            const auto visualBounds =
-                objectLocalBounds(resources, definition.visual);
-            if (visualBounds.valid)
-            {
-                definition.surfacePlacementOffset =
-                    std::max(-visualBounds.minimum.z, 0.01F);
-            }
-        }
+            definition.offset, definition.modelSize,
+            &definition.modelBounds, &definition.modelBoundsValid);
+        const auto placementBounds =
+            source::Proj::ComputeAABB(definition, true);
+        definition.surfacePlacementOffset = std::max(
+            -(placementBounds.center.z -
+              placementBounds.halfExtents.z),
+            0.01F);
         auto nestedProjectile =
             [&](std::string_view elementName,
                 const ObjectDefinition& visual) {
@@ -4024,7 +4012,8 @@ void loadMap(const resource::ResourceFileSystem& resources,
             bonusRecord, "proj/modelSize", true);
         bonus.collision = projectileCollisionBox(
             resources, bonus.visual, bonus.size, bonus.offset,
-            bonus.modelSize);
+            bonus.modelSize, &bonus.modelBounds,
+            &bonus.modelBoundsValid);
         bonus.speed = optionalScalar(bonusRecord, "proj/speed", 0.0F);
         if (bonus.projectileType == 6U)
             bonus.kind = BonusKind::Money;
@@ -4242,7 +4231,8 @@ Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources,
             bonusRecord, "proj/modelSize", true);
         bonus.collision = projectileCollisionBox(
             resources, bonus.visual, bonus.size, bonus.offset,
-            bonus.modelSize);
+            bonus.modelSize, &bonus.modelBounds,
+            &bonus.modelBoundsValid);
         bonus.speed = optionalScalar(bonusRecord, "proj/speed", 0.0F);
         if (bonus.projectileType == 6U)
             bonus.kind = BonusKind::Money;

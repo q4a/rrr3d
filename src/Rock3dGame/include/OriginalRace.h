@@ -572,6 +572,11 @@ struct ProjectileDefinition
     Vec3 offset;
     Quat rotation;
     ProjectileCollisionBox collision;
+    // Local actor/model AABB used by Proj::ComputeAABB(true). The contact
+    // box above is ComputeAABB(false) and may additionally contain the
+    // serialized size/offset volume.
+    ProjectileCollisionBox modelBounds;
+    bool modelBoundsValid = false;
     // Proj::MinePrepare rests the rendered model on the ray-cast surface
     // using ComputeAABB(true).  This is intentionally independent of the
     // much taller ComputeAABB(false) contact box stored above.
@@ -657,6 +662,8 @@ struct BonusInstance
     Vec3 size;
     Vec3 offset;
     ProjectileCollisionBox collision;
+    ProjectileCollisionBox modelBounds;
+    bool modelBoundsValid = false;
     float value = 0.0F;
     float speed = 0.0F;
     std::uint32_t projectileType = 0U;
