@@ -1,4 +1,6 @@
 #include "OriginalGameObject.h"
+#include "OriginalLogic.h"
+#include "OriginalMapObj.h"
 
 #include <cmath>
 #include <iostream>
@@ -47,6 +49,35 @@ struct TrackingListener final : source::GameObjectListener
 
 int main()
 {
+    source::Logic firstLogic;
+    source::Logic secondLogic;
+    source::GameObject graphParent;
+    source::GameObject graphChild;
+    graphParent.SetLogic(&firstLogic);
+    graphChild.SetParent(&graphParent);
+    if (graphChild.GetParent() != &graphParent ||
+        graphParent.GetChildren().size() != 1U ||
+        graphParent.GetChildren().front() != &graphChild ||
+        graphChild.GetLogic() != &firstLogic)
+        return 59;
+    auto& included = graphChild.GetIncludeList().Add(
+        source::GameObjType::GameObj, "nestedEffect");
+    if (included.GetParent() != &graphChild ||
+        included.GetGameObj().GetLogic() != &firstLogic ||
+        graphChild.GetChildren().size() != 1U)
+        return 60;
+    graphParent.SetLogic(&secondLogic);
+    if (graphChild.GetLogic() != &secondLogic ||
+        included.GetGameObj().GetLogic() != &secondLogic)
+        return 61;
+    graphChild.GetIncludeList().Clear();
+    graphChild.SetParent(nullptr);
+    if (!graphChild.GetChildren().empty() ||
+        !graphParent.GetChildren().empty() ||
+        graphChild.GetParent() != nullptr ||
+        graphChild.GetLogic() != &secondLogic)
+        return 62;
+
     source::GameObject object;
     object.ResetGameObject(100.0F);
     if (object.GetLife() != 100.0F || object.IsImmortal() ||

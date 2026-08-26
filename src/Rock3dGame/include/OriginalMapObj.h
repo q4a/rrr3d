@@ -76,7 +76,7 @@ public:
     const std::string& GetName() const noexcept;
     void SetName(std::string value);
     GameObject* GetParent() const noexcept;
-    void SetParent(GameObject* value) noexcept;
+    void SetParent(GameObject* value);
 
     const std::string& GetRecord() const noexcept;
     const std::string& GetRecordParent() const noexcept;
@@ -109,7 +109,6 @@ private:
     std::string name_;
     std::string record_;
     std::string recordParent_;
-    GameObject* parent_ = nullptr;
 };
 
 class MapObjectsObserver

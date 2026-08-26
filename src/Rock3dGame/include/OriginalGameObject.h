@@ -24,6 +24,7 @@ namespace source
 class GameObject;
 class Logic;
 class MapObj;
+class MapObjects;
 
 // Backend-neutral GameObjListener. Reference counting belongs to the legacy
 // lsl owner; portable listeners are non-owning and retain the source callback
@@ -46,6 +47,9 @@ public:
 class GameObject
 {
 public:
+    using Children = std::vector<GameObject*>;
+    using IncludeList = MapObjects;
+
     static constexpr std::size_t undefinedPlayerId =
         std::numeric_limits<std::size_t>::max();
 
@@ -73,12 +77,12 @@ public:
         bool killCredit = false;
     };
 
-    GameObject() = default;
-    GameObject(const GameObject& other) noexcept;
+    GameObject();
+    GameObject(const GameObject& other);
     GameObject& operator=(const GameObject& other) noexcept;
-    GameObject(GameObject&& other) noexcept;
+    GameObject(GameObject&& other);
     GameObject& operator=(GameObject&& other) noexcept;
-    virtual ~GameObject() = default;
+    virtual ~GameObject();
 
     void ResetGameObject(float maximumLifeValue) noexcept;
     ProgressResult OnProgress(float deltaTime) noexcept;
@@ -106,6 +110,16 @@ public:
     Logic* GetLogic() noexcept;
     const Logic* GetLogic() const noexcept;
     void SetLogic(Logic* value) noexcept;
+
+    void InsertChild(GameObject* value);
+    void RemoveChild(GameObject* value) noexcept;
+    void ClearChildren() noexcept;
+    GameObject* GetParent() noexcept;
+    const GameObject* GetParent() const noexcept;
+    void SetParent(GameObject* value);
+    const Children& GetChildren() const noexcept;
+    IncludeList& GetIncludeList() noexcept;
+    const IncludeList& GetIncludeList() const noexcept;
 
     void SetImmortalFlag(bool value) noexcept;
     bool GetImmortalFlag() const noexcept;
@@ -159,6 +173,9 @@ private:
     std::vector<GameObjectListener*> listeners_;
     MapObj* mapObj_ = nullptr;
     Logic* logic_ = nullptr;
+    GameObject* parent_ = nullptr;
+    Children children_;
+    IncludeList* includeList_ = nullptr;
     bool objectDestroyed_ = false;
 };
 

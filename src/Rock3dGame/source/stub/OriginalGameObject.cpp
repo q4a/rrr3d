@@ -1,5 +1,7 @@
 #include "OriginalGameObject.h"
 
+#include "OriginalMapObj.h"
+
 #include <algorithm>
 #include <cmath>
 
@@ -113,7 +115,24 @@ float shortestSignedAngle(float angle) noexcept
 
 } // namespace
 
-GameObject::GameObject(const GameObject& other) noexcept
+GameObject::GameObject()
+    : includeList_(new IncludeList(this))
+{
+}
+
+GameObject::~GameObject()
+{
+    if (includeList_ != nullptr)
+        includeList_->Clear();
+    ClearChildren();
+    ClearListenerList();
+    SetLogic(nullptr);
+    SetParent(nullptr);
+    delete includeList_;
+}
+
+GameObject::GameObject(const GameObject& other)
+    : GameObject()
 {
     *this = other;
 }
@@ -131,7 +150,7 @@ GameObject& GameObject::operator=(const GameObject& other) noexcept
     touchAttributionSeconds = other.touchAttributionSeconds;
     immortalFlag = other.immortalFlag;
     destroyed = other.destroyed;
-    logic_ = other.logic_;
+    SetLogic(other.logic_);
     objectDestroyed_ = other.objectDestroyed_;
     // GameObject::Assign does not copy the legacy listener container. Its
     // entries point at behaviors owned by the concrete source object.
@@ -139,7 +158,8 @@ GameObject& GameObject::operator=(const GameObject& other) noexcept
     return *this;
 }
 
-GameObject::GameObject(GameObject&& other) noexcept
+GameObject::GameObject(GameObject&& other)
+    : GameObject()
 {
     *this = other;
 }
@@ -154,7 +174,70 @@ const MapObj* GameObject::GetMapObj() const noexcept { return mapObj_; }
 void GameObject::SetMapObj(MapObj* value) noexcept { mapObj_ = value; }
 Logic* GameObject::GetLogic() noexcept { return logic_; }
 const Logic* GameObject::GetLogic() const noexcept { return logic_; }
-void GameObject::SetLogic(Logic* value) noexcept { logic_ = value; }
+void GameObject::SetLogic(Logic* value) noexcept
+{
+    if (logic_ == value)
+        return;
+    logic_ = value;
+    for (auto* child : children_)
+    {
+        if (child != nullptr)
+            child->SetLogic(value);
+    }
+}
+
+void GameObject::InsertChild(GameObject* value)
+{
+    if (value == nullptr || value == this || value->parent_ != nullptr)
+        return;
+    value->parent_ = this;
+    children_.push_back(value);
+    value->SetLogic(logic_);
+}
+
+void GameObject::RemoveChild(GameObject* value) noexcept
+{
+    if (value == nullptr || value->parent_ != this)
+        return;
+    value->parent_ = nullptr;
+    const auto found = std::find(children_.begin(), children_.end(), value);
+    if (found != children_.end())
+        children_.erase(found);
+}
+
+void GameObject::ClearChildren() noexcept
+{
+    while (!children_.empty())
+        RemoveChild(children_.front());
+}
+
+GameObject* GameObject::GetParent() noexcept { return parent_; }
+const GameObject* GameObject::GetParent() const noexcept { return parent_; }
+
+void GameObject::SetParent(GameObject* value)
+{
+    if (parent_ == value || value == this)
+        return;
+    if (parent_ != nullptr)
+        parent_->RemoveChild(this);
+    if (value != nullptr)
+        value->InsertChild(this);
+}
+
+const GameObject::Children& GameObject::GetChildren() const noexcept
+{
+    return children_;
+}
+
+GameObject::IncludeList& GameObject::GetIncludeList() noexcept
+{
+    return *includeList_;
+}
+
+const GameObject::IncludeList& GameObject::GetIncludeList() const noexcept
+{
+    return *includeList_;
+}
 
 void GameObject::ResetGameObject(float maximumLifeValue) noexcept
 {

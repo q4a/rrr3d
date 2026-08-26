@@ -32,6 +32,8 @@ int main()
     crush.SetPlayer(&player);
     crush.SetType(source::GameObjType::DestrObj);
     if (crush.GetOwner() != &objects || crush.GetParent() != &parent ||
+        parent.GetChildren().size() != 1U ||
+        parent.GetChildren().front() != &crush.GetGameObj() ||
         crush.GetId() != 41U || !crush.IsSpecial() ||
         crush.GetPlayer() != &player ||
         crush.GetGameObj().GetMapObj() != &crush ||
@@ -52,7 +54,8 @@ int main()
         "Bonus\\maslo", 43U);
     projectile.GetGameObj().ResetGameObject(-1.0F);
     auto* autoProjectile = projectile.GetAutoProj();
-    if (autoProjectile == nullptr || projectile.IsSpecial())
+    if (autoProjectile == nullptr || projectile.IsSpecial() ||
+        parent.GetChildren().size() != 3U)
         return 3;
     autoProjectile->Reset(source::AutoProj::masloType);
     autoProjectile->LogicInited();
@@ -88,7 +91,8 @@ int main()
         &parent);
     const auto dead = objects.OnProgress(0.0F);
     if (dead.progressed != 2U || dead.removed != 2U ||
-        objects.GetLiveCount() != 0U || objects.GetSlotCount() != 4U)
+        objects.GetLiveCount() != 0U || objects.GetSlotCount() != 4U ||
+        !parent.GetChildren().empty())
         return 7;
 
     objects.Clear();

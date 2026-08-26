@@ -2154,6 +2154,22 @@ track, bonuses и все динамические cars используют од
 `MapObjList`, Logic-ссылку не получает. Map regression проверяет этот случай,
 обычный inserted object и сохранение Logic после `gotGameObj → gotDestrObj`.
 
+### P2.78 — `GameObject` parent/children/include graph — выполнено
+
+Из оригинальных `GameObject.cpp` и `MapObj.cpp` перенесены `_parent`,
+`_children` и принадлежащий объекту `IncludeList`. `InsertChild`,
+`RemoveChild`, `ClearChildren` и `SetParent` теперь образуют настоящий
+не-владеющий граф, а `SetLogic` рекурсивно передаёт исходного владельца всем
+дочерним объектам. Вложенные `MapObj` снова принадлежат
+`GameObject::GetIncludeList()` и удаляются до уничтожения родителя.
+
+Portable-смена concrete `GameObjType` сохраняет уже активную parent-связь,
+не копирует listener container и переподключает новый `GameObject` к тому же
+графу. Это исключает отдельное формальное поле parent в `MapObj` и возвращает
+единый источник истины оригинала. `OriginalGameObjectSmoke` проверяет
+двухуровневое наследование `Logic`, detach и очистку include list;
+`OriginalMapObjSmoke` проверяет граф при type replacement и удалении.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
