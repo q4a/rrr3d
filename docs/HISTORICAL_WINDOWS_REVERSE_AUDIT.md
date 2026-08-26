@@ -3584,6 +3584,24 @@ direction/speed/velocity и только хранят backend lifetime mirror. �
 relative-speed, горизонтализацию, Torpeda `_vec1`, max-distance lifetime и
 отказ non-RocketPrepare типа.
 
+### P2.151 — concrete Resonanse rotation и Rocket contact torque — выполнено
+
+Обновление Resonanse и угловая реакция Rocket-семейства оставались двумя
+разрозненными статическими вычислениями: session передавала в них копии
+`angularSpeed` и `mass` из runtime definition. В Windows обе операции являются
+методами конкретного `Proj` и читают собственный `_desc`; `RocketContact`
+дополнительно подчиняется live-state/type dispatch объекта.
+
+В concrete `Proj` восстановлены `ProgressResonanse` и `ContactRocket`.
+Resonanse теперь сам выбирает свой progress handler, читает собственную
+угловую скорость и сохраняет новый source world rotation. Rocket contact сам
+проверяет concrete route/target state и вычисляет local velocity-change из
+собственной массы. Race session только передаёт backend rotation, мировую
+PhysX/Jolt contact point и linear velocity, затем применяет возвращённую
+команду. Прямые статические вызовы из session удалены. Regression проверяет
+source transform, descriptor ownership, null-target rejection и общий
+RocketContact путь Resonanse.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

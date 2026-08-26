@@ -829,6 +829,17 @@ Proj::RocketUpdateResult Proj::ProgressRocket(
     return result;
 }
 
+Proj::Quat Proj::ProgressResonanse(
+    Quat rotation, float deltaTime) noexcept
+{
+    if (RouteProgress().handler != ProgressHandler::Resonanse)
+        return rotation;
+    const auto result = ResonanseUpdate(
+        rotation, description_.angularSpeed, deltaTime);
+    SetWorldRot({result.x, result.y, result.z, result.w});
+    return result;
+}
+
 Proj::TorpedaUpdateResult Proj::ProgressTorpeda(
     float deltaTime, Vec3 position, Quat rotation,
     bool hasTarget, Vec3 targetPosition,
@@ -920,6 +931,19 @@ Proj::ThunderContactResult Proj::ContactThunder(
     if (result.setLinearVelocity)
         sourceTimer_ = result.reflectionCooldown;
     return result;
+}
+
+Proj::TorqueResult Proj::ContactRocket(
+    GameObject* target, Vec3 contactPoint,
+    Vec3 linearVelocity) const noexcept
+{
+    if (target == nullptr ||
+        !RouteContact(target->destroyed).rocketResponse)
+    {
+        return {};
+    }
+    return RocketContactTorque(
+        contactPoint, linearVelocity, description_.mass);
 }
 
 Proj::ImpulseContactResult Proj::ContactImpulse(

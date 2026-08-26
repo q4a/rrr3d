@@ -446,6 +446,8 @@ public:
     RocketUpdateResult ProgressRocket(
         float projectileZ, float trackZ, float boxHalfExtentZ,
         bool trackHit) noexcept;
+    Quat ProgressResonanse(
+        Quat rotation, float deltaTime) noexcept;
     TorpedaUpdateResult ProgressTorpeda(
         float deltaTime, Vec3 position, Quat rotation,
         bool hasTarget, Vec3 targetPosition,
@@ -463,6 +465,9 @@ public:
     ThunderContactResult ContactThunder(
         Vec3 linearVelocity, Vec3 contactNormal,
         bool shotTransparencyContact) noexcept;
+    TorqueResult ContactRocket(
+        GameObject* target, Vec3 contactPoint,
+        Vec3 linearVelocity) const noexcept;
     ImpulseContactResult ContactImpulse(
         bool hasContactActor, bool hasTarget,
         bool contactIsTarget, float damage) noexcept;

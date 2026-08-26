@@ -1026,6 +1026,7 @@ int main()
 
     auto rocketDescription = sourceDescription;
     rocketDescription.type = 0U;
+    rocketDescription.mass = 10.0F;
     rocketDescription.secondaryVisual = {};
     source::Proj rocketProjectile;
     rocketProjectile.PrepareSource(
@@ -1112,6 +1113,40 @@ int main()
             {0.0F, 1.0F, 0.0F}, {1.0F, 0.0F, 0.0F},
             10.0F).apply)
         return 50;
+    auto resonanceDescription = sourceDescription;
+    resonanceDescription.type = 23U;
+    resonanceDescription.angularSpeed = 3.14159265358979323846F;
+    source::Proj resonanceProjectile;
+    resonanceProjectile.PrepareSource(
+        resonanceDescription, nullptr, source::Proj::ShotContext{});
+    const auto concreteResonance =
+        resonanceProjectile.ProgressResonanse({}, 0.5F);
+    const auto sourceResonanceRotation =
+        resonanceProjectile.GetWorldRot();
+    if (std::abs(concreteResonance.x - 0.70710678F) > 0.001F ||
+        std::abs(concreteResonance.w - 0.70710678F) > 0.001F ||
+        std::abs(sourceResonanceRotation[0] - concreteResonance.x) >
+            0.001F ||
+        std::abs(sourceResonanceRotation[3] - concreteResonance.w) >
+            0.001F ||
+        rocketProjectile.ProgressResonanse({}, 0.5F) !=
+            source::Proj::Quat{})
+        return 146;
+    source::GameObject rocketTarget;
+    const auto concreteRocketTorque = rocketProjectile.ContactRocket(
+        &rocketTarget, {0.0F, 1.0F, 0.0F},
+        {10.0F, 0.0F, 0.0F});
+    if (!concreteRocketTorque.apply ||
+        std::abs(
+            concreteRocketTorque.localVelocityChange.z + 2.0F) >
+            0.001F ||
+        rocketProjectile.ContactRocket(
+            nullptr, {0.0F, 1.0F, 0.0F},
+            {10.0F, 0.0F, 0.0F}).apply ||
+        !resonanceProjectile.ContactRocket(
+            &rocketTarget, {0.0F, 1.0F, 0.0F},
+            {10.0F, 0.0F, 0.0F}).apply)
+        return 147;
 
     const auto relativeLaunch = source::Proj::CalcSpeed(
         {1.0F, 0.0F, 0.5F}, {5.0F, 0.0F, 0.0F},

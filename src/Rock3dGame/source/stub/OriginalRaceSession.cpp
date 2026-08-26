@@ -4329,9 +4329,9 @@ void OriginalRaceSession::updateGameplay(
                 source::Proj::ProgressHandler::Resonanse &&
             std::abs(projectileDefinition.angularSpeed) > 0.0001F)
         {
-            projectile.rotation = runtimeQuat(source::Proj::ResonanseUpdate(
-                sourceQuat(projectile.rotation),
-                projectileDefinition.angularSpeed, seconds));
+            projectile.rotation = runtimeQuat(
+                projectile.sourceObject->ProgressResonanse(
+                    sourceQuat(projectile.rotation), seconds));
         }
         projectile.sourceObject->SyncSourceTransform(
             sourceVec(projectile.position),
@@ -4507,10 +4507,13 @@ void OriginalRaceSession::updateGameplay(
             }
             if (projectileContactRoute.rocketResponse)
             {
-                const auto torque = source::Proj::RocketContactTorque(
-                    sourceVec(contactPoint),
-                    sourceVec(projectile.velocity),
-                    projectileDefinition.mass);
+                const auto torque =
+                    projectile.sourceObject->ContactRocket(
+                        target < racers_.size()
+                            ? &racers_[target].gameCar
+                            : nullptr,
+                        sourceVec(contactPoint),
+                        sourceVec(projectile.velocity));
                 if (torque.apply)
                 {
                     angularVelocityRequests_.push_back(
