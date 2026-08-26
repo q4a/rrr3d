@@ -966,6 +966,28 @@ int main()
     partialProjectiles.front()->Death();
     autoProjectileLogic.ProgressGameObjs(0.0F);
 
+    std::uint32_t batchCharge = 2U;
+    partialContexts[0].preparationAccepted = true;
+    source::WeaponItem batchItem(
+        &batchWeapon, 4U, 4U, &batchCharge);
+    batchItem.OnCreateCar();
+    batchWeapon.OnProgress(1.0F);
+    source::Weapon::ProjList itemShotProjectiles;
+    const auto effectsBeforeItemShot =
+        batchWeapon.GetShotEffect().GetShotCount();
+    if (!batchItem.Shot(
+            partialContexts, -1, &itemShotProjectiles) ||
+        itemShotProjectiles.size() != 2U ||
+        batchItem.GetCurCharge() != 1U ||
+        batchWeapon.GetShotEffect().GetShotCount() !=
+            effectsBeforeItemShot + 2U ||
+        batchWeapon.GetShotTime() != 0.0F)
+        return 159;
+    for (auto* projectile : itemShotProjectiles)
+        projectile->Death();
+    if (autoProjectileLogic.ProgressGameObjs(0.0F).removed != 2U)
+        return 160;
+
     source::Weapon::Desc autonomousDescription;
     autonomousDescription.projectiles.resize(2U);
     autonomousDescription.projectiles[0].type = 0U;

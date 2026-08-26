@@ -3756,6 +3756,28 @@ Drobilka, Thunder/Frost lifetime и MineRip regressions. Повторная пр
 подтвердила exact-threshold lifetime, автономные дочерние `Proj`, полный Metal
 race render и отсутствие session-owned descriptor/clock полей.
 
+### P2.160 — source-owned primary `Player/WeaponItem/Weapon::CreateShot` batch — выполнено
+
+Несмотря на concrete `Proj`, primary fire всё ещё создавал каждый объект из
+race session, после чего передавал в `Player::Shot` только булево значение
+успеха. Это сохраняло обратный ownership относительно Windows
+`Player::Shot -> WeaponItem::Shot -> Weapon::CreateShot`: charge commit,
+создание полного descriptor batch и возвращаемый `ProjList` жили в разных
+частях portable кода. Кроме того, session-helper вручную добавлял
+`DeathEffect`, поэтому новый source batch первоначально выявил отсутствие
+death behavior у созданного им projectile.
+
+`WeaponItem::Shot` теперь принимает массив backend-neutral `ShotContext`, сам
+вызывает единый `Weapon::CreateShot` batch, списывает один заряд при наличии
+хотя бы одного подготовленного `Proj` и возвращает исходный `ProjList`.
+`Player::Shot` снова является верхним владельцем этой транзакции. Race session
+только строит Jolt transform/query contexts и материализует backend runtime из
+уже созданных concrete objects. Один homing target выбирается на весь batch,
+как в `HumanPlayer::Shot`. `Proj::PrepareSource` теперь самостоятельно
+создаёт descriptor-owned `DeathEffect`, поэтому lifecycle больше не зависит
+от session spawn helper. Regression проверяет двухснарядный batch, одно
+списание charge, два `ShotEffect` callback и live race damage/death graph.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

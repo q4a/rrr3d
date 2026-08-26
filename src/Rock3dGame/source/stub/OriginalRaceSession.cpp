@@ -52,14 +52,6 @@ void configureProjectileSourceObject(
         projectile.velocity.z};
     projectile.sourceObject = source::Weapon::CreateShot(
         weapon, definition, context);
-    if (projectile.sourceObject == nullptr)
-        return;
-    if (hasDeathEffect(definition))
-    {
-        projectile.sourceObject->ConfigureDeathEffect(
-            definition.deathEffect.effectPhysicsIgnoreSenderCar,
-            definition.deathEffect.targetChild);
-    }
 }
 
 ProjectileDefinition nestedProjectileSourceDefinition(
@@ -112,14 +104,6 @@ void configureMineSourceObject(
         sourceObject->PrepareSource(definition, nullptr, context);
         logic.RegGameObj(sourceObject);
         mine.sourceObject = sourceObject;
-    }
-    if (mine.sourceObject == nullptr)
-        return;
-    if (hasDeathEffect(definition.deathEffect))
-    {
-        mine.sourceObject->ConfigureDeathEffect(
-            definition.deathEffect.effectPhysicsIgnoreSenderCar,
-            definition.deathEffect.targetChild);
     }
 }
 
@@ -5880,11 +5864,40 @@ void OriginalRaceSession::updateGameplay(
             networkReplicated && replicatedProjectileId != 0U
                 ? replicatedProjectileId
                 : runtime.GetNextBonusProjectileId();
-        bool shotCommitted = false;
         const Vec3 eventOrigin = weaponWorldTransform(
             shooter, firedWeapon, firedSlot).position;
         std::size_t target = racers_.size();
         std::vector<Vec3> networkCoordinates;
+        struct BackendShotContext
+        {
+            std::size_t projectile = 0U;
+            Transform transform;
+            Vec3 direction;
+            float sampledMinimumLife = -1.0F;
+        };
+        std::vector<source::Weapon::ShotContext> sourceContexts;
+        std::vector<BackendShotContext> backendContexts;
+        sourceContexts.reserve(itemProjectiles.size());
+        backendContexts.reserve(itemProjectiles.size());
+
+        // HumanPlayer::Shot(WeaponType) resolves one target for the complete
+        // Weapon::Desc batch, not independently for each descriptor.
+        const float homingViewAngle =
+            recordName(weapon->record) == "sphereGun"
+                ? 0.0F
+                : 3.14159265358979323846F / 5.5F;
+        const std::size_t homingTarget =
+            requestedTarget < racers_.size()
+                ? requestedTarget
+                : findClosestEnemy(shooter, homingViewAngle);
+        source::GameObject* sourceTarget = nullptr;
+        if (homingTarget < racerMapObjects_.size() &&
+            racerMapObjects_[homingTarget] != nullptr)
+        {
+            sourceTarget =
+                &racerMapObjects_[homingTarget]->GetGameObj();
+        }
+
         std::size_t sourceProjectileIndex = 0U;
         for (std::size_t projectileIndex = 0;
              projectileIndex < itemProjectiles.size();
@@ -5909,30 +5922,57 @@ void OriginalRaceSession::updateGameplay(
             const Vec3 sourceDirection = normalized3(
                 rotate(shotTransform.rotation,
                        {1.0F, 0.0F, 0.0F}));
+            const float sampledMinimumLife = sampleSourceRange(
+                projectile.minimumLife, projectile.maximumLife);
+            source::Weapon::ShotContext sourceContext;
+            sourceContext.logic = &logic_;
+            sourceContext.shot.targetMapObject = sourceTarget;
+            sourceContext.playerId = shooter;
+            sourceContext.maximumLife = sampledMinimumLife;
+            sourceContext.position = sourceVec(projectileOrigin);
+            sourceContext.rotation = sourceQuat(shotTransform.rotation);
+            sourceContext.launchVelocity = sourceVec(
+                multiply(sourceDirection, projectile.speed));
+            sourceContexts.push_back(sourceContext);
+            backendContexts.push_back(
+                {backendProjectileIndex, shotTransform,
+                 sourceDirection, sampledMinimumLife});
+        }
+
+        source::Weapon::ProjList sourceProjectiles;
+        if (!runtime.Shot(
+                *item, sourceContexts, false,
+                replicatedProjectileId, newCharge,
+                &sourceProjectiles))
+            return;
+        runtime.SyncSelectedWeapon(race_.weapons.size());
+
+        std::size_t createdProjectile = 0U;
+        for (std::size_t projectileIndex = 0;
+             projectileIndex < itemProjectiles.size();
+             ++projectileIndex)
+        {
+            const auto& projectile = itemProjectiles[projectileIndex];
+            if (!source::Proj::PreparationRouteFor(projectile.type).valid)
+                continue;
+            if (createdProjectile >= sourceProjectiles.size())
+                break;
+            auto* sourceObject =
+                sourceProjectiles[createdProjectile++];
+            const auto& backend = backendContexts[projectileIndex];
+            const std::size_t backendProjectileIndex =
+                backend.projectile;
+            const auto& shotTransform = backend.transform;
+            const Vec3 projectileOrigin = shotTransform.position;
+            const Vec3 sourceDirection = backend.direction;
             Vec3 launchDirection = sourceDirection;
-            // HumanPlayer::Shot(WeaponType) asks Player for the closest
-            // enemy in pi/5.5, except sphereGun which passes viewAngle=0.
-            const float homingViewAngle =
-                recordName(weapon->record) == "sphereGun"
-                    ? 0.0F
-                    : 3.14159265358979323846F / 5.5F;
-            const std::size_t homingTarget =
-                requestedTarget < racers_.size()
-                    ? requestedTarget
-                    : findClosestEnemy(shooter, homingViewAngle);
-            source::GameObject* sourceTarget = nullptr;
-            if (homingTarget < racerMapObjects_.size() &&
-                racerMapObjects_[homingTarget] != nullptr)
-            {
-                sourceTarget =
-                    &racerMapObjects_[homingTarget]->GetGameObj();
-            }
 
             ProjectileRuntime runtimeProjectile;
             runtimeProjectile.owner = shooter;
             runtimeProjectile.damageOwner = shooter;
             runtimeProjectile.weapon = firedWeapon;
-            runtimeProjectile.projectile = backendProjectileIndex;
+            runtimeProjectile.projectile =
+                backendProjectileIndex;
             runtimeProjectile.mountSlot = firedSlot;
             runtimeProjectile.position = projectileOrigin;
             runtimeProjectile.direction = sourceDirection;
@@ -5940,26 +5980,9 @@ void OriginalRaceSession::updateGameplay(
             runtimeProjectile.speed = projectile.speed;
             runtimeProjectile.velocity =
                 multiply(sourceDirection, projectile.speed);
-            const float sampledMinimumLife = sampleSourceRange(
-                projectile.minimumLife, projectile.maximumLife);
-            configureProjectileSourceObject(
-                logic_, runtimeProjectile, projectile,
-                sampledMinimumLife, liveWeapon, sourceTarget,
-                shooter);
-            if (runtimeProjectile.sourceObject == nullptr)
-                continue;
-            if (!shotCommitted)
-            {
-                if (!runtime.Shot(
-                        *item, true, false,
-                        replicatedProjectileId, newCharge))
-                {
-                    runtimeProjectile.sourceObject->Death();
-                    return;
-                }
-                shotCommitted = true;
-                runtime.SyncSelectedWeapon(race_.weapons.size());
-            }
+            runtimeProjectile.sourceObject = sourceObject;
+            const float sampledMinimumLife =
+                backend.sampledMinimumLife;
             if (networkCoordinates.empty())
                 networkCoordinates.push_back(projectileOrigin);
 
@@ -6085,8 +6108,6 @@ void OriginalRaceSession::updateGameplay(
                     shooter, firedWeapon, firedSlot),
                 projectile);
         }
-        if (!shotCommitted)
-            return;
         RaceEvent shotEvent;
         shotEvent.kind = RaceEventKind::WeaponFired;
         shotEvent.racer = shooter;

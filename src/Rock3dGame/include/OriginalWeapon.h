@@ -768,9 +768,15 @@ public:
     void OnCreateCar() noexcept override;
     void OnDestroyCar() noexcept override;
 
-    // projectileCreated is the result of the backend preparation step which
-    // Weapon::CreateShot performed in Windows.  newCharge is used by
-    // NetPlayer::DoShot to commit the charge carried by a replicated shot.
+    // Source WeaponItem::Shot owns the complete Weapon::CreateShot batch and
+    // commits one charge after at least one Proj was prepared. Per-projectile
+    // Jolt transform/query values are supplied as the portable context span.
+    bool Shot(
+        std::span<const Weapon::ShotContext> contexts,
+        int newCharge = -1,
+        Weapon::ProjList* projectiles = nullptr);
+    // Deferred backend commit retained for Mine/Hyper/Spring while those
+    // transactions still perform their Jolt gate before entering this owner.
     bool Shot(bool projectileCreated, int newCharge = -1) noexcept;
     void Reload() noexcept;
     bool IsReadyShot(float delay) const noexcept;

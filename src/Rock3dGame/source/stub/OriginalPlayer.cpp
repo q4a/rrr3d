@@ -1039,6 +1039,22 @@ float Player::ReflectDamage(float value) const noexcept
     return reflector == nullptr ? value : reflector->Reflect(value);
 }
 
+bool Player::Shot(
+    WeaponItem& item,
+    std::span<const Weapon::ShotContext> contexts,
+    bool mineSlot, std::uint32_t projectileId,
+    int newCharge, Weapon::ProjList* projectiles)
+{
+    Weapon::ProjList localProjectiles;
+    auto* output = projectiles != nullptr
+        ? projectiles
+        : &localProjectiles;
+    const bool result = item.Shot(contexts, newCharge, output);
+    if (result && mineSlot && !output->empty())
+        InsertBonusProjectile(projectileId);
+    return result;
+}
+
 void Player::SyncSelectedWeapon(
     std::size_t weaponDefinitionCount) noexcept
 {

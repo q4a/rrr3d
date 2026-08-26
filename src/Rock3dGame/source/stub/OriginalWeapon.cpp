@@ -16,6 +16,16 @@ namespace
 
 constexpr std::uint32_t masloProjectileType = 10U;
 
+bool hasDeathEffect(
+    const ProjectileDefinition& description) noexcept
+{
+    const auto& effect = description.deathEffect;
+    return !effect.visual.record.empty() ||
+           !effect.visual.visualNodes.empty() ||
+           !effect.visual.particleEmitters.empty() ||
+           !effect.visual.soundPaths.empty();
+}
+
 float length(Proj::Vec3 value) noexcept
 {
     return std::sqrt(
@@ -158,6 +168,8 @@ void Proj::PrepareSource(
     const ProjectileDefinition& description,
     GameObject* weapon, const ShotContext& context) noexcept
 {
+    GetBehaviors().Clear();
+    deathEffect_ = nullptr;
     FreeSourceModel(true, true);
     FreeSourceModel(false, true);
     SetSourceTarget(nullptr);
@@ -188,6 +200,12 @@ void Proj::PrepareSource(
     if (route.initializeSecondaryModel)
         InitSourceModel(true);
     ApplySourcePreparationState(context);
+    if (hasDeathEffect(description_))
+    {
+        ConfigureDeathEffect(
+            description_.deathEffect.effectPhysicsIgnoreSenderCar,
+            description_.deathEffect.targetChild);
+    }
     prepared_ = true;
 }
 
@@ -2278,6 +2296,30 @@ void WeaponItem::AttachWeapon(Weapon* weapon) noexcept
     weapon_ = weapon;
     if (weapon_ != nullptr)
         weapon_->SetDescHandle(weaponDesc_);
+}
+
+bool WeaponItem::Shot(
+    std::span<const Weapon::ShotContext> contexts,
+    int newCharge, Weapon::ProjList* projectiles)
+{
+    bool result = false;
+    if (currentCharge_ > 0U || maximumCharge_ == 0U)
+    {
+        result = Weapon::CreateShot(
+            GetWeapon(), *weaponDesc_, contexts, projectiles);
+        if (newCharge == -1)
+        {
+            newCharge = result
+                            ? static_cast<int>(currentCharge_) - 1
+                            : static_cast<int>(currentCharge_);
+        }
+    }
+
+    // Player.cpp applies the replicated charge even when the charge gate or
+    // projectile preparation failed.
+    currentCharge_ = static_cast<std::uint32_t>(
+        std::max(newCharge, 0));
+    return result;
 }
 
 bool WeaponItem::Shot(bool projectileCreated, int newCharge) noexcept

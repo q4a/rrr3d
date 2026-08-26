@@ -331,6 +331,12 @@ public:
     WeaponItem* GetMineWeaponItem() noexcept;
     const WeaponItem* GetMineWeaponItem() const noexcept;
     float ReflectDamage(float value) const noexcept;
+    bool Shot(
+        WeaponItem& item,
+        std::span<const Weapon::ShotContext> contexts,
+        bool mineSlot, std::uint32_t projectileId,
+        int newCharge = -1,
+        Weapon::ProjList* projectiles = nullptr);
     bool Shot(WeaponItem& item, bool projectileCreated,
               bool mineSlot, std::uint32_t projectileId,
               int newCharge = -1) noexcept;
