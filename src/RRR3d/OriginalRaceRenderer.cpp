@@ -93,40 +93,20 @@ const r3d::game::originalrace::Vehicle& activeVehicleDefinition(
 
 const r3d::game::originalrace::ProjectileDefinition*
 runtimeProjectileDefinition(
-    const r3d::game::originalrace::Race& race,
     const r3d::game::originalrace::ProjectileRuntime& projectile) noexcept
 {
-    if (projectile.weaponDescription != nullptr &&
-        projectile.descriptionProjectile <
-            projectile.weaponDescription->projectiles.size())
-    {
-        return &projectile.weaponDescription
-                    ->projectiles[projectile.descriptionProjectile];
-    }
-    if (projectile.weapon >= race.weapons.size() ||
-        projectile.projectile >=
-            race.weapons[projectile.weapon].projectiles.size())
-        return nullptr;
-    return &race.weapons[projectile.weapon]
-                .projectiles[projectile.projectile];
+    return projectile.sourceObject != nullptr
+               ? &projectile.sourceObject->GetDesc()
+               : nullptr;
 }
 
 const r3d::game::originalrace::ProjectileDefinition*
 runtimeProjectileDefinition(
-    const r3d::game::originalrace::Race& race,
     const r3d::game::originalrace::MineRuntime& mine) noexcept
 {
-    if (mine.weaponDescription != nullptr &&
-        mine.descriptionProjectile <
-            mine.weaponDescription->projectiles.size())
-    {
-        return &mine.weaponDescription
-                    ->projectiles[mine.descriptionProjectile];
-    }
-    if (mine.weapon >= race.weapons.size() ||
-        mine.projectile >= race.weapons[mine.weapon].projectiles.size())
-        return nullptr;
-    return &race.weapons[mine.weapon].projectiles[mine.projectile];
+    return mine.sourceObject != nullptr
+               ? &mine.sourceObject->GetDesc()
+               : nullptr;
 }
 
 std::vector<StaticMeshVertex> vertices(
@@ -5351,8 +5331,8 @@ void OriginalRaceRenderer::draw(
             projectile.projectile >=
                 projectiles_[projectile.weapon].size())
             continue;
-        const auto* runtimeDefinition = runtimeProjectileDefinition(
-            race, projectile);
+        const auto* runtimeDefinition =
+            runtimeProjectileDefinition(projectile);
         if (runtimeDefinition == nullptr)
             continue;
         const auto& definition = *runtimeDefinition;
@@ -5430,8 +5410,8 @@ void OriginalRaceRenderer::draw(
                 race.weapons[mine.weapon].projectiles.size() ||
             mine.projectile >= projectiles_[mine.weapon].size())
             continue;
-        const auto* runtimeDefinition = runtimeProjectileDefinition(
-            race, mine);
+        const auto* runtimeDefinition =
+            runtimeProjectileDefinition(mine);
         if (runtimeDefinition == nullptr)
             continue;
         const auto& definition = *runtimeDefinition;
@@ -5443,12 +5423,10 @@ void OriginalRaceRenderer::draw(
         if (mine.visualVariant == 1U)
         {
             asset = &assets.secondaryVisual;
-            visual = &definition.secondaryVisual;
         }
         else if (mine.visualVariant == 2U)
         {
             asset = &assets.tertiaryVisual;
-            visual = &definition.tertiaryVisual;
         }
         if (asset->nodes.empty() &&
             asset->particleTextures.empty())
@@ -5456,7 +5434,7 @@ void OriginalRaceRenderer::draw(
         r3d::physics::Transform parent;
         parent.position = mine.position;
         parent.rotation = mine.rotation;
-        if (mine.type == 10U)
+        if (definition.type == 10U)
         {
             const float scale = mine.armingAlpha;
             parent.scale = {scale, scale, scale};

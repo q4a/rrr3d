@@ -3691,10 +3691,28 @@ Live update/contact и `spawnProjectileImpact` теперь получают des
 переведены attached transforms, Fire/Drobilka boxes, Laser/Frost rays,
 Torpeda progression, Rocket clearance, Resonanse/Drobilka rotation, обычный и
 decoration damage, death effect и crater spawn selection. Перегрузка
-`runtimeProjectileDefinition(ProjectileRuntime)` удалена; snapshot остаётся
-только стабильным backend bookkeeping и для автономных `MineRuntime`
-fragment records, у которых отдельный source descriptor ещё переносится
-следующим блоком.
+`runtimeProjectileDefinition(ProjectileRuntime)` удалена; snapshot оставался
+стабильным backend bookkeeping и источником для автономных `MineRuntime`
+fragment records на границе этого блока (оба остатка удалены в P2.157).
+
+### P2.157 — concrete MineRip fragment и renderer descriptor ownership — выполнено
+
+`MineRuntime` всё ещё возвращался к сохранённому `Weapon::DescHandle` либо к
+глобальному каталогу оружия для arming/split/contact/death, а renderer делал
+такой же lookup и для mines, и для обычных projectiles. Особенно опасным был
+MineRip: каждый model2/model3 fragment уже являлся отдельным `Proj` со своим
+скопированным `_desc`, но death effect и visual повторно выбирались из
+родительского MineRip по `visualVariant`.
+
+Mine, MineRip core и все шесть автономных fragments теперь используют только
+`sourceObject->GetDesc()`. На concrete descriptor переведены damage, crater
+damage rate, impulse speed, collision/посадка на трассу, split definitions и
+death effect. Renderer также читает concrete descriptor; `visualVariant`
+оставлен лишь индексом заранее загруженного GPU asset, тогда как само visual
+description принадлежит дочернему `Proj`. Удалены обе session snapshot-ссылки
+и renderer fallback lookup для projectile/mine. Regression дополнительно
+проверяет type/damage/speed в собственном descriptor каждого MineRip child и
+сохранение descriptor обычного projectile после замены `WeaponItem::WpnDesc`.
 
 ## Итоговое решение
 

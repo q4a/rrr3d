@@ -292,8 +292,6 @@ struct MineRuntime
     std::size_t damageOwner = RacerRuntime::invalidWeapon;
     std::size_t weapon = 0;
     std::size_t projectile = 0;
-    source::Weapon::DescHandle weaponDescription;
-    std::size_t descriptionProjectile = 0;
     // Mine, MineRip core and every detached fragment are distinct source
     // Proj GameObjects.  In particular they must not share DeathEffect's
     // one-shot listener state when the parent runtime is copied to create
@@ -327,11 +325,6 @@ struct ProjectileRuntime
     std::size_t damageOwner = RacerRuntime::invalidWeapon;
     std::size_t weapon = 0;
     std::size_t projectile = 0;
-    // Proj stores the descriptor copied at PrepareProj time. Sharing the
-    // immutable WeaponItem snapshot preserves that lifetime without copying
-    // the heavy renderer definitions for every fast projectile.
-    source::Weapon::DescHandle weaponDescription;
-    std::size_t descriptionProjectile = 0;
     std::size_t mountSlot = 0;
     Vec3 position;
     Vec3 direction{1.0F, 0.0F, 0.0F};

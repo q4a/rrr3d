@@ -15,22 +15,6 @@ namespace r3d::game::originalrace
 namespace
 {
 
-const ProjectileDefinition* runtimeProjectileDefinition(
-    const Race& race, const MineRuntime& mine) noexcept
-{
-    if (mine.weaponDescription != nullptr &&
-        mine.descriptionProjectile <
-            mine.weaponDescription->projectiles.size())
-    {
-        return &mine.weaponDescription
-                    ->projectiles[mine.descriptionProjectile];
-    }
-    if (mine.weapon >= race.weapons.size() ||
-        mine.projectile >= race.weapons[mine.weapon].projectiles.size())
-        return nullptr;
-    return &race.weapons[mine.weapon].projectiles[mine.projectile];
-}
-
 bool hasDeathEffect(const DeathEffectDefinition& definition) noexcept
 {
     return !definition.visual.record.empty() ||
@@ -42,19 +26,6 @@ bool hasDeathEffect(const DeathEffectDefinition& definition) noexcept
 bool hasDeathEffect(const ProjectileDefinition& definition) noexcept
 {
     return hasDeathEffect(definition.deathEffect);
-}
-
-const DeathEffectDefinition* mineDeathEffectDefinition(
-    const MineRuntime& mine,
-    const ProjectileDefinition& definition) noexcept
-{
-    if (mine.visualVariant == 1U &&
-        definition.secondaryProjectile.valid)
-        return &definition.secondaryProjectile.deathEffect;
-    if (mine.visualVariant == 2U &&
-        definition.tertiaryProjectile.valid)
-        return &definition.tertiaryProjectile.deathEffect;
-    return &definition.deathEffect;
 }
 
 void configureProjectileSourceObject(
@@ -142,12 +113,11 @@ void configureMineSourceObject(
     }
     if (mine.sourceObject == nullptr)
         return;
-    const auto* death = mineDeathEffectDefinition(mine, definition);
-    if (death != nullptr && hasDeathEffect(*death))
+    if (hasDeathEffect(definition.deathEffect))
     {
         mine.sourceObject->ConfigureDeathEffect(
-            death->effectPhysicsIgnoreSenderCar,
-            death->targetChild);
+            definition.deathEffect.effectPhysicsIgnoreSenderCar,
+            definition.deathEffect.targetChild);
     }
 }
 
@@ -4850,8 +4820,6 @@ void OriginalRaceSession::updateGameplay(
         mine.owner = owner;
         mine.damageOwner = owner;
         mine.weapon = weapon;
-        mine.weaponDescription = description;
-        mine.descriptionProjectile = 0U;
         const auto sourceProjectile = std::find_if(
             race_.weapons[weapon].projectiles.begin(),
             race_.weapons[weapon].projectiles.end(),
@@ -5011,8 +4979,6 @@ void OriginalRaceSession::updateGameplay(
             runtimeProjectile.damageOwner = owner;
             runtimeProjectile.weapon =
                 racers_[owner].hyperWeapon;
-            runtimeProjectile.weaponDescription = description;
-            runtimeProjectile.descriptionProjectile = 0U;
             const auto& sourceProjectiles =
                 race_.weapons[racers_[owner].hyperWeapon].projectiles;
             const auto sourceProjectile = std::find_if(
@@ -5122,15 +5088,13 @@ void OriginalRaceSession::updateGameplay(
     auto spawnMineDeathEffect = [&](
         MineRuntime& mine,
         std::size_t targetRacer = RacerRuntime::invalidWeapon) {
-        const auto* runtimeDefinition = runtimeProjectileDefinition(
-            race_, mine);
-        if (runtimeDefinition == nullptr)
+        if (mine.sourceObject == nullptr)
         {
-            mine.sourceObject->Death();
             return;
         }
-        const auto* death = mineDeathEffectDefinition(
-            mine, *runtimeDefinition);
+        const auto& sourceDefinition =
+            mine.sourceObject->GetDesc();
+        const auto* death = &sourceDefinition.deathEffect;
         std::uint8_t deathVariant = 3U;
         if (mine.visualVariant == 1U)
             deathVariant = 5U;
@@ -5263,6 +5227,8 @@ void OriginalRaceSession::updateGameplay(
             racer >= racers_.size() || racers_[racer].IsDestroyed() ||
             !logic_.HasGameObj(mine.sourceObject))
             return false;
+        const auto& sourceDefinition =
+            mine.sourceObject->GetDesc();
         const auto& vehicleDefinition = vehicleForRacer(racer);
         const auto sourceContactRoute =
             mine.sourceObject->RouteContact(
@@ -5271,7 +5237,8 @@ void OriginalRaceSession::updateGameplay(
             source::Proj::ContactHandler::Maslo)
         {
             return applyMasloContact(
-                mine.sourceObject, racer, mine.position, mine.damage);
+                mine.sourceObject, racer, mine.position,
+                sourceDefinition.damage);
         }
         if (!sourceContactRoute.appliesDamage)
             return false;
@@ -5280,17 +5247,17 @@ void OriginalRaceSession::updateGameplay(
             std::max(
                 sourceContactRoute.handler ==
                         source::Proj::ContactHandler::Crater
-                    ? mine.damage * seconds
-                    : mine.damage,
+                    ? sourceDefinition.damage * seconds
+                    : sourceDefinition.damage,
                 0.0F),
             sourceContactRoute.damageType);
         if (sourceContactRoute.handler !=
                 source::Proj::ContactHandler::Crater &&
-            mine.impulseSpeed != 0.0F)
+            sourceDefinition.speed != 0.0F)
         {
             const float targetMass =
                 std::max(vehicleDefinition.physics.mass, 1.0F);
-            const Vec3 impulse{0.0F, 0.0F, mine.impulseSpeed};
+            const Vec3 impulse{0.0F, 0.0F, sourceDefinition.speed};
             velocityRequests_.push_back(
                 {racer, multiply(impulse, 1.0F / targetMass)});
             const Vec3 lever = subtract(
@@ -5361,6 +5328,8 @@ void OriginalRaceSession::updateGameplay(
             mine.active = false;
             continue;
         }
+        const auto& mineDefinition =
+            mine.sourceObject->GetDesc();
         mine.sourceObject->SyncSourceTransform(
             source::Proj::Vec3{
                 mine.position.x, mine.position.y, mine.position.z},
@@ -5397,8 +5366,8 @@ void OriginalRaceSession::updateGameplay(
             const auto trackHit = raycastTrackPlane(
                 race_, add(mine.position, {0.0F, 0.0F, 2.0F}));
             const float bottomOffset = std::max(
-                -mine.collision.center.z +
-                    mine.collision.halfExtents.z,
+                -mineDefinition.collision.center.z +
+                    mineDefinition.collision.halfExtents.z,
                 0.01F);
             if (trackHit.hit &&
                 mine.position.z <
@@ -5419,14 +5388,7 @@ void OriginalRaceSession::updateGameplay(
         if (mineProgressRoute.handler ==
             source::Proj::ProgressHandler::MineRip)
         {
-            const auto* runtimeDefinition = runtimeProjectileDefinition(
-                race_, mine);
-            if (runtimeDefinition == nullptr)
-            {
-                deactivateMine(mine);
-                continue;
-            }
-            const auto& projectile = *runtimeDefinition;
+            const auto& projectile = mineDefinition;
             if (mineRipProgress.split)
             {
                 if (projectile.secondaryProjectile.valid)
@@ -5534,7 +5496,7 @@ void OriginalRaceSession::updateGameplay(
                     vehicles[racer],
                     vehicleDefinition.physics);
             const OrientedBox mineBox =
-                orientedBox(mineTransform, mine.collision);
+                orientedBox(mineTransform, mineDefinition.collision);
             if (!sourceContactAllowed ||
                 !boxesOverlap(targetBox, mineBox))
                 continue;
@@ -5998,8 +5960,6 @@ void OriginalRaceSession::updateGameplay(
             runtimeProjectile.damageOwner = shooter;
             runtimeProjectile.weapon = firedWeapon;
             runtimeProjectile.projectile = backendProjectileIndex;
-            runtimeProjectile.weaponDescription = shotDescription;
-            runtimeProjectile.descriptionProjectile = projectileIndex;
             runtimeProjectile.mountSlot = firedSlot;
             runtimeProjectile.position = projectileOrigin;
             runtimeProjectile.direction = sourceDirection;
@@ -10120,14 +10080,12 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                         "source WeaponItem full WpnDesc shot ownership "
                         "failed");
                 }
-                const auto firedDescription =
-                    firedProjectile->weaponDescription;
-                if (firedDescription == nullptr ||
-                    firedProjectile->descriptionProjectile >=
-                        firedDescription->projectiles.size())
+                const auto* firedSource =
+                    firedProjectile->sourceObject;
+                if (firedSource == nullptr)
                 {
                     throw std::runtime_error(
-                        "source projectile descriptor snapshot missing");
+                        "source projectile concrete descriptor missing");
                 }
                 auto replacementDescription =
                     descriptorItem->GetWpnDesc();
@@ -10140,9 +10098,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 const auto replacementHandle =
                     descriptorItem->GetWeapon()->GetDescHandle();
                 const auto& retainedProjectile =
-                    firedDescription->projectiles[
-                        firedProjectile->descriptionProjectile];
-                if (firedDescription == replacementHandle ||
+                    firedSource->GetDesc();
+                if (&retainedProjectile ==
+                        &replacementHandle->projectiles.front() ||
                     std::abs(retainedProjectile.speed - 77.0F) >
                         0.001F ||
                     std::abs(
@@ -10152,7 +10110,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                         0.001F)
                 {
                     throw std::runtime_error(
-                        "source projectile descriptor snapshot lifetime "
+                        "source projectile concrete descriptor lifetime "
                         "failed");
                 }
             }
@@ -12555,12 +12513,19 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             {
                 if (mine.visualVariant == 1U)
                 {
+                    const auto* object = mine.sourceObject;
                     sourceFragments =
                         sourceFragments &&
-                        mine.sourceObject != nullptr &&
-                        mine.sourceObject
-                                ->GetDeathEffectBehavior() !=
+                        object != nullptr &&
+                        object->GetDeathEffectBehavior() !=
                             nullptr &&
+                        object->GetDesc().type == 11U &&
+                        std::abs(
+                            object->GetDesc().damage - 10.0F) <
+                            0.001F &&
+                        std::abs(
+                            object->GetDesc().speed - 3000.0F) <
+                            0.001F &&
                         mine.owner ==
                             RacerRuntime::invalidWeapon &&
                         !mine.linkedToOwner &&
@@ -12575,12 +12540,19 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 }
                 else if (mine.visualVariant == 2U)
                 {
+                    const auto* object = mine.sourceObject;
                     sourceFragments =
                         sourceFragments &&
-                        mine.sourceObject != nullptr &&
-                        mine.sourceObject
-                                ->GetDeathEffectBehavior() !=
+                        object != nullptr &&
+                        object->GetDeathEffectBehavior() !=
                             nullptr &&
+                        object->GetDesc().type == 13U &&
+                        std::abs(
+                            object->GetDesc().damage - 4.0F) <
+                            0.001F &&
+                        std::abs(
+                            object->GetDesc().speed - 3000.0F) <
+                            0.001F &&
                         mine.owner ==
                             RacerRuntime::invalidWeapon &&
                         !mine.linkedToOwner &&
