@@ -550,7 +550,7 @@ private:
     void applyCampaignRewards() noexcept;
 
     const Race& race_;
-    source::PairPxContactEffect pairContactEffect_;
+    source::Logic logic_;
     RacePhase phase_ = RacePhase::Countdown;
     RacePhase phaseBeforePause_ = RacePhase::Countdown;
     float elapsedSeconds_ = 0.0F;

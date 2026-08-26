@@ -201,4 +201,52 @@ Logic::TakeBonusResult Logic::TakeBonus(
             true};
 }
 
+void Logic::ResetContactBehavior(std::size_t soundCount) noexcept
+{
+    pairPxContactEffect_.Reset(soundCount);
+}
+
+PairPxContactEffect& Logic::GetPairPxContactEffect() noexcept
+{
+    return pairPxContactEffect_;
+}
+const PairPxContactEffect& Logic::GetPairPxContactEffect() const noexcept
+{
+    return pairPxContactEffect_;
+}
+
+const Logic::ContactRange& Logic::GetTouchBorderDamage() const noexcept
+{
+    return touchBorderDamage_;
+}
+void Logic::SetTouchBorderDamage(ContactRange value) noexcept
+{
+    touchBorderDamage_ = value;
+}
+const Logic::ContactRange&
+Logic::GetTouchBorderDamageForce() const noexcept
+{
+    return touchBorderDamageForce_;
+}
+void Logic::SetTouchBorderDamageForce(ContactRange value) noexcept
+{
+    touchBorderDamageForce_ = value;
+}
+const Logic::ContactRange& Logic::GetTouchCarDamage() const noexcept
+{
+    return touchCarDamage_;
+}
+void Logic::SetTouchCarDamage(ContactRange value) noexcept
+{
+    touchCarDamage_ = value;
+}
+const Logic::ContactRange& Logic::GetTouchCarDamageForce() const noexcept
+{
+    return touchCarDamageForce_;
+}
+void Logic::SetTouchCarDamageForce(ContactRange value) noexcept
+{
+    touchCarDamageForce_ = value;
+}
+
 } // namespace r3d::game::originalrace::source

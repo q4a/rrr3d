@@ -2118,6 +2118,24 @@ race collection, но identity и callback path теперь совпадают 
 Regression меняет `gotGameObj` на `gotDestrObj` и подтверждает, что player и
 обратная ссылка нового concrete object не потерялись.
 
+### P2.76 — `LogicBehaviors` contact owner — выполнено
+
+Активная `PairPxContactEffect` уже повторяла source cursor/release rules, но
+ошибочно принадлежала непосредственно `OriginalRaceSession`. Четыре
+глобальных диапазона `touchBorderDamage`, `touchBorderDamageForce`,
+`touchCarDamage`, `touchCarDamageForce` также читались прямо из parser
+структуры `Race`. В Windows ими и коллекцией behaviors владеет `Logic`.
+
+`source::Logic` теперь является реальным session instance: он хранит все
+четыре диапазона, владеет единственной `PairPxContactEffect` и сбрасывает её
+sound catalog при старте/выходе гонки. Jolt contact adapter вызывает behavior
+через `Logic::GetPairPxContactEffect`, а border/car damage interpolation
+читает `Logic` getters, соответствующие исходному API.
+
+Weapon/Logic regression проверяет persistence всех четырёх диапазонов и весь
+двухточечный contact lifecycle уже через владельца `Logic`; physics smoke
+покрывает фактический border/car путь.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

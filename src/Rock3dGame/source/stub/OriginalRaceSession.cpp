@@ -1167,7 +1167,11 @@ void OriginalRaceSession::reset()
         race_.bonuses.size(), RacerRuntime::invalidWeapon);
     events_.clear();
     effects_.clear();
-    pairContactEffect_.Reset(race_.contactSoundPaths.size());
+    logic_.SetTouchBorderDamage(race_.touchBorderDamage);
+    logic_.SetTouchBorderDamageForce(race_.touchBorderDamageForce);
+    logic_.SetTouchCarDamage(race_.touchCarDamage);
+    logic_.SetTouchCarDamageForce(race_.touchCarDamageForce);
+    logic_.ResetContactBehavior(race_.contactSoundPaths.size());
     mines_.clear();
     projectiles_.clear();
     respawns_.clear();
@@ -3231,13 +3235,14 @@ void OriginalRaceSession::updateGameplay(
                 points[0] = {point.x, point.y, point.z};
                 pointCount = 1U;
             }
-            const auto contactResult = pairContactEffect_.OnContact(
-                pairContactKey(
-                    racer, contact.surface, contact.otherActor),
-                contact.frictionForce, false, false,
-                std::span<const source::PairPxContactEffect::Point>{
-                    points.data(), pointCount},
-                sourceRandomUnit());
+            const auto contactResult =
+                logic_.GetPairPxContactEffect().OnContact(
+                    pairContactKey(
+                        racer, contact.surface, contact.otherActor),
+                    contact.frictionForce, false, false,
+                    std::span<const source::PairPxContactEffect::Point>{
+                        points.data(), pointCount},
+                    sourceRandomUnit());
             if (!contactResult.accepted)
                 continue;
             if (contactResult.pairCreated &&
@@ -3312,7 +3317,8 @@ void OriginalRaceSession::updateGameplay(
             }
         }
     }
-    for (const auto& released : pairContactEffect_.OnProgress(seconds))
+    for (const auto& released :
+         logic_.GetPairPxContactEffect().OnProgress(seconds))
     {
         const auto effect = std::find_if(
             effects_.begin(), effects_.end(),
@@ -3345,7 +3351,8 @@ void OriginalRaceSession::updateGameplay(
             racers_[racer].gameCar.CancelClutch();
             float forcePart = 0.0F;
             const float damage = damageFromContact(
-                race_.touchBorderDamage, race_.touchBorderDamageForce,
+                logic_.GetTouchBorderDamage(),
+                logic_.GetTouchBorderDamageForce(),
                 contact.force, forcePart);
             if ((!springBorders_ && forcePart == 0.0F) ||
                 vehicles[racer].speed <= 16.0F)
@@ -5882,7 +5889,8 @@ void OriginalRaceSession::updateGameplay(
                 continue;
             float forcePart = 0.0F;
             const float damage = damageFromContact(
-                race_.touchCarDamage, race_.touchCarDamageForce,
+                logic_.GetTouchCarDamage(),
+                logic_.GetTouchCarDamageForce(),
                 contact.force, forcePart);
             if (forcePart <= 0.0F || damage <= 0.0F)
                 continue;
@@ -6170,7 +6178,7 @@ void OriginalRaceSession::completeRaceForExit(
             racerMapObjects_.begin(), racerMapObjects_.end(), nullptr);
         std::fill(vehicleInputs_.begin(), vehicleInputs_.end(),
                   r3d::physics::VehicleInput{});
-        pairContactEffect_.Reset(race_.contactSoundPaths.size());
+        logic_.ResetContactBehavior(race_.contactSoundPaths.size());
     }
     phase_ = RacePhase::Finished;
     phaseBeforePause_ = phase_;

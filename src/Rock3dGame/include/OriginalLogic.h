@@ -103,6 +103,8 @@ private:
 class Logic
 {
 public:
+    using ContactRange = std::array<float, 2U>;
+
     enum class SlotType : std::uint8_t
     {
         Hyper = 0U,
@@ -150,6 +152,28 @@ public:
         float value,
         const std::vector<std::uint32_t>& maximumCharges,
         float randomUnit) noexcept;
+
+    // Logic.cpp owns the global contact behavior and the four serialized
+    // GameCar contact ranges. Physics/audio remain backend adapters.
+    void ResetContactBehavior(std::size_t soundCount = 0U) noexcept;
+    PairPxContactEffect& GetPairPxContactEffect() noexcept;
+    const PairPxContactEffect& GetPairPxContactEffect() const noexcept;
+
+    const ContactRange& GetTouchBorderDamage() const noexcept;
+    void SetTouchBorderDamage(ContactRange value) noexcept;
+    const ContactRange& GetTouchBorderDamageForce() const noexcept;
+    void SetTouchBorderDamageForce(ContactRange value) noexcept;
+    const ContactRange& GetTouchCarDamage() const noexcept;
+    void SetTouchCarDamage(ContactRange value) noexcept;
+    const ContactRange& GetTouchCarDamageForce() const noexcept;
+    void SetTouchCarDamageForce(ContactRange value) noexcept;
+
+private:
+    PairPxContactEffect pairPxContactEffect_;
+    ContactRange touchBorderDamage_{};
+    ContactRange touchBorderDamageForce_{};
+    ContactRange touchCarDamage_{};
+    ContactRange touchCarDamageForce_{};
 };
 
 } // namespace r3d::game::originalrace::source

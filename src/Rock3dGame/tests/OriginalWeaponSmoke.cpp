@@ -629,8 +629,22 @@ int main()
         targetDestroy.destroy)
         return 62;
 
-    source::PairPxContactEffect contacts;
-    contacts.Reset(3U);
+    source::Logic logic;
+    logic.SetTouchBorderDamage({10.0F, 20.0F});
+    logic.SetTouchBorderDamageForce({30.0F, 40.0F});
+    logic.SetTouchCarDamage({50.0F, 60.0F});
+    logic.SetTouchCarDamageForce({70.0F, 80.0F});
+    logic.ResetContactBehavior(3U);
+    auto& contacts = logic.GetPairPxContactEffect();
+    if (logic.GetTouchBorderDamage() !=
+            source::Logic::ContactRange{10.0F, 20.0F} ||
+        logic.GetTouchBorderDamageForce() !=
+            source::Logic::ContactRange{30.0F, 40.0F} ||
+        logic.GetTouchCarDamage() !=
+            source::Logic::ContactRange{50.0F, 60.0F} ||
+        logic.GetTouchCarDamageForce() !=
+            source::Logic::ContactRange{70.0F, 80.0F})
+        return 63;
     const source::PairPxContactEffect::Key contactKey{4U, 9U};
     const std::array<source::PairPxContactEffect::Point, 3U>
         contactPoints{{{1.0F, 2.0F, 3.0F},
