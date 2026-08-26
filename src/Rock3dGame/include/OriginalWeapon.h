@@ -463,6 +463,14 @@ public:
         float deltaTime, float damage, bool distort,
         float timeLife, float maximumTimeLife,
         Vec3 worldDirection) noexcept;
+    LaserUpdateResult ProgressFrostRay(
+        float maximumDistance, bool hit, float hitDistance,
+        float deltaTime, float damage,
+        float timeLife, float maximumTimeLife,
+        Vec3 worldDirection) noexcept;
+    bool AttachFrostSlow(
+        GameObject* target, Player* targetPlayer,
+        std::size_t weapon, std::size_t projectile) noexcept;
     ContinuousContactResult ContactDrobilka(
         bool hasTarget, float damage, float deltaTime,
         Vec3 contactPoint) noexcept;

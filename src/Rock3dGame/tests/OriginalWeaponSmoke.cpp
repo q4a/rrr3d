@@ -307,6 +307,27 @@ int main()
     if (!frostProjectile.GetIgnoreContactProj() ||
         frostProjectile.GetParent() != &frostWeapon)
         return 114;
+    source::Player frostTargetPlayer;
+    source::GameObject frostNonCarTarget;
+    frostDescription.tertiaryVisual.maximumTimeLife = 2.5F;
+    source::Proj concreteFrostProjectile;
+    concreteFrostProjectile.PrepareSource(
+        frostDescription, &frostWeapon,
+        source::Proj::ShotContext{});
+    const auto concreteFrost = concreteFrostProjectile.ProgressFrostRay(
+        100.0F, true, 20.0F, 0.1F, 5.0F,
+        0.0F, 1.0F, {1.0F, 0.0F, 0.0F});
+    if (!concreteFrost.applyDamage || concreteFrost.distance != 20.0F ||
+        !concreteFrostProjectile.AttachFrostSlow(
+            &frostTargetPlayer.gameCar, &frostTargetPlayer, 8U, 2U) ||
+        concreteFrostProjectile.AttachFrostSlow(
+            &frostTargetPlayer.gameCar, &frostTargetPlayer, 9U, 3U) ||
+        frostTargetPlayer.slowEffect.GetRemainingSeconds() != 2.5F ||
+        frostTargetPlayer.slowEffect.GetWeapon() != 8U ||
+        frostTargetPlayer.slowEffect.GetProjectile() != 2U ||
+        concreteFrostProjectile.AttachFrostSlow(
+            &frostNonCarTarget, &frostTargetPlayer, 8U, 2U))
+        return 138;
 
     source::Proj projectileObject;
     projectileObject.ConfigureDeathEffect(true, true);

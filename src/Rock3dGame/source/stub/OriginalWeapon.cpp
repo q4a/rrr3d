@@ -955,6 +955,34 @@ Proj::LaserUpdateResult Proj::ProgressLaser(
     return result;
 }
 
+Proj::LaserUpdateResult Proj::ProgressFrostRay(
+    float maximumDistance, bool hit, float hitDistance,
+    float deltaTime, float damage,
+    float timeLife, float maximumTimeLife,
+    Vec3 worldDirection) noexcept
+{
+    return ProgressLaser(
+        maximumDistance, hit, hitDistance, deltaTime, damage,
+        false, timeLife, maximumTimeLife, worldDirection);
+}
+
+bool Proj::AttachFrostSlow(
+    GameObject* target, Player* targetPlayer,
+    std::size_t weapon, std::size_t projectile) noexcept
+{
+    if (target == nullptr || target->IsCar() == nullptr ||
+        targetPlayer == nullptr || &targetPlayer->gameCar != target ||
+        target->GetBehaviors().Find(BehaviorType::SlowEffect) != nullptr)
+    {
+        return false;
+    }
+    const float duration = description_.tertiaryVisual.maximumTimeLife > 0.0F
+        ? description_.tertiaryVisual.maximumTimeLife
+        : 1.0F;
+    return targetPlayer->AttachSlowEffect(
+        duration, weapon, projectile);
+}
+
 Proj::ContinuousContactResult Proj::ContactDrobilka(
     bool hasTarget, float damage, float deltaTime,
     Vec3 contactPoint) noexcept

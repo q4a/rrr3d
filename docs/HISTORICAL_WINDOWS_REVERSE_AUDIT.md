@@ -3457,6 +3457,23 @@ lock state и меняет `GameCar`. Map `AutoProj` масла идёт по т
 снимает каждый контакт. Regression проверяет direct-car Mine, non-car reject,
 mine-bug lock, wheel-parent Maslo и Spring impulse/lock.
 
+### P2.144 — concrete `FrostRayUpdate` и SlowEffect ownership — выполнено
+
+FrostRay использовал общий `ProgressLaser`, после чего session отдельно
+проверял enum типа, вычислял lifetime model3 и напрямую вызывал
+`Player::AttachSlowEffect`. В Windows отдельный `Proj::FrostRayUpdate` сначала
+выполняет недеформированный LaserUpdate, затем проверяет generic target через
+`IsCar`, ищет уже существующий `btSlowEffect` и только один раз добавляет
+эффект из `_desc.model3`.
+
+В concrete `Proj` восстановлены отдельный `ProgressFrostRay` и
+`AttachFrostSlow`: тип цели, соответствие target живому `Player::gameCar`,
+duplicate-behavior gate, fallback lifetime и weapon/projectile attribution
+теперь принадлежат снаряду. Session оставляет у себя raycast и применение
+Jolt velocity limit, но больше не воспроизводит source-условия FrostRay.
+Regression проверяет hit/damage ray, 2.5-секундный model3 lifetime, identity
+оружия/снаряда, запрет повторного эффекта и reject обычного GameObject.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

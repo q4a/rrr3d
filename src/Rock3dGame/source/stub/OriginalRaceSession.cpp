@@ -4026,16 +4026,24 @@ void OriginalRaceSession::updateGameplay(
                           projectile.owner, rayOrigin,
                           projectile.direction, maximumDistance)
                     : WorldRayHit{};
-            const auto laserUpdate = sourceRay
-                ? projectile.sourceObject->ProgressLaser(
-                      maximumDistance, rayHit.hit, rayHit.distance,
-                      seconds, projectileDefinition.damage,
-                      sourceProgressRoute.handler ==
-                          source::Proj::ProgressHandler::Laser,
-                      projectile.ageSeconds,
-                      projectile.maximumLifeSeconds,
-                      sourceVec(projectile.direction))
-                : source::Proj::LaserUpdateResult{};
+            const auto laserUpdate = !sourceRay
+                ? source::Proj::LaserUpdateResult{}
+                : sourceProgressRoute.handler ==
+                          source::Proj::ProgressHandler::FrostRay
+                      ? projectile.sourceObject->ProgressFrostRay(
+                            maximumDistance, rayHit.hit,
+                            rayHit.distance, seconds,
+                            projectileDefinition.damage,
+                            projectile.ageSeconds,
+                            projectile.maximumLifeSeconds,
+                            sourceVec(projectile.direction))
+                      : projectile.sourceObject->ProgressLaser(
+                            maximumDistance, rayHit.hit,
+                            rayHit.distance, seconds,
+                            projectileDefinition.damage, true,
+                            projectile.ageSeconds,
+                            projectile.maximumLifeSeconds,
+                            sourceVec(projectile.direction));
             projectile.impactDistance =
                 sourceRay ? laserUpdate.distance : 0.0F;
             projectile.beamWidthScale =
@@ -4073,16 +4081,9 @@ void OriginalRaceSession::updateGameplay(
                 if (sourceProgressRoute.handler ==
                     source::Proj::ProgressHandler::FrostRay)
                 {
-                    const float duration =
-                        projectileDefinition.tertiaryVisual
-                                    .maximumTimeLife >
-                                0.0F
-                            ? projectileDefinition.tertiaryVisual
-                                  .maximumTimeLife
-                            : 1.0F;
-                    racers_[target].AttachSlowEffect(
-                        duration, projectile.weapon,
-                        projectile.projectile);
+                    projectile.sourceObject->AttachFrostSlow(
+                        &racers_[target].gameCar, &racers_[target],
+                        projectile.weapon, projectile.projectile);
                 }
             }
             else if (sourceRay &&
