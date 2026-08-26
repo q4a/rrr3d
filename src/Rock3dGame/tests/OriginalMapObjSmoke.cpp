@@ -34,15 +34,18 @@ int main()
     crush.GetGameObj().SetLife(17.0F);
     crush.SetPlayer(&player);
     crush.SetType(source::GameObjType::DestrObj);
-    if (crush.GetOwner() != &objects || crush.GetParent() != &parent ||
-        parent.GetChildren().size() != 1U ||
-        parent.GetChildren().front() != &crush.GetGameObj() ||
+    if (crush.GetOwner() != &objects || crush.GetParent() != nullptr ||
+        !parent.GetChildren().empty() || !crush.GetName().empty() ||
         crush.GetId() != 41U || !crush.IsSpecial() ||
         crush.GetPlayer() != &player ||
         crush.GetGameObj().GetMapObj() != &crush ||
         crush.GetDestrObj() == nullptr ||
-        std::abs(crush.GetGameObj().GetLife() - 17.0F) > 0.0001F)
+        crush.GetGameObj().GetLogic() != &logic ||
+        crush.GetGameObj().GetLife() != -1.0F)
         return 2;
+    // Record loading follows concrete construction in MapObj::LoadSource.
+    // Reapply the serialized life after verifying CreateGameObj's reset.
+    crush.GetGameObj().ResetGameObject(25.0F);
 
     auto& architecture = objects.Add(
         source::GameObjType::DestrObj,
@@ -58,7 +61,7 @@ int main()
     projectile.GetGameObj().ResetGameObject(-1.0F);
     auto* autoProjectile = projectile.GetAutoProj();
     if (autoProjectile == nullptr || projectile.IsSpecial() ||
-        parent.GetChildren().size() != 3U ||
+        parent.GetChildren().size() != 2U ||
         autoProjectile->GetLogic() != &logic)
         return 3;
     autoProjectile->Reset(source::AutoProj::masloType);

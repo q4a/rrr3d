@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 namespace r3d::game::originalrace::source
 {
@@ -150,6 +151,7 @@ GameObject& GameObject::operator=(const GameObject& other) noexcept
     touchAttributionSeconds = other.touchAttributionSeconds;
     immortalFlag = other.immortalFlag;
     destroyed = other.destroyed;
+    name_ = other.name_;
     SetLogic(other.logic_);
     objectDestroyed_ = other.objectDestroyed_;
     // GameObject::Assign does not copy the legacy listener container. Its
@@ -168,6 +170,14 @@ GameObject& GameObject::operator=(GameObject&& other) noexcept
 {
     return *this = static_cast<const GameObject&>(other);
 }
+
+void GameObject::AssignSource(GameObject& value) noexcept
+{
+    SetLogic(value.GetLogic());
+}
+
+const std::string& GameObject::GetName() const noexcept { return name_; }
+void GameObject::SetName(std::string value) { name_ = std::move(value); }
 
 MapObj* GameObject::GetMapObj() noexcept { return mapObj_; }
 const MapObj* GameObject::GetMapObj() const noexcept { return mapObj_; }

@@ -2163,12 +2163,11 @@ track, bonuses и все динамические cars используют од
 дочерним объектам. Вложенные `MapObj` снова принадлежат
 `GameObject::GetIncludeList()` и удаляются до уничтожения родителя.
 
-Portable-смена concrete `GameObjType` сохраняет уже активную parent-связь,
-не копирует listener container и переподключает новый `GameObject` к тому же
-графу. Это исключает отдельное формальное поле parent в `MapObj` и возвращает
-единый источник истины оригинала. `OriginalGameObjectSmoke` проверяет
-двухуровневое наследование `Logic`, detach и очистку include list;
-`OriginalMapObjSmoke` проверяет граф при type replacement и удалении.
+Parent-связь больше не хранится вторично в `MapObj`: она принадлежит только
+concrete `GameObject`. Это возвращает единый источник истины оригинала.
+`OriginalGameObjectSmoke` проверяет двухуровневое наследование `Logic`,
+detach и очистку include list; `OriginalMapObjSmoke` проверяет граф при
+удалении. Точная семантика type replacement отдельно восстановлена в P2.82.
 
 ### P2.79 — `GameObject::LogicInited/LogicReleased` и `AutoProj` — выполнено
 
@@ -2215,6 +2214,22 @@ serialized `GameObjType`. Повторный `GetOrCreateRecord` возвращ�
 FindRecord/shared identity, mismatch и persistence каталога через Clear.
 XML `SerialNode/RecordLib` writer остаётся parser boundary, а не дублируется
 в gameplay owner.
+
+### P2.82 — `MapObj::CreateGameObj/GameObject::Assign` без ложного state copy — выполнено
+
+Повторная сверка выявила прежнюю portable-ошибку: при смене `GameObjType`
+использовался полный C++ `operator=`, сохранявший life, death, name и parent.
+Windows `GameObject::Assign` переносит только Logic/serialization flags, а
+`MapObj::CreateGameObj` затем явно ставит пустые name, parent и component
+owner. Поэтому type replacement в рабочем коде выполняет новый узкий
+`AssignSource`; C++ value copy оставлен отдельно только для backend-контейнеров
+`RaceEffect`.
+
+Имя также возвращено исходному владельцу `GameObject`; `MapObj::GetName` и
+`SetName` теперь только делегируют. Отдельное поле `MapObj::name_` удалено.
+Regressions подтверждают, что AssignSource сохраняет Logic, но не копирует
+life/name, а concrete replacement сбрасывает name/life/parent, сохраняя
+связи самого MapObj с Player, record proxy и ID.
 
 ## Итоговое решение
 

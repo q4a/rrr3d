@@ -164,9 +164,6 @@ void MapObj::SetType(GameObjType value)
 
 void MapObj::CreateGameObj()
 {
-    GameObject* parent = gameObj_ != nullptr
-        ? gameObj_->GetParent()
-        : nullptr;
     std::unique_ptr<GameObject> replacement;
     if (type_ == GameObjType::Proj)
         replacement = std::make_unique<AutoProj>();
@@ -175,16 +172,17 @@ void MapObj::CreateGameObj()
     else
         replacement = std::make_unique<GameObject>();
 
-    // MapObj::CreateGameObj calls Assign before deleting the old instance.
-    // Portable assignment intentionally does not copy listener ownership.
+    // Source CreateGameObj calls its narrow Assign, deletes the old object,
+    // then explicitly assigns empty name/parent/component-owner locals.
     if (gameObj_ != nullptr)
     {
-        *replacement = *gameObj_;
+        replacement->AssignSource(*gameObj_);
         gameObj_->SetParent(nullptr);
         gameObj_->SetLogic(nullptr);
     }
     replacement->SetMapObj(this);
-    replacement->SetParent(parent);
+    replacement->SetName({});
+    replacement->SetParent(nullptr);
     gameObj_ = std::move(replacement);
 
 }
@@ -213,8 +211,14 @@ const AutoProj* MapObj::GetAutoProj() const noexcept
     return dynamic_cast<const AutoProj*>(gameObj_.get());
 }
 
-const std::string& MapObj::GetName() const noexcept { return name_; }
-void MapObj::SetName(std::string value) { name_ = std::move(value); }
+const std::string& MapObj::GetName() const noexcept
+{
+    return gameObj_->GetName();
+}
+void MapObj::SetName(std::string value)
+{
+    gameObj_->SetName(std::move(value));
+}
 GameObject* MapObj::GetParent() const noexcept
 {
     return gameObj_ != nullptr ? gameObj_->GetParent() : nullptr;

@@ -154,7 +154,6 @@ private:
     MapObjCategory category_ = MapObjCategory::Effects;
     const MapObjRecord* recordProxy_ = nullptr;
     std::unique_ptr<GameObject> gameObj_;
-    std::string name_;
     std::string record_;
     std::string recordParent_;
 };

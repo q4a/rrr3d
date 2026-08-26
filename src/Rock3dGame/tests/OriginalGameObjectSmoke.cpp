@@ -78,6 +78,20 @@ int main()
         graphChild.GetLogic() != &secondLogic)
         return 62;
 
+    source::GameObject assignSource;
+    assignSource.ResetGameObject(75.0F);
+    assignSource.SetLife(25.0F);
+    assignSource.SetName("sourceName");
+    assignSource.SetLogic(&firstLogic);
+    source::GameObject assignTarget;
+    assignTarget.ResetGameObject(10.0F);
+    assignTarget.SetName("targetName");
+    assignTarget.AssignSource(assignSource);
+    if (assignTarget.GetLogic() != &firstLogic ||
+        assignTarget.GetLife() != 10.0F ||
+        assignTarget.GetName() != "targetName")
+        return 63;
+
     source::GameObject object;
     object.ResetGameObject(100.0F);
     if (object.GetLife() != 100.0F || object.IsImmortal() ||

@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <string>
 #include <vector>
 
 namespace r3d::game::originalrace
@@ -83,6 +84,13 @@ public:
     GameObject(GameObject&& other);
     GameObject& operator=(GameObject&& other) noexcept;
     virtual ~GameObject();
+
+    // Legacy GameObject::Assign is deliberately narrower than C++ value
+    // copying: MapObj concrete-type replacement keeps only Logic/store flags.
+    void AssignSource(GameObject& value) noexcept;
+
+    const std::string& GetName() const noexcept;
+    void SetName(std::string value);
 
     void ResetGameObject(float maximumLifeValue) noexcept;
     ProgressResult OnProgress(float deltaTime) noexcept;
@@ -180,6 +188,7 @@ private:
     GameObject* parent_ = nullptr;
     Children children_;
     IncludeList* includeList_ = nullptr;
+    std::string name_;
     bool objectDestroyed_ = false;
 };
 
