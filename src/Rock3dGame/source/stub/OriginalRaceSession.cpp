@@ -4369,7 +4369,9 @@ void OriginalRaceSession::updateGameplay(
         // car shape crossing that plane receives Death(dtDeathPlane).
         if (body.center.z - verticalRadius > 0.0F)
             continue;
-        if (!map_.GetGroundTouchDeath().OnContact(&racers_[racer]))
+        const bool wasDestroyed = racers_[racer].destroyed;
+        map_.GetGround().GetGameObj().OnContact(&racers_[racer]);
+        if (wasDestroyed || !racers_[racer].destroyed)
             continue;
         destroyRacer(
             racer, vehicles[racer].body.position,

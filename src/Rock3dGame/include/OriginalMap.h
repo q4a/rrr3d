@@ -90,7 +90,7 @@ private:
     // adapter supplies the physical Z=0 plane; this object retains its
     // source gameplay identity and TouchDeath behavior.
     MapObj ground_;
-    TouchDeath groundTouchDeath_;
+    TouchDeath* groundTouchDeath_ = nullptr;
     Trace trace_{4U};
     std::uint32_t lastId_ = defaultMapObjId;
 };

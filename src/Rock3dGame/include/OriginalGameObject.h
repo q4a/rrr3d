@@ -52,6 +52,10 @@ public:
     {
         OnLowLife(sender);
     }
+    // The physics adapter resolves the other actor before dispatching the
+    // source GameObject contact callback to its registered listeners.
+    virtual void OnContact(
+        GameObject&, GameObject*) noexcept {}
 };
 
 // GameBase.h::BehaviorType. Keep the serialized numeric order even when a
@@ -247,6 +251,7 @@ public:
     bool Resc() noexcept;
     void Healt(float value) noexcept;
     void LowLife(Behavior* behavior = nullptr) noexcept;
+    void OnContact(GameObject* target) noexcept;
 
     bool InsertListener(GameObjectListener* value) noexcept;
     bool RemoveListener(GameObjectListener* value) noexcept;
@@ -441,10 +446,14 @@ private:
     bool checkDestruction_ = false;
 };
 
-class TouchDeath
+class TouchDeath final : public Behavior
 {
 public:
-    bool OnContact(GameObject* target) const noexcept;
+    explicit TouchDeath(Behaviors* owner) noexcept;
+
+    void OnProgress(float deltaTime) noexcept override;
+    void OnContact(
+        GameObject& sender, GameObject* target) noexcept override;
 };
 
 // GameBase.h::ResurrectObj intercepts the first Death notification, revives

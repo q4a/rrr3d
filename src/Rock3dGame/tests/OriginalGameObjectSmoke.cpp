@@ -446,10 +446,15 @@ int main()
     source::GameObject falling;
     falling.ResetGameObject(10.0F);
     falling.Damage(8U, 0.0F, original::DamageType::Touch);
-    source::TouchDeath touchDeath;
-    if (!touchDeath.OnContact(&falling) || !falling.destroyed ||
-        falling.GetTouchPlayerId() != 8U ||
-        touchDeath.OnContact(&falling))
+    source::GameObject deathPlane;
+    auto& touchDeath = deathPlane.GetBehaviors()
+        .Add<source::TouchDeath>(source::BehaviorType::TouchDeath);
+    deathPlane.OnContact(&falling);
+    deathPlane.OnContact(&falling);
+    if (deathPlane.GetBehaviors().Find(
+            source::BehaviorType::TouchDeath) != &touchDeath ||
+        deathPlane.GetListenerCount() != 1U || !falling.destroyed ||
+        falling.GetTouchPlayerId() != 8U)
         return 30;
 
     source::GameObject particleOwner;

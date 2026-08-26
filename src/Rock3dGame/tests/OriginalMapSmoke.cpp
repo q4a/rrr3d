@@ -216,10 +216,14 @@ int main()
 
     source::GameObject fallingObject;
     fallingObject.ResetGameObject(25.0F);
-    if (!map.GetGroundTouchDeath().OnContact(&fallingObject) ||
+    const auto* touchDeath = map.GetGround().GetGameObj()
+        .GetBehaviors().Find(source::BehaviorType::TouchDeath);
+    map.GetGround().GetGameObj().OnContact(&fallingObject);
+    map.GetGround().GetGameObj().OnContact(nullptr);
+    if (touchDeath != &map.GetGroundTouchDeath() ||
+        map.GetGround().GetGameObj().GetListenerCount() != 1U ||
         fallingObject.GetLiveState() !=
-            source::GameObject::LiveState::Death ||
-        map.GetGroundTouchDeath().OnContact(nullptr))
+            source::GameObject::LiveState::Death)
         return 11;
 
     source::Map cloneMap(&logic);

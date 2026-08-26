@@ -734,6 +734,16 @@ void GameObject::LowLife(Behavior* behavior) noexcept
     }
 }
 
+void GameObject::OnContact(GameObject* target) noexcept
+{
+    const auto contactListeners = listeners_;
+    for (auto* listener : contactListeners)
+    {
+        if (listener != nullptr)
+            listener->OnContact(*this, target);
+    }
+}
+
 bool GameObject::InsertListener(GameObjectListener* value) noexcept
 {
     if (value == nullptr ||
@@ -1116,9 +1126,18 @@ std::size_t DestrObj::ReleaseDestruction(Map& map)
     return released;
 }
 
-bool TouchDeath::OnContact(GameObject* target) const noexcept
+TouchDeath::TouchDeath(Behaviors* owner) noexcept
+    : Behavior(owner)
 {
-    return target != nullptr && target->Death(DamageType::DeathPlane);
+}
+
+void TouchDeath::OnProgress(float) noexcept {}
+
+void TouchDeath::OnContact(
+    GameObject&, GameObject* target) noexcept
+{
+    if (target != nullptr)
+        target->Death(DamageType::DeathPlane);
 }
 
 void ResurrectObj::Reset() noexcept

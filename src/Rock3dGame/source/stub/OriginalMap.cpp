@@ -32,6 +32,8 @@ Map::Map(Logic* logic) : logic_(logic)
         recordLibraries_[index].SetCategory(
             static_cast<MapObjCategory>(index));
     }
+    groundTouchDeath_ = &ground_.GetGameObj().GetBehaviors()
+        .Add<TouchDeath>(BehaviorType::TouchDeath);
 }
 
 Map::~Map()
@@ -232,11 +234,11 @@ MapObj& Map::GetGround() noexcept { return ground_; }
 const MapObj& Map::GetGround() const noexcept { return ground_; }
 TouchDeath& Map::GetGroundTouchDeath() noexcept
 {
-    return groundTouchDeath_;
+    return *groundTouchDeath_;
 }
 const TouchDeath& Map::GetGroundTouchDeath() const noexcept
 {
-    return groundTouchDeath_;
+    return *groundTouchDeath_;
 }
 Trace& Map::GetTrace() noexcept { return trace_; }
 const Trace& Map::GetTrace() const noexcept { return trace_; }

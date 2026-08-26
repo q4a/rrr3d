@@ -2604,6 +2604,23 @@ session-заглушкой; скорость уничтожаемого объе
 наличие type-6 behavior на каждом и независимое появление secondary/tertiary
 death effects. Полные offline/network/physics и 360-frame Metal smoke прошли.
 
+### P2.103 — concrete `TouchDeath` и ground contact graph — выполнено
+
+Death plane уже использовала правильную геометрию Z=0 и сохраняла touch kill
+attribution, но `Map` держала отдельный helper `TouchDeath`, а session вызывала
+его напрямую. В Windows `Map::_ground` владеет обычным `GameObject`, behavior
+типа 0 добавлен в его `Behaviors`, и PhysX contact проходит через общий
+`GameObject::OnContact` listener dispatch.
+
+`TouchDeath` теперь является concrete `Behavior`; ground регистрирует его в
+собственном object graph, а Jolt adapter передаёт разрешённый target
+`GameObject` через общий contact callback. Session только определяет
+пересечение физической плоскости и после listener dispatch выполняет backend
+teardown уже уничтоженной машины. Прямой helper-call удалён. Regression
+проверяет type-0 identity, ровно одного listener, null/repeated contact и
+сохранение touch attacker при `DeathPlane`; полные offline/network/physics и
+360-frame Metal smoke прошли.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
