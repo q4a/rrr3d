@@ -3955,6 +3955,19 @@ void OriginalRaceSession::updateGameplay(
             projectile.direction = normalized3(
                 rotate(shotTransform.rotation,
                        {1.0F, 0.0F, 0.0F}));
+            if (projectileDefinition.type == 15U &&
+                projectile.sourceObject->GetSourceModel() != nullptr)
+            {
+                projectile.sourceObject->SetSourceTimer(
+                    projectile.sourceObject->GetSourceTimer() - seconds);
+                if (projectile.sourceObject->GetSourceTimer() <= 0.0F)
+                {
+                    projectile.sourceObject->GetSourceModel()
+                        ->GetGameObj().Death();
+                    projectile.sourceObject->FreeSourceModel(
+                        false, false);
+                }
+            }
             if (projectileDefinition.type == 14U)
             {
                 // Proj::FireUpdate mirrors the current mounted weapon/car
@@ -4060,6 +4073,15 @@ void OriginalRaceSession::updateGameplay(
                     [&](const Vec3& contactPoint) {
                         if (projectileDefinition.type != 15U)
                             return;
+                        projectile.sourceObject->InitSourceModel(false);
+                        if (auto* sourceModel =
+                                projectile.sourceObject->GetSourceModel())
+                        {
+                            sourceModel->GetGameObj().SetWorldPos(
+                                {contactPoint.x, contactPoint.y,
+                                 contactPoint.z});
+                        }
+                        projectile.sourceObject->SetSourceTimer(0.5F);
                         auto effect = std::find_if(
                             effects_.begin(), effects_.end(),
                             [&](const RaceEffect& value) {

@@ -3121,6 +3121,26 @@ MinePiece — с `-1`, Torpeda/Impulse — с `0.4`, а Rocket/Laser отмеч�
 `ignoreContactProj`. Regression проверяет сброс всех scratch-полей, а
 интеграционный заезд — clearance, homing hand-off, Impulse chain и MineRip.
 
+### P2.127 — projectile `InitModel/InitModel2` object graph — выполнено
+
+В Windows `Proj::InitModel` и `InitModel2` добавляют записи `model/model2`
+непосредственно в `Proj::GetIncludeList`, удерживают конкретные `MapObj` и
+слушают их уничтожение. Portable renderer использовал те же mesh/texture
+ресурсы, но соответствующих source-объектов вообще не создавал: projectile
+оставался без сериализованных детей, а laser/frost secondary model и
+контактный model Drobilka существовали лишь как вычисленные draw/effect rows.
+
+`Proj` теперь создаёт primary/secondary `MapObj` из исходных record refs,
+применяет их source life/time-life, сохраняет parent ownership и очищает
+указатели через listener callback либо `FreeSourceModel`. Все успешно
+подготавливаемые типы повторяют вызовы `InitModel`; Spring остаётся без
+модели, Drobilka создаёт её только при реальном контакте, переносит в точку
+контакта, сбрасывает исходный `_time1 = 0.5` и освобождает после таймера.
+Laser и FrostRay получают оба source child objects. bgfx по-прежнему рисует
+ресурсные определения на backend-границе, но lifecycle и include graph больше
+не являются renderer-заглушкой. Regression проверяет parent/listener graph,
+удаление model/model2 и lazy Drobilka path.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

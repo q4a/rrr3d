@@ -1,4 +1,5 @@
 #include "OriginalLogic.h"
+#include "OriginalMapObj.h"
 
 #include <array>
 #include <cmath>
@@ -79,6 +80,8 @@ int main()
     r3d::game::originalrace::ProjectileDefinition sourceDescription;
     sourceDescription.type = 3U;
     sourceDescription.damage = 9.0F;
+    sourceDescription.visual.record = "Effect\\laserModel";
+    sourceDescription.secondaryVisual.record = "Effect\\laserModel2";
     source::GameObject sourceCar;
     source::Weapon sourceWeapon;
     sourceWeapon.SetParent(&sourceCar);
@@ -97,6 +100,13 @@ int main()
         linkedProjectile.GetWorldPos() !=
             source::GameObject::Vector3{4.0F, 5.0F, 6.0F} ||
         linkedProjectile.GetMaxTimeLife() != 2.5F ||
+        linkedProjectile.GetSourceModel() == nullptr ||
+        linkedProjectile.GetSourceModel2() == nullptr ||
+        linkedProjectile.GetIncludeList().GetLiveCount() != 2U ||
+        linkedProjectile.GetSourceModel()->GetParent() !=
+            &linkedProjectile ||
+        linkedProjectile.GetSourceModel2()->GetParent() !=
+            &linkedProjectile ||
         sourceWeapon.GetListenerCount() != 2U ||
         sourceTarget.GetListenerCount() != 1U)
         return 65;
@@ -119,6 +129,13 @@ int main()
         linkedProjectile.GetSourceState() ||
         linkedProjectile.GetIgnoreContactProj())
         return 99;
+    auto* primaryModel = linkedProjectile.GetSourceModel();
+    primaryModel->GetGameObj().DestroyObject();
+    if (linkedProjectile.GetSourceModel() != nullptr ||
+        !linkedProjectile.FreeSourceModel(true, true) ||
+        linkedProjectile.GetSourceModel2() != nullptr ||
+        linkedProjectile.GetIncludeList().GetLiveCount() != 1U)
+        return 100;
     sourceTarget.DestroyObject();
     if (linkedProjectile.GetSourceTarget() != nullptr)
         return 66;
@@ -140,6 +157,19 @@ int main()
         unlinkedProjectile.GetLiveState() ==
             source::GameObject::LiveState::Death)
         return 68;
+
+    auto drobilkaDescription = sourceDescription;
+    drobilkaDescription.type = 15U;
+    drobilkaDescription.secondaryVisual = {};
+    source::Proj drobilkaProjectile;
+    drobilkaProjectile.PrepareSource(
+        drobilkaDescription, nullptr, nullptr,
+        source::GameObject::undefinedPlayerId, false, 4.0F, {}, {});
+    if (drobilkaProjectile.GetSourceModel() != nullptr ||
+        !drobilkaProjectile.InitSourceModel() ||
+        drobilkaProjectile.GetSourceModel() == nullptr ||
+        drobilkaProjectile.GetIncludeList().GetLiveCount() != 1U)
+        return 101;
 
     source::Proj projectileObject;
     projectileObject.ConfigureDeathEffect(true, true);

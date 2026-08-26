@@ -1,5 +1,7 @@
 #include "OriginalWeapon.h"
 
+#include "OriginalMapObj.h"
+
 #include <algorithm>
 #include <cmath>
 
@@ -134,6 +136,8 @@ Proj::Proj()
 
 Proj::~Proj()
 {
+    FreeSourceModel(true, false);
+    FreeSourceModel(false, false);
     SetSourceTarget(nullptr);
     SetSourceWeapon(nullptr);
 }
@@ -145,6 +149,8 @@ void Proj::PrepareSource(
     float maximumLife, const Vec3& position,
     const Quat& rotation) noexcept
 {
+    FreeSourceModel(true, true);
+    FreeSourceModel(false, true);
     SetSourceTarget(nullptr);
     SetSourceWeapon(nullptr);
     description_ = description;
@@ -156,6 +162,12 @@ void Proj::PrepareSource(
     SetSourceWeapon(weapon, linkToWeapon);
     SetSourceTarget(target);
     SyncSourceTransform(position, rotation);
+    // Every successful PrepareProj path calls InitModel except Spring and
+    // Drobilka. Drobilka creates its model lazily on the first contact.
+    if (description.type != 15U && description.type != 17U)
+        InitSourceModel(false);
+    if (description.type == 3U || description.type == 18U)
+        InitSourceModel(true);
     prepared_ = true;
 }
 
@@ -238,6 +250,50 @@ void Proj::SetIgnoreContactProj(bool value) noexcept
     ignoreContactProj_ = value;
 }
 
+bool Proj::InitSourceModel(bool secondary)
+{
+    auto*& model = secondary ? sourceModel2_ : sourceModel_;
+    if (model != nullptr)
+        return false;
+    const auto& definition = secondary
+        ? description_.secondaryVisual
+        : description_.visual;
+    if (definition.record.empty())
+        return false;
+    model = &GetIncludeList().Add(
+        GameObjType::GameObj, definition.record);
+    auto& object = model->GetGameObj();
+    object.ResetGameObject(definition.maximumLife);
+    object.SetMaxTimeLife(definition.maximumTimeLife);
+    object.InsertListener(this);
+    return true;
+}
+
+bool Proj::FreeSourceModel(
+    bool secondary, bool remove) noexcept
+{
+    auto*& model = secondary ? sourceModel2_ : sourceModel_;
+    if (model == nullptr)
+        return false;
+    auto* released = model;
+    released->GetGameObj().RemoveListener(this);
+    model = nullptr;
+    if (remove)
+        GetIncludeList().Remove(released);
+    return true;
+}
+
+MapObj* Proj::GetSourceModel() noexcept { return sourceModel_; }
+const MapObj* Proj::GetSourceModel() const noexcept
+{
+    return sourceModel_;
+}
+MapObj* Proj::GetSourceModel2() noexcept { return sourceModel2_; }
+const MapObj* Proj::GetSourceModel2() const noexcept
+{
+    return sourceModel2_;
+}
+
 const ProjectileDefinition& Proj::GetDesc() const noexcept
 {
     return description_;
@@ -250,6 +306,12 @@ bool Proj::IsPrepared() const noexcept { return prepared_; }
 
 void Proj::OnDestroy(GameObject& sender) noexcept
 {
+    if (sourceModel_ != nullptr &&
+        &sourceModel_->GetGameObj() == &sender)
+        FreeSourceModel(false, false);
+    if (sourceModel2_ != nullptr &&
+        &sourceModel2_->GetGameObj() == &sender)
+        FreeSourceModel(true, false);
     if (&sender == weapon_)
     {
         const bool linked = GetParent() == weapon_;

@@ -253,6 +253,13 @@ public:
     void SetSourceState(bool value) noexcept;
     bool GetIgnoreContactProj() const noexcept;
     void SetIgnoreContactProj(bool value) noexcept;
+    bool InitSourceModel(bool secondary = false);
+    bool FreeSourceModel(
+        bool secondary = false, bool remove = false) noexcept;
+    MapObj* GetSourceModel() noexcept;
+    const MapObj* GetSourceModel() const noexcept;
+    MapObj* GetSourceModel2() noexcept;
+    const MapObj* GetSourceModel2() const noexcept;
     const ProjectileDefinition& GetDesc() const noexcept;
     GameObject* GetSourceWeapon() const noexcept;
     GameObject* GetSourceTarget() const noexcept;
@@ -281,6 +288,8 @@ private:
     bool sourceState_ = false;
     Vec3 sourceVector_{};
     bool ignoreContactProj_ = false;
+    MapObj* sourceModel_ = nullptr;
+    MapObj* sourceModel2_ = nullptr;
     DeathEffectBehavior* deathEffect_ = nullptr;
 };
 
