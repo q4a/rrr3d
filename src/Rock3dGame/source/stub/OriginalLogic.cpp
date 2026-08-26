@@ -1,5 +1,7 @@
 #include "OriginalLogic.h"
 
+#include "OriginalMap.h"
+
 #include <algorithm>
 #include <cmath>
 
@@ -259,10 +261,39 @@ Logic::GameObjectProgress Logic::ProgressGameObjs(
     return result;
 }
 
+Logic::ProgressResult Logic::OnProgress(float deltaTime) noexcept
+{
+    ProgressResult result;
+    const auto convert = [](MapObjects::ProgressResult value) {
+        return GameObjectProgress{value.progressed, value.removed};
+    };
+    if (map_ != nullptr)
+    {
+        result.decoration = convert(
+            map_->GetMapObjList(MapObjCategory::Decoration)
+                .OnProgressSpecial(deltaTime));
+        result.effects = convert(
+            map_->GetMapObjList(MapObjCategory::Effects)
+                .OnProgress(deltaTime));
+        result.cars = convert(
+            map_->GetMapObjList(MapObjCategory::Car)
+                .OnProgress(deltaTime));
+        result.bonuses = convert(
+            map_->GetMapObjList(MapObjCategory::Bonus)
+                .OnProgress(deltaTime));
+    }
+    result.transient = ProgressGameObjs(deltaTime);
+    return result;
+}
+
 std::size_t Logic::GetGameObjCount() const noexcept
 {
     return gameObjects_.size();
 }
+
+void Logic::SetMap(Map* value) noexcept { map_ = value; }
+Map* Logic::GetMap() noexcept { return map_; }
+const Map* Logic::GetMap() const noexcept { return map_; }
 
 void Logic::ResetContactBehavior(std::size_t soundCount) noexcept
 {

@@ -6261,7 +6261,9 @@ void OriginalRaceSession::update(
     // therefore advances during the visible countdown even though race time
     // itself has not started. This is most visible on ptMaslo, whose model
     // grows from scale zero during the original 0.25-second arming window.
-    bonusObjects().OnProgress(seconds);
+    // Logic.cpp progresses exactly Decoration::_specialList, then Effects,
+    // Car, Bonus and finally its separately registered transient objects.
+    logic_.OnProgress(seconds);
     for (std::size_t index = 0U;
          index < bonusObjects().GetSlotCount(); ++index)
     {

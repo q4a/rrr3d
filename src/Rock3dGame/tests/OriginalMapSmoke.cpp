@@ -453,6 +453,71 @@ int main()
         resurrectionMap.GetMapObj(detachedEffectId, true) != nullptr)
         return 29;
 
+    source::Logic progressLogic;
+    {
+        source::Map progressMap(&progressLogic);
+        const auto addTimed = [&progressMap](
+                                  source::MapObjCategory category,
+                                  std::string record) -> source::MapObj& {
+            auto& value = progressMap.AddMapObj(
+                category, source::GameObjType::GameObj,
+                std::move(record), 0U);
+            value.GetGameObj().ResetGameObject(-1.0F);
+            value.GetGameObj().SetMaxTimeLife(0.01F);
+            return value;
+        };
+        addTimed(
+            source::MapObjCategory::Decoration,
+            "world\\db\\root\\ctDecoration\\Misc\\timedSpecial");
+        auto& ordinaryDecoration = addTimed(
+            source::MapObjCategory::Decoration,
+            "world\\db\\root\\ctDecoration\\Architecture\\timedOrdinary");
+        addTimed(source::MapObjCategory::Effects,
+                 "world\\db\\root\\ctEffects\\timedEffect");
+        addTimed(source::MapObjCategory::Car,
+                 "world\\db\\root\\ctCar\\timedCar");
+        addTimed(source::MapObjCategory::Bonus,
+                 "world\\db\\root\\ctBonus\\timedBonus");
+        auto& trackNotProgressed = addTimed(
+            source::MapObjCategory::Track,
+            "world\\db\\root\\ctTrack\\timedTrack");
+        auto& weaponNotProgressed = addTimed(
+            source::MapObjCategory::Weapon,
+            "world\\db\\root\\ctWeapon\\timedWeapon");
+        auto& waypointNotProgressed = addTimed(
+            source::MapObjCategory::Waypoint,
+            "world\\db\\root\\ctWaypoint\\timedWaypoint");
+        auto* transient = new source::GameObject();
+        transient->ResetGameObject(-1.0F);
+        transient->SetMaxTimeLife(0.01F);
+        progressLogic.RegGameObj(transient);
+        const auto progress = progressLogic.OnProgress(0.02F);
+        if (progressLogic.GetMap() != &progressMap ||
+            progress.decoration.progressed != 1U ||
+            progress.decoration.removed != 1U ||
+            progress.effects.progressed != 1U ||
+            progress.effects.removed != 1U ||
+            progress.cars.progressed != 1U ||
+            progress.cars.removed != 1U ||
+            progress.bonuses.progressed != 1U ||
+            progress.bonuses.removed != 1U ||
+            progress.transient.progressed != 1U ||
+            progress.transient.removed != 1U ||
+            progressMap.GetObjects().size() != 4U ||
+            ordinaryDecoration.GetGameObj().GetLiveState() !=
+                source::GameObject::LiveState::Live ||
+            trackNotProgressed.GetGameObj().GetLiveState() !=
+                source::GameObject::LiveState::Live ||
+            weaponNotProgressed.GetGameObj().GetLiveState() !=
+                source::GameObject::LiveState::Live ||
+            waypointNotProgressed.GetGameObj().GetLiveState() !=
+                source::GameObject::LiveState::Live ||
+            progressLogic.GetGameObjCount() != 0U)
+            return 30;
+    }
+    if (progressLogic.GetMap() != nullptr)
+        return 31;
+
     std::cout << "original Map ownership, trace, death plane, category "
                  "registry and global ID rules passed\n";
     return 0;

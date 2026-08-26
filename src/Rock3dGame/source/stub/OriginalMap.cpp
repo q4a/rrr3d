@@ -1,6 +1,7 @@
 #include "OriginalMap.h"
 
 #include "OriginalGameObject.h"
+#include "OriginalLogic.h"
 
 #include <algorithm>
 #include <stdexcept>
@@ -23,6 +24,8 @@ std::string_view recordName(std::string_view value) noexcept
 
 Map::Map(Logic* logic) : logic_(logic)
 {
+    if (logic_ != nullptr)
+        logic_->SetMap(this);
     for (std::size_t index = 0U; index < categories_.size(); ++index)
     {
         categories_[index].SetObserver(this);
@@ -34,6 +37,8 @@ Map::Map(Logic* logic) : logic_(logic)
 Map::~Map()
 {
     Clear();
+    if (logic_ != nullptr && logic_->GetMap() == this)
+        logic_->SetMap(nullptr);
 }
 
 std::size_t Map::CategoryIndex(MapObjCategory value) noexcept

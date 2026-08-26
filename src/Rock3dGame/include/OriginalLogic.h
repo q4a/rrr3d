@@ -16,6 +16,8 @@
 namespace r3d::game::originalrace::source
 {
 
+class Map;
+
 // Portable owner for Logic.cpp::PairPxContactEffect.  Jolt supplies actor
 // identities, friction magnitude and manifold points; this class preserves
 // the original two-effects-per-pair cursor and strict 0.1-second release.
@@ -160,6 +162,15 @@ public:
         std::size_t removed = 0U;
     };
 
+    struct ProgressResult
+    {
+        GameObjectProgress decoration;
+        GameObjectProgress effects;
+        GameObjectProgress cars;
+        GameObjectProgress bonuses;
+        GameObjectProgress transient;
+    };
+
     Logic() = default;
     ~Logic();
     Logic(const Logic&) = delete;
@@ -170,7 +181,11 @@ public:
     void RegGameObj(GameObject* value);
     void CleanGameObjs() noexcept;
     GameObjectProgress ProgressGameObjs(float deltaTime) noexcept;
+    ProgressResult OnProgress(float deltaTime) noexcept;
     std::size_t GetGameObjCount() const noexcept;
+    void SetMap(Map* value) noexcept;
+    Map* GetMap() noexcept;
+    const Map* GetMap() const noexcept;
 
     // Logic.cpp owns the global contact behavior and the four serialized
     // GameCar contact ranges. Physics/audio remain backend adapters.
@@ -188,6 +203,7 @@ public:
     void SetTouchCarDamageForce(ContactRange value) noexcept;
 
 private:
+    Map* map_ = nullptr;
     std::vector<std::unique_ptr<GameObject>> gameObjects_;
     PairPxContactEffect pairPxContactEffect_;
     ContactRange touchBorderDamage_{};

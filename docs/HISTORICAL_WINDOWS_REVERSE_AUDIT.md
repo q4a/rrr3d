@@ -2365,6 +2365,25 @@ world pose и передаёт его `Map::InsertMapObj`; повторная с
 `ctEffects`, pointer identity, новый ID/`item0`, сохранённую world pose и
 окончательное удаление после нулевого particle count.
 
+### P2.90 — централизованный `Logic::OnProgress` для Map — выполнено
+
+Windows `Logic::OnProgress` не обновляет подряд все семь категорий Map. Он
+проходит их в строго заданном порядке: специальный список `ctDecoration`
+(только `Misc/Crush`), затем `Effects`, `Car`, `Bonus` и в последнюю очередь
+отдельный `_gameObjList` временных объектов. Portable race path ранее
+прогрессировал только `Bonus`; timed effects/cars и пассивные специальные
+декорации оставались вне общего жизненного цикла.
+
+`Logic` теперь хранит non-owning связь с активной `Map`, которую Map
+устанавливает и безопасно снимает при разрушении, и предоставляет единый
+source-order `OnProgress`. Он собирает число обновлённых/удалённых объектов
+по каждой группе, делегирует работу соответствующим `MapObjects`, затем
+обновляет transient owner. `OriginalRaceSession` вызывает этот единый путь
+до чтения масштаба бонусов. Regression создаёт timed-объекты во всех семи
+категориях и подтверждает, что удаляются только special-decoration,
+Effects, Car, Bonus и transient; Architecture, Track, Weapon и Waypoint
+остаются нетронутыми.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
