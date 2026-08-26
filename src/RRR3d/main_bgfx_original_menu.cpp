@@ -4143,6 +4143,19 @@ int main(int argc, char** argv)
     raceSession.applyAchievementProfile(profileState);
     raceSession.setEnableMineBug(profileState.config.enableMineBug);
     raceSession.setSpringBorders(profileState.config.springBorders);
+    auto bindSourceVehicleFixedStep = [&]() {
+        if (!physicsWorld)
+            return;
+        physicsWorld->setVehicleFixedStepController(
+            [&raceSession](
+                std::size_t racer, float deltaTime,
+                const r3d::physics::VehicleInput& input,
+                const r3d::physics::VehicleFixedStepState& state) {
+                return raceSession.racerFixedStepDrive(
+                    racer, deltaTime, input, state);
+            });
+    };
+    bindSourceVehicleFixedStep();
     rrr3d::debug::OriginalGameDebug gameDebug(
         options->gameDebug || options->legacyWindowsDebug,
         profileState.config.quality.postEffect);
@@ -6768,6 +6781,7 @@ int main(int argc, char** argv)
             physicsWorld =
                 r3d::physics::createOriginalVehicleWorld(
                     *physicsDescription, reloadError);
+            bindSourceVehicleFixedStep();
             decorationDebrisBindings.clear();
             decorationFragments.clear();
             vehicleDebrisBindings.clear();

@@ -60,6 +60,51 @@ public:
         std::vector<PxSyncPose> wheels;
     };
 
+    enum class MoveCarState
+    {
+        None,
+        Brake,
+        Back,
+        Accel,
+    };
+
+    struct MotorDescription
+    {
+        float brakeTorque = 7500.0F;
+        float differentialRatio = 3.42F;
+        float maximumRpm = 7000.0F;
+        float idlingRpm = 1000.0F;
+        float maximumTorque = 2000.0F;
+        float torqueEfficiency = 0.805F;
+        float restBrakeTorque = 400.0F;
+        float maximumSpeed = 0.0F;
+        bool automaticGears = true;
+    };
+
+    struct FixedStepInput
+    {
+        float throttle = 0.0F;
+        float reverse = 0.0F;
+        float brake = 0.0F;
+        float motorTorqueScale = 1.0F;
+    };
+
+    struct FixedStepState
+    {
+        float signedSpeed = 0.0F;
+        float absoluteSpeed = 0.0F;
+        float drivenWheelAngularSpeed = 0.0F;
+        bool drivenWheelContact = false;
+    };
+
+    struct DriveCommand
+    {
+        float motorTorque = 0.0F;
+        float brakeTorque = 0.0F;
+        float rpm = 0.0F;
+        int gear = -1;
+    };
+
     GameCar();
     GameCar(const GameCar& other);
     GameCar& operator=(const GameCar& other) noexcept;
@@ -76,6 +121,12 @@ public:
         PxSyncPose physicalBody,
         const std::vector<PxSyncPose>& physicalWheels,
         float deltaTime) noexcept;
+    void ConfigureMotor(MotorDescription description) noexcept;
+    DriveCommand OnFixedStepDrive(
+        float deltaTime, FixedStepInput input,
+        FixedStepState state) noexcept;
+    MoveCarState GetMoveCar() const noexcept;
+    int GetCurGear() const noexcept;
 
     void BindSoundMotor(
         const std::array<float, 2>& rpmVolumeRange,
@@ -138,6 +189,9 @@ private:
     std::vector<std::unique_ptr<CarWheel>> wheels_;
     std::vector<std::unique_ptr<CarAnimationChild>> animationChildren_;
     float leadWheelSpeed_ = 0.0F;
+    MotorDescription motor_;
+    MoveCarState moveCar_ = MoveCarState::None;
+    int currentGear_ = -1;
 };
 
 // Backend-neutral owner for GameBase.cpp::SoundMotor. SDL owns the two

@@ -659,6 +659,16 @@ void Player::CreateCar(bool newRace) noexcept
         carPresent_ = true;
         if (carRecord_ != nullptr)
         {
+            gameCar.ConfigureMotor({
+                carRecord_->physics.brakeTorque,
+                carRecord_->physics.differentialRatio,
+                carRecord_->physics.maximumRpm,
+                carRecord_->physics.idlingRpm,
+                carRecord_->physics.maximumTorque,
+                carRecord_->physics.torqueEfficiency,
+                carRecord_->physics.restBrakeTorque,
+                carRecord_->physics.maximumSpeed,
+                carRecord_->physics.automaticGears});
             gameCar.BindSoundMotor(
                 carRecord_->rpmVolumeRange,
                 carRecord_->rpmFrequencyRange);

@@ -919,6 +919,12 @@ public:
         }
     }
 
+    void setVehicleFixedStepController(
+        VehicleFixedStepController controller) override
+    {
+        fixedStepController_ = std::move(controller);
+    }
+
     void step(float seconds,
               const std::vector<VehicleInput>& rawInputs) noexcept override
     {
@@ -935,7 +941,7 @@ public:
                 VehicleInput input;
                 if (index < rawInputs.size())
                     input = rawInputs[index];
-                prepareVehicleStep(vehicles_[index], input, delta);
+                prepareVehicleStep(index, vehicles_[index], input, delta);
             }
             system_.Update(delta, 1, &tempAllocator_, &jobs_);
             remaining -= delta;
@@ -1291,7 +1297,8 @@ private:
             correctedRotation, JPH::EActivation::Activate);
     }
 
-    void prepareVehicleStep(VehicleRuntime& vehicle, VehicleInput input,
+    void prepareVehicleStep(std::size_t vehicleIndex,
+                            VehicleRuntime& vehicle, VehicleInput input,
                             float delta) noexcept
     {
         if (!vehicle.enabled)
@@ -1341,68 +1348,80 @@ private:
         float motorTorque = 0.0F;
         float rpm = sourceRpm(
             source, vehicle.currentGear, drivenWheelSpeed);
-        if (input.brake > 0.0001F)
+        if (fixedStepController_)
         {
-            vehicle.currentGear = -1;
-            rpm = source.idlingRpm;
-            brakeTorque = source.brakeTorque * input.brake;
+            const auto command = fixedStepController_(
+                vehicleIndex, delta, input,
+                {signedSpeed, velocity.Length(), drivenWheelSpeed,
+                 drivenContact});
+            motorTorque = command.motorTorque;
+            brakeTorque = command.brakeTorque;
+            rpm = command.engineRpm;
+            vehicle.currentGear = command.gear;
         }
-        else if (input.reverse > 0.0001F)
+        else
         {
-            if (signedSpeed > directionDeadZone)
-            {
-                rpm = sourceRpm(
-                    source, vehicle.currentGear, drivenWheelSpeed);
-                brakeTorque = source.brakeTorque;
-            }
-            else
-            {
-                vehicle.currentGear = 0;
-                rpm = sourceRpm(source, 0, drivenWheelSpeed);
-                if (rpm < source.maximumRpm)
-                    motorTorque =
-                        -sourceTorque(source, 0) * input.reverse;
-            }
-        }
-        else if (input.throttle > 0.0001F)
-        {
-            if (signedSpeed < -directionDeadZone)
+            // Standalone engine smoke keeps a backend-local controller. The
+            // active game always installs source GameCar::OnFixedStep.
+            if (input.brake > 0.0001F)
             {
                 vehicle.currentGear = -1;
                 rpm = source.idlingRpm;
-                brakeTorque = source.brakeTorque;
+                brakeTorque = source.brakeTorque * input.brake;
             }
-            else
+            else if (input.reverse > 0.0001F)
             {
-                if (vehicle.currentGear <= 0)
-                    vehicle.currentGear = 1;
-                rpm = sourceRpm(
-                    source, vehicle.currentGear, drivenWheelSpeed);
-                motorTorque =
-                    sourceTorque(source, vehicle.currentGear) *
-                    input.throttle;
+                if (signedSpeed > directionDeadZone)
+                {
+                    rpm = sourceRpm(
+                        source, vehicle.currentGear, drivenWheelSpeed);
+                    brakeTorque = source.brakeTorque;
+                }
+                else
+                {
+                    vehicle.currentGear = 0;
+                    rpm = sourceRpm(source, 0, drivenWheelSpeed);
+                    if (rpm < source.maximumRpm)
+                        motorTorque =
+                            -sourceTorque(source, 0) * input.reverse;
+                }
             }
-        }
+            else if (input.throttle > 0.0001F)
+            {
+                if (signedSpeed < -directionDeadZone)
+                {
+                    vehicle.currentGear = -1;
+                    rpm = source.idlingRpm;
+                    brakeTorque = source.brakeTorque;
+                }
+                else
+                {
+                    if (vehicle.currentGear <= 0)
+                        vehicle.currentGear = 1;
+                    rpm = sourceRpm(
+                        source, vehicle.currentGear, drivenWheelSpeed);
+                    motorTorque =
+                        sourceTorque(source, vehicle.currentGear) *
+                        input.throttle;
+                }
+            }
 
-        // GameCar::TransmissionProgress uses the first driven wheel and
-        // changes the gear only after the current frame's RPM/torque have
-        // already been calculated.
-        if (drivenContact && source.automaticGears &&
-            vehicle.currentGear > 0)
-        {
-            if (rpm < source.maximumRpm / 1.8F &&
-                vehicle.currentGear > 1)
-                --vehicle.currentGear;
-            if (rpm >= source.maximumRpm &&
-                vehicle.currentGear < 5)
-                ++vehicle.currentGear;
+            if (drivenContact && source.automaticGears &&
+                vehicle.currentGear > 0)
+            {
+                if (rpm < source.maximumRpm / 1.8F &&
+                    vehicle.currentGear > 1)
+                    --vehicle.currentGear;
+                if (rpm >= source.maximumRpm &&
+                    vehicle.currentGear < 5)
+                    ++vehicle.currentGear;
+            }
+            if (source.maximumSpeed > 0.0F &&
+                velocity.Length() > source.maximumSpeed)
+                motorTorque = brakeTorque;
+            else
+                motorTorque *= input.motorTorqueScale;
         }
-
-        if (source.maximumSpeed > 0.0F &&
-            velocity.Length() > source.maximumSpeed)
-            motorTorque = brakeTorque;
-        else
-            motorTorque *= input.motorTorqueScale;
         vehicle.motorTorque = motorTorque;
         vehicle.engineRpm = rpm;
 
@@ -2091,6 +2110,7 @@ private:
     std::vector<DebrisRuntime> debris_;
     DecorationState emptyDecoration_;
     DebrisState emptyDebris_;
+    VehicleFixedStepController fixedStepController_;
 };
 
 } // namespace

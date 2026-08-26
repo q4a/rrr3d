@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <limits>
 #include <memory>
 #include <string>
@@ -173,6 +174,29 @@ struct VehicleInput
     bool springLocked = false;
 };
 
+// Backend-neutral arguments for the original GameCar::OnFixedStep drive
+// state machine. A game-layer controller owns gears/RPM/torque; Jolt only
+// supplies live wheel/body telemetry and applies the returned command.
+struct VehicleFixedStepState
+{
+    float signedSpeed = 0.0F;
+    float absoluteSpeed = 0.0F;
+    float drivenWheelAngularSpeed = 0.0F;
+    bool drivenWheelContact = false;
+};
+
+struct VehicleDriveCommand
+{
+    float motorTorque = 0.0F;
+    float brakeTorque = 0.0F;
+    float engineRpm = 0.0F;
+    int gear = -1;
+};
+
+using VehicleFixedStepController = std::function<VehicleDriveCommand(
+    std::size_t, float, const VehicleInput&,
+    const VehicleFixedStepState&)>;
+
 struct BodyContact
 {
     CollisionSurface surface = CollisionSurface::TrackPlane;
@@ -293,6 +317,8 @@ public:
                                          bool enabled) noexcept = 0;
     virtual void clampLinearSpeed(std::size_t index,
                                   float maximumSpeed) noexcept = 0;
+    virtual void setVehicleFixedStepController(
+        VehicleFixedStepController controller) = 0;
     virtual void step(float seconds, const VehicleInput& input) noexcept = 0;
     virtual void step(float seconds,
                       const std::vector<VehicleInput>& inputs) noexcept = 0;

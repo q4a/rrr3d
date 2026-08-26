@@ -451,6 +451,10 @@ public:
     const std::vector<r3d::physics::VehicleInput>& vehicleInputs() const
         noexcept;
     const std::vector<RacerRuntime>& racers() const noexcept;
+    r3d::physics::VehicleDriveCommand racerFixedStepDrive(
+        std::size_t racer, float deltaTime,
+        const r3d::physics::VehicleInput& input,
+        const r3d::physics::VehicleFixedStepState& state) noexcept;
     source::GameObjectFrameSync::NetworkCorrection
     synchronizeRacerNetworkPose(
         std::size_t racer,

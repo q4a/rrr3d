@@ -2389,6 +2389,24 @@ const std::vector<RacerRuntime>& OriginalRaceSession::racers() const noexcept
     return racers_;
 }
 
+physics::VehicleDriveCommand OriginalRaceSession::racerFixedStepDrive(
+    std::size_t racer, float deltaTime,
+    const physics::VehicleInput& input,
+    const physics::VehicleFixedStepState& state) noexcept
+{
+    if (racer >= racers_.size())
+        return {};
+    const auto command = racers_[racer].gameCar.OnFixedStepDrive(
+        deltaTime,
+        {input.throttle, input.reverse, input.brake,
+         input.motorTorqueScale},
+        {state.signedSpeed, state.absoluteSpeed,
+         state.drivenWheelAngularSpeed,
+         state.drivenWheelContact});
+    return {command.motorTorque, command.brakeTorque,
+            command.rpm, command.gear};
+}
+
 source::GameObjectFrameSync::NetworkCorrection
 OriginalRaceSession::synchronizeRacerNetworkPose(
     std::size_t racer,
@@ -3370,10 +3388,6 @@ void OriginalRaceSession::updateGameplay(
         }
         if (racer < vehicles.size())
         {
-            runtime.gameCar.OnMotor(
-                seconds, vehicles[racer].engineRpm,
-                vehicleDefinition.physics.idlingRpm,
-                vehicleDefinition.physics.maximumRpm);
             const auto wheelCount = std::min(
                 runtime.gameCar.GetWheelCount(),
                 vehicles[racer].wheelContacts.size());

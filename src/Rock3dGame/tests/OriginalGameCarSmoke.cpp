@@ -92,6 +92,61 @@ int main()
         car.GetSoundMotorMix().currentRpm != 0.0F)
         return 24;
 
+    car.ConfigureMotor({7500.0F, 3.42F, 7000.0F, 1000.0F,
+                        2000.0F, 0.805F, 400.0F, 10.0F, true});
+    car.BindSoundMotor(volumeRange, frequencyRange);
+    const auto firstGear = car.OnFixedStepDrive(
+        1.0F / 120.0F, {1.0F, 0.0F, 0.0F, 1.0F},
+        {0.0F, 0.0F, 0.0F, true});
+    const float expectedFirstGearTorque =
+        2000.0F * 2.66F * 3.42F * 0.805F;
+    if (firstGear.gear != 1 ||
+        car.GetCurGear() != 1 ||
+        car.GetMoveCar() != source::GameCar::MoveCarState::Accel ||
+        std::abs(firstGear.motorTorque - expectedFirstGearTorque) >
+            0.01F ||
+        firstGear.brakeTorque != 400.0F)
+        return 38;
+    const auto shifted = car.OnFixedStepDrive(
+        1.0F / 120.0F, {1.0F, 0.0F, 0.0F, 1.0F},
+        {5.0F, 5.0F, 10000.0F, true});
+    if (shifted.rpm != 7000.0F || shifted.gear != 2 ||
+        shifted.motorTorque != expectedFirstGearTorque ||
+        car.GetSoundMotorMix().currentRpm <= 0.0F)
+        return 39;
+    const auto reverseBrake = car.OnFixedStepDrive(
+        1.0F / 120.0F, {0.0F, 1.0F, 0.0F, 1.0F},
+        {2.0F, 2.0F, 10.0F, true});
+    if (reverseBrake.motorTorque != 0.0F ||
+        reverseBrake.brakeTorque != 7500.0F ||
+        // TransmissionProgress still runs while mcBack is braking forward
+        // motion, so the low driven-wheel RPM drops gear 2 to gear 1.
+        reverseBrake.gear != 1)
+        return 40;
+    const auto reverseDrive = car.OnFixedStepDrive(
+        1.0F / 120.0F, {0.0F, 1.0F, 0.0F, 1.0F},
+        {0.0F, 0.0F, 0.0F, true});
+    if (reverseDrive.gear != 0 ||
+        reverseDrive.motorTorque >= 0.0F)
+        return 41;
+    const auto braking = car.OnFixedStepDrive(
+        1.0F / 120.0F, {0.0F, 0.0F, 1.0F, 1.0F},
+        {-2.0F, 2.0F, 10.0F, true});
+    if (braking.gear != -1 || braking.brakeTorque != 7500.0F)
+        return 42;
+    const auto speedLimited = car.OnFixedStepDrive(
+        1.0F / 120.0F, {1.0F, 0.0F, 0.0F, 3.0F},
+        {12.0F, 12.0F, 100.0F, true});
+    if (speedLimited.gear != 2 ||
+        speedLimited.motorTorque != speedLimited.brakeTorque ||
+        speedLimited.motorTorque != 400.0F)
+        return 43;
+    car.Reset();
+    if (car.GetCurGear() != -1 ||
+        car.GetMoveCar() != source::GameCar::MoveCarState::None)
+        return 44;
+    car.ReleaseSoundMotor();
+
     car.BindWheels({true, false}, {true, false});
     const auto* firstWheel = car.GetWheel(0U);
     const auto* secondWheel = car.GetWheel(1U);

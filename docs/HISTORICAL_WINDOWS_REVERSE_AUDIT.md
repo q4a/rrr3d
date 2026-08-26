@@ -2694,6 +2694,28 @@ adapter. Regression покрывает body-relative position/rotation коле�
 целый `GameCar::OnPxSync` и reset lifetime; offline/network/physics и
 360-frame Metal smoke прошли.
 
+### P2.108 — source `MotorProgress`/`TransmissionProgress` fixed-step — выполнено
+
+Формулы Windows `CarMotorDesc`, `GameCar::MotorProgress` и
+`GameCar::TransmissionProgress` присутствовали в Jolt adapter, но активным
+владельцем gear/RPM/torque оставался physics backend. Поэтому перенос был
+численно близким, однако `GameCar::OnFixedStep` как исходная точка вызова
+отсутствовал, а `SoundMotor` получал запоздалый RPM один раз за внешний кадр.
+
+`GameCar` теперь хранит исходные `MoveCarState`, motor description и текущую
+передачу, выполняет neutral/brake/back/accel, brake-to-reverse,
+reverse-to-forward, source torque/RPM, automatic shift и maximum-speed branch
+в правильном Windows-порядке. Jolt вызывает этот контроллер на каждом своём
+fixed substep 1/120 с живыми wheel-contact/axle-speed/body-speed данными и
+только применяет готовые motor/brake команды. `SoundMotor::OnMotor` снова
+диспетчеризуется из этого fixed-step. Backend-local копия оставлена только
+как fallback автономного physics-smoke, где Rock3dGame намеренно не участвует.
+
+Regression закрепляет первую/автоматическую/reverse/neutral передачи,
+торможение перед сменой направления, source torque, ограничение скорости,
+reset и fixed-step RPM audio. Полная arm64 Debug сборка, 15 offline-тестов,
+2 network-теста, physics smoke и 360-frame bgfx/Metal smoke прошли.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

@@ -110,6 +110,9 @@ GameCar& GameCar::operator=(const GameCar& other) noexcept
     springTime_ = other.springTime_;
     mineTime_ = other.mineTime_;
     leadWheelSpeed_ = other.leadWheelSpeed_;
+    motor_ = other.motor_;
+    moveCar_ = other.moveCar_;
+    currentGear_ = other.currentGear_;
     rpmVolumeRange_ = other.rpmVolumeRange_;
     rpmFrequencyRange_ = other.rpmFrequencyRange_;
     soundMotorMix_ = other.soundMotorMix_;
@@ -176,6 +179,8 @@ void GameCar::Reset() noexcept
     springTime_ = 0.0F;
     mineTime_ = 0.0F;
     leadWheelSpeed_ = 0.0F;
+    moveCar_ = MoveCarState::None;
+    currentGear_ = -1;
     GetFrameSync().Reset();
     if (soundMotor_ != nullptr)
         soundMotor_->Reset();
@@ -246,6 +251,146 @@ GameCar::PxSyncState GameCar::OnPxSync(
             physicalBody, state.body, physicalWheels[index]));
     }
     return state;
+}
+
+void GameCar::ConfigureMotor(MotorDescription description) noexcept
+{
+    motor_ = description;
+    motor_.brakeTorque = std::max(motor_.brakeTorque, 0.0F);
+    motor_.differentialRatio = std::max(
+        motor_.differentialRatio, 0.0F);
+    motor_.maximumRpm = std::max(motor_.maximumRpm, 1.0F);
+    motor_.idlingRpm = std::clamp(
+        motor_.idlingRpm, 0.0F, motor_.maximumRpm);
+    motor_.maximumTorque = std::max(motor_.maximumTorque, 0.0F);
+    motor_.torqueEfficiency = std::max(
+        motor_.torqueEfficiency, 0.0F);
+    motor_.restBrakeTorque = std::max(
+        motor_.restBrakeTorque, 0.0F);
+    motor_.maximumSpeed = std::max(motor_.maximumSpeed, 0.0F);
+    currentGear_ = -1;
+    moveCar_ = MoveCarState::None;
+}
+
+GameCar::DriveCommand GameCar::OnFixedStepDrive(
+    float deltaTime, FixedStepInput input,
+    FixedStepState state) noexcept
+{
+    constexpr std::array<float, 6U> gearRatios{
+        1.5F, 2.66F, 1.78F, 1.30F, 1.00F, 0.74F};
+    constexpr float radiansPerRevolution =
+        6.28318530717958647692F;
+    constexpr float directionDeadZone = 0.1F;
+    auto calcRpm = [&](int gear) noexcept {
+        if (gear < 0)
+            return motor_.idlingRpm;
+        const auto ratio = gearRatios[static_cast<std::size_t>(
+            std::clamp(gear, 0,
+                       static_cast<int>(gearRatios.size() - 1U)))];
+        return std::min(
+            std::abs(state.drivenWheelAngularSpeed) * ratio *
+                motor_.differentialRatio * 60.0F /
+                radiansPerRevolution,
+            motor_.maximumRpm);
+    };
+    auto calcTorque = [&](int gear) noexcept {
+        const auto ratio = gearRatios[static_cast<std::size_t>(
+            std::clamp(gear, 0,
+                       static_cast<int>(gearRatios.size() - 1U)))];
+        return motor_.maximumTorque * ratio *
+               motor_.differentialRatio * motor_.torqueEfficiency;
+    };
+
+    input.throttle = std::clamp(input.throttle, 0.0F, 1.0F);
+    input.reverse = std::clamp(input.reverse, 0.0F, 1.0F);
+    input.brake = std::clamp(input.brake, 0.0F, 1.0F);
+    input.motorTorqueScale = std::max(input.motorTorqueScale, 0.0F);
+    if (input.brake > 0.0001F)
+        moveCar_ = MoveCarState::Brake;
+    else if (input.reverse > 0.0001F)
+        moveCar_ = MoveCarState::Back;
+    else if (input.throttle > 0.0001F)
+        moveCar_ = MoveCarState::Accel;
+    else
+        moveCar_ = MoveCarState::None;
+
+    DriveCommand command;
+    command.brakeTorque = motor_.restBrakeTorque;
+    switch (moveCar_)
+    {
+    case MoveCarState::None:
+        command.rpm = calcRpm(currentGear_);
+        break;
+    case MoveCarState::Brake:
+        currentGear_ = -1;
+        command.rpm = calcRpm(currentGear_);
+        command.brakeTorque = motor_.brakeTorque * input.brake;
+        break;
+    case MoveCarState::Back:
+        if (state.signedSpeed > directionDeadZone)
+        {
+            command.rpm = calcRpm(currentGear_);
+            command.brakeTorque = motor_.brakeTorque;
+        }
+        else
+        {
+            currentGear_ = 0;
+            command.rpm = calcRpm(currentGear_);
+            if (command.rpm < motor_.maximumRpm)
+            {
+                command.motorTorque =
+                    -calcTorque(currentGear_) * input.reverse;
+            }
+        }
+        break;
+    case MoveCarState::Accel:
+        if (state.signedSpeed < -directionDeadZone)
+        {
+            currentGear_ = -1;
+            command.rpm = calcRpm(currentGear_);
+            command.brakeTorque = motor_.brakeTorque;
+        }
+        else
+        {
+            if (currentGear_ <= 0)
+                currentGear_ = 1;
+            command.rpm = calcRpm(currentGear_);
+            command.motorTorque = calcTorque(currentGear_) *
+                input.throttle * input.motorTorqueScale;
+        }
+        break;
+    }
+
+    // Source TransmissionProgress runs after MotorProgress, so the torque
+    // and RPM above still belong to the gear used for this fixed step.
+    if (state.drivenWheelContact && motor_.automaticGears &&
+        currentGear_ > 0)
+    {
+        if (command.rpm < motor_.maximumRpm / 1.8F &&
+            currentGear_ > 1)
+            --currentGear_;
+        if (command.rpm >= motor_.maximumRpm &&
+            currentGear_ < static_cast<int>(gearRatios.size() - 1U))
+            ++currentGear_;
+    }
+    if (motor_.maximumSpeed > 0.0F &&
+        state.absoluteSpeed > motor_.maximumSpeed)
+        command.motorTorque = command.brakeTorque;
+    command.gear = currentGear_;
+    GetBehaviors().OnMotor(
+        std::max(deltaTime, 0.0F), command.rpm,
+        motor_.idlingRpm, motor_.maximumRpm);
+    return command;
+}
+
+GameCar::MoveCarState GameCar::GetMoveCar() const noexcept
+{
+    return moveCar_;
+}
+
+int GameCar::GetCurGear() const noexcept
+{
+    return currentGear_;
 }
 
 void GameCar::BindSoundMotor(
