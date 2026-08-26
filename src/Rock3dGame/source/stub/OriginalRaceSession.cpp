@@ -28,32 +28,6 @@ bool hasDeathEffect(const ProjectileDefinition& definition) noexcept
     return hasDeathEffect(definition.deathEffect);
 }
 
-void configureProjectileSourceObject(
-    source::Logic& logic, ProjectileRuntime& projectile,
-    const ProjectileDefinition& definition,
-    float maximumLife,
-    source::Weapon* weapon = nullptr,
-    source::GameObject* target = nullptr,
-    std::size_t playerId = source::GameObject::undefinedPlayerId)
-{
-    source::Proj::ShotContext context;
-    context.logic = &logic;
-    context.shot.targetMapObject = target;
-    context.playerId = playerId;
-    context.maximumLife = maximumLife;
-    context.position = {
-        projectile.position.x, projectile.position.y,
-        projectile.position.z};
-    context.rotation = {
-        projectile.rotation.x, projectile.rotation.y,
-        projectile.rotation.z, projectile.rotation.w};
-    context.launchVelocity = {
-        projectile.velocity.x, projectile.velocity.y,
-        projectile.velocity.z};
-    projectile.sourceObject = source::Weapon::CreateShot(
-        weapon, definition, context);
-}
-
 ProjectileDefinition nestedProjectileSourceDefinition(
     const NestedProjectileDefinition& nested,
     const ObjectDefinition& visual)
@@ -77,34 +51,23 @@ ProjectileDefinition nestedProjectileSourceDefinition(
     return result;
 }
 
-void configureMineSourceObject(
+void configureAutonomousMineSourceObject(
     source::Logic& logic, MineRuntime& mine,
     const ProjectileDefinition& definition,
-    float maximumLife,
-    source::Weapon* weapon = nullptr,
-    std::size_t playerId = source::GameObject::undefinedPlayerId)
+    float maximumLife)
 {
     source::Proj::ShotContext context;
     context.logic = &logic;
-    context.playerId = playerId;
     context.maximumLife = maximumLife;
     context.position = {
         mine.position.x, mine.position.y, mine.position.z};
     context.rotation = {
         mine.rotation.x, mine.rotation.y,
         mine.rotation.z, mine.rotation.w};
-    if (weapon != nullptr)
-    {
-        mine.sourceObject = source::Weapon::CreateShot(
-            weapon, definition, context);
-    }
-    else
-    {
-        auto* sourceObject = new source::Proj();
-        sourceObject->PrepareSource(definition, nullptr, context);
-        logic.RegGameObj(sourceObject);
-        mine.sourceObject = sourceObject;
-    }
+    auto* sourceObject = new source::Proj();
+    sourceObject->PrepareSource(definition, nullptr, context);
+    logic.RegGameObj(sourceObject);
+    mine.sourceObject = sourceObject;
 }
 
 Vec3 subtract(Vec3 first, Vec3 second)
@@ -3879,7 +3842,7 @@ void OriginalRaceSession::updateGameplay(
                 spawned.minimumLife, spawned.maximumLife);
             crater.ignoreOwnerCollision =
                 deathPlan.ignoreSenderCar;
-            configureMineSourceObject(
+            configureAutonomousMineSourceObject(
                 logic_, crater, spawned, craterMaximumLife);
             mines_.push_back(std::move(crater));
         };
@@ -4814,17 +4777,21 @@ void OriginalRaceSession::updateGameplay(
                 projectile->minimumLife,
                 projectile->maximumLife);
         }
-        configureMineSourceObject(
-            logic_, mine, *projectile, mineMaximumLife,
-            liveWeapon, owner);
-        if (mine.sourceObject == nullptr)
-            return;
+        source::Weapon::ShotContext sourceContext;
+        sourceContext.logic = &logic_;
+        sourceContext.playerId = owner;
+        sourceContext.maximumLife = mineMaximumLife;
+        sourceContext.position = sourceVec(mine.position);
+        sourceContext.rotation = sourceQuat(mine.rotation);
+        const std::array sourceContexts{sourceContext};
+        source::Weapon::ProjList sourceProjectiles;
         if (!racers_[owner].Shot(
-                *item, true, true, networkProjectileId, newCharge))
-        {
-            mine.sourceObject->Death();
+                *item, sourceContexts, true,
+                networkProjectileId, newCharge,
+                &sourceProjectiles) ||
+            sourceProjectiles.empty())
             return;
-        }
+        mine.sourceObject = sourceProjectiles.front();
         racers_[owner].gameCar.LockMine(0.4F);
         pushShotEffect(
             owner, weapon, PlayerProfile::weaponSlotCount + 1U,
@@ -4919,28 +4886,37 @@ void OriginalRaceSession::updateGameplay(
             projectileTransform.position = *replicatedPosition;
 
         source::Proj::SpringPrepareResult springPreparation;
-        std::unique_ptr<source::Proj> springSourceObject;
         std::optional<ProjectileRuntime> preparedHyperProjectile;
+        source::Weapon::ShotContext sourceContext;
+        sourceContext.logic = &logic_;
+        sourceContext.playerId = owner;
+        sourceContext.maximumLife = duration;
+        sourceContext.position =
+            sourceVec(projectileTransform.position);
+        sourceContext.rotation =
+            sourceQuat(projectileTransform.rotation);
+        const Vec3 sourceDirection = normalized3(
+            rotate(
+                projectileTransform.rotation,
+                {1.0F, 0.0F, 0.0F}));
+        sourceContext.launchVelocity = sourceVec(
+            multiply(sourceDirection, projectile.speed));
+        const std::array sourceContexts{sourceContext};
+        source::Weapon::ProjList sourceProjectiles;
+        if (!racers_[owner].Shot(
+                *item, sourceContexts, false,
+                replicatedProjectileId, newCharge,
+                &sourceProjectiles) ||
+            sourceProjectiles.empty())
+            return;
+        auto* sourceObject = sourceProjectiles.front();
+        duration = sourceObject->PrepareMaximumLife(
+            sampledMinimumLife);
+
         if (projectile.type == 17U)
         {
-            source::Proj::ShotContext springContext;
-            springContext.logic = &logic_;
-            springContext.playerId = owner;
-            springContext.maximumLife = duration;
-            springContext.position =
-                sourceVec(projectileTransform.position);
-            springContext.rotation =
-                sourceQuat(projectileTransform.rotation);
-            springSourceObject = std::make_unique<source::Proj>();
-            springSourceObject->PrepareSource(
-                projectile, liveWeapon, springContext);
-            springSourceObject->SetExternalLifetimeManaged(false);
-            duration = springSourceObject->PrepareMaximumLife(
-                sampledMinimumLife);
-            springPreparation =
-                springSourceObject->PrepareSpring();
-            if (!springPreparation.prepared)
-                return;
+            sourceObject->SetExternalLifetimeManaged(false);
+            springPreparation = sourceObject->PrepareSpring();
         }
         else if (projectile.type == 1U)
         {
@@ -4962,37 +4938,20 @@ void OriginalRaceSession::updateGameplay(
                     : static_cast<std::size_t>(std::distance(
                           sourceProjectiles.begin(), sourceProjectile));
             runtimeProjectile.position = projectileTransform.position;
-            runtimeProjectile.direction = normalized3(
-                rotate(
-                    projectileTransform.rotation,
-                    {1.0F, 0.0F, 0.0F}));
+            runtimeProjectile.direction = sourceDirection;
             runtimeProjectile.rotation = projectileTransform.rotation;
             runtimeProjectile.attached = true;
             runtimeProjectile.directWeapon = true;
-            configureProjectileSourceObject(
-                logic_, runtimeProjectile, projectile, duration,
-                liveWeapon, nullptr, owner);
-            if (runtimeProjectile.sourceObject == nullptr)
-                return;
-            duration = runtimeProjectile.sourceObject
-                           ->PrepareMaximumLife(sampledMinimumLife);
+            runtimeProjectile.sourceObject = sourceObject;
             preparedHyperProjectile.emplace(
                 std::move(runtimeProjectile));
         }
-        if (!racers_[owner].Shot(
-                *item, true, false,
-                replicatedProjectileId, newCharge))
+        else
         {
-            if (preparedHyperProjectile.has_value())
-                preparedHyperProjectile->sourceObject->Death();
-            return;
-        }
-        if (springSourceObject != nullptr)
-        {
-            logic_.RegGameObj(springSourceObject.release());
-            liveWeapon->OnProjectilePrepared(
-                {projectile.position.x, projectile.position.y,
-                 projectile.position.z});
+            // Unknown future source hyper types have no session runtime;
+            // retain normal GameObject lifetime ownership instead of
+            // leaving an externally managed transient alive forever.
+            sourceObject->SetExternalLifetimeManaged(false);
         }
         const std::uint32_t networkProjectileId =
             networkReplicated && replicatedProjectileId != 0U
@@ -5378,7 +5337,7 @@ void OriginalRaceSession::updateGameplay(
                     const auto childDefinition =
                         nestedProjectileSourceDefinition(
                             source, projectile.secondaryVisual);
-                    configureMineSourceObject(
+                    configureAutonomousMineSourceObject(
                         logic_, core, childDefinition,
                         coreMaximumLife);
                     spawnedMines.push_back(std::move(core));
@@ -5408,7 +5367,7 @@ void OriginalRaceSession::updateGameplay(
                         const auto childDefinition =
                             nestedProjectileSourceDefinition(
                                 source, projectile.tertiaryVisual);
-                        configureMineSourceObject(
+                        configureAutonomousMineSourceObject(
                             logic_, fragment, childDefinition,
                             fragmentMaximumLife);
                         spawnedMines.push_back(

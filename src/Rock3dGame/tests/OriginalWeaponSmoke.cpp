@@ -862,7 +862,7 @@ int main()
     factoryWeapon.OnProgress(1.0F);
     source::GameObject factoryTarget;
     r3d::game::originalrace::ProjectileDefinition factoryDescription;
-    factoryDescription.type = 17U;
+    factoryDescription.type = 0U;
     factoryDescription.position = {1.0F, 2.0F, 3.0F};
     source::Proj::ShotContext factoryContext;
     factoryContext.logic = &autoProjectileLogic;
@@ -916,6 +916,16 @@ int main()
         factoryWeapon.GetShotEffect().GetShotCount() !=
             rejectedShotEffects)
         return 107;
+
+    auto rejectedSpringDescription = factoryDescription;
+    rejectedSpringDescription.type = 17U;
+    if (source::Weapon::CreateShot(
+            &factoryWeapon, rejectedSpringDescription,
+            factoryContext) != nullptr ||
+        autoProjectileLogic.GetGameObjCount() != 0U ||
+        factoryWeapon.GetShotEffect().GetShotCount() !=
+            rejectedShotEffects)
+        return 161;
 
     source::Weapon::Desc batchDescription;
     batchDescription.shotDelay = 0.2F;

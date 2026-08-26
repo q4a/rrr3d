@@ -189,6 +189,18 @@ void Proj::PrepareSource(
         prepared_ = false;
         return;
     }
+    if (route.handler == PrepareHandler::Spring)
+    {
+        const auto spring = SpringPrepare(
+            weapon_, description_.speed);
+        if (!spring.prepared)
+        {
+            prepared_ = false;
+            return;
+        }
+        sourceVector_ = spring.localVelocityChange;
+        sourceState_ = spring.lockSpring;
+    }
     if (route.linkedToWeapon)
         LinkToSourceWeapon(context.position, context.rotation);
     else
@@ -1118,7 +1130,7 @@ Proj::SpringPrepareResult Proj::PrepareSpring() noexcept
     {
         return {};
     }
-    return SpringPrepare(weapon_, description_.speed);
+    return {sourceVector_, true, sourceState_};
 }
 
 bool Proj::ContactMine(
@@ -2196,6 +2208,11 @@ Proj* Weapon::CreateShot(
 
     auto* projectile = new Proj();
     projectile->PrepareSource(description, weapon, context);
+    if (!projectile->IsPrepared())
+    {
+        delete projectile;
+        return nullptr;
+    }
     context.logic->RegGameObj(projectile);
 
     if (weapon != nullptr)

@@ -3778,6 +3778,27 @@ death behavior у созданного им projectile.
 от session spawn helper. Regression проверяет двухснарядный batch, одно
 списание charge, два `ShotEffect` callback и live race damage/death graph.
 
+### P2.161 — source-owned Mine/Hyper/Spring shot transaction — выполнено
+
+После primary batch ещё три live пути использовали переходную схему:
+session самостоятельно создавал Mine или Hyper `Proj`, а затем вызывал
+`Player::Shot(item, true, ...)`; Spring дополнительно создавался через
+`unique_ptr`, проверял колёса вне `Proj` и регистрировался вручную после
+списания charge. Булевый overload повторно сбрасывал weapon timer и не мог
+вернуть оригинальный `ProjList`/mine identity.
+
+Mine и Hyper/Spring теперь строят только Jolt `ShotContext` и входят в тот же
+`Player -> WeaponItem -> Weapon::CreateShot` путь, что primary weapons. Mine
+получает bonus-projectile id из первого concrete `Proj`, Hyper runtime
+привязывается к объекту, возвращённому source batch. `SpringPrepare` перенесён
+в `Proj::PrepareSource`: он проверяет родительский `GameCar`, полный wheel
+contact, применяет `LockSpring` и сохраняет velocity command до регистрации.
+`Weapon::CreateShot` теперь отвергает реально неподготовленный `Proj`, поэтому
+airborne Spring не регистрируется, не расходует заряд и не создаёт
+`ShotEffect`. Session factory остался только для автономных crater/MineRip
+map objects, у которых в Windows нет `WeaponItem` владельца. Все live race
+shot paths больше не используют булевую transaction-заглушку.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
