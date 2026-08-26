@@ -2384,6 +2384,24 @@ source-order `OnProgress`. Он собирает число обновлённы
 Effects, Car, Bonus и transient; Architecture, Track, Weapon и Waypoint
 остаются нетронутыми.
 
+### P2.91 — `_specialList` и container-lock `MapObjects` — выполнено
+
+Прямая сверка с `eff9338:MapObj.cpp` подтвердила ещё один обход исходной
+структуры: portable `OnProgressSpecial` каждый кадр сканировал весь список
+`ctDecoration`, тогда как Windows хранит отдельный `_specialList` и меняет
+его только из `InsertItem/RemoveItem`. На насыщенных картах это создавало
+лишнюю работу, растущую с общим количеством декораций, и оставляло transfer
+lifecycle неявным.
+
+`MapObjects` теперь ведёт устойчивый список указателей только на record-parent
+`Misc/Crush`. Все три Add-пути и `Insert` регистрируют объект после полной
+настройки proxy/category, а `Remove`, `Extract` и `Clear` снимают его до
+observer/destruction. `OnProgressSpecial` проходит только этот список и
+сохраняет исходное правило callback-before-delete. Удаление и extraction во
+время callback запрещены тем же container lock; удаление умершего объекта
+выполняется после unlock. Regression проверяет наблюдаемый lock из death
+listener, отклонённое reentrant removal и одноразовое удаление после callback.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

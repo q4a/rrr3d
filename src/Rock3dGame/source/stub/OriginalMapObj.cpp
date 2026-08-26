@@ -498,9 +498,9 @@ MapObj& MapObjects::Add(GameObjType type, std::string baseName)
     auto object = std::make_unique<MapObj>(this);
     object->SetType(type);
     object->SetName(MakeUniqueName(std::move(baseName)));
-    object->SetParent(owner_);
     auto& result = *object;
     objects_.push_back(std::move(object));
+    InsertItem(result);
     return result;
 }
 
@@ -509,11 +509,16 @@ MapObj& MapObjects::Add(GameObjType type, MapObjCategory category,
                         std::string recordParent)
 {
     const std::string baseName = makeRecordName(record);
-    auto& object = Add(type, baseName);
-    object.SetRecord(
+    auto object = std::make_unique<MapObj>(this);
+    object->SetType(type);
+    object->SetRecord(
         std::move(record), category, std::move(recordParent));
-    object.SetId(id);
-    return object;
+    object->SetName(MakeUniqueName(baseName));
+    object->SetId(id);
+    auto& result = *object;
+    objects_.push_back(std::move(object));
+    InsertItem(result);
+    return result;
 }
 
 MapObj& MapObjects::Add(
@@ -523,9 +528,9 @@ MapObj& MapObjects::Add(
     object->SetRecordProxy(&record);
     object->SetName(MakeUniqueName(record.GetName()));
     object->SetId(id);
-    object->SetParent(owner_);
     auto& result = *object;
     objects_.push_back(std::move(object));
+    InsertItem(result);
     return result;
 }
 
@@ -538,23 +543,22 @@ MapObj& MapObjects::Insert(std::unique_ptr<MapObj> value)
             "MapObj must be extracted from its previous owner first");
     value->owner_ = this;
     value->SetName(MakeUniqueName("item"));
-    value->SetParent(owner_);
     auto& result = *value;
     objects_.push_back(std::move(value));
+    InsertItem(result);
     return result;
 }
 
 std::unique_ptr<MapObj> MapObjects::Extract(MapObj* value) noexcept
 {
-    if (value == nullptr)
+    if (locked_ || value == nullptr)
         return {};
     const auto found = std::find_if(
         objects_.begin(), objects_.end(),
         [&](const auto& object) { return object.get() == value; });
     if (found == objects_.end())
         return {};
-    if (observer_ != nullptr)
-        observer_->OnMapObjRemoving(**found);
+    RemoveItem(**found);
     (*found)->SetParent(nullptr);
     (*found)->owner_ = nullptr;
     auto result = std::move(*found);
@@ -571,12 +575,12 @@ void MapObjects::Clear() noexcept
     {
         if (object != nullptr)
         {
-            if (observer_ != nullptr)
-                observer_->OnMapObjRemoving(*object);
+            RemoveItem(*object);
             object->GetGameObj().DestroyObject();
         }
     }
     objects_.clear();
+    specialObjects_.clear();
 }
 
 MapObj* MapObjects::Get(std::size_t slot) noexcept
@@ -603,8 +607,7 @@ bool MapObjects::Remove(std::size_t slot) noexcept
 {
     if (locked_ || slot >= objects_.size() || objects_[slot] == nullptr)
         return false;
-    if (observer_ != nullptr)
-        observer_->OnMapObjRemoving(*objects_[slot]);
+    RemoveItem(*objects_[slot]);
     objects_[slot]->GetGameObj().DestroyObject();
     objects_[slot].reset();
     return true;
@@ -658,12 +661,32 @@ MapObjects::ProgressResult MapObjects::OnProgressSpecial(
     float deltaTime) noexcept
 {
     ProgressResult result;
-    for (std::size_t slot = 0U; slot < objects_.size(); ++slot)
+    for (std::size_t special = 0U;
+         special < specialObjects_.size();)
     {
-        if (objects_[slot] == nullptr || !objects_[slot]->IsSpecial())
+        auto* object = specialObjects_[special];
+        const auto found = std::find_if(
+            objects_.begin(), objects_.end(),
+            [&](const auto& candidate) {
+                return candidate.get() == object;
+            });
+        if (found == objects_.end())
+        {
+            specialObjects_.erase(
+                specialObjects_.begin() +
+                static_cast<std::ptrdiff_t>(special));
             continue;
+        }
+        const auto slot = static_cast<std::size_t>(
+            std::distance(objects_.begin(), found));
         ++result.progressed;
-        result.removed += ProgressOne(slot, deltaTime) ? 1U : 0U;
+        if (ProgressOne(slot, deltaTime))
+        {
+            ++result.removed;
+            // RemoveItem erased the same entry from specialObjects_.
+            continue;
+        }
+        ++special;
     }
     return result;
 }
@@ -679,6 +702,39 @@ void MapObjects::Death(int damageType, GameObject* target) noexcept
 }
 
 GameObject* MapObjects::GetOwner() const noexcept { return owner_; }
+
+void MapObjects::InsertItem(MapObj& value)
+{
+    value.SetParent(owner_);
+    SpecialListChanged(value, false);
+}
+
+void MapObjects::RemoveItem(MapObj& value) noexcept
+{
+    // MapObj.cpp asserts this for every collection removal. Portable callers
+    // reject the operation before reaching this point while a progress
+    // callback is running.
+    SpecialListChanged(value, true);
+    if (observer_ != nullptr)
+        observer_->OnMapObjRemoving(value);
+}
+
+void MapObjects::SpecialListChanged(
+    MapObj& value, bool remove) noexcept
+{
+    if (!value.IsSpecial())
+        return;
+    const auto found = std::find(
+        specialObjects_.begin(), specialObjects_.end(), &value);
+    if (remove)
+    {
+        if (found != specialObjects_.end())
+            specialObjects_.erase(found);
+        return;
+    }
+    if (found == specialObjects_.end())
+        specialObjects_.push_back(&value);
+}
 
 std::string MapObjects::RecordParent(std::string_view record)
 {

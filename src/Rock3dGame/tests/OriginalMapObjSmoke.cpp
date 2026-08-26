@@ -10,6 +10,36 @@
 
 namespace source = r3d::game::originalrace::source;
 
+namespace
+{
+
+class LockedRemovalProbe final : public source::GameObjectListener
+{
+public:
+    LockedRemovalProbe(source::MapObjects& owner, std::size_t slot)
+        : owner_(owner), slot_(slot)
+    {
+    }
+
+    void OnDeath(source::GameObject&, r3d::game::originalrace::DamageType,
+                 source::GameObject*) noexcept override
+    {
+        called = true;
+        observedLocked = owner_.IsLocked();
+        removedInsideCallback = owner_.Remove(slot_);
+    }
+
+    bool called = false;
+    bool observedLocked = false;
+    bool removedInsideCallback = false;
+
+private:
+    source::MapObjects& owner_;
+    std::size_t slot_ = 0U;
+};
+
+} // namespace
+
 int main()
 {
     if (std::string(source::GameObjTypeName(
@@ -92,6 +122,23 @@ int main()
         autoProjectile->GetModelScale() <= 0.0F)
         return 5;
 
+    // RemoveItem is forbidden while the object's OnProgress callback is
+    // executing. The timed death listener observes the source container lock;
+    // removal happens exactly once after the callback returns.
+    auto& lockedObject = objects.Add(
+        source::GameObjType::GameObj,
+        source::MapObjCategory::Effects,
+        "Effect\\lockedRemoval", 44U);
+    lockedObject.GetGameObj().ResetGameObject(-1.0F);
+    lockedObject.GetGameObj().SetMaxTimeLife(0.01F);
+    LockedRemovalProbe lockedProbe(objects, 3U);
+    lockedObject.GetGameObj().InsertListener(&lockedProbe);
+    const auto lockedProgress = objects.ProgressOne(3U, 0.02F);
+    if (!lockedProgress || !lockedProbe.called ||
+        !lockedProbe.observedLocked || lockedProbe.removedInsideCallback ||
+        objects.Get(3U) != nullptr)
+        return 11;
+
     auto& duplicate = objects.Add(
         source::GameObjType::GameObj, "Bonus\\maslo");
     if (duplicate.GetName() != "Bonus\\maslo0" ||
@@ -103,7 +150,7 @@ int main()
         &parent);
     const auto dead = objects.OnProgress(0.0F);
     if (dead.progressed != 2U || dead.removed != 2U ||
-        objects.GetLiveCount() != 0U || objects.GetSlotCount() != 4U ||
+        objects.GetLiveCount() != 0U || objects.GetSlotCount() != 5U ||
         !parent.GetChildren().empty())
         return 7;
 

@@ -259,11 +259,15 @@ private:
     friend class MapObj;
     static std::string RecordParent(std::string_view record);
     std::string MakeUniqueName(std::string baseName) const;
+    void InsertItem(MapObj& value);
+    void RemoveItem(MapObj& value) noexcept;
+    void SpecialListChanged(MapObj& value, bool remove) noexcept;
     bool ProgressSlot(std::size_t slot, float deltaTime) noexcept;
 
     GameObject* owner_ = nullptr;
     MapObjectsObserver* observer_ = nullptr;
     std::vector<std::unique_ptr<MapObj>> objects_;
+    std::vector<MapObj*> specialObjects_;
     bool locked_ = false;
 };
 
