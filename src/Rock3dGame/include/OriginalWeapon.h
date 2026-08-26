@@ -390,6 +390,7 @@ public:
         bool hasTarget, bool testMineLock, bool mineBugEnabled,
         bool targetMineLocked, float armingTimer,
         bool targetIsOwner) noexcept;
+    static GameCar* ResolveContactCar(GameObject* target) noexcept;
     static bool MineRipUpdate(
         float timeLife, float splitTime, bool death) noexcept;
     static ImpulseContactResult ImpulseContact(
@@ -411,6 +412,8 @@ public:
         float damage, float deltaTime) noexcept;
     static SpringPrepareResult SpringPrepare(
         bool hasCar, bool wheelsContact, float speed) noexcept;
+    static SpringPrepareResult SpringPrepare(
+        GameObject* weapon, float speed) noexcept;
     static DamageType DamageTypeFor(
         std::uint32_t type) noexcept;
     static ContactRoute ContactRouteFor(
@@ -463,6 +466,13 @@ public:
     ContinuousContactResult ContactDrobilka(
         bool hasTarget, float damage, float deltaTime,
         Vec3 contactPoint) noexcept;
+    bool ContactMine(
+        GameObject* target, bool testMineLock,
+        bool mineBugEnabled) const noexcept;
+    ContactResult ContactMaslo(
+        GameObject* target, Vec3 carPosition,
+        Vec3 carWorldRight, Vec3 oilPosition,
+        Vec3 linearVelocity, float damage) noexcept;
     DamageCommand DamageTarget(
         GameObject* target, float damage,
         DamageType damageType = DamageType::Simple) noexcept;

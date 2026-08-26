@@ -1,5 +1,6 @@
 #include "OriginalWeapon.h"
 
+#include "OriginalGameCar.h"
 #include "OriginalLogic.h"
 #include "OriginalMapObj.h"
 #include "OriginalPlayer.h"
@@ -770,6 +771,18 @@ bool Proj::MineContactAllowed(
     return armingTimer == -1.0F || !targetIsOwner;
 }
 
+GameCar* Proj::ResolveContactCar(GameObject* target) noexcept
+{
+    if (target == nullptr)
+        return nullptr;
+    if (target->GetParent() != nullptr)
+    {
+        if (auto* parentCar = target->GetParent()->IsCar())
+            return parentCar;
+    }
+    return target->IsCar();
+}
+
 bool Proj::MineRipUpdate(
     float timeLife, float splitTime, bool death) noexcept
 {
@@ -959,6 +972,36 @@ Proj::ContinuousContactResult Proj::ContactDrobilka(
     return result;
 }
 
+bool Proj::ContactMine(
+    GameObject* target, bool testMineLock,
+    bool mineBugEnabled) const noexcept
+{
+    auto* targetCar = target != nullptr ? target->IsCar() : nullptr;
+    auto* ownerCar = weapon_ != nullptr ? weapon_->GetParent() : nullptr;
+    return MineContactAllowed(
+        targetCar != nullptr, testMineLock, mineBugEnabled,
+        targetCar != nullptr && targetCar->IsMineLocked(),
+        sourceTimer_, targetCar != nullptr && ownerCar == targetCar);
+}
+
+Proj::ContactResult Proj::ContactMaslo(
+    GameObject* target, Vec3 carPosition,
+    Vec3 carWorldRight, Vec3 oilPosition,
+    Vec3 linearVelocity, float damage) noexcept
+{
+    auto* car = ResolveContactCar(target);
+    if (car == nullptr)
+        return {};
+    auto result = MasloContact(
+        carPosition, carWorldRight, oilPosition, linearVelocity,
+        damage, sourceTimer_ >= 0.0F, car->IsMineLocked(),
+        car->IsClutchLocked(), car->IsClutchImmunity());
+    if (result.lockClutch &&
+        !car->LockClutch(result.clutchStrength))
+        result.lockClutch = false;
+    return result;
+}
+
 void Proj::ProgressDrobilka(float deltaTime) noexcept
 {
     if (weapon_ != nullptr)
@@ -1075,6 +1118,19 @@ Proj::SpringPrepareResult Proj::SpringPrepare(
     result.localVelocityChange = {0.0F, 0.0F, speed};
     result.prepared = true;
     result.lockSpring = true;
+    return result;
+}
+
+Proj::SpringPrepareResult Proj::SpringPrepare(
+    GameObject* weapon, float speed) noexcept
+{
+    auto* car = weapon != nullptr && weapon->GetParent() != nullptr
+        ? weapon->GetParent()->IsCar()
+        : nullptr;
+    auto result = SpringPrepare(
+        car != nullptr, car != nullptr && car->IsWheelsContact(), speed);
+    if (result.lockSpring)
+        car->LockSpring();
     return result;
 }
 

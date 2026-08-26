@@ -1,3 +1,4 @@
+#include "OriginalGameCar.h"
 #include "OriginalLogic.h"
 #include "OriginalMapObj.h"
 
@@ -1090,6 +1091,42 @@ int main()
         !source::Proj::MineContactAllowed(
             true, false, false, false, -1.0F, true))
         return 53;
+    source::GameCar contactCar;
+    contactCar.BindWheels({false}, {false});
+    contactCar.SetWheelContact(0U, true, 0.0F, 0.0F);
+    contactCar.UpdateContactState(false);
+    source::Weapon contactWeapon;
+    contactWeapon.SetParent(&contactCar);
+    const auto concreteSpring = source::Proj::SpringPrepare(
+        &contactWeapon, 6.0F);
+    if (!concreteSpring.prepared || !concreteSpring.lockSpring ||
+        concreteSpring.localVelocityChange.z != 6.0F ||
+        !contactCar.IsSpringLocked())
+        return 134;
+    source::GameCar mineTargetCar;
+    source::GameObject nonCarTarget;
+    oilProjectile.SetSourceTimer(-1.0F);
+    if (!oilProjectile.ContactMine(
+            &mineTargetCar, true, true) ||
+        oilProjectile.ContactMine(
+            &nonCarTarget, false, false))
+        return 135;
+    mineTargetCar.LockMine(0.4F);
+    if (oilProjectile.ContactMine(
+            &mineTargetCar, true, true))
+        return 136;
+    source::GameCar oilTargetCar;
+    oilTargetCar.BindWheels({false}, {false});
+    oilProjectile.SetSourceTimer(-1.0F);
+    const auto concreteMaslo = oilProjectile.ContactMaslo(
+        oilTargetCar.GetWheel(0U), {}, {0.0F, 1.0F, 0.0F},
+        {0.0F, 1.0F, 0.0F}, {4.0F, 0.0F, 0.0F}, 1.5F);
+    if (source::Proj::ResolveContactCar(
+            oilTargetCar.GetWheel(0U)) != &oilTargetCar ||
+        !concreteMaslo.lockClutch ||
+        concreteMaslo.clutchStrength != -1.5F ||
+        !oilTargetCar.IsClutchLocked())
+        return 137;
     if (source::Proj::MineRipUpdate(2.0F, 2.0F, false) ||
         !source::Proj::MineRipUpdate(2.001F, 2.0F, false) ||
         source::Proj::MineRipUpdate(3.0F, 2.0F, true))

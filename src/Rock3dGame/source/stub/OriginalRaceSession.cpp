@@ -3311,10 +3311,6 @@ void OriginalRaceSession::updateGameplay(
     const std::vector<r3d::physics::VehicleState>& vehicles,
     const RaceControl& humanControl)
 {
-    const auto clutchImmune = [&](std::size_t racer) {
-        return racer < racers_.size() &&
-               racers_[racer].gameCar.IsClutchImmunity();
-    };
     auto installedWeaponSlot =
         [&](std::size_t owner, std::size_t weaponIndex,
             std::optional<std::size_t> primaryMount)
@@ -4950,17 +4946,11 @@ void OriginalRaceSession::updateGameplay(
                 replicatedProjectileId, newCharge);
             return;
         }
-        const auto& vehicleDefinition = vehicleForRacer(owner);
         source::Proj::SpringPrepareResult springPreparation;
         if (projectile.type == 17U)
         {
-            const auto wheelCount =
-                vehicleDefinition.physics.wheels.size();
             springPreparation = source::Proj::SpringPrepare(
-                true,
-                wheelCount > 0U &&
-                    vehicles[owner].contactCount >= wheelCount,
-                projectile.speed);
+                liveWeapon, projectile.speed);
             if (!springPreparation.prepared)
             {
                 racers_[owner].Shot(
@@ -4991,8 +4981,6 @@ void OriginalRaceSession::updateGameplay(
                      vehicles[owner].body.rotation,
                      runtimeVec(
                          springPreparation.localVelocityChange))});
-            if (springPreparation.lockSpring)
-                racers_[owner].gameCar.LockSpring();
             if (owner < vehicleInputs_.size())
                 vehicleInputs_[owner].springLocked = true;
         }
@@ -5168,13 +5156,16 @@ void OriginalRaceSession::updateGameplay(
         effects_.push_back(std::move(impact));
     };
     auto applyMasloContact = [&](
-        std::size_t racer, const Vec3& oilPosition, float damage,
-        bool arming) {
+        source::Proj* projectile, std::size_t racer,
+        const Vec3& oilPosition, float damage) {
         if (racer >= vehicles.size() || racer >= racers_.size())
+            return false;
+        if (projectile == nullptr)
             return false;
         const auto carRight = rotate(
             vehicles[racer].body.rotation, {0.0F, 1.0F, 0.0F});
-        const auto sourceResult = source::Proj::MasloContact(
+        const auto sourceResult = projectile->ContactMaslo(
+            &racers_[racer].gameCar,
             {vehicles[racer].body.position.x,
              vehicles[racer].body.position.y,
              vehicles[racer].body.position.z},
@@ -5183,14 +5174,8 @@ void OriginalRaceSession::updateGameplay(
             {vehicles[racer].linearVelocity.x,
              vehicles[racer].linearVelocity.y,
              vehicles[racer].linearVelocity.z},
-            damage, arming,
-            racers_[racer].gameCar.IsMineLocked(),
-            racers_[racer].gameCar.IsClutchLocked(),
-            clutchImmune(racer));
+            damage);
         if (!sourceResult.lockClutch)
-            return false;
-        if (!racers_[racer].gameCar.LockClutch(
-                sourceResult.clutchStrength))
             return false;
         const auto& vehicleDefinition = vehicleForRacer(racer);
         const Quat inverseRotation{
@@ -5238,8 +5223,7 @@ void OriginalRaceSession::updateGameplay(
             source::Proj::ContactHandler::Maslo)
         {
             return applyMasloContact(
-                racer, mine.position, mine.damage,
-                mine.sourceObject->GetSourceTimer() >= 0.0F);
+                mine.sourceObject, racer, mine.position, mine.damage);
         }
         if (!sourceContactRoute.appliesDamage)
             return false;
@@ -5479,13 +5463,10 @@ void OriginalRaceSession::updateGameplay(
             else if (mineContactRoute.handler !=
                      source::Proj::ContactHandler::Crater)
             {
-                sourceContactAllowed =
-                    source::Proj::MineContactAllowed(
-                        true, mineContactRoute.testMineLock,
-                        enableMineBug_,
-                        targetMineLocked,
-                        mine.sourceObject->GetSourceTimer(),
-                        mine.linkedToOwner && racer == mine.owner);
+                sourceContactAllowed = mine.sourceObject->ContactMine(
+                    &racers_[racer].gameCar,
+                    mineContactRoute.testMineLock,
+                    enableMineBug_);
             }
             Transform mineTransform;
             mineTransform.position = mine.position;
@@ -5804,14 +5785,12 @@ void OriginalRaceSession::updateGameplay(
             }
             if (bonus.kind == BonusKind::OilHazard)
             {
+                auto* mapBonus = bonusObjects().Get(bonusIndex);
                 applyMasloContact(
-                    racer, bonus.transform.position,
-                    bonus.value,
-                    bonusObjects().Get(bonusIndex) != nullptr &&
-                        bonusObjects().Get(bonusIndex)
-                            ->GetAutoProj() != nullptr &&
-                        bonusObjects().Get(bonusIndex)
-                            ->GetAutoProj()->IsArming());
+                    mapBonus != nullptr
+                        ? mapBonus->GetAutoProj()
+                        : nullptr,
+                    racer, bonus.transform.position, bonus.value);
                 continue;
             }
             if (bonus.kind == BonusKind::MineHazard)
@@ -7103,6 +7082,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 point(0).position;
             vehicles[index].body.position.z += 2.0F;
             vehicles[index].contactCount = 4;
+            vehicles[index].wheelContacts.resize(4U);
+            for (auto& contact : vehicles[index].wheelContacts)
+                contact.hasContact = true;
         }
         const auto droidDefinition = std::find_if(
             race.weapons.begin(), race.weapons.end(),
@@ -10534,6 +10516,10 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             hyperVehicles[0].contactCount =
                 static_cast<std::uint32_t>(
                     playerDefinition.physics.wheels.size());
+            hyperVehicles[0].wheelContacts.resize(
+                playerDefinition.physics.wheels.size());
+            for (auto& contact : hyperVehicles[0].wheelContacts)
+                contact.hasContact = true;
             for (int frame = 0; frame < 250; ++frame)
                 springSession.update(
                     1.0F / 60.0F, hyperVehicles, springInput);
@@ -10570,6 +10556,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             airborneSpringSession.applyPlayerProfile(springProfile);
             RaceControl springInput;
             hyperVehicles[0].contactCount = 0U;
+            for (auto& contact : hyperVehicles[0].wheelContacts)
+                contact.hasContact = false;
             for (int frame = 0; frame < 250; ++frame)
                 airborneSpringSession.update(
                     1.0F / 60.0F, hyperVehicles, springInput);

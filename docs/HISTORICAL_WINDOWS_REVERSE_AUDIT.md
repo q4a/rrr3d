@@ -3437,6 +3437,26 @@ damage теперь выдаёт kill-credit только машине. Обыч
 identity, обычное убийство машины, отсутствие kill-credit для Mine и для
 обычного `GameObject` как в локальном, так и authoritative damage overload.
 
+### P2.143 — car-target ownership для Mine/Maslo/Spring — выполнено
+
+Session всё ещё заранее превращал Jolt vehicle index в набор булевых
+`hasCar`, `mineLocked`, `clutchLocked`, `clutchImmune` и `wheelsContact`, а
+затем вызывал статические формулы снаряда. В Windows эти решения принадлежат
+конкретному `Proj`: Mine принимает только `target->IsCar`, сравнивает его с
+parent оружия и собственным arming timer; Maslo умеет подняться от wheel-child
+к parent `GameCar`; Spring берёт машину через parent живого `Weapon`, проверяет
+все колёса и сам устанавливает spring lock.
+
+В `Proj` восстановлены concrete `ContactMine`, `ContactMaslo`, разрешение
+wheel/car contact target и weapon-based `SpringPrepare`. Session теперь
+передаёт generic `GameObject` и физические векторы, а source object сам читает
+lock state и меняет `GameCar`. Map `AutoProj` масла идёт по тому же пути.
+Одновременно physics-smoke fixture приведена к реальному Jolt contract:
+помимо сводного `contactCount` она задаёт per-wheel `wheelContacts`, которыми
+в действительности владеет `GameCar::IsWheelsContact`; airborne fixture явно
+снимает каждый контакт. Regression проверяет direct-car Mine, non-car reject,
+mine-bug lock, wheel-parent Maslo и Spring impulse/lock.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
