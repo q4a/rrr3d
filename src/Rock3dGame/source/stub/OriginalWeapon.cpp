@@ -132,6 +132,99 @@ Proj::Proj()
     ResetGameObject(-1.0F);
 }
 
+Proj::~Proj()
+{
+    SetSourceTarget(nullptr);
+    SetSourceWeapon(nullptr);
+}
+
+void Proj::PrepareSource(
+    const ProjectileDefinition& description,
+    GameObject* weapon, GameObject* target,
+    std::size_t playerId, bool linkToWeapon,
+    float maximumLife, const Vec3& position,
+    const Quat& rotation) noexcept
+{
+    SetSourceTarget(nullptr);
+    SetSourceWeapon(nullptr);
+    description_ = description;
+    playerId_ = playerId;
+    ResetGameObject(-1.0F);
+    SetMaxTimeLife(maximumLife);
+    SetTimeLife(0.0F);
+    SetSourceWeapon(weapon, linkToWeapon);
+    SetSourceTarget(target);
+    SyncSourceTransform(position, rotation);
+    prepared_ = true;
+}
+
+void Proj::SetSourceWeapon(
+    GameObject* value, bool linkToWeapon) noexcept
+{
+    if (weapon_ == value)
+    {
+        if (weapon_ != nullptr && linkToWeapon && GetParent() != weapon_)
+            SetParent(weapon_);
+        return;
+    }
+    if (weapon_ != nullptr)
+    {
+        weapon_->RemoveListener(this);
+        if (GetParent() == weapon_)
+            SetParent(nullptr);
+    }
+    weapon_ = value;
+    if (weapon_ == nullptr)
+    {
+        playerId_ = GameObject::undefinedPlayerId;
+        return;
+    }
+    weapon_->InsertListener(this);
+    if (linkToWeapon)
+        SetParent(weapon_);
+}
+
+void Proj::SetSourceTarget(GameObject* value) noexcept
+{
+    if (target_ == value)
+        return;
+    if (target_ != nullptr)
+        target_->RemoveListener(this);
+    target_ = value;
+    if (target_ != nullptr)
+        target_->InsertListener(this);
+}
+
+void Proj::SyncSourceTransform(
+    const Vec3& position, const Quat& rotation) noexcept
+{
+    SetWorldPos({position.x, position.y, position.z});
+    SetWorldRot({rotation.x, rotation.y, rotation.z, rotation.w});
+}
+
+const ProjectileDefinition& Proj::GetDesc() const noexcept
+{
+    return description_;
+}
+
+GameObject* Proj::GetSourceWeapon() const noexcept { return weapon_; }
+GameObject* Proj::GetSourceTarget() const noexcept { return target_; }
+std::size_t Proj::GetSourcePlayerId() const noexcept { return playerId_; }
+bool Proj::IsPrepared() const noexcept { return prepared_; }
+
+void Proj::OnDestroy(GameObject& sender) noexcept
+{
+    if (&sender == weapon_)
+    {
+        const bool linked = GetParent() == weapon_;
+        if (linked)
+            Death();
+        SetSourceWeapon(nullptr);
+    }
+    if (&sender == target_)
+        SetSourceTarget(nullptr);
+}
+
 void Proj::ConfigureDeathEffect(
     bool effectPhysicsIgnoreSenderCar,
     bool targetChild) noexcept

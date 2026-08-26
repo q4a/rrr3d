@@ -76,6 +76,52 @@ int main()
             std::array<float, 3U>{1.0F, 2.0F, 3.0F})
         return 6;
 
+    r3d::game::originalrace::ProjectileDefinition sourceDescription;
+    sourceDescription.type = 3U;
+    sourceDescription.damage = 9.0F;
+    source::GameObject sourceCar;
+    source::Weapon sourceWeapon;
+    sourceWeapon.SetParent(&sourceCar);
+    source::GameObject sourceTarget;
+    source::Proj linkedProjectile;
+    linkedProjectile.PrepareSource(
+        sourceDescription, &sourceWeapon, &sourceTarget, 7U, true,
+        2.5F, {4.0F, 5.0F, 6.0F},
+        {0.0F, 0.0F, 0.0F, 1.0F});
+    if (!linkedProjectile.IsPrepared() ||
+        linkedProjectile.GetDesc().type != 3U ||
+        linkedProjectile.GetSourceWeapon() != &sourceWeapon ||
+        linkedProjectile.GetSourceTarget() != &sourceTarget ||
+        linkedProjectile.GetSourcePlayerId() != 7U ||
+        linkedProjectile.GetParent() != &sourceWeapon ||
+        linkedProjectile.GetWorldPos() !=
+            source::GameObject::Vector3{4.0F, 5.0F, 6.0F} ||
+        linkedProjectile.GetMaxTimeLife() != 2.5F ||
+        sourceWeapon.GetListenerCount() != 2U ||
+        sourceTarget.GetListenerCount() != 1U)
+        return 65;
+    sourceTarget.DestroyObject();
+    if (linkedProjectile.GetSourceTarget() != nullptr)
+        return 66;
+    sourceWeapon.DestroyObject();
+    if (linkedProjectile.GetSourceWeapon() != nullptr ||
+        linkedProjectile.GetParent() != nullptr ||
+        linkedProjectile.GetLiveState() !=
+            source::GameObject::LiveState::Death)
+        return 67;
+
+    source::Weapon mineSourceWeapon;
+    source::Proj unlinkedProjectile;
+    unlinkedProjectile.PrepareSource(
+        sourceDescription, &mineSourceWeapon, nullptr, 4U, false,
+        -1.0F, {}, {});
+    mineSourceWeapon.DestroyObject();
+    if (unlinkedProjectile.GetSourceWeapon() != nullptr ||
+        unlinkedProjectile.GetParent() != nullptr ||
+        unlinkedProjectile.GetLiveState() ==
+            source::GameObject::LiveState::Death)
+        return 68;
+
     source::Proj projectileObject;
     projectileObject.ConfigureDeathEffect(true, true);
     auto* projectileDeathBehavior =

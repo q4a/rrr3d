@@ -76,7 +76,11 @@ const DeathEffectDefinition* mineDeathEffectDefinition(
 
 void configureProjectileSourceObject(
     ProjectileRuntime& projectile,
-    const ProjectileDefinition& definition)
+    const ProjectileDefinition& definition,
+    source::GameObject* weapon = nullptr,
+    source::GameObject* target = nullptr,
+    std::size_t playerId = source::GameObject::undefinedPlayerId,
+    bool linkToWeapon = false)
 {
     projectile.sourceObject = std::make_shared<source::Proj>();
     if (hasDeathEffect(definition))
@@ -85,10 +89,21 @@ void configureProjectileSourceObject(
             definition.deathEffect.effectPhysicsIgnoreSenderCar,
             definition.deathEffect.targetChild);
     }
+    projectile.sourceObject->PrepareSource(
+        definition, weapon, target, playerId, linkToWeapon,
+        projectile.maximumLifeSeconds,
+        source::Proj::Vec3{
+            projectile.position.x, projectile.position.y,
+            projectile.position.z},
+        source::Proj::Quat{
+            projectile.rotation.x, projectile.rotation.y,
+            projectile.rotation.z, projectile.rotation.w});
 }
 
 void configureMineSourceObject(
-    MineRuntime& mine, const ProjectileDefinition& definition)
+    MineRuntime& mine, const ProjectileDefinition& definition,
+    source::GameObject* weapon = nullptr,
+    std::size_t playerId = source::GameObject::undefinedPlayerId)
 {
     mine.sourceObject = std::make_shared<source::Proj>();
     const auto* death = mineDeathEffectDefinition(mine, definition);
@@ -98,6 +113,14 @@ void configureMineSourceObject(
             death->effectPhysicsIgnoreSenderCar,
             death->targetChild);
     }
+    mine.sourceObject->PrepareSource(
+        definition, weapon, nullptr, playerId, false,
+        mine.maximumLife,
+        source::Proj::Vec3{
+            mine.position.x, mine.position.y, mine.position.z},
+        source::Proj::Quat{
+            mine.rotation.x, mine.rotation.y,
+            mine.rotation.z, mine.rotation.w});
 }
 
 Vec3 subtract(Vec3 first, Vec3 second)
@@ -3861,7 +3884,23 @@ void OriginalRaceSession::updateGameplay(
     {
         if (!projectile.active)
             continue;
-        projectile.sourceObject->OnProgress(seconds);
+        projectile.sourceObject->SyncSourceTransform(
+            source::Proj::Vec3{
+                projectile.position.x, projectile.position.y,
+                projectile.position.z},
+            source::Proj::Quat{
+                projectile.rotation.x, projectile.rotation.y,
+                projectile.rotation.z, projectile.rotation.w});
+        // The original Race owns the terminal projectile transition because it
+        // must install the DeathEffect contact context before Proj::Death().
+        // Do not let GameObject's generic lifetime path consume that transition
+        // one line earlier on the final frame.
+        const bool projectileExpiresThisStep =
+            projectile.maximumLifeSeconds > 0.0F &&
+            projectile.ageSeconds + seconds >
+                projectile.maximumLifeSeconds;
+        if (!projectileExpiresThisStep)
+            projectile.sourceObject->OnProgress(seconds);
         const auto* runtimeDefinition = runtimeProjectileDefinition(
             race_, projectile);
         if (runtimeDefinition == nullptr)
@@ -4415,6 +4454,11 @@ void OriginalRaceSession::updateGameplay(
                     break;
                 }
                 projectile.target = nextTarget;
+                projectile.sourceObject->SetSourceTarget(
+                    nextTarget < racerMapObjects_.size() &&
+                            racerMapObjects_[nextTarget] != nullptr
+                        ? &racerMapObjects_[nextTarget]->GetGameObj()
+                        : nullptr);
                 projectile.homingDelay = 0.0F;
                 break;
             }
@@ -4695,7 +4739,7 @@ void OriginalRaceSession::updateGameplay(
             networkReplicated
                 ? static_cast<int>(item->GetCurCharge()) - 1
                 : -1;
-        const auto* liveWeapon = item->GetWeapon();
+        auto* liveWeapon = item->GetWeapon();
         const auto description = liveWeapon->GetDescHandle();
         const auto& projectiles = description->projectiles;
         const auto* projectile =
@@ -4770,7 +4814,8 @@ void OriginalRaceSession::updateGameplay(
                 projectile->minimumLife,
                 projectile->maximumLife);
         }
-        configureMineSourceObject(mine, *projectile);
+        configureMineSourceObject(
+            mine, *projectile, liveWeapon, owner);
         pushShotEffect(
             owner, weapon, PlayerProfile::weaponSlotCount + 1U,
             weaponTransform, *projectile);
@@ -4840,7 +4885,7 @@ void OriginalRaceSession::updateGameplay(
             networkReplicated
                 ? static_cast<int>(item->GetCurCharge()) - 1
                 : -1;
-        const auto* liveWeapon = item->GetWeapon();
+        auto* liveWeapon = item->GetWeapon();
         const auto description = liveWeapon->GetDescHandle();
         const auto& projectiles = description->projectiles;
         if (projectiles.empty())
@@ -4956,7 +5001,8 @@ void OriginalRaceSession::updateGameplay(
             runtimeProjectile.attached = true;
             runtimeProjectile.directWeapon = true;
             configureProjectileSourceObject(
-                runtimeProjectile, projectile);
+                runtimeProjectile, projectile, liveWeapon,
+                nullptr, owner, true);
             projectiles_.push_back(std::move(runtimeProjectile));
         }
         RaceEvent hyperEvent;
@@ -5218,7 +5264,20 @@ void OriginalRaceSession::updateGameplay(
     {
         if (!mine.active)
             continue;
-        mine.sourceObject->OnProgress(seconds);
+        mine.sourceObject->SyncSourceTransform(
+            source::Proj::Vec3{
+                mine.position.x, mine.position.y, mine.position.z},
+            source::Proj::Quat{
+                mine.rotation.x, mine.rotation.y,
+                mine.rotation.z, mine.rotation.w});
+        // Race supplies the DeathEffect spawn context at expiration.  Letting
+        // GameObject auto-expire here would fire Death() without that context
+        // and discard nested projectiles such as MineRip's fragments.
+        const bool mineExpiresThisStep =
+            mine.maximumLife > 0.0F &&
+            mine.seconds + seconds > mine.maximumLife;
+        if (!mineExpiresThisStep)
+            mine.sourceObject->OnProgress(seconds);
         mine.seconds += seconds;
         if (mine.type == 10U || mine.type == 11U ||
             mine.type == 12U || mine.type == 24U)
@@ -5755,7 +5814,7 @@ void OriginalRaceSession::updateGameplay(
             &race_.weapons[firedWeapon];
         if (weapon->slot == WeaponSlot::Support)
             return;
-        const auto* liveWeapon = item->GetWeapon();
+        auto* liveWeapon = item->GetWeapon();
         const auto shotDescription = liveWeapon->GetDescHandle();
         const auto& itemProjectiles =
             shotDescription->projectiles;
@@ -5830,6 +5889,13 @@ void OriginalRaceSession::updateGameplay(
                 requestedTarget < racers_.size()
                     ? requestedTarget
                     : findClosestEnemy(shooter, homingViewAngle);
+            source::GameObject* sourceTarget = nullptr;
+            if (homingTarget < racerMapObjects_.size() &&
+                racerMapObjects_[homingTarget] != nullptr)
+            {
+                sourceTarget =
+                    &racerMapObjects_[homingTarget]->GetGameObj();
+            }
             const bool rayProjectile = projectileRules.ray;
             const bool attachedProjectile =
                 projectileRules.attached;
@@ -5900,7 +5966,9 @@ void OriginalRaceSession::updateGameplay(
                     runtimeProjectile.maximumLifeSeconds;
                 runtimeProjectile.attached = true;
                 configureProjectileSourceObject(
-                    runtimeProjectile, projectile);
+                    runtimeProjectile, projectile, liveWeapon,
+                    sourceTarget, shooter,
+                    projectileRules.linkedToWeapon);
                 projectiles_.push_back(std::move(runtimeProjectile));
             }
             else if (!rayProjectile)
@@ -5940,7 +6008,9 @@ void OriginalRaceSession::updateGameplay(
                 runtimeProjectile.ballistic =
                     projectileRules.ballistic;
                 configureProjectileSourceObject(
-                    runtimeProjectile, projectile);
+                    runtimeProjectile, projectile, liveWeapon,
+                    sourceTarget, shooter,
+                    projectileRules.linkedToWeapon);
                 if (projectileRules.homing)
                 {
                     runtimeProjectile.homingDelay = 0.4F;

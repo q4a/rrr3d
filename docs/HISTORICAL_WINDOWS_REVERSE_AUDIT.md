@@ -3075,6 +3075,32 @@ Regression проверяет parent/owner identity, динамическое ч
 progress через `RockCar`, Hyper/Mine cache invalidation и удаление weapon
 MapObj вместе с car lifecycle.
 
+### P2.125 — live `Proj` descriptor and source listener links — выполнено
+
+Portable `ProjectileRuntime` уже содержал concrete `Proj` для death-effect
+behavior, но сам объект оставался почти пустым: descriptor, weapon owner,
+target, player attribution, transform и linked lifetime продолжали жить
+только в session-структуре. Поэтому уничтожение weapon/target обрабатывалось
+повторно вычисленной проверкой индексов вместо исходного listener graph.
+
+`Proj` теперь принимает полный `ProjectileDefinition` при подготовке,
+сохраняет source player id и maximum lifetime, подписывается на конкретные
+`Weapon` и target `RockCar`, а linked ray/contact projectiles становятся
+детьми оружия. Уничтожение target очищает только homing-ссылку; уничтожение
+weapon снимает listener и убивает только projectile, реально связанный с
+ним через parent — мины и свободные снаряды остаются в мире. Это соответствует
+`Proj::SetWeapon`, `LinkToWeapon`, `SetShot` и `OnDestroy` оригинала.
+
+Fast, attached и Hyper spawn paths теперь передают live weapon/target в этот
+объект; Mine передаёт weapon без parent link, а impulse chain обновляет
+source target при выборе следующего противника. Runtime position/rotation
+синхронизируются в concrete `Proj` до source progress, тогда как Jolt collision
+и bgfx visuals остаются backend-данными. Regression проверяет descriptor,
+world transform, listeners, target release и различие linked/unlinked death.
+На терминальном кадре `Race` сначала устанавливает оригинальный contact context
+`DeathEffect` и только затем переводит `Proj` в death-state; это сохраняет
+вложенные осколки `MineRip`, которые ранее терялись при раннем auto-expire.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

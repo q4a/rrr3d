@@ -16,7 +16,7 @@ namespace r3d::game::originalrace::source
 
 // Gameplay-owned contact rules from Proj. PhysX actor lookup and the final
 // Jolt velocity/momentum writes remain backend adapters.
-class Proj : public GameObject
+class Proj : public GameObject, public GameObjectListener
 {
 public:
     struct Vec3
@@ -221,7 +221,23 @@ public:
         float targetMaximumLife) noexcept;
 
     Proj();
-    ~Proj() override = default;
+    ~Proj() override;
+    void PrepareSource(
+        const ProjectileDefinition& description,
+        GameObject* weapon, GameObject* target,
+        std::size_t playerId, bool linkToWeapon,
+        float maximumLife, const Vec3& position,
+        const Quat& rotation) noexcept;
+    void SetSourceWeapon(
+        GameObject* value, bool linkToWeapon = false) noexcept;
+    void SetSourceTarget(GameObject* value) noexcept;
+    void SyncSourceTransform(
+        const Vec3& position, const Quat& rotation) noexcept;
+    const ProjectileDefinition& GetDesc() const noexcept;
+    GameObject* GetSourceWeapon() const noexcept;
+    GameObject* GetSourceTarget() const noexcept;
+    std::size_t GetSourcePlayerId() const noexcept;
+    bool IsPrepared() const noexcept;
     void ConfigureDeathEffect(
         bool effectPhysicsIgnoreSenderCar,
         bool targetChild) noexcept;
@@ -231,7 +247,15 @@ public:
     DeathEffectBehavior* GetDeathEffectBehavior() noexcept;
     const DeathEffectBehavior* GetDeathEffectBehavior() const noexcept;
 
+protected:
+    void OnDestroy(GameObject& sender) noexcept override;
+
 private:
+    ProjectileDefinition description_;
+    GameObject* weapon_ = nullptr;
+    GameObject* target_ = nullptr;
+    std::size_t playerId_ = GameObject::undefinedPlayerId;
+    bool prepared_ = false;
     DeathEffectBehavior* deathEffect_ = nullptr;
 };
 
