@@ -12,6 +12,15 @@ int main()
 {
     source::Player player;
     player.Reset(80.0F, 3U);
+    if (player.GetBehaviors().GetCount() != 3U ||
+        player.GetBehaviors().Find(
+            source::BehaviorType::LowLifePoints) == nullptr ||
+        player.GetBehaviors().Find(
+            source::BehaviorType::ImmortalEffect) == nullptr ||
+        player.GetBehaviors().Find(
+            source::BehaviorType::DamageEffect) == nullptr ||
+        player.GetListenerCount() != 3U)
+        return 71;
     player.car.SetSize(7.5F);
     player.ConfigureIdentity(
         source::Player::humanId, 7, 3U, "Tyler", "Network Tyler",

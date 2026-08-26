@@ -1383,7 +1383,8 @@ void LowLifePoints::Reset(float lifeLevel) noexcept
 }
 
 LowLifePoints::ProgressResult LowLifePoints::OnProgress(
-    GameObject& gameObject, float deltaTime) noexcept
+    GameObject& gameObject, float deltaTime,
+    Behavior* behavior) noexcept
 {
     ProgressResult result;
     const float maximumLife = gameObject.GetMaxLife();
@@ -1395,7 +1396,7 @@ LowLifePoints::ProgressResult LowLifePoints::OnProgress(
     if (lowLife)
     {
         if (!eventEffect_.IsEffectMaked())
-            gameObject.LowLife();
+            gameObject.LowLife(behavior);
         if (eventEffect_.MakeEffect())
         {
             result.activated = true;

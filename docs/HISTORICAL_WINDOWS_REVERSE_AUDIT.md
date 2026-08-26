@@ -2421,6 +2421,26 @@ touch/lifetime и Behaviors после них, возвращая отдельн
 immortality callbacks, delayed self-removal и реальное удаление вложенного
 timed MapObj.
 
+### P2.93 — concrete Player behavior graph — выполнено
+
+После появления общего `Behaviors` owner оставался активный обход: Player
+напрямую вызывал `ImmortalEffect`/`DamageEffect` из виртуального
+`OnDamageEvent`, а `ProgressBehaviors` вручную прогрессировал shield, energy
+и low-life state machines в другом порядке. В Windows эти объекты добавлены
+в GameCar Behaviors и получают damage/immortality/progress через listener
+container.
+
+Player теперь устанавливает три concrete adapter behavior с исходными type
+identity и относительным порядком: `LowLifePoints`, `ImmortalEffect`,
+`DamageEffect`. Они владеют вызовами уже перенесённых state machines,
+записывают одноразовые low-life/energy transitions и передают originating
+Behavior в `GameObject::LowLife`. Ручные `OnDamageEvent` и
+`OnImmortalStatusEvent` удалены; `ProgressBehaviors` задаёт только входной
+low-life threshold, затем читает результат общего GameObject pass. Reset
+пересобирает owner, а race roster создаётся без copy-шаблона, чтобы adapter
+ссылки каждого Player оставались локальными. Regression проверяет три
+зарегистрированных типа/listener и прежние shield/energy transitions.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

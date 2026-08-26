@@ -602,7 +602,8 @@ public:
     LowLifePoints(float lifeLevel = 0.35F) noexcept;
     void Reset(float lifeLevel = 0.35F) noexcept;
     ProgressResult OnProgress(
-        GameObject& gameObject, float deltaTime) noexcept;
+        GameObject& gameObject, float deltaTime,
+        Behavior* behavior = nullptr) noexcept;
 
     float GetLifeLevel() const noexcept;
     void SetLifeLevel(float value) noexcept;

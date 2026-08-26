@@ -1113,7 +1113,8 @@ void OriginalRaceSession::reset()
     // AIPlayer::~AIPlayer writes the source-owned cheat flag back to its
     // Player. Release these owners before replacing the Player vector.
     aiPlayers_.clear();
-    racers_.assign(race_.racers.size(), {});
+    racers_.clear();
+    racers_.resize(race_.racers.size());
     racerMapObjects_.assign(race_.racers.size(), nullptr);
     vehicleInputs_.assign(race_.racers.size(), {});
     humanPlayer_.SetCurWeapon(0);

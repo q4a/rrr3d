@@ -9,6 +9,106 @@
 namespace r3d::game::originalrace::source
 {
 
+class Player::LowLifeBehavior final : public Behavior
+{
+public:
+    LowLifeBehavior(Behaviors* owner, Player* player) noexcept
+        : Behavior(owner), player_(player)
+    {
+    }
+
+    void OnProgress(float deltaTime) noexcept override
+    {
+        if (player_ == nullptr)
+            return;
+        const auto result = player_->lowLifePoints.OnProgress(
+            *player_, deltaTime, this);
+        player_->lowLifeActivated_ =
+            player_->lowLifeActivated_ || result.activated;
+        player_->lowLifeReleased_ =
+            player_->lowLifeReleased_ || result.released;
+    }
+
+private:
+    Player* player_ = nullptr;
+};
+
+class Player::EnergyDamageBehavior final : public Behavior
+{
+public:
+    EnergyDamageBehavior(Behaviors* owner, Player* player) noexcept
+        : Behavior(owner), player_(player)
+    {
+    }
+
+    void OnProgress(float deltaTime) noexcept override
+    {
+        if (player_ != nullptr)
+            player_->energyDamageEffect.OnProgress(deltaTime);
+    }
+
+    void OnDamage(GameObject&, float, DamageType damageType) noexcept override
+    {
+        if (player_ != nullptr)
+        {
+            player_->energyDamageEffectCreated_ =
+                player_->energyDamageEffect.OnDamage(damageType);
+        }
+    }
+
+private:
+    Player* player_ = nullptr;
+};
+
+class Player::PlayerImmortalBehavior final : public Behavior
+{
+public:
+    PlayerImmortalBehavior(Behaviors* owner, Player* player) noexcept
+        : Behavior(owner), player_(player)
+    {
+    }
+
+    void OnProgress(float deltaTime) noexcept override
+    {
+        if (player_ != nullptr)
+            player_->immortalEffect.OnProgress(deltaTime);
+    }
+
+    void OnDamage(GameObject&, float, DamageType) noexcept override
+    {
+        if (player_ != nullptr)
+            player_->immortalEffect.OnDamage();
+    }
+
+protected:
+    void OnImmortalStatus(bool status) noexcept override
+    {
+        if (player_ != nullptr)
+            player_->immortalEffect.OnImmortalStatus(status);
+    }
+
+private:
+    Player* player_ = nullptr;
+};
+
+Player::Player()
+{
+    BindSourceBehaviors();
+}
+
+void Player::BindSourceBehaviors()
+{
+    auto& behaviors = GetBehaviors();
+    behaviors.Clear();
+    behaviors.Add<LowLifeBehavior>(
+        BehaviorType::LowLifePoints, this);
+    // DataBase::LoadCar inserts ImmortalEffect before DamageEffect.
+    behaviors.Add<PlayerImmortalBehavior>(
+        BehaviorType::ImmortalEffect, this);
+    behaviors.Add<EnergyDamageBehavior>(
+        BehaviorType::DamageEffect, this);
+}
+
 const std::array<float, 3> Player::humanEasingMinimumDistance{
     20.0F, 20.0F, 20.0F};
 const std::array<float, 3> Player::humanEasingMaximumDistance{
@@ -391,6 +491,7 @@ void Player::Reset(float newMaximumLife,
                    Trace* trace) noexcept
 {
     *this = Player{};
+    BindSourceBehaviors();
     ResetGameObject(std::max(newMaximumLife, 1.0F));
     SetPlace(initialPlace);
     car.Reset(trace);
@@ -1014,6 +1115,9 @@ Player::BehaviorProgressResult Player::ProgressBehaviors(
     float deltaTime, float lowLifeLevel, float linearSpeed) noexcept
 {
     BehaviorProgressResult result;
+    lowLifePoints.SetLifeLevel(lowLifeLevel);
+    lowLifeActivated_ = false;
+    lowLifeReleased_ = false;
     result.gameObject = GameObject::OnProgress(deltaTime);
     for (std::size_t slot = 0U; slot < weaponSlotCount; ++slot)
     {
@@ -1025,12 +1129,8 @@ Player::BehaviorProgressResult Player::ProgressBehaviors(
             droid->OnProgress(
                 deltaTime, life, maximumLife, destroyed);
     }
-    energyDamageEffect.OnProgress(deltaTime);
-    immortalEffect.OnProgress(deltaTime);
-    lowLifePoints.SetLifeLevel(lowLifeLevel);
-    const auto lowLife = lowLifePoints.OnProgress(*this, deltaTime);
-    result.lowLifeActivated = lowLife.activated;
-    result.lowLifeReleased = lowLife.released;
+    result.lowLifeActivated = lowLifeActivated_;
+    result.lowLifeReleased = lowLifeReleased_;
     const auto slow = slowEffect.OnProgress(deltaTime, linearSpeed);
     result.slowSpeedLimited = slow.limitSpeed;
     result.slowReleased = slow.released;
@@ -1273,17 +1373,6 @@ void Player::OnDeathEvent(
          damageType});
 }
 
-void Player::OnDamageEvent(
-    float value, DamageType damageType) noexcept
-{
-    (void)value;
-    // Behaviors are GameObjListeners in the source and receive even damage
-    // absorbed by timed or permanent immortality.
-    immortalEffect.OnDamage();
-    energyDamageEffectCreated_ =
-        energyDamageEffect.OnDamage(damageType);
-}
-
 void Player::OnDamageDispatchEvent(
     std::size_t senderPlayerId, float value,
     DamageType damageType) noexcept
@@ -1300,11 +1389,6 @@ void Player::OnKillDispatchEvent(
     gameEvents_.push_back(
         {PlayerGameEventKind::Kill, senderPlayerId, value,
          damageType});
-}
-
-void Player::OnImmortalStatusEvent(bool status) noexcept
-{
-    immortalEffect.OnImmortalStatus(status);
 }
 
 void Player::SetFinished(bool value, float time) noexcept

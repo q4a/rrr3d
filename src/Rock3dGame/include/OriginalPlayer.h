@@ -135,6 +135,8 @@ public:
     static const std::array<float, 3> humanEasingMinimumSpeed;
     static const std::array<float, 3> humanEasingMaximumSpeed;
 
+    Player();
+
     struct BehaviorProgressResult
     {
         GameObject::ProgressResult gameObject;
@@ -438,16 +440,19 @@ public:
 protected:
     void OnDeathEvent(
         DamageType damageType, GameObject* target) noexcept override;
-    void OnDamageEvent(float value, DamageType damageType) noexcept override;
     void OnDamageDispatchEvent(
         std::size_t senderPlayerId, float value,
         DamageType damageType) noexcept override;
     void OnKillDispatchEvent(
         std::size_t senderPlayerId, float value,
         DamageType damageType) noexcept override;
-    void OnImmortalStatusEvent(bool status) noexcept override;
 
 private:
+    class LowLifeBehavior;
+    class EnergyDamageBehavior;
+    class PlayerImmortalBehavior;
+    void BindSourceBehaviors();
+
     int id_ = undefinedId;
     int gamerId_ = -1;
     unsigned netSlot_ = defaultNetSlot;
@@ -468,6 +473,8 @@ private:
     const Vehicle* carRecord_ = nullptr;
     bool reflScene_ = true;
     bool energyDamageEffectCreated_ = false;
+    bool lowLifeActivated_ = false;
+    bool lowLifeReleased_ = false;
     std::vector<PlayerGameEvent> gameEvents_;
     std::vector<std::uint32_t> bonusProjectileIds_;
     std::uint32_t nextBonusProjectileId_ = 1U;
