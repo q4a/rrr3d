@@ -17083,6 +17083,20 @@ int main(int argc, char** argv)
                      index < physicsWorld->vehicleCount(); ++index)
                 {
                     raceVehicles[index] = physicsWorld->vehicle(index);
+                    const auto& state = raceVehicles[index];
+                    raceSession.synchronizeRacerPhysicsState(
+                        index,
+                        {{state.body.position.x,
+                          state.body.position.y,
+                          state.body.position.z},
+                         {state.body.rotation.x,
+                          state.body.rotation.y,
+                          state.body.rotation.z,
+                          state.body.rotation.w}},
+                        {state.linearVelocity.x,
+                         state.linearVelocity.y,
+                         state.linearVelocity.z},
+                        state.bodyAwake);
                     if (options->raceRenderSmokeTest &&
                         index < raceSession.racers().size() &&
                         raceSession.racers()[index].IsComputer())
@@ -17110,8 +17124,6 @@ int main(int argc, char** argv)
 #endif
             }
             raceRenderVehicles = raceVehicles;
-#ifdef RRR3D_NETWORK
-            if (networkMatchStarted)
             {
                 const auto syncCount = std::min(
                     raceRenderVehicles.size(),
@@ -17119,8 +17131,6 @@ int main(int argc, char** argv)
                 for (std::size_t index = 0U;
                      index < syncCount; ++index)
                 {
-                    if (!raceSession.racerFrameCorrectionActive(index))
-                        continue;
                     const auto physicalBody = raceVehicles[index].body;
                     const auto graphPose = raceSession.racerFramePose(
                         index,
@@ -17167,7 +17177,6 @@ int main(int argc, char** argv)
                     }
                 }
             }
-#endif
             for (std::size_t index = 0;
                  index < physicsWorld->decorationCount() &&
                  index < originalRace->decorationInstances.size(); ++index)

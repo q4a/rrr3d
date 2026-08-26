@@ -391,6 +391,11 @@ public:
     void SetRotSync(Quaternion value) noexcept;
     void SetPosSync2(Vector current, Vector next) noexcept;
     void SetRotSync2(Quaternion current, Quaternion next) noexcept;
+    // GameObject::OnWake/OnSleep controls whether OnPxSync participates in
+    // late/frame progress. Jolt supplies the real body active state and the
+    // completed physics state; no gameplay inference is made from speed.
+    void OnPhysicsState(
+        Pose pose, Vector linearVelocity, bool awake) noexcept;
 
     // Active NetPlayer::ResponseStream thresholds. A far physics position or
     // divergent graph rotation starts the matching GameObject correction.
@@ -398,12 +403,16 @@ public:
         Vector physicsPosition, Vector graphPosition,
         Quaternion graphRotation, Vector targetPosition,
         Quaternion targetRotation) noexcept;
-    Pose OnFrame(Pose physicsPose, float deltaTime) noexcept;
+    Pose OnFrame(Pose physicsPose, float deltaTime,
+                 float physicsAlpha = 1.0F) noexcept;
 
     const Vector& GetPosSync() const noexcept;
     const Quaternion& GetRotSync() const noexcept;
     const Vector& GetPosSync2() const noexcept;
     const Quaternion& GetRotSync2() const noexcept;
+    const Vector& GetRenderVelocity() const noexcept;
+    bool IsBodyProgressEvent() const noexcept;
+    bool HasPhysicsState() const noexcept;
     bool HasActiveCorrection() const noexcept;
 
 private:
@@ -422,6 +431,15 @@ private:
     Vector rotSyncAxis2_{1.0F, 0.0F, 0.0F};
     float rotSyncAngle2_ = 0.0F;
     float rotSyncLength2_ = 0.0F;
+
+    Pose previousPhysicsPose_;
+    Pose currentPhysicsPose_;
+    Pose renderPhysicsPose_;
+    Vector previousPhysicsVelocity_;
+    Vector currentPhysicsVelocity_;
+    Vector renderPhysicsVelocity_;
+    bool bodyProgressEvent_ = false;
+    bool physicsStateInitialized_ = false;
 };
 
 // Gameplay-owned part of GameCar.h::DestrObj. The original queues its

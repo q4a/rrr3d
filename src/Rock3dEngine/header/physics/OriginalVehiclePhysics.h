@@ -212,6 +212,10 @@ struct WheelContactState
 struct VehicleState
 {
     Transform body;
+    // NxActor wake/sleep events controlled GameObject body progress and
+    // graph pose synchronization. Preserve the Jolt activity state instead
+    // of inferring it from velocity in the game adapter.
+    bool bodyAwake = true;
     std::vector<Transform> wheels;
     std::vector<float> wheelAngularSpeeds;
     std::vector<WheelContactState> wheelContacts;

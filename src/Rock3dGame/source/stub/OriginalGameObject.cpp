@@ -80,6 +80,50 @@ SyncQuaternion inverseSync(SyncQuaternion value) noexcept
     return {-value.x, -value.y, -value.z, value.w};
 }
 
+SyncVector lerpSync(
+    SyncVector from, SyncVector to, float alpha) noexcept
+{
+    alpha = std::clamp(alpha, 0.0F, 1.0F);
+    return {
+        from.x + (to.x - from.x) * alpha,
+        from.y + (to.y - from.y) * alpha,
+        from.z + (to.z - from.z) * alpha};
+}
+
+SyncQuaternion slerpSync(
+    SyncQuaternion from, SyncQuaternion to, float alpha) noexcept
+{
+    from = normalizedSync(from);
+    to = normalizedSync(to);
+    alpha = std::clamp(alpha, 0.0F, 1.0F);
+    float cosine = from.x * to.x + from.y * to.y +
+                   from.z * to.z + from.w * to.w;
+    if (cosine < 0.0F)
+    {
+        to = {-to.x, -to.y, -to.z, -to.w};
+        cosine = -cosine;
+    }
+    if (cosine > 0.9995F)
+    {
+        return normalizedSync({
+            from.x + (to.x - from.x) * alpha,
+            from.y + (to.y - from.y) * alpha,
+            from.z + (to.z - from.z) * alpha,
+            from.w + (to.w - from.w) * alpha});
+    }
+    const float angle = std::acos(std::clamp(cosine, -1.0F, 1.0F));
+    const float sine = std::sin(angle);
+    if (std::abs(sine) <= 0.000001F)
+        return from;
+    const float fromWeight = std::sin((1.0F - alpha) * angle) / sine;
+    const float toWeight = std::sin(alpha * angle) / sine;
+    return normalizedSync({
+        from.x * fromWeight + to.x * toWeight,
+        from.y * fromWeight + to.y * toWeight,
+        from.z * fromWeight + to.z * toWeight,
+        from.w * fromWeight + to.w * toWeight});
+}
+
 GameObject::Quaternion normalizedProxy(
     GameObject::Quaternion value) noexcept
 {
@@ -910,6 +954,37 @@ void GameObjectFrameSync::SetRotSync2(
     rotSyncLength2_ = angleSync(rotSync2_);
 }
 
+void GameObjectFrameSync::OnPhysicsState(
+    Pose pose, Vector linearVelocity, bool awake) noexcept
+{
+    pose.rotation = normalizedSync(pose.rotation);
+    if (!physicsStateInitialized_)
+    {
+        previousPhysicsPose_ = pose;
+        currentPhysicsPose_ = pose;
+        renderPhysicsPose_ = pose;
+        previousPhysicsVelocity_ = linearVelocity;
+        currentPhysicsVelocity_ = linearVelocity;
+        renderPhysicsVelocity_ = linearVelocity;
+        physicsStateInitialized_ = true;
+        bodyProgressEvent_ = awake;
+        return;
+    }
+
+    previousPhysicsPose_ = currentPhysicsPose_;
+    currentPhysicsPose_ = pose;
+    previousPhysicsVelocity_ = currentPhysicsVelocity_;
+    currentPhysicsVelocity_ = linearVelocity;
+    if (bodyProgressEvent_ && !awake)
+    {
+        // OnSleep unregisters future body progress only after the actor's
+        // final solved pose has reached the graph actor.
+        renderPhysicsPose_ = currentPhysicsPose_;
+        renderPhysicsVelocity_ = currentPhysicsVelocity_;
+    }
+    bodyProgressEvent_ = awake;
+}
+
 GameObjectFrameSync::NetworkCorrection
 GameObjectFrameSync::OnNetworkPose(
     Vector physicsPosition, Vector graphPosition,
@@ -938,10 +1013,30 @@ GameObjectFrameSync::OnNetworkPose(
 }
 
 GameObjectFrameSync::Pose GameObjectFrameSync::OnFrame(
-    Pose physicsPose, float deltaTime) noexcept
+    Pose physicsPose, float deltaTime, float physicsAlpha) noexcept
 {
     deltaTime = std::max(deltaTime, 0.0F);
     Pose result = physicsPose;
+    if (physicsStateInitialized_)
+    {
+        if (bodyProgressEvent_)
+        {
+            result.position = lerpSync(
+                previousPhysicsPose_.position,
+                currentPhysicsPose_.position, physicsAlpha);
+            result.rotation = slerpSync(
+                previousPhysicsPose_.rotation,
+                currentPhysicsPose_.rotation, physicsAlpha);
+            renderPhysicsVelocity_ = lerpSync(
+                previousPhysicsVelocity_, currentPhysicsVelocity_,
+                physicsAlpha);
+            renderPhysicsPose_ = result;
+        }
+        else
+        {
+            result = renderPhysicsPose_;
+        }
+    }
     if (posSyncLength_ > 0.0F && posSyncLength_ < 5.0F)
     {
         posSyncLength_ = std::max(
@@ -1041,6 +1136,22 @@ const GameObjectFrameSync::Quaternion&
 GameObjectFrameSync::GetRotSync2() const noexcept
 {
     return rotSync2_;
+}
+
+const GameObjectFrameSync::Vector&
+GameObjectFrameSync::GetRenderVelocity() const noexcept
+{
+    return renderPhysicsVelocity_;
+}
+
+bool GameObjectFrameSync::IsBodyProgressEvent() const noexcept
+{
+    return bodyProgressEvent_;
+}
+
+bool GameObjectFrameSync::HasPhysicsState() const noexcept
+{
+    return physicsStateInitialized_;
 }
 
 bool GameObjectFrameSync::HasActiveCorrection() const noexcept

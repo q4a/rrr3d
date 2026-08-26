@@ -2657,6 +2657,23 @@ network/Jolt pose и применяет вычисленный graph transform �
 проверяет owner identity, оба correction channel и очистку на object reset;
 network/offline/physics и 360-frame Metal smoke прошли.
 
+### P2.106 — `OnWake/OnSleep/OnPxSync` body lifecycle — выполнено
+
+После переноса correction owner порт всё ещё подавал в него только последний
+Jolt pose. Windows `GameObject` получает `OnWake/OnSleep`, регистрирует body
+late/frame progress, хранит previous/current PhysX pose и velocity, выполняет
+`OnPxSync(alpha)`, и лишь затем применяет network correction. Порт не имел
+physics activity на границе и поэтому не мог корректно воспроизвести sleep.
+
+`VehicleState` теперь несёт реальный `JPH::Body::IsActive`; disabled body
+явно считается sleeping. `GameObjectFrameSync::OnPhysicsState` реализует
+wake/sleep transitions, previous/current pose и velocity, точные linear/slerp
+ветви `OnPxSync`, freeze последней graph pose на sleep и продолжение после
+wake. После каждого Jolt step все `Player` получают это состояние, а общий
+offline/network render path сначала читает source frame pose и затем применяет
+network channels. Regression проверяет half-step position/quaternion/velocity,
+sleep freeze и wake; offline/network/physics и 360-frame Metal smoke прошли.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

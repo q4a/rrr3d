@@ -459,7 +459,11 @@ public:
         source::GameObjectFrameSync::Quaternion graphRotation,
         source::GameObjectFrameSync::Vector targetPosition,
         source::GameObjectFrameSync::Quaternion targetRotation) noexcept;
-    bool racerFrameCorrectionActive(std::size_t racer) const noexcept;
+    void synchronizeRacerPhysicsState(
+        std::size_t racer,
+        source::GameObjectFrameSync::Pose pose,
+        source::GameObjectFrameSync::Vector linearVelocity,
+        bool awake) noexcept;
     source::GameObjectFrameSync::Pose racerFramePose(
         std::size_t racer,
         source::GameObjectFrameSync::Pose physicsPose,

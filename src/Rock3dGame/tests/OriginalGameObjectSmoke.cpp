@@ -337,6 +337,46 @@ int main()
     if (&frameSyncOwner.GetFrameSync() != &frameSync ||
         frameSync.HasActiveCorrection())
         return 96;
+    const source::GameObjectFrameSync::Pose physicsStart{
+        {0.0F, 0.0F, 0.0F},
+        {0.0F, 0.0F, 0.0F, 1.0F}};
+    const source::GameObjectFrameSync::Pose physicsEnd{
+        {10.0F, 4.0F, 0.0F},
+        {0.0F, 0.0F, halfQuarterTurn, halfQuarterTurn}};
+    frameSync.OnPhysicsState(
+        physicsStart, {1.0F, 0.0F, 0.0F}, true);
+    frameSync.OnPhysicsState(
+        physicsEnd, {3.0F, 2.0F, 0.0F}, true);
+    const auto halfPhysics = frameSync.OnFrame({}, 0.0F, 0.5F);
+    if (!frameSync.HasPhysicsState() ||
+        !frameSync.IsBodyProgressEvent() ||
+        std::abs(halfPhysics.position.x - 5.0F) > 0.0001F ||
+        std::abs(halfPhysics.position.y - 2.0F) > 0.0001F ||
+        std::abs(frameSync.GetRenderVelocity().x - 2.0F) > 0.0001F ||
+        std::abs(frameSync.GetRenderVelocity().y - 1.0F) > 0.0001F ||
+        halfPhysics.rotation.z <= 0.3F ||
+        halfPhysics.rotation.z >= halfQuarterTurn)
+        return 97;
+    frameSync.OnPhysicsState(
+        physicsEnd, {0.0F, 0.0F, 0.0F}, false);
+    const source::GameObjectFrameSync::Pose invalidBackendPose{
+        {99.0F, 99.0F, 99.0F},
+        {0.0F, 0.0F, 0.0F, 1.0F}};
+    const auto sleepingPose = frameSync.OnFrame(
+        invalidBackendPose, 0.0F, 1.0F);
+    if (frameSync.IsBodyProgressEvent() ||
+        std::abs(sleepingPose.position.x - physicsEnd.position.x) >
+            0.0001F ||
+        std::abs(sleepingPose.position.y - physicsEnd.position.y) >
+            0.0001F)
+        return 98;
+    frameSync.OnPhysicsState(
+        physicsStart, {4.0F, 0.0F, 0.0F}, true);
+    const auto wokenPose = frameSync.OnFrame({}, 0.0F, 1.0F);
+    if (!frameSync.IsBodyProgressEvent() ||
+        std::abs(wokenPose.position.x) > 0.0001F ||
+        std::abs(frameSync.GetRenderVelocity().x - 4.0F) > 0.0001F)
+        return 99;
 
     source::GameObject listened;
     listened.ResetGameObject(20.0F);

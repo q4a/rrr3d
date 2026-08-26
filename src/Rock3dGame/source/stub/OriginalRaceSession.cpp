@@ -2405,11 +2405,16 @@ OriginalRaceSession::synchronizeRacerNetworkPose(
         targetPosition, targetRotation);
 }
 
-bool OriginalRaceSession::racerFrameCorrectionActive(
-    std::size_t racer) const noexcept
+void OriginalRaceSession::synchronizeRacerPhysicsState(
+    std::size_t racer,
+    source::GameObjectFrameSync::Pose pose,
+    source::GameObjectFrameSync::Vector linearVelocity,
+    bool awake) noexcept
 {
-    return racer < racers_.size() &&
-           racers_[racer].GetFrameSync().HasActiveCorrection();
+    if (racer >= racers_.size())
+        return;
+    racers_[racer].GetFrameSync().OnPhysicsState(
+        pose, linearVelocity, awake);
 }
 
 source::GameObjectFrameSync::Pose

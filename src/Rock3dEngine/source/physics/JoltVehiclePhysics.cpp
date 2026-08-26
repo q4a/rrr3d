@@ -1938,6 +1938,7 @@ private:
     {
         if (!vehicle.enabled)
         {
+            vehicle.state.bodyAwake = false;
             vehicle.state.linearVelocity = {};
             vehicle.state.angularMomentum = {};
             vehicle.state.kineticEnergy = 0.0F;
@@ -1957,6 +1958,7 @@ private:
             return;
         const JPH::Body& body = lock.GetBody();
         auto& state = vehicle.state;
+        state.bodyAwake = body.IsActive();
         state.body.position = fromJolt(body.GetPosition());
         state.body.rotation = fromJolt(body.GetRotation());
         state.body.scale = {1.0F, 1.0F, 1.0F};
