@@ -455,6 +455,10 @@ public:
         float deltaTime, float delay = 0.25F) noexcept;
     MineRipUpdateResult ProgressMineRip(
         float deltaTime, float delay = 0.25F) noexcept;
+    LaunchResult PrepareLaunch(
+        Vec3 worldDirection, Vec3 weaponVelocity) noexcept;
+    float PrepareMaximumLife(
+        float sampledMinimumLife) noexcept;
     float ProgressThunder(float deltaTime) noexcept;
     ThunderContactResult ContactThunder(
         Vec3 linearVelocity, Vec3 contactNormal,

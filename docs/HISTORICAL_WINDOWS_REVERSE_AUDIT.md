@@ -3565,6 +3565,25 @@ Jolt-траектории и регистрацию дочерних объек�
 из race session удалён. Regression проверяет строгую границу `>` после 2
 секунд, armed timer, source `GetTimeLife` и отказ projectile другого типа.
 
+### P2.150 — concrete launch speed и maximum lifetime ownership — выполнено
+
+Обычный weapon spawn заранее вызывал статические `CalcSpeed` и
+`PrepareMaximumLife` по копиям полей `ProjectileDefinition`, а concrete
+`Proj` получал уже готовые `launchVelocity`/`maximumLife`. Это инвертировало
+Windows-порядок: там `PrepareProj` сначала владеет `_desc`, затем
+`RocketPrepare::CalcSpeed` читает speed-relative правила, сохраняет скорость
+Torpeda/Impulse в `_vec1` и устанавливает `_maxTimeLife`.
+
+В `Proj` восстановлены concrete `PrepareLaunch` и однопараметрический
+`PrepareMaximumLife`. Primary, Hyper и Spring spawn теперь сначала создают
+source object, после чего он читает собственные speed/maxDist/min-time поля,
+выравнивает пологий launch-вектор, учитывает скорость машины, обновляет
+homing `_vec1` и source lifetime. Session/Jolt применяют получившиеся
+direction/speed/velocity и только хранят backend lifetime mirror. Прямые
+вызовы обеих статических формул из race session удалены. Regression проверяет
+relative-speed, горизонтализацию, Torpeda `_vec1`, max-distance lifetime и
+отказ non-RocketPrepare типа.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

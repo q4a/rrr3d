@@ -874,6 +874,36 @@ Proj::MineRipUpdateResult Proj::ProgressMineRip(
     return result;
 }
 
+Proj::LaunchResult Proj::PrepareLaunch(
+    Vec3 worldDirection, Vec3 weaponVelocity) noexcept
+{
+    const auto route = PreparationRouteFor(description_.type);
+    if (!prepared_ || !route.rocketPrepare)
+        return {};
+    auto result = CalcSpeed(
+        worldDirection, weaponVelocity, description_.speed,
+        description_.relativeSpeedMinimum,
+        description_.relativeSpeed);
+    if (route.homing)
+    {
+        sourceVector_ = {
+            result.direction.x * result.speed,
+            result.direction.y * result.speed,
+            result.direction.z * result.speed};
+    }
+    return result;
+}
+
+float Proj::PrepareMaximumLife(
+    float sampledMinimumLife) noexcept
+{
+    const float result = PrepareMaximumLife(
+        description_.speed, description_.maximumDistance,
+        sampledMinimumLife);
+    SetMaxTimeLife(result);
+    return result;
+}
+
 float Proj::ProgressThunder(float deltaTime) noexcept
 {
     sourceTimer_ = ThunderUpdate(sourceTimer_, deltaTime);

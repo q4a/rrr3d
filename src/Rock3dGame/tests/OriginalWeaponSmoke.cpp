@@ -1123,6 +1123,30 @@ int main()
         std::abs(relativeLaunch.speed - 14.472136F) > 0.001F ||
         std::abs(minimumLaunch.speed - 17.472136F) > 0.001F)
         return 51;
+    auto concreteLaunchDescription = sourceDescription;
+    concreteLaunchDescription.type = 2U;
+    concreteLaunchDescription.speed = 10.0F;
+    concreteLaunchDescription.relativeSpeedMinimum = 13.0F;
+    concreteLaunchDescription.relativeSpeed = true;
+    concreteLaunchDescription.maximumDistance = 100.0F;
+    source::Proj concreteLaunchProjectile;
+    concreteLaunchProjectile.PrepareSource(
+        concreteLaunchDescription, &sourceWeapon,
+        source::Proj::ShotContext{});
+    const auto concreteLaunch =
+        concreteLaunchProjectile.PrepareLaunch(
+            {1.0F, 0.0F, 0.5F}, {5.0F, 0.0F, 0.0F});
+    const float concreteMaximumLife =
+        concreteLaunchProjectile.PrepareMaximumLife(2.0F);
+    if (std::abs(concreteLaunch.direction.z) > 0.001F ||
+        std::abs(concreteLaunch.speed - 14.472136F) > 0.001F ||
+        std::abs(concreteLaunchProjectile.GetSourceVector().x -
+                 14.472136F) > 0.001F ||
+        concreteMaximumLife != 10.0F ||
+        concreteLaunchProjectile.GetMaxTimeLife() != 10.0F ||
+        oilProjectile.PrepareLaunch(
+            {1.0F, 0.0F, 0.0F}, {}).speed != 0.0F)
+        return 145;
 
     const auto armingMine = source::Proj::MineUpdate(
         0.0F, 0.1F);

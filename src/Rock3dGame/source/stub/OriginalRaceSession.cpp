@@ -4997,9 +4997,7 @@ void OriginalRaceSession::updateGameplay(
         const Vec3 position = vehicles[owner].body.position;
         const float sampledMinimumLife = sampleSourceRange(
             projectile.minimumLife, projectile.maximumLife);
-        const float duration = source::Proj::PrepareMaximumLife(
-            projectile.speed, projectile.maximumDistance,
-            sampledMinimumLife);
+        float duration = sampledMinimumLife;
         const Transform weaponTransform =
             directWeaponWorldTransform(
                 owner, racers_[owner].hyperWeapon);
@@ -5027,6 +5025,8 @@ void OriginalRaceSession::updateGameplay(
             springSourceObject->PrepareSource(
                 projectile, liveWeapon, springContext);
             springSourceObject->SetExternalLifetimeManaged(false);
+            duration = springSourceObject->PrepareMaximumLife(
+                sampledMinimumLife);
             springPreparation =
                 springSourceObject->PrepareSpring();
             if (!springPreparation.prepared)
@@ -5107,6 +5107,10 @@ void OriginalRaceSession::updateGameplay(
             configureProjectileSourceObject(
                 logic_, runtimeProjectile, projectile, liveWeapon,
                 nullptr, owner);
+            duration = runtimeProjectile.sourceObject
+                           ->PrepareMaximumLife(sampledMinimumLife);
+            runtimeProjectile.lifeSeconds = duration;
+            runtimeProjectile.maximumLifeSeconds = duration;
             projectiles_.push_back(std::move(runtimeProjectile));
         }
         RaceEvent hyperEvent;
@@ -6007,15 +6011,7 @@ void OriginalRaceSession::updateGameplay(
                 source::Proj::PreparationRouteFor(projectile.type);
             const bool rocketPrepared =
                 projectileRules.rocketPrepare;
-            const auto sourceLaunch = source::Proj::CalcSpeed(
-                sourceVec(sourceDirection),
-                sourceVec(vehicles[shooter].linearVelocity),
-                projectile.speed, projectile.relativeSpeedMinimum,
-                projectile.relativeSpeed);
-            const Vec3 launchDirection =
-                rocketPrepared
-                    ? runtimeVec(sourceLaunch.direction)
-                    : sourceDirection;
+            Vec3 launchDirection = sourceDirection;
             // HumanPlayer::Shot(WeaponType) asks Player for the closest
             // enemy in pi/5.5, except sphereGun which passes viewAngle=0.
             const float homingViewAngle =
@@ -6096,23 +6092,22 @@ void OriginalRaceSession::updateGameplay(
                     projectile.minimumLife,
                     projectile.maximumLife);
                 runtimeProjectile.maximumLifeSeconds =
-                    source::Proj::PrepareMaximumLife(
-                        projectile.speed, projectile.maximumDistance,
-                        sampledMinimumLife);
-                runtimeProjectile.lifeSeconds =
-                    runtimeProjectile.maximumLifeSeconds;
+                    sampledMinimumLife;
+                runtimeProjectile.lifeSeconds = sampledMinimumLife;
                 runtimeProjectile.attached = true;
                 configureProjectileSourceObject(
                     logic_, runtimeProjectile, projectile, liveWeapon,
                     sourceTarget, shooter);
+                runtimeProjectile.maximumLifeSeconds =
+                    runtimeProjectile.sourceObject->PrepareMaximumLife(
+                        sampledMinimumLife);
+                runtimeProjectile.lifeSeconds =
+                    runtimeProjectile.maximumLifeSeconds;
                 projectiles_.push_back(std::move(runtimeProjectile));
             }
             else if (!rayProjectile)
             {
-                const float speed =
-                    rocketPrepared
-                        ? sourceLaunch.speed
-                        : projectile.speed;
+                float speed = projectile.speed;
                 ProjectileRuntime runtimeProjectile;
                 runtimeProjectile.owner = shooter;
                 runtimeProjectile.damageOwner = shooter;
@@ -6136,16 +6131,33 @@ void OriginalRaceSession::updateGameplay(
                 const float sampledMinimumLife = sampleSourceRange(
                     projectile.minimumLife, projectile.maximumLife);
                 runtimeProjectile.maximumLifeSeconds =
-                    source::Proj::PrepareMaximumLife(
-                        projectile.speed, projectile.maximumDistance,
-                        sampledMinimumLife);
-                runtimeProjectile.lifeSeconds =
-                    runtimeProjectile.maximumLifeSeconds;
+                    sampledMinimumLife;
+                runtimeProjectile.lifeSeconds = sampledMinimumLife;
                 runtimeProjectile.ballistic =
                     projectileRules.ballistic;
                 configureProjectileSourceObject(
                     logic_, runtimeProjectile, projectile, liveWeapon,
                     sourceTarget, shooter);
+                if (rocketPrepared)
+                {
+                    const auto sourceLaunch =
+                        runtimeProjectile.sourceObject->PrepareLaunch(
+                            sourceVec(sourceDirection),
+                            sourceVec(
+                                vehicles[shooter].linearVelocity));
+                    launchDirection =
+                        runtimeVec(sourceLaunch.direction);
+                    speed = sourceLaunch.speed;
+                    runtimeProjectile.direction = launchDirection;
+                    runtimeProjectile.speed = speed;
+                    runtimeProjectile.velocity =
+                        multiply(launchDirection, speed);
+                }
+                runtimeProjectile.maximumLifeSeconds =
+                    runtimeProjectile.sourceObject->PrepareMaximumLife(
+                        sampledMinimumLife);
+                runtimeProjectile.lifeSeconds =
+                    runtimeProjectile.maximumLifeSeconds;
                 if (projectileRules.homing)
                 {
                     runtimeProjectile.target = homingTarget;
