@@ -21,6 +21,37 @@ class Player;
 class Proj : public GameObject, public GameObjectListener
 {
 public:
+    // Weapon.h::Proj::Type serialized order. The original cProjTypeEnd alias
+    // is intentionally not reproduced because it aliases ptRocket (zero).
+    enum class ProjectileType : std::uint32_t
+    {
+        Rocket = 0U,
+        Hyper,
+        Torpeda,
+        Laser,
+        Medpack,
+        Charge,
+        Money,
+        Immortal,
+        SpeedArrow,
+        Lusha,
+        Maslo,
+        Mine,
+        MineRip,
+        MinePiece,
+        Fire,
+        Drobilka,
+        Sonar,
+        Spring,
+        FrostRay,
+        Mortira,
+        Crater,
+        Impulse,
+        Thunder,
+        Resonanse,
+        MineProton,
+    };
+
     struct Vec3
     {
         float x = 0.0F;
@@ -164,6 +195,44 @@ public:
         bool mineTestsLock = false;
     };
 
+    // Backend-neutral result of the source Proj::OnContact type switch.
+    // PhysX/Jolt contact extraction remains outside; this identifies the
+    // exact source handler and the DamageTarget attribution it performs.
+    enum class ContactHandler : std::uint8_t
+    {
+        None,
+        Rocket,
+        Torpeda,
+        Medpack,
+        Charge,
+        Money,
+        Immortal,
+        SpeedArrow,
+        Lusha,
+        Maslo,
+        Mine,
+        MineRip,
+        MinePiece,
+        Fire,
+        Drobilka,
+        Sonar,
+        Mortira,
+        Crater,
+        Impulse,
+        Thunder,
+        Resonanse,
+        MineProton,
+    };
+
+    struct ContactRoute
+    {
+        ContactHandler handler = ContactHandler::None;
+        DamageType damageType = DamageType::Simple;
+        bool rocketResponse = false;
+        bool testMineLock = false;
+        bool appliesDamage = false;
+    };
+
     struct DestroyResult
     {
         bool destroy = false;
@@ -248,6 +317,11 @@ public:
         float damage, float deltaTime) noexcept;
     static SpringPrepareResult SpringPrepare(
         bool hasCar, bool wheelsContact, float speed) noexcept;
+    static DamageType DamageTypeFor(
+        std::uint32_t type) noexcept;
+    static ContactRoute ContactRouteFor(
+        std::uint32_t type, bool projectileDestroyed,
+        bool targetDestroyed) noexcept;
     static TypeRules GetTypeRules(std::uint32_t type) noexcept;
     static DestroyResult OnDestroy(
         bool senderIsWeapon, bool parentIsWeapon,
@@ -291,6 +365,7 @@ public:
     ContinuousContactResult ContactDrobilka(
         bool hasTarget, float damage, float deltaTime,
         Vec3 contactPoint) noexcept;
+    ContactRoute RouteContact(bool targetDestroyed) const noexcept;
     void ProgressDrobilka(float deltaTime) noexcept;
 
     Proj();

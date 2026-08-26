@@ -1141,26 +1141,6 @@ std::size_t sourceUniformRandomIndex(
         count - 1U);
 }
 
-DamageType sourceProjectileDamageType(std::uint32_t type)
-{
-    switch (type)
-    {
-    case 3U:  // ptLaser
-    case 16U: // ptSonar
-    case 18U: // ptFrostRay
-    case 21U: // ptImpulse
-        return DamageType::Energy;
-    case 11U: // ptMine
-    case 12U: // ptMineRip
-    case 13U: // ptMinePiece
-    case 20U: // ptCrater
-    case 24U: // ptMineProton
-        return DamageType::Mine;
-    default:
-        return DamageType::Simple;
-    }
-}
-
 float sampleSourceRange(float minimum, float maximum)
 {
     return minimum +
@@ -3991,9 +3971,13 @@ void OriginalRaceSession::updateGameplay(
             const bool sourceRay =
                 projectileDefinition.type == 3U ||
                 projectileDefinition.type == 18U;
+            const auto sourceContactRoute =
+                projectile.sourceObject->RouteContact(false);
             const bool sourceContact =
-                projectileDefinition.type == 14U ||
-                projectileDefinition.type == 15U;
+                sourceContactRoute.handler ==
+                    source::Proj::ContactHandler::Fire ||
+                sourceContactRoute.handler ==
+                    source::Proj::ContactHandler::Drobilka;
             const Vec3 rayOrigin =
                 add(projectile.position,
                     projectileDefinition.sizeAddPx);
@@ -4045,7 +4029,7 @@ void OriginalRaceSession::updateGameplay(
                 applyRacerDamage(
                     target, projectile.damageOwner, end,
                     std::max(laserUpdate.damage, 0.0F),
-                    sourceProjectileDamageType(
+                    source::Proj::DamageTypeFor(
                         projectileDefinition.type));
                 if (projectileDefinition.type == 18U)
                 {
@@ -4079,7 +4063,8 @@ void OriginalRaceSession::updateGameplay(
                     shotTransform, projectileDefinition.collision);
                 auto refreshDrobilkaContact =
                     [&](const Vec3& contactPoint) {
-                        if (projectileDefinition.type != 15U)
+                        if (sourceContactRoute.handler !=
+                            source::Proj::ContactHandler::Drobilka)
                             return;
                         projectile.sourceObject->ContactDrobilka(
                             true, projectileDefinition.damage,
@@ -4141,7 +4126,8 @@ void OriginalRaceSession::updateGameplay(
                     const Vec3 contactPoint =
                         closestPoint(targetBox, projectileBox.center);
                     const auto contact =
-                        projectileDefinition.type == 15U
+                        sourceContactRoute.handler ==
+                                source::Proj::ContactHandler::Drobilka
                             ? source::Proj::DrobilkaContact(
                                   true, projectileDefinition.damage,
                                   seconds)
@@ -4153,10 +4139,11 @@ void OriginalRaceSession::updateGameplay(
                         target, projectile.damageOwner,
                         contactPoint,
                         std::max(contact.damage, 0.0F),
-                        DamageType::Simple);
+                        sourceContactRoute.damageType);
                 }
                 Vec3 decorationContact;
-                if (projectileDefinition.type == 15U &&
+                if (sourceContactRoute.handler ==
+                        source::Proj::ContactHandler::Drobilka &&
                     damageDecorationWithBox(
                         shotTransform,
                         projectileDefinition.collision,
@@ -4169,7 +4156,8 @@ void OriginalRaceSession::updateGameplay(
                 }
             }
             const auto decorationContact =
-                projectileDefinition.type == 15U
+                sourceContactRoute.handler ==
+                        source::Proj::ContactHandler::Drobilka
                     ? source::Proj::DrobilkaContact(
                           true, projectileDefinition.damage, seconds)
                     : source::Proj::FireContact(
@@ -4177,7 +4165,8 @@ void OriginalRaceSession::updateGameplay(
             const float decorationDamage =
                 std::max(decorationContact.damage, 0.0F);
             if (sourceContact &&
-                     projectileDefinition.type != 15U)
+                     sourceContactRoute.handler !=
+                         source::Proj::ContactHandler::Drobilka)
             {
                 damageDecorationWithBox(
                     shotTransform, projectileDefinition.collision,
@@ -4359,20 +4348,29 @@ void OriginalRaceSession::updateGameplay(
                 continue;
             const Vec3 contactPoint =
                 closestPoint(targetBox, projectileBox.center);
+            const auto sourceContactRoute =
+                projectile.sourceObject->RouteContact(
+                    racers_[target].IsDestroyed());
+            if (!sourceContactRoute.appliesDamage)
+                continue;
             const bool sonarContact =
-                projectileDefinition.type == 16U;
+                sourceContactRoute.handler ==
+                source::Proj::ContactHandler::Sonar;
             const bool targetedImpulse =
-                projectileDefinition.type == 21U &&
+                sourceContactRoute.handler ==
+                    source::Proj::ContactHandler::Impulse &&
                 projectile.target < racers_.size();
             const auto impulseContact =
-                projectileDefinition.type == 21U
+                sourceContactRoute.handler ==
+                        source::Proj::ContactHandler::Impulse
                     ? projectile.sourceObject->ContactImpulse(
                           true, targetedImpulse,
                           !targetedImpulse ||
                               target == projectile.target,
                           projectileDefinition.damage)
                     : source::Proj::ImpulseContactResult{};
-            if (projectileDefinition.type == 21U &&
+            if (sourceContactRoute.handler ==
+                    source::Proj::ContactHandler::Impulse &&
                 !impulseContact.applyDamage)
             {
                 continue;
@@ -4384,7 +4382,8 @@ void OriginalRaceSession::updateGameplay(
                       projectileDefinition.damage, seconds)
                 : source::Proj::ContinuousContactResult{};
             const float sourceDamage =
-                projectileDefinition.type == 21U
+                sourceContactRoute.handler ==
+                        source::Proj::ContactHandler::Impulse
                     ? impulseContact.damage
                     : (sonarContact
                            ? sonarResult.damage
@@ -4392,8 +4391,7 @@ void OriginalRaceSession::updateGameplay(
             applyRacerDamage(
                 target, projectile.damageOwner, contactPoint,
                 std::max(sourceDamage, 0.0F),
-                sourceProjectileDamageType(
-                    projectileDefinition.type));
+                sourceContactRoute.damageType);
             if (sonarContact)
             {
                 const float targetMass =
@@ -4436,11 +4434,7 @@ void OriginalRaceSession::updateGameplay(
                          vehicles[target].body.rotation,
                          localAngularDelta)});
             }
-            if (projectileDefinition.type == 0U ||
-                projectileDefinition.type == 2U ||
-                projectileDefinition.type == 19U ||
-                projectileDefinition.type == 22U ||
-                projectileDefinition.type == 23U)
+            if (sourceContactRoute.rocketResponse)
             {
                 const auto torque = source::Proj::RocketContactTorque(
                     sourceVec(contactPoint),
@@ -4459,7 +4453,8 @@ void OriginalRaceSession::updateGameplay(
             {
                 continue;
             }
-            if (projectileDefinition.type == 21U)
+            if (sourceContactRoute.handler ==
+                source::Proj::ContactHandler::Impulse)
             {
                 if (impulseContact.destroy)
                 {
@@ -5190,19 +5185,30 @@ void OriginalRaceSession::updateGameplay(
             !logic_.HasGameObj(mine.sourceObject))
             return false;
         const auto& vehicleDefinition = vehicleForRacer(racer);
-        if (mine.type == 10U)
+        const auto sourceContactRoute =
+            mine.sourceObject->RouteContact(
+                racers_[racer].IsDestroyed());
+        if (sourceContactRoute.handler ==
+            source::Proj::ContactHandler::Maslo)
         {
             return applyMasloContact(
                 racer, mine.position, mine.damage,
                 mine.sourceObject->GetSourceTimer() >= 0.0F);
         }
+        if (!sourceContactRoute.appliesDamage)
+            return false;
         applyRacerDamage(
             racer, mine.damageOwner, contactPoint,
             std::max(
-                mine.type == 20U ? mine.damage * seconds : mine.damage,
+                sourceContactRoute.handler ==
+                        source::Proj::ContactHandler::Crater
+                    ? mine.damage * seconds
+                    : mine.damage,
                 0.0F),
-            DamageType::Mine);
-        if (mine.type != 20U && mine.impulseSpeed != 0.0F)
+            sourceContactRoute.damageType);
+        if (sourceContactRoute.handler !=
+                source::Proj::ContactHandler::Crater &&
+            mine.impulseSpeed != 0.0F)
         {
             const float targetMass =
                 std::max(vehicleDefinition.physics.mass, 1.0F);
@@ -5236,7 +5242,8 @@ void OriginalRaceSession::updateGameplay(
                  rotate(vehicles[racer].body.rotation,
                         localAngularDelta)});
         }
-        if (mine.type != 20U)
+        if (sourceContactRoute.handler !=
+            source::Proj::ContactHandler::Crater)
         {
             spawnMineDeathEffect(mine, racer);
             deactivateMine(mine);
@@ -5396,6 +5403,8 @@ void OriginalRaceSession::updateGameplay(
                 continue;
             }
         }
+        const auto mineContactRoute =
+            mine.sourceObject->RouteContact(false);
         for (std::size_t racer = 0;
              racer < vehicles.size() && racer < racers_.size(); ++racer)
         {
@@ -5406,19 +5415,20 @@ void OriginalRaceSession::updateGameplay(
             const bool targetMineLocked =
                 racers_[racer].gameCar.IsMineLocked();
             bool sourceContactAllowed = true;
-            if (mine.type == 10U)
+            if (mineContactRoute.handler ==
+                source::Proj::ContactHandler::Maslo)
             {
                 sourceContactAllowed =
                     mine.sourceObject->GetSourceTimer() == -1.0F &&
                     !targetMineLocked;
             }
-            else if (mine.type != 20U)
+            else if (mineContactRoute.handler !=
+                     source::Proj::ContactHandler::Crater)
             {
-                const bool testsMineLock =
-                    mine.type == 11U || mine.type == 12U;
                 sourceContactAllowed =
                     source::Proj::MineContactAllowed(
-                        true, testsMineLock, enableMineBug_,
+                        true, mineContactRoute.testMineLock,
+                        enableMineBug_,
                         targetMineLocked,
                         mine.sourceObject->GetSourceTimer(),
                         mine.linkedToOwner && racer == mine.owner);
@@ -6030,7 +6040,7 @@ void OriginalRaceSession::updateGameplay(
                 applyRacerDamage(
                     target, shooter, end,
                     std::max(projectile.damage, 0.0F),
-                    sourceProjectileDamageType(projectile.type));
+                    source::Proj::DamageTypeFor(projectile.type));
             }
             else if (projectileDecoration < decorationActive_.size())
             {

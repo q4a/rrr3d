@@ -208,7 +208,8 @@ void Proj::ApplySourcePreparationState(
         [[fallthrough]];
     case 11U: // ptMine
     case 12U: // ptMineRip
-    case 24U: // ptCrater
+    case 20U: // ptCrater
+    case 24U: // ptMineProton
         // MinePrepare changes its pre-placement -1 sentinel to 0 once the
         // surface actor exists; MineUpdate then performs the arming fade.
         sourceTimer_ = 0.0F;
@@ -968,6 +969,13 @@ void Proj::ProgressDrobilka(float deltaTime) noexcept
     }
 }
 
+Proj::ContactRoute Proj::RouteContact(
+    bool targetDestroyed) const noexcept
+{
+    return ContactRouteFor(
+        description_.type, destroyed, targetDestroyed);
+}
+
 float Proj::PrepareMaximumLife(
     float speed, float maximumDistance,
     float sampledMinimumLife) noexcept
@@ -1047,6 +1055,134 @@ Proj::SpringPrepareResult Proj::SpringPrepare(
     result.localVelocityChange = {0.0F, 0.0F, speed};
     result.prepared = true;
     result.lockSpring = true;
+    return result;
+}
+
+DamageType Proj::DamageTypeFor(std::uint32_t type) noexcept
+{
+    switch (static_cast<ProjectileType>(type))
+    {
+    case ProjectileType::Laser:
+    case ProjectileType::Sonar:
+    case ProjectileType::FrostRay:
+    case ProjectileType::Impulse:
+        return DamageType::Energy;
+    case ProjectileType::Mine:
+    case ProjectileType::MineRip:
+    case ProjectileType::MinePiece:
+    case ProjectileType::Crater:
+    case ProjectileType::MineProton:
+        return DamageType::Mine;
+    default:
+        return DamageType::Simple;
+    }
+}
+
+Proj::ContactRoute Proj::ContactRouteFor(
+    std::uint32_t type, bool projectileDestroyed,
+    bool targetDestroyed) noexcept
+{
+    ContactRoute result;
+    result.damageType = DamageTypeFor(type);
+    // This is the source Proj::OnContact live-state guard. A missing target
+    // is allowed by Windows (border/transparent contacts still reach the
+    // selected handler), but an already-dead concrete target is not.
+    if (projectileDestroyed || targetDestroyed)
+        return result;
+
+    switch (static_cast<ProjectileType>(type))
+    {
+    case ProjectileType::Rocket:
+        result.handler = ContactHandler::Rocket;
+        result.rocketResponse = true;
+        result.appliesDamage = true;
+        break;
+    case ProjectileType::Torpeda:
+        result.handler = ContactHandler::Torpeda;
+        result.rocketResponse = true;
+        result.appliesDamage = true;
+        break;
+    case ProjectileType::Medpack:
+        result.handler = ContactHandler::Medpack;
+        break;
+    case ProjectileType::Charge:
+        result.handler = ContactHandler::Charge;
+        break;
+    case ProjectileType::Money:
+        result.handler = ContactHandler::Money;
+        break;
+    case ProjectileType::Immortal:
+        result.handler = ContactHandler::Immortal;
+        break;
+    case ProjectileType::SpeedArrow:
+        result.handler = ContactHandler::SpeedArrow;
+        break;
+    case ProjectileType::Lusha:
+        result.handler = ContactHandler::Lusha;
+        break;
+    case ProjectileType::Maslo:
+        result.handler = ContactHandler::Maslo;
+        break;
+    case ProjectileType::Mine:
+        result.handler = ContactHandler::Mine;
+        result.testMineLock = true;
+        result.appliesDamage = true;
+        break;
+    case ProjectileType::MineRip:
+        result.handler = ContactHandler::MineRip;
+        result.testMineLock = true;
+        result.appliesDamage = true;
+        break;
+    case ProjectileType::MinePiece:
+        result.handler = ContactHandler::MinePiece;
+        result.appliesDamage = true;
+        break;
+    case ProjectileType::Fire:
+        result.handler = ContactHandler::Fire;
+        result.appliesDamage = true;
+        break;
+    case ProjectileType::Drobilka:
+        result.handler = ContactHandler::Drobilka;
+        result.appliesDamage = true;
+        break;
+    case ProjectileType::Sonar:
+        result.handler = ContactHandler::Sonar;
+        result.appliesDamage = true;
+        break;
+    case ProjectileType::Mortira:
+        result.handler = ContactHandler::Mortira;
+        result.rocketResponse = true;
+        result.appliesDamage = true;
+        break;
+    case ProjectileType::Crater:
+        result.handler = ContactHandler::Crater;
+        result.appliesDamage = true;
+        break;
+    case ProjectileType::Impulse:
+        result.handler = ContactHandler::Impulse;
+        result.appliesDamage = true;
+        break;
+    case ProjectileType::Thunder:
+        result.handler = ContactHandler::Thunder;
+        result.rocketResponse = true;
+        result.appliesDamage = true;
+        break;
+    case ProjectileType::Resonanse:
+        result.handler = ContactHandler::Resonanse;
+        result.rocketResponse = true;
+        result.appliesDamage = true;
+        break;
+    case ProjectileType::MineProton:
+        result.handler = ContactHandler::MineProton;
+        result.appliesDamage = true;
+        break;
+    case ProjectileType::Hyper:
+    case ProjectileType::Laser:
+    case ProjectileType::Spring:
+    case ProjectileType::FrostRay:
+    default:
+        break;
+    }
     return result;
 }
 

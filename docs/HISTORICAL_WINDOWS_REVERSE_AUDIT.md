@@ -3335,6 +3335,26 @@ session продолжает вызывать тот же leaf commit после
 убитая в callback цель всё ещё служит центром поиска, а следующая машина
 выбирается по Windows plane-distance правилу.
 
+### P2.138 — восстановлен `Proj::Type` и центральный contact dispatch — выполнено
+
+Типы снарядов в portable-ветке оставались без исходного enum и повторялись
+числами в session. Из-за этого уже возникло реальное расхождение: при
+подготовке минного состояния значение `20` (`ptCrater`) было пропущено, а
+`24` ошибочно подписано как Crater вместо `ptMineProton`. Кроме того, выбор
+`RocketContact`/`MineContact`/`ImpulseContact` и `DamageType` выполнялся
+несколькими независимыми switch/if цепочками за пределами `Proj`.
+
+Восстановлен полный сериализованный порядок `Proj::Type` 0..24 и единый
+`ContactRouteFor`, повторяющий исходный live-state guard и `OnContact` switch.
+Маршрут возвращает конкретный handler, Simple/Energy/Mine attribution,
+RocketContact response, mine-lock policy и факт прямого урона. Attached,
+свободные и минные Jolt-contact пути теперь запрашивают этот маршрут у живого
+concrete `Proj`; локальный session switch `sourceProjectileDamageType` удалён.
+Crater и MineProton оба получают исходный mine-arming timer, но сохраняют
+разные contact semantics: Crater наносит непрерывный `dtMine`-урон, а
+MineProton использует обычный незаблокированный `MineContact`. Smoke-test
+проверяет enum routes, death guards, damage attribution и оба arming state.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

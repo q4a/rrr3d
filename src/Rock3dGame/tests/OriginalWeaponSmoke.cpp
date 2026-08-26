@@ -280,6 +280,22 @@ int main()
     if (minePieceProjectile.GetSourceTimer() != -1.0F)
         return 113;
 
+    auto craterDescription = sourceDescription;
+    craterDescription.type = 20U;
+    craterDescription.secondaryVisual = {};
+    source::Proj craterProjectile;
+    craterProjectile.PrepareSource(
+        craterDescription, nullptr, source::Proj::ShotContext{});
+    auto protonDescription = sourceDescription;
+    protonDescription.type = 24U;
+    protonDescription.secondaryVisual = {};
+    source::Proj protonProjectile;
+    protonProjectile.PrepareSource(
+        protonDescription, nullptr, source::Proj::ShotContext{});
+    if (craterProjectile.GetSourceTimer() != 0.0F ||
+        protonProjectile.GetSourceTimer() != 0.0F)
+        return 128;
+
     auto frostDescription = sourceDescription;
     frostDescription.type = 18U;
     source::Weapon frostWeapon;
@@ -1178,6 +1194,45 @@ int main()
         !source::Proj::GetTypeRules(11U).mineTestsLock ||
         source::Proj::GetTypeRules(24U).mineTestsLock)
         return 60;
+    const auto rocketRoute = source::Proj::ContactRouteFor(
+        0U, false, false);
+    const auto laserRoute = source::Proj::ContactRouteFor(
+        3U, false, false);
+    const auto mineRoute = source::Proj::ContactRouteFor(
+        11U, false, false);
+    const auto craterRoute = source::Proj::ContactRouteFor(
+        20U, false, false);
+    const auto impulseRoute = source::Proj::ContactRouteFor(
+        21U, false, false);
+    const auto protonRoute = source::Proj::ContactRouteFor(
+        24U, false, false);
+    if (rocketRoute.handler !=
+            source::Proj::ContactHandler::Rocket ||
+        !rocketRoute.rocketResponse || !rocketRoute.appliesDamage ||
+        laserRoute.handler != source::Proj::ContactHandler::None ||
+        laserRoute.damageType !=
+            r3d::game::originalrace::DamageType::Energy ||
+        mineRoute.handler != source::Proj::ContactHandler::Mine ||
+        !mineRoute.testMineLock ||
+        mineRoute.damageType !=
+            r3d::game::originalrace::DamageType::Mine ||
+        craterRoute.handler != source::Proj::ContactHandler::Crater ||
+        craterRoute.testMineLock ||
+        impulseRoute.handler != source::Proj::ContactHandler::Impulse ||
+        impulseRoute.damageType !=
+            r3d::game::originalrace::DamageType::Energy ||
+        protonRoute.handler !=
+            source::Proj::ContactHandler::MineProton ||
+        source::Proj::ContactRouteFor(22U, true, false).handler !=
+            source::Proj::ContactHandler::None ||
+        source::Proj::ContactRouteFor(22U, false, true).handler !=
+            source::Proj::ContactHandler::None)
+        return 129;
+    if (rocketProjectile.RouteContact(false).handler !=
+            source::Proj::ContactHandler::Rocket ||
+        rocketProjectile.RouteContact(true).handler !=
+            source::Proj::ContactHandler::None)
+        return 130;
     const auto fullMedpack = source::Proj::BonusContact(
         4U, true, 0.0F, 80.0F);
     const auto partialMedpack = source::Proj::BonusContact(
