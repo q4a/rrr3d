@@ -3101,6 +3101,26 @@ world transform, listeners, target release и различие linked/unlinked d
 `DeathEffect` и только затем переводит `Proj` в death-state; это сохраняет
 вложенные осколки `MineRip`, которые ранее терялись при раннем auto-expire.
 
+### P2.126 — live `Proj` scratch state ownership — выполнено
+
+Следующее прямое сравнение с `Weapon.cpp` показало, что несколько полей,
+которые выглядели как разные session-timers, в Windows являются одним живым
+состоянием конкретного `Proj`: `_time1` используется для mine arming,
+Torpeda/Impulse homing delay и Thunder reflection cooldown; `_vec1` хранит
+Torpeda velocity либо минимальный Rocket clearance; `_tick1` считает
+переходы Impulse, а `_state1` и `_ignoreContactProj` также принадлежат объекту.
+
+Эти поля восстановлены в concrete `Proj` и сбрасываются при каждом
+`PrepareSource`. `ProjectileRuntime` и `MineRuntime` больше не содержат
+параллельные `armingTime`, `homingDelay`, `reflectionCooldown`,
+`trackClearance` и `hitCount`. Mine/contact, homing, Rocket TrackPlane,
+Thunder reflection и цепной Impulse теперь читают и записывают один source
+object; Jolt runtime сохраняет только готовые position/velocity результаты.
+Типовая подготовка также повторяет исходные значения: mine начинает с нуля,
+MinePiece — с `-1`, Torpeda/Impulse — с `0.4`, а Rocket/Laser отмечают
+`ignoreContactProj`. Regression проверяет сброс всех scratch-полей, а
+интеграционный заезд — clearance, homing hand-off, Impulse chain и MineRip.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

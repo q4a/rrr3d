@@ -98,6 +98,17 @@ void configureProjectileSourceObject(
         source::Proj::Quat{
             projectile.rotation.x, projectile.rotation.y,
             projectile.rotation.z, projectile.rotation.w});
+    const auto rules = source::Proj::GetTypeRules(definition.type);
+    projectile.sourceObject->SetIgnoreContactProj(
+        rules.rocketPrepare || definition.type == 3U);
+    if (rules.homing)
+    {
+        projectile.sourceObject->SetSourceTimer(0.4F);
+        projectile.sourceObject->SetSourceVector(
+            source::Proj::Vec3{
+                projectile.velocity.x, projectile.velocity.y,
+                projectile.velocity.z});
+    }
 }
 
 void configureMineSourceObject(
@@ -121,6 +132,10 @@ void configureMineSourceObject(
         source::Proj::Quat{
             mine.rotation.x, mine.rotation.y,
             mine.rotation.z, mine.rotation.w});
+    // MinePrepare arms through _time1 >= 0, while autonomous MinePiece
+    // starts with the original -1 sentinel and can contact immediately.
+    mine.sourceObject->SetSourceTimer(
+        definition.type == 13U ? -1.0F : 0.0F);
 }
 
 Vec3 subtract(Vec3 first, Vec3 second)
@@ -4179,18 +4194,21 @@ void OriginalRaceSession::updateGameplay(
             const auto update = source::Proj::TorpedaUpdate(
                 seconds, sourceVec(projectile.position),
                 sourceQuat(projectile.rotation),
-                sourceVec(projectile.velocity),
-                projectile.homingDelay, hasTarget,
+                projectile.sourceObject->GetSourceVector(),
+                projectile.sourceObject->GetSourceTimer(), hasTarget,
                 sourceVec(vehicles[projectile.target].body.position),
                 projectileDefinition.speed,
                 projectileDefinition.relativeSpeed,
                 projectile.angularSpeed);
-            projectile.homingDelay = update.homingDelay;
+            projectile.sourceObject->SetSourceTimer(
+                update.homingDelay);
             if (update.setLinearVelocity)
             {
                 projectile.rotation = runtimeQuat(update.rotation);
                 projectile.direction = runtimeVec(update.direction);
                 projectile.velocity = runtimeVec(update.linearVelocity);
+                projectile.sourceObject->SetSourceVector(
+                    update.linearVelocity);
                 projectile.speed = length3(projectile.velocity);
             }
         }
@@ -4225,9 +4243,13 @@ void OriginalRaceSession::updateGameplay(
             const auto update = source::Proj::RocketUpdate(
                 projectile.position.z, trackHit.position.z,
                 projectileDefinition.collision.halfExtents.z,
-                projectile.trackClearance, trackHit.hit);
+                projectile.sourceObject->GetSourceVector().z,
+                trackHit.hit);
             projectile.position.z = update.positionZ;
-            projectile.trackClearance = update.clearance;
+            auto sourceVector =
+                projectile.sourceObject->GetSourceVector();
+            sourceVector.z = update.clearance;
+            projectile.sourceObject->SetSourceVector(sourceVector);
         }
         if (projectileDefinition.type == 23U &&
             std::abs(projectileDefinition.angularSpeed) > 0.0001F)
@@ -4236,36 +4258,39 @@ void OriginalRaceSession::updateGameplay(
                 sourceQuat(projectile.rotation),
                 projectileDefinition.angularSpeed, seconds));
         }
-        projectile.reflectionCooldown = source::Proj::ThunderUpdate(
-            projectile.reflectionCooldown, seconds);
-        if (projectileDefinition.type == 22U &&
-            projectile.reflectionCooldown <= 0.0F)
+        if (projectileDefinition.type == 22U)
         {
-            Transform thunderTransform;
-            thunderTransform.position = projectile.position;
-            thunderTransform.rotation = projectile.rotation;
-            Vec3 normal;
-            const bool borderContact =
-                length3(projectile.velocity) > 5.0F &&
-                trackBorderContact(
-                    race_, orientedBox(
-                               thunderTransform,
-                               projectileDefinition.collision),
-                    normal);
-            const auto contact = source::Proj::ThunderContact(
-                sourceVec(projectile.velocity), sourceVec(normal),
-                projectile.reflectionCooldown, borderContact);
-            if (contact.setLinearVelocity)
+            projectile.sourceObject->SetSourceTimer(
+                source::Proj::ThunderUpdate(
+                    projectile.sourceObject->GetSourceTimer(), seconds));
+            if (projectile.sourceObject->GetSourceTimer() <= 0.0F)
             {
-                projectile.velocity = runtimeVec(contact.linearVelocity);
-                projectile.direction =
-                    normalized3(projectile.velocity);
-                // ThunderContact only changes PhysX linear velocity. The
-                // projectile actor/model rotation remains the shot rotation
-                // (and Resonanse is the only RocketUpdate variant that spins
-                // its actor explicitly).
-                projectile.reflectionCooldown =
-                    contact.reflectionCooldown;
+                Transform thunderTransform;
+                thunderTransform.position = projectile.position;
+                thunderTransform.rotation = projectile.rotation;
+                Vec3 normal;
+                const bool borderContact =
+                    length3(projectile.velocity) > 5.0F &&
+                    trackBorderContact(
+                        race_, orientedBox(
+                                   thunderTransform,
+                                   projectileDefinition.collision),
+                        normal);
+                const auto contact = source::Proj::ThunderContact(
+                    sourceVec(projectile.velocity), sourceVec(normal),
+                    projectile.sourceObject->GetSourceTimer(),
+                    borderContact);
+                if (contact.setLinearVelocity)
+                {
+                    projectile.velocity =
+                        runtimeVec(contact.linearVelocity);
+                    projectile.direction =
+                        normalized3(projectile.velocity);
+                    // ThunderContact only changes PhysX linear velocity. The
+                    // actor/model rotation stays at the shot rotation.
+                    projectile.sourceObject->SetSourceTimer(
+                        contact.reflectionCooldown);
+                }
             }
         }
         RaceEffect fired;
@@ -4332,7 +4357,7 @@ void OriginalRaceSession::updateGameplay(
                           true, targetedImpulse,
                           !targetedImpulse ||
                               target == projectile.target,
-                          projectile.hitCount,
+                          projectile.sourceObject->GetSourceTick(),
                           projectileDefinition.damage)
                     : source::Proj::ImpulseContactResult{};
             if (projectileDefinition.type == 21U &&
@@ -4424,7 +4449,8 @@ void OriginalRaceSession::updateGameplay(
             }
             if (projectileDefinition.type == 21U)
             {
-                projectile.hitCount = impulseContact.hitCount;
+                projectile.sourceObject->SetSourceTick(
+                    impulseContact.hitCount);
                 if (impulseContact.destroy)
                 {
                     spawnProjectileImpact(
@@ -4459,7 +4485,7 @@ void OriginalRaceSession::updateGameplay(
                             racerMapObjects_[nextTarget] != nullptr
                         ? &racerMapObjects_[nextTarget]->GetGameObj()
                         : nullptr);
-                projectile.homingDelay = 0.0F;
+                projectile.sourceObject->SetSourceTimer(0.0F);
                 break;
             }
             spawnProjectileImpact(
@@ -5187,7 +5213,7 @@ void OriginalRaceSession::updateGameplay(
         {
             return applyMasloContact(
                 racer, mine.position, mine.damage,
-                mine.armingTime >= 0.0F);
+                mine.sourceObject->GetSourceTimer() >= 0.0F);
         }
         applyRacerDamage(
             racer, mine.damageOwner, contactPoint,
@@ -5283,8 +5309,8 @@ void OriginalRaceSession::updateGameplay(
             mine.type == 12U || mine.type == 24U)
         {
             const auto arming = source::Proj::MineUpdate(
-                mine.armingTime, seconds);
-            mine.armingTime = arming.timer;
+                mine.sourceObject->GetSourceTimer(), seconds);
+            mine.sourceObject->SetSourceTimer(arming.timer);
             if (arming.visualScale >= 0.0F)
                 mine.armingAlpha = arming.visualScale;
         }
@@ -5342,7 +5368,6 @@ void OriginalRaceSession::updateGameplay(
                     core.damage = source.damage;
                     core.impulseSpeed = source.speed;
                     core.seconds = 0.0F;
-                    core.armingTime = 0.0F;
                     core.armingAlpha = 0.0F;
                     core.maximumLife =
                         source.minimumLife > 0.0F
@@ -5372,7 +5397,6 @@ void OriginalRaceSession::updateGameplay(
                         fragment.damage = source.damage;
                         fragment.impulseSpeed = source.speed;
                         fragment.seconds = 0.0F;
-                        fragment.armingTime = -1.0F;
                         fragment.armingAlpha = 1.0F;
                         fragment.maximumLife =
                             source.minimumLife > 0.0F
@@ -5407,7 +5431,7 @@ void OriginalRaceSession::updateGameplay(
             if (mine.type == 10U)
             {
                 sourceContactAllowed =
-                    mine.armingTime == -1.0F &&
+                    mine.sourceObject->GetSourceTimer() == -1.0F &&
                     !targetMineLocked;
             }
             else if (mine.type != 20U)
@@ -5417,7 +5441,8 @@ void OriginalRaceSession::updateGameplay(
                 sourceContactAllowed =
                     source::Proj::MineContactAllowed(
                         true, testsMineLock, enableMineBug_,
-                        targetMineLocked, mine.armingTime,
+                        targetMineLocked,
+                        mine.sourceObject->GetSourceTimer(),
                         mine.linkedToOwner && racer == mine.owner);
             }
             Transform mineTransform;
@@ -6013,7 +6038,6 @@ void OriginalRaceSession::updateGameplay(
                     projectileRules.linkedToWeapon);
                 if (projectileRules.homing)
                 {
-                    runtimeProjectile.homingDelay = 0.4F;
                     runtimeProjectile.target = homingTarget;
                 }
                 projectiles_.push_back(std::move(runtimeProjectile));
@@ -11111,7 +11135,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 });
             if (projectile ==
                     rocketSession.projectiles().end() ||
-                projectile->trackClearance <= 0.0F)
+                projectile->sourceObject == nullptr ||
+                projectile->sourceObject->GetSourceVector().z <= 0.0F)
             {
                 throw std::runtime_error(
                     "source RocketUpdate TrackPlane clearance failed");
@@ -11210,7 +11235,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 handedOff =
                     projectile !=
                         impulseSession.projectiles().end() &&
-                    projectile->hitCount == 1U &&
+                    projectile->sourceObject != nullptr &&
+                    projectile->sourceObject->GetSourceTick() == 1U &&
                     projectile->target == 2U;
             }
             if (!handedOff ||
@@ -11309,7 +11335,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             }
             for (int frame = 0;
                  frame < 30 && projectile != nullptr &&
-                 projectile->homingDelay >
+                 projectile->sourceObject != nullptr &&
+                 projectile->sourceObject->GetSourceTimer() >
                      (1.0F / 60.0F + 0.00001F);
                  ++frame)
             {

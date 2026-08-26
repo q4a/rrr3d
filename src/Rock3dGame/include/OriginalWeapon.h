@@ -24,6 +24,8 @@ public:
         float x = 0.0F;
         float y = 0.0F;
         float z = 0.0F;
+
+        bool operator==(const Vec3&) const noexcept = default;
     };
 
     struct Quat
@@ -32,6 +34,8 @@ public:
         float y = 0.0F;
         float z = 0.0F;
         float w = 1.0F;
+
+        bool operator==(const Quat&) const noexcept = default;
     };
 
     struct ContactResult
@@ -233,6 +237,22 @@ public:
     void SetSourceTarget(GameObject* value) noexcept;
     void SyncSourceTransform(
         const Vec3& position, const Quat& rotation) noexcept;
+    // Backend adapters expose the five scratch members used by the original
+    // type-specific Proj methods. Their meaning depends on description.type:
+    // _time1 is mine arming/torpedo homing/thunder reflection time, _vec1 is
+    // torpedo velocity or rocket track clearance, and _tick1 counts Impulse
+    // chain hits.
+    void ResetSourceRuntimeState() noexcept;
+    float GetSourceTimer() const noexcept;
+    void SetSourceTimer(float value) noexcept;
+    const Vec3& GetSourceVector() const noexcept;
+    void SetSourceVector(Vec3 value) noexcept;
+    std::uint32_t GetSourceTick() const noexcept;
+    void SetSourceTick(std::uint32_t value) noexcept;
+    bool GetSourceState() const noexcept;
+    void SetSourceState(bool value) noexcept;
+    bool GetIgnoreContactProj() const noexcept;
+    void SetIgnoreContactProj(bool value) noexcept;
     const ProjectileDefinition& GetDesc() const noexcept;
     GameObject* GetSourceWeapon() const noexcept;
     GameObject* GetSourceTarget() const noexcept;
@@ -256,6 +276,11 @@ private:
     GameObject* target_ = nullptr;
     std::size_t playerId_ = GameObject::undefinedPlayerId;
     bool prepared_ = false;
+    std::uint32_t sourceTick_ = 0U;
+    float sourceTimer_ = 0.0F;
+    bool sourceState_ = false;
+    Vec3 sourceVector_{};
+    bool ignoreContactProj_ = false;
     DeathEffectBehavior* deathEffect_ = nullptr;
 };
 

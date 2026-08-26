@@ -149,6 +149,7 @@ void Proj::PrepareSource(
     SetSourceWeapon(nullptr);
     description_ = description;
     playerId_ = playerId;
+    ResetSourceRuntimeState();
     ResetGameObject(-1.0F);
     SetMaxTimeLife(maximumLife);
     SetTimeLife(0.0F);
@@ -200,6 +201,41 @@ void Proj::SyncSourceTransform(
 {
     SetWorldPos({position.x, position.y, position.z});
     SetWorldRot({rotation.x, rotation.y, rotation.z, rotation.w});
+}
+
+void Proj::ResetSourceRuntimeState() noexcept
+{
+    sourceTick_ = 0U;
+    sourceTimer_ = 0.0F;
+    sourceState_ = false;
+    sourceVector_ = {};
+    ignoreContactProj_ = false;
+}
+
+float Proj::GetSourceTimer() const noexcept { return sourceTimer_; }
+void Proj::SetSourceTimer(float value) noexcept { sourceTimer_ = value; }
+const Proj::Vec3& Proj::GetSourceVector() const noexcept
+{
+    return sourceVector_;
+}
+void Proj::SetSourceVector(Vec3 value) noexcept
+{
+    sourceVector_ = value;
+}
+std::uint32_t Proj::GetSourceTick() const noexcept { return sourceTick_; }
+void Proj::SetSourceTick(std::uint32_t value) noexcept
+{
+    sourceTick_ = value;
+}
+bool Proj::GetSourceState() const noexcept { return sourceState_; }
+void Proj::SetSourceState(bool value) noexcept { sourceState_ = value; }
+bool Proj::GetIgnoreContactProj() const noexcept
+{
+    return ignoreContactProj_;
+}
+void Proj::SetIgnoreContactProj(bool value) noexcept
+{
+    ignoreContactProj_ = value;
 }
 
 const ProjectileDefinition& Proj::GetDesc() const noexcept

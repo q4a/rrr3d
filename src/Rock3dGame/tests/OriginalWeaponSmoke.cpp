@@ -100,6 +100,25 @@ int main()
         sourceWeapon.GetListenerCount() != 2U ||
         sourceTarget.GetListenerCount() != 1U)
         return 65;
+    linkedProjectile.SetSourceTimer(0.4F);
+    linkedProjectile.SetSourceVector({7.0F, 8.0F, 9.0F});
+    linkedProjectile.SetSourceTick(2U);
+    linkedProjectile.SetSourceState(true);
+    linkedProjectile.SetIgnoreContactProj(true);
+    if (linkedProjectile.GetSourceTimer() != 0.4F ||
+        linkedProjectile.GetSourceVector() !=
+            source::Proj::Vec3{7.0F, 8.0F, 9.0F} ||
+        linkedProjectile.GetSourceTick() != 2U ||
+        !linkedProjectile.GetSourceState() ||
+        !linkedProjectile.GetIgnoreContactProj())
+        return 98;
+    linkedProjectile.ResetSourceRuntimeState();
+    if (linkedProjectile.GetSourceTimer() != 0.0F ||
+        linkedProjectile.GetSourceVector() != source::Proj::Vec3{} ||
+        linkedProjectile.GetSourceTick() != 0U ||
+        linkedProjectile.GetSourceState() ||
+        linkedProjectile.GetIgnoreContactProj())
+        return 99;
     sourceTarget.DestroyObject();
     if (linkedProjectile.GetSourceTarget() != nullptr)
         return 66;

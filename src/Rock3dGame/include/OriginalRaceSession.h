@@ -306,9 +306,6 @@ struct MineRuntime
     Vec3 velocity;
     ProjectileCollisionBox collision;
     float seconds = 0.0F;
-    // Proj::_time1 is distinct from GameObject::_timeLife. MineUpdate turns
-    // it from the arming elapsed time into the -1 armed sentinel.
-    float armingTime = 0.0F;
     float armingAlpha = 0.0F;
     float damage = 0.0F;
     float impulseSpeed = 0.0F;
@@ -347,7 +344,6 @@ struct ProjectileRuntime
     float damage = 0.0F;
     float distance = 0.0F;
     float angularSpeed = 0.0F;
-    float homingDelay = 0.0F;
     float lifeSeconds = 0.0F;
     float maximumLifeSeconds = 0.0F;
     float ageSeconds = 0.0F;
@@ -355,12 +351,7 @@ struct ProjectileRuntime
     // LaserUpdate writes sampler[0].scale.x = beamLength / 10 for the
     // distorted laser only; geometry scale and UV scale are independent.
     float beamTextureScale = 1.0F;
-    float reflectionCooldown = 0.0F;
-    // Proj::RocketUpdate stores its current clearance above TrackPlane in
-    // _vec1.z and only lowers it when the terrain rises into the projectile.
-    float trackClearance = 0.0F;
     std::size_t target = RacerRuntime::invalidWeapon;
-    std::uint32_t hitCount = 0;
     bool attached = false;
     bool directWeapon = false;
     bool ballistic = false;
