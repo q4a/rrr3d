@@ -274,6 +274,55 @@ int main()
             source::GameObject::Vector3{5.0F, 6.0F, 7.0F})
         return 18;
 
+    source::Map transferMap(&logic);
+    source::GameObject fragmentOwner;
+    fragmentOwner.SetLogic(&logic);
+    auto& fragmentRecord =
+        transferMap.GetRecordLib(source::MapObjCategory::Decoration)
+            .GetOrCreateRecord(
+                "world\\db\\root\\ctDecoration\\Crush\\fragment",
+                source::GameObjType::DestrObj);
+    auto& fragment = fragmentOwner.GetIncludeList().Add(
+        fragmentRecord, 91U);
+    fragment.SetName("oldFragmentName");
+    fragment.GetGameObj().ResetGameObject(15.0F);
+    fragment.GetGameObj().SetPos({8.0F, 9.0F, 10.0F});
+    auto extracted = fragmentOwner.GetIncludeList().Extract(&fragment);
+    if (extracted == nullptr || extracted.get() != &fragment ||
+        fragmentOwner.GetIncludeList().GetLiveCount() != 0U ||
+        !fragmentOwner.GetChildren().empty() ||
+        fragment.GetOwner() != nullptr || fragment.GetParent() != nullptr ||
+        fragment.GetGameObj().IsObjectDestroyed())
+        return 19;
+    auto& insertedFragment = transferMap.InsertMapObj(
+        std::move(extracted));
+    if (&insertedFragment != &fragment || insertedFragment.GetId() != 1U ||
+        insertedFragment.GetName() != "item0" ||
+        insertedFragment.GetCategory() !=
+            source::MapObjCategory::Decoration ||
+        insertedFragment.GetRecordProxy() != &fragmentRecord ||
+        insertedFragment.GetOwner() !=
+            &transferMap.GetMapObjList(
+                source::MapObjCategory::Decoration) ||
+        insertedFragment.GetParent() != nullptr ||
+        insertedFragment.GetGameObj().GetLogic() != &logic ||
+        insertedFragment.GetGameObj().GetMaxLife() != 15.0F ||
+        insertedFragment.GetGameObj().GetPos() !=
+            source::GameObject::Vector3{8.0F, 9.0F, 10.0F} ||
+        transferMap.GetMapObj(1U) != &insertedFragment)
+        return 20;
+    auto recordless = std::make_unique<source::MapObj>();
+    recordless->SetType(source::GameObjType::GameObj);
+    auto& insertedRecordless = transferMap.InsertMapObj(
+        std::move(recordless));
+    if (insertedRecordless.GetId() != 2U ||
+        insertedRecordless.GetName() != "item1" ||
+        insertedRecordless.GetRecordProxy() != nullptr ||
+        insertedRecordless.GetCategory() !=
+            source::MapObjCategory::Decoration ||
+        transferMap.GetMapObj(2U) != &insertedRecordless)
+        return 21;
+
     std::cout << "original Map ownership, trace, death plane, category "
                  "registry and global ID rules passed\n";
     return 0;

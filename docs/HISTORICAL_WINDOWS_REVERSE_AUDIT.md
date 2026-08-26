@@ -2305,6 +2305,27 @@ listeners, Logic identity, death/touch runtime и имя исходного inst
 копируются. Map regression покрывает `crate0 -> crate1`, общий record,
 новый ID, transform/lifetime и вложенный `sparkChild` с parent/Logic.
 
+### P2.87 — `Map::InsertMapObj` ownership transfer — выполнено
+
+Это не editor-only API: Windows `GameCar::OnProgress` отделяет элементы
+`_destrList` и вставляет их в глобальную Map, а `ResurrectObj::OnDeath`
+аналогично возвращает вложенный объект из include owner. Исходный
+`Map::InsertMapObj` выбирает категорию record-а (`Decoration` без record),
+после чего `MapObjList::InsertItem` назначает Logic и новый глобальный ID.
+Base collection одновременно даёт перенесённому объекту имя `item0`,
+`item1`, ... . Portable unique ownership не имел эквивалента этого raw
+pointer transfer.
+
+`MapObjects::Extract` теперь вынимает `unique_ptr` из прежнего owner без
+`DestroyObject`, уведомляет старый map registry и разрывает parent graph.
+`MapObjects::Insert` принимает только уже detached ownership, назначает
+source `itemN` через общий name root и новый parent. `Map::InsertMapObj`
+определяет category, выдаёт следующий ID, назначает общий Logic и
+регистрирует тот же объект. Regression переносит `DestrObj` fragment из
+`GameObject` include list в Map и проверяет pointer identity, сохранённые
+record/life/transform, новый owner/name/ID; отдельно покрыт `Decoration`
+fallback для объекта без record.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

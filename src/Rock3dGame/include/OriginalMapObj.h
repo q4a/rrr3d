@@ -186,6 +186,7 @@ public:
     void CopySerializedStateFrom(const MapObj& value);
 
 private:
+    friend class MapObjects;
     void CreateGameObj();
 
     MapObjects* owner_ = nullptr;
@@ -233,6 +234,8 @@ public:
                 std::string record, std::uint32_t id,
                 std::string recordParent = {});
     MapObj& Add(const MapObjRecord& record, std::uint32_t id);
+    MapObj& Insert(std::unique_ptr<MapObj> value);
+    std::unique_ptr<MapObj> Extract(MapObj* value) noexcept;
     void Reserve(std::size_t value);
     void Clear() noexcept;
 

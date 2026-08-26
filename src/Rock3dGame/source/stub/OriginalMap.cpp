@@ -92,6 +92,26 @@ MapObj& Map::AddMapObj(const MapObj& value)
     return result;
 }
 
+MapObj& Map::InsertMapObj(std::unique_ptr<MapObj> value)
+{
+    if (value == nullptr)
+        throw std::invalid_argument("Map::InsertMapObj received null");
+    const auto category = value->GetRecordProxy() != nullptr
+        ? value->GetRecordProxy()->GetCategory()
+        : MapObjCategory::Decoration;
+    if (value->GetRecordProxy() == nullptr)
+        value->SetRecord({}, category);
+
+    while (objects_.contains(++lastId_))
+    {
+    }
+    auto& result = categories_[CategoryIndex(category)].Insert(
+        std::move(value));
+    result.GetGameObj().SetLogic(logic_);
+    Register(result, lastId_);
+    return result;
+}
+
 void Map::Register(MapObj& value, std::uint32_t id)
 {
     value.SetId(id);

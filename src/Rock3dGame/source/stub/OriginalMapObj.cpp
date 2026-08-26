@@ -529,6 +529,38 @@ MapObj& MapObjects::Add(
     return result;
 }
 
+MapObj& MapObjects::Insert(std::unique_ptr<MapObj> value)
+{
+    if (value == nullptr)
+        throw std::invalid_argument("cannot insert a null MapObj");
+    if (value->owner_ != nullptr)
+        throw std::invalid_argument(
+            "MapObj must be extracted from its previous owner first");
+    value->owner_ = this;
+    value->SetName(MakeUniqueName("item"));
+    value->SetParent(owner_);
+    auto& result = *value;
+    objects_.push_back(std::move(value));
+    return result;
+}
+
+std::unique_ptr<MapObj> MapObjects::Extract(MapObj* value) noexcept
+{
+    if (value == nullptr)
+        return {};
+    const auto found = std::find_if(
+        objects_.begin(), objects_.end(),
+        [&](const auto& object) { return object.get() == value; });
+    if (found == objects_.end())
+        return {};
+    if (observer_ != nullptr)
+        observer_->OnMapObjRemoving(**found);
+    (*found)->SetParent(nullptr);
+    (*found)->owner_ = nullptr;
+    auto result = std::move(*found);
+    return result;
+}
+
 void MapObjects::Reserve(std::size_t value) { objects_.reserve(value); }
 
 void MapObjects::Clear() noexcept
