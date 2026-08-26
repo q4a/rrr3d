@@ -99,15 +99,20 @@ int main()
     sourceWeapon.SetParent(&sourceCar);
     source::GameObject sourceTarget;
     source::Proj linkedProjectile;
+    source::Proj::ShotContext linkedContext;
+    linkedContext.shot.targetMapObject = &sourceTarget;
+    linkedContext.playerId = 7U;
+    linkedContext.maximumLife = 2.5F;
+    linkedContext.position = {4.0F, 5.0F, 6.0F};
+    linkedContext.rotation = {0.0F, 0.0F, 0.0F, 1.0F};
     linkedProjectile.PrepareSource(
-        sourceDescription, &sourceWeapon, &sourceTarget, 7U, true,
-        2.5F, {4.0F, 5.0F, 6.0F},
-        {0.0F, 0.0F, 0.0F, 1.0F});
+        sourceDescription, &sourceWeapon, linkedContext);
     if (!linkedProjectile.IsPrepared() ||
         linkedProjectile.GetDesc().type != 3U ||
         linkedProjectile.GetSourceWeapon() != &sourceWeapon ||
         linkedProjectile.GetSourceTarget() != &sourceTarget ||
         linkedProjectile.GetSourcePlayerId() != 7U ||
+        !linkedProjectile.GetIgnoreContactProj() ||
         linkedProjectile.GetParent() != &sourceWeapon ||
         linkedProjectile.GetPos() !=
             source::GameObject::Vector3{1.0F, 2.0F, 3.0F} ||
@@ -176,9 +181,13 @@ int main()
 
     source::Weapon mineSourceWeapon;
     source::Proj unlinkedProjectile;
+    auto unlinkedDescription = sourceDescription;
+    unlinkedDescription.type = 4U;
+    source::Proj::ShotContext unlinkedContext;
+    unlinkedContext.playerId = 4U;
+    unlinkedContext.position = {7.0F, 8.0F, 9.0F};
     unlinkedProjectile.PrepareSource(
-        sourceDescription, &mineSourceWeapon, nullptr, 4U, false,
-        -1.0F, {7.0F, 8.0F, 9.0F}, {});
+        unlinkedDescription, &mineSourceWeapon, unlinkedContext);
     if (unlinkedProjectile.GetPos() !=
             source::GameObject::Vector3{7.0F, 8.0F, 9.0F} ||
         unlinkedProjectile.GetParent() != nullptr)
@@ -194,14 +203,62 @@ int main()
     drobilkaDescription.type = 15U;
     drobilkaDescription.secondaryVisual = {};
     source::Proj drobilkaProjectile;
+    source::Proj::ShotContext drobilkaContext;
+    drobilkaContext.maximumLife = 4.0F;
     drobilkaProjectile.PrepareSource(
-        drobilkaDescription, nullptr, nullptr,
-        source::GameObject::undefinedPlayerId, false, 4.0F, {}, {});
+        drobilkaDescription, nullptr, drobilkaContext);
     if (drobilkaProjectile.GetSourceModel() != nullptr ||
+        !drobilkaProjectile.GetIgnoreContactProj() ||
         !drobilkaProjectile.InitSourceModel() ||
         drobilkaProjectile.GetSourceModel() == nullptr ||
         drobilkaProjectile.GetIncludeList().GetLiveCount() != 1U)
         return 101;
+
+    auto torpedaDescription = sourceDescription;
+    torpedaDescription.type = 2U;
+    torpedaDescription.secondaryVisual = {};
+    source::Proj::ShotContext torpedaContext;
+    torpedaContext.launchVelocity = {3.0F, 4.0F, 5.0F};
+    source::Proj torpedaProjectile;
+    torpedaProjectile.PrepareSource(
+        torpedaDescription, nullptr, torpedaContext);
+    if (torpedaProjectile.GetSourceTimer() != 0.4F ||
+        torpedaProjectile.GetSourceVector() !=
+            source::Proj::Vec3{3.0F, 4.0F, 5.0F} ||
+        !torpedaProjectile.GetIgnoreContactProj())
+        return 111;
+
+    auto oilDescription = sourceDescription;
+    oilDescription.type = 10U;
+    oilDescription.secondaryVisual = {};
+    source::Proj oilProjectile;
+    oilProjectile.PrepareSource(
+        oilDescription, nullptr, source::Proj::ShotContext{});
+    if (oilProjectile.GetSourceTimer() != 0.0F ||
+        oilProjectile.GetSourceModel() == nullptr ||
+        oilProjectile.GetSourceModel()->GetGameObj().GetScale() !=
+            source::GameObject::Vector3{0.0F, 0.0F, 0.0F})
+        return 112;
+
+    auto minePieceDescription = sourceDescription;
+    minePieceDescription.type = 13U;
+    minePieceDescription.secondaryVisual = {};
+    source::Proj minePieceProjectile;
+    minePieceProjectile.PrepareSource(
+        minePieceDescription, nullptr, source::Proj::ShotContext{});
+    if (minePieceProjectile.GetSourceTimer() != -1.0F)
+        return 113;
+
+    auto frostDescription = sourceDescription;
+    frostDescription.type = 18U;
+    source::Weapon frostWeapon;
+    source::Proj frostProjectile;
+    frostProjectile.PrepareSource(
+        frostDescription, &frostWeapon,
+        source::Proj::ShotContext{});
+    if (!frostProjectile.GetIgnoreContactProj() ||
+        frostProjectile.GetParent() != &frostWeapon)
+        return 114;
 
     source::Proj projectileObject;
     projectileObject.ConfigureDeathEffect(true, true);
@@ -660,9 +717,11 @@ int main()
     auto* logicProjectile = new source::Proj();
     r3d::game::originalrace::ProjectileDefinition logicDescription;
     logicDescription.type = 17U;
+    source::Proj::ShotContext logicContext;
+    logicContext.logic = &autoProjectileLogic;
+    logicContext.maximumLife = 0.01F;
     logicProjectile->PrepareSource(
-        logicDescription, nullptr, nullptr,
-        source::GameObject::undefinedPlayerId, false, 0.01F, {}, {});
+        logicDescription, nullptr, logicContext);
     autoProjectileLogic.RegGameObj(logicProjectile);
     const auto managedLifetime =
         autoProjectileLogic.ProgressGameObjs(0.02F);

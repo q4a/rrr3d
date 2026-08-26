@@ -56,13 +56,16 @@ public:
         Logic* logic = nullptr;
         ShotDesc shot;
         std::size_t playerId = GameObject::undefinedPlayerId;
-        bool linkToWeapon = false;
         // PrepareProj can reject mine placement, Spring without complete
         // wheel contact, or a backend actor which failed to materialize.
         bool preparationAccepted = true;
         float maximumLife = -1.0F;
         Vec3 position{};
         Quat rotation{};
+        // RocketPrepare/TorpedaPrepare retain the prepared actor velocity in
+        // _vec1. The backend supplies the result of the source CalcSpeed
+        // formula because the final actor remains owned by Jolt.
+        Vec3 launchVelocity{};
     };
 
     struct ContactResult
@@ -258,10 +261,8 @@ public:
     ~Proj() override;
     void PrepareSource(
         const ProjectileDefinition& description,
-        GameObject* weapon, GameObject* target,
-        std::size_t playerId, bool linkToWeapon,
-        float maximumLife, const Vec3& position,
-        const Quat& rotation) noexcept;
+        GameObject* weapon,
+        const ShotContext& context) noexcept;
     void SetSourceWeapon(
         GameObject* value, bool linkToWeapon = false) noexcept;
     void SetSourceTarget(GameObject* value) noexcept;
@@ -316,6 +317,8 @@ private:
     void LinkToSourceWeapon(
         const Vec3& worldPosition,
         const Quat& worldRotation) noexcept;
+    void ApplySourcePreparationState(
+        const ShotContext& context) noexcept;
 
     ProjectileDefinition description_;
     GameObject* weapon_ = nullptr;

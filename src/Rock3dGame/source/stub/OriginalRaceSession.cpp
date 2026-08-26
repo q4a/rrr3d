@@ -79,14 +79,12 @@ void configureProjectileSourceObject(
     const ProjectileDefinition& definition,
     source::Weapon* weapon = nullptr,
     source::GameObject* target = nullptr,
-    std::size_t playerId = source::GameObject::undefinedPlayerId,
-    bool linkToWeapon = false)
+    std::size_t playerId = source::GameObject::undefinedPlayerId)
 {
     source::Proj::ShotContext context;
     context.logic = &logic;
     context.shot.targetMapObject = target;
     context.playerId = playerId;
-    context.linkToWeapon = linkToWeapon;
     context.maximumLife = projectile.maximumLifeSeconds;
     context.position = {
         projectile.position.x, projectile.position.y,
@@ -94,6 +92,9 @@ void configureProjectileSourceObject(
     context.rotation = {
         projectile.rotation.x, projectile.rotation.y,
         projectile.rotation.z, projectile.rotation.w};
+    context.launchVelocity = {
+        projectile.velocity.x, projectile.velocity.y,
+        projectile.velocity.z};
     projectile.sourceObject = source::Weapon::CreateShot(
         weapon, definition, context);
     if (projectile.sourceObject == nullptr)
@@ -103,17 +104,6 @@ void configureProjectileSourceObject(
         projectile.sourceObject->ConfigureDeathEffect(
             definition.deathEffect.effectPhysicsIgnoreSenderCar,
             definition.deathEffect.targetChild);
-    }
-    const auto rules = source::Proj::GetTypeRules(definition.type);
-    projectile.sourceObject->SetIgnoreContactProj(
-        rules.rocketPrepare || definition.type == 3U);
-    if (rules.homing)
-    {
-        projectile.sourceObject->SetSourceTimer(0.4F);
-        projectile.sourceObject->SetSourceVector(
-            source::Proj::Vec3{
-                projectile.velocity.x, projectile.velocity.y,
-                projectile.velocity.z});
     }
 }
 
@@ -140,9 +130,7 @@ void configureMineSourceObject(
     else
     {
         auto* sourceObject = new source::Proj();
-        sourceObject->PrepareSource(
-            definition, nullptr, nullptr, playerId, false,
-            mine.maximumLife, context.position, context.rotation);
+        sourceObject->PrepareSource(definition, nullptr, context);
         logic.RegGameObj(sourceObject);
         mine.sourceObject = sourceObject;
     }
@@ -155,10 +143,6 @@ void configureMineSourceObject(
             death->effectPhysicsIgnoreSenderCar,
             death->targetChild);
     }
-    // MinePrepare arms through _time1 >= 0, while autonomous MinePiece
-    // starts with the original -1 sentinel and can contact immediately.
-    mine.sourceObject->SetSourceTimer(
-        definition.type == 13U ? -1.0F : 0.0F);
 }
 
 Vec3 subtract(Vec3 first, Vec3 second)
@@ -5052,7 +5036,7 @@ void OriginalRaceSession::updateGameplay(
             runtimeProjectile.directWeapon = true;
             configureProjectileSourceObject(
                 logic_, runtimeProjectile, projectile, liveWeapon,
-                nullptr, owner, true);
+                nullptr, owner);
             projectiles_.push_back(std::move(runtimeProjectile));
         }
         RaceEvent hyperEvent;
@@ -6015,8 +5999,7 @@ void OriginalRaceSession::updateGameplay(
                 runtimeProjectile.attached = true;
                 configureProjectileSourceObject(
                     logic_, runtimeProjectile, projectile, liveWeapon,
-                    sourceTarget, shooter,
-                    projectileRules.linkedToWeapon);
+                    sourceTarget, shooter);
                 projectiles_.push_back(std::move(runtimeProjectile));
             }
             else if (!rayProjectile)
@@ -6057,8 +6040,7 @@ void OriginalRaceSession::updateGameplay(
                     projectileRules.ballistic;
                 configureProjectileSourceObject(
                     logic_, runtimeProjectile, projectile, liveWeapon,
-                    sourceTarget, shooter,
-                    projectileRules.linkedToWeapon);
+                    sourceTarget, shooter);
                 if (projectileRules.homing)
                 {
                     runtimeProjectile.target = homingTarget;

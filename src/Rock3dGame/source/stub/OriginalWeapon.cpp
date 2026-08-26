@@ -151,36 +151,73 @@ Proj::~Proj()
 
 void Proj::PrepareSource(
     const ProjectileDefinition& description,
-    GameObject* weapon, GameObject* target,
-    std::size_t playerId, bool linkToWeapon,
-    float maximumLife, const Vec3& position,
-    const Quat& rotation) noexcept
+    GameObject* weapon, const ShotContext& context) noexcept
 {
     FreeSourceModel(true, true);
     FreeSourceModel(false, true);
     SetSourceTarget(nullptr);
     SetSourceWeapon(nullptr);
     description_ = description;
-    playerId_ = playerId;
+    playerId_ = context.playerId;
     ResetSourceRuntimeState();
     externalLifetimeManaged_ = true;
     ResetGameObject(-1.0F);
-    SetMaxTimeLife(maximumLife);
+    SetMaxTimeLife(context.maximumLife);
     SetTimeLife(0.0F);
     SetSourceWeapon(weapon, false);
-    SetSourceTarget(target);
-    shotTarget_ = {};
-    if (linkToWeapon)
-        LinkToSourceWeapon(position, rotation);
+    SetShot(context.shot);
+    const auto rules = GetTypeRules(description.type);
+    if (rules.linkedToWeapon)
+        LinkToSourceWeapon(context.position, context.rotation);
     else
-        SyncSourceTransform(position, rotation);
+        SyncSourceTransform(context.position, context.rotation);
     // Every successful PrepareProj path calls InitModel except Spring and
     // Drobilka. Drobilka creates its model lazily on the first contact.
     if (description.type != 15U && description.type != 17U)
         InitSourceModel(false);
     if (description.type == 3U || description.type == 18U)
         InitSourceModel(true);
+    ApplySourcePreparationState(context);
     prepared_ = true;
+}
+
+void Proj::ApplySourcePreparationState(
+    const ShotContext& context) noexcept
+{
+    const auto rules = GetTypeRules(description_.type);
+    // RocketPrepare, LaserPrepare and DrobilkaPrepare all disable collision
+    // against their own weapon actor. This flag belongs to concrete Proj,
+    // not to a particular session spawn path.
+    ignoreContactProj_ = rules.rocketPrepare || rules.ray ||
+                         description_.type == 15U;
+
+    if (rules.homing)
+    {
+        // TorpedaPrepare initializes _time1 and asks RocketPrepare to retain
+        // the initial actor velocity in _vec1. ImpulsePrepare shares it.
+        sourceTimer_ = 0.4F;
+        sourceVector_ = context.launchVelocity;
+    }
+
+    switch (description_.type)
+    {
+    case 10U: // ptMaslo
+        if (sourceModel_ != nullptr)
+            sourceModel_->GetGameObj().SetScale({0.0F, 0.0F, 0.0F});
+        [[fallthrough]];
+    case 11U: // ptMine
+    case 12U: // ptMineRip
+    case 24U: // ptCrater
+        // MinePrepare changes its pre-placement -1 sentinel to 0 once the
+        // surface actor exists; MineUpdate then performs the arming fade.
+        sourceTimer_ = 0.0F;
+        break;
+    case 13U: // ptMinePiece
+        sourceTimer_ = -1.0F;
+        break;
+    default:
+        break;
+    }
 }
 
 void Proj::SetSourceWeapon(
@@ -1048,11 +1085,13 @@ void AutoProj::LogicInited() noexcept
     const float maximumTimeLife = GetMaxTimeLife();
     const float timeLife = GetTimeLife();
 
-    PrepareSource(
-        autoDescription_, nullptr, nullptr,
-        GameObject::undefinedPlayerId, false, maximumTimeLife,
-        {position[0], position[1], position[2]},
-        {rotation[0], rotation[1], rotation[2], rotation[3]});
+    ShotContext context;
+    context.logic = GetLogic();
+    context.maximumLife = maximumTimeLife;
+    context.position = {position[0], position[1], position[2]};
+    context.rotation = {
+        rotation[0], rotation[1], rotation[2], rotation[3]};
+    PrepareSource(autoDescription_, nullptr, context);
     // AutoProj belongs to a MapObjects category rather than Logic's
     // transient registry. Restore the serialized proxy lifetime which
     // PrepareProj leaves on the map record and use normal auto-expiry.
@@ -1350,11 +1389,7 @@ Proj* Weapon::CreateShot(
         return nullptr;
 
     auto* projectile = new Proj();
-    projectile->PrepareSource(
-        description, weapon, context.shot.targetMapObject,
-        context.playerId, context.linkToWeapon, context.maximumLife,
-        context.position, context.rotation);
-    projectile->SetShot(context.shot);
+    projectile->PrepareSource(description, weapon, context);
     context.logic->RegGameObj(projectile);
 
     if (weapon != nullptr)

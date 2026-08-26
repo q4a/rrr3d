@@ -3255,6 +3255,23 @@ position/rotation и следует за parent. Session синхронизир�
 проверяет local pose, точный результирующий world pose, повторное движение
 mount и независимое размещение unlinked projectile.
 
+### P2.133 — единый `Proj::PrepareProj` context и type state — выполнено
+
+Подготовка concrete projectile оставалась распределена между `Proj` и двумя
+helper-функциями session. Поэтому результат зависел от spawn path: Torpeda и
+Impulse получали `_time1/_vec1` только при обычном выстреле, mine arming
+sentinel назначался снаружи, а FrostRay и Drobilka вообще не получали исходный
+`_ignoreContactProj`.
+
+`PrepareSource` теперь, как Windows `PrepareProj`, принимает единый
+`ShotContext`, сам назначает shot/target/player/transform и выполняет
+type-specific initialization. Rocket/Laser/FrostRay/Drobilka владеют своим
+collision-ignore state; Torpeda/Impulse сохраняют 0.4-секундную задержку и
+подготовленную Jolt launch velocity; Mine/MineRip/Crater начинают arming с 0,
+MinePiece — с `-1`, а Maslo обнуляет scale живой source model. Session больше
+не исправляет эти поля после создания, поэтому weapon, autonomous и map spawn
+проходят одну concrete source-транзакцию.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
