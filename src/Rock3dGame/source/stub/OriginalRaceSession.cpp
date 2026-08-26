@@ -3417,6 +3417,17 @@ void OriginalRaceSession::updateGameplay(
                 vehicles[racer].wheelAngularSpeeds.size(),
                 vehicleDefinition.physics.wheels.size());
             for (std::size_t wheel = 0U;
+                 wheel < runtime.gameCar.GetWheelCount(); ++wheel)
+            {
+                auto* sourceWheel = runtime.gameCar.GetWheel(wheel);
+                if (sourceWheel == nullptr)
+                    continue;
+                sourceWheel->SetAxleSpeed(
+                    wheel < vehicles[racer].wheelAngularSpeeds.size()
+                        ? vehicles[racer].wheelAngularSpeeds[wheel]
+                        : 0.0F);
+            }
+            for (std::size_t wheel = 0U;
                  wheel < speedWheelCount; ++wheel)
             {
                 if (!vehicleDefinition.physics.wheels[wheel].driven)

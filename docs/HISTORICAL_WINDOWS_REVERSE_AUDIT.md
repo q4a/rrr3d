@@ -2755,6 +2755,24 @@ Regression доказывает, что frame progress не меняет locks, 
 освобождает их. Полные offline/network/physics тесты (включая MineRip
 contact/DeathEffect) и 360-frame Metal smoke прошли.
 
+### P2.111 — source `CarWheel` spin/steer graph transform — выполнено
+
+После возврата `GameCar::OnPxSync` порт всё ещё копировал готовую мировую
+ориентацию колеса из `JPH::VehicleConstraint::GetWheelWorldTransform`. В
+Windows PhysX сообщает колесу suspension/contact position и axle speed, но
+его graph rotation строит сам `CarWheel`: `_summAngle` накапливается в
+`OnProgress`, затем `PxSyncWheel` вычисляет `steer(Z) * spin(Y)` и добавляет
+сериализованный `invertWheel`. Поэтому Jolt оставался скрытым владельцем
+исходной визуальной анимации и мог вносить другую систему осей/знаков.
+
+Каждый source `CarWheel` теперь получает собственный Jolt axle speed,
+накапливает исходный `_summAngle`, хранит steering/invert state и строит
+точную локальную quaternion-композицию. Jolt pose используется только для
+мирового центра колеса по подвеске; его rotation больше не попадает в bgfx.
+`invertWheel` загружается напрямую из `ctCar`, а reset/copy сохраняют source
+lifetime. Regression проверяет независимость от backend quaternion,
+накопление spin, зеркальный поворот и очистку motion state.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

@@ -40,6 +40,16 @@ SyncQuaternion multiplySync(
             left.y * right.y - left.z * right.z});
 }
 
+SyncQuaternion axisAngleSync(
+    SyncVector axis, float angle) noexcept
+{
+    const float halfAngle = angle * 0.5F;
+    const float sine = std::sin(halfAngle);
+    return normalizedSync({
+        axis.x * sine, axis.y * sine, axis.z * sine,
+        std::cos(halfAngle)});
+}
+
 SyncVector rotateSync(
     SyncVector value, SyncQuaternion rotation) noexcept
 {
@@ -186,7 +196,7 @@ void GameCar::Reset() noexcept
     steeringAngle_ = 0.0F;
     for (auto& wheel : wheels_)
         if (wheel != nullptr)
-            wheel->SetSteerAngle(0.0F);
+            wheel->ResetMotion();
     GetFrameSync().Reset();
     if (soundMotor_ != nullptr)
         soundMotor_->Reset();
@@ -279,7 +289,7 @@ void GameCar::ConfigureDynamics(
             continue;
         wheels_[index]->ConfigureDynamics(
             wheels[index].positionX, wheels[index].driven,
-            wheels[index].steering);
+            wheels[index].steering, wheels[index].inverted);
     }
 }
 
@@ -870,8 +880,11 @@ CarWheel& CarWheel::operator=(const CarWheel& other) noexcept
     pxSyncPose_ = other.pxSyncPose_;
     positionX_ = other.positionX_;
     steerAngle_ = other.steerAngle_;
+    axleSpeed_ = other.axleSpeed_;
+    summAngle_ = other.summAngle_;
     driven_ = other.driven_;
     steering_ = other.steering_;
+    inverted_ = other.inverted_;
     if (slipEffectEnabled_)
     {
         GetBehaviors().Add<WheelSlipBehavior>(
@@ -904,7 +917,7 @@ void CarWheel::Configure(bool slipEffect, bool slipSound)
     slipEffectEnabled_ = slipEffect;
     slipSoundEnabled_ = slipEffect && slipSound;
     pxSyncPose_ = {};
-    steerAngle_ = 0.0F;
+    ResetMotion();
     if (slipEffectEnabled_)
     {
         GetBehaviors().Add<WheelSlipBehavior>(
@@ -933,8 +946,25 @@ const GameObjectFrameSync::Pose& CarWheel::PxSyncWheel(
         graphBody.position.x + rotated.x,
         graphBody.position.y + rotated.y,
         graphBody.position.z + rotated.z};
+    // Windows CarWheel::PxSyncWheel never copies the PhysX wheel shape
+    // orientation into the graph. The source object builds its local graph
+    // rotation from steering about Z and accumulated axle spin about Y.
+    // Jolt remains authoritative only for the suspension centre position.
+    const SyncQuaternion steering = axisAngleSync(
+        {0.0F, 0.0F, 1.0F}, steerAngle_);
+    const SyncQuaternion spin = axisAngleSync(
+        {0.0F, 1.0F, 0.0F}, summAngle_);
+    SyncQuaternion localRotation = multiplySync(steering, spin);
+    if (inverted_)
+    {
+        localRotation = multiplySync(
+            localRotation,
+            axisAngleSync(
+                {0.0F, 0.0F, 1.0F},
+                3.14159265358979323846F));
+    }
     pxSyncPose_.rotation = multiplySync(
-        graphFromPhysical, physicalWheel.rotation);
+        graphBody.rotation, localRotation);
     return pxSyncPose_;
 }
 
@@ -944,12 +974,14 @@ const GameObjectFrameSync::Pose& CarWheel::GetPxSyncPose() const noexcept
 }
 
 void CarWheel::ConfigureDynamics(
-    float positionX, bool driven, bool steering) noexcept
+    float positionX, bool driven, bool steering,
+    bool inverted) noexcept
 {
     positionX_ = positionX;
     driven_ = driven;
     steering_ = steering;
-    steerAngle_ = 0.0F;
+    inverted_ = inverted;
+    ResetMotion();
 }
 
 void CarWheel::SetSteerAngle(float value) noexcept
@@ -957,9 +989,31 @@ void CarWheel::SetSteerAngle(float value) noexcept
     steerAngle_ = value;
 }
 
+void CarWheel::SetAxleSpeed(float value) noexcept
+{
+    axleSpeed_ = value;
+}
+
+void CarWheel::ResetMotion() noexcept
+{
+    steerAngle_ = 0.0F;
+    axleSpeed_ = 0.0F;
+    summAngle_ = 0.0F;
+}
+
 float CarWheel::GetSteerAngle() const noexcept
 {
     return steerAngle_;
+}
+
+float CarWheel::GetAxleSpeed() const noexcept
+{
+    return axleSpeed_;
+}
+
+float CarWheel::GetSummAngle() const noexcept
+{
+    return summAngle_;
 }
 
 float CarWheel::GetPositionX() const noexcept
@@ -990,6 +1044,7 @@ GameObject::ProgressResult CarWheel::OnProgress(
     float deltaTime) noexcept
 {
     slipResult_ = {};
+    summAngle_ += axleSpeed_ * std::max(deltaTime, 0.0F);
     return GameObject::OnProgress(deltaTime);
 }
 

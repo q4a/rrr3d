@@ -677,10 +677,16 @@ void Player::CreateCar(bool newRace) noexcept
                 carRecord_->wheelSlipSounds);
             std::vector<GameCar::WheelDynamics> wheelDynamics;
             wheelDynamics.reserve(carRecord_->physics.wheels.size());
-            for (const auto& wheel : carRecord_->physics.wheels)
+            for (std::size_t wheelIndex = 0U;
+                 wheelIndex < carRecord_->physics.wheels.size();
+                 ++wheelIndex)
             {
+                const auto& wheel =
+                    carRecord_->physics.wheels[wheelIndex];
                 wheelDynamics.push_back(
-                    {wheel.position.x, wheel.driven, wheel.steering});
+                    {wheel.position.x, wheel.driven, wheel.steering,
+                     wheelIndex < carRecord_->wheelInverted.size() &&
+                         carRecord_->wheelInverted[wheelIndex]});
             }
             gameCar.ConfigureDynamics(
                 {{carRecord_->physics.angularDamping.x,

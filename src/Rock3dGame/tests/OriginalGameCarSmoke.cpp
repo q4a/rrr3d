@@ -251,6 +251,30 @@ int main()
         std::abs(wheelPose.rotation.z) > 0.0001F ||
         std::abs(wheelPose.rotation.w - 1.0F) > 0.0001F)
         return 35;
+    auto* animatedWheel = car.GetWheel(0U);
+    animatedWheel->SetAxleSpeed(2.0F);
+    animatedWheel->OnProgress(0.5F);
+    const auto& spunWheelPose = animatedWheel->PxSyncWheel(
+        {}, {}, {{1.0F, 0.0F, 0.0F},
+                 {0.0F, 0.0F, halfQuarterTurn,
+                  halfQuarterTurn}});
+    const float expectedHalfSpin = 0.5F;
+    if (std::abs(animatedWheel->GetAxleSpeed() - 2.0F) > 0.0001F ||
+        std::abs(animatedWheel->GetSummAngle() - 1.0F) > 0.0001F ||
+        std::abs(spunWheelPose.rotation.x) > 0.0001F ||
+        std::abs(spunWheelPose.rotation.y -
+                 std::sin(expectedHalfSpin)) > 0.0001F ||
+        std::abs(spunWheelPose.rotation.z) > 0.0001F ||
+        std::abs(spunWheelPose.rotation.w -
+                 std::cos(expectedHalfSpin)) > 0.0001F)
+        return 51;
+    animatedWheel->ConfigureDynamics(-1.0F, true, false, true);
+    const auto& invertedWheelPose = animatedWheel->PxSyncWheel(
+        {}, {}, {{1.0F, 0.0F, 0.0F}, {}});
+    if (std::abs(invertedWheelPose.rotation.z - 1.0F) > 0.0001F ||
+        std::abs(invertedWheelPose.rotation.w) > 0.0001F)
+        return 52;
+    animatedWheel->ConfigureDynamics(-1.0F, true, false, false);
     car.GetFrameSync().Reset();
     car.GetFrameSync().SetPosSync2(
         {2.0F, 0.0F, 0.0F}, {1.0F, 0.0F, 0.0F});

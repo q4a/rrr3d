@@ -114,6 +114,7 @@ public:
         float positionX = 0.0F;
         bool driven = false;
         bool steering = false;
+        bool inverted = false;
     };
 
     struct DriveCommand
@@ -294,9 +295,14 @@ public:
         GameObjectFrameSync::Pose physicalWheel) noexcept;
     const GameObjectFrameSync::Pose& GetPxSyncPose() const noexcept;
     void ConfigureDynamics(
-        float positionX, bool driven, bool steering) noexcept;
+        float positionX, bool driven, bool steering,
+        bool inverted) noexcept;
     void SetSteerAngle(float value) noexcept;
+    void SetAxleSpeed(float value) noexcept;
+    void ResetMotion() noexcept;
     float GetSteerAngle() const noexcept;
+    float GetAxleSpeed() const noexcept;
+    float GetSummAngle() const noexcept;
     float GetPositionX() const noexcept;
     bool IsDriven() const noexcept;
     bool IsSteering() const noexcept;
@@ -320,8 +326,11 @@ private:
     GameObjectFrameSync::Pose pxSyncPose_;
     float positionX_ = 0.0F;
     float steerAngle_ = 0.0F;
+    float axleSpeed_ = 0.0F;
+    float summAngle_ = 0.0F;
     bool driven_ = false;
     bool steering_ = false;
+    bool inverted_ = false;
 };
 
 class GusenizaAnim

@@ -485,6 +485,9 @@ struct Vehicle
     Transform bodyVisualTransform;
     std::vector<Transform> wheelVisualTransforms;
     std::vector<Vec3> wheelVisualOffsets;
+    // Serialized CarWheel::invertWheel flag. It belongs to the source wheel
+    // graph transform and must not be inferred by the physics backend.
+    std::vector<bool> wheelInverted;
     std::vector<bool> wheelSlipEffects;
     // DataBase::LoadCar attaches SkidAsphalt only to wheel i == 0. Other
     // PxWheelSlipEffect instances still own trail/smoke visuals, but are

@@ -3497,6 +3497,8 @@ Vehicle loadVehicle(const resource::ResourceFileSystem& resources,
             }
         }
         vehicle.wheels.push_back(wheel);
+        result.wheelInverted.push_back(
+            boolean(item, "invertWheel", source + "/wheel"));
         result.wheelSlipEffects.push_back(hasSlipEffect);
         // This sound assignment is not serialized in db.xml. LoadCar creates
         // it procedurally only for source wheel index zero (DataBase.cpp),
@@ -7305,6 +7307,8 @@ bool runOriginalRaceResourceSmokeTest(
             race.vehicle.wheelVisuals.size() != 4 ||
             race.vehicle.wheelVisualTransforms.size() != 4 ||
             race.vehicle.wheelVisualOffsets.size() != 4 ||
+            race.vehicle.wheelInverted.size() != 4 ||
+            race.vehicle.wheelInverted[0] ||
             !near(race.vehicle.wheelVisualTransforms[1].scale.y, -1.0F) ||
             race.vehicle.wheelVisuals[0].cullMode !=
                 VisualNode::CullMode::Inherit ||
