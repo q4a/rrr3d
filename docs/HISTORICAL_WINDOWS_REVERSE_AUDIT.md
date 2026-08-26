@@ -3192,6 +3192,29 @@ Primary, attached, Hyper и установленная Mine теперь про�
 ownership, transform/player attribution, timer reset, локальную shot-effect
 позицию и отказ фабрики без `Logic`.
 
+### P2.130 — восстановлено наследование `AutoProj : Proj` — выполнено
+
+Обратное сравнение `Weapon.h` выявило ещё одну раннюю структурную заглушку:
+оригинальный `AutoProj` является прямым наследником `Proj` и при появлении
+`Logic` вызывает базовый `PrepareProj(NULL, ctx)`. Portable-класс был отдельным
+`GameObject` с четырьмя дублирующими полями, поэтому map bonuses, oil и
+автономные mines не получали descriptor, source model/include graph, scratch
+state и общую projectile identity.
+
+`AutoProj` снова наследуется от concrete `Proj`. Его `Reset` принимает полный
+`ProjectileDefinition`, а `LogicInited` выполняет общую source preparation с
+сериализованным world transform. Поскольку объект принадлежит map category, а
+не transient registry `Logic`, после подготовки восстанавливаются proxy
+max-life/life/time-life и обычная lifetime policy. Oil arming теперь использует
+базовый `_time1` (`sourceTimer`) и меняет scale реального дочернего source
+model, а не только отдельный float для renderer adapter.
+
+Создание bonus map objects передаёт все уже распарсенные исходные поля:
+visual/death descriptor, collision size/offset, speed, damage и modelSize.
+Regression проверяет полиморфизм `AutoProj -> Proj`, полный descriptor,
+include/model parent graph, сохранение transform/lifetime, общий scratch timer
+и синхронное увеличение model scale.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

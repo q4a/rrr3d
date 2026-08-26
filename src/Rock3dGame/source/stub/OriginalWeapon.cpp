@@ -868,9 +868,16 @@ bool AutoProj::UsesMineUpdate(std::uint32_t type) noexcept
 
 void AutoProj::Reset(std::uint32_t type) noexcept
 {
+    ProjectileDefinition description;
+    description.type = type;
+    Reset(description);
+}
+
+void AutoProj::Reset(
+    const ProjectileDefinition& description) noexcept
+{
     LogicReleased();
-    type_ = type;
-    armingTimer_ = -1.0F;
+    autoDescription_ = description;
     modelScale_ = -1.0F;
     if (GetLogic() != nullptr)
         LogicInited();
@@ -888,11 +895,38 @@ void AutoProj::LogicInited() noexcept
     // and rotation; those transforms remain owned by BonusInstance here.
     if (prepared_ || GetLogic() == nullptr)
         return;
+
+    const auto position = GetWorldPos();
+    const auto rotation = GetWorldRot();
+    const float maximumLife = GetMaxLife();
+    const float life = GetLife();
+    const float maximumTimeLife = GetMaxTimeLife();
+    const float timeLife = GetTimeLife();
+
+    PrepareSource(
+        autoDescription_, nullptr, nullptr,
+        GameObject::undefinedPlayerId, false, maximumTimeLife,
+        {position[0], position[1], position[2]},
+        {rotation[0], rotation[1], rotation[2], rotation[3]});
+    // AutoProj belongs to a MapObjects category rather than Logic's
+    // transient registry. Restore the serialized proxy lifetime which
+    // PrepareProj leaves on the map record and use normal auto-expiry.
+    SetExternalLifetimeManaged(false);
+    SetMaxLife(maximumLife);
+    SetLife(life);
+    SetMaxTimeLife(maximumTimeLife);
+    SetTimeLife(timeLife);
     prepared_ = true;
-    if (UsesMineUpdate(type_))
-        armingTimer_ = 0.0F;
-    if (type_ == masloType)
+    if (UsesMineUpdate(autoDescription_.type))
+        SetSourceTimer(0.0F);
+    else
+        SetSourceTimer(-1.0F);
+    if (autoDescription_.type == masloType)
+    {
         modelScale_ = 0.0F;
+        if (auto* model = GetSourceModel())
+            model->GetGameObj().SetScale({0.0F, 0.0F, 0.0F});
+    }
 }
 
 void AutoProj::LogicReleased() noexcept
@@ -902,13 +936,21 @@ void AutoProj::LogicReleased() noexcept
 
 void AutoProj::OnProgress(float deltaTime) noexcept
 {
-    if (!prepared_ || !UsesMineUpdate(type_))
+    if (!prepared_ || !UsesMineUpdate(autoDescription_.type))
         return;
     const auto result = Proj::MineUpdate(
-        armingTimer_, deltaTime);
-    armingTimer_ = result.timer;
-    if (type_ == masloType && result.visualScale >= 0.0F)
+        GetSourceTimer(), deltaTime);
+    SetSourceTimer(result.timer);
+    if (autoDescription_.type == masloType &&
+        result.visualScale >= 0.0F)
+    {
         modelScale_ = result.visualScale;
+        if (auto* model = GetSourceModel())
+        {
+            model->GetGameObj().SetScale(
+                {modelScale_, modelScale_, modelScale_});
+        }
+    }
 }
 
 bool AutoProj::IsPrepared() const noexcept
@@ -918,7 +960,7 @@ bool AutoProj::IsPrepared() const noexcept
 
 bool AutoProj::IsArming() const noexcept
 {
-    return prepared_ && armingTimer_ >= 0.0F;
+    return prepared_ && GetSourceTimer() >= 0.0F;
 }
 
 float AutoProj::GetModelScale() const noexcept
@@ -928,7 +970,7 @@ float AutoProj::GetModelScale() const noexcept
 
 std::uint32_t AutoProj::GetType() const noexcept
 {
-    return type_;
+    return autoDescription_.type;
 }
 
 void ShotEffect::Reset() noexcept

@@ -327,13 +327,14 @@ private:
 // source object prepares itself when Logic is attached, keeps the serialized
 // map transform, and releases only its prepared state when Logic goes away.
 // MineUpdate owns the short arming interval used by the oil model/contact.
-class AutoProj : public GameObject
+class AutoProj : public Proj
 {
 public:
     static constexpr std::uint32_t masloType = 10U;
 
     ~AutoProj() override;
     void Reset(std::uint32_t type) noexcept;
+    void Reset(const ProjectileDefinition& description) noexcept;
     void LogicInited() noexcept override;
     void LogicReleased() noexcept override;
     void OnProgress(float deltaTime) noexcept;
@@ -346,8 +347,7 @@ public:
 private:
     static bool UsesMineUpdate(std::uint32_t type) noexcept;
 
-    std::uint32_t type_ = 0U;
-    float armingTimer_ = -1.0F;
+    ProjectileDefinition autoDescription_;
     // Negative means that the source Proj did not touch actor scale.
     float modelScale_ = -1.0F;
     bool prepared_ = false;

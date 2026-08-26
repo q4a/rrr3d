@@ -556,17 +556,39 @@ int main()
         return 32;
 
     source::AutoProj autoOil;
-    autoOil.Reset(10U);
+    r3d::game::originalrace::ProjectileDefinition autoOilDescription;
+    autoOilDescription.type = 10U;
+    autoOilDescription.damage = 1.5F;
+    autoOilDescription.visual.record = "Bonus\\maslo";
+    autoOil.Reset(autoOilDescription);
+    autoOil.SetWorldPos({4.0F, 5.0F, 6.0F});
+    autoOil.SetMaxLife(12.0F);
+    autoOil.SetLife(9.0F);
+    autoOil.SetMaxTimeLife(8.0F);
+    autoOil.SetTimeLife(2.0F);
     if (autoOil.IsPrepared())
         return 62;
     source::Logic autoProjectileLogic;
     autoOil.SetLogic(&autoProjectileLogic);
     if (!autoOil.IsPrepared() || !autoOil.IsArming() ||
-        autoOil.GetModelScale() != 0.0F)
+        autoOil.GetModelScale() != 0.0F ||
+        autoOil.GetDesc().type != 10U ||
+        autoOil.GetDesc().damage != 1.5F ||
+        autoOil.GetSourceModel() == nullptr ||
+        autoOil.GetSourceModel()->GetParent() != &autoOil ||
+        autoOil.GetIncludeList().GetLiveCount() != 1U ||
+        autoOil.GetWorldPos() !=
+            source::GameObject::Vector3{4.0F, 5.0F, 6.0F} ||
+        autoOil.GetMaxLife() != 12.0F || autoOil.GetLife() != 9.0F ||
+        autoOil.GetMaxTimeLife() != 8.0F ||
+        autoOil.GetTimeLife() != 2.0F ||
+        autoOil.IsExternalLifetimeManaged())
         return 63;
     autoOil.OnProgress(0.125F);
     if (!autoOil.IsArming() ||
-        std::abs(autoOil.GetModelScale() - 0.5F) > 0.001F)
+        std::abs(autoOil.GetModelScale() - 0.5F) > 0.001F ||
+        autoOil.GetSourceModel()->GetGameObj().GetScale() !=
+            source::GameObject::Vector3{0.5F, 0.5F, 0.5F})
         return 64;
     autoOil.OnProgress(0.125F);
     if (autoOil.IsArming() ||

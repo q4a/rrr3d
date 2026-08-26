@@ -136,6 +136,7 @@ int main()
     projectile.GetGameObj().ResetGameObject(-1.0F);
     auto* autoProjectile = projectile.GetAutoProj();
     if (autoProjectile == nullptr || projectile.GetName() != "maslo0" ||
+        dynamic_cast<source::Proj*>(autoProjectile) == nullptr ||
         projectile.IsSpecial() ||
         parent.GetChildren().size() != 2U ||
         autoProjectile->GetLogic() != &logic)

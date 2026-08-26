@@ -1373,7 +1373,17 @@ void OriginalRaceSession::reset()
         if (!bonus.name.empty())
             mapObject.SetName(bonus.name);
         auto* projectile = mapObject.GetAutoProj();
-        projectile->Reset(bonus.projectileType);
+        ProjectileDefinition sourceDescription;
+        sourceDescription.type = bonus.projectileType;
+        sourceDescription.visual = bonus.visual;
+        sourceDescription.deathEffect = bonus.deathEffect;
+        sourceDescription.size = bonus.size;
+        sourceDescription.offset = bonus.offset;
+        sourceDescription.collision = bonus.collision;
+        sourceDescription.speed = bonus.speed;
+        sourceDescription.damage = bonus.value;
+        sourceDescription.modelSize = bonus.modelSize;
+        projectile->Reset(sourceDescription);
         bonusScales_[index] = projectile->GetModelScale();
     }
     bonusNetworkPendingContact_.assign(
