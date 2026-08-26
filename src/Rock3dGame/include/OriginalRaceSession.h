@@ -232,6 +232,12 @@ struct ReplicatedRaceResult
 
 struct RaceEffect
 {
+    RaceEffect() = default;
+    RaceEffect(const RaceEffect&) = delete;
+    RaceEffect& operator=(const RaceEffect&) = delete;
+    RaceEffect(RaceEffect&&) noexcept = default;
+    RaceEffect& operator=(RaceEffect&&) noexcept = default;
+
     RaceEventKind kind = RaceEventKind::WeaponFired;
     Vec3 origin;
     Vec3 target;
@@ -259,16 +265,18 @@ struct RaceEffect
     std::uint8_t contactIndex = 0;
     float ageSeconds = 0.0F;
     float emissionEndSeconds = -1.0F;
-    // FxSystemWaitingEnd owns the two-stage source lifetime. The renderer
-    // supplies the equivalent particle-end boundary through totalSeconds.
-    source::GameObject effectOwner;
-    source::FxSystemWaitingEnd waitingEnd;
+    // A source effect is a real GameObject with concrete serialized
+    // behaviors. Keeping it behind stable storage preserves listener and
+    // Behavior owner identity while RaceEffect entries move in the vector.
+    std::unique_ptr<source::GameObject> effectOwner =
+        std::make_unique<source::GameObject>();
+    source::FxSystemWaitingEndBehavior* waitingEnd = nullptr;
     bool waitForParticleEnd = false;
     Vec3 detachedSourceVelocity;
     // Sounds serialized on an effect object belong to its LifeEffect, not
     // to the event which spawned it. They start from the first progress
     // callback and share the spawned object's lifetime/attachment.
-    source::LifeEffect lifeEffect;
+    source::LifeEffectBehavior* lifeEffect = nullptr;
     std::vector<std::string> lifeSoundPaths;
     std::size_t lifeSoundRacer = RacerRuntime::invalidWeapon;
     std::size_t lifeSoundFollowRacer = RacerRuntime::invalidWeapon;

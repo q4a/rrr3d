@@ -1204,6 +1204,58 @@ bool FxSystemWaitingEnd::IsFading() const noexcept
     return fading_;
 }
 
+FxSystemWaitingEndBehavior::FxSystemWaitingEndBehavior(
+    Behaviors* owner) noexcept
+    : Behavior(owner)
+{
+}
+
+void FxSystemWaitingEndBehavior::OnProgress(float) noexcept
+{
+    auto* owner = GetGameObj();
+    if (owner == nullptr)
+        return;
+    const auto result = state_.OnProgress(*owner, liveParticles_);
+    finalDeath_ = finalDeath_ || result.finalDeath;
+}
+
+void FxSystemWaitingEndBehavior::OnDeath(
+    GameObject& sender, DamageType, GameObject*) noexcept
+{
+    const auto result = state_.OnDeath(sender);
+    beginFading_ = beginFading_ || result.beginFading;
+}
+
+void FxSystemWaitingEndBehavior::SetLiveParticleCount(
+    std::size_t value) noexcept
+{
+    liveParticles_ = value;
+}
+
+bool FxSystemWaitingEndBehavior::IsResurrect() const noexcept
+{
+    return state_.IsResurrect();
+}
+
+bool FxSystemWaitingEndBehavior::IsFading() const noexcept
+{
+    return state_.IsFading();
+}
+
+bool FxSystemWaitingEndBehavior::ConsumeBeginFading() noexcept
+{
+    const bool result = beginFading_;
+    beginFading_ = false;
+    return result;
+}
+
+bool FxSystemWaitingEndBehavior::ConsumeFinalDeath() noexcept
+{
+    const bool result = finalDeath_;
+    finalDeath_ = false;
+    return result;
+}
+
 void FxSystemSrcSpeed::Reset() noexcept
 {
     sourceSpeed_ = {};
@@ -1368,6 +1420,34 @@ bool LifeEffect::OnProgress(bool sourceAvailable) noexcept
 bool LifeEffect::HasPlayed() const noexcept
 {
     return play_;
+}
+
+LifeEffectBehavior::LifeEffectBehavior(Behaviors* owner) noexcept
+    : Behavior(owner)
+{
+}
+
+void LifeEffectBehavior::OnProgress(float) noexcept
+{
+    playRequested_ =
+        state_.OnProgress(sourceAvailable_) || playRequested_;
+}
+
+void LifeEffectBehavior::SetSourceAvailable(bool value) noexcept
+{
+    sourceAvailable_ = value;
+}
+
+bool LifeEffectBehavior::HasPlayed() const noexcept
+{
+    return state_.HasPlayed();
+}
+
+bool LifeEffectBehavior::ConsumePlayRequest() noexcept
+{
+    const bool result = playRequested_;
+    playRequested_ = false;
+    return result;
 }
 
 LowLifePoints::LowLifePoints(float lifeLevel) noexcept

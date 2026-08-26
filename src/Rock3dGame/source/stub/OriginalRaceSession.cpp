@@ -134,6 +134,24 @@ EffectTiming sourceEffectTiming(const ObjectDefinition& definition,
     return result;
 }
 
+void configureSourceEffectOwner(
+    RaceEffect& effect, bool waitForParticleEnd,
+    float maximumTimeLife)
+{
+    auto& owner = *effect.effectOwner;
+    owner.GetBehaviors().Clear();
+    owner.ResetGameObject(-1.0F);
+    owner.SetMaxTimeLife(maximumTimeLife);
+    effect.waitingEnd = nullptr;
+    effect.lifeEffect = nullptr;
+    if (waitForParticleEnd)
+    {
+        effect.waitingEnd = &owner.GetBehaviors()
+            .Add<source::FxSystemWaitingEndBehavior>(
+                source::BehaviorType::FxSystemWaitingEnd);
+    }
+}
+
 void applySourceEffectTiming(RaceEffect& effect,
                              const EffectTiming& timing)
 {
@@ -141,8 +159,11 @@ void applySourceEffectTiming(RaceEffect& effect,
     effect.seconds = timing.visibleSeconds;
     effect.emissionEndSeconds = timing.emissionSeconds;
     effect.waitForParticleEnd = timing.waitForParticleEnd;
-    effect.effectOwner.ResetGameObject(-1.0F);
-    effect.waitingEnd.Reset();
+    configureSourceEffectOwner(
+        effect, timing.waitForParticleEnd,
+        timing.waitForParticleEnd
+            ? timing.emissionSeconds
+            : timing.visibleSeconds);
 }
 
 void attachSourceLifeEffect(
@@ -150,10 +171,15 @@ void attachSourceLifeEffect(
     std::size_t racer = RacerRuntime::invalidWeapon,
     std::size_t followRacer = RacerRuntime::invalidWeapon)
 {
-    effect.lifeEffect.Reset();
     effect.lifeSoundPaths = sounds;
     effect.lifeSoundRacer = racer;
     effect.lifeSoundFollowRacer = followRacer;
+    if (!sounds.empty())
+    {
+        effect.lifeEffect = &effect.effectOwner->GetBehaviors()
+            .Add<source::LifeEffectBehavior>(
+                source::BehaviorType::LifeEffect);
+    }
 }
 
 Vec3 cross(Vec3 first, Vec3 second)
@@ -3374,8 +3400,9 @@ void OriginalRaceSession::updateGameplay(
                     [&](const RaceEffect& value) {
                         return value.kind ==
                                    RaceEventKind::ContactImpact &&
-                               !value.waitingEnd.IsResurrect() &&
-                               !value.effectOwner.destroyed &&
+                               value.waitingEnd != nullptr &&
+                               !value.waitingEnd->IsResurrect() &&
+                               !value.effectOwner->destroyed &&
                                value.racer == racer &&
                                value.contactSurface == contact.surface &&
                                value.contactActor == contact.otherActor &&
@@ -3399,8 +3426,8 @@ void OriginalRaceSession::updateGameplay(
                         source::PairPxContactEffect::
                             contactReleaseSeconds;
                     created.waitForParticleEnd = true;
-                    created.effectOwner.ResetGameObject(-1.0F);
-                    created.waitingEnd.Reset();
+                    configureSourceEffectOwner(
+                        created, true, -1.0F);
                     effects_.push_back(std::move(created));
                     effect = std::prev(effects_.end());
                 }
@@ -3426,8 +3453,9 @@ void OriginalRaceSession::updateGameplay(
             [&](const RaceEffect& value) {
                 if (value.kind != RaceEventKind::ContactImpact ||
                     value.contactIndex != released.slot ||
-                    value.waitingEnd.IsResurrect() ||
-                    value.effectOwner.destroyed)
+                    value.waitingEnd == nullptr ||
+                    value.waitingEnd->IsResurrect() ||
+                    value.effectOwner->destroyed)
                     return false;
                 return pairContactKey(
                            value.racer, value.contactSurface,
@@ -3436,8 +3464,7 @@ void OriginalRaceSession::updateGameplay(
         if (effect == effects_.end())
             continue;
         effect->emissionEndSeconds = effect->ageSeconds;
-        effect->effectOwner.Death();
-        effect->waitingEnd.OnDeath(effect->effectOwner);
+        effect->effectOwner->Death();
     }
 
     for (std::size_t racer = 0;
@@ -3730,6 +3757,8 @@ void OriginalRaceSession::updateGameplay(
             fired.target = end;
             fired.seconds = std::max(seconds, 0.03F);
             fired.totalSeconds = fired.seconds;
+            configureSourceEffectOwner(
+                fired, false, fired.totalSeconds);
             fired.weapon = projectile.weapon;
             fired.projectile = projectile.projectile;
             effects_.push_back(std::move(fired));
@@ -3815,6 +3844,8 @@ void OriginalRaceSession::updateGameplay(
                         // Proj::DrobilkaContact resets _time1 to 0.5.
                         effect->seconds = 0.5F;
                         effect->totalSeconds = 0.5F;
+                        configureSourceEffectOwner(
+                            *effect, false, effect->totalSeconds);
                     };
                 for (std::size_t target = 0;
                      target < vehicles.size() &&
@@ -4005,6 +4036,8 @@ void OriginalRaceSession::updateGameplay(
         fired.target = projectile.position;
         fired.seconds = std::max(seconds, 0.03F);
         fired.totalSeconds = fired.seconds;
+        configureSourceEffectOwner(
+            fired, false, fired.totalSeconds);
         fired.weapon = projectile.weapon;
         fired.projectile = projectile.projectile;
         effects_.push_back(std::move(fired));
@@ -5676,6 +5709,8 @@ void OriginalRaceSession::updateGameplay(
             fired.seconds =
                 (rayProjectile || attachedProjectile) ? 0.12F : 0.03F;
             fired.totalSeconds = fired.seconds;
+            configureSourceEffectOwner(
+                fired, false, fired.totalSeconds);
             fired.weapon = firedWeapon;
             fired.projectile = backendProjectileIndex;
             effects_.push_back(std::move(fired));
@@ -6325,8 +6360,23 @@ void OriginalRaceSession::update(
     {
         effect.seconds -= seconds;
         effect.ageSeconds += seconds;
-        if (effect.lifeEffect.OnProgress(
-                !effect.lifeSoundPaths.empty()))
+        if (effect.waitingEnd != nullptr)
+        {
+            // FxParticleSystem::GetCntParticle is a renderer boundary. The
+            // source behavior only needs to know whether any emitted
+            // particles remain, so the parsed visible lifetime supplies the
+            // equivalent count here.
+            effect.waitingEnd->SetLiveParticleCount(
+                effect.seconds > 0.0F ? 1U : 0U);
+        }
+        if (effect.lifeEffect != nullptr)
+        {
+            effect.lifeEffect->SetSourceAvailable(
+                !effect.lifeSoundPaths.empty());
+        }
+        effect.effectOwner->OnProgress(seconds);
+        if (effect.lifeEffect != nullptr &&
+            effect.lifeEffect->ConsumePlayRequest())
         {
             RaceEvent sound;
             sound.kind = RaceEventKind::EffectSound;
@@ -6350,47 +6400,31 @@ void OriginalRaceSession::update(
                     : effect.lifeSoundFollowRacer;
             events_.push_back(std::move(sound));
         }
-        if (effect.waitForParticleEnd &&
-            effect.kind != RaceEventKind::ContactImpact &&
-            !effect.waitingEnd.IsResurrect() &&
-            effect.emissionEndSeconds >= 0.0F &&
-            effect.ageSeconds > effect.emissionEndSeconds)
+        if (effect.waitingEnd != nullptr &&
+            effect.waitingEnd->ConsumeBeginFading() &&
+            effect.parentRacer < vehicles.size())
         {
-            effect.effectOwner.Death();
-            const auto transition =
-                effect.waitingEnd.OnDeath(effect.effectOwner);
-            if (transition.beginFading &&
-                effect.parentRacer < vehicles.size())
-            {
-                // ResurrectObj::Resurrect removes a child MapObj from its
-                // include list and reinserts it into the world while keeping
-                // the current world pose. Preserve that source transition at
-                // the backend-neutral RaceEffect boundary.
-                effect.transform = compose(
-                    vehicles[effect.parentRacer].body,
-                    effect.transform);
-                effect.origin = effect.transform.position;
-                effect.target = add(
-                    effect.origin,
-                    rotate(effect.transform.rotation,
-                           {1.0F, 0.0F, 0.0F}));
-                effect.detachedSourceVelocity =
-                    vehicles[effect.parentRacer].linearVelocity;
-                effect.parentRacer = RacerRuntime::invalidWeapon;
-            }
+            // ResurrectObj::Resurrect removes a child MapObj from its
+            // include list and reinserts it into the world while keeping
+            // the current world pose. Preserve that source transition at
+            // the backend-neutral RaceEffect boundary.
+            effect.transform = compose(
+                vehicles[effect.parentRacer].body,
+                effect.transform);
+            effect.origin = effect.transform.position;
+            effect.target = add(
+                effect.origin,
+                rotate(effect.transform.rotation,
+                       {1.0F, 0.0F, 0.0F}));
+            effect.detachedSourceVelocity =
+                vehicles[effect.parentRacer].linearVelocity;
+            effect.parentRacer = RacerRuntime::invalidWeapon;
         }
-        if (effect.waitForParticleEnd && effect.seconds <= 0.0F)
-            effect.waitingEnd.OnProgress(effect.effectOwner, 0U);
     }
     effects_.erase(
         std::remove_if(effects_.begin(), effects_.end(),
                        [](const RaceEffect& effect) {
-                           if (effect.waitForParticleEnd)
-                           {
-                               return effect.waitingEnd.IsResurrect() &&
-                                      effect.effectOwner.destroyed;
-                           }
-                           return effect.seconds <= 0.0F;
+                           return effect.effectOwner->destroyed;
                        }),
         effects_.end());
     const auto gameModeAdvance = gameModeRaceState_.OnFrame(seconds);
@@ -8574,7 +8608,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     [](const RaceEffect& effect) {
                         return effect.kind ==
                                    RaceEventKind::ContactImpact &&
-                               effect.waitingEnd.IsResurrect();
+                               effect.waitingEnd != nullptr &&
+                               effect.waitingEnd->IsResurrect();
                     }));
             const auto liveContactCount =
                 static_cast<std::size_t>(std::count_if(
@@ -8583,7 +8618,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     [](const RaceEffect& effect) {
                         return effect.kind ==
                                    RaceEventKind::ContactImpact &&
-                               !effect.waitingEnd.IsResurrect();
+                               effect.waitingEnd != nullptr &&
+                               !effect.waitingEnd->IsResurrect();
                     }));
             if (fadingContactCount != 2U || liveContactCount != 1U)
             {

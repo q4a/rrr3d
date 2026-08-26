@@ -490,6 +490,47 @@ int main()
     if (lifeEffect.HasPlayed() || !lifeEffect.OnProgress(true))
         return 39;
 
+    source::GameObject behaviorEffectOwner;
+    behaviorEffectOwner.ResetGameObject(-1.0F);
+    auto& waitingBehavior =
+        behaviorEffectOwner.GetBehaviors()
+            .Add<source::FxSystemWaitingEndBehavior>(
+                source::BehaviorType::FxSystemWaitingEnd);
+    waitingBehavior.SetLiveParticleCount(2U);
+    if (behaviorEffectOwner.GetBehaviors().GetCount() != 1U ||
+        behaviorEffectOwner.GetListenerCount() != 1U ||
+        !behaviorEffectOwner.Death() ||
+        behaviorEffectOwner.destroyed ||
+        !waitingBehavior.IsResurrect() ||
+        !waitingBehavior.IsFading() ||
+        !waitingBehavior.ConsumeBeginFading())
+        return 93;
+    behaviorEffectOwner.OnProgress(0.1F);
+    if (behaviorEffectOwner.destroyed ||
+        waitingBehavior.ConsumeFinalDeath())
+        return 94;
+    waitingBehavior.SetLiveParticleCount(0U);
+    behaviorEffectOwner.OnProgress(0.1F);
+    if (!behaviorEffectOwner.destroyed ||
+        !waitingBehavior.ConsumeFinalDeath())
+        return 95;
+
+    source::GameObject behaviorSoundOwner;
+    behaviorSoundOwner.ResetGameObject(-1.0F);
+    auto& lifeBehavior =
+        behaviorSoundOwner.GetBehaviors()
+            .Add<source::LifeEffectBehavior>(
+                source::BehaviorType::LifeEffect);
+    behaviorSoundOwner.OnProgress(0.1F);
+    if (lifeBehavior.HasPlayed() || lifeBehavior.ConsumePlayRequest())
+        return 96;
+    lifeBehavior.SetSourceAvailable(true);
+    behaviorSoundOwner.OnProgress(0.1F);
+    if (!lifeBehavior.HasPlayed() ||
+        !lifeBehavior.ConsumePlayRequest() ||
+        lifeBehavior.ConsumePlayRequest())
+        return 97;
+
     source::DeathEffect deathEffect(true, true);
     if (deathEffect.OnDeath(false, true, true).createEffect ||
         deathEffect.IsEffectMaked())

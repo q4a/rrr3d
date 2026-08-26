@@ -2509,6 +2509,26 @@ MapObj, parent GameCar и concrete types 13/14 отсутствовали, по�
 graph, а `FreeCar` удаляет include actors. Regression проверяет exact types,
 1+2 layout, порядок/результат progress, dead-zone, copy rebinding и cleanup.
 
+### P2.98 — concrete `FxSystemWaitingEnd`/`LifeEffect` graph — выполнено
+
+Алгоритмы двух effect behaviors уже были перенесены, но `RaceEffect` держал
+их как пассивные поля: session вручную вызывал `OnDeath`/`OnProgress`, а
+`GameObject` не владел listener lifecycle. Это сохраняло результат нескольких
+сценариев, но не исходную модель объекта и легко расходилось при новых типах
+эффектов.
+
+Теперь каждый `RaceEffect` имеет стабильно размещённый source `GameObject` и
+concrete behaviors типов 2/7. `GameObject::Death` сам рассылает первую смерть
+`FxSystemWaitingEndBehavior`, behavior включает fading и выполняет `Resc`, а
+его обычный progress посылает финальную смерть после нулевого particle count.
+Serialized `LifeEffectBehavior` опрашивает доступность SDL Source3d и выдаёт
+один Play transition. Effective emission/visible lifetime задаются через
+`GameObject::maximumTimeLife`; contact effects по-прежнему получают внешний
+release от source `PairPxContactEffect`. Backend передаёт только число живых
+частиц и доступность звука. Regression проверяет type/listener identity,
+автоматическую двухступенчатую смерть и одноразовый delayed Play; полный
+physics/render/audio smoke подтверждает lifetime и teardown в гонке.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

@@ -486,6 +486,32 @@ private:
     bool fading_ = false;
 };
 
+// Concrete Behavior counterpart of the source FxSystemWaitingEnd class.
+// The graphics backend supplies only the current live-particle count; death
+// interception, resurrection and the final Death notification remain in the
+// GameObject listener/progress graph.
+class FxSystemWaitingEndBehavior final : public Behavior
+{
+public:
+    explicit FxSystemWaitingEndBehavior(Behaviors* owner) noexcept;
+
+    void OnProgress(float deltaTime) noexcept override;
+    void OnDeath(GameObject& sender, DamageType damageType,
+                 GameObject* target) noexcept override;
+
+    void SetLiveParticleCount(std::size_t value) noexcept;
+    bool IsResurrect() const noexcept;
+    bool IsFading() const noexcept;
+    bool ConsumeBeginFading() noexcept;
+    bool ConsumeFinalDeath() noexcept;
+
+private:
+    FxSystemWaitingEnd state_;
+    std::size_t liveParticles_ = 0U;
+    bool beginFading_ = false;
+    bool finalDeath_ = false;
+};
+
 // GameBase.cpp::FxSystemSrcSpeed copies the owning PhysX actor's linear
 // velocity into every direct particle system.  When the effect GameObject is
 // included below another object, the source first converts that velocity
@@ -585,6 +611,25 @@ public:
 
 private:
     bool play_ = false;
+};
+
+// Concrete Behavior counterpart of GameBase.cpp::LifeEffect. SDL owns the
+// Source3d equivalent, but availability is sampled by this behavior and the
+// one-shot Play transition is consumed by the audio adapter.
+class LifeEffectBehavior final : public Behavior
+{
+public:
+    explicit LifeEffectBehavior(Behaviors* owner) noexcept;
+
+    void OnProgress(float deltaTime) noexcept override;
+    void SetSourceAvailable(bool value) noexcept;
+    bool HasPlayed() const noexcept;
+    bool ConsumePlayRequest() noexcept;
+
+private:
+    LifeEffect state_;
+    bool sourceAvailable_ = false;
+    bool playRequested_ = false;
 };
 
 // Backend-neutral state owned by the original GameBase behavior classes.
