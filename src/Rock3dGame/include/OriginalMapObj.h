@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 
 namespace r3d::game::originalrace::source
@@ -13,6 +14,7 @@ namespace r3d::game::originalrace::source
 class AutoProj;
 class GameObject;
 class DestrObj;
+class MapObj;
 class MapObjects;
 class MapObjectsObserver;
 class Player;
@@ -45,6 +47,50 @@ enum class MapObjCategory : std::uint8_t
 
 const char* GameObjTypeName(GameObjType value) noexcept;
 const char* MapObjCategoryName(MapObjCategory value) noexcept;
+
+// Stable source Record identity. MapObjRec obtains its category from the
+// owning MapObjLib and stores the concrete GameObject type loaded from the
+// serialized record. XML nodes remain parser-owned; runtime proxy identity
+// and AddProxyTo behavior live here.
+class MapObjRecord
+{
+public:
+    const std::string& GetPath() const noexcept;
+    const std::string& GetParent() const noexcept;
+    MapObjCategory GetCategory() const noexcept;
+    GameObjType GetType() const noexcept;
+
+private:
+    friend class MapObjRecordLibrary;
+    MapObjRecord(std::string path, std::string parent,
+                 MapObjCategory category, GameObjType type);
+
+    std::string path_;
+    std::string parent_;
+    MapObjCategory category_ = MapObjCategory::Effects;
+    GameObjType type_ = GameObjType::GameObj;
+};
+
+class MapObjRecordLibrary
+{
+public:
+    MapObjRecordLibrary() = default;
+    explicit MapObjRecordLibrary(MapObjCategory category) noexcept;
+
+    void SetCategory(MapObjCategory value) noexcept;
+    MapObjCategory GetCategory() const noexcept;
+    MapObjRecord& GetOrCreateRecord(
+        std::string path, GameObjType type,
+        std::string parent = {});
+    MapObjRecord* FindRecord(std::string_view path);
+    const MapObjRecord* FindRecord(std::string_view path) const;
+    std::size_t GetRecordCount() const noexcept;
+    void AddProxyTo(MapObj& object, const MapObjRecord& record) const;
+
+private:
+    MapObjCategory category_ = MapObjCategory::Effects;
+    std::unordered_map<std::string, std::unique_ptr<MapObjRecord>> records_;
+};
 
 // Backend-neutral owner corresponding to source MapObj.  The portable
 // GameObject hierarchy is being introduced incrementally: every entry owns
@@ -79,10 +125,12 @@ public:
     void SetParent(GameObject* value);
 
     const std::string& GetRecord() const noexcept;
+    const MapObjRecord* GetRecordProxy() const noexcept;
     const std::string& GetRecordParent() const noexcept;
     MapObjCategory GetCategory() const noexcept;
     void SetRecord(std::string value, MapObjCategory category,
                    std::string parent = {});
+    void SetRecordProxy(const MapObjRecord* value);
 
     Player* GetPlayer() noexcept;
     const Player* GetPlayer() const noexcept;
@@ -104,6 +152,7 @@ private:
     std::size_t sourceIndex_ = static_cast<std::size_t>(-1);
     GameObjType type_ = GameObjType::GameObj;
     MapObjCategory category_ = MapObjCategory::Effects;
+    const MapObjRecord* recordProxy_ = nullptr;
     std::unique_ptr<GameObject> gameObj_;
     std::string name_;
     std::string record_;
@@ -138,6 +187,7 @@ public:
     MapObj& Add(GameObjType type, MapObjCategory category,
                 std::string record, std::uint32_t id,
                 std::string recordParent = {});
+    MapObj& Add(const MapObjRecord& record, std::uint32_t id);
     void Reserve(std::size_t value);
     void Clear() noexcept;
 

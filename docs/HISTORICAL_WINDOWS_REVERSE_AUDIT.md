@@ -2199,6 +2199,23 @@ Windows использует для каждого успешно подгото
 оригинального `Weapon::CreateShot`. Weapon regression проверяет duplicate
 registration, строгую границу `_timeLife > _maxTimeLife`, удаление и clean.
 
+### P2.81 — `MapObjRec/MapObjLib` stable proxy identity — выполнено
+
+Строковое поле `MapObj::record` больше не является единственным runtime
+представлением базы. Для каждой из семи source-категорий `Map` владеет
+отдельным `MapObjRecordLibrary`; запись фиксирует path, parent, category и
+serialized `GameObjType`. Повторный `GetOrCreateRecord` возвращает тот же
+адрес, а попытка назначить одному path другой concrete type отклоняется как
+повреждённая база.
+
+Активный `Map::AddMapObj` теперь создаёт объект через record proxy и хранит
+обратную identity в `MapObj`. Смена live concrete type не теряет исходную
+запись, а `Map::Clear` уничтожает экземпляры и ID namespace, но сохраняет
+каталог, как Windows `DataBase`. Map regression проверяет category/type,
+FindRecord/shared identity, mismatch и persistence каталога через Clear.
+XML `SerialNode/RecordLib` writer остаётся parser boundary, а не дублируется
+в gameplay owner.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

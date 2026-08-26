@@ -23,8 +23,12 @@ std::string_view recordName(std::string_view value) noexcept
 
 Map::Map(Logic* logic) : logic_(logic)
 {
-    for (auto& category : categories_)
-        category.SetObserver(this);
+    for (std::size_t index = 0U; index < categories_.size(); ++index)
+    {
+        categories_[index].SetObserver(this);
+        recordLibraries_[index].SetCategory(
+            static_cast<MapObjCategory>(index));
+    }
 }
 
 Map::~Map()
@@ -65,8 +69,10 @@ MapObj& Map::AddMapObj(
             " is not unique/nonzero for '" + record +
             "' (existing '" + existing + "')");
     }
-    auto& result = categories_[CategoryIndex(category)].Add(
-        type, category, std::move(record), sourceId);
+    const auto categoryIndex = CategoryIndex(category);
+    auto& recordProxy = recordLibraries_[categoryIndex].GetOrCreateRecord(
+        std::move(record), type);
+    auto& result = categories_[categoryIndex].Add(recordProxy, sourceId);
     result.SetSourceIndex(sourceIndex);
     result.GetGameObj().SetLogic(logic_);
     Register(result, sourceId);
@@ -134,6 +140,17 @@ const MapObjects& Map::GetMapObjList(
     MapObjCategory category) const noexcept
 {
     return categories_[CategoryIndex(category)];
+}
+
+MapObjRecordLibrary& Map::GetRecordLib(
+    MapObjCategory category) noexcept
+{
+    return recordLibraries_[CategoryIndex(category)];
+}
+const MapObjRecordLibrary& Map::GetRecordLib(
+    MapObjCategory category) const noexcept
+{
+    return recordLibraries_[CategoryIndex(category)];
 }
 
 MapObj* Map::GetMapObj(std::uint32_t id, bool includeDead) noexcept

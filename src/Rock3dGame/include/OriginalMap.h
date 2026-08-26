@@ -51,6 +51,9 @@ public:
     MapObjects& GetMapObjList(MapObjCategory category) noexcept;
     const MapObjects& GetMapObjList(
         MapObjCategory category) const noexcept;
+    MapObjRecordLibrary& GetRecordLib(MapObjCategory category) noexcept;
+    const MapObjRecordLibrary& GetRecordLib(
+        MapObjCategory category) const noexcept;
     MapObj* GetMapObj(
         std::uint32_t id, bool includeDead = false) noexcept;
     const MapObj* GetMapObj(
@@ -71,6 +74,9 @@ private:
     void Register(MapObj& value, std::uint32_t id);
     void OnMapObjRemoving(MapObj& value) noexcept override;
 
+    // Record libraries outlive live category objects, matching DataBase.
+    // Declaration order makes categories destruct before their proxies.
+    std::array<MapObjRecordLibrary, 7U> recordLibraries_;
     std::array<MapObjects, 7U> categories_;
     Objects objects_;
     Logic* logic_ = nullptr;

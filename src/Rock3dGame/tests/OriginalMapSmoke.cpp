@@ -42,13 +42,43 @@ int main()
         map.GetLastId() != 9U || map.GetObjects().size() != 2U ||
         semaphore.GetSourceIndex() != 2U ||
         semaphore.GetGameObj().GetLogic() != &logic ||
+        semaphore.GetRecordProxy() == nullptr ||
+        semaphore.GetRecordProxy()->GetCategory() !=
+            source::MapObjCategory::Decoration ||
+        semaphore.GetRecordProxy()->GetType() !=
+            source::GameObjType::DestrObj ||
+        map.GetRecordLib(source::MapObjCategory::Decoration)
+                .FindRecord(semaphore.GetRecord()) !=
+            semaphore.GetRecordProxy() ||
         map.GetMapObjCount(
             "world\\db\\root\\ctTrack\\track1",
             source::MapObjCategory::Track) != 1U)
         return 2;
+    auto& sharedTrackRecord =
+        map.GetRecordLib(source::MapObjCategory::Track)
+            .GetOrCreateRecord(
+                track.GetRecord(), source::GameObjType::GameObj);
+    if (&sharedTrackRecord != track.GetRecordProxy() ||
+        map.GetRecordLib(source::MapObjCategory::Track)
+                .GetRecordCount() != 1U)
+        return 13;
+    bool recordTypeMismatchRejected = false;
+    try
+    {
+        map.GetRecordLib(source::MapObjCategory::Track)
+            .GetOrCreateRecord(
+                track.GetRecord(), source::GameObjType::Proj);
+    }
+    catch (const std::invalid_argument&)
+    {
+        recordTypeMismatchRejected = true;
+    }
+    if (!recordTypeMismatchRejected)
+        return 14;
     track.SetType(source::GameObjType::DestrObj);
     if (track.GetGameObj().GetLogic() != &logic ||
-        track.GetDestrObj() == nullptr)
+        track.GetDestrObj() == nullptr ||
+        track.GetRecordProxy() != &sharedTrackRecord)
         return 12;
 
     auto& bonus = map.AddMapObj(
@@ -93,9 +123,12 @@ int main()
         return 7;
 
     map.Clear();
+    const auto retainedTrackRecords =
+        map.GetRecordLib(source::MapObjCategory::Track).GetRecordCount();
     if (!map.GetObjects().empty() || map.GetLastId() != 0U ||
         map.GetTrace().GetPathCount() != 1U ||
-        map.GetTrace().FindPoint(17U) != tracePoint)
+        map.GetTrace().FindPoint(17U) != tracePoint ||
+        retainedTrackRecords != 1U)
         return 8;
     auto& first = map.AddMapObj(
         source::MapObjCategory::Effects,

@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <array>
+#include <stdexcept>
 #include <utility>
 
 namespace r3d::game::originalrace::source
@@ -18,6 +19,20 @@ constexpr std::array<const char*, 6U> gameObjectTypeNames{
 constexpr std::array<const char*, 7U> mapObjectCategoryNames{
     "ctEffects", "ctDecoration", "ctTrack", "ctWeapon", "ctCar",
     "ctWaypoint", "ctBonus"};
+
+std::string makeRecordParent(std::string_view record)
+{
+    const auto slash = record.find_last_of("/\\");
+    if (slash == std::string_view::npos)
+        return {};
+    const auto previous = slash == 0U
+        ? std::string_view::npos
+        : record.find_last_of("/\\", slash - 1U);
+    const auto first = previous == std::string_view::npos
+        ? 0U
+        : previous + 1U;
+    return std::string(record.substr(first, slash - first));
+}
 
 } // namespace
 
@@ -35,6 +50,93 @@ const char* MapObjCategoryName(MapObjCategory value) noexcept
     return index < mapObjectCategoryNames.size()
         ? mapObjectCategoryNames[index]
         : "ctEffects";
+}
+
+MapObjRecord::MapObjRecord(
+    std::string path, std::string parent,
+    MapObjCategory category, GameObjType type)
+    : path_(std::move(path)),
+      parent_(parent.empty() ? makeRecordParent(path_) : std::move(parent)),
+      category_(category), type_(type)
+{
+}
+
+const std::string& MapObjRecord::GetPath() const noexcept { return path_; }
+const std::string& MapObjRecord::GetParent() const noexcept
+{
+    return parent_;
+}
+MapObjCategory MapObjRecord::GetCategory() const noexcept
+{
+    return category_;
+}
+GameObjType MapObjRecord::GetType() const noexcept { return type_; }
+
+MapObjRecordLibrary::MapObjRecordLibrary(
+    MapObjCategory category) noexcept
+    : category_(category)
+{
+}
+
+void MapObjRecordLibrary::SetCategory(MapObjCategory value) noexcept
+{
+    if (records_.empty())
+        category_ = value;
+}
+
+MapObjCategory MapObjRecordLibrary::GetCategory() const noexcept
+{
+    return category_;
+}
+
+MapObjRecord& MapObjRecordLibrary::GetOrCreateRecord(
+    std::string path, GameObjType type, std::string parent)
+{
+    const auto found = records_.find(path);
+    if (found != records_.end())
+    {
+        if (found->second->GetType() != type)
+        {
+            throw std::invalid_argument(
+                "MapObj record '" + path + "' changes type from " +
+                GameObjTypeName(found->second->GetType()) + " to " +
+                GameObjTypeName(type));
+        }
+        return *found->second;
+    }
+    const std::string key = path;
+    auto record = std::unique_ptr<MapObjRecord>(new MapObjRecord(
+        std::move(path), std::move(parent), category_, type));
+    auto& result = *record;
+    records_.emplace(key, std::move(record));
+    return result;
+}
+
+MapObjRecord* MapObjRecordLibrary::FindRecord(
+    std::string_view path)
+{
+    return const_cast<MapObjRecord*>(
+        static_cast<const MapObjRecordLibrary*>(this)->FindRecord(path));
+}
+
+const MapObjRecord* MapObjRecordLibrary::FindRecord(
+    std::string_view path) const
+{
+    const auto found = records_.find(std::string(path));
+    return found == records_.end() ? nullptr : found->second.get();
+}
+
+std::size_t MapObjRecordLibrary::GetRecordCount() const noexcept
+{
+    return records_.size();
+}
+
+void MapObjRecordLibrary::AddProxyTo(
+    MapObj& object, const MapObjRecord& record) const
+{
+    if (record.GetCategory() != category_)
+        throw std::invalid_argument("MapObj record/library category mismatch");
+    object.SetRecordProxy(&record);
 }
 
 MapObj::MapObj(MapObjects* owner) : owner_(owner)
@@ -123,6 +225,10 @@ void MapObj::SetParent(GameObject* value)
         gameObj_->SetParent(value);
 }
 const std::string& MapObj::GetRecord() const noexcept { return record_; }
+const MapObjRecord* MapObj::GetRecordProxy() const noexcept
+{
+    return recordProxy_;
+}
 const std::string& MapObj::GetRecordParent() const noexcept
 {
     return recordParent_;
@@ -132,11 +238,23 @@ MapObjCategory MapObj::GetCategory() const noexcept { return category_; }
 void MapObj::SetRecord(std::string value, MapObjCategory category,
                        std::string parent)
 {
+    recordProxy_ = nullptr;
     record_ = std::move(value);
     category_ = category;
     recordParent_ = parent.empty()
         ? MapObjects::RecordParent(record_)
         : std::move(parent);
+}
+
+void MapObj::SetRecordProxy(const MapObjRecord* value)
+{
+    recordProxy_ = nullptr;
+    if (value == nullptr)
+        return;
+    SetType(value->GetType());
+    SetRecord(
+        value->GetPath(), value->GetCategory(), value->GetParent());
+    recordProxy_ = value;
 }
 
 Player* MapObj::GetPlayer() noexcept { return player_; }
@@ -186,6 +304,19 @@ MapObj& MapObjects::Add(GameObjType type, MapObjCategory category,
         std::move(record), category, std::move(recordParent));
     object.SetId(id);
     return object;
+}
+
+MapObj& MapObjects::Add(
+    const MapObjRecord& record, std::uint32_t id)
+{
+    auto object = std::make_unique<MapObj>(this);
+    object->SetRecordProxy(&record);
+    object->SetName(MakeUniqueName(record.GetPath()));
+    object->SetId(id);
+    object->SetParent(owner_);
+    auto& result = *object;
+    objects_.push_back(std::move(object));
+    return result;
 }
 
 void MapObjects::Reserve(std::size_t value) { objects_.reserve(value); }
@@ -306,16 +437,7 @@ GameObject* MapObjects::GetOwner() const noexcept { return owner_; }
 
 std::string MapObjects::RecordParent(std::string_view record)
 {
-    const auto slash = record.find_last_of("/\\");
-    if (slash == std::string_view::npos)
-        return {};
-    const auto previous = slash == 0U
-        ? std::string_view::npos
-        : record.find_last_of("/\\", slash - 1U);
-    const auto first = previous == std::string_view::npos
-        ? 0U
-        : previous + 1U;
-    return std::string(record.substr(first, slash - first));
+    return makeRecordParent(record);
 }
 
 std::string MapObjects::MakeUniqueName(std::string baseName) const
