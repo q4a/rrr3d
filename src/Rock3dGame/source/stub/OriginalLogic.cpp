@@ -201,6 +201,69 @@ Logic::TakeBonusResult Logic::TakeBonus(
             true};
 }
 
+Logic::~Logic()
+{
+    CleanGameObjs();
+}
+
+void Logic::RegGameObj(GameObject* value)
+{
+    if (value == nullptr)
+        return;
+    const auto duplicate = std::find_if(
+        gameObjects_.begin(), gameObjects_.end(),
+        [&](const auto& object) { return object.get() == value; });
+    if (duplicate != gameObjects_.end())
+        return;
+    value->SetLogic(this);
+    gameObjects_.emplace_back(value);
+}
+
+void Logic::CleanGameObjs() noexcept
+{
+    for (auto& object : gameObjects_)
+    {
+        if (object != nullptr)
+            object->SetLogic(nullptr);
+    }
+    gameObjects_.clear();
+}
+
+Logic::GameObjectProgress Logic::ProgressGameObjs(
+    float deltaTime) noexcept
+{
+    GameObjectProgress result;
+    for (auto iterator = gameObjects_.begin();
+         iterator != gameObjects_.end();)
+    {
+        auto& object = *iterator;
+        if (object == nullptr)
+        {
+            iterator = gameObjects_.erase(iterator);
+            ++result.removed;
+            continue;
+        }
+        ++result.progressed;
+        object->OnProgress(deltaTime);
+        if (object->GetLiveState() == GameObject::LiveState::Death)
+        {
+            object->SetLogic(nullptr);
+            iterator = gameObjects_.erase(iterator);
+            ++result.removed;
+        }
+        else
+        {
+            ++iterator;
+        }
+    }
+    return result;
+}
+
+std::size_t Logic::GetGameObjCount() const noexcept
+{
+    return gameObjects_.size();
+}
+
 void Logic::ResetContactBehavior(std::size_t soundCount) noexcept
 {
     pairPxContactEffect_.Reset(soundCount);

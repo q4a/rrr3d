@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <limits>
 #include <map>
+#include <memory>
 #include <span>
 #include <vector>
 
@@ -153,6 +154,24 @@ public:
         const std::vector<std::uint32_t>& maximumCharges,
         float randomUnit) noexcept;
 
+    struct GameObjectProgress
+    {
+        std::size_t progressed = 0U;
+        std::size_t removed = 0U;
+    };
+
+    Logic() = default;
+    ~Logic();
+    Logic(const Logic&) = delete;
+    Logic& operator=(const Logic&) = delete;
+
+    // Source Logic::RegGameObj takes ownership of prepared transient
+    // GameObjects (Weapon.cpp uses it for every successful fast projectile).
+    void RegGameObj(GameObject* value);
+    void CleanGameObjs() noexcept;
+    GameObjectProgress ProgressGameObjs(float deltaTime) noexcept;
+    std::size_t GetGameObjCount() const noexcept;
+
     // Logic.cpp owns the global contact behavior and the four serialized
     // GameCar contact ranges. Physics/audio remain backend adapters.
     void ResetContactBehavior(std::size_t soundCount = 0U) noexcept;
@@ -169,6 +188,7 @@ public:
     void SetTouchCarDamageForce(ContactRange value) noexcept;
 
 private:
+    std::vector<std::unique_ptr<GameObject>> gameObjects_;
     PairPxContactEffect pairPxContactEffect_;
     ContactRange touchBorderDamage_{};
     ContactRange touchBorderDamageForce_{};

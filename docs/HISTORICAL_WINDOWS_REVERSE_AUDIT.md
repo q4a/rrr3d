@@ -2185,6 +2185,20 @@ type. Ручной вызов из `OriginalRaceSession` удалён. Weapon и
 regressions проверяют ожидание Logic, автоматический init/release и oil
 arming/scale через активный object graph.
 
+### P2.80 — `Logic::_gameObjList` transient owner — выполнено
+
+Из `Logic.cpp` перенесён отдельный владелец временных `GameObject`, который
+Windows использует для каждого успешно подготовленного быстрого projectile.
+`RegGameObj` принимает владение, не допускает повторной регистрации и
+назначает общий `Logic`; `ProgressGameObjs` сначала выполняет исходный
+`OnProgress`, затем удаляет `lsDeath`; `CleanGameObjs` разрывает Logic-связи
+и уничтожает всё при завершении гонки.
+
+Это намеренно не смешано с семью `MapObjList`: map-projectile `AutoProj`
+остаётся объектом карты, а transient list имеет отдельную семантику
+оригинального `Weapon::CreateShot`. Weapon regression проверяет duplicate
+registration, строгую границу `_timeLife > _maxTimeLife`, удаление и clean.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

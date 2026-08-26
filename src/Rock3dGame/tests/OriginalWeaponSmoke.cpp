@@ -415,6 +415,30 @@ int main()
         autoMinePiece.GetModelScale() >= 0.0F)
         return 67;
 
+    auto* timedObject = new source::GameObject();
+    timedObject->ResetGameObject(-1.0F);
+    timedObject->SetMaxTimeLife(0.25F);
+    autoProjectileLogic.RegGameObj(timedObject);
+    autoProjectileLogic.RegGameObj(timedObject);
+    if (autoProjectileLogic.GetGameObjCount() != 1U ||
+        timedObject->GetLogic() != &autoProjectileLogic)
+        return 94;
+    const auto exactLifetime =
+        autoProjectileLogic.ProgressGameObjs(0.25F);
+    if (exactLifetime.progressed != 1U || exactLifetime.removed != 0U ||
+        autoProjectileLogic.GetGameObjCount() != 1U)
+        return 95;
+    const auto expiredLifetime =
+        autoProjectileLogic.ProgressGameObjs(0.001F);
+    if (expiredLifetime.progressed != 1U ||
+        expiredLifetime.removed != 1U ||
+        autoProjectileLogic.GetGameObjCount() != 0U)
+        return 96;
+    autoProjectileLogic.RegGameObj(new source::GameObject());
+    autoProjectileLogic.CleanGameObjs();
+    if (autoProjectileLogic.GetGameObjCount() != 0U)
+        return 97;
+
     const auto firstRocketHeight = source::Proj::RocketUpdate(
         10.0F, 3.0F, 2.0F, 0.0F, true);
     const auto lowerRocketHeight = source::Proj::RocketUpdate(
