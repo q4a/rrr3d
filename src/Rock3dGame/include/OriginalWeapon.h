@@ -14,6 +14,8 @@
 namespace r3d::game::originalrace::source
 {
 
+class Player;
+
 // Gameplay-owned contact rules from Proj. PhysX actor lookup and the final
 // Jolt velocity/momentum writes remain backend adapters.
 class Proj : public GameObject, public GameObjectListener
@@ -277,6 +279,9 @@ public:
     ImpulseContactResult ContactImpulse(
         bool hasContactActor, bool hasTarget,
         bool contactIsTarget, float damage) noexcept;
+    Player* FindNextTarget(
+        Player* currentTarget, Player* weaponOwner,
+        std::span<Player* const> players, float viewAngle) noexcept;
     void RetargetImpulse(GameObject* target) noexcept;
     LaserUpdateResult ProgressLaser(
         float maximumDistance, bool hit, float hitDistance,

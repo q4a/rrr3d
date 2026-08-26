@@ -2,6 +2,7 @@
 
 #include "OriginalLogic.h"
 #include "OriginalMapObj.h"
+#include "OriginalPlayer.h"
 
 #include <algorithm>
 #include <cmath>
@@ -857,6 +858,38 @@ Proj::ImpulseContactResult Proj::ContactImpulse(
         sourceTick_, damage);
     sourceTick_ = result.hitCount;
     return result;
+}
+
+Player* Proj::FindNextTarget(
+    Player* currentTarget, Player* weaponOwner,
+    std::span<Player* const> players, float viewAngle) noexcept
+{
+    // Weapon.cpp::FindNextTaget starts from the player represented by the
+    // current ShotDesc target. Race/MapObj lookup is an adapter concern, so
+    // the portable caller supplies that already-resolved source player. The
+    // Jolt session currently removes a dead car MapObj before returning from
+    // its damage adapter; that removal clears target_. The captured Player is
+    // the exact source callback target and intentionally remains valid for
+    // this synchronous post-damage search, matching Windows deferred cleanup.
+    if (currentTarget == nullptr)
+        return nullptr;
+
+    Player* next = currentTarget->FindClosestEnemy(
+        viewAngle, false, players);
+    if (next == nullptr)
+        return nullptr;
+
+    // The first search is centred on the contacted player and can select the
+    // projectile owner. Windows skips that owner exactly once by searching
+    // again from it, then rejects a cycle back to the contacted player.
+    if (weaponOwner != nullptr && next == weaponOwner)
+    {
+        next = weaponOwner->FindClosestEnemy(
+            viewAngle, false, players);
+        if (next == nullptr || next == currentTarget)
+            return nullptr;
+    }
+    return next;
 }
 
 void Proj::RetargetImpulse(GameObject* target) noexcept

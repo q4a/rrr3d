@@ -4470,18 +4470,20 @@ void OriginalRaceSession::updateGameplay(
                 }
                 if (!impulseContact.findNextTarget)
                     break;
-                std::size_t nextTarget = findClosestEnemy(
-                    target, 1.57079632679489661923F);
-                if (nextTarget == projectile.damageOwner)
-                {
-                    nextTarget = findClosestEnemy(
-                        nextTarget, 1.57079632679489661923F);
-                    if (nextTarget == target)
-                    {
-                        nextTarget =
-                            RacerRuntime::invalidWeapon;
-                    }
-                }
+                source::Player* nextPlayer =
+                    projectile.sourceObject->FindNextTarget(
+                        target < racers_.size()
+                            ? &racers_[target]
+                            : nullptr,
+                        projectile.damageOwner < racers_.size()
+                            ? &racers_[projectile.damageOwner]
+                            : nullptr,
+                        playerList, 1.57079632679489661923F);
+                const std::size_t nextTarget =
+                    nextPlayer == nullptr
+                        ? RacerRuntime::invalidWeapon
+                        : static_cast<std::size_t>(
+                              nextPlayer - racers_.data());
                 if (nextTarget == RacerRuntime::invalidWeapon)
                 {
                     spawnProjectileImpact(
