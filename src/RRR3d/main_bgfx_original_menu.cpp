@@ -643,24 +643,23 @@ std::vector<r3d::game::MusicCatTrack> musicTracks(
     return result;
 }
 
-std::vector<std::size_t> musicPlaylist(std::string_view source,
-                                       std::size_t trackCount)
+std::vector<std::size_t> musicPlaylist(std::string_view source)
 {
     std::vector<std::size_t> result;
     while (!source.empty())
     {
         const auto separator = source.find(',');
         const auto token = source.substr(0, separator);
-        std::size_t index = 0;
+        long long index = 0;
         const auto parsed = std::from_chars(
             token.data(), token.data() + token.size(), index);
         if (parsed.ec == std::errc{} &&
-            parsed.ptr == token.data() + token.size() &&
-            index < trackCount &&
-            std::find(result.begin(), result.end(), index) ==
-                result.end())
+            parsed.ptr == token.data() + token.size())
         {
-            result.push_back(index);
+            result.push_back(
+                index < 0
+                    ? std::numeric_limits<std::size_t>::max()
+                    : static_cast<std::size_t>(index));
         }
         if (separator == std::string_view::npos)
             break;
@@ -4390,8 +4389,7 @@ int main(int argc, char** argv)
         originalMusicCatalog.menu,
         options->audioSmokeTest
             ? std::vector<std::size_t>{}
-            : musicPlaylist(profileState.config.menuMusicPlaylist,
-                            originalMusicCatalog.menu.size()));
+            : musicPlaylist(profileState.config.menuMusicPlaylist));
     if (!music.initialize(audioError))
     {
         std::cerr << "Original MusicCat initialization failed: "
@@ -4443,8 +4441,7 @@ int main(int argc, char** argv)
         rrr3d::platform::steady_nanoseconds() ^
             0x47616d654d757369ULL,
         false, originalMusicCatalog.game,
-        musicPlaylist(profileState.config.gameMusicPlaylist,
-                      originalMusicCatalog.game.size()));
+        musicPlaylist(profileState.config.gameMusicPlaylist));
     // Windows GameMode only loads the game playlist here.  Its first entry is
     // consumed later by DoStartRace::_gameMusic->Play(), not while the menu is
     // starting.
@@ -10470,7 +10467,8 @@ int main(int argc, char** argv)
         commentator.pause(false);
         finishMenuAudioHeldObserved =
             finishMenuAudioHeldObserved ||
-            (music.paused() && !gameMusic.currentVoiceActive());
+            (music.paused() && !music.currentVoiceActive() &&
+             !gameMusic.currentVoiceActive());
 #endif
         std::vector<std::size_t> order(
             raceSession.racers().size(), 0U);
@@ -17560,7 +17558,7 @@ int main(int argc, char** argv)
                          MusicSmokePhase::WaitingWhilePaused &&
                      SDL_GetTicks() - smokePhaseTicks >= 100)
             {
-                if (!music.paused() ||
+                if (!music.paused() || music.currentVoiceActive() ||
                     music.currentPositionFrames() != smokePausePosition ||
                     !music.pause(false, audioError))
                 {

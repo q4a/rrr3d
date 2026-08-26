@@ -2061,6 +2061,20 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - M8 audio и 240-frame M9 Metal regressions подтверждают обе очереди, все три
   menu-трека, автоматический Next и deferred zero-frame game start.
 
+### Source MusicCat clean-start/pause follow-up
+
+- `ResetConfig` снова оставляет обе playlist пустыми: удалены придуманные
+  стартовые снимки, из-за которых чистая установка всегда запускала заранее
+  выбранную композицию вместо исходного случайного menu cycle.
+- `LoadUser` сохраняет дубликаты и некорректные индексы буквально; как в
+  Windows, только `Play` пропускает несуществующие треки. Background decode
+  проверяет границы отдельно.
+- `Pause(true)` запоминает PCM frame и останавливает backend voice;
+  `Pause(false)` создаёт его заново с сохранённой позиции. Это повторяет
+  `StopMusic`/`PlayMusic`, а не придуманное удержание paused mixer voice.
+- Profile/M8/Finish regressions проверяют clean `user.xml`, duplicate/invalid
+  queue и отсутствие активного музыкального голоса во время паузы.
+
 ### Serialized MusicCat catalog follow-up
 
 - Перенесён `GameMode::LoadGameData -> MusicCat::LoadGame`: menu/game paths,

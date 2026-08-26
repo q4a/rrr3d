@@ -57,8 +57,11 @@ struct UserConfig
     std::string commentatorStyle = "english";
     std::map<std::string, std::string> keyboardControls;
     std::map<std::string, std::string> gamepadControls;
-    std::string menuMusicPlaylist = "2";
-    std::string gameMusicPlaylist = "6,10,4,7,1,9,8,3,5,0";
+    // MusicCat starts with empty queues. Missing user.xml runs ResetConfig,
+    // whose SaveConfig writes those empty queues before menu Play generates
+    // the first random cycle.
+    std::string menuMusicPlaylist;
+    std::string gameMusicPlaylist;
 };
 
 struct ProfileSlot

@@ -70,12 +70,9 @@ std::optional<std::size_t> MusicCat::next()
 
 bool MusicCat::setPlaylist(std::vector<std::size_t> playlist) noexcept
 {
-	std::set<std::size_t> unique;
-	for (const auto track : playlist)
-	{
-		if (track >= tracks_.size() || !unique.insert(track).second)
-			return false;
-	}
+	// LoadUser appends every parsed integer without validation. Play() later
+	// pops invalid entries until it finds a usable track; duplicates are
+	// intentionally retained in the serialized order.
 	playlist_ = std::move(playlist);
 	return true;
 }
@@ -328,6 +325,16 @@ bool runMusicCatSmokeTest(std::string &error)
 	if (!nextCycle || *nextCycle == *previous)
 	{
 		error = "MusicCat repeated the final track across a shuffle-cycle boundary";
+		return false;
+	}
+
+	MusicCat loadedUserQueue(tracks, 1);
+	if (!loadedUserQueue.setPlaylist({1U, 1U, 99U}) ||
+	    loadedUserQueue.play() != std::optional<std::size_t>(1U) ||
+	    loadedUserQueue.playlist() != std::vector<std::size_t>{1U} ||
+	    loadedUserQueue.next() != std::optional<std::size_t>(1U))
+	{
+		error = "MusicCat LoadUser queue did not preserve duplicates/skip invalid entries at Play";
 		return false;
 	}
 

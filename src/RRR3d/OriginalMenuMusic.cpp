@@ -235,13 +235,17 @@ struct OriginalMenuMusic::Impl
 		}
 		capturePosition();
 		music.setPaused(shouldPause);
-		if (voice != r3d::audio::invalidVoice && audio.isVoiceActive(voice) &&
-		    !audio.setVoicePaused(voice, shouldPause))
+		if (shouldPause)
 		{
-			error = "Unable to change the original menu music pause state";
-			return false;
+			// MusicCat::Pause(true) stores Source::GetPos and calls StopMusic;
+			// it does not retain a paused XAudio Proxy. Recreate the backend
+			// voice from the saved PCM frame on Pause(false).
+			if (voice != r3d::audio::invalidVoice)
+				audio.stop(voice);
+			voice = r3d::audio::invalidVoice;
+			trackStarted = false;
 		}
-		if (!shouldPause && playbackRequested &&
+		else if (playbackRequested &&
 		    (!startCurrent(error) || !scheduleDecode(error)))
 			return false;
 		return writeState(error);
@@ -374,7 +378,8 @@ struct OriginalMenuMusic::Impl
 		{
 			for (auto track = music.playlist().rbegin(); track != music.playlist().rend(); ++track)
 			{
-				if (loaded[*track].state == LoadState::Unloaded)
+				if (*track < loaded.size() &&
+				    loaded[*track].state == LoadState::Unloaded)
 				{
 					candidate = *track;
 					break;
@@ -387,9 +392,16 @@ struct OriginalMenuMusic::Impl
 		if (!candidate && !playbackRequested && !music.currentTrack() &&
 		    !music.playlist().empty())
 		{
-			const auto upcoming = music.playlist().back();
-			if (loaded[upcoming].state == LoadState::Unloaded)
-				candidate = upcoming;
+			for (auto upcoming = music.playlist().rbegin();
+			     upcoming != music.playlist().rend(); ++upcoming)
+			{
+				if (*upcoming < loaded.size() &&
+				    loaded[*upcoming].state == LoadState::Unloaded)
+				{
+					candidate = *upcoming;
+					break;
+				}
+			}
 		}
 		if (!candidate && persistState)
 		{
@@ -455,7 +467,7 @@ struct OriginalMenuMusic::Impl
 
 	bool startCurrent(std::string &error)
 	{
-		if (!playbackRequested || trackStarted)
+		if (!playbackRequested || trackStarted || music.paused())
 			return true;
 		const auto current = music.currentTrack();
 		if (!current || loaded[*current].state != LoadState::Loaded)

@@ -959,7 +959,9 @@ bool runOriginalProfileFlowSmokeTest(std::string& error)
             originalcontrol::ControllerType::Keyboard, "Unknown") !=
             "U" ||
         originalcontrol::canonicalVirtualKeyName(
-            originalcontrol::ControllerType::Keyboard, "") != "None")
+            originalcontrol::ControllerType::Keyboard, "") != "None" ||
+        !state.config.menuMusicPlaylist.empty() ||
+        !state.config.gameMusicPlaylist.empty())
     {
         error =
             "source ControlManager tables/defaults or absent config "
@@ -1174,7 +1176,9 @@ bool runOriginalProfileFlowSmokeTest(std::string& error)
         std::abs(partialState.config.effectsVolume - 1.0F) > 0.001F ||
         std::abs(partialState.config.voiceVolume - 1.0F) > 0.001F ||
         partialState.preferredCameraSerialized ||
-        std::abs(partialState.config.cameraDistance - 4.5F) > 0.001F)
+        std::abs(partialState.config.cameraDistance - 4.5F) > 0.001F ||
+        !partialState.config.menuMusicPlaylist.empty() ||
+        !partialState.config.gameMusicPlaylist.empty())
     {
         std::filesystem::remove_all(smokeDirectory, fileError);
         error =
@@ -1190,6 +1194,8 @@ bool runOriginalProfileFlowSmokeTest(std::string& error)
     configOnlyState.config.commentatorStyle = "russian";
     if (!configOnlyWarning.empty() ||
         configOnlyState.configFileSerialized ||
+        !configOnlyState.config.menuMusicPlaylist.empty() ||
+        !configOnlyState.config.gameMusicPlaylist.empty() ||
         !configOnlyStore.saveConfig(configOnlyState, error) ||
         !std::filesystem::is_regular_file(
             configOnlyDirectory / "user.xml", fileError) ||
@@ -1213,7 +1219,9 @@ bool runOriginalProfileFlowSmokeTest(std::string& error)
         !configOnlyState.languageSerialized ||
         !configOnlyState.commentatorStyleSerialized ||
         configOnlyState.config.language != "russian" ||
-        configOnlyState.config.commentatorStyle != "russian")
+        configOnlyState.config.commentatorStyle != "russian" ||
+        !configOnlyState.config.menuMusicPlaylist.empty() ||
+        !configOnlyState.config.gameMusicPlaylist.empty())
     {
         std::filesystem::remove_all(smokeDirectory, fileError);
         error = "GameMode::ResetConfig/SaveConfig presence state was lost";
