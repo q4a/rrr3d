@@ -42,7 +42,12 @@ MapObj::MapObj(MapObjects* owner) : owner_(owner)
     CreateGameObj();
 }
 
-MapObj::~MapObj() = default;
+MapObj::~MapObj()
+{
+    SetPlayer(nullptr);
+    if (gameObj_ != nullptr)
+        gameObj_->SetMapObj(nullptr);
+}
 
 MapObjects* MapObj::GetOwner() const noexcept { return owner_; }
 GameObjType MapObj::GetType() const noexcept { return type_; }
@@ -67,6 +72,7 @@ void MapObj::CreateGameObj()
     // Portable assignment intentionally does not copy listener ownership.
     if (gameObj_ != nullptr)
         *replacement = *gameObj_;
+    replacement->SetMapObj(this);
     gameObj_ = std::move(replacement);
 
     if (type_ == GameObjType::Proj)
@@ -117,8 +123,9 @@ void MapObj::SetRecord(std::string value, MapObjCategory category,
         : std::move(parent);
 }
 
-std::size_t MapObj::GetPlayerId() const noexcept { return playerId_; }
-void MapObj::SetPlayerId(std::size_t value) noexcept { playerId_ = value; }
+Player* MapObj::GetPlayer() noexcept { return player_; }
+const Player* MapObj::GetPlayer() const noexcept { return player_; }
+void MapObj::SetPlayer(Player* value) noexcept { player_ = value; }
 std::uint32_t MapObj::GetId() const noexcept { return id_; }
 void MapObj::SetId(std::uint32_t value) noexcept { id_ = value; }
 std::size_t MapObj::GetSourceIndex() const noexcept

@@ -2337,9 +2337,16 @@ std::size_t OriginalRaceSession::racerForMapObjectId(
     const auto* object = map_.GetMapObj(mapObjectId);
     if (object == nullptr ||
         object->GetCategory() != source::MapObjCategory::Car ||
-        object->GetSourceIndex() >= racers_.size())
+        object->GetPlayer() == nullptr)
         return RacerRuntime::invalidWeapon;
-    return object->GetSourceIndex();
+    const auto found = std::find_if(
+        racers_.begin(), racers_.end(),
+        [player = object->GetPlayer()](const source::Player& candidate) {
+            return &candidate == player;
+        });
+    return found != racers_.end()
+        ? static_cast<std::size_t>(found - racers_.begin())
+        : RacerRuntime::invalidWeapon;
 }
 
 std::size_t OriginalRaceSession::decorationForMapObjectId(
@@ -2896,7 +2903,7 @@ void OriginalRaceSession::createRacerMapObject(std::size_t racer)
     auto& mapObject = map_.AddMapObj(
         source::MapObjCategory::Car,
         source::GameObjType::RockCar, vehicle->record, racer);
-    mapObject.SetPlayerId(racer);
+    mapObject.SetPlayer(&racers_[racer]);
     mapObject.GetGameObj().ResetGameObject(vehicle->maximumLife);
     racerMapObjects_[racer] = &mapObject;
 }

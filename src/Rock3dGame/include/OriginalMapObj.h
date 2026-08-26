@@ -15,6 +15,7 @@ class GameObject;
 class DestrObj;
 class MapObjects;
 class MapObjectsObserver;
+class Player;
 
 // MapObj.h::GameObjType.  These values are serialized by name in the
 // Windows data, so keep their source order even where a platform adapter
@@ -83,8 +84,9 @@ public:
     void SetRecord(std::string value, MapObjCategory category,
                    std::string parent = {});
 
-    std::size_t GetPlayerId() const noexcept;
-    void SetPlayerId(std::size_t value) noexcept;
+    Player* GetPlayer() noexcept;
+    const Player* GetPlayer() const noexcept;
+    void SetPlayer(Player* value) noexcept;
     std::uint32_t GetId() const noexcept;
     void SetId(std::uint32_t value) noexcept;
     std::size_t GetSourceIndex() const noexcept;
@@ -95,7 +97,9 @@ private:
     void CreateGameObj();
 
     MapObjects* owner_ = nullptr;
-    std::size_t playerId_ = static_cast<std::size_t>(-1);
+    // Legacy ReplaceRef lifetime is represented by the owning race Player
+    // collection; MapObj retains the exact non-owning gameplay association.
+    Player* player_ = nullptr;
     std::uint32_t id_ = 0U;
     std::size_t sourceIndex_ = static_cast<std::size_t>(-1);
     GameObjType type_ = GameObjType::GameObj;

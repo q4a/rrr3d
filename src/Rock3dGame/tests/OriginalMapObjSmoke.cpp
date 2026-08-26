@@ -1,5 +1,6 @@
 #include "OriginalGameObject.h"
 #include "OriginalMapObj.h"
+#include "OriginalPlayer.h"
 #include "OriginalWeapon.h"
 
 #include <cmath>
@@ -20,6 +21,7 @@ int main()
     parent.ResetGameObject(100.0F);
     source::MapObjects objects(&parent);
     objects.Reserve(4U);
+    source::Player player;
 
     auto& crush = objects.Add(
         source::GameObjType::GameObj,
@@ -27,9 +29,12 @@ int main()
         "Data\\Crush\\pregrada", 41U);
     crush.GetGameObj().ResetGameObject(25.0F);
     crush.GetGameObj().SetLife(17.0F);
+    crush.SetPlayer(&player);
     crush.SetType(source::GameObjType::DestrObj);
     if (crush.GetOwner() != &objects || crush.GetParent() != &parent ||
         crush.GetId() != 41U || !crush.IsSpecial() ||
+        crush.GetPlayer() != &player ||
+        crush.GetGameObj().GetMapObj() != &crush ||
         crush.GetDestrObj() == nullptr ||
         std::abs(crush.GetGameObj().GetLife() - 17.0F) > 0.0001F)
         return 2;

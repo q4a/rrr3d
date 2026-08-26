@@ -22,6 +22,7 @@ namespace source
 {
 
 class GameObject;
+class MapObj;
 
 // Backend-neutral GameObjListener. Reference counting belongs to the legacy
 // lsl owner; portable listeners are non-owning and retain the source callback
@@ -99,6 +100,8 @@ public:
     std::size_t GetListenerCount() const noexcept;
     bool DestroyObject() noexcept;
     bool IsObjectDestroyed() const noexcept;
+    MapObj* GetMapObj() noexcept;
+    const MapObj* GetMapObj() const noexcept;
 
     void SetImmortalFlag(bool value) noexcept;
     bool GetImmortalFlag() const noexcept;
@@ -146,8 +149,11 @@ protected:
     virtual void OnImmortalStatusEvent(bool) noexcept {}
 
 private:
+    friend class MapObj;
+    void SetMapObj(MapObj* value) noexcept;
     void SendDeath(DamageType damageType, GameObject* target) noexcept;
     std::vector<GameObjectListener*> listeners_;
+    MapObj* mapObj_ = nullptr;
     bool objectDestroyed_ = false;
 };
 

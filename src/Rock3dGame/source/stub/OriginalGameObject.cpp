@@ -148,6 +148,10 @@ GameObject& GameObject::operator=(GameObject&& other) noexcept
     return *this = static_cast<const GameObject&>(other);
 }
 
+MapObj* GameObject::GetMapObj() noexcept { return mapObj_; }
+const MapObj* GameObject::GetMapObj() const noexcept { return mapObj_; }
+void GameObject::SetMapObj(MapObj* value) noexcept { mapObj_ = value; }
+
 void GameObject::ResetGameObject(float maximumLifeValue) noexcept
 {
     maximumLife = maximumLifeValue;

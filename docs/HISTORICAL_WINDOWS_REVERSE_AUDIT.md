@@ -2099,6 +2099,25 @@ ID namespace, но не уничтожает постоянные ground и Trac
 проверяет owner/ID ground, четыре полосы, сохранение Trace через `Clear` и
 настоящий `dtDeathPlane` contact.
 
+### P2.75 — `GameObject/MapObj/Player` association graph — выполнено
+
+Оригинальные damage, weapon и contact пути определяют участника цепочкой
+`GameObject::GetMapObj()->GetPlayer()`. Portable `MapObj` вместо неё хранил
+придуманный `playerId_` с индексом вектора, а `GameObject` вообще не знал
+свой `MapObj`. Даже после динамических ID это оставляло два несвязанных
+графа и вынуждало network lookup доверять служебному `sourceIndex`.
+
+Возвращены обе исходные стороны связи: каждый созданный или заменённый по
+`GameObjType` объект получает `GameObject::_mapObj`, car object получает
+`MapObj::_player`, а удаление разрывает ссылки до уничтожения. Portable
+`ReplaceRef` не воспроизводит legacy refcount — временем жизни Player владеет
+race collection, но identity и callback path теперь совпадают с Windows.
+
+`racerForMapObjectId` разрешает ID через `Map`, проверяет category и находит
+участника по реальному `MapObj::GetPlayer`, а не по адаптерному индексу.
+Regression меняет `gotGameObj` на `gotDestrObj` и подтверждает, что player и
+обратная ссылка нового concrete object не потерялись.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
