@@ -247,9 +247,9 @@ lifetimes, occlusion/culling corner cases и точное совпадение s
 Jolt adapter использует исходные vehicle/XML parameters и переносит много
 правил `GameCar`, но исходный PhysX solver не выполняется. Известные
 намеренные отличия включают отключённую Jolt transmission propagation,
-прямую подачу source torque на driven wheels, пропуск low-speed `restTorque`,
-scalar friction вместо PhysX anisotropic material и Jolt-specific solver
-order. Это допустимые engineering adaptations, но они требуют trace/A-B
+прямую подачу source torque на driven wheels, пропуск low-speed `restTorque`
+и Jolt-specific solver order. Anisotropic кузовной contact из PhysX теперь
+реализован узким расширением закреплённого Jolt. Остальные adaptations требуют trace/A-B
 валидации и не могут считаться автоматическим физическим паритетом.
 
 ## 6. Конкретные расхождения audit HEAD и результат P0
@@ -2813,8 +2813,28 @@ physics boundary.
 copy/reset сохраняют исходный lifetime. `OriginalRaceSession` больше не
 обрывает эти данные между Jolt и source-объектом. Regression проверяет any/all
 wheel transitions, отдельный body contact и raw/clamped wheel telemetry.
-Следующий отдельный блок — оставшаяся адаптация anisotropic body friction из
-`GameCar::OnContactModify`, которая не должна маскироваться этими флагами.
+Следующим отдельным блоком стала адаптация anisotropic body friction из
+`GameCar::OnContactModify`, не маскируемая этими флагами.
+
+### P2.114 — `GameCar::OnContactModify` anisotropic body friction — выполнено
+
+Подтвердилось указанное обратным аудитом отличие: два коэффициента PhysX car
+material (`dynamicFriction` и `dynamicFrictionV`) были сведены к одному
+`Jolt::ContactSettings::mCombinedFriction`. При контакте с треугольником
+трассы Windows `GameCar::OnContactModify` разворачивает friction basis по
+нормали треугольника, обнуляет первую касательную и оставляет вторую с
+коэффициентом трассы `0.1` либо бордюра `4.0`. Скалярный путь тормозил кузов
+по неверной оси и мог заставлять его цепляться за пол или стену.
+
+К закреплённому Jolt добавлен второй узкий воспроизводимый patch: contact
+settings принимают world-space первую касательную и второй коэффициент, а
+solver ограничивает пару импульсов эллиптическим Coulomb cone. При равных
+коэффициентах он точно вырождается в прежний круговой Jolt constraint, так
+что car-car и decoration contacts не изменены. Adapter повторяет исходный
+`carUp x triangleNormal` basis и fallback на локальную поперечную ось,
+назначает `0/0.1` для полотна и `0/4.0` для бордюра. Числовая regression
+закрепляет обе ветви, а clean pinned-Jolt extraction принимает оба CMake
+patch последовательно.
 
 ## Итоговое решение
 

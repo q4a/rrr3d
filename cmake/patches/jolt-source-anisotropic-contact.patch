@@ -1,0 +1,104 @@
+--- a/Jolt/Physics/Collision/ContactListener.h
++++ b/Jolt/Physics/Collision/ContactListener.h
+@@ -41,6 +41,8 @@
+ {
+ public:
+ 	float					mCombinedFriction;					///< Combined friction for the body pair (see: PhysicsSystem::SetCombineFriction)
++	float					mCombinedFriction2 = -1.0f;			///< Optional friction along the second tangent; negative uses mCombinedFriction
++	Vec3					mFrictionDirection1 = Vec3::sZero(); ///< Optional world-space first friction tangent; zero selects Jolt's default
+ 	float					mCombinedRestitution;				///< Combined restitution for the body pair (see: PhysicsSystem::SetCombineRestitution)
+ 	float					mInvMassScale1 = 1.0f;				///< Scale factor for the inverse mass of body 1 (0 = infinite mass, 1 = use original mass, 2 = body has half the mass). For the same contact pair, you should strive to keep the value the same over time.
+ 	float					mInvInertiaScale1 = 1.0f;			///< Scale factor for the inverse inertia of body 1 (usually same as mInvMassScale1)
+--- a/Jolt/Physics/Constraints/ContactConstraintManager.h
++++ b/Jolt/Physics/Constraints/ContactConstraintManager.h
+@@ -459,7 +459,7 @@
+ 		JPH_INLINE void			GetTangents(Vec3 &outTangent1, Vec3 &outTangent2) const
+ 		{
+ 			Vec3 ws_normal = GetWorldSpaceNormal();
+-			outTangent1 = ws_normal.GetNormalizedPerpendicular();
++			outTangent1 = Vec3::sLoadFloat3Unsafe(mWorldSpaceTangent1);
+ 			outTangent2 = ws_normal.Cross(outTangent1);
+ 		}
+ 
+@@ -467,7 +467,9 @@
+ 		Body *					mBody2;
+ 		uint64					mSortKey;
+ 		Float3					mWorldSpaceNormal;
++		Float3					mWorldSpaceTangent1;
+ 		float					mCombinedFriction;
++		float					mCombinedFriction2;
+ 		float					mInvMass1;
+ 		float					mInvInertiaScale1;
+ 		float					mInvMass2;
+--- a/Jolt/Physics/Constraints/ContactConstraintManager.cpp
++++ b/Jolt/Physics/Constraints/ContactConstraintManager.cpp
+@@ -129,7 +129,7 @@
+ 	mNonPenetrationConstraint.TemplatedCalculateConstraintProperties<Type1, Type2>(inInvM1, inInvI1, r1, inInvM2, inInvI2, r2, inWorldSpaceNormal, normal_velocity_bias);
+ 
+ 	// Calculate friction part
+-	if (inSettings.mCombinedFriction > 0.0f)
++	if (inSettings.mCombinedFriction > 0.0f || inSettings.mCombinedFriction2 > 0.0f)
+ 	{
+ 		// Get surface velocity relative to tangents
+ 		Vec3 ws_surface_velocity = inSettings.mRelativeLinearSurfaceVelocity + inSettings.mRelativeAngularSurfaceVelocity.Cross(r1);
+@@ -950,6 +950,13 @@
+ 			constraint.mSortKey = input_hash;
+ 			world_space_normal.StoreFloat3(&constraint.mWorldSpaceNormal);
+ 			constraint.mCombinedFriction = settings.mCombinedFriction;
++			constraint.mCombinedFriction2 = settings.mCombinedFriction2 >= 0.0f? settings.mCombinedFriction2 : settings.mCombinedFriction;
++			Vec3 friction_direction1 = settings.mFrictionDirection1 - world_space_normal * settings.mFrictionDirection1.Dot(world_space_normal);
++			if (friction_direction1.LengthSq() < Square(1.0e-6f))
++				friction_direction1 = world_space_normal.GetNormalizedPerpendicular();
++			else
++				friction_direction1 = friction_direction1.Normalized();
++			friction_direction1.StoreFloat3(&constraint.mWorldSpaceTangent1);
+ 			constraint.mInvMass1 = body1->GetMotionPropertiesUnchecked() != nullptr? settings.mInvMassScale1 * body1->GetMotionPropertiesUnchecked()->GetInverseMassUnchecked() : 0.0f;
+ 			constraint.mInvInertiaScale1 = settings.mInvInertiaScale1;
+ 			constraint.mInvMass2 = body2->GetMotionPropertiesUnchecked() != nullptr? settings.mInvMassScale2 * body2->GetMotionPropertiesUnchecked()->GetInverseMassUnchecked() : 0.0f;
+@@ -1132,6 +1139,13 @@
+ 		constraint.mSortKey = key_hash;
+ 		inManifold.mWorldSpaceNormal.StoreFloat3(&constraint.mWorldSpaceNormal);
+ 		constraint.mCombinedFriction = settings.mCombinedFriction;
++		constraint.mCombinedFriction2 = settings.mCombinedFriction2 >= 0.0f? settings.mCombinedFriction2 : settings.mCombinedFriction;
++		Vec3 friction_direction1 = settings.mFrictionDirection1 - inManifold.mWorldSpaceNormal * settings.mFrictionDirection1.Dot(inManifold.mWorldSpaceNormal);
++		if (friction_direction1.LengthSq() < Square(1.0e-6f))
++			friction_direction1 = inManifold.mWorldSpaceNormal.GetNormalizedPerpendicular();
++		else
++			friction_direction1 = friction_direction1.Normalized();
++		friction_direction1.StoreFloat3(&constraint.mWorldSpaceTangent1);
+ 		constraint.mInvMass1 = inBody1.GetMotionPropertiesUnchecked() != nullptr? settings.mInvMassScale1 * inBody1.GetMotionPropertiesUnchecked()->GetInverseMassUnchecked() : 0.0f;
+ 		constraint.mInvInertiaScale1 = settings.mInvInertiaScale1;
+ 		constraint.mInvMass2 = inBody2.GetMotionPropertiesUnchecked() != nullptr? settings.mInvMassScale2 * inBody2.GetMotionPropertiesUnchecked()->GetInverseMassUnchecked() : 0.0f;
+@@ -1604,17 +1618,26 @@
+ 			// Calculate impulse to stop motion in tangential direction
+ 			float lambda1 = wcp.mFrictionConstraint1.TemplatedSolveVelocityConstraintGetTotalLambda<Type1, Type2>(ioMotionProperties1, ioMotionProperties2, t1);
+ 			float lambda2 = wcp.mFrictionConstraint2.TemplatedSolveVelocityConstraintGetTotalLambda<Type1, Type2>(ioMotionProperties1, ioMotionProperties2, t2);
+-			float total_lambda_sq = Square(lambda1) + Square(lambda2);
+ 
+-			// Calculate max impulse that can be applied. Note that we're using the non-penetration impulse from the previous iteration here.
++			// Calculate max impulses that can be applied. Note that we're using the non-penetration impulse from the previous iteration here.
+ 			// We do this because non-penetration is more important so is solved last (the last things that are solved in an iterative solver
+ 			// contribute the most).
+-			float max_lambda_f = ioConstraint.mCombinedFriction * wcp.mNonPenetrationConstraint.GetTotalLambda();
++			float normal_lambda = wcp.mNonPenetrationConstraint.GetTotalLambda();
++			float max_lambda_f1 = ioConstraint.mCombinedFriction * normal_lambda;
++			float max_lambda_f2 = ioConstraint.mCombinedFriction2 * normal_lambda;
+ 
+-			// If the total lambda that we will apply is too large, scale it back
+-			if (total_lambda_sq > Square(max_lambda_f))
++			// Clamp to the anisotropic Coulomb ellipse. Equal coefficients
++			// reduce to Jolt's original circular cone.
++			if (max_lambda_f1 <= 0.0f)
++				lambda1 = 0.0f;
++			if (max_lambda_f2 <= 0.0f)
++				lambda2 = 0.0f;
++			float normalized_lambda_sq =
++				(max_lambda_f1 > 0.0f? Square(lambda1 / max_lambda_f1) : 0.0f)
++				+ (max_lambda_f2 > 0.0f? Square(lambda2 / max_lambda_f2) : 0.0f);
++			if (normalized_lambda_sq > 1.0f)
+ 			{
+-				float scale = max_lambda_f / sqrt(total_lambda_sq);
++				float scale = 1.0f / sqrt(normalized_lambda_sq);
+ 				lambda1 *= scale;
+ 				lambda2 *= scale;
+ 			}

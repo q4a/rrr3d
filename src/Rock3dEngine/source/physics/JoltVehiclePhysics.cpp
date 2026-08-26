@@ -192,6 +192,39 @@ Vec3 transformPoint(const Transform& transform, Vec3 value)
             rotated.z + transform.position.z};
 }
 
+struct SourceBodyFriction
+{
+    JPH::Vec3 firstDirection = JPH::Vec3::sZero();
+    float first = 0.0F;
+    float second = 0.0F;
+};
+
+SourceBodyFriction sourceTrackBodyFriction(
+    JPH::QuatArg carRotation, JPH::Vec3Arg contactNormal,
+    CollisionSurface surface) noexcept
+{
+    // DataBase.cpp gives the car material an anisotropy direction of local
+    // game +Z (Jolt +Y). GameCar::OnContactModify projects it onto the
+    // contacted triangle. When that direction is almost the triangle normal,
+    // it falls back to local game +Y (Jolt +Z).
+    const JPH::Vec3 carUp =
+        carRotation * JPH::Vec3::sAxisY();
+    JPH::Vec3 first = carUp.Cross(contactNormal);
+    JPH::Vec3 second = carUp;
+    if (first.Length() < 0.5F)
+    {
+        first = carRotation * JPH::Vec3::sAxisZ();
+        second = contactNormal.Cross(first);
+    }
+    if (second.Length() <= 0.1F || first.LengthSq() <= 1.0e-8F)
+        first = contactNormal.GetNormalizedPerpendicular();
+    else
+        first = first.Normalized();
+    return {
+        first, 0.0F,
+        surface == CollisionSurface::TrackBorder ? 4.0F : 0.1F};
+}
+
 constexpr JPH::uint64 bodyKindMask = 0xf000000000000000ULL;
 constexpr JPH::uint64 vehicleBodyKind = 0x1000000000000000ULL;
 constexpr JPH::uint64 surfaceBodyKind = 0x2000000000000000ULL;
@@ -268,7 +301,7 @@ public:
                         const JPH::ContactManifold& manifold,
                         JPH::ContactSettings& settings) override
     {
-        configureMaterial(first, second, settings);
+        configureMaterial(first, second, manifold, settings);
         record(first, second, manifold, settings);
     }
 
@@ -277,13 +310,14 @@ public:
                             const JPH::ContactManifold& manifold,
                             JPH::ContactSettings& settings) override
     {
-        configureMaterial(first, second, settings);
+        configureMaterial(first, second, manifold, settings);
         record(first, second, manifold, settings);
     }
 
 private:
     static void configureMaterial(
         const JPH::Body& first, const JPH::Body& second,
+        const JPH::ContactManifold& manifold,
         JPH::ContactSettings& settings) noexcept
     {
         std::size_t firstVehicle = 0;
@@ -294,19 +328,28 @@ private:
             vehicleIndex(second.GetUserData(), secondVehicle);
         if (!firstIsVehicle && !secondIsVehicle)
             return;
+        const JPH::Body& car = firstIsVehicle ? first : second;
         const JPH::Body& other = firstIsVehicle ? second : first;
-        if (collisionSurface(other.GetUserData()) ==
-            CollisionSurface::TrackBorder)
+        const auto surface = collisionSurface(other.GetUserData());
+        const bool sourceTrackActor =
+            (other.GetUserData() & bodyKindMask) == surfaceBodyKind;
+        if (sourceTrackActor &&
+            (surface == CollisionSurface::TrackPlane ||
+             surface == CollisionSurface::TrackBorder))
         {
-            // The Windows border material uses NX_CM_MAX and dynamic
-            // friction 4.0.
-            settings.mCombinedFriction = 4.0F;
+            const auto source = sourceTrackBodyFriction(
+                car.GetRotation(), manifold.mWorldSpaceNormal, surface);
+            settings.mCombinedFriction = source.first;
+            settings.mCombinedFriction2 = source.second;
+            settings.mFrictionDirection1 = source.firstDirection;
         }
         else
         {
             // Car materials use NX_CM_MIN (0.08 or the 0.02 wake model).
             settings.mCombinedFriction =
                 std::min(first.GetFriction(), second.GetFriction());
+            settings.mCombinedFriction2 = -1.0F;
+            settings.mFrictionDirection1 = JPH::Vec3::sZero();
         }
     }
 
@@ -421,7 +464,9 @@ private:
         JPH::CollisionEstimationResult estimation;
         JPH::EstimateCollisionResponse(
             first, second, manifold, estimation,
-            settings.mCombinedFriction,
+            std::max(
+                settings.mCombinedFriction,
+                settings.mCombinedFriction2),
             settings.mCombinedRestitution, 1.0F, 4U);
         float estimatedForce = 0.0F;
         float frictionImpulse1 = 0.0F;
@@ -2291,6 +2336,24 @@ std::unique_ptr<OriginalVehicleWorld> createOriginalVehicleWorld(
 bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
                                         std::string& error)
 {
+    const auto flatBodyFriction = sourceTrackBodyFriction(
+        JPH::Quat::sIdentity(), JPH::Vec3::sAxisY(),
+        CollisionSurface::TrackPlane);
+    const auto borderBodyFriction = sourceTrackBodyFriction(
+        JPH::Quat::sIdentity(), JPH::Vec3::sAxisZ(),
+        CollisionSurface::TrackBorder);
+    if (std::abs(flatBodyFriction.first) > 0.0001F ||
+        std::abs(flatBodyFriction.second - 0.1F) > 0.0001F ||
+        std::abs(flatBodyFriction.firstDirection.Dot(
+            JPH::Vec3::sAxisZ())) < 0.999F ||
+        std::abs(borderBodyFriction.first) > 0.0001F ||
+        std::abs(borderBodyFriction.second - 4.0F) > 0.0001F ||
+        std::abs(borderBodyFriction.firstDirection.Dot(
+            JPH::Vec3::sAxisX())) < 0.999F)
+    {
+        error = "GameCar::OnContactModify anisotropic friction failed";
+        return false;
+    }
     const auto cappedNormalForce = sourceWheelNormalForce(
         3.0F, 1.0F, true, 0.0F);
     const auto releasedTireSpring = sourceWheelNormalForce(

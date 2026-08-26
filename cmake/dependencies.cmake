@@ -81,6 +81,10 @@ if(RRR3D_ENABLE_PHYSICS AND NOT WIN32 AND RRR3D_BUILD_ORIGINAL_MENU)
             "-DSOURCE_DIR=<SOURCE_DIR>"
             "-DPATCH_FILE=${CMAKE_CURRENT_LIST_DIR}/patches/jolt-source-wheel-normal-force.patch"
             -P "${CMAKE_CURRENT_LIST_DIR}/apply_jolt_patch.cmake"
+        COMMAND "${CMAKE_COMMAND}"
+            "-DSOURCE_DIR=<SOURCE_DIR>"
+            "-DPATCH_FILE=${CMAKE_CURRENT_LIST_DIR}/patches/jolt-source-anisotropic-contact.patch"
+            -P "${CMAKE_CURRENT_LIST_DIR}/apply_jolt_anisotropic_patch.cmake"
     )
     FetchContent_MakeAvailable(rrr3d_jolt)
     set(RRR3D_JOLT_TARGET Jolt)
