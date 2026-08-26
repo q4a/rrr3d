@@ -91,6 +91,32 @@ private:
     Player* player_ = nullptr;
 };
 
+class Player::SlowBehavior final : public Behavior
+{
+public:
+    SlowBehavior(Behaviors* owner, Player* player) noexcept
+        : Behavior(owner), player_(player)
+    {
+    }
+
+    void OnProgress(float deltaTime) noexcept override
+    {
+        if (player_ == nullptr)
+            return;
+        const auto result = player_->slowEffect.OnProgress(
+            deltaTime, player_->behaviorLinearSpeed_);
+        player_->slowSpeedLimited_ =
+            player_->slowSpeedLimited_ || result.limitSpeed;
+        player_->slowReleased_ =
+            player_->slowReleased_ || result.released;
+        if (result.released)
+            Remove();
+    }
+
+private:
+    Player* player_ = nullptr;
+};
+
 Player::Player()
 {
     BindSourceBehaviors();
@@ -107,6 +133,14 @@ void Player::BindSourceBehaviors()
         BehaviorType::ImmortalEffect, this);
     behaviors.Add<EnergyDamageBehavior>(
         BehaviorType::DamageEffect, this);
+}
+
+void Player::ClearSlowBehavior() noexcept
+{
+    slowEffect.Reset();
+    auto& behaviors = GetBehaviors();
+    if (auto* behavior = behaviors.Find(BehaviorType::SlowEffect))
+        behaviors.Delete(behavior);
 }
 
 const std::array<float, 3> Player::humanEasingMinimumDistance{
@@ -1118,6 +1152,9 @@ Player::BehaviorProgressResult Player::ProgressBehaviors(
     lowLifePoints.SetLifeLevel(lowLifeLevel);
     lowLifeActivated_ = false;
     lowLifeReleased_ = false;
+    behaviorLinearSpeed_ = linearSpeed;
+    slowSpeedLimited_ = false;
+    slowReleased_ = false;
     result.gameObject = GameObject::OnProgress(deltaTime);
     for (std::size_t slot = 0U; slot < weaponSlotCount; ++slot)
     {
@@ -1131,10 +1168,24 @@ Player::BehaviorProgressResult Player::ProgressBehaviors(
     }
     result.lowLifeActivated = lowLifeActivated_;
     result.lowLifeReleased = lowLifeReleased_;
-    const auto slow = slowEffect.OnProgress(deltaTime, linearSpeed);
-    result.slowSpeedLimited = slow.limitSpeed;
-    result.slowReleased = slow.released;
+    result.slowSpeedLimited = slowSpeedLimited_;
+    result.slowReleased = slowReleased_;
     return result;
+}
+
+bool Player::AttachSlowEffect(
+    float maximumTimeLife, std::size_t weapon,
+    std::size_t projectile) noexcept
+{
+    auto& behaviors = GetBehaviors();
+    // Proj::FrostRayUpdate checks Find<SlowEffect>() before adding. Repeated
+    // ray contacts therefore neither replace the model nor restart lifetime.
+    if (behaviors.Find(BehaviorType::SlowEffect) != nullptr ||
+        !slowEffect.Attach(maximumTimeLife, weapon, projectile))
+        return false;
+    behaviors.Add<SlowBehavior>(
+        BehaviorType::SlowEffect, this);
+    return true;
 }
 
 Player::CheatResult Player::CheatUpdate(
@@ -1440,7 +1491,7 @@ void Player::Destroy() noexcept
     lowLifePoints.Reset(lowLifePoints.GetLifeLevel());
     energyDamageEffect.Reset();
     immortalEffect.Reset();
-    slowEffect.Reset();
+    ClearSlowBehavior();
     gameCar.Reset();
     Immortal(0.0F);
     touchAttacker = undefinedPlayerId;
@@ -1574,7 +1625,7 @@ void Player::Disconnect() noexcept
     lowLifePoints.Reset(lowLifePoints.GetLifeLevel());
     energyDamageEffect.Reset();
     immortalEffect.Reset();
-    slowEffect.Reset();
+    ClearSlowBehavior();
     gameCar.Reset();
     restoreSeconds = 0.0F;
     Immortal(0.0F);

@@ -21,6 +21,50 @@ int main()
             source::BehaviorType::DamageEffect) == nullptr ||
         player.GetListenerCount() != 3U)
         return 71;
+
+    // FrostRayUpdate dynamically adds SlowEffect only once. Its state expires
+    // during the behavior callback; the owner erases the removed behavior at
+    // the beginning of the next source behavior pass.
+    source::Player slowPlayer;
+    slowPlayer.Reset(100.0F, 1U);
+    if (!slowPlayer.AttachSlowEffect(0.5F, 4U, 2U) ||
+        slowPlayer.AttachSlowEffect(2.0F, 5U, 3U) ||
+        slowPlayer.GetBehaviors().GetCount() != 4U ||
+        slowPlayer.GetBehaviors().Find(
+            source::BehaviorType::SlowEffect) == nullptr ||
+        slowPlayer.GetListenerCount() != 4U)
+        return 72;
+    const auto slowActive = slowPlayer.ProgressBehaviors(
+        0.25F, 0.35F, 30.0F);
+    if (!slowActive.slowSpeedLimited || slowActive.slowReleased ||
+        slowActive.gameObject.behaviorsProgressed != 4U ||
+        slowPlayer.slowEffect.GetWeapon() != 4U ||
+        slowPlayer.slowEffect.GetProjectile() != 2U)
+        return 73;
+    const auto slowReleased = slowPlayer.ProgressBehaviors(
+        0.251F, 0.35F, 30.0F);
+    if (!slowReleased.slowSpeedLimited || !slowReleased.slowReleased ||
+        slowPlayer.slowEffect.IsEffectMaked() ||
+        slowPlayer.GetBehaviors().Find(
+            source::BehaviorType::SlowEffect) == nullptr)
+        return 74;
+    const auto slowRemoved = slowPlayer.ProgressBehaviors(
+        0.0F, 0.35F, 30.0F);
+    if (slowRemoved.gameObject.behaviorsRemoved != 1U ||
+        slowRemoved.gameObject.behaviorsProgressed != 3U ||
+        slowPlayer.GetBehaviors().GetCount() != 3U ||
+        slowPlayer.GetBehaviors().Find(
+            source::BehaviorType::SlowEffect) != nullptr ||
+        slowPlayer.GetListenerCount() != 3U)
+        return 75;
+    if (!slowPlayer.AttachSlowEffect(1.0F, 1U, 1U))
+        return 76;
+    slowPlayer.Destroy();
+    if (slowPlayer.GetBehaviors().Find(
+            source::BehaviorType::SlowEffect) != nullptr ||
+        slowPlayer.GetBehaviors().GetCount() != 3U ||
+        slowPlayer.GetListenerCount() != 3U)
+        return 77;
     player.car.SetSize(7.5F);
     player.ConfigureIdentity(
         source::Player::humanId, 7, 3U, "Tyler", "Network Tyler",

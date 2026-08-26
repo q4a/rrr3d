@@ -3701,8 +3701,7 @@ void OriginalRaceSession::updateGameplay(
                     std::max(laserUpdate.damage, 0.0F),
                     sourceProjectileDamageType(
                         projectileDefinition.type));
-                if (projectileDefinition.type == 18U &&
-                    !racers_[target].slowEffect.IsEffectMaked())
+                if (projectileDefinition.type == 18U)
                 {
                     const float duration =
                         projectileDefinition.tertiaryVisual
@@ -3711,7 +3710,7 @@ void OriginalRaceSession::updateGameplay(
                             ? projectileDefinition.tertiaryVisual
                                   .maximumTimeLife
                             : 1.0F;
-                    racers_[target].slowEffect.Attach(
+                    racers_[target].AttachSlowEffect(
                         duration, projectile.weapon,
                         projectile.projectile);
                 }

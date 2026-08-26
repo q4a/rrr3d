@@ -2441,6 +2441,22 @@ low-life threshold, затем читает результат общего Game
 ссылки каждого Player оставались локальными. Regression проверяет три
 зарегистрированных типа/listener и прежние shield/energy transitions.
 
+### P2.94 — dynamic Frost Ray `SlowEffect` behavior — выполнено
+
+Portable Player постоянно хранил и вручную прогрессировал `SlowEffect`, а
+Frost Ray напрямую менял это поле. В Windows `Proj::FrostRayUpdate` сначала
+ищет `btSlowEffect` в owner, при отсутствии динамически добавляет behavior и
+связывает его с `model3`; по окончании вложенного эффекта behavior вызывает
+`Remove()` и удаляется следующим проходом контейнера.
+
+Теперь Frost Ray вызывает `Player::AttachSlowEffect`: повторный контакт не
+перезапускает lifetime, новый `SlowBehavior` появляется с точным serialized
+type, получает скорость через общий `GameObject::OnProgress`, ограничивает её
+исходными 20 м/с и помечает себя для deferred removal после освобождения
+effect/model ownership. Destroy/Disconnect немедленно очищают динамический
+behavior. Regression проверяет создание, запрет повторного attach, ограничение
+скорости, release, удаление на следующем проходе и cleanup при уничтожении.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

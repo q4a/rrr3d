@@ -361,6 +361,9 @@ public:
     BehaviorProgressResult ProgressBehaviors(
         float deltaTime, float lowLifeLevel,
         float linearSpeed) noexcept;
+    bool AttachSlowEffect(
+        float maximumTimeLife, std::size_t weapon,
+        std::size_t projectile) noexcept;
     CheatResult CheatUpdate(
         std::uint32_t cheatMask, std::size_t playerId,
         std::size_t difficulty,
@@ -451,7 +454,9 @@ private:
     class LowLifeBehavior;
     class EnergyDamageBehavior;
     class PlayerImmortalBehavior;
+    class SlowBehavior;
     void BindSourceBehaviors();
+    void ClearSlowBehavior() noexcept;
 
     int id_ = undefinedId;
     int gamerId_ = -1;
@@ -475,6 +480,9 @@ private:
     bool energyDamageEffectCreated_ = false;
     bool lowLifeActivated_ = false;
     bool lowLifeReleased_ = false;
+    float behaviorLinearSpeed_ = 0.0F;
+    bool slowSpeedLimited_ = false;
+    bool slowReleased_ = false;
     std::vector<PlayerGameEvent> gameEvents_;
     std::vector<std::uint32_t> bonusProjectileIds_;
     std::uint32_t nextBonusProjectileId_ = 1U;
