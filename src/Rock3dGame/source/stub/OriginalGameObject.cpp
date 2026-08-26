@@ -572,6 +572,9 @@ void GameObject::SetLogic(Logic* value) noexcept
         LogicInited();
 }
 
+Proj* GameObject::IsProj() noexcept { return nullptr; }
+const Proj* GameObject::IsProj() const noexcept { return nullptr; }
+
 void GameObject::InsertChild(GameObject* value)
 {
     if (value == nullptr || value == this || value->parent_ != nullptr)

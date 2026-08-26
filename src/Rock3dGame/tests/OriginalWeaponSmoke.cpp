@@ -1242,6 +1242,34 @@ int main()
         source::Proj::PreparationRouteFor(9U).requiresWeapon ||
         source::Proj::PreparationRouteFor(24U).requiresWeapon)
         return 132;
+    source::Logic damageLogic;
+    source::GameObject damageCar;
+    damageCar.SetLogic(&damageLogic);
+    source::Weapon damageWeapon;
+    damageWeapon.SetParent(&damageCar);
+    source::GameObject projectileDamageTarget;
+    source::Proj damageProjectile;
+    source::Proj::ShotContext damageContext;
+    damageContext.logic = &damageLogic;
+    damageContext.playerId = 7U;
+    damageProjectile.SetLogic(&damageLogic);
+    damageProjectile.PrepareSource(
+        sourceDescription, &damageWeapon, damageContext);
+    const auto damageCommand = damageProjectile.DamageTarget(
+        &projectileDamageTarget, 17.0F,
+        r3d::game::originalrace::DamageType::Energy);
+    const source::GameObject& genericProjectile = damageProjectile;
+    if (!damageCommand.valid || damageCommand.logic != &damageLogic ||
+        damageCommand.senderCar != &damageCar ||
+        damageCommand.target != &projectileDamageTarget ||
+        damageCommand.playerId != 7U || damageCommand.damage != 17.0F ||
+        damageCommand.damageType !=
+            r3d::game::originalrace::DamageType::Energy ||
+        damageProjectile.IsProj() != &damageProjectile ||
+        genericProjectile.IsProj() != &damageProjectile ||
+        projectileDamageTarget.IsProj() != nullptr ||
+        damageProjectile.DamageTarget(nullptr, 1.0F).valid)
+        return 133;
     const auto rocketRoute = source::Proj::ContactRouteFor(
         0U, false, false);
     const auto laserRoute = source::Proj::ContactRouteFor(

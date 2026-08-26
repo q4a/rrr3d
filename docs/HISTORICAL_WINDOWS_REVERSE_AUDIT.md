@@ -3402,6 +3402,24 @@ concrete объект. Regression проходит весь диапазон 0..
 Laser, Mine, Drobilka, Spring, Crater и MineProton, где различия наиболее
 существенны.
 
+### P2.141 — восстановлены `Proj::DamageTarget` и source identity — выполнено
+
+Даже после переноса contact/progress/prepare dispatch живые снаряды передавали
+урон через session-поля `damageOwner` и заново собирали тип урона возле каждого
+Jolt-contact. В Windows эту команду формирует сам `Proj::DamageTarget`: он
+берёт машину-отправителя из parent живого `Weapon`, сохраняет `_playerId`,
+цель, величину и `DamageType`, после чего передаёт их `Logic::Damage`.
+Одновременно generic `GameObject` предоставляет виртуальный `IsProj`, которым
+исходные contact, bonus и listener пути определяют конкретный тип объекта.
+
+В concrete `Proj` восстановлена единая backend-neutral `DamageCommand` и
+виртуальная identity `IsProj`. Attached Laser/Frost, Fire/Drobilka, свободные
+контактные снаряды и все живые mine/crater объекты теперь формируют атрибуцию
+через `Proj::DamageTarget`; session применяет готовую команду и оставляет у
+себя только сетевую авторитетность, отражатель, события и Jolt/renderer
+presentation. Regression отдельно проверяет generic dispatch, sender-car,
+player id, цель, значение и тип урона, а также отказ команды без Logic/цели.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

@@ -28,6 +28,7 @@ namespace source
 
 class GameObject;
 class GameObjectFrameSync;
+class Proj;
 class Behavior;
 class Behaviors;
 class Logic;
@@ -266,6 +267,12 @@ public:
     Logic* GetLogic() noexcept;
     const Logic* GetLogic() const noexcept;
     void SetLogic(Logic* value) noexcept;
+
+    // GameObject.cpp exposes concrete source identity without RTTI.  The
+    // physics adapter can therefore resolve a generic contact actor exactly
+    // as the Windows code did before dispatching Proj-specific behavior.
+    virtual Proj* IsProj() noexcept;
+    virtual const Proj* IsProj() const noexcept;
 
     void InsertChild(GameObject* value);
     void RemoveChild(GameObject* value) noexcept;

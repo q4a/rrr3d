@@ -150,6 +150,9 @@ Proj::~Proj()
     SetSourceWeapon(nullptr);
 }
 
+Proj* Proj::IsProj() noexcept { return this; }
+const Proj* Proj::IsProj() const noexcept { return this; }
+
 void Proj::PrepareSource(
     const ProjectileDefinition& description,
     GameObject* weapon, const ShotContext& context) noexcept
@@ -456,6 +459,18 @@ GameObject* Proj::GetSourceWeapon() const noexcept { return weapon_; }
 GameObject* Proj::GetSourceTarget() const noexcept { return target_; }
 std::size_t Proj::GetSourcePlayerId() const noexcept { return playerId_; }
 bool Proj::IsPrepared() const noexcept { return prepared_; }
+
+Proj::DamageCommand Proj::DamageTarget(
+    GameObject* target, float damage,
+    DamageType damageType) noexcept
+{
+    GameObject* senderCar = weapon_ != nullptr
+        ? weapon_->GetParent()
+        : nullptr;
+    return {
+        GetLogic(), senderCar, target, playerId_, damage,
+        damageType, target != nullptr && GetLogic() != nullptr};
+}
 
 void Proj::OnDestroy(GameObject& sender) noexcept
 {

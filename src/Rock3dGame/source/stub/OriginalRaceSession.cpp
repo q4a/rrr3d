@@ -3540,6 +3540,21 @@ void OriginalRaceSession::updateGameplay(
                 target, attacker, position, sourceDamage, damageType,
                 vehicles[target], false, false, 0.0F, false, false);
         };
+    auto applyProjectileDamage =
+        [&](source::Proj& projectile, std::size_t target,
+            const Vec3& position, float sourceDamage,
+            DamageType damageType) {
+            if (target >= racers_.size())
+                return false;
+            const auto command = projectile.DamageTarget(
+                &racers_[target].gameCar, sourceDamage, damageType);
+            if (!command.valid || command.target !=
+                                      &racers_[target].gameCar)
+                return false;
+            return applyRacerDamage(
+                target, command.playerId, position, command.damage,
+                command.damageType);
+        };
 
     auto damageFromContact =
         [](const std::array<float, 2>& damage,
@@ -4054,8 +4069,8 @@ void OriginalRaceSession::updateGameplay(
                 rayHit.vehicle < racers_.size())
             {
                 const std::size_t target = rayHit.vehicle;
-                applyRacerDamage(
-                    target, projectile.damageOwner, end,
+                applyProjectileDamage(
+                    *projectile.sourceObject, target, end,
                     std::max(laserUpdate.damage, 0.0F),
                     source::Proj::DamageTypeFor(
                         projectileDefinition.type));
@@ -4164,9 +4179,8 @@ void OriginalRaceSession::updateGameplay(
                                   true, projectileDefinition.damage,
                                   seconds);
                     refreshDrobilkaContact(contactPoint);
-                    applyRacerDamage(
-                        target, projectile.damageOwner,
-                        contactPoint,
+                    applyProjectileDamage(
+                        *projectile.sourceObject, target, contactPoint,
                         std::max(contact.damage, 0.0F),
                         sourceContactRoute.damageType);
                 }
@@ -4418,8 +4432,8 @@ void OriginalRaceSession::updateGameplay(
                     : (sonarContact
                            ? sonarResult.damage
                            : projectile.damage);
-            applyRacerDamage(
-                target, projectile.damageOwner, contactPoint,
+            applyProjectileDamage(
+                *projectile.sourceObject, target, contactPoint,
                 std::max(sourceDamage, 0.0F),
                 projectileContactRoute.damageType);
             if (sonarContact)
@@ -5229,8 +5243,8 @@ void OriginalRaceSession::updateGameplay(
         }
         if (!sourceContactRoute.appliesDamage)
             return false;
-        applyRacerDamage(
-            racer, mine.damageOwner, contactPoint,
+        applyProjectileDamage(
+            *mine.sourceObject, racer, contactPoint,
             std::max(
                 sourceContactRoute.handler ==
                         source::Proj::ContactHandler::Crater

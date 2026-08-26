@@ -313,6 +313,20 @@ public:
         bool requiresWeapon = false;
     };
 
+    // Proj::DamageTarget owns damage attribution in the Windows source.
+    // Applying the command remains a Logic/session boundary so network
+    // authority can preserve the original request/response ordering.
+    struct DamageCommand
+    {
+        Logic* logic = nullptr;
+        GameObject* senderCar = nullptr;
+        GameObject* target = nullptr;
+        std::size_t playerId = GameObject::undefinedPlayerId;
+        float damage = 0.0F;
+        DamageType damageType = DamageType::Simple;
+        bool valid = false;
+    };
+
     struct DestroyResult
     {
         bool destroy = false;
@@ -449,12 +463,17 @@ public:
     ContinuousContactResult ContactDrobilka(
         bool hasTarget, float damage, float deltaTime,
         Vec3 contactPoint) noexcept;
+    DamageCommand DamageTarget(
+        GameObject* target, float damage,
+        DamageType damageType = DamageType::Simple) noexcept;
     ContactRoute RouteContact(bool targetDestroyed) const noexcept;
     ProgressRoute RouteProgress() const noexcept;
     void ProgressDrobilka(float deltaTime) noexcept;
 
     Proj();
     ~Proj() override;
+    Proj* IsProj() noexcept override;
+    const Proj* IsProj() const noexcept override;
     void PrepareSource(
         const ProjectileDefinition& description,
         GameObject* weapon,
