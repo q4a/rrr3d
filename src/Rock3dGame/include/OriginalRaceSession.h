@@ -5,6 +5,7 @@
 #include "OriginalGameObject.h"
 #include "OriginalHumanPlayer.h"
 #include "OriginalLogic.h"
+#include "OriginalMapObj.h"
 #include "OriginalPlayer.h"
 #include "OriginalProfile.h"
 #include "OriginalRace.h"
@@ -561,10 +562,9 @@ private:
     std::vector<float> decorationLife_;
     // Active source owner. The parallel arrays are renderer/physics views,
     // no longer the authority for damage or death.
-    std::vector<source::DestrObj> decorationObjects_;
+    source::MapObjects decorationObjects_;
     std::vector<bool> bonusActive_;
-    std::vector<source::GameObject> bonusObjects_;
-    std::vector<source::AutoProj> bonusProjectiles_;
+    source::MapObjects bonusObjects_;
     std::vector<float> bonusScales_;
     std::vector<std::size_t> bonusNetworkPendingContact_;
     source::HumanPlayer humanPlayer_;

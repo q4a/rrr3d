@@ -2007,6 +2007,31 @@ XInput-особенность сохранена явно: `GetGameActionState` 
 удаляется и при `Pause(false)` создаётся заново с сохранённого кадра; smoke
 фиксирует отсутствие активного menu/game voice на FinishMenu.
 
+### P2.71 — `MapObj/MapObjects` active ownership — выполнено
+
+Прямая сверка `MapObj.cpp`, `MapObj.h` и активных decoration/bonus путей
+показала, что session хранил три независимых массива: `DestrObj`, базовый
+`GameObject` и `AutoProj`. В Windows это один типизированный `MapObj`, а
+`MapObjects` задаёт owner/parent, глобальный ID, record/category, special-list
+и момент удаления после `OnProgress` уже умершего объекта.
+
+Backend-neutral `source::MapObj/MapObjects` теперь воспроизводит порядок всех
+шести `GameObjType` и семи category, переносит общий `GameObject` state при
+смене типа, реально создаёт `DestrObj` и объединяет projectile lifetime с
+`AutoProj`. Активная гонка создаёт в нём все decoration и bonus placements с
+их исходными global `mapObjectId`; отдельные `decorationObjects_`,
+`bonusObjects_` и `bonusProjectiles_` больше не являются параллельными
+владельцами.
+
+Удаление также возвращено в исходную фазу: bonus получает `Death` при
+подборе/контакте и удаляется после следующего progress callback, разрушаемая
+декорация сначала выпускает свой destruction list, затем освобождает slot, а
+выход из гонки вызывает Destroy для всего оставшегося графа. Stable slot
+сохраняет индекс placement для Jolt/bgfx/network adapters после удаления.
+Отдельный regression проверяет type-state Assign, unique names, source
+`Misc/Crush` special filter, callback-before-delete и полную Death/Clear
+семантику.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

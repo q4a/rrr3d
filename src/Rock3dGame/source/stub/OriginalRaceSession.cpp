@@ -1102,36 +1102,39 @@ void OriginalRaceSession::reset()
     decorationActive_.assign(race_.decorationInstances.size(), true);
     decorationLife_.clear();
     decorationLife_.reserve(race_.decorationInstances.size());
-    decorationObjects_.clear();
-    decorationObjects_.reserve(race_.decorationInstances.size());
+    decorationObjects_.Clear();
+    decorationObjects_.Reserve(race_.decorationInstances.size());
     for (const auto& instance : race_.decorationInstances)
     {
         const auto& definition =
             race_.decorationDefinitions.at(instance.definition);
-        source::DestrObj object;
-        object.ResetGameObject(
+        auto& mapObject = decorationObjects_.Add(
+            source::GameObjType::DestrObj,
+            source::MapObjCategory::Decoration, definition.record,
+            instance.mapObjectId);
+        auto* object = mapObject.GetDestrObj();
+        object->ResetGameObject(
             definition.maximumLife >= 0.0F
                 ? definition.maximumLife
                 : -1.0F);
-        decorationLife_.push_back(object.GetLife());
-        decorationObjects_.push_back(std::move(object));
+        decorationLife_.push_back(object->GetLife());
     }
     bonusActive_.assign(race_.bonuses.size(), true);
-    bonusObjects_.clear();
-    bonusObjects_.reserve(race_.bonuses.size());
-    bonusProjectiles_.clear();
-    bonusProjectiles_.reserve(race_.bonuses.size());
+    bonusObjects_.Clear();
+    bonusObjects_.Reserve(race_.bonuses.size());
     bonusScales_.assign(race_.bonuses.size(), -1.0F);
     for (std::size_t index = 0U; index < race_.bonuses.size(); ++index)
     {
-        source::GameObject bonus;
-        bonus.ResetGameObject(-1.0F);
-        bonusObjects_.push_back(std::move(bonus));
-        source::AutoProj projectile;
-        projectile.Reset(race_.bonuses[index].projectileType);
-        projectile.LogicInited();
-        bonusScales_[index] = projectile.GetModelScale();
-        bonusProjectiles_.push_back(std::move(projectile));
+        const auto& bonus = race_.bonuses[index];
+        auto& mapObject = bonusObjects_.Add(
+            source::GameObjType::Proj,
+            source::MapObjCategory::Bonus, bonus.record,
+            bonus.mapObjectId);
+        mapObject.GetGameObj().ResetGameObject(-1.0F);
+        auto* projectile = mapObject.GetAutoProj();
+        projectile->Reset(bonus.projectileType);
+        projectile->LogicInited();
+        bonusScales_[index] = projectile->GetModelScale();
     }
     bonusNetworkPendingContact_.assign(
         race_.bonuses.size(), RacerRuntime::invalidWeapon);
@@ -1974,8 +1977,8 @@ bool OriginalRaceSession::damageDecoration(
     std::size_t hit, float damage, std::size_t attacker)
 {
     if (hit >= decorationActive_.size() ||
-        hit >= decorationObjects_.size() ||
         hit >= race_.decorationInstances.size() ||
+        decorationObjects_.Get(hit) == nullptr ||
         !decorationActive_[hit])
         return false;
     const auto definition = race_.decorationInstances[hit].definition;
@@ -2029,7 +2032,10 @@ OriginalRaceSession::applyDecorationDamageInternal(
     }
 
     const float appliedDamage = damage;
-    auto& object = decorationObjects_[hit];
+    auto* mapObject = decorationObjects_.Get(hit);
+    if (mapObject == nullptr || mapObject->GetDestrObj() == nullptr)
+        return {decorationLife_[hit], false};
+    auto& object = *mapObject->GetDestrObj();
     const auto damageResult = synchronizeState
         ? object.Damage(attacker, appliedDamage, targetLife, death,
                         damageType)
@@ -2052,8 +2058,9 @@ OriginalRaceSession::applyDecorationDamageInternal(
         return {decorationLife_[hit], false};
 
     decorationActive_[hit] = false;
-    if (!object.OnProgress(0.0F))
+    if (!object.HasPendingDestruction())
         return {decorationLife_[hit], true};
+    decorationObjects_.ProgressOne(hit, 0.0F);
     const Vec3 position =
         race_.decorationInstances[hit].transform.position;
     RaceEvent destroyedEvent;
@@ -5004,6 +5011,8 @@ void OriginalRaceSession::updateGameplay(
                         localAngularDelta)});
         }
         bonusActive_[bonusIndex] = false;
+        if (auto* object = bonusObjects_.Get(bonusIndex))
+            object->GetGameObj().Death(DamageType::Mine);
         return true;
     };
 
@@ -5025,7 +5034,7 @@ void OriginalRaceSession::updateGameplay(
         if (racer >= racers_.size() ||
             bonusIndex >= race_.bonuses.size() ||
             bonusIndex >= bonusActive_.size() ||
-            bonusIndex >= bonusObjects_.size() ||
+            bonusObjects_.Get(bonusIndex) == nullptr ||
             !bonusActive_[bonusIndex] || racers_[racer].destroyed)
             return false;
         auto& runtime = racers_[racer];
@@ -5067,8 +5076,9 @@ void OriginalRaceSession::updateGameplay(
             sourceType == source::PlayerBonusType::Charge
                 ? sourceRandomUnit()
                 : 0.0F;
+        auto* bonusObject = bonusObjects_.Get(bonusIndex);
         const auto result = source::Logic::TakeBonus(
-            &runtime, &bonusObjects_[bonusIndex], sourceType,
+            &runtime, &bonusObject->GetGameObj(), sourceType,
             sourceValue, weaponMaximumCharges, bonusRandomUnit);
         if (!result.taken)
             return false;
@@ -5088,7 +5098,7 @@ void OriginalRaceSession::updateGameplay(
             break;
         }
         bonusActive_[bonusIndex] =
-            !bonusObjects_[bonusIndex].destroyed;
+            !bonusObject->GetGameObj().destroyed;
         spawnBonusDeathEffect(bonusIndex);
         RaceEvent event;
         event.kind = RaceEventKind::Bonus;
@@ -5184,8 +5194,11 @@ void OriginalRaceSession::updateGameplay(
                 applyMasloContact(
                     racer, bonus.transform.position,
                     bonus.value,
-                    bonusIndex < bonusProjectiles_.size() &&
-                        bonusProjectiles_[bonusIndex].IsArming());
+                    bonusObjects_.Get(bonusIndex) != nullptr &&
+                        bonusObjects_.Get(bonusIndex)
+                            ->GetAutoProj() != nullptr &&
+                        bonusObjects_.Get(bonusIndex)
+                            ->GetAutoProj()->IsArming());
                 continue;
             }
             if (bonus.kind == BonusKind::MineHazard)
@@ -6074,6 +6087,8 @@ void OriginalRaceSession::completeRaceForExit(
         pendingNetworkMineContacts_.clear();
         std::fill(decorationActive_.begin(), decorationActive_.end(), false);
         std::fill(bonusActive_.begin(), bonusActive_.end(), false);
+        decorationObjects_.Clear();
+        bonusObjects_.Clear();
         std::fill(vehicleInputs_.begin(), vehicleInputs_.end(),
                   r3d::physics::VehicleInput{});
         pairContactEffect_.Reset(race_.contactSoundPaths.size());
@@ -6102,16 +6117,19 @@ void OriginalRaceSession::update(
     // therefore advances during the visible countdown even though race time
     // itself has not started. This is most visible on ptMaslo, whose model
     // grows from scale zero during the original 0.25-second arming window.
+    bonusObjects_.OnProgress(seconds);
     for (std::size_t index = 0U;
-         index < bonusProjectiles_.size(); ++index)
+         index < bonusObjects_.GetSlotCount(); ++index)
     {
         if (index >= bonusActive_.size() || !bonusActive_[index])
             continue;
-        bonusProjectiles_[index].OnProgress(seconds);
+        const auto* mapObject = bonusObjects_.Get(index);
+        if (mapObject == nullptr || mapObject->GetAutoProj() == nullptr)
+            continue;
         if (index < bonusScales_.size())
         {
             bonusScales_[index] =
-                bonusProjectiles_[index].GetModelScale();
+                mapObject->GetAutoProj()->GetModelScale();
         }
     }
     for (auto& effect : effects_)
