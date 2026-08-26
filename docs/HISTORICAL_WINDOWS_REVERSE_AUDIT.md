@@ -2860,6 +2860,29 @@ game-layer controller. Умножитель `CarMotorDesc::cGameK = 1.15` не �
 меняет именно живой `GameCar`, а обычные Computer не становятся ложными
 opponent-reference.
 
+### P2.116 — explicit source `SteerWheelState` — выполнено
+
+Активный порт определял `swOnLeft/swOnRight/smManual` по величине
+нормализованного steering: значение около `±1` считалось digital и проходило
+через `_steerSpeed`, любое промежуточное — manual. В Windows режим задаётся
+отдельно от угла. Особенно существенно, что `AICar::ControlState` всегда
+вызывает `SetSteerWheel(smManual)`, даже при полном угле: прежняя эвристика
+замедляла реакцию AI именно на резких поворотах.
+
+В `GameCar` возвращены явные `SteerWheelState`, сохранение/copy/reset и
+source-геттеры состояния/угла. `VehicleInput` переносит отдельный флаг manual:
+AI назначает его безусловно, Human различает keyboard/gamepad-button
+(`alphaMax == 0`, digital ramp) и gamepad-axis (`alphaMax != 0`, прямой угол),
+а сетевой `ResponseStream` снова передаёт исходное `steerState == 3` вместе с
+`steerWheelsAngle`. SDL input owner получил source-specific held lookup, чтобы
+одновременно назначенные keyboard и gamepad bindings сохраняли приоритет
+клавиатуры из `HumanPlayer::Control`.
+
+Regression покрывает digital accumulation, мгновенный manual full-lock,
+состояние живого `GameCar`, Human analog/digital классификацию, SDL source
+lookup и сохранение `smManual` при AI reverse/forward blocking cycle. Debug
+overlay теперь также показывает фактический manual/digital режим.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

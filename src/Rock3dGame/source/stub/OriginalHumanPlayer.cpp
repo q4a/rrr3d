@@ -87,7 +87,8 @@ HumanPlayer::Selection HumanPlayer::SelectWeapon(
 
 HumanPlayer::DrivingCommand HumanPlayer::OnInputProgress(
     bool accelerateDown, bool backDown,
-    float leftDown, float rightDown) noexcept
+    float leftDown, float rightDown,
+    bool leftAnalog, bool rightAnalog) noexcept
 {
     DrivingCommand result;
     if (accelerateDown)
@@ -98,9 +99,15 @@ HumanPlayer::DrivingCommand HumanPlayer::OnInputProgress(
     // HumanPlayer::Control evaluates left before right. Two simultaneous
     // digital directions therefore steer left instead of cancelling out.
     if (leftDown != 0.0F)
+    {
         result.steering = leftDown;
+        result.manualSteering = leftAnalog;
+    }
     else if (rightDown != 0.0F)
+    {
         result.steering = -rightDown;
+        result.manualSteering = rightAnalog;
+    }
     return result;
 }
 

@@ -208,11 +208,22 @@ int main()
     const float expectedSteering = steerSpeed / 120.0F;
     if (std::abs(steered.steeringAngle - expectedSteering) > 0.0001F ||
         steered.steeringYaw <= 0.0F || steered.rearWheelX != -1.0F ||
+        car.GetSteerWheel() !=
+            source::GameCar::SteerWheelState::OnLeft ||
+        car.GetSteerWheelAngle() != steered.steeringAngle ||
         std::abs(car.GetWheel(1U)->GetSteerAngle() -
                  expectedSteering) > 0.0001F ||
         steered.angularDamping != std::array<float, 3U>{0.5F, 0.6F, 0.7F} ||
         steered.applyExtraGravity)
         return 45;
+    const auto aiFullLock = car.OnFixedStepDrive(
+        1.0F / 120.0F, {0.0F, 0.0F, 0.0F, -1.0F, true},
+        {5.0F, 5.0F, 5.0F, 0.0F, true, true});
+    if (aiFullLock.steeringAngle != -maximumSteerAngle ||
+        car.GetSteerWheel() !=
+            source::GameCar::SteerWheelState::Manual ||
+        car.GetSteerWheelAngle() != -maximumSteerAngle)
+        return 54;
     const auto airborne = car.OnFixedStepDrive(
         1.0F / 120.0F, {},
         {5.0F, 5.0F, 2.0F, 0.0F, false, false});

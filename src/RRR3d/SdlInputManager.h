@@ -50,6 +50,7 @@ class SdlInputManager
 
 	std::vector<ActionEvent> processEvent(const SDL_Event &event);
 	float heldValue(Action action) const noexcept;
+	float heldValue(Action action, Source source) const noexcept;
 
 	std::size_t connectedGamepadCount() const noexcept;
 	bool hasGamepad(SDL_JoystickID device_id) const noexcept;

@@ -57,14 +57,16 @@ int main()
         return 6;
 
     auto driving = source::HumanPlayer::OnInputProgress(
-        true, true, 0.75F, 0.5F);
+        true, true, 0.75F, 0.5F, true, false);
     if (driving.throttle != 1.0F || driving.reverse != 0.0F ||
-        std::abs(driving.steering - 0.75F) > 0.0001F)
+        std::abs(driving.steering - 0.75F) > 0.0001F ||
+        !driving.manualSteering)
         return 7;
     driving = source::HumanPlayer::OnInputProgress(
         false, true, 0.0F, 0.6F);
     if (driving.throttle != 0.0F || driving.reverse != 1.0F ||
-        std::abs(driving.steering + 0.6F) > 0.0001F)
+        std::abs(driving.steering + 0.6F) > 0.0001F ||
+        driving.manualSteering)
         return 8;
 
     auto gate = source::HumanPlayer::EvaluateControl(

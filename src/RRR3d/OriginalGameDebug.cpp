@@ -240,7 +240,8 @@ std::vector<std::string> OriginalGameDebug::lines(
         result.push_back(
             "Input gas " + floatText(input.throttle) + " reverse " +
             floatText(input.reverse) + " brake " + floatText(input.brake) +
-            " steer " + floatText(input.steering));
+            " steer " + floatText(input.steering) +
+            (input.manualSteering ? " manual" : " digital"));
         const auto totalDraws = std::accumulate(
             telemetry.drawCount.begin(), telemetry.drawCount.end(), 0U);
         result.push_back(

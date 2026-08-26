@@ -160,7 +160,9 @@ bool runSdlInputSmokeTest(SdlInputManager &input, std::string &error)
 	event.key.scancode = SDL_SCANCODE_UP;
 	auto actions = input.processEvent(event);
 	if (!contains(actions, Action::Accelerate, Source::Keyboard, true) ||
-	    input.heldValue(Action::Accelerate) < 0.99F)
+	    input.heldValue(Action::Accelerate) < 0.99F ||
+	    input.heldValue(Action::Accelerate, Source::Keyboard) < 0.99F ||
+	    input.heldValue(Action::Accelerate, Source::GamepadAxis) != 0.0F)
 	{
 		error = "configured Up Arrow did not latch the acceleration state";
 		return false;
@@ -425,7 +427,9 @@ bool runSdlInputSmokeTest(SdlInputManager &input, std::string &error)
 	    static_cast<float>(-static_cast<int>(steering_value) - 7849) /
 	    static_cast<float>(32767 - 7849);
 	if (!contains(actions, Action::TurnLeft, Source::GamepadAxis, true, virtual_id) ||
-	    std::abs(input.heldValue(Action::TurnLeft) - expectedSteering) > 0.001F)
+	    std::abs(input.heldValue(Action::TurnLeft) - expectedSteering) > 0.001F ||
+	    std::abs(input.heldValue(Action::TurnLeft, Source::GamepadAxis) -
+	             expectedSteering) > 0.001F)
 	{
 		return fail("configured source analog steering/normalization failed");
 	}

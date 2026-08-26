@@ -2405,7 +2405,7 @@ physics::VehicleDriveCommand OriginalRaceSession::racerFixedStepDrive(
     const auto command = racers_[racer].gameCar.OnFixedStepDrive(
         deltaTime,
         {input.throttle, input.reverse, input.brake,
-         input.steering},
+         input.steering, input.manualSteering},
         {state.signedSpeed, state.absoluteSpeed,
          state.horizontalSpeed, state.drivenWheelAngularSpeed,
          state.anyWheelContact,
@@ -3058,6 +3058,9 @@ r3d::physics::VehicleInput OriginalRaceSession::aiInput(
     input.steering = clampSteering(
         command.steeringAngle /
         std::max(vehicleDefinition.physics.steerAngle, 0.01F));
+    // AICar::ControlState always calls SetSteerWheel(smManual), including
+    // at exact full lock. It must never enter Human digital steering ramp.
+    input.manualSteering = true;
     switch (command.move)
     {
     case source::AICar::MoveCarState::Accelerate:
@@ -8023,7 +8026,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 aiControlSession.update(
                     1.0F / 60.0F, vehicles, input);
             if (aiControlSession.vehicleInputs()[1].reverse < 0.9F ||
-                aiControlSession.vehicleInputs()[1].throttle > 0.1F)
+                aiControlSession.vehicleInputs()[1].throttle > 0.1F ||
+                !aiControlSession.vehicleInputs()[1].manualSteering)
             {
                 throw std::runtime_error(
                     "source AICar blocked reverse transition failed");
@@ -8032,7 +8036,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 aiControlSession.update(
                     1.0F / 60.0F, vehicles, input);
             if (aiControlSession.vehicleInputs()[1].throttle < 0.9F ||
-                aiControlSession.vehicleInputs()[1].reverse > 0.1F)
+                aiControlSession.vehicleInputs()[1].reverse > 0.1F ||
+                !aiControlSession.vehicleInputs()[1].manualSteering)
             {
                 throw std::runtime_error(
                     "source AICar reverse/forward alternation failed");

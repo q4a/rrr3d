@@ -166,6 +166,9 @@ struct VehicleInput
     float reverse = 0.0F;
     float brake = 0.0F;
     float steering = 0.0F;
+    // GameCar::smManual is independent of the requested angle. AI and an
+    // analogue gamepad axis stay manual even when they reach full lock.
+    bool manualSteering = false;
     // Player::SetCheatK changes these independently of the driver controls.
     // AI rubber-banding uses both; ordinary players retain the neutral 1.
     float motorTorqueScale = 1.0F;

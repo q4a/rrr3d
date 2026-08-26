@@ -65,6 +65,14 @@ public:
         Accel,
     };
 
+    enum class SteerWheelState
+    {
+        None,
+        OnLeft,
+        OnRight,
+        Manual,
+    };
+
     struct MotorDescription
     {
         float brakeTorque = 7500.0F;
@@ -84,6 +92,7 @@ public:
         float reverse = 0.0F;
         float brake = 0.0F;
         float steering = 0.0F;
+        bool manualSteering = false;
     };
 
     struct FixedStepState
@@ -164,6 +173,8 @@ public:
         float deltaTime, FixedStepInput input,
         FixedStepState state) noexcept;
     MoveCarState GetMoveCar() const noexcept;
+    SteerWheelState GetSteerWheel() const noexcept;
+    float GetSteerWheelAngle() const noexcept;
     int GetCurGear() const noexcept;
     float GetMotorTorqueK() const noexcept;
     void SetMotorTorqueK(float value) noexcept;
@@ -240,6 +251,7 @@ private:
     MotorDescription motor_;
     DynamicsDescription dynamics_;
     MoveCarState moveCar_ = MoveCarState::None;
+    SteerWheelState steerWheel_ = SteerWheelState::None;
     int currentGear_ = -1;
     float steeringAngle_ = 0.0F;
     // Source GameCar::_motorTorqueK/_wheelSteerK. They are runtime state,

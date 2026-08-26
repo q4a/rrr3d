@@ -25,6 +25,7 @@ public:
         float throttle = 0.0F;
         float reverse = 0.0F;
         float steering = 0.0F;
+        bool manualSteering = false;
     };
 
     // Exact three-stage gate used by HumanPlayer::Control. Event actions are
@@ -56,7 +57,9 @@ public:
 
     static DrivingCommand OnInputProgress(
         bool accelerateDown, bool backDown,
-        float leftDown, float rightDown) noexcept;
+        float leftDown, float rightDown,
+        bool leftAnalog = false,
+        bool rightAnalog = false) noexcept;
     static ControlGate EvaluateControl(
         bool playerBlocked, bool carPresent,
         bool chatMode, bool debugAiControl) noexcept;

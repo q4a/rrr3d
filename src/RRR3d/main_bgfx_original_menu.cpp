@@ -6944,9 +6944,12 @@ int main(int argc, char** argv)
                            ? 2U
                            : (raceInput.brake > 0.01F ? 1U : 0U));
             state.vehicle.steerState =
-                raceInput.steering > 0.01F
-                    ? 1U
-                    : (raceInput.steering < -0.01F ? 2U : 0U);
+                raceInput.manualSteering &&
+                        std::abs(raceInput.steering) > 0.01F
+                    ? 3U
+                    : (raceInput.steering > 0.01F
+                           ? 1U
+                           : (raceInput.steering < -0.01F ? 2U : 0U));
             state.vehicle.steerWheelsAngle =
                 raceInput.steering *
                 originalRace->vehicle.physics.steerAngle;
@@ -15786,24 +15789,42 @@ int main(int argc, char** argv)
                 rrr3d::input::Action::Accelerate) > 0.0F;
             const bool reverseHeld = input.heldValue(
                 rrr3d::input::Action::Brake) > 0.0F;
+            const auto sourceSteering = [&](rrr3d::input::Action action) {
+                const float keyboard = input.heldValue(
+                    action, rrr3d::input::Source::Keyboard);
+                if (keyboard > 0.0F)
+                    return std::pair<float, bool>{1.0F, false};
+                const float button = input.heldValue(
+                    action, rrr3d::input::Source::GamepadButton);
+                if (button > 0.0F)
+                    return std::pair<float, bool>{button, false};
+                const float axis = input.heldValue(
+                    action, rrr3d::input::Source::GamepadAxis);
+                return std::pair<float, bool>{axis, axis > 0.0F};
+            };
+            const auto leftSteering = sourceSteering(
+                rrr3d::input::Action::TurnLeft);
+            const auto rightSteering = sourceSteering(
+                rrr3d::input::Action::TurnRight);
             const auto humanDriving =
                 r3d::game::originalrace::source::HumanPlayer::
                     OnInputProgress(
                         accelerateHeld, reverseHeld,
-                        input.heldValue(
-                            rrr3d::input::Action::TurnLeft),
-                        input.heldValue(
-                            rrr3d::input::Action::TurnRight));
+                        leftSteering.first, rightSteering.first,
+                        leftSteering.second, rightSteering.second);
             raceInput.throttle = humanDriving.throttle;
             raceInput.reverse = humanDriving.reverse;
             raceInput.brake = 0.0F;
             raceInput.steering = humanDriving.steering;
+            raceInput.manualSteering = humanDriving.manualSteering;
             if (options->raceRenderSmokeTest)
             {
                 raceInput.steering = renderedFrames >= 90 &&
                                              renderedFrames < 180
                                          ? 0.35F
                                          : 0.0F;
+                raceInput.manualSteering =
+                    std::abs(raceInput.steering) > 0.0001F;
             }
             r3d::game::originalrace::RaceControl control;
             control.driving = raceInput;
@@ -17073,6 +17094,8 @@ int main(int argc, char** argv)
                             input.steering = 1.0F;
                         else if (player->vehicle.steerState == 2U)
                             input.steering = -1.0F;
+                        input.manualSteering =
+                            player->vehicle.steerState == 3U;
                         if (player->vehicle.steerState != 0U &&
                             index < physicsDescription->spawns.size())
                         {

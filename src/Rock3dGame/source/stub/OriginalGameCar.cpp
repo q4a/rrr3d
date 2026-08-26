@@ -123,6 +123,7 @@ GameCar& GameCar::operator=(const GameCar& other) noexcept
     motor_ = other.motor_;
     dynamics_ = other.dynamics_;
     moveCar_ = other.moveCar_;
+    steerWheel_ = other.steerWheel_;
     currentGear_ = other.currentGear_;
     steeringAngle_ = other.steeringAngle_;
     motorTorqueK_ = other.motorTorqueK_;
@@ -197,6 +198,7 @@ void GameCar::Reset() noexcept
     mineTime_ = 0.0F;
     leadWheelSpeed_ = 0.0F;
     moveCar_ = MoveCarState::None;
+    steerWheel_ = SteerWheelState::None;
     currentGear_ = -1;
     steeringAngle_ = 0.0F;
     motorTorqueK_ = 1.0F;
@@ -439,29 +441,39 @@ GameCar::DriveCommand GameCar::OnFixedStepDrive(
 
     const float targetSteering =
         input.steering * dynamics_.maximumSteerAngle;
-    if (std::abs(input.steering) >= 0.999F &&
-        dynamics_.steerSpeed > 0.0F)
-    {
-        if (targetSteering > 0.0F)
-        {
-            steeringAngle_ = std::min(
-                std::max(steeringAngle_, 0.0F) +
-                    dynamics_.steerSpeed * deltaTime,
-                dynamics_.maximumSteerAngle);
-        }
-        else
-        {
-            steeringAngle_ = std::max(
-                std::min(steeringAngle_, 0.0F) -
-                    dynamics_.steerSpeed * deltaTime,
-                -dynamics_.maximumSteerAngle);
-        }
-    }
+    if (std::abs(input.steering) <= 0.0001F)
+        steerWheel_ = SteerWheelState::None;
+    else if (input.manualSteering)
+        steerWheel_ = SteerWheelState::Manual;
+    else if (input.steering > 0.0F)
+        steerWheel_ = SteerWheelState::OnLeft;
     else
+        steerWheel_ = SteerWheelState::OnRight;
+
+    if (steerWheel_ == SteerWheelState::Manual)
     {
-        // Windows smManual is used by analogue input and AI.
         steeringAngle_ = targetSteering;
     }
+    else if (steerWheel_ == SteerWheelState::OnLeft)
+    {
+        steeringAngle_ = dynamics_.steerSpeed > 0.0F
+            ? std::min(
+                  std::max(steeringAngle_, 0.0F) +
+                      dynamics_.steerSpeed * deltaTime,
+                  dynamics_.maximumSteerAngle)
+            : dynamics_.maximumSteerAngle;
+    }
+    else if (steerWheel_ == SteerWheelState::OnRight)
+    {
+        steeringAngle_ = dynamics_.steerSpeed > 0.0F
+            ? std::max(
+                  std::min(steeringAngle_, 0.0F) -
+                      dynamics_.steerSpeed * deltaTime,
+                  -dynamics_.maximumSteerAngle)
+            : -dynamics_.maximumSteerAngle;
+    }
+    else
+        steeringAngle_ = 0.0F;
     command.steeringAngle = steeringAngle_;
     command.rearWheelX = 0.0F;
     for (auto& wheel : wheels_)
@@ -512,6 +524,16 @@ GameCar::DriveCommand GameCar::OnFixedStepDrive(
 GameCar::MoveCarState GameCar::GetMoveCar() const noexcept
 {
     return moveCar_;
+}
+
+GameCar::SteerWheelState GameCar::GetSteerWheel() const noexcept
+{
+    return steerWheel_;
+}
+
+float GameCar::GetSteerWheelAngle() const noexcept
+{
+    return steeringAngle_;
 }
 
 int GameCar::GetCurGear() const noexcept

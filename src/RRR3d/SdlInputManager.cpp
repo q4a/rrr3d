@@ -682,6 +682,18 @@ float SdlInputManager::heldValue(Action action) const noexcept
 	return value;
 }
 
+float SdlInputManager::heldValue(Action action, Source source) const noexcept
+{
+	float value = 0.0F;
+	for (const auto &[key, held] : held_action_values_)
+	{
+		if (std::get<0>(key) == action &&
+		    std::get<1>(key) == source)
+			value = std::max(value, held);
+	}
+	return value;
+}
+
 void SdlInputManager::clearHeldSource(Source source) noexcept
 {
 	for (auto entry = held_action_values_.begin();
