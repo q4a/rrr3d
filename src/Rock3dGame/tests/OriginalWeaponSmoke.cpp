@@ -10,6 +10,15 @@ namespace source = r3d::game::originalrace::source;
 namespace
 {
 
+bool nearVector(
+    const source::GameObject::Vector3& value,
+    const source::GameObject::Vector3& expected) noexcept
+{
+    return std::abs(value[0] - expected[0]) < 0.0001F &&
+           std::abs(value[1] - expected[1]) < 0.0001F &&
+           std::abs(value[2] - expected[2]) < 0.0001F;
+}
+
 struct BonusDeathOrder final : source::GameObjectListener
 {
     source::Player* player = nullptr;
@@ -80,6 +89,9 @@ int main()
     r3d::game::originalrace::ProjectileDefinition sourceDescription;
     sourceDescription.type = 3U;
     sourceDescription.damage = 9.0F;
+    sourceDescription.position = {1.0F, 2.0F, 3.0F};
+    sourceDescription.rotation =
+        {0.0F, 0.0F, 0.70710677F, 0.70710677F};
     sourceDescription.visual.record = "Effect\\laserModel";
     sourceDescription.secondaryVisual.record = "Effect\\laserModel2";
     source::GameObject sourceCar;
@@ -97,8 +109,13 @@ int main()
         linkedProjectile.GetSourceTarget() != &sourceTarget ||
         linkedProjectile.GetSourcePlayerId() != 7U ||
         linkedProjectile.GetParent() != &sourceWeapon ||
-        linkedProjectile.GetWorldPos() !=
-            source::GameObject::Vector3{4.0F, 5.0F, 6.0F} ||
+        linkedProjectile.GetPos() !=
+            source::GameObject::Vector3{1.0F, 2.0F, 3.0F} ||
+        linkedProjectile.GetRot() !=
+            source::GameObject::Quaternion{
+                0.0F, 0.0F, 0.70710677F, 0.70710677F} ||
+        !nearVector(
+            linkedProjectile.GetWorldPos(), {4.0F, 5.0F, 6.0F}) ||
         linkedProjectile.GetMaxTimeLife() != 2.5F ||
         linkedProjectile.GetSourceModel() == nullptr ||
         linkedProjectile.GetSourceModel2() == nullptr ||
@@ -110,6 +127,17 @@ int main()
         sourceWeapon.GetListenerCount() != 2U ||
         sourceTarget.GetListenerCount() != 1U)
         return 65;
+    linkedProjectile.SyncSourceTransform(
+        {14.0F, 15.0F, 16.0F},
+        {0.0F, 0.0F, 0.0F, 1.0F});
+    if (linkedProjectile.GetPos() !=
+            source::GameObject::Vector3{1.0F, 2.0F, 3.0F} ||
+        linkedProjectile.GetRot() !=
+            source::GameObject::Quaternion{
+                0.0F, 0.0F, 0.70710677F, 0.70710677F} ||
+        !nearVector(
+            linkedProjectile.GetWorldPos(), {14.0F, 15.0F, 16.0F}))
+        return 109;
     linkedProjectile.SetSourceTimer(0.4F);
     linkedProjectile.SetSourceVector({7.0F, 8.0F, 9.0F});
     linkedProjectile.SetSourceTick(2U);
@@ -150,7 +178,11 @@ int main()
     source::Proj unlinkedProjectile;
     unlinkedProjectile.PrepareSource(
         sourceDescription, &mineSourceWeapon, nullptr, 4U, false,
-        -1.0F, {}, {});
+        -1.0F, {7.0F, 8.0F, 9.0F}, {});
+    if (unlinkedProjectile.GetPos() !=
+            source::GameObject::Vector3{7.0F, 8.0F, 9.0F} ||
+        unlinkedProjectile.GetParent() != nullptr)
+        return 110;
     mineSourceWeapon.DestroyObject();
     if (unlinkedProjectile.GetSourceWeapon() != nullptr ||
         unlinkedProjectile.GetParent() != nullptr ||

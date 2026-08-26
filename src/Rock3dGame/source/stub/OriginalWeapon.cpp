@@ -65,6 +65,12 @@ Proj::Quat multiply(Proj::Quat first, Proj::Quat second) noexcept
                 first.y * second.y - first.z * second.z};
 }
 
+Proj::Quat inverse(Proj::Quat value) noexcept
+{
+    value = normalized(value);
+    return {-value.x, -value.y, -value.z, value.w};
+}
+
 Proj::Vec3 rotate(Proj::Quat rotation, Proj::Vec3 value) noexcept
 {
     rotation = normalized(rotation);
@@ -161,10 +167,13 @@ void Proj::PrepareSource(
     ResetGameObject(-1.0F);
     SetMaxTimeLife(maximumLife);
     SetTimeLife(0.0F);
-    SetSourceWeapon(weapon, linkToWeapon);
+    SetSourceWeapon(weapon, false);
     SetSourceTarget(target);
     shotTarget_ = {};
-    SyncSourceTransform(position, rotation);
+    if (linkToWeapon)
+        LinkToSourceWeapon(position, rotation);
+    else
+        SyncSourceTransform(position, rotation);
     // Every successful PrepareProj path calls InitModel except Spring and
     // Drobilka. Drobilka creates its model lazily on the first contact.
     if (description.type != 15U && description.type != 17U)
@@ -180,7 +189,13 @@ void Proj::SetSourceWeapon(
     if (weapon_ == value)
     {
         if (weapon_ != nullptr && linkToWeapon && GetParent() != weapon_)
-            SetParent(weapon_);
+        {
+            const auto position = GetWorldPos();
+            const auto rotation = GetWorldRot();
+            LinkToSourceWeapon(
+                {position[0], position[1], position[2]},
+                {rotation[0], rotation[1], rotation[2], rotation[3]});
+        }
         return;
     }
     if (weapon_ != nullptr)
@@ -197,7 +212,13 @@ void Proj::SetSourceWeapon(
     }
     weapon_->InsertListener(this);
     if (linkToWeapon)
-        SetParent(weapon_);
+    {
+        const auto position = GetWorldPos();
+        const auto rotation = GetWorldRot();
+        LinkToSourceWeapon(
+            {position[0], position[1], position[2]},
+            {rotation[0], rotation[1], rotation[2], rotation[3]});
+    }
 }
 
 void Proj::SetSourceTarget(GameObject* value) noexcept
@@ -225,8 +246,62 @@ Proj::ShotDesc Proj::GetShot() const noexcept
 void Proj::SyncSourceTransform(
     const Vec3& position, const Quat& rotation) noexcept
 {
+    if (weapon_ != nullptr && GetParent() == weapon_)
+    {
+        LinkToSourceWeapon(position, rotation);
+        return;
+    }
     SetWorldPos({position.x, position.y, position.z});
     SetWorldRot({rotation.x, rotation.y, rotation.z, rotation.w});
+}
+
+void Proj::LinkToSourceWeapon(
+    const Vec3& worldPosition, const Quat& worldRotation) noexcept
+{
+    if (weapon_ == nullptr || weapon_ == this)
+    {
+        SetWorldPos(
+            {worldPosition.x, worldPosition.y, worldPosition.z});
+        SetWorldRot(
+            {worldRotation.x, worldRotation.y,
+             worldRotation.z, worldRotation.w});
+        return;
+    }
+
+    // Weapon.cpp::LocateProj first obtains the projectile world transform.
+    // LinkToWeapon then reparents it and restores the serialized local pose.
+    // The Jolt adapter gives us the already-composed projectile transform, so
+    // recover the corresponding weapon transform before applying that exact
+    // local pose. This also keeps the live source Weapon actor synchronized
+    // with the renderer/physics mount while the linked projectile is alive.
+    const Quat localRotation{
+        description_.rotation.x, description_.rotation.y,
+        description_.rotation.z, description_.rotation.w};
+    const Quat weaponWorldRotation = normalized(multiply(
+        worldRotation, inverse(localRotation)));
+    const auto weaponWorldScale = weapon_->GetWorldScale();
+    const Vec3 scaledOffset{
+        description_.position.x * weaponWorldScale[0],
+        description_.position.y * weaponWorldScale[1],
+        description_.position.z * weaponWorldScale[2]};
+    const Vec3 worldOffset = rotate(
+        weaponWorldRotation, scaledOffset);
+
+    weapon_->SetWorldRot(
+        {weaponWorldRotation.x, weaponWorldRotation.y,
+         weaponWorldRotation.z, weaponWorldRotation.w});
+    weapon_->SetWorldPos(
+        {worldPosition.x - worldOffset.x,
+         worldPosition.y - worldOffset.y,
+         worldPosition.z - worldOffset.z});
+    if (GetParent() != weapon_)
+        SetParent(weapon_);
+    SetPos(
+        {description_.position.x, description_.position.y,
+         description_.position.z});
+    SetRot(
+        {description_.rotation.x, description_.rotation.y,
+         description_.rotation.z, description_.rotation.w});
 }
 
 void Proj::ResetSourceRuntimeState() noexcept

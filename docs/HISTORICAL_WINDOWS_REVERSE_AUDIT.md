@@ -3237,6 +3237,24 @@ charge-side callback и `Behaviors::OnShot` не изменяются. Regressio
 объединение смещённого serialized box с model AABB, model-only/fallback ветви
 и отсутствие побочных эффектов неуспешного PrepareProj.
 
+### P2.132 — `LocateProj` / `LinkToWeapon` transform ownership — выполнено
+
+В исходном `Weapon.cpp` свободный снаряд получает world transform через
+`LocateProj`, а Hyper, Laser, Spring и FrostRay после этого становятся детьми
+оружия и снова получают сериализованные локальные `_desc.pos/_desc.rot`.
+Portable preparation раньше сразу назначала parent, а затем записывала world
+transform; последующая покадровая синхронизация каждый раз меняла local pose.
+Из-за этого concrete source graph не соответствовал mount graph Windows и
+дополнительно отставал от runtime-позиции на один кадр.
+
+`Proj` теперь разделяет свободную world-позу и linked local-позу. Для linked
+типов Jolt world transform используется, чтобы восстановить world transform
+живого `Weapon`, после чего projectile неизменно хранит исходные local
+position/rotation и следует за parent. Session синхронизирует concrete объект
+после вычисления текущего attached/free transform, а не до него. Regression
+проверяет local pose, точный результирующий world pose, повторное движение
+mount и независимое размещение unlinked projectile.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

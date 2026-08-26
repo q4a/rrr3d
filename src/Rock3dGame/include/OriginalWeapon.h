@@ -313,6 +313,10 @@ protected:
     void OnDestroy(GameObject& sender) noexcept override;
 
 private:
+    void LinkToSourceWeapon(
+        const Vec3& worldPosition,
+        const Quat& worldRotation) noexcept;
+
     ProjectileDefinition description_;
     GameObject* weapon_ = nullptr;
     GameObject* target_ = nullptr;

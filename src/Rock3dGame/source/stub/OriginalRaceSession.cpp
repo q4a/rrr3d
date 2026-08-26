@@ -3943,13 +3943,6 @@ void OriginalRaceSession::updateGameplay(
             projectile.active = false;
             continue;
         }
-        projectile.sourceObject->SyncSourceTransform(
-            source::Proj::Vec3{
-                projectile.position.x, projectile.position.y,
-                projectile.position.z},
-            source::Proj::Quat{
-                projectile.rotation.x, projectile.rotation.y,
-                projectile.rotation.z, projectile.rotation.w});
         const auto* runtimeDefinition = runtimeProjectileDefinition(
             race_, projectile);
         if (runtimeDefinition == nullptr)
@@ -3989,6 +3982,9 @@ void OriginalRaceSession::updateGameplay(
             projectile.direction = normalized3(
                 rotate(shotTransform.rotation,
                        {1.0F, 0.0F, 0.0F}));
+            projectile.sourceObject->SyncSourceTransform(
+                sourceVec(projectile.position),
+                sourceQuat(projectile.rotation));
             if (projectileDefinition.type == 15U &&
                 projectile.sourceObject->GetSourceModel() != nullptr)
             {
@@ -4314,6 +4310,9 @@ void OriginalRaceSession::updateGameplay(
                 sourceQuat(projectile.rotation),
                 projectileDefinition.angularSpeed, seconds));
         }
+        projectile.sourceObject->SyncSourceTransform(
+            sourceVec(projectile.position),
+            sourceQuat(projectile.rotation));
         if (projectileDefinition.type == 22U)
         {
             projectile.sourceObject->SetSourceTimer(
