@@ -1631,20 +1631,6 @@ Proj::TypeRules Proj::GetTypeRules(std::uint32_t type) noexcept
             route.ballistic, route.mineTestsLock};
 }
 
-Proj::DestroyResult Proj::OnDestroy(
-    bool senderIsWeapon, bool parentIsWeapon,
-    bool senderIsTarget) noexcept
-{
-    DestroyResult result;
-    if (senderIsWeapon)
-    {
-        result.destroy = parentIsWeapon;
-        result.clearWeapon = true;
-    }
-    result.clearTarget = senderIsTarget;
-    return result;
-}
-
 Proj::BonusContactResult Proj::BonusContact(
     std::uint32_t type, bool hasTarget, float damage,
     float targetMaximumLife) noexcept

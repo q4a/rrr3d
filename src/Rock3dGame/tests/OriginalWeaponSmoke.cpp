@@ -1596,19 +1596,6 @@ int main()
             &frostNonCarTarget,
             &contactBonusPlayer, 0.0F).take)
         return 139;
-    const auto linkedDestroy = source::Proj::OnDestroy(
-        true, true, false);
-    const auto unlinkedDestroy = source::Proj::OnDestroy(
-        true, false, false);
-    const auto targetDestroy = source::Proj::OnDestroy(
-        false, false, true);
-    if (!linkedDestroy.destroy || !linkedDestroy.clearWeapon ||
-        linkedDestroy.clearTarget || unlinkedDestroy.destroy ||
-        !unlinkedDestroy.clearWeapon ||
-        !targetDestroy.clearTarget || targetDestroy.clearWeapon ||
-        targetDestroy.destroy)
-        return 62;
-
     source::Logic logic;
     logic.SetTouchBorderDamage({10.0F, 20.0F});
     logic.SetTouchBorderDamageForce({30.0F, 40.0F});

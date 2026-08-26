@@ -333,13 +333,6 @@ public:
         bool valid = false;
     };
 
-    struct DestroyResult
-    {
-        bool destroy = false;
-        bool clearWeapon = false;
-        bool clearTarget = false;
-    };
-
     enum class BonusContactType : std::uint8_t
     {
         None,
@@ -430,9 +423,6 @@ public:
     static PreparationRoute PreparationRouteFor(
         std::uint32_t type) noexcept;
     static TypeRules GetTypeRules(std::uint32_t type) noexcept;
-    static DestroyResult OnDestroy(
-        bool senderIsWeapon, bool parentIsWeapon,
-        bool senderIsTarget) noexcept;
     static BonusContactResult BonusContact(
         std::uint32_t type, bool hasTarget, float damage,
         float targetMaximumLife) noexcept;

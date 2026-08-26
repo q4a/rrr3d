@@ -3602,6 +3602,23 @@ PhysX/Jolt contact point и linear velocity, затем применяет во�
 source transform, descriptor ownership, null-target rejection и общий
 RocketContact путь Resonanse.
 
+### P2.152 — concrete `Proj::OnDestroy` listener lifecycle — выполнено
+
+При уничтожении машины session повторно вычисляла судьбу всех снарядов через
+статическую таблицу `Proj::OnDestroy(senderIsWeapon, parentIsWeapon,
+senderIsTarget)`. Это обходило уже существующий concrete listener graph:
+`Player::FreeCar` уничтожает Weapon MapObj и car MapObj, а зарегистрированный
+`Proj::OnDestroy` синхронно освобождает model/model2, weapon и target,
+уничтожая только реального ребёнка linked weapon.
+
+Статическая lifecycle-заглушка и её отдельный synthetic test удалены.
+`releaseRacerProjectileReferences` теперь только зеркалирует результат
+concrete callbacks в Jolt runtime: очищает target после source target,
+снимает damage ownership после source weapon, удаляет умерший linked
+projectile, отсоединяет живой Fire/Drobilka и сохраняет world mine/Maslo.
+Порядок подтверждён существующими concrete weapon/target/model listener
+regressions, disconnect lifecycle, network tests и Metal race smoke.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

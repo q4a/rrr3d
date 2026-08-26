@@ -1810,26 +1810,27 @@ void OriginalRaceSession::releaseRacerProjectileReferences(
 {
     for (auto& projectile : projectiles_)
     {
-        const bool senderIsWeapon = projectile.owner == racer;
-        const bool senderIsTarget = projectile.target == racer;
-        bool linkedToWeapon = false;
-        if (senderIsWeapon)
+        // Player::FreeCar has already destroyed the concrete Weapon MapObjs
+        // and the car MapObj. Proj::OnDestroy synchronously consumed those
+        // listener callbacks; this adapter only mirrors its resulting state
+        // into the Jolt/runtime record.
+        if (projectile.target == racer &&
+            (projectile.sourceObject == nullptr ||
+             projectile.sourceObject->GetSourceTarget() == nullptr))
         {
-            const auto* definition = runtimeProjectileDefinition(
-                race_, projectile);
-            linkedToWeapon = definition != nullptr &&
-                source::Proj::PreparationRouteFor(definition->type)
-                    .linkedToWeapon;
-        }
-        const auto result = source::Proj::OnDestroy(
-            senderIsWeapon, linkedToWeapon, senderIsTarget);
-        if (result.clearTarget)
             projectile.target = RacerRuntime::invalidWeapon;
-        if (!result.clearWeapon)
+        }
+        if (projectile.owner != racer)
+            continue;
+        const bool sourceWeaponCleared =
+            projectile.sourceObject == nullptr ||
+            projectile.sourceObject->GetSourceWeapon() == nullptr;
+        if (!sourceWeaponCleared)
             continue;
         projectile.damageOwner = RacerRuntime::invalidWeapon;
         projectile.ownerCollisionArmed = true;
-        if (result.destroy)
+        if (projectile.sourceObject != nullptr &&
+            projectile.sourceObject->destroyed)
         {
             projectile.active = false;
             continue;
@@ -1844,8 +1845,11 @@ void OriginalRaceSession::releaseRacerProjectileReferences(
     {
         if (mine.owner != racer)
             continue;
-        // Mine/Maslo are not parented by LinkToWeapon. OnDestroy therefore
-        // leaves the world actor alive and only clears the weapon/car ref.
+        // Mine/Maslo are not parented by LinkToWeapon. The concrete
+        // OnDestroy leaves them alive and only clears their weapon ref.
+        if (mine.sourceObject != nullptr &&
+            mine.sourceObject->GetSourceWeapon() != nullptr)
+            continue;
         mine.damageOwner = RacerRuntime::invalidWeapon;
         mine.linkedToOwner = false;
         mine.ignoreOwnerCollision = false;
