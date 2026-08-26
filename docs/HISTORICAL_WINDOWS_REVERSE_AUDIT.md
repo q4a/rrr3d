@@ -3736,6 +3736,26 @@ descriptor-полей и читают speed/relative-speed/angle/damage/lifetime
 порога, проверяет 4–4.5-секундную жизнь MineRip children и сохранение lifetime
 после подключения DeathEffect.
 
+### P2.159 — удаление session-owned копий projectile/mine descriptor и clock — выполнено
+
+После P2.158 единственный рабочий lifetime уже принадлежал concrete
+`GameObject`, однако `ProjectileRuntime` и `MineRuntime` продолжали хранить
+зеркала `age/life/maxLife`, а также копии `damage`, `type`, `collision`,
+`angularSpeed`, `maximumDistance` и impulse speed. Renderer читал эти зеркала,
+а создание crater и MineRip children сначала заполняло их вручную. Такой
+двойной контракт позволял backend и исходному `Proj` снова разойтись после
+замены live `WeaponItem::WpnDesc` или изменения source lifecycle.
+
+Runtime теперь хранит только действительно backend-owned состояние: transform,
+velocity/distance, attachment, beam scale, network identity и renderer asset
+variant. Начальный sampled lifetime передаётся прямо в `Proj::ShotContext`, а
+дальнейшие lifetime/descriptor значения читаются только через
+`sourceObject->GetTimeLife()`, `GetMaxTimeLife()` и `GetDesc()`. На этот путь
+переведены renderer animation time и beam length fallback, crater, MineProton,
+Drobilka, Thunder/Frost lifetime и MineRip regressions. Повторная проверка
+подтвердила exact-threshold lifetime, автономные дочерние `Proj`, полный Metal
+race render и отсутствие session-owned descriptor/clock полей.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

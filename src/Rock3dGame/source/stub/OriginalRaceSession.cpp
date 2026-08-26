@@ -31,6 +31,7 @@ bool hasDeathEffect(const ProjectileDefinition& definition) noexcept
 void configureProjectileSourceObject(
     source::Logic& logic, ProjectileRuntime& projectile,
     const ProjectileDefinition& definition,
+    float maximumLife,
     source::Weapon* weapon = nullptr,
     source::GameObject* target = nullptr,
     std::size_t playerId = source::GameObject::undefinedPlayerId)
@@ -39,7 +40,7 @@ void configureProjectileSourceObject(
     context.logic = &logic;
     context.shot.targetMapObject = target;
     context.playerId = playerId;
-    context.maximumLife = projectile.maximumLifeSeconds;
+    context.maximumLife = maximumLife;
     context.position = {
         projectile.position.x, projectile.position.y,
         projectile.position.z};
@@ -87,13 +88,14 @@ ProjectileDefinition nestedProjectileSourceDefinition(
 void configureMineSourceObject(
     source::Logic& logic, MineRuntime& mine,
     const ProjectileDefinition& definition,
+    float maximumLife,
     source::Weapon* weapon = nullptr,
     std::size_t playerId = source::GameObject::undefinedPlayerId)
 {
     source::Proj::ShotContext context;
     context.logic = &logic;
     context.playerId = playerId;
-    context.maximumLife = mine.maximumLife;
+    context.maximumLife = maximumLife;
     context.position = {
         mine.position.x, mine.position.y, mine.position.z};
     context.rotation = {
@@ -3889,15 +3891,12 @@ void OriginalRaceSession::updateGameplay(
             crater.weapon = projectile.weapon;
             crater.projectile = definition->deathProjectile;
             crater.position = add(position, spawned.position);
-            crater.damage = spawned.damage;
-            crater.maximumLife = sampleSourceRange(
+            const float craterMaximumLife = sampleSourceRange(
                 spawned.minimumLife, spawned.maximumLife);
-            crater.collision = spawned.collision;
-            crater.type = spawned.type;
-            crater.impulseSpeed = spawned.speed;
             crater.ignoreOwnerCollision =
                 deathPlan.ignoreSenderCar;
-            configureMineSourceObject(logic_, crater, spawned);
+            configureMineSourceObject(
+                logic_, crater, spawned, craterMaximumLife);
             mines_.push_back(std::move(crater));
         };
 
@@ -3914,20 +3913,6 @@ void OriginalRaceSession::updateGameplay(
             projectile.sourceObject->GetDesc();
         const auto sourceProgressRoute =
             projectile.sourceObject->RouteProgress();
-        // Logic::OnProgress has already executed GameObject::OnProgress for
-        // this concrete Proj. Mirror its single source clock instead of
-        // advancing a second session-owned lifetime.
-        projectile.ageSeconds =
-            projectile.sourceObject->GetTimeLife();
-        projectile.maximumLifeSeconds =
-            projectile.sourceObject->GetMaxTimeLife();
-        projectile.lifeSeconds =
-            projectile.maximumLifeSeconds > 0.0F
-                ? std::max(
-                      projectile.maximumLifeSeconds -
-                          projectile.ageSeconds,
-                      0.0F)
-                : projectile.maximumLifeSeconds;
         if (projectile.attached)
         {
             if (projectile.owner >= vehicles.size() ||
@@ -4837,19 +4822,17 @@ void OriginalRaceSession::updateGameplay(
                                     sourceProjectile));
         mine.position = position;
         mine.rotation = rotationWithUp(hit.normal);
-        mine.damage = projectile->damage;
-        mine.impulseSpeed = projectile->speed;
-        mine.type = projectile->type;
         mine.networkProjectileId = networkProjectileId;
-        mine.collision = projectile->collision;
+        float mineMaximumLife = -1.0F;
         if (projectile->minimumLife > 0.0F)
         {
-            mine.maximumLife = sampleSourceRange(
+            mineMaximumLife = sampleSourceRange(
                 projectile->minimumLife,
                 projectile->maximumLife);
         }
         configureMineSourceObject(
-            logic_, mine, *projectile, liveWeapon, owner);
+            logic_, mine, *projectile, mineMaximumLife,
+            liveWeapon, owner);
         if (mine.sourceObject == nullptr)
             return;
         if (!racers_[owner].Shot(
@@ -5000,19 +4983,15 @@ void OriginalRaceSession::updateGameplay(
                     projectileTransform.rotation,
                     {1.0F, 0.0F, 0.0F}));
             runtimeProjectile.rotation = projectileTransform.rotation;
-            runtimeProjectile.lifeSeconds = duration;
-            runtimeProjectile.maximumLifeSeconds = duration;
             runtimeProjectile.attached = true;
             runtimeProjectile.directWeapon = true;
             configureProjectileSourceObject(
-                logic_, runtimeProjectile, projectile, liveWeapon,
-                nullptr, owner);
+                logic_, runtimeProjectile, projectile, duration,
+                liveWeapon, nullptr, owner);
             if (runtimeProjectile.sourceObject == nullptr)
                 return;
             duration = runtimeProjectile.sourceObject
                            ->PrepareMaximumLife(sampledMinimumLife);
-            runtimeProjectile.lifeSeconds = duration;
-            runtimeProjectile.maximumLifeSeconds = duration;
             preparedHyperProjectile.emplace(
                 std::move(runtimeProjectile));
         }
@@ -5339,8 +5318,10 @@ void OriginalRaceSession::updateGameplay(
                 mine.rotation.z, mine.rotation.w});
         const auto mineProgressRoute =
             mine.sourceObject->RouteProgress();
-        mine.seconds = mine.sourceObject->GetTimeLife();
-        mine.maximumLife = mine.sourceObject->GetMaxTimeLife();
+        const float mineSeconds =
+            mine.sourceObject->GetTimeLife();
+        const float mineMaximumLife =
+            mine.sourceObject->GetMaxTimeLife();
         source::Proj::MineRipUpdateResult mineRipProgress;
         if (mineProgressRoute.mineArming)
         {
@@ -5380,8 +5361,8 @@ void OriginalRaceSession::updateGameplay(
                 mine.velocity = {};
             }
         }
-        if (mine.maximumLife > 0.0F &&
-            mine.seconds > mine.maximumLife)
+        if (mineMaximumLife > 0.0F &&
+            mineSeconds > mineMaximumLife)
         {
             spawnMineDeathEffect(mine);
             deactivateMine(mine);
@@ -5401,25 +5382,21 @@ void OriginalRaceSession::updateGameplay(
                     core.owner = RacerRuntime::invalidWeapon;
                     core.damageOwner = RacerRuntime::invalidWeapon;
                     core.linkedToOwner = false;
-                    core.type = source.type;
                     core.visualVariant = 1U;
-                    core.damage = source.damage;
-                    core.impulseSpeed = source.speed;
-                    core.seconds = 0.0F;
                     core.armingAlpha = 0.0F;
-                    core.maximumLife =
+                    const float coreMaximumLife =
                         source.minimumLife > 0.0F
                             ? sampleSourceRange(
                                   source.minimumLife,
                                   source.maximumLife)
                             : -1.0F;
                     core.velocity = {};
-                    core.collision = source.collision;
                     const auto childDefinition =
                         nestedProjectileSourceDefinition(
                             source, projectile.secondaryVisual);
                     configureMineSourceObject(
-                        logic_, core, childDefinition);
+                        logic_, core, childDefinition,
+                        coreMaximumLife);
                     spawnedMines.push_back(std::move(core));
                 }
                 if (projectile.tertiaryProjectile.valid)
@@ -5434,26 +5411,22 @@ void OriginalRaceSession::updateGameplay(
                         fragment.damageOwner =
                             RacerRuntime::invalidWeapon;
                         fragment.linkedToOwner = false;
-                        fragment.type = source.type;
                         fragment.visualVariant = 2U;
-                        fragment.damage = source.damage;
-                        fragment.impulseSpeed = source.speed;
-                        fragment.seconds = 0.0F;
                         fragment.armingAlpha = 1.0F;
-                        fragment.maximumLife =
+                        const float fragmentMaximumLife =
                             source.minimumLife > 0.0F
                                 ? sampleSourceRange(
                                       source.minimumLife,
                                       source.maximumLife)
                                 : -1.0F;
-                        fragment.collision = source.collision;
                         fragment.velocity =
                             sourceMineRipFragmentVelocity();
                         const auto childDefinition =
                             nestedProjectileSourceDefinition(
                                 source, projectile.tertiaryVisual);
                         configureMineSourceObject(
-                            logic_, fragment, childDefinition);
+                            logic_, fragment, childDefinition,
+                            fragmentMaximumLife);
                         spawnedMines.push_back(
                             std::move(fragment));
                     }
@@ -5540,9 +5513,7 @@ void OriginalRaceSession::updateGameplay(
     mines_.erase(
         std::remove_if(mines_.begin(), mines_.end(),
                        [](const MineRuntime& mine) {
-                           return !mine.active ||
-                                  (mine.maximumLife > 0.0F &&
-                                   mine.seconds > mine.maximumLife);
+                           return !mine.active;
                        }),
         mines_.end());
 
@@ -5969,19 +5940,12 @@ void OriginalRaceSession::updateGameplay(
             runtimeProjectile.speed = projectile.speed;
             runtimeProjectile.velocity =
                 multiply(sourceDirection, projectile.speed);
-            runtimeProjectile.maximumDistance =
-                projectile.maximumDistance > 0.0F
-                    ? projectile.maximumDistance
-                    : 100.0F;
-            runtimeProjectile.damage = projectile.damage;
-            runtimeProjectile.angularSpeed = projectile.angularSpeed;
             const float sampledMinimumLife = sampleSourceRange(
                 projectile.minimumLife, projectile.maximumLife);
-            runtimeProjectile.maximumLifeSeconds = sampledMinimumLife;
-            runtimeProjectile.lifeSeconds = sampledMinimumLife;
             configureProjectileSourceObject(
-                logic_, runtimeProjectile, projectile, liveWeapon,
-                sourceTarget, shooter);
+                logic_, runtimeProjectile, projectile,
+                sampledMinimumLife, liveWeapon, sourceTarget,
+                shooter);
             if (runtimeProjectile.sourceObject == nullptr)
                 continue;
             if (!shotCommitted)
@@ -6009,7 +5973,9 @@ void OriginalRaceSession::updateGameplay(
             const bool attachedProjectile =
                 projectileRules.attached;
             const float projectileDistance =
-                runtimeProjectile.maximumDistance;
+                projectile.maximumDistance > 0.0F
+                    ? projectile.maximumDistance
+                    : 100.0F;
             float targetDistance = projectileDistance;
             std::size_t projectileTarget = racers_.size();
             std::size_t projectileDecoration =
@@ -6046,11 +6012,8 @@ void OriginalRaceSession::updateGameplay(
                         vehicles[shooter].linearVelocity;
                 }
                 runtimeProjectile.attached = true;
-                runtimeProjectile.maximumLifeSeconds =
-                    runtimeProjectile.sourceObject->PrepareMaximumLife(
-                        sampledMinimumLife);
-                runtimeProjectile.lifeSeconds =
-                    runtimeProjectile.maximumLifeSeconds;
+                runtimeProjectile.sourceObject->PrepareMaximumLife(
+                    sampledMinimumLife);
                 projectiles_.push_back(std::move(runtimeProjectile));
             }
             else if (!rayProjectile)
@@ -6073,11 +6036,8 @@ void OriginalRaceSession::updateGameplay(
                     runtimeProjectile.velocity =
                         multiply(launchDirection, speed);
                 }
-                runtimeProjectile.maximumLifeSeconds =
-                    runtimeProjectile.sourceObject->PrepareMaximumLife(
-                        sampledMinimumLife);
-                runtimeProjectile.lifeSeconds =
-                    runtimeProjectile.maximumLifeSeconds;
+                runtimeProjectile.sourceObject->PrepareMaximumLife(
+                    sampledMinimumLife);
                 if (projectileRules.homing)
                 {
                     runtimeProjectile.target = homingTarget;
@@ -10070,12 +10030,17 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     });
                 if (firedProjectile ==
                         descriptorSession.projectiles().end() ||
+                    firedProjectile->sourceObject == nullptr ||
                     std::abs(firedProjectile->speed - 77.0F) >
                         0.001F ||
                     std::abs(
-                        firedProjectile->maximumDistance - 321.0F) >
+                        firedProjectile->sourceObject->GetDesc()
+                                .maximumDistance -
+                            321.0F) >
                         0.001F ||
-                    std::abs(firedProjectile->damage - 9.25F) >
+                    std::abs(
+                        firedProjectile->sourceObject->GetDesc().damage -
+                        9.25F) >
                         0.001F)
                 {
                     throw std::runtime_error(
@@ -10653,8 +10618,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 });
             if (activeDrobilka ==
                     drobilkaSession.projectiles().end() ||
+                activeDrobilka->sourceObject == nullptr ||
                 std::abs(
-                    activeDrobilka->angularSpeed -
+                    activeDrobilka->sourceObject->GetDesc().angularSpeed -
                     drobilka->projectiles.front().angularSpeed) >
                     0.001F)
             {
@@ -10980,7 +10946,10 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 std::abs(
                     sourceProjectile->speed - expectedSourceSpeed) >
                     0.001F ||
-                std::abs(sourceProjectile->lifeSeconds - 5.0F) >
+                sourceProjectile->sourceObject == nullptr ||
+                std::abs(
+                    sourceProjectile->sourceObject->GetMaxTimeLife() -
+                    5.0F) >
                     0.001F ||
                 std::abs(sourceProjectile->direction.z) > 0.001F ||
                 std::abs(rotate(
@@ -11537,7 +11506,10 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                            projectile.attached;
                 });
             if (sourceRay == frostSession.projectiles().end() ||
-                std::abs(sourceRay->lifeSeconds - 1.0F) > 0.001F ||
+                sourceRay->sourceObject == nullptr ||
+                std::abs(
+                    sourceRay->sourceObject->GetMaxTimeLife() - 1.0F) >
+                    0.001F ||
                 std::abs(sourceRay->direction.z) < 0.05F)
             {
                 throw std::runtime_error(
@@ -11668,19 +11640,25 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 lifetimeSession.projectiles().begin(),
                 lifetimeSession.projectiles().end(), isLifetimeRay);
             if (lifetimeRay == lifetimeSession.projectiles().end() ||
-                lifetimeRay->lifeSeconds <= 0.0F)
+                lifetimeRay->sourceObject == nullptr ||
+                lifetimeRay->sourceObject->GetMaxTimeLife() <= 0.0F)
             {
                 throw std::runtime_error(
                     "source GameObject lifetime was not sampled");
             }
-            const float sampledLifetime = lifetimeRay->lifeSeconds;
+            const float sampledLifetime =
+                lifetimeRay->sourceObject->GetMaxTimeLife();
             lifetimeSession.update(
                 sampledLifetime, lifetimeVehicles, lifetimeInput);
             lifetimeRay = std::find_if(
                 lifetimeSession.projectiles().begin(),
                 lifetimeSession.projectiles().end(), isLifetimeRay);
             if (lifetimeRay == lifetimeSession.projectiles().end() ||
-                std::abs(lifetimeRay->lifeSeconds) > 0.001F ||
+                lifetimeRay->sourceObject == nullptr ||
+                std::abs(
+                    lifetimeRay->sourceObject->GetMaxTimeLife() -
+                    lifetimeRay->sourceObject->GetTimeLife()) >
+                    0.001F ||
                 lifetimeRay->impactDistance <= 0.0F ||
                 std::abs(
                     lifetimeRay->beamTextureScale -
@@ -11956,17 +11934,30 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 mortarSession.mines().begin(),
                 mortarSession.mines().end(),
                 [](const MineRuntime& mine) {
-                    return mine.type == 20U;
+                    return mine.sourceObject != nullptr &&
+                           mine.sourceObject->GetDesc().type == 20U;
                 });
             if (crater == mortarSession.mines().end() ||
                 crater->projectile != craterIndex ||
                 !crater->ignoreOwnerCollision ||
-                std::abs(crater->maximumLife - 3.0F) > 0.001F ||
-                std::abs(crater->collision.halfExtents.x - 3.0F) >
+                crater->sourceObject == nullptr ||
+                std::abs(
+                    crater->sourceObject->GetMaxTimeLife() - 3.0F) >
                     0.001F ||
-                std::abs(crater->collision.halfExtents.y - 3.0F) >
+                std::abs(
+                    crater->sourceObject->GetDesc()
+                            .collision.halfExtents.x -
+                    3.0F) >
                     0.001F ||
-                std::abs(crater->collision.halfExtents.z - 0.05F) >
+                std::abs(
+                    crater->sourceObject->GetDesc()
+                            .collision.halfExtents.y -
+                    3.0F) >
+                    0.001F ||
+                std::abs(
+                    crater->sourceObject->GetDesc()
+                            .collision.halfExtents.z -
+                    0.05F) >
                     0.001F ||
                 mortarSession.racers()[1].GetLife() >= lifeBeforeCrater)
             {
@@ -12388,7 +12379,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 1.0F / 60.0F, sourceVehicles, sourceInput);
             sourceInput.useMine = false;
             if (protonSession.mines().size() != 1U ||
-                protonSession.mines().front().type != 24U ||
+                protonSession.mines().front().sourceObject == nullptr ||
+                protonSession.mines().front()
+                        .sourceObject->GetDesc().type != 24U ||
                 protonSession.racers()[0].GetLife() != lifeBefore)
             {
                 throw std::runtime_error(
@@ -12550,14 +12543,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                         mine.owner ==
                             RacerRuntime::invalidWeapon &&
                         !mine.linkedToOwner &&
-                        mine.type == 11U &&
-                        std::abs(mine.damage - 10.0F) <
-                            0.001F &&
-                        std::abs(
-                            mine.impulseSpeed - 3000.0F) <
-                            0.001F &&
-                        mine.maximumLife >= 4.0F &&
-                        mine.maximumLife <= 4.5F;
+                        object->GetMaxTimeLife() >= 4.0F &&
+                        object->GetMaxTimeLife() <= 4.5F;
                 }
                 else if (mine.visualVariant == 2U)
                 {
@@ -12577,14 +12564,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                         mine.owner ==
                             RacerRuntime::invalidWeapon &&
                         !mine.linkedToOwner &&
-                        mine.type == 13U &&
-                        std::abs(mine.damage - 4.0F) <
-                            0.001F &&
-                        std::abs(
-                            mine.impulseSpeed - 3000.0F) <
-                            0.001F &&
-                        mine.maximumLife >= 4.0F &&
-                        mine.maximumLife <= 4.5F &&
+                        object->GetMaxTimeLife() >= 4.0F &&
+                        object->GetMaxTimeLife() <= 4.5F &&
                         std::abs(
                             length3(mine.velocity) - 10.0F) <
                             0.01F &&
@@ -12646,14 +12627,6 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     std::string(secondaryDeath ? "true" : "false") +
                     ", tertiaryDeath=" +
                     std::string(tertiaryDeath ? "true" : "false") +
-                    ", runtimeAge=" +
-                    std::to_string(
-                        firstMine != nullptr ? firstMine->seconds : -1.0F) +
-                    ", runtimeMax=" +
-                    std::to_string(
-                        firstMine != nullptr
-                            ? firstMine->maximumLife
-                            : -1.0F) +
                     ", sourceAge=" +
                     std::to_string(
                         firstMine != nullptr &&

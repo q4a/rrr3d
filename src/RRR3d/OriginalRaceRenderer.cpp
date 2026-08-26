@@ -5355,7 +5355,9 @@ void OriginalRaceRenderer::draw(
                 std::max(
                     projectile.impactDistance > 0.0F
                         ? projectile.impactDistance
-                        : projectile.maximumDistance,
+                        : (definition.maximumDistance > 0.0F
+                               ? definition.maximumDistance
+                               : 100.0F),
                     0.1F);
             parent.position.x +=
                 projectile.direction.x * distance * 0.5F;
@@ -5369,7 +5371,8 @@ void OriginalRaceRenderer::draw(
         }
         drawDefinition(
             asset, definition.visual, parent,
-            projectile.ageSeconds, projectile.velocity,
+            projectile.sourceObject->GetTimeLife(),
+            projectile.velocity,
             nullptr, 1.0F,
             std::numeric_limits<float>::infinity(),
             projectile.beamTextureScale);
@@ -5379,7 +5382,9 @@ void OriginalRaceRenderer::draw(
                 std::max(
                     projectile.impactDistance > 0.0F
                         ? projectile.impactDistance
-                        : projectile.maximumDistance,
+                        : (definition.maximumDistance > 0.0F
+                               ? definition.maximumDistance
+                               : 100.0F),
                     0.1F);
             auto impact = sourceParent;
             impact.position.x +=
@@ -5397,7 +5402,8 @@ void OriginalRaceRenderer::draw(
                 drawDefinition(
                     projectileAssets.secondaryVisual,
                     definition.secondaryVisual, impact,
-                    projectile.ageSeconds, r3d::physics::Vec3{});
+                    projectile.sourceObject->GetTimeLife(),
+                    r3d::physics::Vec3{});
             }
         }
     }
@@ -5439,8 +5445,9 @@ void OriginalRaceRenderer::draw(
             const float scale = mine.armingAlpha;
             parent.scale = {scale, scale, scale};
         }
-        drawDefinition(*asset, *visual, parent, mine.seconds,
-                       mine.velocity);
+        drawDefinition(
+            *asset, *visual, parent,
+            mine.sourceObject->GetTimeLife(), mine.velocity);
     }
 
     for (const auto& effect : effects)
