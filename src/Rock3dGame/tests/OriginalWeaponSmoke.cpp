@@ -1194,6 +1194,54 @@ int main()
         !source::Proj::GetTypeRules(11U).mineTestsLock ||
         source::Proj::GetTypeRules(24U).mineTestsLock)
         return 60;
+    bool allPreparationHandlers = true;
+    for (std::uint32_t type = 0U; type <= 24U; ++type)
+    {
+        const auto route = source::Proj::PreparationRouteFor(type);
+        allPreparationHandlers =
+            allPreparationHandlers && route.valid &&
+            static_cast<std::uint32_t>(route.handler) == type + 1U;
+    }
+    const auto laserPreparation =
+        source::Proj::PreparationRouteFor(3U);
+    const auto minePreparation =
+        source::Proj::PreparationRouteFor(11U);
+    const auto drobilkaPreparation =
+        source::Proj::PreparationRouteFor(15U);
+    const auto springPreparationRoute =
+        source::Proj::PreparationRouteFor(17U);
+    const auto craterPreparation =
+        source::Proj::PreparationRouteFor(20U);
+    const auto protonPreparation =
+        source::Proj::PreparationRouteFor(24U);
+    if (!allPreparationHandlers ||
+        source::Proj::PreparationRouteFor(25U).valid ||
+        !laserPreparation.initializeModel ||
+        !laserPreparation.initializeSecondaryModel ||
+        !laserPreparation.attached ||
+        !laserPreparation.linkedToWeapon || !laserPreparation.ray ||
+        !laserPreparation.ignoreWeaponContact ||
+        !laserPreparation.requiresWeapon ||
+        !minePreparation.minePlacement ||
+        !minePreparation.lockMineOnPlacement ||
+        !minePreparation.mineTestsLock ||
+        drobilkaPreparation.initializeModel ||
+        !drobilkaPreparation.attached ||
+        !drobilkaPreparation.ignoreWeaponContact ||
+        springPreparationRoute.initializeModel ||
+        !springPreparationRoute.linkedToWeapon ||
+        springPreparationRoute.ignoreWeaponContact ||
+        !craterPreparation.minePlacement ||
+        craterPreparation.lockMineOnPlacement ||
+        !craterPreparation.requiresWeapon ||
+        !protonPreparation.minePlacement ||
+        !protonPreparation.lockMineOnPlacement ||
+        protonPreparation.mineTestsLock ||
+        !source::Proj::PreparationRouteFor(0U).requiresWeapon ||
+        !source::Proj::PreparationRouteFor(20U).requiresWeapon ||
+        source::Proj::PreparationRouteFor(9U).requiresWeapon ||
+        source::Proj::PreparationRouteFor(24U).requiresWeapon)
+        return 132;
     const auto rocketRoute = source::Proj::ContactRouteFor(
         0U, false, false);
     const auto laserRoute = source::Proj::ContactRouteFor(

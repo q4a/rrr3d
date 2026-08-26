@@ -264,6 +264,55 @@ public:
         bool mineArming = false;
     };
 
+    enum class PrepareHandler : std::uint8_t
+    {
+        None,
+        Rocket,
+        Hyper,
+        Torpeda,
+        Laser,
+        Medpack,
+        Charge,
+        Money,
+        Immortal,
+        SpeedArrow,
+        Lusha,
+        Maslo,
+        Mine,
+        MineRip,
+        MinePiece,
+        Fire,
+        Drobilka,
+        Sonar,
+        Spring,
+        FrostRay,
+        Mortira,
+        Crater,
+        Impulse,
+        Thunder,
+        Resonanse,
+        MineProton,
+    };
+
+    struct PreparationRoute
+    {
+        PrepareHandler handler = PrepareHandler::None;
+        bool valid = false;
+        bool initializeModel = false;
+        bool initializeSecondaryModel = false;
+        bool linkedToWeapon = false;
+        bool attached = false;
+        bool ray = false;
+        bool rocketPrepare = false;
+        bool homing = false;
+        bool ballistic = false;
+        bool minePlacement = false;
+        bool lockMineOnPlacement = false;
+        bool mineTestsLock = false;
+        bool ignoreWeaponContact = false;
+        bool requiresWeapon = false;
+    };
+
     struct DestroyResult
     {
         bool destroy = false;
@@ -354,6 +403,8 @@ public:
         std::uint32_t type, bool projectileDestroyed,
         bool targetDestroyed) noexcept;
     static ProgressRoute ProgressRouteFor(
+        std::uint32_t type) noexcept;
+    static PreparationRoute PreparationRouteFor(
         std::uint32_t type) noexcept;
     static TypeRules GetTypeRules(std::uint32_t type) noexcept;
     static DestroyResult OnDestroy(

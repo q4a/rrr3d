@@ -1817,7 +1817,7 @@ void OriginalRaceSession::releaseRacerProjectileReferences(
             const auto* definition = runtimeProjectileDefinition(
                 race_, projectile);
             linkedToWeapon = definition != nullptr &&
-                source::Proj::GetTypeRules(definition->type)
+                source::Proj::PreparationRouteFor(definition->type)
                     .linkedToWeapon;
         }
         const auto result = source::Proj::OnDestroy(
@@ -5566,10 +5566,11 @@ void OriginalRaceSession::updateGameplay(
             racers_[racer].IsDestroyed())
             return false;
         const auto& bonus = race_.bonuses[bonusIndex];
-        const auto bonusRules =
-            source::Proj::GetTypeRules(bonus.projectileType);
+        const auto bonusRoute =
+            source::Proj::ContactRouteFor(
+                bonus.projectileType, false, false);
         if (bonus.kind != BonusKind::MineHazard ||
-            (bonusRules.mineTestsLock && enableMineBug_ &&
+            (bonusRoute.testMineLock && enableMineBug_ &&
              racers_[racer].gameCar.IsMineLocked()))
             return false;
         const auto& vehicleDefinition = vehicleForRacer(racer);
@@ -5801,10 +5802,10 @@ void OriginalRaceSession::updateGameplay(
             }
             if (bonus.kind == BonusKind::MineHazard)
             {
-                const auto bonusRules =
-                    source::Proj::GetTypeRules(
-                        bonus.projectileType);
-                if (bonusRules.mineTestsLock && enableMineBug_ &&
+                const auto bonusRoute =
+                    source::Proj::ContactRouteFor(
+                        bonus.projectileType, false, false);
+                if (bonusRoute.testMineLock && enableMineBug_ &&
                     runtime.gameCar.IsMineLocked())
                     continue;
                 if (networkGameplayEnabled_)
@@ -5920,7 +5921,7 @@ void OriginalRaceSession::updateGameplay(
             // full 3D direction; applying CalcSpeed to them changed both ray
             // hits and visible beam alignment on slopes.
             const auto projectileRules =
-                source::Proj::GetTypeRules(projectile.type);
+                source::Proj::PreparationRouteFor(projectile.type);
             const bool rocketPrepared =
                 projectileRules.rocketPrepare;
             const auto sourceLaunch = source::Proj::CalcSpeed(

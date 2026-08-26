@@ -167,16 +167,21 @@ void Proj::PrepareSource(
     SetTimeLife(0.0F);
     SetSourceWeapon(weapon, false);
     SetShot(context.shot);
-    const auto rules = GetTypeRules(description.type);
-    if (rules.linkedToWeapon)
+    const auto route = PreparationRouteFor(description.type);
+    if (!route.valid || !context.preparationAccepted)
+    {
+        prepared_ = false;
+        return;
+    }
+    if (route.linkedToWeapon)
         LinkToSourceWeapon(context.position, context.rotation);
     else
         SyncSourceTransform(context.position, context.rotation);
     // Every successful PrepareProj path calls InitModel except Spring and
     // Drobilka. Drobilka creates its model lazily on the first contact.
-    if (description.type != 15U && description.type != 17U)
+    if (route.initializeModel)
         InitSourceModel(false);
-    if (description.type == 3U || description.type == 18U)
+    if (route.initializeSecondaryModel)
         InitSourceModel(true);
     ApplySourcePreparationState(context);
     prepared_ = true;
@@ -185,14 +190,13 @@ void Proj::PrepareSource(
 void Proj::ApplySourcePreparationState(
     const ShotContext& context) noexcept
 {
-    const auto rules = GetTypeRules(description_.type);
+    const auto route = PreparationRouteFor(description_.type);
     // RocketPrepare, LaserPrepare and DrobilkaPrepare all disable collision
     // against their own weapon actor. This flag belongs to concrete Proj,
     // not to a particular session spawn path.
-    ignoreContactProj_ = rules.rocketPrepare || rules.ray ||
-                         description_.type == 15U;
+    ignoreContactProj_ = route.ignoreWeaponContact;
 
-    if (rules.homing)
+    if (route.homing)
     {
         // TorpedaPrepare initializes _time1 and asks RocketPrepare to retain
         // the initial actor velocity in _vec1. ImpulsePrepare shares it.
@@ -200,25 +204,21 @@ void Proj::ApplySourcePreparationState(
         sourceVector_ = context.launchVelocity;
     }
 
-    switch (description_.type)
+    if (route.handler == PrepareHandler::Maslo &&
+        sourceModel_ != nullptr)
     {
-    case 10U: // ptMaslo
-        if (sourceModel_ != nullptr)
-            sourceModel_->GetGameObj().SetScale({0.0F, 0.0F, 0.0F});
-        [[fallthrough]];
-    case 11U: // ptMine
-    case 12U: // ptMineRip
-    case 20U: // ptCrater
-    case 24U: // ptMineProton
+        sourceModel_->GetGameObj().SetScale(
+            {0.0F, 0.0F, 0.0F});
+    }
+    if (route.minePlacement)
+    {
         // MinePrepare changes its pre-placement -1 sentinel to 0 once the
         // surface actor exists; MineUpdate then performs the arming fade.
         sourceTimer_ = 0.0F;
-        break;
-    case 13U: // ptMinePiece
+    }
+    else if (route.handler == PrepareHandler::MinePiece)
+    {
         sourceTimer_ = -1.0F;
-        break;
-    default:
-        break;
     }
 }
 
@@ -1261,66 +1261,124 @@ Proj::ProgressRoute Proj::ProgressRouteFor(
     return result;
 }
 
-Proj::TypeRules Proj::GetTypeRules(std::uint32_t type) noexcept
+Proj::PreparationRoute Proj::PreparationRouteFor(
+    std::uint32_t type) noexcept
 {
-    TypeRules result;
-    switch (type)
+    PreparationRoute result;
+    if (type > static_cast<std::uint32_t>(ProjectileType::MineProton))
+        return result;
+
+    result.valid = true;
+    // PrepareHandler keeps the source ProjectileType order after None.
+    result.handler = static_cast<PrepareHandler>(type + 1U);
+    result.initializeModel =
+        type != static_cast<std::uint32_t>(ProjectileType::Drobilka) &&
+        type != static_cast<std::uint32_t>(ProjectileType::Spring);
+
+    switch (static_cast<ProjectileType>(type))
     {
-    case 0U:  // ptRocket
+    case ProjectileType::Rocket:
         result.rocketPrepare = true;
+        result.requiresWeapon = true;
         break;
-    case 1U:  // ptHyper
+    case ProjectileType::Hyper:
         result.attached = true;
         result.linkedToWeapon = true;
+        result.requiresWeapon = true;
         break;
-    case 2U:  // ptTorpeda
+    case ProjectileType::Torpeda:
         result.rocketPrepare = true;
         result.homing = true;
+        result.requiresWeapon = true;
         break;
-    case 3U:  // ptLaser
+    case ProjectileType::Laser:
         result.attached = true;
         result.linkedToWeapon = true;
         result.ray = true;
+        result.initializeSecondaryModel = true;
+        result.requiresWeapon = true;
         break;
-    case 11U: // ptMine
-    case 12U: // ptMineRip
+    case ProjectileType::Medpack:
+    case ProjectileType::Charge:
+    case ProjectileType::Money:
+    case ProjectileType::Immortal:
+    case ProjectileType::SpeedArrow:
+        result.requiresWeapon = true;
+        break;
+    case ProjectileType::Lusha:
+        break;
+    case ProjectileType::Maslo:
+        result.minePlacement = true;
+        result.lockMineOnPlacement = true;
+        break;
+    case ProjectileType::Mine:
+    case ProjectileType::MineRip:
+        result.minePlacement = true;
+        result.lockMineOnPlacement = true;
         result.mineTestsLock = true;
         break;
-    case 14U: // ptFire
+    case ProjectileType::MinePiece:
+        break;
+    case ProjectileType::Fire:
         result.rocketPrepare = true;
         result.attached = true;
+        result.requiresWeapon = true;
         break;
-    case 15U: // ptDrobilka
+    case ProjectileType::Drobilka:
         result.attached = true;
+        result.requiresWeapon = true;
         break;
-    case 16U: // ptSonar
+    case ProjectileType::Sonar:
         result.rocketPrepare = true;
+        result.requiresWeapon = true;
         break;
-    case 17U: // ptSpring
+    case ProjectileType::Spring:
         result.attached = true;
         result.linkedToWeapon = true;
+        result.requiresWeapon = true;
         break;
-    case 18U: // ptFrostRay
+    case ProjectileType::FrostRay:
         result.attached = true;
         result.linkedToWeapon = true;
         result.ray = true;
+        result.initializeSecondaryModel = true;
+        result.requiresWeapon = true;
         break;
-    case 19U: // ptMortira
+    case ProjectileType::Mortira:
         result.rocketPrepare = true;
         result.ballistic = true;
+        result.requiresWeapon = true;
         break;
-    case 21U: // ptImpulse
+    case ProjectileType::Crater:
+        result.minePlacement = true;
+        result.requiresWeapon = true;
+        break;
+    case ProjectileType::Impulse:
         result.rocketPrepare = true;
         result.homing = true;
+        result.requiresWeapon = true;
         break;
-    case 22U: // ptThunder
-    case 23U: // ptResonanse
+    case ProjectileType::Thunder:
+    case ProjectileType::Resonanse:
         result.rocketPrepare = true;
         break;
-    default:
+    case ProjectileType::MineProton:
+        result.minePlacement = true;
+        result.lockMineOnPlacement = true;
         break;
     }
+    result.ignoreWeaponContact =
+        result.rocketPrepare || result.ray ||
+        result.handler == PrepareHandler::Drobilka;
     return result;
+}
+
+Proj::TypeRules Proj::GetTypeRules(std::uint32_t type) noexcept
+{
+    const auto route = PreparationRouteFor(type);
+    return {route.rocketPrepare, route.attached,
+            route.linkedToWeapon, route.ray, route.homing,
+            route.ballistic, route.mineTestsLock};
 }
 
 Proj::DestroyResult Proj::OnDestroy(
@@ -1746,8 +1804,8 @@ std::vector<Weapon::ShotContext> Weapon::MakeShotContexts(
             projectile.rotation.z, projectile.rotation.w};
         context.rotation = normalized(multiply(
             worldRotation, localRotation));
-        const auto rules = Proj::GetTypeRules(projectile.type);
-        if (rules.rocketPrepare)
+        const auto route = Proj::PreparationRouteFor(projectile.type);
+        if (route.rocketPrepare)
         {
             const auto direction = normalized(rotate(
                 context.rotation, {1.0F, 0.0F, 0.0F}));
@@ -1862,7 +1920,9 @@ Proj* Weapon::CreateShot(
     Weapon* weapon, const ProjectileDefinition& description,
     const ShotContext& context)
 {
-    if (context.logic == nullptr || !context.preparationAccepted)
+    const auto route = Proj::PreparationRouteFor(description.type);
+    if (context.logic == nullptr || !context.preparationAccepted ||
+        !route.valid || (weapon == nullptr && route.requiresWeapon))
         return nullptr;
 
     auto* projectile = new Proj();
@@ -1882,29 +1942,8 @@ Proj* Weapon::CreateShot(
 bool Weapon::CanCreateWithoutWeapon(
     std::uint32_t projectileType) noexcept
 {
-    switch (projectileType)
-    {
-    case 0U:  // ptRocket
-    case 1U:  // ptHyper
-    case 2U:  // ptTorpeda
-    case 3U:  // ptLaser
-    case 4U:  // ptMedpack
-    case 5U:  // ptCharge
-    case 6U:  // ptMoney
-    case 7U:  // ptImmortal
-    case 8U:  // ptSpeedArrow
-    case 14U: // ptFire
-    case 15U: // ptDrobilka
-    case 16U: // ptSonar
-    case 17U: // ptSpring
-    case 18U: // ptFrostRay
-    case 19U: // ptMortira
-    case 20U: // ptCrater
-    case 21U: // ptImpulse
-        return false;
-    default:
-        return true;
-    }
+    const auto route = Proj::PreparationRouteFor(projectileType);
+    return route.valid && !route.requiresWeapon;
 }
 
 bool Weapon::CreateShot(

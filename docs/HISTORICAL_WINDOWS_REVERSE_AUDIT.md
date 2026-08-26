@@ -3382,6 +3382,26 @@ descriptor с его type, visual, collision, lifetime, damage и DeathEffect �
 точно как отдельный `MapObj` в Windows. Это прекращает рекурсивное дробление и
 возвращает исходный lifecycle дочерних мин.
 
+### P2.140 — восстановлен полный `Proj::PrepareProj` dispatch — выполнено
+
+Оставшийся `GetTypeRules` описывал лишь несколько общих признаков и не был
+полной картой исходного `PrepareProj`: отдельно подразумевались создание
+model/model2, точный prepare-handler, mine placement/owner lock, разрешение
+автономного создания и actor-pair ignore. Поэтому session и фабрика могли
+принять разные решения для одного serialized type.
+
+Добавлен единый `PreparationRouteFor` для всех 25 значений `Proj::Type`.
+Маршрут фиксирует конкретный prepare-handler, model/model2 initialization,
+linked/attached/ray, Rocket/Torpeda/Mortira flags, mine placement и две разные
+mine-lock политики, collision ignore и исходный no-weapon filter.
+`PrepareSource`, `Weapon::MakeShotContexts`, обе `CreateShot` фабрики,
+освобождение linked-снарядов и session spawn теперь используют эту карту;
+старый `GetTypeRules` оставлен только как совместимый derived view без второго
+switch. Unknown type больше не регистрируется как успешно подготовленный
+concrete объект. Regression проходит весь диапазон 0..24 и отдельно проверяет
+Laser, Mine, Drobilka, Spring, Crater и MineProton, где различия наиболее
+существенны.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
