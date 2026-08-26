@@ -442,6 +442,7 @@ class Weapon : public GameObject
 public:
     using ShotDesc = Proj::ShotDesc;
     using ShotContext = Proj::ShotContext;
+    using ProjList = std::vector<Proj*>;
 
     struct Desc
     {
@@ -468,6 +469,16 @@ public:
     bool IsReadyShot() const noexcept;
     bool IsMaslo() const noexcept;
     void OnShot(bool projectileCreated = true) noexcept;
+    bool Shot(
+        const ShotDesc& shot,
+        ProjList* projectiles = nullptr);
+    bool Shot(
+        Proj::Vec3 target,
+        ProjList* projectiles = nullptr);
+    bool Shot(
+        GameObject* target,
+        ProjList* projectiles = nullptr);
+    bool Shot(ProjList* projectiles = nullptr);
     // Weapon::CreateShot dispatches Behaviors::OnShot separately for every
     // projectile accepted by PrepareProj.  Keep this separate from the
     // WeaponItem transaction because one trigger may create several actors.
@@ -491,9 +502,17 @@ public:
     static Proj* CreateShot(
         Weapon* weapon, const ProjectileDefinition& description,
         const ShotContext& context);
+    static bool CreateShot(
+        Weapon* weapon, const Desc& description,
+        std::span<const ShotContext> contexts,
+        ProjList* projectiles = nullptr);
 
 private:
     void BindSourceBehaviors();
+    std::vector<ShotContext> MakeShotContexts(
+        const ShotDesc& shot);
+    static bool CanCreateWithoutWeapon(
+        std::uint32_t projectileType) noexcept;
 
     DescHandle desc_;
     float shotTime_ = 0.0F;

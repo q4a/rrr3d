@@ -830,6 +830,73 @@ int main()
             rejectedShotEffects)
         return 107;
 
+    source::Weapon::Desc batchDescription;
+    batchDescription.shotDelay = 0.2F;
+    batchDescription.projectiles.resize(2U);
+    batchDescription.projectiles[0].type = 0U;
+    batchDescription.projectiles[0].position = {1.0F, 0.0F, 0.0F};
+    batchDescription.projectiles[0].speed = 10.0F;
+    batchDescription.projectiles[0].maximumDistance = 20.0F;
+    batchDescription.projectiles[1] =
+        batchDescription.projectiles[0];
+    batchDescription.projectiles[1].type = 2U;
+    source::Weapon batchWeapon(batchDescription);
+    batchWeapon.SetLogic(&autoProjectileLogic);
+    batchWeapon.SetWorldPos({5.0F, 6.0F, 7.0F});
+    batchWeapon.OnProgress(1.0F);
+    source::Weapon::ProjList batchProjectiles;
+    if (!batchWeapon.Shot(
+            source::Proj::Vec3{9.0F, 8.0F, 7.0F},
+            &batchProjectiles) ||
+        batchProjectiles.size() != 2U ||
+        autoProjectileLogic.GetGameObjCount() != 2U ||
+        batchWeapon.GetShotEffect().GetShotCount() != 2U ||
+        batchWeapon.GetShotTime() != 0.0F ||
+        batchProjectiles[0]->GetShot().target !=
+            source::Proj::Vec3{9.0F, 8.0F, 7.0F} ||
+        batchProjectiles[0]->GetWorldPos() !=
+            source::GameObject::Vector3{6.0F, 6.0F, 7.0F})
+        return 124;
+    for (auto* projectile : batchProjectiles)
+        projectile->Death();
+    if (autoProjectileLogic.ProgressGameObjs(0.0F).removed != 2U)
+        return 125;
+
+    std::array<source::Proj::ShotContext, 2U> partialContexts{};
+    for (auto& context : partialContexts)
+        context.logic = &autoProjectileLogic;
+    partialContexts[0].preparationAccepted = false;
+    source::Weapon::ProjList partialProjectiles;
+    const auto effectsBeforePartial =
+        batchWeapon.GetShotEffect().GetShotCount();
+    if (!source::Weapon::CreateShot(
+            &batchWeapon, batchDescription, partialContexts,
+            &partialProjectiles) ||
+        partialProjectiles.size() != 1U ||
+        batchWeapon.GetShotEffect().GetShotCount() !=
+            effectsBeforePartial + 1U)
+        return 126;
+    partialProjectiles.front()->Death();
+    autoProjectileLogic.ProgressGameObjs(0.0F);
+
+    source::Weapon::Desc autonomousDescription;
+    autonomousDescription.projectiles.resize(2U);
+    autonomousDescription.projectiles[0].type = 0U;
+    autonomousDescription.projectiles[1].type = 10U;
+    std::array<source::Proj::ShotContext, 2U> autonomousContexts{};
+    for (auto& context : autonomousContexts)
+        context.logic = &autoProjectileLogic;
+    source::Weapon::ProjList autonomousProjectiles;
+    if (!source::Weapon::CreateShot(
+            nullptr, autonomousDescription, autonomousContexts,
+            &autonomousProjectiles) ||
+        autonomousProjectiles.size() != 1U ||
+        autonomousProjectiles.front()->GetDesc().type != 10U)
+        return 127;
+    autonomousProjectiles.front()->Death();
+    autoProjectileLogic.ProgressGameObjs(0.0F);
+    batchWeapon.SetLogic(nullptr);
+
     r3d::game::originalrace::ProjectileDefinition boundsDescription;
     boundsDescription.size = {2.0F, 4.0F, 6.0F};
     boundsDescription.offset = {1.0F, -1.0F, 2.0F};

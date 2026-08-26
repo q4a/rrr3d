@@ -1468,6 +1468,82 @@ void Weapon::OnShot(bool projectileCreated) noexcept
         shotTime_ = 0.0F;
 }
 
+std::vector<Weapon::ShotContext> Weapon::MakeShotContexts(
+    const ShotDesc& shot)
+{
+    std::vector<ShotContext> contexts;
+    contexts.reserve(desc_->projectiles.size());
+    const auto weaponPosition = GetWorldPos();
+    const auto weaponRotation = GetWorldRot();
+    const auto weaponScale = GetWorldScale();
+    const Proj::Quat worldRotation{
+        weaponRotation[0], weaponRotation[1],
+        weaponRotation[2], weaponRotation[3]};
+    for (const auto& projectile : desc_->projectiles)
+    {
+        ShotContext context;
+        context.logic = GetLogic();
+        context.shot = shot;
+        context.maximumLife = Proj::PrepareMaximumLife(
+            projectile.speed, projectile.maximumDistance,
+            projectile.minimumLife);
+        const Proj::Vec3 localPosition{
+            projectile.position.x * weaponScale[0],
+            projectile.position.y * weaponScale[1],
+            projectile.position.z * weaponScale[2]};
+        const auto worldOffset = rotate(
+            worldRotation, localPosition);
+        context.position = {
+            weaponPosition[0] + worldOffset.x,
+            weaponPosition[1] + worldOffset.y,
+            weaponPosition[2] + worldOffset.z};
+        const Proj::Quat localRotation{
+            projectile.rotation.x, projectile.rotation.y,
+            projectile.rotation.z, projectile.rotation.w};
+        context.rotation = normalized(multiply(
+            worldRotation, localRotation));
+        const auto rules = Proj::GetTypeRules(projectile.type);
+        if (rules.rocketPrepare)
+        {
+            const auto direction = normalized(rotate(
+                context.rotation, {1.0F, 0.0F, 0.0F}));
+            const auto launch = Proj::CalcSpeed(
+                direction, {}, projectile.speed,
+                projectile.relativeSpeedMinimum,
+                projectile.relativeSpeed);
+            context.launchVelocity = launch.linearVelocity;
+        }
+        contexts.push_back(context);
+    }
+    return contexts;
+}
+
+bool Weapon::Shot(
+    const ShotDesc& shot, ProjList* projectiles)
+{
+    const auto contexts = MakeShotContexts(shot);
+    return CreateShot(this, *desc_, contexts, projectiles);
+}
+
+bool Weapon::Shot(Proj::Vec3 target, ProjList* projectiles)
+{
+    ShotDesc shot;
+    shot.target = target;
+    return Shot(shot, projectiles);
+}
+
+bool Weapon::Shot(GameObject* target, ProjList* projectiles)
+{
+    ShotDesc shot;
+    shot.targetMapObject = target;
+    return Shot(shot, projectiles);
+}
+
+bool Weapon::Shot(ProjList* projectiles)
+{
+    return Shot(ShotDesc{}, projectiles);
+}
+
 void Weapon::OnProjectilePrepared(
     const std::array<float, 3U>& position) noexcept
 {
@@ -1557,6 +1633,61 @@ Proj* Weapon::CreateShot(
              description.position.z});
     }
     return projectile;
+}
+
+bool Weapon::CanCreateWithoutWeapon(
+    std::uint32_t projectileType) noexcept
+{
+    switch (projectileType)
+    {
+    case 0U:  // ptRocket
+    case 1U:  // ptHyper
+    case 2U:  // ptTorpeda
+    case 3U:  // ptLaser
+    case 4U:  // ptMedpack
+    case 5U:  // ptCharge
+    case 6U:  // ptMoney
+    case 7U:  // ptImmortal
+    case 8U:  // ptSpeedArrow
+    case 14U: // ptFire
+    case 15U: // ptDrobilka
+    case 16U: // ptSonar
+    case 17U: // ptSpring
+    case 18U: // ptFrostRay
+    case 19U: // ptMortira
+    case 20U: // ptCrater
+    case 21U: // ptImpulse
+        return false;
+    default:
+        return true;
+    }
+}
+
+bool Weapon::CreateShot(
+    Weapon* weapon, const Desc& description,
+    std::span<const ShotContext> contexts,
+    ProjList* projectiles)
+{
+    bool created = false;
+    for (std::size_t index = 0U;
+         index < description.projectiles.size(); ++index)
+    {
+        const auto& projectileDescription =
+            description.projectiles[index];
+        if (weapon == nullptr &&
+            !CanCreateWithoutWeapon(projectileDescription.type))
+            continue;
+        if (index >= contexts.size())
+            continue;
+        auto* projectile = CreateShot(
+            weapon, projectileDescription, contexts[index]);
+        if (projectile == nullptr)
+            continue;
+        if (projectiles != nullptr)
+            projectiles->push_back(projectile);
+        created = true;
+    }
+    return created;
 }
 
 WeaponItem::WeaponItem(SlotType type) noexcept : SlotItem(type) {}

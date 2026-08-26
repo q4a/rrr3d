@@ -3302,6 +3302,22 @@ Concrete `Proj` перемещает Laser model2 в hit/local endpoint, соз�
 source weapon через `_desc.angleSpeed`; session оставляет за собой только
 bgfx/Jolt presentation state.
 
+### P2.136 — полная `Weapon::Shot` batch transaction — выполнено
+
+Portable `Weapon::CreateShot` принимал один `ProjectileDefinition`, тогда как
+Windows-фабрика принимает полный `Weapon::Desc`, проходит весь `projList`,
+сохраняет каждый успешный `Proj` в optional `ProjList` и возвращает успех,
+если подготовился хотя бы один descriptor. Также отсутствовали overload для
+пустого shot, world target и target object и исходный фильтр типов, которым
+запрещено автономное создание без weapon.
+
+Восстановлены все `Weapon::Shot` overload, построение source contexts из
+живого weapon transform и batch-фабрика с частичным успехом, per-projectile
+timer/effect commit и точным no-weapon type filter из `Weapon.cpp`. Jolt
+session продолжает вызывать тот же leaf commit после индивидуальной backend
+подготовки, а source/API callers снова получают оригинальную полную
+транзакцию и список созданных concrete objects.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
