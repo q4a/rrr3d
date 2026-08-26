@@ -3817,6 +3817,27 @@ shot paths больше не используют булевую transaction-з�
 Таким образом, любой новый вызов `Player/WeaponItem::Shot` обязан создать
 concrete projectile transaction; одного внешнего boolean больше недостаточно.
 
+### P2.163 — единый source owner для projectile damage — выполнено
+
+`Proj::DamageTarget` уже владел исходным `_playerId` и очищал его в
+`SetWeapon(0)` после уничтожения оружия, но оба session runtime record всё ещё
+хранили параллельный `damageOwner`. Его вручную копировали при выстреле,
+обнуляли в `releaseRacerProjectileReferences` и даже переносили в создаваемый
+death-effect crater, хотя автономный crater в Windows не имеет родительского
+Weapon и получает undefined player id. В результате attribution, owner
+collision filter и урон декорациям могли читать разные владельцы одного
+снаряда.
+
+Поля `ProjectileRuntime::damageOwner` и `MineRuntime::damageOwner` удалены.
+Фильтрация собственного автомобиля, Impulse chain owner, урон ray/Fire/
+Drobilka/Sonar по декорациям и sender-policy DeathEffect теперь каждый раз
+читают `Proj::GetSourcePlayerId()` либо живую ссылку `GetSourceWeapon()`.
+Уничтожение Weapon автоматически меняет все эти решения через исходный
+listener graph; crater и MineRip children остаются автономными и больше не
+наследуют session-only боевого владельца. Backend-поле `owner` сохранено
+только для размещения, visual/audio routing и network identity, которым
+реально нужен индекс racer вне source `Proj`.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

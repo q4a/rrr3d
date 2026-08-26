@@ -286,10 +286,6 @@ struct RaceEffect
 struct MineRuntime
 {
     std::size_t owner = 0;
-    // Proj::_playerId is cleared when its weapon object is destroyed, while
-    // the owning Player still retains the bonus-projectile id for network
-    // lookup. Keep those two source identities separate.
-    std::size_t damageOwner = RacerRuntime::invalidWeapon;
     std::size_t weapon = 0;
     std::size_t projectile = 0;
     // Mine, MineRip core and every detached fragment are distinct source
@@ -316,7 +312,6 @@ struct MineRuntime
 struct ProjectileRuntime
 {
     std::size_t owner = 0;
-    std::size_t damageOwner = RacerRuntime::invalidWeapon;
     std::size_t weapon = 0;
     std::size_t projectile = 0;
     std::size_t mountSlot = 0;

@@ -1728,7 +1728,6 @@ void OriginalRaceSession::releaseRacerProjectileReferences(
             projectile.sourceObject->GetSourceWeapon() == nullptr;
         if (!sourceWeaponCleared)
             continue;
-        projectile.damageOwner = RacerRuntime::invalidWeapon;
         projectile.ownerCollisionArmed = true;
         if (projectile.sourceObject != nullptr &&
             projectile.sourceObject->destroyed)
@@ -1751,7 +1750,6 @@ void OriginalRaceSession::releaseRacerProjectileReferences(
         if (mine.sourceObject != nullptr &&
             mine.sourceObject->GetSourceWeapon() != nullptr)
             continue;
-        mine.damageOwner = RacerRuntime::invalidWeapon;
         mine.linkedToOwner = false;
         mine.ignoreOwnerCollision = false;
     }
@@ -3744,7 +3742,7 @@ void OriginalRaceSession::updateGameplay(
             const auto deathPlan = hasSourceDeathEffect
                 ? projectile.sourceObject->DestroyWithEffect(
                       targetObject, true,
-                      projectile.damageOwner < vehicles.size())
+                      projectile.sourceObject->GetSourceWeapon() != nullptr)
                 : source::DeathEffect::SpawnResult{};
             if (!hasSourceDeathEffect)
                 projectile.sourceObject->Death();
@@ -3834,7 +3832,6 @@ void OriginalRaceSession::updateGameplay(
                 return;
             MineRuntime crater;
             crater.owner = projectile.owner;
-            crater.damageOwner = projectile.damageOwner;
             crater.weapon = projectile.weapon;
             crater.projectile = definition->deathProjectile;
             crater.position = add(position, spawned.position);
@@ -3858,6 +3855,8 @@ void OriginalRaceSession::updateGameplay(
         }
         const auto& projectileDefinition =
             projectile.sourceObject->GetDesc();
+        const std::size_t sourcePlayerId =
+            projectile.sourceObject->GetSourcePlayerId();
         const auto sourceProgressRoute =
             projectile.sourceObject->RouteProgress();
         if (projectile.attached)
@@ -4000,7 +3999,7 @@ void OriginalRaceSession::updateGameplay(
                 damageDecoration(
                     rayHit.decoration,
                     std::max(laserUpdate.damage, 0.0F),
-                    projectile.damageOwner);
+                    sourcePlayerId);
             }
             else if (sourceContact)
             {
@@ -4102,7 +4101,7 @@ void OriginalRaceSession::updateGameplay(
                     if (contact.damage > 0.0F &&
                         damageDecoration(
                             decorationTarget, contact.damage,
-                            projectile.damageOwner))
+                            sourcePlayerId))
                     {
                         refreshDrobilkaContact(decorationContact);
                     }
@@ -4130,7 +4129,7 @@ void OriginalRaceSession::updateGameplay(
                     {
                         damageDecoration(
                             decorationTarget, contact.damage,
-                            projectile.damageOwner);
+                            sourcePlayerId);
                     }
                 }
             }
@@ -4273,11 +4272,11 @@ void OriginalRaceSession::updateGameplay(
         const OrientedBox projectileBox = orientedBox(
             projectileTransform, projectileDefinition.collision);
         if (!projectile.ownerCollisionArmed &&
-            projectile.damageOwner < vehicles.size() &&
-            projectile.damageOwner < race_.racers.size())
+            sourcePlayerId < vehicles.size() &&
+            sourcePlayerId < race_.racers.size())
         {
             const auto& ownerVehicle =
-                vehicleForRacer(projectile.damageOwner);
+                vehicleForRacer(sourcePlayerId);
             // PhysX ignores only the projectile/weapon actor pair, not the
             // owning car forever.  Arm owner contacts after the shot has
             // cleared our coarser portable vehicle box, so reflected and
@@ -4285,7 +4284,7 @@ void OriginalRaceSession::updateGameplay(
             projectile.ownerCollisionArmed = !boxesOverlap(
                 projectileBox,
                 vehicleBox(
-                    vehicles[projectile.damageOwner],
+                    vehicles[sourcePlayerId],
                     ownerVehicle.physics));
         }
         const auto projectileContactRoute =
@@ -4295,7 +4294,7 @@ void OriginalRaceSession::updateGameplay(
              target < vehicles.size() && target < racers_.size();
              ++target)
         {
-            if ((target == projectile.damageOwner &&
+            if ((target == sourcePlayerId &&
                  !projectile.ownerCollisionArmed) ||
                 racers_[target].IsDestroyed())
                 continue;
@@ -4431,8 +4430,8 @@ void OriginalRaceSession::updateGameplay(
                         target < racers_.size()
                             ? &racers_[target]
                             : nullptr,
-                        projectile.damageOwner < racers_.size()
-                            ? &racers_[projectile.damageOwner]
+                        sourcePlayerId < racers_.size()
+                            ? &racers_[sourcePlayerId]
                             : nullptr,
                         playerList, 1.57079632679489661923F);
                 const std::size_t nextTarget =
@@ -4486,7 +4485,7 @@ void OriginalRaceSession::updateGameplay(
                 {
                     damageDecoration(
                         decorationTarget, contact.damage,
-                        projectile.damageOwner);
+                        sourcePlayerId);
                 }
             }
         }
@@ -4498,7 +4497,7 @@ void OriginalRaceSession::updateGameplay(
                      liveProjectileTransform,
                      projectileDefinition.collision,
                      projectileDefinition.damage,
-                     projectile.damageOwner))
+                     sourcePlayerId))
         {
             spawnProjectileImpact(
                 projectile, projectile.position,
@@ -4753,7 +4752,6 @@ void OriginalRaceSession::updateGameplay(
                 : racers_[owner].GetNextBonusProjectileId();
         MineRuntime mine;
         mine.owner = owner;
-        mine.damageOwner = owner;
         mine.weapon = weapon;
         const auto sourceProjectile = std::find_if(
             race_.weapons[weapon].projectiles.begin(),
@@ -4922,7 +4920,6 @@ void OriginalRaceSession::updateGameplay(
         {
             ProjectileRuntime runtimeProjectile;
             runtimeProjectile.owner = owner;
-            runtimeProjectile.damageOwner = owner;
             runtimeProjectile.weapon =
                 racers_[owner].hyperWeapon;
             const auto& sourceProjectiles =
@@ -5037,7 +5034,7 @@ void OriginalRaceSession::updateGameplay(
         const auto deathPlan = hasSourceDeathEffect
             ? mine.sourceObject->DestroyWithEffect(
                   targetObject, true,
-                  mine.damageOwner < vehicles.size())
+                  mine.sourceObject->GetSourceWeapon() != nullptr)
             : source::DeathEffect::SpawnResult{};
         if (!hasSourceDeathEffect)
             mine.sourceObject->Death();
@@ -5323,7 +5320,6 @@ void OriginalRaceSession::updateGameplay(
                         projectile.secondaryProjectile;
                     MineRuntime core = mine;
                     core.owner = RacerRuntime::invalidWeapon;
-                    core.damageOwner = RacerRuntime::invalidWeapon;
                     core.linkedToOwner = false;
                     core.visualVariant = 1U;
                     core.armingAlpha = 0.0F;
@@ -5350,8 +5346,6 @@ void OriginalRaceSession::updateGameplay(
                     {
                         MineRuntime fragment = mine;
                         fragment.owner =
-                            RacerRuntime::invalidWeapon;
-                        fragment.damageOwner =
                             RacerRuntime::invalidWeapon;
                         fragment.linkedToOwner = false;
                         fragment.visualVariant = 2U;
@@ -5928,7 +5922,6 @@ void OriginalRaceSession::updateGameplay(
 
             ProjectileRuntime runtimeProjectile;
             runtimeProjectile.owner = shooter;
-            runtimeProjectile.damageOwner = shooter;
             runtimeProjectile.weapon = firedWeapon;
             runtimeProjectile.projectile =
                 backendProjectileIndex;
