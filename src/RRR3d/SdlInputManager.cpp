@@ -27,39 +27,30 @@ void appendAnalog(std::vector<ActionEvent> &events, Action action, float value, 
 	events.push_back({action, value, value > 0.0F, false, source, device_id});
 }
 
-float normalizeSignedAxis(Sint16 value) noexcept
+float applySourceStickDeadZone(
+    Sint16 rawValue, SDL_GamepadAxis axis, int direction) noexcept
 {
-	if (value < 0)
-		return static_cast<float>(value) / 32768.0F;
-	return static_cast<float>(value) / 32767.0F;
-}
-
-float applySignedDeadZone(float value, float dead_zone) noexcept
-{
-	const float magnitude = std::abs(value);
-	if (magnitude <= dead_zone)
-		return 0.0F;
-	const float scaled = (magnitude - dead_zone) / (1.0F - dead_zone);
-	return std::copysign(std::min(scaled, 1.0F), value);
-}
-
-float applySourceStickDeadZone(float value, SDL_GamepadAxis axis) noexcept
-{
-	const float activation =
+	const int activation =
 	    axis == SDL_GAMEPAD_AXIS_RIGHTX ||
 	            axis == SDL_GAMEPAD_AXIS_RIGHTY
-	        ? SdlInputManager::sourceRightStickDeadZone
-	        : SdlInputManager::sourceLeftStickDeadZone;
-	const float magnitude = std::abs(value);
+	        ? 8689
+	        : 7849;
+	const int normalization =
+	    activation == 8689 && direction == 0 ? 8689 : 7849;
+	const int raw = static_cast<int>(rawValue);
+	const int magnitude = std::abs(raw);
 	if (magnitude <= activation)
 		return 0.0F;
-	// Original right-thumb VirtualKey entries contain the left-thumb
-	// normalization threshold even though GetGamepadKeyState gates them with
-	// XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE.
-	const float scaled =
-	    (magnitude - SdlInputManager::sourceLeftStickDeadZone) /
-	    (1.0F - SdlInputManager::sourceLeftStickDeadZone);
-	return std::copysign(std::clamp(scaled, 0.0F, 1.0F), value);
+	// Directional right-thumb entries intentionally normalize with the left
+	// threshold: that is how cVirtualKeyInfo is declared in ControlManager.
+	const float scaled = static_cast<float>(magnitude - normalization) /
+	                     static_cast<float>(32767 - normalization);
+	const float signedValue = std::copysign(scaled, static_cast<float>(raw));
+	if (direction < 0)
+		return std::max(-signedValue, 0.0F);
+	if (direction > 0)
+		return std::max(signedValue, 0.0F);
+	return std::abs(signedValue);
 }
 
 float applyTriggerDeadZone(Sint16 value) noexcept
@@ -68,12 +59,6 @@ float applyTriggerDeadZone(Sint16 value) noexcept
 	if (normalized <= SdlInputManager::triggerDeadZone)
 		return 0.0F;
 	return (normalized - SdlInputManager::triggerDeadZone) / (1.0F - SdlInputManager::triggerDeadZone);
-}
-
-void appendDirectionalAxis(std::vector<ActionEvent> &events, float signed_value, SDL_JoystickID device_id)
-{
-	appendAnalog(events, Action::TurnLeft, std::max(-signed_value, 0.0F), Source::GamepadAxis, device_id);
-	appendAnalog(events, Action::TurnRight, std::max(signed_value, 0.0F), Source::GamepadAxis, device_id);
 }
 
 constexpr std::array<Action, 32> allActions = {
@@ -392,6 +377,12 @@ bool SdlInputManager::initialize(std::string &error)
 	}
 
 	initialized_ = true;
+	applyKeyboardBindings(
+	    r3d::game::originalcontrol::makeDefaultBindings(
+	        r3d::game::originalcontrol::ControllerType::Keyboard));
+	applyGamepadBindings(
+	    r3d::game::originalcontrol::makeDefaultBindings(
+	        r3d::game::originalcontrol::ControllerType::Gamepad));
 	for (int index = 0; index < count; ++index)
 		openGamepad(device_ids[index]);
 	SDL_free(device_ids);
@@ -411,7 +402,6 @@ void SdlInputManager::shutdown() noexcept
 	gamepad_button_actions_.clear();
 	gamepad_axis_actions_.clear();
 	held_action_values_.clear();
-	keyboard_bindings_configured_ = false;
 	initialized_ = false;
 }
 
@@ -431,7 +421,6 @@ void SdlInputManager::applyKeyboardBindings(
 		    actions.end())
 			actions.push_back(*action);
 	}
-	keyboard_bindings_configured_ = true;
 }
 
 void SdlInputManager::applyGamepadBindings(
@@ -489,7 +478,7 @@ bool SdlInputManager::openGamepad(SDL_JoystickID device_id) noexcept
 	}
 
 	const char *name = SDL_GetGamepadName(gamepad);
-	gamepads_.emplace(device_id, GamepadState{gamepad, 0});
+	gamepads_.emplace(device_id, GamepadState{gamepad});
 	SDL_Log("Gamepad connected: id=%d name='%s'", static_cast<int>(device_id), name == nullptr ? "Unknown" : name);
 	return true;
 }
@@ -528,175 +517,50 @@ std::vector<ActionEvent> SdlInputManager::processEvent(const SDL_Event &event)
 	case SDL_EVENT_WINDOW_FOCUS_LOST:
 		for (const Action action : allActions)
 			appendDigital(events, action, false, false, Source::System);
-		for (auto &[device_id, state] : gamepads_)
-		{
-			static_cast<void>(device_id);
-			state.menu_vertical_direction = 0;
-		}
 		break;
 
 	case SDL_EVENT_KEY_DOWN:
 	case SDL_EVENT_KEY_UP: {
 		const bool down = event.key.down;
 		const bool repeat = event.key.repeat;
-		if (keyboard_bindings_configured_)
-		{
-			// Menu navigation remains available independently of the race
-			// bindings, matching ControlManager's GUI navigation layer.
-			switch (event.key.scancode)
-			{
-			case SDL_SCANCODE_UP:
-			case SDL_SCANCODE_W:
-				appendDigital(events, Action::MenuUp, down, repeat,
-				              Source::Keyboard);
-				break;
-			case SDL_SCANCODE_DOWN:
-			case SDL_SCANCODE_S:
-				appendDigital(events, Action::MenuDown, down, repeat,
-				              Source::Keyboard);
-				break;
-			case SDL_SCANCODE_RETURN:
-			case SDL_SCANCODE_KP_ENTER:
-			case SDL_SCANCODE_SPACE:
-				appendDigital(events, Action::MenuConfirm, down, repeat,
-				              Source::Keyboard);
-				break;
-			case SDL_SCANCODE_BACKSPACE:
-				appendDigital(events, Action::MenuBack, down, repeat,
-				              Source::Keyboard);
-				break;
-			case SDL_SCANCODE_F10:
-				appendDigital(events, Action::DebugOverlay, down, repeat,
-				              Source::Keyboard);
-				break;
-			case SDL_SCANCODE_PAGEUP:
-				appendDigital(events, Action::DebugPagePrevious, down, repeat,
-				              Source::Keyboard);
-				break;
-			case SDL_SCANCODE_PAGEDOWN:
-				appendDigital(events, Action::DebugPageNext, down, repeat,
-				              Source::Keyboard);
-				break;
-			default:
-				break;
-			}
-			const auto found =
-			    keyboard_actions_.find(event.key.scancode);
-			if (found != keyboard_actions_.end())
-			{
-				for (const auto action : found->second)
-					appendDigital(events, action, down, repeat,
-					              Source::Keyboard);
-			}
-			break;
-		}
+		// Menu.cpp navigates by raw arrow/start virtual keys, while gameplay
+		// receives only actions from ControlManager::_gameKeys.
 		switch (event.key.scancode)
 		{
 		case SDL_SCANCODE_UP:
-			appendDigital(events, Action::MenuUp, down, repeat, Source::Keyboard);
-			appendDigital(events, Action::Accelerate, down, repeat, Source::Keyboard);
+			appendDigital(events, Action::MenuUp, down, repeat,
+			              Source::Keyboard);
 			break;
 		case SDL_SCANCODE_DOWN:
-			appendDigital(events, Action::MenuDown, down, repeat, Source::Keyboard);
-			appendDigital(events, Action::Brake, down, repeat, Source::Keyboard);
-			break;
-		case SDL_SCANCODE_LEFT:
-			appendDigital(events, Action::TurnLeft, down, repeat, Source::Keyboard);
-			break;
-		case SDL_SCANCODE_RIGHT:
-			appendDigital(events, Action::TurnRight, down, repeat, Source::Keyboard);
-			break;
-		case SDL_SCANCODE_W:
-			appendDigital(events, Action::MenuUp, down, repeat, Source::Keyboard);
-			appendDigital(events, Action::UseWeapon, down, repeat, Source::Keyboard);
-			break;
-		case SDL_SCANCODE_S:
-			appendDigital(events, Action::MenuDown, down, repeat, Source::Keyboard);
-			appendDigital(events, Action::Brake, down, repeat, Source::Keyboard);
-			break;
-		case SDL_SCANCODE_A:
-			appendDigital(events, Action::TurnLeft, down, repeat, Source::Keyboard);
-			break;
-		case SDL_SCANCODE_D:
-			appendDigital(events, Action::TurnRight, down, repeat, Source::Keyboard);
+			appendDigital(events, Action::MenuDown, down, repeat,
+			              Source::Keyboard);
 			break;
 		case SDL_SCANCODE_RETURN:
 		case SDL_SCANCODE_KP_ENTER:
-			appendDigital(events, Action::MenuConfirm, down, repeat, Source::Keyboard);
-			break;
-		case SDL_SCANCODE_SPACE:
-			appendDigital(events, Action::MenuConfirm, down, repeat, Source::Keyboard);
-			appendDigital(events, Action::UseWeapon, down, repeat, Source::Keyboard);
-			break;
-		case SDL_SCANCODE_TAB:
-			appendDigital(events, Action::ChangeWeapon, down, repeat, Source::Keyboard);
-			break;
-		case SDL_SCANCODE_C:
-			appendDigital(events, Action::ToggleCamera, down, repeat, Source::Keyboard);
-			break;
-		case SDL_SCANCODE_M:
-		case SDL_SCANCODE_E:
-			appendDigital(events, Action::UseMine, down, repeat, Source::Keyboard);
-			break;
-		case SDL_SCANCODE_Q:
-			appendDigital(events, Action::UseHyper, down, repeat, Source::Keyboard);
-			break;
-		case SDL_SCANCODE_1:
-			appendDigital(events, Action::SelectWeapon1, down, repeat, Source::Keyboard);
-			break;
-		case SDL_SCANCODE_2:
-			appendDigital(events, Action::SelectWeapon2, down, repeat, Source::Keyboard);
-			break;
-		case SDL_SCANCODE_3:
-			appendDigital(events, Action::SelectWeapon3, down, repeat, Source::Keyboard);
-			break;
-		case SDL_SCANCODE_4:
-			appendDigital(events, Action::SelectWeapon4, down, repeat, Source::Keyboard);
-			break;
-		case SDL_SCANCODE_R:
-			appendDigital(events, Action::ResetVehicle, down, repeat, Source::Keyboard);
-			break;
-		case SDL_SCANCODE_ESCAPE:
-			appendDigital(events, Action::Pause, down, repeat, Source::Keyboard);
-			break;
-		case SDL_SCANCODE_BACKSPACE:
-			appendDigital(events, Action::MenuBack, down, repeat, Source::Keyboard);
-			break;
-		case SDL_SCANCODE_P:
-			appendDigital(events, Action::Pause, down, repeat, Source::Keyboard);
-			break;
-		case SDL_SCANCODE_F1:
-			appendDigital(events, Action::Debug1, down, repeat, Source::Keyboard);
-			break;
-		case SDL_SCANCODE_F2:
-			appendDigital(events, Action::Debug2, down, repeat, Source::Keyboard);
-			break;
-		case SDL_SCANCODE_F3:
-			appendDigital(events, Action::Debug3, down, repeat, Source::Keyboard);
-			break;
-		case SDL_SCANCODE_F4:
-			appendDigital(events, Action::Debug4, down, repeat, Source::Keyboard);
-			break;
-		case SDL_SCANCODE_F5:
-			appendDigital(events, Action::Debug5, down, repeat, Source::Keyboard);
-			break;
-		case SDL_SCANCODE_F6:
-			appendDigital(events, Action::Debug6, down, repeat, Source::Keyboard);
-			break;
-		case SDL_SCANCODE_F7:
-			appendDigital(events, Action::Debug7, down, repeat, Source::Keyboard);
+			appendDigital(events, Action::MenuConfirm, down, repeat,
+			              Source::Keyboard);
 			break;
 		case SDL_SCANCODE_F10:
-			appendDigital(events, Action::DebugOverlay, down, repeat, Source::Keyboard);
+			appendDigital(events, Action::DebugOverlay, down, repeat,
+			              Source::Keyboard);
 			break;
 		case SDL_SCANCODE_PAGEUP:
-			appendDigital(events, Action::DebugPagePrevious, down, repeat, Source::Keyboard);
+			appendDigital(events, Action::DebugPagePrevious, down, repeat,
+			              Source::Keyboard);
 			break;
 		case SDL_SCANCODE_PAGEDOWN:
-			appendDigital(events, Action::DebugPageNext, down, repeat, Source::Keyboard);
+			appendDigital(events, Action::DebugPageNext, down, repeat,
+			              Source::Keyboard);
 			break;
 		default:
 			break;
+		}
+		const auto found = keyboard_actions_.find(event.key.scancode);
+		if (found != keyboard_actions_.end())
+		{
+			for (const auto action : found->second)
+				appendDigital(events, action, down, repeat,
+				              Source::Keyboard);
 		}
 		break;
 	}
@@ -706,32 +570,12 @@ std::vector<ActionEvent> SdlInputManager::processEvent(const SDL_Event &event)
 		if (event.button.button == SDL_BUTTON_LEFT)
 		{
 			appendDigital(events, Action::MenuConfirm, event.button.down, false, Source::Mouse);
-			appendDigital(events, Action::UseWeapon, event.button.down, false, Source::Mouse);
-		}
-		else if (event.button.button == SDL_BUTTON_RIGHT)
-		{
-			appendDigital(events, Action::MenuBack, event.button.down, false, Source::Mouse);
 		}
 		break;
 
-	case SDL_EVENT_MOUSE_WHEEL: {
-		float vertical = event.wheel.y;
-		if (event.wheel.direction == SDL_MOUSEWHEEL_FLIPPED)
-			vertical = -vertical;
-		if (vertical > 0.0F)
-		{
-			appendDigital(events, Action::MenuUp, true, false, Source::Mouse);
-			appendDigital(events, Action::PreviousWeapon, true, false,
-			              Source::Mouse);
-		}
-		else if (vertical < 0.0F)
-		{
-			appendDigital(events, Action::MenuDown, true, false, Source::Mouse);
-			appendDigital(events, Action::NextWeapon, true, false,
-			              Source::Mouse);
-		}
+	case SDL_EVENT_MOUSE_WHEEL:
+		// Win32 World does not convert WM_MOUSEWHEEL into a GameAction.
 		break;
-	}
 
 	case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
 	case SDL_EVENT_GAMEPAD_BUTTON_UP:
@@ -749,14 +593,6 @@ std::vector<ActionEvent> SdlInputManager::processEvent(const SDL_Event &event)
 			break;
 		case SDL_GAMEPAD_BUTTON_DPAD_LEFT:
 		case SDL_GAMEPAD_BUTTON_DPAD_RIGHT:
-			break;
-		case SDL_GAMEPAD_BUTTON_SOUTH:
-			appendDigital(events, Action::MenuConfirm, event.gbutton.down, false, Source::GamepadButton,
-			              event.gbutton.which);
-			break;
-		case SDL_GAMEPAD_BUTTON_EAST:
-			appendDigital(events, Action::MenuBack, event.gbutton.down, false, Source::GamepadButton,
-			              event.gbutton.which);
 			break;
 		default:
 			break;
@@ -778,66 +614,16 @@ std::vector<ActionEvent> SdlInputManager::processEvent(const SDL_Event &event)
 			break;
 
 		const auto axis = static_cast<SDL_GamepadAxis>(event.gaxis.axis);
-		if (axis == SDL_GAMEPAD_AXIS_LEFTY)
-		{
-			const float normalized = normalizeSignedAxis(event.gaxis.value);
-			int next_direction = entry->second.menu_vertical_direction;
-			if (next_direction == 0)
-			{
-				if (normalized <= -menuStickPressThreshold)
-					next_direction = -1;
-				else if (normalized >= menuStickPressThreshold)
-					next_direction = 1;
-			}
-			else if (next_direction < 0)
-			{
-				if (normalized >= menuStickPressThreshold)
-					next_direction = 1;
-				else if (normalized > -stickDeadZone)
-					next_direction = 0;
-			}
-			else
-			{
-				if (normalized <= -menuStickPressThreshold)
-					next_direction = -1;
-				else if (normalized < stickDeadZone)
-					next_direction = 0;
-			}
-
-			const int previous = entry->second.menu_vertical_direction;
-			if (next_direction != previous)
-			{
-				if (previous < 0)
-					appendDigital(events, Action::MenuUp, false, false, Source::GamepadAxis, event.gaxis.which);
-				else if (previous > 0)
-					appendDigital(events, Action::MenuDown, false, false, Source::GamepadAxis, event.gaxis.which);
-
-				if (next_direction < 0)
-					appendDigital(events, Action::MenuUp, true, false, Source::GamepadAxis, event.gaxis.which);
-				else if (next_direction > 0)
-					appendDigital(events, Action::MenuDown, true, false, Source::GamepadAxis, event.gaxis.which);
-				entry->second.menu_vertical_direction = next_direction;
-			}
-		}
-		else if (axis == SDL_GAMEPAD_AXIS_LEFTX)
-		{
-			appendDirectionalAxis(events, applySignedDeadZone(normalizeSignedAxis(event.gaxis.value), stickDeadZone),
-			                      event.gaxis.which);
-		}
 		if (const auto found = gamepad_axis_actions_.find(axis);
 		    found != gamepad_axis_actions_.end())
 		{
-			const float signedValue = applySourceStickDeadZone(
-			    normalizeSignedAxis(event.gaxis.value), axis);
 			for (const auto &binding : found->second)
 			{
 				float value = binding.trigger
 				                  ? applyTriggerDeadZone(event.gaxis.value)
-				                  : std::abs(signedValue);
-				if (!binding.trigger && binding.direction < 0)
-					value = std::max(-signedValue, 0.0F);
-				else if (!binding.trigger && binding.direction > 0)
-					value = std::max(signedValue, 0.0F);
+				                  : applySourceStickDeadZone(
+				                        event.gaxis.value, axis,
+				                        binding.direction);
 				appendAnalog(events, binding.action, value,
 				             Source::GamepadAxis, event.gaxis.which);
 			}

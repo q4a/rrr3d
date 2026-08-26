@@ -1964,6 +1964,30 @@ delta при одновременно превышенном graph delta и тр
 дрожание и прерывание tyre loop от нестабильного contact sample, не меняя
 исходные slip thresholds 0.4/0.7 и множитель громкости 4.
 
+### P2.69 — исполняемый `ControlManager` action path — выполнено
+
+Сверка всего `ControlManager.cpp` обнаружила, что SDL adapter после загрузки
+source bindings продолжал добавлять собственные действия: W/S перемещали
+меню, Space подтверждал пункт, Backspace возвращал назад, левая кнопка мыши
+стреляла, колесо мыши меняло оружие, а левый stick всегда рулил и ходил по
+меню. Ни одного из этих alias нет в `OnKeyEvent`, `OnMouseClickEvent` или
+`UpdateControllerState` Windows-игры.
+
+Adapter теперь начинает с тех же constructor defaults и создаёт игровые
+actions исключительно по двум таблицам `_gameKeys`. Raw Up/Down/Enter и
+mouse hit остаются platform-представлением навигации `Menu`, но не дают
+побочных игровых команд. D-pad, кнопки, triggers и sticks работают только
+через назначенный `VirtualKey`; B снова является `gaBreak`, а не глобальным
+Back. Порог trigger точно равен 30/255; stick использует исходные 7849/8689,
+включая намеренно различающиеся activation/normalization thresholds правых
+directional keys.
+
+XInput-особенность сохранена явно: `GetGameActionState` в Windows опрашивает
+первый доступный slot, но `XInputGetKeystroke(XUSER_INDEX_ANY)` принимает
+кнопочные события любого controller. Поэтому portable hot-plug/event layer не
+фильтрует вторичные устройства как якобы «неисходные»; окончательное
+разделение polled state и ANY keystrokes остаётся отдельной backend-границей.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

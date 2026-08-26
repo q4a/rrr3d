@@ -28,14 +28,12 @@ std::optional<std::string> originalGamepadAxisBindingName(
 class SdlInputManager
 {
   public:
-	static constexpr float stickDeadZone = 0.25F;
 	// XInput constants used by the Windows ControlManager.  Right-thumb
 	// bindings deliberately use the right threshold to become active but the
 	// left threshold for value normalization, matching its VirtualKey table.
-	static constexpr float sourceLeftStickDeadZone = 7849.0F / 32768.0F;
-	static constexpr float sourceRightStickDeadZone = 8689.0F / 32768.0F;
-	static constexpr float menuStickPressThreshold = 0.55F;
-	static constexpr float triggerDeadZone = 0.12F;
+	static constexpr float sourceLeftStickDeadZone = 7849.0F / 32767.0F;
+	static constexpr float sourceRightStickDeadZone = 8689.0F / 32767.0F;
+	static constexpr float triggerDeadZone = 30.0F / 255.0F;
 
 	SdlInputManager() = default;
 	~SdlInputManager();
@@ -62,7 +60,6 @@ class SdlInputManager
 	struct GamepadState
 	{
 		SDL_Gamepad *handle = nullptr;
-		int menu_vertical_direction = 0;
 	};
 
 	struct GamepadAxisBinding
@@ -79,7 +76,6 @@ class SdlInputManager
 	void clearHeldDevice(SDL_JoystickID device_id) noexcept;
 
 	bool initialized_ = false;
-	bool keyboard_bindings_configured_ = false;
 	std::map<SDL_Scancode, std::vector<Action>> keyboard_actions_;
 	std::map<SDL_GamepadButton, std::vector<Action>>
 	    gamepad_button_actions_;

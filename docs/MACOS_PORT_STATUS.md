@@ -2240,3 +2240,17 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   создаётся в contact point, звук следует за world position объекта колеса.
 - RPM lag, idle/RPM mix, slip thresholds 0.4/0.7, volume multiplier 4 и
   плоское затухание 30/45 м остались прямыми переносами Windows-кода.
+
+### Source ControlManager runtime follow-up
+
+- SDL manager сам устанавливает точные Windows constructor bindings до
+  чтения `user.xml`; runtime больше не имеет отдельной invented fallback
+  раскладки.
+- Удалены отсутствующие в источнике WASD/Space/Backspace, mouse-wheel,
+  mouse-shot и unconditional left-stick actions. Mouse left сохраняется
+  только как platform-dispatch на реально найденный menu widget.
+- SDL hot-plug сохраняет XInput `XUSER_INDEX_ANY` для кнопочных событий;
+  disconnect освобождает все held actions конкретного устройства.
+- Analog normalization повторяет `alphaMax/alphaThreshold`: trigger 30/255,
+  left thumb 7849/32767 и right-thumb activation 8689/32767 с исходной
+  directional-table особенностью.

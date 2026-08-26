@@ -140,6 +140,8 @@ bool runSdlInputSmokeTest(SdlInputManager &input, std::string &error)
 	    {"gaBreak", "Down Arrow"},
 	    {"gaWheelLeft", "Left Arrow"},
 	    {"gaWheelRight", "Right Arrow"},
+	    {"gaShot", "W"},
+	    {"gaShotAll", "Space"},
 	    {"gaDebug1", "F1"},
 	    {"gaDebug2", "Back"},
 	});
@@ -209,6 +211,35 @@ bool runSdlInputSmokeTest(SdlInputManager &input, std::string &error)
 		error = "keyboard Back was incorrectly treated as Backspace";
 		return false;
 	}
+	if (contains(actions, Action::MenuBack, Source::Keyboard, true))
+	{
+		error = "Backspace was incorrectly invented as a menu-back action";
+		return false;
+	}
+
+	event = {};
+	event.key.type = SDL_EVENT_KEY_DOWN;
+	event.key.down = true;
+	event.key.scancode = SDL_SCANCODE_W;
+	actions = input.processEvent(event);
+	if (!contains(actions, Action::UseWeapon, Source::Keyboard, true) ||
+	    contains(actions, Action::MenuUp, Source::Keyboard, true))
+	{
+		error = "source W weapon binding was polluted by a WASD menu alias";
+		return false;
+	}
+
+	event = {};
+	event.key.type = SDL_EVENT_KEY_DOWN;
+	event.key.down = true;
+	event.key.scancode = SDL_SCANCODE_SPACE;
+	actions = input.processEvent(event);
+	if (!contains(actions, Action::UseAllWeapons, Source::Keyboard, true) ||
+	    contains(actions, Action::MenuConfirm, Source::Keyboard, true))
+	{
+		error = "source Space ShotAll binding was polluted by menu confirm";
+		return false;
+	}
 
 	event = {};
 	event.key.type = SDL_EVENT_KEY_DOWN;
@@ -226,9 +257,9 @@ bool runSdlInputSmokeTest(SdlInputManager &input, std::string &error)
 	event.wheel.y = 1.0F;
 	event.wheel.direction = SDL_MOUSEWHEEL_NORMAL;
 	actions = input.processEvent(event);
-	if (!contains(actions, Action::MenuUp, Source::Mouse, true))
+	if (!actions.empty())
 	{
-		error = "mouse wheel action mapping failed";
+		error = "mouse wheel was incorrectly converted into game actions";
 		return false;
 	}
 
@@ -237,9 +268,10 @@ bool runSdlInputSmokeTest(SdlInputManager &input, std::string &error)
 	event.button.button = SDL_BUTTON_LEFT;
 	event.button.down = true;
 	actions = input.processEvent(event);
-	if (!contains(actions, Action::MenuConfirm, Source::Mouse, true))
+	if (!contains(actions, Action::MenuConfirm, Source::Mouse, true) ||
+	    contains(actions, Action::UseWeapon, Source::Mouse, true))
 	{
-		error = "mouse button action mapping failed";
+		error = "mouse widget click leaked into a gameplay shot";
 		return false;
 	}
 
@@ -332,9 +364,9 @@ bool runSdlInputSmokeTest(SdlInputManager &input, std::string &error)
 		return fail("virtual stick did not reach the requested dead-zone value");
 	}
 	actions = processAxis(input, virtual_id, SDL_GAMEPAD_AXIS_LEFTY, inside_dead_zone);
-	if (contains(actions, Action::MenuDown, Source::GamepadAxis, true, virtual_id))
+	if (!actions.empty())
 	{
-		return fail("left-stick dead zone admitted a menu action");
+		return fail("unbound left stick emitted an invented menu/game action");
 	}
 	// SDL 3.4 can defer the next virtual-axis state until the event generated
 	// for the previous state has been consumed.
@@ -351,9 +383,9 @@ bool runSdlInputSmokeTest(SdlInputManager &input, std::string &error)
 		            std::to_string(menu_down_value));
 	}
 	actions = processAxis(input, virtual_id, SDL_GAMEPAD_AXIS_LEFTY, menu_down_value);
-	if (!contains(actions, Action::MenuDown, Source::GamepadAxis, true, virtual_id))
+	if (!actions.empty())
 	{
-		return fail("left-stick menu action mapping failed");
+		return fail("left stick bypassed the source gamepad binding table");
 	}
 
 	SDL_SetJoystickVirtualAxis(joystick, SDL_GAMEPAD_AXIS_LEFTY, 0);
@@ -364,11 +396,24 @@ bool runSdlInputSmokeTest(SdlInputManager &input, std::string &error)
 		return fail("virtual stick did not return to center");
 	}
 	actions = processAxis(input, virtual_id, SDL_GAMEPAD_AXIS_LEFTY, released_value);
-	if (!contains(actions, Action::MenuDown, Source::GamepadAxis, false, virtual_id))
+	if (!actions.empty())
 	{
-		return fail("left-stick hysteresis release failed");
+		return fail("unbound left-stick release emitted a game action");
 	}
 
+	input.applyGamepadBindings({
+	    {"gaAccel", "A"},
+	    {"gaBreak", "B"},
+	    {"gaWheelLeft", "L.Thumb Left"},
+	    {"gaWheelRight", "L.Thumb Right"},
+	    {"gaShotAll", "Y"},
+	    {"gaHyper", "Left Trigger"},
+	    {"gaMine", "Right Trigger"},
+	    {"gaWeaponDown", "Left Shoulder"},
+	    {"gaWeaponUp", "Right Shoulder"},
+	    {"gaAction", "A"},
+	    {"gaEscape", "Start"},
+	});
 	SDL_SetJoystickVirtualAxis(joystick, SDL_GAMEPAD_AXIS_LEFTX, -24000);
 	Sint16 steering_value = 0;
 	if (!waitForAxis(gamepad, SDL_GAMEPAD_AXIS_LEFTX, steering_value, [](Sint16 value) { return value <= -20000; }))
@@ -376,9 +421,13 @@ bool runSdlInputSmokeTest(SdlInputManager &input, std::string &error)
 		return fail("virtual steering axis did not reach the requested value");
 	}
 	actions = processAxis(input, virtual_id, SDL_GAMEPAD_AXIS_LEFTX, steering_value);
-	if (!contains(actions, Action::TurnLeft, Source::GamepadAxis, true, virtual_id))
+	const float expectedSteering =
+	    static_cast<float>(-static_cast<int>(steering_value) - 7849) /
+	    static_cast<float>(32767 - 7849);
+	if (!contains(actions, Action::TurnLeft, Source::GamepadAxis, true, virtual_id) ||
+	    std::abs(input.heldValue(Action::TurnLeft) - expectedSteering) > 0.001F)
 	{
-		return fail("analog steering action mapping failed");
+		return fail("configured source analog steering/normalization failed");
 	}
 
 	SDL_SetJoystickVirtualAxis(joystick, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER, 22000);
@@ -440,11 +489,12 @@ bool runSdlInputSmokeTest(SdlInputManager &input, std::string &error)
 
 	SDL_SetJoystickVirtualButton(joystick, SDL_GAMEPAD_BUTTON_EAST, true);
 	if (!waitForButton(gamepad, SDL_GAMEPAD_BUTTON_EAST, true))
-		return fail("virtual back state was not visible through SDL Gamepad");
+		return fail("virtual B state was not visible through SDL Gamepad");
 	actions = processButton(input, virtual_id, SDL_GAMEPAD_BUTTON_EAST, true);
-	if (!contains(actions, Action::MenuBack, Source::GamepadButton, true, virtual_id))
+	if (!contains(actions, Action::Brake, Source::GamepadButton, true, virtual_id) ||
+	    contains(actions, Action::MenuBack, Source::GamepadButton, true, virtual_id))
 	{
-		return fail("gamepad back action mapping failed");
+		return fail("source gamepad B brake was polluted by menu back");
 	}
 	SDL_SetJoystickVirtualButton(joystick, SDL_GAMEPAD_BUTTON_EAST, false);
 	waitForButton(gamepad, SDL_GAMEPAD_BUTTON_EAST, false);
