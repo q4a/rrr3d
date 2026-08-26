@@ -2,6 +2,7 @@
 #include "OriginalLogic.h"
 #include "OriginalMapObj.h"
 #include "OriginalPlayer.h"
+#include "OriginalRockCar.h"
 #include "OriginalWeapon.h"
 
 #include <cmath>
@@ -55,6 +56,40 @@ int main()
     source::MapObjects objects(&parent);
     objects.Reserve(4U);
     source::Player player;
+
+    // Windows MapObj::ClassList constructs a concrete instance for every
+    // serialized GameObjType. Verify that the portable factory and progress
+    // dispatch do not collapse cars and weapons to GameObject placeholders.
+    source::MapObjects typedObjects;
+    auto& gameCarObject = typedObjects.Add(
+        source::GameObjType::GameCar,
+        source::MapObjCategory::Car, "Car\\gameCar", 38U);
+    auto& rockCarObject = typedObjects.Add(
+        source::GameObjType::RockCar,
+        source::MapObjCategory::Car, "Car\\rockCar", 39U);
+    auto& weaponObject = typedObjects.Add(
+        source::GameObjType::Weapon,
+        source::MapObjCategory::Weapon, "Weapon\\laser", 40U);
+    if (gameCarObject.GetGameCar() == nullptr ||
+        gameCarObject.GetRockCar() != nullptr ||
+        rockCarObject.GetGameCar() == nullptr ||
+        rockCarObject.GetRockCar() == nullptr ||
+        weaponObject.GetWeapon() == nullptr)
+        return 12;
+    source::Weapon::Desc mapWeaponDescription;
+    mapWeaponDescription.shotDelay = 0.1F;
+    weaponObject.GetWeapon()->SetDesc(mapWeaponDescription);
+    weaponObject.GetWeapon()->Reset();
+    rockCarObject.GetRockCar()->GetWeapons().primary[0].SetDesc(
+        mapWeaponDescription);
+    rockCarObject.GetRockCar()->GetWeapons().primary[0].Reset();
+    if (typedObjects.ProgressOne(2U, 0.11F) ||
+        !weaponObject.GetWeapon()->IsReadyShot())
+        return 13;
+    if (typedObjects.ProgressOne(1U, 0.11F) ||
+        !rockCarObject.GetRockCar()
+             ->GetWeapons().primary[0].IsReadyShot())
+        return 14;
 
     auto& crush = objects.Add(
         source::GameObjType::GameObj,

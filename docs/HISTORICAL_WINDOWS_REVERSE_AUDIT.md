@@ -2957,6 +2957,28 @@ descriptor, copy/reset и immunity; профильные mobility-значени
 следующего этапа object-graph migration: Jolt и bgfx по-прежнему получают
 готовые команды, но gameplay-владение уже не дублируется в adapter.
 
+### P2.120 — concrete `MapObj::ClassList` types — выполнено
+
+Следующий обратный аудит подтвердил ещё одну заглушку object graph. Windows
+`MapObj::InitClassList` регистрирует шесть конкретных классов — `GameObject`,
+`GameCar`, `RockCar`, `AutoProj`, `Weapon`, `DestrObj`. Portable factory
+создавала настоящими только `AutoProj` и `DestrObj`; сериализованные
+`gotGameCar`, `gotRockCar` и `gotWeapon` молча превращались в общий
+`GameObject`. Из-за этого их собственные wheel/weapon/child progress hooks
+не могли выполняться в `MapObjects`.
+
+Фабрика теперь создаёт все шесть исходных типов и предоставляет typed
+accessors для car, rock-car и weapon. Поскольку переносимые методы имеют
+разные result-типы и не могут образовать один виртуальный C++ override,
+`MapObjects::ProgressSlot` выполняет эквивалентную source-dispatch явно:
+`DestrObj`, `RockCar`, `GameCar`, `Weapon`, затем общий `GameObject`; для
+`AutoProj` сохранена отдельная projectile-фаза после base progress.
+
+Regression создаёт каждый ранее заглушенный тип через `MapObj`, проверяет
+его фактический класс и подтверждает, что weapon cooldown и вложенное оружие
+`RockCar` продвигаются именно контейнером. Это восстанавливает concrete
+runtime object graph без переноса D3D9/PhysX actor ownership из адаптеров.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

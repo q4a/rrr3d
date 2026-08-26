@@ -1,6 +1,8 @@
 #include "OriginalMapObj.h"
 
 #include "OriginalGameObject.h"
+#include "OriginalGameCar.h"
+#include "OriginalRockCar.h"
 #include "OriginalWeapon.h"
 
 #include <algorithm>
@@ -337,8 +339,14 @@ void MapObj::SetType(GameObjType value)
 void MapObj::CreateGameObj()
 {
     std::unique_ptr<GameObject> replacement;
-    if (type_ == GameObjType::Proj)
+    if (type_ == GameObjType::GameCar)
+        replacement = std::make_unique<GameCar>();
+    else if (type_ == GameObjType::RockCar)
+        replacement = std::make_unique<RockCar>();
+    else if (type_ == GameObjType::Proj)
         replacement = std::make_unique<AutoProj>();
+    else if (type_ == GameObjType::Weapon)
+        replacement = std::make_unique<Weapon>();
     else if (type_ == GameObjType::DestrObj)
         replacement = std::make_unique<DestrObj>();
     else
@@ -365,6 +373,30 @@ GameObject& MapObj::SetGameObj(GameObjType value)
 {
     SetType(value);
     return *gameObj_;
+}
+GameCar* MapObj::GetGameCar() noexcept
+{
+    return dynamic_cast<GameCar*>(gameObj_.get());
+}
+const GameCar* MapObj::GetGameCar() const noexcept
+{
+    return dynamic_cast<const GameCar*>(gameObj_.get());
+}
+RockCar* MapObj::GetRockCar() noexcept
+{
+    return dynamic_cast<RockCar*>(gameObj_.get());
+}
+const RockCar* MapObj::GetRockCar() const noexcept
+{
+    return dynamic_cast<const RockCar*>(gameObj_.get());
+}
+Weapon* MapObj::GetWeapon() noexcept
+{
+    return dynamic_cast<Weapon*>(gameObj_.get());
+}
+const Weapon* MapObj::GetWeapon() const noexcept
+{
+    return dynamic_cast<const Weapon*>(gameObj_.get());
 }
 DestrObj* MapObj::GetDestrObj() noexcept
 {
@@ -624,6 +656,12 @@ bool MapObjects::ProgressSlot(
         if (destructible->OnProgress(deltaTime) && observer_ != nullptr)
             observer_->OnDestrObjSeparating(*destructible);
     }
+    else if (auto* rockCar = mapObject->GetRockCar())
+        rockCar->OnProgress(deltaTime);
+    else if (auto* gameCar = mapObject->GetGameCar())
+        gameCar->OnProgress(deltaTime);
+    else if (auto* weapon = mapObject->GetWeapon())
+        weapon->OnProgress(deltaTime);
     else
         mapObject->GetGameObj().OnProgress(deltaTime);
     if (auto* projectile = mapObject->GetAutoProj())

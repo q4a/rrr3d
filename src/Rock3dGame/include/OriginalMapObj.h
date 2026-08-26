@@ -12,6 +12,7 @@ namespace r3d::game::originalrace::source
 {
 
 class AutoProj;
+class GameCar;
 class GameObject;
 class DestrObj;
 class Map;
@@ -22,6 +23,8 @@ class MapObjRecordNode;
 class MapObjects;
 class MapObjectsObserver;
 class Player;
+class RockCar;
+class Weapon;
 
 // MapObj.h::GameObjType.  These values are serialized by name in the
 // Windows data, so keep their source order even where a platform adapter
@@ -137,9 +140,9 @@ private:
 };
 
 // Backend-neutral owner corresponding to source MapObj.  The portable
-// GameObject hierarchy is being introduced incrementally: every entry owns
-// the common GameObject lifetime, while gotProj additionally owns AutoProj's
-// projectile state.  gotDestrObj is a real DestrObj already.
+// GameObject hierarchy follows MapObj::ClassList from the Windows source.
+// Every serialized type owns its concrete source gameplay object; graph and
+// physics actors remain in the bgfx/Jolt adapters.
 class MapObj
 {
 public:
@@ -158,6 +161,12 @@ public:
     GameObject& GetGameObj() noexcept;
     const GameObject& GetGameObj() const noexcept;
     GameObject& SetGameObj(GameObjType value);
+    GameCar* GetGameCar() noexcept;
+    const GameCar* GetGameCar() const noexcept;
+    RockCar* GetRockCar() noexcept;
+    const RockCar* GetRockCar() const noexcept;
+    Weapon* GetWeapon() noexcept;
+    const Weapon* GetWeapon() const noexcept;
     DestrObj* GetDestrObj() noexcept;
     const DestrObj* GetDestrObj() const noexcept;
     AutoProj* GetAutoProj() noexcept;
