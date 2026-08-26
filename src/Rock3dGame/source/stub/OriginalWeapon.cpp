@@ -778,6 +778,83 @@ Proj::ImpulseContactResult Proj::ImpulseContact(
     return result;
 }
 
+Proj::RocketUpdateResult Proj::ProgressRocket(
+    float projectileZ, float trackZ, float boxHalfExtentZ,
+    bool trackHit) noexcept
+{
+    auto result = RocketUpdate(
+        projectileZ, trackZ, boxHalfExtentZ,
+        sourceVector_.z, trackHit);
+    sourceVector_.z = result.clearance;
+    return result;
+}
+
+Proj::TorpedaUpdateResult Proj::ProgressTorpeda(
+    float deltaTime, Vec3 position, Quat rotation,
+    bool hasTarget, Vec3 targetPosition,
+    float sourceSpeed, bool speedRelative,
+    float angleSpeed) noexcept
+{
+    auto result = TorpedaUpdate(
+        deltaTime, position, rotation, sourceVector_, sourceTimer_,
+        hasTarget, targetPosition, sourceSpeed, speedRelative,
+        angleSpeed);
+    sourceTimer_ = result.homingDelay;
+    if (result.setLinearVelocity)
+        sourceVector_ = result.linearVelocity;
+    return result;
+}
+
+Proj::MineUpdateResult Proj::ProgressMine(
+    float deltaTime, float delay) noexcept
+{
+    auto result = MineUpdate(sourceTimer_, deltaTime, delay);
+    sourceTimer_ = result.timer;
+    if (description_.type == masloProjectileType &&
+        result.visualScale >= 0.0F && sourceModel_ != nullptr)
+    {
+        sourceModel_->GetGameObj().SetScale(
+            {result.visualScale, result.visualScale,
+             result.visualScale});
+    }
+    return result;
+}
+
+float Proj::ProgressThunder(float deltaTime) noexcept
+{
+    sourceTimer_ = ThunderUpdate(sourceTimer_, deltaTime);
+    return sourceTimer_;
+}
+
+Proj::ThunderContactResult Proj::ContactThunder(
+    Vec3 linearVelocity, Vec3 contactNormal,
+    bool shotTransparencyContact) noexcept
+{
+    auto result = ThunderContact(
+        linearVelocity, contactNormal, sourceTimer_,
+        shotTransparencyContact);
+    if (result.setLinearVelocity)
+        sourceTimer_ = result.reflectionCooldown;
+    return result;
+}
+
+Proj::ImpulseContactResult Proj::ContactImpulse(
+    bool hasContactActor, bool hasTarget,
+    bool contactIsTarget, float damage) noexcept
+{
+    auto result = ImpulseContact(
+        hasContactActor, hasTarget, contactIsTarget,
+        sourceTick_, damage);
+    sourceTick_ = result.hitCount;
+    return result;
+}
+
+void Proj::RetargetImpulse(GameObject* target) noexcept
+{
+    SetSourceTarget(target);
+    sourceTimer_ = 0.0F;
+}
+
 float Proj::PrepareMaximumLife(
     float speed, float maximumDistance,
     float sampledMinimumLife) noexcept

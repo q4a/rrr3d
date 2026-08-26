@@ -257,6 +257,28 @@ public:
         const ProjectileDefinition& description,
         bool onlyModel) noexcept;
 
+    // Concrete stateful dispatch corresponding to Proj::OnProgress and
+    // Proj::OnContact. Jolt supplies query/contact values and consumes the
+    // returned actor writes; the source scratch members stay owned here.
+    RocketUpdateResult ProgressRocket(
+        float projectileZ, float trackZ, float boxHalfExtentZ,
+        bool trackHit) noexcept;
+    TorpedaUpdateResult ProgressTorpeda(
+        float deltaTime, Vec3 position, Quat rotation,
+        bool hasTarget, Vec3 targetPosition,
+        float sourceSpeed, bool speedRelative,
+        float angleSpeed) noexcept;
+    MineUpdateResult ProgressMine(
+        float deltaTime, float delay = 0.25F) noexcept;
+    float ProgressThunder(float deltaTime) noexcept;
+    ThunderContactResult ContactThunder(
+        Vec3 linearVelocity, Vec3 contactNormal,
+        bool shotTransparencyContact) noexcept;
+    ImpulseContactResult ContactImpulse(
+        bool hasContactActor, bool hasTarget,
+        bool contactIsTarget, float damage) noexcept;
+    void RetargetImpulse(GameObject* target) noexcept;
+
     Proj();
     ~Proj() override;
     void PrepareSource(

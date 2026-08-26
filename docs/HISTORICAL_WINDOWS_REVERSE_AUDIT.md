@@ -3272,6 +3272,20 @@ MinePiece — с `-1`, а Maslo обнуляет scale живой source model. 
 не исправляет эти поля после создания, поэтому weapon, autonomous и map spawn
 проходят одну concrete source-транзакцию.
 
+### P2.134 — concrete `Proj` progress/contact state dispatch — выполнено
+
+Статические транскрипции projectile-формул уже совпадали с Windows, но
+session вручную передавала в них `_time1/_vec1/_tick1`, затем отдельно писала
+результат обратно. Это оставляло фактическое владение source-state у Jolt
+adapter и позволяло различным call site пропустить часть перехода.
+
+Concrete `Proj` теперь сам выполняет stateful Rocket, Torpeda/Impulse homing,
+Mine arming, Thunder reflection и Impulse chain-contact dispatch. Методы
+атомарно читают и изменяют исходные scratch-поля, обновляют oil source-model
+scale и сбрасывают homing delay при смене цели. Race-session поставляет только
+результаты ray/contact queries и применяет возвращённые velocity/transform к
+Jolt runtime; прямые `Get/SetSource*` пары из этих игровых переходов удалены.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

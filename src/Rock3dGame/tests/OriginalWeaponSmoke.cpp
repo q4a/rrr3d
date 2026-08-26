@@ -851,6 +851,18 @@ int main()
         missedTrack.clearance != 3.0F)
         return 43;
 
+    auto rocketDescription = sourceDescription;
+    rocketDescription.type = 0U;
+    rocketDescription.secondaryVisual = {};
+    source::Proj rocketProjectile;
+    rocketProjectile.PrepareSource(
+        rocketDescription, nullptr, source::Proj::ShotContext{});
+    const auto concreteRocket =
+        rocketProjectile.ProgressRocket(10.0F, 3.0F, 2.0F, true);
+    if (concreteRocket.clearance != 7.0F ||
+        rocketProjectile.GetSourceVector().z != 7.0F)
+        return 115;
+
     const auto waitingTorpeda = source::Proj::TorpedaUpdate(
         0.1F, {}, {}, {12.0F, 0.0F, 0.0F}, 0.4F,
         true, {0.0F, 10.0F, 0.0F}, 10.0F, true, 4.0F);
@@ -872,6 +884,15 @@ int main()
         std::abs(nearTorpeda.linearVelocity.x - 12.0F) > 0.001F)
         return 46;
 
+    const auto concreteTorpeda = torpedaProjectile.ProgressTorpeda(
+        0.1F, {}, {}, true, {0.0F, 10.0F, 0.0F},
+        20.0F, false, 0.0F);
+    if (concreteTorpeda.setLinearVelocity ||
+        std::abs(torpedaProjectile.GetSourceTimer() - 0.3F) > 0.001F ||
+        torpedaProjectile.GetSourceVector() !=
+            source::Proj::Vec3{3.0F, 4.0F, 5.0F})
+        return 116;
+
     if (std::abs(source::Proj::ThunderUpdate(0.1F, 0.16F) + 0.06F) >
         0.001F)
         return 47;
@@ -890,6 +911,20 @@ int main()
             {4.0F, 0.0F, 0.0F}, {1.0F, 0.0F, 0.0F},
             0.0F, true).setLinearVelocity)
         return 48;
+
+    auto thunderDescription = sourceDescription;
+    thunderDescription.type = 22U;
+    thunderDescription.secondaryVisual = {};
+    source::Proj thunderProjectile;
+    thunderProjectile.PrepareSource(
+        thunderDescription, nullptr, source::Proj::ShotContext{});
+    if (std::abs(thunderProjectile.ProgressThunder(0.16F) + 0.16F) >
+            0.001F ||
+        !thunderProjectile.ContactThunder(
+            {10.0F, 0.0F, 0.0F}, {1.0F, 0.0F, 0.0F}, true)
+             .setLinearVelocity ||
+        std::abs(thunderProjectile.GetSourceTimer() - 0.1F) > 0.001F)
+        return 117;
 
     const auto resonance = source::Proj::ResonanseUpdate(
         {}, 3.14159265358979323846F, 0.5F);
@@ -925,6 +960,13 @@ int main()
         !armedMine.armed || armedMine.timer != -1.0F ||
         armedMine.visualScale != 1.0F)
         return 52;
+    const auto concreteOil = oilProjectile.ProgressMine(0.1F);
+    if (std::abs(concreteOil.visualScale - 0.4F) > 0.001F ||
+        std::abs(oilProjectile.GetSourceTimer() - 0.1F) > 0.001F ||
+        oilProjectile.GetSourceModel() == nullptr ||
+        oilProjectile.GetSourceModel()->GetGameObj().GetScale() !=
+            source::GameObject::Vector3{0.4F, 0.4F, 0.4F})
+        return 118;
     if (source::Proj::MineContactAllowed(
             true, true, true, true, -1.0F, false) ||
         source::Proj::MineContactAllowed(
@@ -957,6 +999,30 @@ int main()
         source::Proj::ImpulseContact(
             true, true, false, 0U, 12.0F).applyDamage)
         return 55;
+
+    auto impulseDescription = sourceDescription;
+    impulseDescription.type = 21U;
+    impulseDescription.secondaryVisual = {};
+    source::GameObject firstImpulseTarget;
+    source::GameObject secondImpulseTarget;
+    source::Proj::ShotContext impulseContext;
+    impulseContext.shot.targetMapObject = &firstImpulseTarget;
+    source::Proj impulseProjectile;
+    impulseProjectile.PrepareSource(
+        impulseDescription, nullptr, impulseContext);
+    const auto concreteFirstImpulse =
+        impulseProjectile.ContactImpulse(true, true, true, 12.0F);
+    impulseProjectile.RetargetImpulse(&secondImpulseTarget);
+    const auto concreteSecondImpulse =
+        impulseProjectile.ContactImpulse(true, true, true, 12.0F);
+    if (concreteFirstImpulse.hitCount != 1U ||
+        concreteFirstImpulse.damage != 12.0F ||
+        concreteSecondImpulse.hitCount != 2U ||
+        concreteSecondImpulse.damage != 6.0F ||
+        impulseProjectile.GetSourceTick() != 2U ||
+        impulseProjectile.GetSourceTarget() != &secondImpulseTarget ||
+        impulseProjectile.GetSourceTimer() != 0.0F)
+        return 119;
 
     if (source::Proj::PrepareMaximumLife(
             10.0F, 100.0F, 12.0F) != 12.0F ||

@@ -4227,24 +4227,19 @@ void OriginalRaceSession::updateGameplay(
             const bool hasTarget =
                 projectile.target < racers_.size() &&
                 !racers_[projectile.target].IsDestroyed();
-            const auto update = source::Proj::TorpedaUpdate(
+            const auto update =
+                projectile.sourceObject->ProgressTorpeda(
                 seconds, sourceVec(projectile.position),
-                sourceQuat(projectile.rotation),
-                projectile.sourceObject->GetSourceVector(),
-                projectile.sourceObject->GetSourceTimer(), hasTarget,
+                sourceQuat(projectile.rotation), hasTarget,
                 sourceVec(vehicles[projectile.target].body.position),
                 projectileDefinition.speed,
                 projectileDefinition.relativeSpeed,
                 projectile.angularSpeed);
-            projectile.sourceObject->SetSourceTimer(
-                update.homingDelay);
             if (update.setLinearVelocity)
             {
                 projectile.rotation = runtimeQuat(update.rotation);
                 projectile.direction = runtimeVec(update.direction);
                 projectile.velocity = runtimeVec(update.linearVelocity);
-                projectile.sourceObject->SetSourceVector(
-                    update.linearVelocity);
                 projectile.speed = length3(projectile.velocity);
             }
         }
@@ -4276,16 +4271,12 @@ void OriginalRaceSession::updateGameplay(
             // preserves the projectile's lowest established clearance.
             const auto trackHit = raycastTrackPlane(
                 race_, add(projectile.position, {0.0F, 0.0F, 4.0F}));
-            const auto update = source::Proj::RocketUpdate(
+            const auto update =
+                projectile.sourceObject->ProgressRocket(
                 projectile.position.z, trackHit.position.z,
                 projectileDefinition.collision.halfExtents.z,
-                projectile.sourceObject->GetSourceVector().z,
                 trackHit.hit);
             projectile.position.z = update.positionZ;
-            auto sourceVector =
-                projectile.sourceObject->GetSourceVector();
-            sourceVector.z = update.clearance;
-            projectile.sourceObject->SetSourceVector(sourceVector);
         }
         if (projectileDefinition.type == 23U &&
             std::abs(projectileDefinition.angularSpeed) > 0.0001F)
@@ -4299,10 +4290,7 @@ void OriginalRaceSession::updateGameplay(
             sourceQuat(projectile.rotation));
         if (projectileDefinition.type == 22U)
         {
-            projectile.sourceObject->SetSourceTimer(
-                source::Proj::ThunderUpdate(
-                    projectile.sourceObject->GetSourceTimer(), seconds));
-            if (projectile.sourceObject->GetSourceTimer() <= 0.0F)
+            if (projectile.sourceObject->ProgressThunder(seconds) <= 0.0F)
             {
                 Transform thunderTransform;
                 thunderTransform.position = projectile.position;
@@ -4315,9 +4303,9 @@ void OriginalRaceSession::updateGameplay(
                                    thunderTransform,
                                    projectileDefinition.collision),
                         normal);
-                const auto contact = source::Proj::ThunderContact(
+                const auto contact =
+                    projectile.sourceObject->ContactThunder(
                     sourceVec(projectile.velocity), sourceVec(normal),
-                    projectile.sourceObject->GetSourceTimer(),
                     borderContact);
                 if (contact.setLinearVelocity)
                 {
@@ -4327,8 +4315,6 @@ void OriginalRaceSession::updateGameplay(
                         normalized3(projectile.velocity);
                     // ThunderContact only changes PhysX linear velocity. The
                     // actor/model rotation stays at the shot rotation.
-                    projectile.sourceObject->SetSourceTimer(
-                        contact.reflectionCooldown);
                 }
             }
         }
@@ -4392,11 +4378,10 @@ void OriginalRaceSession::updateGameplay(
                 projectile.target < racers_.size();
             const auto impulseContact =
                 projectileDefinition.type == 21U
-                    ? source::Proj::ImpulseContact(
+                    ? projectile.sourceObject->ContactImpulse(
                           true, targetedImpulse,
                           !targetedImpulse ||
                               target == projectile.target,
-                          projectile.sourceObject->GetSourceTick(),
                           projectileDefinition.damage)
                     : source::Proj::ImpulseContactResult{};
             if (projectileDefinition.type == 21U &&
@@ -4488,8 +4473,6 @@ void OriginalRaceSession::updateGameplay(
             }
             if (projectileDefinition.type == 21U)
             {
-                projectile.sourceObject->SetSourceTick(
-                    impulseContact.hitCount);
                 if (impulseContact.destroy)
                 {
                     spawnProjectileImpact(
@@ -4519,12 +4502,11 @@ void OriginalRaceSession::updateGameplay(
                     break;
                 }
                 projectile.target = nextTarget;
-                projectile.sourceObject->SetSourceTarget(
+                projectile.sourceObject->RetargetImpulse(
                     nextTarget < racerMapObjects_.size() &&
                             racerMapObjects_[nextTarget] != nullptr
                         ? &racerMapObjects_[nextTarget]->GetGameObj()
                         : nullptr);
-                projectile.sourceObject->SetSourceTimer(0.0F);
                 break;
             }
             spawnProjectileImpact(
@@ -5314,9 +5296,8 @@ void OriginalRaceSession::updateGameplay(
         if (mine.type == 10U || mine.type == 11U ||
             mine.type == 12U || mine.type == 24U)
         {
-            const auto arming = source::Proj::MineUpdate(
-                mine.sourceObject->GetSourceTimer(), seconds);
-            mine.sourceObject->SetSourceTimer(arming.timer);
+            const auto arming =
+                mine.sourceObject->ProgressMine(seconds);
             if (arming.visualScale >= 0.0F)
                 mine.armingAlpha = arming.visualScale;
         }
