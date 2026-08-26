@@ -5218,18 +5218,11 @@ void OriginalRaceRenderer::draw(
         }
         const std::size_t wheelCount = std::min(
             {state.wheels.size(), definition.wheelVisuals.size(),
-             definition.wheelVisualOffsets.size(),
              vehicleWheels_[racer].size()});
         for (std::size_t wheelIndex = 0; wheelIndex < wheelCount;
              ++wheelIndex)
         {
-            auto wheel = state.wheels[wheelIndex];
-            const auto offset = rotate(
-                state.body.rotation,
-                definition.wheelVisualOffsets[wheelIndex]);
-            wheel.position.x += offset.x;
-            wheel.position.y += offset.y;
-            wheel.position.z += offset.z;
+            const auto& wheel = state.wheels[wheelIndex];
             const auto& wheelAsset =
                 vehicleWheels_[racer][wheelIndex];
             if (!refractionPass && !wheelAsset.nodes.empty())
@@ -5955,18 +5948,11 @@ void OriginalRaceRenderer::drawShadowCasters(
         }
         const auto wheelCount = std::min(
             {state.wheels.size(), definition.wheelVisuals.size(),
-             definition.wheelVisualOffsets.size(),
              vehicleWheels_[racer].size()});
         for (std::size_t wheelIndex = 0; wheelIndex < wheelCount;
              ++wheelIndex)
         {
-            auto wheel = state.wheels[wheelIndex];
-            const auto offset = rotate(
-                state.body.rotation,
-                definition.wheelVisualOffsets[wheelIndex]);
-            wheel.position.x += offset.x;
-            wheel.position.y += offset.y;
-            wheel.position.z += offset.z;
+            const auto& wheel = state.wheels[wheelIndex];
             const auto& object = vehicleWheels_[racer][wheelIndex];
             if (!object.nodes.empty())
             {

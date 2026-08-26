@@ -927,10 +927,11 @@ r3d::physics::VehicleState makeGarageVehicleState(
         const auto& wheel = vehicle.physics.wheels[index];
         r3d::physics::Transform state;
         state.position = {
-            wheel.position.x,
-            wheel.position.y,
+            wheel.position.x + vehicle.wheelVisualOffsets[index].x,
+            wheel.position.y + vehicle.wheelVisualOffsets[index].y,
             result.body.position.z + wheel.position.z -
-                0.5F * wheel.suspensionTravel};
+                0.5F * wheel.suspensionTravel +
+                vehicle.wheelVisualOffsets[index].z};
         if (index < vehicle.wheelVisualTransforms.size() &&
             vehicle.wheelVisualTransforms[index].scale.y < 0.0F)
         {

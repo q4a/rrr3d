@@ -687,7 +687,13 @@ void Player::CreateCar(bool newRace) noexcept
                     {wheel.position.x, wheel.driven, wheel.steering,
                      wheelIndex < carRecord_->wheelInverted.size() &&
                          carRecord_->wheelInverted[wheelIndex],
-                     wheel.radius});
+                     wheel.radius,
+                     wheelIndex < carRecord_->wheelVisualOffsets.size()
+                         ? std::array<float, 3U>{
+                               carRecord_->wheelVisualOffsets[wheelIndex].x,
+                               carRecord_->wheelVisualOffsets[wheelIndex].y,
+                               carRecord_->wheelVisualOffsets[wheelIndex].z}
+                         : std::array<float, 3U>{}});
             }
             gameCar.ConfigureDynamics(
                 {{carRecord_->physics.angularDamping.x,

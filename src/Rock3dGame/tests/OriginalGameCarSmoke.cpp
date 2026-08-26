@@ -198,8 +198,10 @@ int main()
          maximumSteerAngle, steerSpeed,
          3.14159265358979323846F, false,
          0.12F, false, 2.5F, true},
-        {{-1.0F, true, false, false, 0.5F},
-         {1.0F, false, true, false, 0.4F}});
+        {{-1.0F, true, false, false, 0.5F,
+          {0.25F, 0.5F, 0.75F}},
+         {1.0F, false, true, true, 0.4F,
+          {-0.25F, -0.5F, -0.75F}}});
     const auto* firstWheel = car.GetWheel(0U);
     const auto* secondWheel = car.GetWheel(1U);
     if (car.GetWheelCount() != 2U || firstWheel == nullptr ||
@@ -215,6 +217,20 @@ int main()
         secondWheel->GetBehaviors().GetCount() != 0U ||
         !firstWheel->IsDriven() || firstWheel->IsSteering() ||
         secondWheel->IsDriven() || !secondWheel->IsSteering() ||
+        !firstWheel->GetLead() || firstWheel->GetSteer() ||
+        secondWheel->GetLead() || !secondWheel->GetSteer() ||
+        firstWheel->GetInvertWheel() ||
+        !secondWheel->GetInvertWheel() ||
+        firstWheel->GetOffset() !=
+            std::array<float, 3U>{0.25F, 0.5F, 0.75F} ||
+        secondWheel->GetOffset() !=
+            std::array<float, 3U>{-0.25F, -0.5F, -0.75F} ||
+        car.GetLeadWheelCount() != 1U ||
+        car.GetLeadWheel(0U) != firstWheel ||
+        car.GetLeadWheel(1U) != nullptr ||
+        car.GetSteerWheelCount() != 1U ||
+        car.GetSteerGroupWheel(0U) != secondWheel ||
+        car.GetSteerGroupWheel(1U) != nullptr ||
         firstWheel->GetRadius() != 0.5F ||
         secondWheel->GetRadius() != 0.4F ||
         car.GetKSteerControl() != 0.12F ||
@@ -322,6 +338,10 @@ int main()
         std::abs(car.GetWheel(0U)->GetNormalReaction() - 1.25F) >
             0.0001F ||
         std::abs(car.GetWheel(0U)->GetNormalImpulse() - 0.0125F) >
+            0.0001F ||
+        std::abs(car.GetWheel(0U)->GetLongSlip() + 0.65F) >
+            0.0001F ||
+        std::abs(car.GetWheel(0U)->GetLatSlip() - 0.9F) >
             0.0001F)
         return 50;
     car.SetWheelContact(1U, false, 0.0F, 0.0F);
@@ -347,10 +367,14 @@ int main()
         copiedWheelCar.GetKSteerControl() != 0.12F ||
         copiedWheelCar.GetTireSpring() != 2.5F ||
         !copiedWheelCar.GetDisableColor() ||
+        copiedWheelCar.GetWheel(0U)->GetOffset() !=
+            std::array<float, 3U>{0.25F, 0.5F, 0.75F} ||
         std::abs(
             copiedWheelCar.GetWheel(0U)->GetNormalReaction() - 1.25F) >
             0.0001F)
         return 28;
+    car.GetWheel(0U)->SetOffset({});
+    car.GetWheel(1U)->SetOffset({});
     constexpr float halfQuarterTurn = 0.70710678118654752440F;
     const source::GameObjectFrameSync::Pose physicalBody{
         {}, {0.0F, 0.0F, halfQuarterTurn, halfQuarterTurn}};
@@ -366,6 +390,15 @@ int main()
         std::abs(wheelPose.rotation.w - 1.0F) > 0.0001F)
         return 35;
     auto* animatedWheel = car.GetWheel(0U);
+    animatedWheel->SetOffset({0.25F, 0.0F, 0.0F});
+    const auto& offsetWheelPose = animatedWheel->PxSyncWheel(
+        {}, {{}, {0.0F, 0.0F, halfQuarterTurn, halfQuarterTurn}},
+        {});
+    if (std::abs(offsetWheelPose.position.x) > 0.0001F ||
+        std::abs(offsetWheelPose.position.y - 0.25F) > 0.0001F ||
+        std::abs(offsetWheelPose.position.z) > 0.0001F)
+        return 67;
+    animatedWheel->SetOffset({});
     animatedWheel->SetAxleSpeed(2.0F);
     animatedWheel->OnProgress(0.5F);
     const auto& spunWheelPose = animatedWheel->PxSyncWheel(
@@ -389,6 +422,15 @@ int main()
         std::abs(invertedWheelPose.rotation.w) > 0.0001F)
         return 52;
     animatedWheel->ConfigureDynamics(-1.0F, true, false, false, 0.5F);
+    animatedWheel->SetLead(false);
+    animatedWheel->SetSteer(true);
+    if (car.GetLeadWheelCount() != 0U ||
+        car.GetSteerWheelCount() != 2U ||
+        car.GetSteerGroupWheel(0U) != animatedWheel ||
+        car.GetSteerGroupWheel(1U) != car.GetWheel(1U))
+        return 68;
+    animatedWheel->SetLead(true);
+    animatedWheel->SetSteer(false);
     car.GetFrameSync().Reset();
     car.GetFrameSync().SetPosSync2(
         {2.0F, 0.0F, 0.0F}, {1.0F, 0.0F, 0.0F});

@@ -130,6 +130,7 @@ public:
         bool steering = false;
         bool inverted = false;
         float radius = 0.0F;
+        std::array<float, 3U> visualOffset{};
     };
 
     struct DriveCommand
@@ -253,6 +254,13 @@ public:
     std::size_t GetWheelCount() const noexcept;
     CarWheel* GetWheel(std::size_t wheel) noexcept;
     const CarWheel* GetWheel(std::size_t wheel) const noexcept;
+    std::size_t GetLeadWheelCount() const noexcept;
+    CarWheel* GetLeadWheel(std::size_t wheel) noexcept;
+    const CarWheel* GetLeadWheel(std::size_t wheel) const noexcept;
+    std::size_t GetSteerWheelCount() const noexcept;
+    CarWheel* GetSteerGroupWheel(std::size_t wheel) noexcept;
+    const CarWheel* GetSteerGroupWheel(
+        std::size_t wheel) const noexcept;
     void BindAnimationChildren(
         bool trackAnimation, std::size_t cushionAnimations);
     void ReleaseAnimationChildren() noexcept;
@@ -377,7 +385,8 @@ public:
     const GameObjectFrameSync::Pose& GetPxSyncPose() const noexcept;
     void ConfigureDynamics(
         float positionX, bool driven, bool steering,
-        bool inverted, float radius) noexcept;
+        bool inverted, float radius,
+        std::array<float, 3U> visualOffset = {}) noexcept;
     void SetSteerAngle(float value) noexcept;
     void SetAxleSpeed(float value) noexcept;
     void ResetMotion() noexcept;
@@ -386,6 +395,16 @@ public:
     float GetSummAngle() const noexcept;
     float GetPositionX() const noexcept;
     float GetRadius() const noexcept;
+    float GetLongSlip() const noexcept;
+    float GetLatSlip() const noexcept;
+    bool GetLead() const noexcept;
+    void SetLead(bool value) noexcept;
+    bool GetSteer() const noexcept;
+    void SetSteer(bool value) noexcept;
+    const std::array<float, 3U>& GetOffset() const noexcept;
+    void SetOffset(std::array<float, 3U> value) noexcept;
+    bool GetInvertWheel() const noexcept;
+    void SetInvertWheel(bool value) noexcept;
     bool IsDriven() const noexcept;
     bool IsSteering() const noexcept;
     void SetContact(bool hasContact, float longitudinalSlip,
@@ -417,6 +436,7 @@ private:
     GameObjectFrameSync::Pose pxSyncPose_;
     float positionX_ = 0.0F;
     float radius_ = 0.0F;
+    std::array<float, 3U> offset_{};
     float steerAngle_ = 0.0F;
     float axleSpeed_ = 0.0F;
     float summAngle_ = 0.0F;

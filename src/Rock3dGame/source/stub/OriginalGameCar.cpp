@@ -323,7 +323,7 @@ void GameCar::ConfigureDynamics(
         wheels_[index]->ConfigureDynamics(
             wheels[index].positionX, wheels[index].driven,
             wheels[index].steering, wheels[index].inverted,
-            wheels[index].radius);
+            wheels[index].radius, wheels[index].visualOffset);
     }
 }
 
@@ -948,6 +948,85 @@ const CarWheel* GameCar::GetWheel(std::size_t wheel) const noexcept
     return wheel < wheels_.size() ? wheels_[wheel].get() : nullptr;
 }
 
+std::size_t GameCar::GetLeadWheelCount() const noexcept
+{
+    return static_cast<std::size_t>(std::count_if(
+        wheels_.begin(), wheels_.end(),
+        [](const auto& wheel) {
+            return wheel != nullptr && wheel->GetLead();
+        }));
+}
+
+CarWheel* GameCar::GetLeadWheel(std::size_t wheel) noexcept
+{
+    const auto found = std::find_if(
+        wheels_.begin(), wheels_.end(),
+        [&wheel](const auto& candidate) {
+            if (candidate == nullptr || !candidate->GetLead())
+                return false;
+            if (wheel == 0U)
+                return true;
+            --wheel;
+            return false;
+        });
+    return found != wheels_.end() ? found->get() : nullptr;
+}
+
+const CarWheel* GameCar::GetLeadWheel(std::size_t wheel) const noexcept
+{
+    const auto found = std::find_if(
+        wheels_.begin(), wheels_.end(),
+        [&wheel](const auto& candidate) {
+            if (candidate == nullptr || !candidate->GetLead())
+                return false;
+            if (wheel == 0U)
+                return true;
+            --wheel;
+            return false;
+        });
+    return found != wheels_.end() ? found->get() : nullptr;
+}
+
+std::size_t GameCar::GetSteerWheelCount() const noexcept
+{
+    return static_cast<std::size_t>(std::count_if(
+        wheels_.begin(), wheels_.end(),
+        [](const auto& wheel) {
+            return wheel != nullptr && wheel->GetSteer();
+        }));
+}
+
+CarWheel* GameCar::GetSteerGroupWheel(std::size_t wheel) noexcept
+{
+    const auto found = std::find_if(
+        wheels_.begin(), wheels_.end(),
+        [&wheel](const auto& candidate) {
+            if (candidate == nullptr || !candidate->GetSteer())
+                return false;
+            if (wheel == 0U)
+                return true;
+            --wheel;
+            return false;
+        });
+    return found != wheels_.end() ? found->get() : nullptr;
+}
+
+const CarWheel* GameCar::GetSteerGroupWheel(
+    std::size_t wheel) const noexcept
+{
+    const auto found = std::find_if(
+        wheels_.begin(), wheels_.end(),
+        [&wheel](const auto& candidate) {
+            if (candidate == nullptr || !candidate->GetSteer())
+                return false;
+            if (wheel == 0U)
+                return true;
+            --wheel;
+            return false;
+        });
+    return found != wheels_.end() ? found->get() : nullptr;
+}
+
 void GameCar::BindAnimationChildren(
     bool trackAnimation, std::size_t cushionAnimations)
 {
@@ -1222,6 +1301,8 @@ CarWheel& CarWheel::operator=(const CarWheel& other) noexcept
     slipSoundEnabled_ = other.slipSoundEnabled_;
     pxSyncPose_ = other.pxSyncPose_;
     positionX_ = other.positionX_;
+    radius_ = other.radius_;
+    offset_ = other.offset_;
     steerAngle_ = other.steerAngle_;
     axleSpeed_ = other.axleSpeed_;
     summAngle_ = other.summAngle_;
@@ -1291,6 +1372,12 @@ const GameObjectFrameSync::Pose& CarWheel::PxSyncWheel(
         graphBody.position.x + rotated.x,
         graphBody.position.y + rotated.y,
         graphBody.position.z + rotated.z};
+    const SyncVector graphOffset = rotateSync(
+        {offset_[0U], offset_[1U], offset_[2U]},
+        graphBody.rotation);
+    pxSyncPose_.position.x += graphOffset.x;
+    pxSyncPose_.position.y += graphOffset.y;
+    pxSyncPose_.position.z += graphOffset.z;
     // Windows CarWheel::PxSyncWheel never copies the PhysX wheel shape
     // orientation into the graph. The source object builds its local graph
     // rotation from steering about Z and accumulated axle spin about Y.
@@ -1320,13 +1407,15 @@ const GameObjectFrameSync::Pose& CarWheel::GetPxSyncPose() const noexcept
 
 void CarWheel::ConfigureDynamics(
     float positionX, bool driven, bool steering,
-    bool inverted, float radius) noexcept
+    bool inverted, float radius,
+    std::array<float, 3U> visualOffset) noexcept
 {
     positionX_ = positionX;
     radius_ = std::max(radius, 0.0F);
-    driven_ = driven;
-    steering_ = steering;
-    inverted_ = inverted;
+    SetLead(driven);
+    SetSteer(steering);
+    SetInvertWheel(inverted);
+    SetOffset(visualOffset);
     ResetMotion();
 }
 
@@ -1372,14 +1461,64 @@ float CarWheel::GetRadius() const noexcept
     return radius_;
 }
 
-bool CarWheel::IsDriven() const noexcept
+float CarWheel::GetLongSlip() const noexcept
+{
+    return longitudinalSlip_;
+}
+
+float CarWheel::GetLatSlip() const noexcept
+{
+    return lateralSlip_;
+}
+
+bool CarWheel::GetLead() const noexcept
 {
     return driven_;
 }
 
-bool CarWheel::IsSteering() const noexcept
+void CarWheel::SetLead(bool value) noexcept
+{
+    driven_ = value;
+}
+
+bool CarWheel::GetSteer() const noexcept
 {
     return steering_;
+}
+
+void CarWheel::SetSteer(bool value) noexcept
+{
+    steering_ = value;
+}
+
+const std::array<float, 3U>& CarWheel::GetOffset() const noexcept
+{
+    return offset_;
+}
+
+void CarWheel::SetOffset(std::array<float, 3U> value) noexcept
+{
+    offset_ = value;
+}
+
+bool CarWheel::GetInvertWheel() const noexcept
+{
+    return inverted_;
+}
+
+void CarWheel::SetInvertWheel(bool value) noexcept
+{
+    inverted_ = value;
+}
+
+bool CarWheel::IsDriven() const noexcept
+{
+    return GetLead();
+}
+
+bool CarWheel::IsSteering() const noexcept
+{
+    return GetSteer();
 }
 
 void CarWheel::SetContact(

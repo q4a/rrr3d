@@ -3004,6 +3004,24 @@ Car category pass один раз обновляет `RockCar`, колёса, ch
 после того, как AI wheels также получают contact state до source slip pass.
 Regression отдельно проверяет bind identity и безопасное отсоединение.
 
+### P2.122 — source `CarWheel` descriptor and visual offset — выполнено
+
+Windows `CarWheel` хранит не только текущий поворот и скорость оси: каждый
+wheel object владеет признаками `lead`/`steer`, `invertWheel`, исходными
+longitudinal/lateral slip и локальным `_offset`. Его `PxSyncWheel` применяет
+этот offset к графическому actor после синхронизации подвески. В порте offset
+оставался в `OriginalRaceRenderer`, поэтому gameplay object и рендер имели
+разные wheel poses, а garage и race реализовывали одно правило отдельно.
+
+Полный backend-neutral descriptor возвращён в `CarWheel`; `GameCar`
+предоставляет живые lead/steer-группы, которые отражают source setters без
+параллельного кэша. `Player::CreateCar` переносит offset из оригинального car
+record, а `PxSyncWheel` применяет его в системе координат graph body. Race
+renderer теперь рисует уже готовую source pose; garage, где нет racing
+object graph, один раз формирует эквивалентную готовую pose на своей adapter
+границе. Copy, slip accessors, динамические группы и повёрнутый visual offset
+закреплены regression-проверками.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
