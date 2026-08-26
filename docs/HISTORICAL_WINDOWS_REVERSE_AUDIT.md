@@ -3860,6 +3860,27 @@ rotation, sampled lifetime и preparation route читаются из самог
 загруженных projectiles, а source batch test — её сохранение у каждого
 созданного concrete object.
 
+### P2.165 — autonomous crater/MineRip снова являются `AutoProj` — выполнено
+
+DeathEffect crater и оба вида MineRip fragments создавались session-helper-ом
+через `new Proj`, прямой `PrepareSource` и `Logic::RegGameObj`. В Windows эти
+records добавляются как `gotProj` MapObj, а зарегистрированный concrete class
+для них — `AutoProj : Proj`: подготовка запускается из `LogicInited`, повторная
+инициализация идемпотентна, а `LogicReleased` снимает auto-state. Обычный
+`Proj` обходил этот lifecycle и делал автономные объекты ещё одним особым
+runtime видом.
+
+Фабрика теперь создаёт `AutoProj`, передаёт ему полный дочерний descriptor,
+world transform и source lifetime, затем инициирует подготовку только через
+`SetLogic/LogicInited` и передаёт объект в transient ownership `Logic` лишь
+после успешного concrete `Proj::PrepareSource`. Для detached Jolt records
+сохраняется внешний lifetime boundary: у них нет MapObj-list observer,
+который в Windows создаёт DeathEffect во время удаления, поэтому session
+успевает материализовать model2/model3/death visuals до release. Crater и все
+шесть MineRip children regressions теперь дополнительно требуют dynamic
+`AutoProj` identity и сохраняют прежние arming, split, lifetime и death-effect
+пороги.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

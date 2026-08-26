@@ -51,23 +51,38 @@ ProjectileDefinition nestedProjectileSourceDefinition(
     return result;
 }
 
-void configureAutonomousMineSourceObject(
+bool configureAutonomousMineSourceObject(
     source::Logic& logic, MineRuntime& mine,
     const ProjectileDefinition& definition,
     float maximumLife)
 {
-    source::Proj::ShotContext context;
-    context.logic = &logic;
-    context.maximumLife = maximumLife;
-    context.position = {
-        mine.position.x, mine.position.y, mine.position.z};
-    context.rotation = {
+    auto sourceObject = std::make_unique<source::AutoProj>();
+    sourceObject->Reset(definition);
+    sourceObject->SetWorldPos({
+        mine.position.x, mine.position.y, mine.position.z});
+    sourceObject->SetWorldRot({
         mine.rotation.x, mine.rotation.y,
-        mine.rotation.z, mine.rotation.w};
-    auto* sourceObject = new source::Proj();
-    sourceObject->PrepareSource(definition, nullptr, context);
-    logic.RegGameObj(sourceObject);
-    mine.sourceObject = sourceObject;
+        mine.rotation.z, mine.rotation.w});
+    sourceObject->SetMaxTimeLife(maximumLife);
+    sourceObject->SetTimeLife(0.0F);
+
+    // AutoProj::InitProj is driven by the LogicInited callback exactly as it
+    // is for a gotProj MapObj. Validate the concrete base preparation before
+    // handing ownership to Logic's transient registry.
+    sourceObject->SetLogic(&logic);
+    if (!static_cast<const source::Proj&>(*sourceObject).IsPrepared())
+    {
+        sourceObject->SetLogic(nullptr);
+        return false;
+    }
+    // A real MapObj list observes AutoProj death and materializes its graph
+    // effect during removal. These detached Jolt records have no MapObj
+    // owner, so keep the existing session death boundary responsible for
+    // emitting model2/model3/DeathEffect before Logic releases the object.
+    sourceObject->SetExternalLifetimeManaged(true);
+    mine.sourceObject = sourceObject.get();
+    logic.RegGameObj(sourceObject.release());
+    return true;
 }
 
 Vec3 subtract(Vec3 first, Vec3 second)
@@ -3839,9 +3854,11 @@ void OriginalRaceSession::updateGameplay(
                 spawned.minimumLife, spawned.maximumLife);
             crater.ignoreOwnerCollision =
                 deathPlan.ignoreSenderCar;
-            configureAutonomousMineSourceObject(
-                logic_, crater, spawned, craterMaximumLife);
-            mines_.push_back(std::move(crater));
+            if (configureAutonomousMineSourceObject(
+                    logic_, crater, spawned, craterMaximumLife))
+            {
+                mines_.push_back(std::move(crater));
+            }
         };
 
     for (auto& projectile : projectiles_)
@@ -5333,10 +5350,12 @@ void OriginalRaceSession::updateGameplay(
                     const auto childDefinition =
                         nestedProjectileSourceDefinition(
                             source, projectile.secondaryVisual);
-                    configureAutonomousMineSourceObject(
-                        logic_, core, childDefinition,
-                        coreMaximumLife);
-                    spawnedMines.push_back(std::move(core));
+                    if (configureAutonomousMineSourceObject(
+                            logic_, core, childDefinition,
+                            coreMaximumLife))
+                    {
+                        spawnedMines.push_back(std::move(core));
+                    }
                 }
                 if (projectile.tertiaryProjectile.valid)
                 {
@@ -5361,11 +5380,13 @@ void OriginalRaceSession::updateGameplay(
                         const auto childDefinition =
                             nestedProjectileSourceDefinition(
                                 source, projectile.tertiaryVisual);
-                        configureAutonomousMineSourceObject(
-                            logic_, fragment, childDefinition,
-                            fragmentMaximumLife);
-                        spawnedMines.push_back(
-                            std::move(fragment));
+                        if (configureAutonomousMineSourceObject(
+                                logic_, fragment, childDefinition,
+                                fragmentMaximumLife))
+                        {
+                            spawnedMines.push_back(
+                                std::move(fragment));
+                        }
                     }
                 }
                 spawnMineDeathEffect(mine);
@@ -11915,6 +11936,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 crater->projectile != craterIndex ||
                 !crater->ignoreOwnerCollision ||
                 crater->sourceObject == nullptr ||
+                dynamic_cast<const source::AutoProj*>(
+                    crater->sourceObject) == nullptr ||
                 std::abs(
                     crater->sourceObject->GetMaxTimeLife() - 3.0F) >
                     0.001F ||
@@ -12505,6 +12528,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     sourceFragments =
                         sourceFragments &&
                         object != nullptr &&
+                        dynamic_cast<const source::AutoProj*>(object) !=
+                            nullptr &&
                         object->GetDeathEffectBehavior() !=
                             nullptr &&
                         object->GetDesc().type == 11U &&
@@ -12526,6 +12551,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     sourceFragments =
                         sourceFragments &&
                         object != nullptr &&
+                        dynamic_cast<const source::AutoProj*>(object) !=
+                            nullptr &&
                         object->GetDeathEffectBehavior() !=
                             nullptr &&
                         object->GetDesc().type == 13U &&
