@@ -1109,13 +1109,27 @@ Proj::SpringPrepareResult Proj::PrepareSpring() noexcept
 }
 
 bool Proj::ContactMine(
-    GameObject* target, bool testMineLock,
-    bool mineBugEnabled) const noexcept
+    GameObject* target, bool mineBugEnabled) const noexcept
 {
+    const auto route = RouteContact(
+        target != nullptr && target->destroyed);
+    if (route.handler != ContactHandler::Maslo &&
+        route.handler != ContactHandler::Mine &&
+        route.handler != ContactHandler::MineRip &&
+        route.handler != ContactHandler::MinePiece &&
+        route.handler != ContactHandler::MineProton)
+    {
+        return false;
+    }
     auto* targetCar = target != nullptr ? target->IsCar() : nullptr;
+    if (route.handler == ContactHandler::Maslo &&
+        targetCar != nullptr && targetCar->IsMineLocked())
+    {
+        return false;
+    }
     auto* ownerCar = weapon_ != nullptr ? weapon_->GetParent() : nullptr;
     return MineContactAllowed(
-        targetCar != nullptr, testMineLock, mineBugEnabled,
+        targetCar != nullptr, route.testMineLock, mineBugEnabled,
         targetCar != nullptr && targetCar->IsMineLocked(),
         sourceTimer_, targetCar != nullptr && ownerCar == targetCar);
 }

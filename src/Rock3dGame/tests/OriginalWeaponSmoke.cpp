@@ -1230,15 +1230,21 @@ int main()
     source::GameCar mineTargetCar;
     source::GameObject nonCarTarget;
     oilProjectile.SetSourceTimer(-1.0F);
-    if (!oilProjectile.ContactMine(
-            &mineTargetCar, true, true) ||
-        oilProjectile.ContactMine(
-            &nonCarTarget, false, false))
+    if (!oilProjectile.ContactMine(&mineTargetCar, true) ||
+        oilProjectile.ContactMine(&nonCarTarget, false))
         return 135;
     mineTargetCar.LockMine(0.4F);
-    if (oilProjectile.ContactMine(
-            &mineTargetCar, true, true))
+    if (oilProjectile.ContactMine(&mineTargetCar, true))
         return 136;
+    auto concreteMineDescription = sourceDescription;
+    concreteMineDescription.type = 11U;
+    source::Proj concreteMineProjectile;
+    concreteMineProjectile.PrepareSource(
+        concreteMineDescription, nullptr, source::Proj::ShotContext{});
+    concreteMineProjectile.SetSourceTimer(-1.0F);
+    if (concreteMineProjectile.ContactMine(&mineTargetCar, true) ||
+        !concreteMineProjectile.ContactMine(&mineTargetCar, false))
+        return 148;
     source::GameCar oilTargetCar;
     oilTargetCar.BindWheels({false}, {false});
     oilProjectile.SetSourceTimer(-1.0F);

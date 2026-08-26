@@ -3619,6 +3619,23 @@ projectile, отсоединяет живой Fire/Drobilka и сохраняе�
 Порядок подтверждён существующими concrete weapon/target/model listener
 regressions, disconnect lifecycle, network tests и Metal race smoke.
 
+### P2.153 — concrete mine/contact route и ray damage type — выполнено
+
+Session всё ещё выбирала `testMineLock` статически по скопированному type как
+для runtime mines, так и для map `AutoProj`, а damage type живых Laser/Frost
+объектов повторно вычисляла из runtime definition. Это могло разойтись с
+реальным `_desc` после profile/weapon snapshot и обходило различие исходных
+`MasloContact`, `MineContact(true)` и `MineContact(false)`.
+
+`Proj::ContactMine` теперь сам получает concrete contact route и различает
+Maslo, Mine/MineRip, MinePiece и MineProton. Maslo сохраняет безусловную
+проверку `IsMineLocked`; Mine/MineRip применяют её только вместе с исходным
+`EnableMineBug`; arming и owner-car правила по-прежнему читаются из source
+state. Runtime mines и обе фазы map hazard/network contact вызывают concrete
+`AutoProj`, а live ray damage получает `DamageType` из concrete route.
+Прямых `ContactRouteFor` вызовов в race session больше нет. Regression
+проверяет различие Maslo и Mine при mine-lock и выключенном mine bug.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

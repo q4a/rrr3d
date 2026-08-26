@@ -4093,8 +4093,8 @@ void OriginalRaceSession::updateGameplay(
                 applyProjectileDamage(
                     *projectile.sourceObject, target, end,
                     std::max(laserUpdate.damage, 0.0F),
-                    source::Proj::DamageTypeFor(
-                        projectileDefinition.type));
+                    projectile.sourceObject->RouteContact(false)
+                        .damageType);
                 if (sourceProgressRoute.handler ==
                     source::Proj::ProgressHandler::FrostRay)
                 {
@@ -5555,7 +5555,6 @@ void OriginalRaceSession::updateGameplay(
             {
                 sourceContactAllowed = mine.sourceObject->ContactMine(
                     &racers_[racer].gameCar,
-                    mineContactRoute.testMineLock,
                     enableMineBug_);
             }
             Transform mineTransform;
@@ -5651,12 +5650,14 @@ void OriginalRaceSession::updateGameplay(
             racers_[racer].IsDestroyed())
             return false;
         const auto& bonus = race_.bonuses[bonusIndex];
-        const auto bonusRoute =
-            source::Proj::ContactRouteFor(
-                bonus.projectileType, false, false);
+        auto* mapBonus = bonusObjects().Get(bonusIndex);
+        auto* bonusProjectile = mapBonus != nullptr
+            ? mapBonus->GetAutoProj()
+            : nullptr;
         if (bonus.kind != BonusKind::MineHazard ||
-            (bonusRoute.testMineLock && enableMineBug_ &&
-             racers_[racer].gameCar.IsMineLocked()))
+            bonusProjectile == nullptr ||
+            !bonusProjectile->ContactMine(
+                &racers_[racer].gameCar, enableMineBug_))
             return false;
         const auto& vehicleDefinition = vehicleForRacer(racer);
         applyRacerDamage(
@@ -5897,11 +5898,13 @@ void OriginalRaceSession::updateGameplay(
             }
             if (bonus.kind == BonusKind::MineHazard)
             {
-                const auto bonusRoute =
-                    source::Proj::ContactRouteFor(
-                        bonus.projectileType, false, false);
-                if (bonusRoute.testMineLock && enableMineBug_ &&
-                    runtime.gameCar.IsMineLocked())
+                auto* mapBonus = bonusObjects().Get(bonusIndex);
+                auto* bonusProjectile = mapBonus != nullptr
+                    ? mapBonus->GetAutoProj()
+                    : nullptr;
+                if (bonusProjectile == nullptr ||
+                    !bonusProjectile->ContactMine(
+                        &runtime.gameCar, enableMineBug_))
                     continue;
                 if (networkGameplayEnabled_)
                 {

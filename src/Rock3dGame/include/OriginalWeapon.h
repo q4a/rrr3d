@@ -488,8 +488,7 @@ public:
         float deltaTime) const noexcept;
     SpringPrepareResult PrepareSpring() noexcept;
     bool ContactMine(
-        GameObject* target, bool testMineLock,
-        bool mineBugEnabled) const noexcept;
+        GameObject* target, bool mineBugEnabled) const noexcept;
     ContactResult ContactSpeedArrow(
         GameObject* target) const noexcept;
     ContactResult ContactLusha(
