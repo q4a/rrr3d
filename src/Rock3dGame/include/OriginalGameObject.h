@@ -29,6 +29,7 @@ namespace source
 class GameObject;
 class GameObjectFrameSync;
 class Proj;
+class GameCar;
 class Behavior;
 class Behaviors;
 class Logic;
@@ -273,6 +274,8 @@ public:
     // as the Windows code did before dispatching Proj-specific behavior.
     virtual Proj* IsProj() noexcept;
     virtual const Proj* IsProj() const noexcept;
+    virtual GameCar* IsCar() noexcept;
+    virtual const GameCar* IsCar() const noexcept;
 
     void InsertChild(GameObject* value);
     void RemoveChild(GameObject* value) noexcept;

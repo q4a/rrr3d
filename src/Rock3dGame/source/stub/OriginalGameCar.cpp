@@ -195,6 +195,9 @@ GameCar::~GameCar()
     ReleaseSoundMotor();
 }
 
+GameCar* GameCar::IsCar() noexcept { return this; }
+const GameCar* GameCar::IsCar() const noexcept { return this; }
+
 void GameCar::Reset() noexcept
 {
     clutchStrength_ = 0.0F;

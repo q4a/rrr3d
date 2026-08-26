@@ -3420,6 +3420,23 @@ Jolt-contact. В Windows эту команду формирует сам `Proj::
 presentation. Regression отдельно проверяет generic dispatch, sender-car,
 player id, цель, значение и тип урона, а также отказ команды без Logic/цели.
 
+### P2.142 — восстановлены `GameCar::IsCar` и точный kill dispatch — выполнено
+
+Portable `GameObject::Damage` выставлял `killCredit` для любого смертельно
+повреждённого `GameObject`, если был известен sender и тип не был Mine. Это
+расходилось с прямым условием Windows: событие `cPlayerKill` создаётся только
+когда виртуальный `IsCar()` подтверждает, что целью является `GameCar`, и
+никогда для `dtMine`. Сам polymorphic `GameCar::IsCar` в порте отсутствовал,
+поэтому исходное условие ранее нельзя было выразить без проверки контейнера.
+
+В `GameObject` и `GameCar` восстановлен virtual identity dispatch, а lethal
+damage теперь выдаёт kill-credit только машине. Обычные игровые объекты и
+разрушаемые декорации сохраняют Damage/Death lifecycle, но больше не могут
+создать ложное убийство игрока; `RockCar` по наследованию снова получает
+точный исходный `OnKillDispatchEvent`. Regression проверяет generic/object/car
+identity, обычное убийство машины, отсутствие kill-credit для Mine и для
+обычного `GameObject` как в локальном, так и authoritative damage overload.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

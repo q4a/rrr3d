@@ -269,7 +269,7 @@ int main()
 
     const auto lethal = object.Damage(
         4U, 100.0F, original::DamageType::Simple);
-    if (!lethal.death || !lethal.killCredit ||
+    if (!lethal.death || lethal.killCredit ||
         object.GetLiveState() != source::GameObject::LiveState::Death ||
         object.GetLife() != -25.0F)
         return 9;

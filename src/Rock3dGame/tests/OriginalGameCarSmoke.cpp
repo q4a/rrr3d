@@ -8,6 +8,24 @@ namespace source = r3d::game::originalrace::source;
 int main()
 {
     source::GameCar car;
+    source::GameObject ordinaryObject;
+    const source::GameObject& genericCar = car;
+    if (car.IsCar() != &car || genericCar.IsCar() != &car ||
+        ordinaryObject.IsCar() != nullptr)
+        return 69;
+    source::GameCar lethalCar;
+    lethalCar.ResetGameObject(10.0F);
+    const auto carKill = lethalCar.Damage(
+        3U, 10.0F,
+        r3d::game::originalrace::DamageType::Simple);
+    source::GameCar mineKilledCar;
+    mineKilledCar.ResetGameObject(10.0F);
+    const auto mineKill = mineKilledCar.Damage(
+        3U, 10.0F,
+        r3d::game::originalrace::DamageType::Mine);
+    if (!carKill.death || !carKill.killCredit ||
+        !mineKill.death || mineKill.killCredit)
+        return 70;
     if (car.IsClutchLocked() || car.IsSpringLocked() ||
         car.IsMineLocked() || car.HasSoundMotor() ||
         car.GetBehaviors().GetCount() != 0U ||

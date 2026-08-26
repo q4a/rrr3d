@@ -574,6 +574,8 @@ void GameObject::SetLogic(Logic* value) noexcept
 
 Proj* GameObject::IsProj() noexcept { return nullptr; }
 const Proj* GameObject::IsProj() const noexcept { return nullptr; }
+GameCar* GameObject::IsCar() noexcept { return nullptr; }
+const GameCar* GameObject::IsCar() const noexcept { return nullptr; }
 
 void GameObject::InsertChild(GameObject* value)
 {
@@ -750,7 +752,8 @@ GameObject::DamageResult GameObject::Damage(
     }
     destroyed = true;
     result.death = true;
-    result.killCredit = senderPlayerId != undefinedPlayerId &&
+    result.killCredit = IsCar() != nullptr &&
+                        senderPlayerId != undefinedPlayerId &&
                         damageType != DamageType::Mine;
     if (result.killCredit)
         OnKillDispatchEvent(senderPlayerId, value, damageType);

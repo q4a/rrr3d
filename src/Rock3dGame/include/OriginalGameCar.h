@@ -162,6 +162,8 @@ public:
     GameCar(GameCar&& other);
     GameCar& operator=(GameCar&& other) noexcept;
     ~GameCar() override;
+    GameCar* IsCar() noexcept override;
+    const GameCar* IsCar() const noexcept override;
 
     void Reset() noexcept;
     ProgressResult OnProgress(float deltaTime) noexcept;

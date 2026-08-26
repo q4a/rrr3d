@@ -621,7 +621,7 @@ int main()
     const auto authoritative = source::Logic::Damage(
         damageTarget, 3U, 5.0F, -2.0F, true,
         r3d::game::originalrace::DamageType::Energy);
-    if (!authoritative.death || !authoritative.killCredit ||
+    if (!authoritative.death || authoritative.killCredit ||
         damageTarget.GetLife() != -2.0F)
         return 26;
 
