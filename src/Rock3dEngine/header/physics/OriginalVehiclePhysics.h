@@ -201,6 +201,9 @@ struct VehicleDriveCommand
     float steeringAngle = 0.0F;
     float steeringYaw = 0.0F;
     float rearWheelX = 0.0F;
+    // Source GameCar::_wheelSteerK after Player::SetCheatK. Jolt applies
+    // this to the serialized lateral tire curve but does not own the value.
+    float lateralGripScale = 1.0F;
     std::array<float, 3U> angularDamping{1.0F, 1.0F, 1.0F};
     float clampRollAngle = 0.0F;
     float clampPitchAngle = 0.0F;

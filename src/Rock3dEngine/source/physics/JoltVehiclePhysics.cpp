@@ -1427,7 +1427,6 @@ private:
             std::max(input.motorTorqueScale, 0.0F);
         input.lateralGripScale =
             std::max(input.lateralGripScale, 0.0F);
-        vehicle.lateralGripScale = input.lateralGripScale;
 
         const auto& source = vehicle.spawn.vehicle;
         bool anyContact = false;
@@ -1483,9 +1482,12 @@ private:
             brakeTorque = gameCarCommand.brakeTorque;
             rpm = gameCarCommand.engineRpm;
             vehicle.currentGear = gameCarCommand.gear;
+            vehicle.lateralGripScale =
+                std::max(gameCarCommand.lateralGripScale, 0.0F);
         }
         else
         {
+            vehicle.lateralGripScale = input.lateralGripScale;
             // Standalone engine smoke keeps a backend-local controller. The
             // active game always installs source GameCar::OnFixedStep.
             if (input.brake > 0.0001F)

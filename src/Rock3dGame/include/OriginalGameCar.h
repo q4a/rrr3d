@@ -84,7 +84,6 @@ public:
         float reverse = 0.0F;
         float brake = 0.0F;
         float steering = 0.0F;
-        float motorTorqueScale = 1.0F;
     };
 
     struct FixedStepState
@@ -128,6 +127,9 @@ public:
         float steeringAngle = 0.0F;
         float steeringYaw = 0.0F;
         float rearWheelX = 0.0F;
+        // Windows Player::SetCheatK changes the live GameCar wheel tire
+        // function. The backend consumes the resulting source-owned scale.
+        float lateralGripScale = 1.0F;
         std::array<float, 3U> angularDamping{1.0F, 1.0F, 1.0F};
         float clampRollAngle = 0.0F;
         float clampPitchAngle = 0.0F;
@@ -163,6 +165,10 @@ public:
         FixedStepState state) noexcept;
     MoveCarState GetMoveCar() const noexcept;
     int GetCurGear() const noexcept;
+    float GetMotorTorqueK() const noexcept;
+    void SetMotorTorqueK(float value) noexcept;
+    float GetWheelSteerK() const noexcept;
+    void SetWheelSteerK(float value) noexcept;
 
     void BindSoundMotor(
         const std::array<float, 2>& rpmVolumeRange,
@@ -236,6 +242,10 @@ private:
     MoveCarState moveCar_ = MoveCarState::None;
     int currentGear_ = -1;
     float steeringAngle_ = 0.0F;
+    // Source GameCar::_motorTorqueK/_wheelSteerK. They are runtime state,
+    // not serialized ctCar parameters and default to the neutral multiplier.
+    float motorTorqueK_ = 1.0F;
+    float wheelSteerK_ = 1.0F;
     bool anyWheelContact_ = false;
     bool wheelsContact_ = false;
     bool bodyContact_ = false;

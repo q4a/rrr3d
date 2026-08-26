@@ -2405,7 +2405,7 @@ physics::VehicleDriveCommand OriginalRaceSession::racerFixedStepDrive(
     const auto command = racers_[racer].gameCar.OnFixedStepDrive(
         deltaTime,
         {input.throttle, input.reverse, input.brake,
-         input.steering, input.motorTorqueScale},
+         input.steering},
         {state.signedSpeed, state.absoluteSpeed,
          state.horizontalSpeed, state.drivenWheelAngularSpeed,
          state.anyWheelContact,
@@ -2414,6 +2414,7 @@ physics::VehicleDriveCommand OriginalRaceSession::racerFixedStepDrive(
     return {command.motorTorque, command.brakeTorque,
             command.rpm, command.gear, command.steeringAngle,
             command.steeringYaw, command.rearWheelX,
+            command.lateralGripScale,
             command.angularDamping, command.clampRollAngle,
             command.clampPitchAngle, command.applyExtraGravity,
             command.airbornePitchAcceleration};
@@ -6858,13 +6859,19 @@ void OriginalRaceSession::update(
          racer < playerProgress.size() &&
          racer < vehicleInputs_.size(); ++racer)
     {
-        if (playerProgress[racer].cheat.faster)
-        {
-            vehicleInputs_[racer].motorTorqueScale =
-                playerProgress[racer].cheat.torqueScale;
-            vehicleInputs_[racer].lateralGripScale =
-                playerProgress[racer].cheat.steeringScale;
-        }
+        const float torqueScale = playerProgress[racer].cheat.faster
+            ? playerProgress[racer].cheat.torqueScale : 1.0F;
+        const float steeringScale = playerProgress[racer].cheat.faster
+            ? playerProgress[racer].cheat.steeringScale : 1.0F;
+        // Windows Player::SetCheatK writes the live GameCar. Keep the input
+        // copies only for debug/network visibility; active Jolt control gets
+        // both values back through GameCar::DriveCommand.
+        racers_[racer].gameCar.SetMotorTorqueK(torqueScale);
+        racers_[racer].gameCar.SetWheelSteerK(steeringScale);
+        vehicleInputs_[racer].motorTorqueScale =
+            racers_[racer].gameCar.GetMotorTorqueK();
+        vehicleInputs_[racer].lateralGripScale =
+            racers_[racer].gameCar.GetWheelSteerK();
     }
 
     updateGameplay(seconds, vehicles, sourceHumanControl);
@@ -8082,7 +8089,11 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             if (aiCheatSession.vehicleInputs()[1]
                         .motorTorqueScale <= 1.0F ||
                 aiCheatSession.vehicleInputs()[1]
-                        .lateralGripScale <= 1.0F)
+                        .lateralGripScale <= 1.0F ||
+                aiCheatSession.racers()[1]
+                        .gameCar.GetMotorTorqueK() <= 1.0F ||
+                aiCheatSession.racers()[1]
+                        .gameCar.GetWheelSteerK() <= 1.0F)
             {
                 throw std::runtime_error(
                     "source Player::CheatUpdate AI catch-up failed");
@@ -8135,7 +8146,11 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 if (fieldCheatSession.vehicleInputs()[0]
                             .motorTorqueScale > 1.0001F ||
                     fieldCheatSession.vehicleInputs()[1]
-                            .motorTorqueScale > 1.0001F)
+                            .motorTorqueScale > 1.0001F ||
+                    fieldCheatSession.racers()[0]
+                            .gameCar.GetMotorTorqueK() > 1.0001F ||
+                    fieldCheatSession.racers()[1]
+                            .gameCar.GetWheelSteerK() > 1.0001F)
                 {
                     throw std::runtime_error(
                         "source Player::CheatUpdate accepted Computer as "

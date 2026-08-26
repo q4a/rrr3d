@@ -125,6 +125,8 @@ GameCar& GameCar::operator=(const GameCar& other) noexcept
     moveCar_ = other.moveCar_;
     currentGear_ = other.currentGear_;
     steeringAngle_ = other.steeringAngle_;
+    motorTorqueK_ = other.motorTorqueK_;
+    wheelSteerK_ = other.wheelSteerK_;
     anyWheelContact_ = other.anyWheelContact_;
     wheelsContact_ = other.wheelsContact_;
     bodyContact_ = other.bodyContact_;
@@ -197,6 +199,8 @@ void GameCar::Reset() noexcept
     moveCar_ = MoveCarState::None;
     currentGear_ = -1;
     steeringAngle_ = 0.0F;
+    motorTorqueK_ = 1.0F;
+    wheelSteerK_ = 1.0F;
     anyWheelContact_ = false;
     wheelsContact_ = false;
     bodyContact_ = false;
@@ -360,7 +364,6 @@ GameCar::DriveCommand GameCar::OnFixedStepDrive(
     input.reverse = std::clamp(input.reverse, 0.0F, 1.0F);
     input.brake = std::clamp(input.brake, 0.0F, 1.0F);
     input.steering = std::clamp(input.steering, -1.0F, 1.0F);
-    input.motorTorqueScale = std::max(input.motorTorqueScale, 0.0F);
     if (input.brake > 0.0001F)
         moveCar_ = MoveCarState::Brake;
     else if (input.reverse > 0.0001F)
@@ -411,7 +414,7 @@ GameCar::DriveCommand GameCar::OnFixedStepDrive(
                 currentGear_ = 1;
             command.rpm = calcRpm(currentGear_);
             command.motorTorque = calcTorque(currentGear_) *
-                input.throttle * input.motorTorqueScale;
+                input.throttle * motorTorqueK_;
         }
         break;
     }
@@ -432,6 +435,7 @@ GameCar::DriveCommand GameCar::OnFixedStepDrive(
         state.absoluteSpeed > motor_.maximumSpeed)
         command.motorTorque = command.brakeTorque;
     command.gear = currentGear_;
+    command.lateralGripScale = wheelSteerK_;
 
     const float targetSteering =
         input.steering * dynamics_.maximumSteerAngle;
@@ -513,6 +517,32 @@ GameCar::MoveCarState GameCar::GetMoveCar() const noexcept
 int GameCar::GetCurGear() const noexcept
 {
     return currentGear_;
+}
+
+float GameCar::GetMotorTorqueK() const noexcept
+{
+    return motorTorqueK_;
+}
+
+void GameCar::SetMotorTorqueK(float value) noexcept
+{
+    motorTorqueK_ = value;
+}
+
+float GameCar::GetWheelSteerK() const noexcept
+{
+    return wheelSteerK_;
+}
+
+void GameCar::SetWheelSteerK(float value) noexcept
+{
+    if (wheelSteerK_ == value)
+        return;
+    // WheelShape::GetLateralTireForceFunction returns its serialized base
+    // descriptor in the Windows engine; ApplyWheelSteerK only changes the
+    // live PhysX descriptor. Keeping an absolute scale here reproduces that
+    // behavior without compounding the multiplier between frames.
+    wheelSteerK_ = value;
 }
 
 void GameCar::BindSoundMotor(

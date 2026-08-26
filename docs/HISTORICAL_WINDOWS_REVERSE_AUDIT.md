@@ -2836,6 +2836,30 @@ solver ограничивает пару импульсов эллиптичес
 закрепляет обе ветви, а clean pinned-Jolt extraction принимает оба CMake
 patch последовательно.
 
+### P2.115 — source `Player::SetCheatK` / `GameCar` runtime coefficients — выполнено
+
+После переноса fixed-step формул коэффициенты catch-up всё ещё принадлежали
+`physics::VehicleInput`: session напрямую передавала `motorTorqueScale` и
+`lateralGripScale` в Jolt. В Windows `Player::CheatUpdate` вызывает
+`SetCheatK`, а тот меняет живые `GameCar::_motorTorqueK` и
+`GameCar::_wheelSteerK`; только затем `MotorProgress` и
+`ApplyWheelSteerK` формируют физическое состояние машины.
+
+Portable `GameCar` снова владеет обоими коэффициентами, сохраняет их при
+копировании и возвращает к единице при уничтожении/повторном создании
+машины. Forward torque умножается на source `_motorTorqueK` (reverse, как и
+в Windows, не умножается), а абсолютный `_wheelSteerK` передаётся Jolt вместе
+с готовой `DriveCommand`. Активный Jolt callback больше не читает игровые
+коэффициенты непосредственно из input; поля input оставлены диагностическим
+отражением для debug/network regression и для автономного physics smoke без
+game-layer controller. Умножитель `CarMotorDesc::cGameK = 1.15` не добавлялся
+повторно: он уже корректно свёрнут в загружаемое `SEM * 1.15`.
+
+Числовая regression проверяет исходный трёхкратный forward torque,
+независимый wheel-grip, ограничитель скорости, reset и то, что AI catch-up
+меняет именно живой `GameCar`, а обычные Computer не становятся ложными
+opponent-reference.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
