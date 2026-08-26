@@ -4184,28 +4184,11 @@ void OriginalRaceRenderer::draw(
                 r3d::physics::Vec3 inheritedSourceVelocity{};
                 if (emitter.sourceSpeedBehavior)
                 {
-                    const auto ownerWorld = compose(
-                        parent, emitter.sourceOwnerTransform);
-                    r3d::game::originalrace::source::
-                        FxSystemSrcSpeed sourceSpeed;
-                    const r3d::game::originalrace::source::
-                        FxSystemSrcSpeed::ParentTransform sourceParent{
-                            {ownerWorld.scale.x, ownerWorld.scale.y,
-                             ownerWorld.scale.z},
-                            {ownerWorld.rotation.x, ownerWorld.rotation.y,
-                             ownerWorld.rotation.z,
-                             ownerWorld.rotation.w}};
-                    sourceSpeed.OnProgress(
-                        true,
-                        {sourceVelocity.x, sourceVelocity.y,
-                         sourceVelocity.z},
-                        &sourceParent);
-                    const auto& localSource =
-                        sourceSpeed.GetSourceSpeed();
-                    inheritedSourceVelocity = transformNormal(
-                        ownerWorld,
-                        {localSource.x, localSource.y,
-                         localSource.z});
+                    // Type-3 FxSystemSrcSpeed now progresses on the source
+                    // effect GameObject. Its backend-facing world value is
+                    // already the local source speed transformed through the
+                    // owning graph, so render passes only consume it.
+                    inheritedSourceVelocity = sourceVelocity;
                 }
                 std::vector<r3d::physics::Vec3> trailPoints;
                 struct TrailStyle
@@ -5555,7 +5538,7 @@ void OriginalRaceRenderer::draw(
                                     [effect.vehicleEffect],
                 definition, parent,
                 effect.totalSeconds - effect.seconds,
-                r3d::physics::Vec3{}, nullptr, 1.0F,
+                effect.sourceVelocity, nullptr, 1.0F,
                 effectEmissionEnd);
             continue;
         }
@@ -5594,7 +5577,7 @@ void OriginalRaceRenderer::draw(
                 {
                     auto parent = effect.transform;
                     r3d::physics::Vec3 parentVelocity =
-                        effect.detachedSourceVelocity;
+                        effect.sourceVelocity;
                     if (effect.parentRacer < vehicles.size())
                     {
                         parent = compose(
@@ -5668,7 +5651,7 @@ void OriginalRaceRenderer::draw(
                 else
                 {
                     parent.position = effect.origin;
-                    parentVelocity = effect.detachedSourceVelocity;
+                    parentVelocity = effect.sourceVelocity;
                     if (!effect.ignoreRotation)
                     {
                         parent.rotation = directionRotation(

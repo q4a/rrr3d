@@ -271,8 +271,9 @@ struct RaceEffect
     std::unique_ptr<source::GameObject> effectOwner =
         std::make_unique<source::GameObject>();
     source::FxSystemWaitingEndBehavior* waitingEnd = nullptr;
+    source::FxSystemSrcSpeedBehavior* sourceSpeed = nullptr;
     bool waitForParticleEnd = false;
-    Vec3 detachedSourceVelocity;
+    Vec3 sourceVelocity;
     // Sounds serialized on an effect object belong to its LifeEffect, not
     // to the event which spawned it. They start from the first progress
     // callback and share the spawned object's lifetime/attachment.

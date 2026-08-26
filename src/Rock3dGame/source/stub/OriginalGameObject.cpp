@@ -1324,6 +1324,52 @@ FxSystemSrcSpeed::GetSourceSpeed() const noexcept
     return sourceSpeed_;
 }
 
+FxSystemSrcSpeedBehavior::FxSystemSrcSpeedBehavior(
+    Behaviors* owner) noexcept
+    : Behavior(owner)
+{
+}
+
+void FxSystemSrcSpeedBehavior::OnProgress(float) noexcept
+{
+    if (!state_.OnProgress(
+            actorAvailable_, actorVelocity_,
+            hasParent_ ? &parent_ : nullptr))
+        return;
+    // FxFlowEmitter transforms the local value back through the same owner
+    // graph. Retain the actor-space result for the backend adapter so it does
+    // not reconstruct another temporary behavior in every render pass.
+    worldSourceSpeed_ = actorVelocity_;
+}
+
+void FxSystemSrcSpeedBehavior::SetPhysicsInput(
+    bool actorAvailable, FxSystemSrcSpeed::Vector velocity,
+    const FxSystemSrcSpeed::ParentTransform* parent) noexcept
+{
+    actorAvailable_ = actorAvailable;
+    actorVelocity_ = velocity;
+    hasParent_ = parent != nullptr;
+    if (parent != nullptr)
+        parent_ = *parent;
+}
+
+const FxSystemSrcSpeed::Vector&
+FxSystemSrcSpeedBehavior::GetSourceSpeed() const noexcept
+{
+    return state_.GetSourceSpeed();
+}
+
+const FxSystemSrcSpeed::Vector&
+FxSystemSrcSpeedBehavior::GetWorldSourceSpeed() const noexcept
+{
+    return worldSourceSpeed_;
+}
+
+bool FxSystemSrcSpeedBehavior::HasPhysicsActor() const noexcept
+{
+    return actorAvailable_;
+}
+
 void EventEffect::Reset() noexcept
 {
     effectMaked_ = false;

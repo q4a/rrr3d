@@ -551,6 +551,31 @@ private:
     Vector sourceSpeed_;
 };
 
+// Concrete type-3 behavior. Jolt supplies the owning actor velocity and the
+// optional parent transform; the behavior owns the source WorldToLocalNorm
+// calculation while bgfx consumes the resulting inherited velocity.
+class FxSystemSrcSpeedBehavior final : public Behavior
+{
+public:
+    explicit FxSystemSrcSpeedBehavior(Behaviors* owner) noexcept;
+
+    void OnProgress(float deltaTime) noexcept override;
+    void SetPhysicsInput(
+        bool actorAvailable, FxSystemSrcSpeed::Vector velocity,
+        const FxSystemSrcSpeed::ParentTransform* parent = nullptr) noexcept;
+    const FxSystemSrcSpeed::Vector& GetSourceSpeed() const noexcept;
+    const FxSystemSrcSpeed::Vector& GetWorldSourceSpeed() const noexcept;
+    bool HasPhysicsActor() const noexcept;
+
+private:
+    FxSystemSrcSpeed state_;
+    FxSystemSrcSpeed::Vector actorVelocity_;
+    FxSystemSrcSpeed::Vector worldSourceSpeed_;
+    FxSystemSrcSpeed::ParentTransform parent_;
+    bool actorAvailable_ = false;
+    bool hasParent_ = false;
+};
+
 // EventEffect owns one distinguished _makeEffect actor in addition to any
 // transient actors created by ShotEffect. These operations preserve the
 // original MakeEffect/FreeEffect/OnDestroy identity rules independently of

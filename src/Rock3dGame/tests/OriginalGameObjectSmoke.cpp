@@ -575,6 +575,37 @@ int main()
         sourceSpeed.GetSourceSpeed().z != 0.0F)
         return 49;
 
+    source::GameObject sourceSpeedOwner;
+    sourceSpeedOwner.ResetGameObject(-1.0F);
+    auto& sourceSpeedBehavior =
+        sourceSpeedOwner.GetBehaviors()
+            .Add<source::FxSystemSrcSpeedBehavior>(
+                source::BehaviorType::FxSystemSrcSpeed);
+    sourceSpeedBehavior.SetPhysicsInput(
+        true, {0.0F, 4.0F, 10.0F}, &speedParent);
+    sourceSpeedOwner.OnProgress(0.1F);
+    const auto behaviorLocalSpeed =
+        sourceSpeedBehavior.GetSourceSpeed();
+    const auto behaviorWorldSpeed =
+        sourceSpeedBehavior.GetWorldSourceSpeed();
+    if (sourceSpeedOwner.GetBehaviors().GetCount() != 1U ||
+        sourceSpeedOwner.GetListenerCount() != 1U ||
+        !sourceSpeedBehavior.HasPhysicsActor() ||
+        std::abs(behaviorLocalSpeed.x - 2.0F) > 0.0001F ||
+        std::abs(behaviorLocalSpeed.z - 2.0F) > 0.0001F ||
+        std::abs(behaviorWorldSpeed.y - 4.0F) > 0.0001F ||
+        std::abs(behaviorWorldSpeed.z - 10.0F) > 0.0001F)
+        return 98;
+    sourceSpeedBehavior.SetPhysicsInput(
+        false, {0.0F, 0.0F, 0.0F});
+    sourceSpeedOwner.OnProgress(0.1F);
+    if (sourceSpeedBehavior.HasPhysicsActor() ||
+        std::abs(sourceSpeedBehavior.GetSourceSpeed().x - 2.0F) >
+            0.0001F ||
+        std::abs(sourceSpeedBehavior.GetWorldSourceSpeed().y - 4.0F) >
+            0.0001F)
+        return 99;
+
     std::cout << "original GameObject/DestrObj/effect behavior source "
                  "rules passed\n";
     return 0;

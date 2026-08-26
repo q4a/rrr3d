@@ -2529,6 +2529,24 @@ release от source `PairPxContactEffect`. Backend передаёт только
 автоматическую двухступенчатую смерть и одноразовый delayed Play; полный
 physics/render/audio smoke подтверждает lifetime и teardown в гонке.
 
+### P2.99 — concrete `FxSystemSrcSpeed` и единый particle input — выполнено
+
+До этого renderer на каждом draw каждого emitter создавал временный
+`FxSystemSrcSpeed`, повторно исполнял source `WorldToLocalNorm`, а затем тут же
+преобразовывал результат обратно в world space. Помимо отсутствующего
+behavior owner это умножало одинаковую работу на scene/reflection passes.
+
+Добавлен concrete behavior serialized типа 3. При создании `RaceEffect`
+наличие behavior берётся из parsed emitter provenance (`fire2` в поставляемом
+каталоге), Jolt velocity задаётся перед общим `GameObject::OnProgress`, а
+behavior сохраняет и локальное source значение, и готовую world-space границу
+для bgfx. Attached effect получает скорость автомобиля каждый tick;
+`ResurrectObj` фиксирует последнюю скорость при detach, а death effect получает
+скорость уничтоженного Jolt body. Renderer теперь только читает этот результат
+и не создаёт игровые state machines. Regression проверяет exact type/listener,
+parent rotation/inverse-scale и сохранение последнего значения при отсутствии
+physics actor; полный physics/Metal smoke прошёл.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

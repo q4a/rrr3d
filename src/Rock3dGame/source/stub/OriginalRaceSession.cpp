@@ -143,6 +143,7 @@ void configureSourceEffectOwner(
     owner.ResetGameObject(-1.0F);
     owner.SetMaxTimeLife(maximumTimeLife);
     effect.waitingEnd = nullptr;
+    effect.sourceSpeed = nullptr;
     effect.lifeEffect = nullptr;
     if (waitForParticleEnd)
     {
@@ -152,8 +153,9 @@ void configureSourceEffectOwner(
     }
 }
 
-void applySourceEffectTiming(RaceEffect& effect,
-                             const EffectTiming& timing)
+void applySourceEffectTiming(
+    RaceEffect& effect, const EffectTiming& timing,
+    const ObjectDefinition& definition)
 {
     effect.totalSeconds = timing.visibleSeconds;
     effect.seconds = timing.visibleSeconds;
@@ -164,6 +166,17 @@ void applySourceEffectTiming(RaceEffect& effect,
         timing.waitForParticleEnd
             ? timing.emissionSeconds
             : timing.visibleSeconds);
+    if (std::any_of(
+            definition.particleEmitters.begin(),
+            definition.particleEmitters.end(),
+            [](const ParticleEmitterDefinition& emitter) {
+                return emitter.sourceSpeedBehavior;
+            }))
+    {
+        effect.sourceSpeed = &effect.effectOwner->GetBehaviors()
+            .Add<source::FxSystemSrcSpeedBehavior>(
+                source::BehaviorType::FxSystemSrcSpeed);
+    }
 }
 
 void attachSourceLifeEffect(
@@ -1945,7 +1958,7 @@ bool OriginalRaceSession::applyRacerDamageInternal(
             effect.racer = target;
             effect.origin = position;
             const auto timing = sourceEffectTiming(visual, 0.5F);
-            applySourceEffectTiming(effect, timing);
+            applySourceEffectTiming(effect, timing, visual);
             attachSourceLifeEffect(effect, visual.soundPaths, target,
                                    target);
             effects_.push_back(std::move(effect));
@@ -3040,12 +3053,13 @@ void OriginalRaceSession::destroyRacer(
         effect.kind = RaceEventKind::VehicleDestroyed;
         effect.origin = add(vehicle.body.position, source.position);
         effect.target = add(effect.origin, {1.0F, 0.0F, 0.0F});
-        applySourceEffectTiming(effect, timing);
+        applySourceEffectTiming(effect, timing, source.visual);
         effect.ignoreRotation = source.ignoreRotation;
         effect.racer = racer;
         effect.vehicleEffect = index;
         effect.transform = vehicle.body;
         effect.transform.position = effect.origin;
+        effect.sourceVelocity = vehicle.linearVelocity;
         if (source.ignoreRotation)
             effect.transform.rotation = {};
         attachSourceLifeEffect(effect, source.visual.soundPaths, racer);
@@ -3603,11 +3617,12 @@ void OriginalRaceSession::updateGameplay(
                     impact.origin = effectOrigin;
                     impact.target =
                         add(impact.origin, projectile.direction);
-                    applySourceEffectTiming(impact, timing);
+                    applySourceEffectTiming(impact, timing, visual);
                     impact.weapon = projectile.weapon;
                     impact.projectile = projectile.projectile;
                     impact.visualVariant = variant;
                     impact.ignoreRotation = ignoreRotation;
+                    impact.sourceVelocity = projectile.velocity;
                     if (targetChild && targetRacer < vehicles.size())
                     {
                         impact.parentRacer = targetRacer;
@@ -4379,7 +4394,7 @@ void OriginalRaceSession::updateGameplay(
                        {1.0F, 0.0F, 0.0F}));
             const auto timing = sourceEffectTiming(
                 source.visual, source.duration);
-            applySourceEffectTiming(effect, timing);
+            applySourceEffectTiming(effect, timing, source.visual);
             effect.weapon = weapon;
             effect.ignoreRotation = source.ignoreRotation;
             if (owner < vehicles.size())
@@ -4805,7 +4820,7 @@ void OriginalRaceSession::updateGameplay(
         impact.kind = RaceEventKind::ProjectileImpact;
         impact.origin = add(mine.position, death->position);
         impact.target = add(impact.origin, {0.0F, 0.0F, 1.0F});
-        applySourceEffectTiming(impact, timing);
+        applySourceEffectTiming(impact, timing, death->visual);
         impact.weapon = mine.weapon;
         impact.projectile = mine.projectile;
         impact.visualVariant = deathVariant;
@@ -5168,7 +5183,7 @@ void OriginalRaceSession::updateGameplay(
             bonus.deathEffect.position);
         impact.target = add(
             bonus.transform.position, {0.0F, 0.0F, 2.0F});
-        applySourceEffectTiming(impact, timing);
+        applySourceEffectTiming(impact, timing, visual);
         impact.weapon = race_.weapons.size();
         impact.bonus = bonusIndex;
         impact.ignoreRotation =
@@ -6374,7 +6389,33 @@ void OriginalRaceSession::update(
             effect.lifeEffect->SetSourceAvailable(
                 !effect.lifeSoundPaths.empty());
         }
+        if (effect.sourceSpeed != nullptr)
+        {
+            auto velocity = effect.sourceVelocity;
+            source::FxSystemSrcSpeed::ParentTransform parent;
+            const source::FxSystemSrcSpeed::ParentTransform* parentPtr =
+                nullptr;
+            if (effect.parentRacer < vehicles.size())
+            {
+                velocity = vehicles[effect.parentRacer].linearVelocity;
+                const auto& body = vehicles[effect.parentRacer].body;
+                parent = {
+                    {body.scale.x, body.scale.y, body.scale.z},
+                    {body.rotation.x, body.rotation.y,
+                     body.rotation.z, body.rotation.w}};
+                parentPtr = &parent;
+            }
+            effect.sourceSpeed->SetPhysicsInput(
+                true, {velocity.x, velocity.y, velocity.z}, parentPtr);
+        }
         effect.effectOwner->OnProgress(seconds);
+        if (effect.sourceSpeed != nullptr)
+        {
+            const auto& velocity =
+                effect.sourceSpeed->GetWorldSourceSpeed();
+            effect.sourceVelocity = {
+                velocity.x, velocity.y, velocity.z};
+        }
         if (effect.lifeEffect != nullptr &&
             effect.lifeEffect->ConsumePlayRequest())
         {
@@ -6416,7 +6457,7 @@ void OriginalRaceSession::update(
                 effect.origin,
                 rotate(effect.transform.rotation,
                        {1.0F, 0.0F, 0.0F}));
-            effect.detachedSourceVelocity =
+            effect.sourceVelocity =
                 vehicles[effect.parentRacer].linearVelocity;
             effect.parentRacer = RacerRuntime::invalidWeapon;
         }
