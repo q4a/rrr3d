@@ -3492,6 +3492,24 @@ Regression проверяет medpack fallback, тип, правильного �
 physics-fixture: ей задан исходный `ptImmortal`, без которого новый concrete
 dispatch корректно отказывался создавать эффект.
 
+### P2.146 — concrete `SpeedArrowContact` и `LushaContact` — выполнено
+
+Обе трассовые модификации скорости оставались статическими формулами:
+session сама вычисляла направление стрелки из placement-transform, передавала
+отдельный `bonus.value` и без проверки concrete `Proj` создавала событие.
+В Windows `SpeedArrowContact` читает `GetGrActor().GetWorldDir()` и
+`_desc.damage` самого снаряда, а `LushaContact` ограничивает скорость тем же
+source-параметром только после успешного разрешения контактного объекта.
+
+В `Proj` восстановлены concrete contact-методы и type route gate.
+`SpeedArrow` теперь получает направление из мирового quaternion живого
+`AutoProj`, формирует точную actor-velocity и подтверждает
+`cPlayerSpeedArrow`; `Lusha` читает текущую Jolt-скорость цели, но предел берёт
+из собственного description. Session лишь применяет возвращённую velocity
+delta и переводит подтверждённое source-событие в renderer/audio queue.
+Regression проверяет поворот стрелки на 90 градусов, source damage, порог
+лужи, null-target и отбрасывание неверного contact route.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

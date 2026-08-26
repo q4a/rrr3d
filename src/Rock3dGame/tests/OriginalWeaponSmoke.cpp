@@ -680,6 +680,40 @@ int main()
         source::Proj::LushaContact(
             {15.0F, 0.0F, 0.0F}, 20.0F).setLinearVelocity)
         return 30;
+    source::GameObject velocityContactTarget;
+    velocityContactTarget.ResetGameObject(100.0F);
+    auto speedArrowDescription = sourceDescription;
+    speedArrowDescription.type = 8U;
+    speedArrowDescription.damage = 10.0F;
+    source::Proj speedArrowProjectile;
+    source::Proj::ShotContext velocityContactContext;
+    velocityContactContext.rotation =
+        {0.0F, 0.0F, 0.70710677F, 0.70710677F};
+    speedArrowProjectile.PrepareSource(
+        speedArrowDescription, nullptr, velocityContactContext);
+    const auto concreteSpeedArrow =
+        speedArrowProjectile.ContactSpeedArrow(&velocityContactTarget);
+    if (!concreteSpeedArrow.setLinearVelocity ||
+        !concreteSpeedArrow.sendSpeedArrowEvent ||
+        std::abs(concreteSpeedArrow.linearVelocity.x) > 0.001F ||
+        std::abs(concreteSpeedArrow.linearVelocity.y - 10.0F) > 0.001F ||
+        speedArrowProjectile.ContactSpeedArrow(nullptr).setLinearVelocity)
+        return 140;
+    auto lushaDescription = sourceDescription;
+    lushaDescription.type = 9U;
+    lushaDescription.damage = 20.0F;
+    source::Proj lushaProjectile;
+    lushaProjectile.PrepareSource(
+        lushaDescription, nullptr, velocityContactContext);
+    if (!lushaProjectile.ContactLusha(
+            &velocityContactTarget,
+            {30.0F, 0.0F, 0.0F}).setLinearVelocity ||
+        lushaProjectile.ContactLusha(
+            &velocityContactTarget,
+            {15.0F, 0.0F, 0.0F}).setLinearVelocity ||
+        lushaProjectile.ContactLusha(
+            nullptr, {30.0F, 0.0F, 0.0F}).setLinearVelocity)
+        return 141;
     const auto oilRight = source::Proj::MasloContact(
         {}, {0.0F, 1.0F, 0.0F}, {0.0F, 1.0F, 0.0F},
         {4.0F, 0.0F, 0.0F}, 1.5F,

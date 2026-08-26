@@ -477,6 +477,10 @@ public:
     bool ContactMine(
         GameObject* target, bool testMineLock,
         bool mineBugEnabled) const noexcept;
+    ContactResult ContactSpeedArrow(
+        GameObject* target) const noexcept;
+    ContactResult ContactLusha(
+        GameObject* target, Vec3 linearVelocity) const noexcept;
     ContactResult ContactMaslo(
         GameObject* target, Vec3 carPosition,
         Vec3 carWorldRight, Vec3 oilPosition,

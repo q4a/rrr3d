@@ -5744,12 +5744,16 @@ void OriginalRaceSession::updateGameplay(
 
             if (bonus.kind == BonusKind::Speed)
             {
-                const Vec3 direction =
-                    forward(bonus.transform.rotation);
-                const auto sourceResult =
-                    source::Proj::SpeedArrowContact(
-                        {direction.x, direction.y, direction.z},
-                        bonus.value);
+                auto* bonusObject = bonusObjects().Get(bonusIndex);
+                auto* bonusProjectile =
+                    bonusObject != nullptr
+                        ? bonusObject->GetAutoProj()
+                        : nullptr;
+                const auto sourceResult = bonusProjectile != nullptr
+                    ? bonusProjectile->ContactSpeedArrow(&runtime.gameCar)
+                    : source::Proj::ContactResult{};
+                if (!sourceResult.setLinearVelocity)
+                    continue;
                 const Vec3 wanted{
                     sourceResult.linearVelocity.x,
                     sourceResult.linearVelocity.y,
@@ -5757,19 +5761,28 @@ void OriginalRaceSession::updateGameplay(
                 velocityRequests_.push_back(
                     {racer,
                      subtract(wanted, vehicles[racer].linearVelocity)});
-                events_.push_back(
-                    {RaceEventKind::SpeedArrow, racer, bonusIndex,
-                     contactPoint, bonus.value});
+                if (sourceResult.sendSpeedArrowEvent)
+                {
+                    events_.push_back(
+                        {RaceEventKind::SpeedArrow, racer, bonusIndex,
+                         contactPoint, bonus.value});
+                }
                 continue;
             }
             if (bonus.kind == BonusKind::SlowHazard)
             {
+                auto* bonusObject = bonusObjects().Get(bonusIndex);
+                auto* bonusProjectile =
+                    bonusObject != nullptr
+                        ? bonusObject->GetAutoProj()
+                        : nullptr;
                 const auto& velocity =
                     vehicles[racer].linearVelocity;
-                const auto sourceResult =
-                    source::Proj::LushaContact(
-                        {velocity.x, velocity.y, velocity.z},
-                        bonus.value);
+                const auto sourceResult = bonusProjectile != nullptr
+                    ? bonusProjectile->ContactLusha(
+                          &runtime.gameCar,
+                          {velocity.x, velocity.y, velocity.z})
+                    : source::Proj::ContactResult{};
                 if (sourceResult.setLinearVelocity)
                 {
                     const Vec3 wanted{

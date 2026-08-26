@@ -1012,6 +1012,34 @@ bool Proj::ContactMine(
         sourceTimer_, targetCar != nullptr && ownerCar == targetCar);
 }
 
+Proj::ContactResult Proj::ContactSpeedArrow(
+    GameObject* target) const noexcept
+{
+    if (target == nullptr ||
+        RouteContact(target->destroyed).handler !=
+            ContactHandler::SpeedArrow)
+    {
+        return {};
+    }
+    const auto rotation = GetWorldRot();
+    const auto direction = rotate(
+        {rotation[0], rotation[1], rotation[2], rotation[3]},
+        {1.0F, 0.0F, 0.0F});
+    return SpeedArrowContact(direction, description_.damage);
+}
+
+Proj::ContactResult Proj::ContactLusha(
+    GameObject* target, Vec3 linearVelocity) const noexcept
+{
+    if (target == nullptr ||
+        RouteContact(target->destroyed).handler !=
+            ContactHandler::Lusha)
+    {
+        return {};
+    }
+    return LushaContact(linearVelocity, description_.damage);
+}
+
 Proj::ContactResult Proj::ContactMaslo(
     GameObject* target, Vec3 carPosition,
     Vec3 carWorldRight, Vec3 oilPosition,
