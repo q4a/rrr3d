@@ -233,6 +233,37 @@ public:
         bool appliesDamage = false;
     };
 
+    // Source Proj::OnProgress switch. The selected method remains concrete;
+    // renderer queries and final Jolt actor writes are adapter boundaries.
+    enum class ProgressHandler : std::uint8_t
+    {
+        None,
+        Rocket,
+        Torpeda,
+        Laser,
+        Fire,
+        Maslo,
+        Mine,
+        MineRip,
+        MineProton,
+        Drobilka,
+        Spring,
+        FrostRay,
+        Impulse,
+        Thunder,
+        Resonanse,
+    };
+
+    struct ProgressRoute
+    {
+        ProgressHandler handler = ProgressHandler::None;
+        bool attached = false;
+        bool ray = false;
+        bool homing = false;
+        bool rocketHeight = false;
+        bool mineArming = false;
+    };
+
     struct DestroyResult
     {
         bool destroy = false;
@@ -322,6 +353,8 @@ public:
     static ContactRoute ContactRouteFor(
         std::uint32_t type, bool projectileDestroyed,
         bool targetDestroyed) noexcept;
+    static ProgressRoute ProgressRouteFor(
+        std::uint32_t type) noexcept;
     static TypeRules GetTypeRules(std::uint32_t type) noexcept;
     static DestroyResult OnDestroy(
         bool senderIsWeapon, bool parentIsWeapon,
@@ -366,6 +399,7 @@ public:
         bool hasTarget, float damage, float deltaTime,
         Vec3 contactPoint) noexcept;
     ContactRoute RouteContact(bool targetDestroyed) const noexcept;
+    ProgressRoute RouteProgress() const noexcept;
     void ProgressDrobilka(float deltaTime) noexcept;
 
     Proj();

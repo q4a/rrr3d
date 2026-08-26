@@ -1233,6 +1233,44 @@ int main()
         rocketProjectile.RouteContact(true).handler !=
             source::Proj::ContactHandler::None)
         return 130;
+    const auto rocketProgress = source::Proj::ProgressRouteFor(0U);
+    const auto torpedaProgress = source::Proj::ProgressRouteFor(2U);
+    const auto laserProgress = source::Proj::ProgressRouteFor(3U);
+    const auto oilProgress = source::Proj::ProgressRouteFor(10U);
+    const auto ripProgress = source::Proj::ProgressRouteFor(12U);
+    const auto craterProgress = source::Proj::ProgressRouteFor(20U);
+    const auto thunderProgress = source::Proj::ProgressRouteFor(22U);
+    const auto resonanceProgress = source::Proj::ProgressRouteFor(23U);
+    const auto protonProgress = source::Proj::ProgressRouteFor(24U);
+    if (rocketProgress.handler !=
+            source::Proj::ProgressHandler::Rocket ||
+        !rocketProgress.rocketHeight || rocketProgress.homing ||
+        torpedaProgress.handler !=
+            source::Proj::ProgressHandler::Torpeda ||
+        !torpedaProgress.homing || torpedaProgress.rocketHeight ||
+        laserProgress.handler !=
+            source::Proj::ProgressHandler::Laser ||
+        !laserProgress.attached || !laserProgress.ray ||
+        oilProgress.handler != source::Proj::ProgressHandler::Maslo ||
+        !oilProgress.mineArming ||
+        ripProgress.handler != source::Proj::ProgressHandler::MineRip ||
+        !ripProgress.mineArming ||
+        craterProgress.handler != source::Proj::ProgressHandler::None ||
+        craterProgress.mineArming ||
+        thunderProgress.handler !=
+            source::Proj::ProgressHandler::Thunder ||
+        !thunderProgress.rocketHeight ||
+        resonanceProgress.handler !=
+            source::Proj::ProgressHandler::Resonanse ||
+        !resonanceProgress.rocketHeight ||
+        protonProgress.handler !=
+            source::Proj::ProgressHandler::MineProton ||
+        !protonProgress.mineArming ||
+        source::Proj::ProgressRouteFor(16U).handler !=
+            source::Proj::ProgressHandler::None ||
+        rocketProjectile.RouteProgress().handler !=
+            source::Proj::ProgressHandler::Rocket)
+        return 131;
     const auto fullMedpack = source::Proj::BonusContact(
         4U, true, 0.0F, 80.0F);
     const auto partialMedpack = source::Proj::BonusContact(

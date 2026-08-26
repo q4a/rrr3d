@@ -107,6 +107,29 @@ void configureProjectileSourceObject(
     }
 }
 
+ProjectileDefinition nestedProjectileSourceDefinition(
+    const NestedProjectileDefinition& nested,
+    const ObjectDefinition& visual)
+{
+    // MineRipUpdate adds model2/model3 MapObj records. Those records own
+    // independent Proj::Desc values; copying the parent MineRip descriptor
+    // makes every child execute MineRipUpdate recursively. The importer has
+    // already flattened the nested record's gameplay fields, so rebuild the
+    // concrete source descriptor from that child record here.
+    ProjectileDefinition result;
+    result.type = nested.type;
+    result.visual = visual;
+    result.collision = nested.collision;
+    result.modelBounds = nested.collision;
+    result.modelBoundsValid = true;
+    result.deathEffect = nested.deathEffect;
+    result.speed = nested.speed;
+    result.minimumLife = nested.minimumLife;
+    result.maximumLife = nested.maximumLife;
+    result.damage = nested.damage;
+    return result;
+}
+
 void configureMineSourceObject(
     source::Logic& logic, MineRuntime& mine,
     const ProjectileDefinition& definition,
@@ -3912,6 +3935,8 @@ void OriginalRaceSession::updateGameplay(
         if (runtimeDefinition == nullptr)
             continue;
         const auto& projectileDefinition = *runtimeDefinition;
+        const auto sourceProgressRoute =
+            projectile.sourceObject->RouteProgress();
         projectile.ageSeconds += seconds;
         if (projectile.attached)
         {
@@ -3934,8 +3959,10 @@ void OriginalRaceSession::updateGameplay(
             localProjectile.rotation = projectileDefinition.rotation;
             Transform shotTransform = compose(
                 attachedWeaponTransform, localProjectile);
-            if (projectileDefinition.type == 14U ||
-                projectileDefinition.type == 15U)
+            if (sourceProgressRoute.handler ==
+                    source::Proj::ProgressHandler::Fire ||
+                sourceProgressRoute.handler ==
+                    source::Proj::ProgressHandler::Drobilka)
             {
                 // FireUpdate/DrobilkaUpdate relocate through _desc.pos but
                 // then use the current weapon world rotation verbatim.
@@ -3953,9 +3980,11 @@ void OriginalRaceSession::updateGameplay(
             projectile.sourceObject->SyncSourceTransform(
                 sourceVec(projectile.position),
                 sourceQuat(projectile.rotation));
-            if (projectileDefinition.type == 15U)
+            if (sourceProgressRoute.handler ==
+                source::Proj::ProgressHandler::Drobilka)
                 projectile.sourceObject->ProgressDrobilka(seconds);
-            if (projectileDefinition.type == 14U)
+            if (sourceProgressRoute.handler ==
+                source::Proj::ProgressHandler::Fire)
             {
                 // Proj::FireUpdate mirrors the current mounted weapon/car
                 // actor velocity, allowing world-coordinate emitters to
@@ -3968,9 +3997,7 @@ void OriginalRaceSession::updateGameplay(
                 projectile.maximumDistance > 0.0F
                     ? projectile.maximumDistance
                     : 3.0F;
-            const bool sourceRay =
-                projectileDefinition.type == 3U ||
-                projectileDefinition.type == 18U;
+            const bool sourceRay = sourceProgressRoute.ray;
             const auto sourceContactRoute =
                 projectile.sourceObject->RouteContact(false);
             const bool sourceContact =
@@ -3992,7 +4019,8 @@ void OriginalRaceSession::updateGameplay(
                 ? projectile.sourceObject->ProgressLaser(
                       maximumDistance, rayHit.hit, rayHit.distance,
                       seconds, projectileDefinition.damage,
-                      projectileDefinition.type == 3U,
+                      sourceProgressRoute.handler ==
+                          source::Proj::ProgressHandler::Laser,
                       projectile.ageSeconds,
                       projectile.maximumLifeSeconds,
                       sourceVec(projectile.direction))
@@ -4031,7 +4059,8 @@ void OriginalRaceSession::updateGameplay(
                     std::max(laserUpdate.damage, 0.0F),
                     source::Proj::DamageTypeFor(
                         projectileDefinition.type));
-                if (projectileDefinition.type == 18U)
+                if (sourceProgressRoute.handler ==
+                    source::Proj::ProgressHandler::FrostRay)
                 {
                     const float duration =
                         projectileDefinition.tertiaryVisual
@@ -4182,7 +4211,8 @@ void OriginalRaceSession::updateGameplay(
                     RacerRuntime::invalidWeapon);
                 projectile.active = false;
             }
-            if (projectileDefinition.type == 15U &&
+            if (sourceProgressRoute.handler ==
+                    source::Proj::ProgressHandler::Drobilka &&
                 projectile.owner < racers_.size() &&
                 projectile.mountSlot <
                     racers_[projectile.owner]
@@ -4197,8 +4227,7 @@ void OriginalRaceSession::updateGameplay(
             }
             continue;
         }
-        if ((projectileDefinition.type == 2U ||
-             projectileDefinition.type == 21U) &&
+        if (sourceProgressRoute.homing &&
             projectile.target < vehicles.size())
         {
             const bool hasTarget =
@@ -4225,7 +4254,8 @@ void OriginalRaceSession::updateGameplay(
         projectile.lifeSeconds -= seconds;
         const bool detachedGravity =
             projectile.detachedFromWeapon &&
-            projectileDefinition.type == 15U;
+            sourceProgressRoute.handler ==
+                source::Proj::ProgressHandler::Drobilka;
         if (projectile.ballistic || detachedGravity)
             projectile.velocity.z -= 20.0F * seconds;
         Vec3 movement =
@@ -4239,9 +4269,7 @@ void OriginalRaceSession::updateGameplay(
             projectile.direction = normalized3(movement);
         projectile.distance += step;
         const bool sourceRocketUpdate =
-            projectileDefinition.type == 0U ||
-            projectileDefinition.type == 22U ||
-            projectileDefinition.type == 23U;
+            sourceProgressRoute.rocketHeight;
         if (sourceRocketUpdate)
         {
             // Proj::RocketUpdate casts from pos + Z*4 against TrackPlane and
@@ -4255,7 +4283,8 @@ void OriginalRaceSession::updateGameplay(
                 trackHit.hit);
             projectile.position.z = update.positionZ;
         }
-        if (projectileDefinition.type == 23U &&
+        if (sourceProgressRoute.handler ==
+                source::Proj::ProgressHandler::Resonanse &&
             std::abs(projectileDefinition.angularSpeed) > 0.0001F)
         {
             projectile.rotation = runtimeQuat(source::Proj::ResonanseUpdate(
@@ -4265,7 +4294,8 @@ void OriginalRaceSession::updateGameplay(
         projectile.sourceObject->SyncSourceTransform(
             sourceVec(projectile.position),
             sourceQuat(projectile.rotation));
-        if (projectileDefinition.type == 22U)
+        if (sourceProgressRoute.handler ==
+            source::Proj::ProgressHandler::Thunder)
         {
             if (projectile.sourceObject->ProgressThunder(seconds) <= 0.0F)
             {
@@ -4328,6 +4358,8 @@ void OriginalRaceSession::updateGameplay(
                     vehicles[projectile.damageOwner],
                     ownerVehicle.physics));
         }
+        const auto projectileContactRoute =
+            projectile.sourceObject->RouteContact(false);
 
         for (std::size_t target = 0;
              target < vehicles.size() && target < racers_.size();
@@ -4337,7 +4369,8 @@ void OriginalRaceSession::updateGameplay(
                  !projectile.ownerCollisionArmed) ||
                 racers_[target].IsDestroyed())
                 continue;
-            if (projectileDefinition.type == 21U &&
+            if (sourceProgressRoute.handler ==
+                    source::Proj::ProgressHandler::Impulse &&
                 projectile.target < racers_.size() &&
                 target != projectile.target)
                 continue;
@@ -4348,20 +4381,17 @@ void OriginalRaceSession::updateGameplay(
                 continue;
             const Vec3 contactPoint =
                 closestPoint(targetBox, projectileBox.center);
-            const auto sourceContactRoute =
-                projectile.sourceObject->RouteContact(
-                    racers_[target].IsDestroyed());
-            if (!sourceContactRoute.appliesDamage)
+            if (!projectileContactRoute.appliesDamage)
                 continue;
             const bool sonarContact =
-                sourceContactRoute.handler ==
+                projectileContactRoute.handler ==
                 source::Proj::ContactHandler::Sonar;
             const bool targetedImpulse =
-                sourceContactRoute.handler ==
+                projectileContactRoute.handler ==
                     source::Proj::ContactHandler::Impulse &&
                 projectile.target < racers_.size();
             const auto impulseContact =
-                sourceContactRoute.handler ==
+                projectileContactRoute.handler ==
                         source::Proj::ContactHandler::Impulse
                     ? projectile.sourceObject->ContactImpulse(
                           true, targetedImpulse,
@@ -4369,7 +4399,7 @@ void OriginalRaceSession::updateGameplay(
                               target == projectile.target,
                           projectileDefinition.damage)
                     : source::Proj::ImpulseContactResult{};
-            if (sourceContactRoute.handler ==
+            if (projectileContactRoute.handler ==
                     source::Proj::ContactHandler::Impulse &&
                 !impulseContact.applyDamage)
             {
@@ -4382,7 +4412,7 @@ void OriginalRaceSession::updateGameplay(
                       projectileDefinition.damage, seconds)
                 : source::Proj::ContinuousContactResult{};
             const float sourceDamage =
-                sourceContactRoute.handler ==
+                projectileContactRoute.handler ==
                         source::Proj::ContactHandler::Impulse
                     ? impulseContact.damage
                     : (sonarContact
@@ -4391,7 +4421,7 @@ void OriginalRaceSession::updateGameplay(
             applyRacerDamage(
                 target, projectile.damageOwner, contactPoint,
                 std::max(sourceDamage, 0.0F),
-                sourceContactRoute.damageType);
+                projectileContactRoute.damageType);
             if (sonarContact)
             {
                 const float targetMass =
@@ -4434,7 +4464,7 @@ void OriginalRaceSession::updateGameplay(
                          vehicles[target].body.rotation,
                          localAngularDelta)});
             }
-            if (sourceContactRoute.rocketResponse)
+            if (projectileContactRoute.rocketResponse)
             {
                 const auto torque = source::Proj::RocketContactTorque(
                     sourceVec(contactPoint),
@@ -4453,7 +4483,7 @@ void OriginalRaceSession::updateGameplay(
             {
                 continue;
             }
-            if (sourceContactRoute.handler ==
+            if (projectileContactRoute.handler ==
                 source::Proj::ContactHandler::Impulse)
             {
                 if (impulseContact.destroy)
@@ -4503,7 +4533,8 @@ void OriginalRaceSession::updateGameplay(
         liveProjectileTransform.position = projectile.position;
         liveProjectileTransform.rotation = projectile.rotation;
         if (projectile.active &&
-            projectileDefinition.type == 16U)
+            projectileContactRoute.handler ==
+                source::Proj::ContactHandler::Sonar)
         {
             damageDecorationWithBox(
                 liveProjectileTransform,
@@ -4512,7 +4543,8 @@ void OriginalRaceSession::updateGameplay(
                 projectile.damageOwner);
         }
         else if (projectile.active &&
-                 !(projectileDefinition.type == 21U &&
+                 !(sourceProgressRoute.handler ==
+                       source::Proj::ProgressHandler::Impulse &&
                    projectile.target < racers_.size()) &&
                  damageDecorationWithBox(
                      liveProjectileTransform,
@@ -5289,9 +5321,10 @@ void OriginalRaceSession::updateGameplay(
             source::Proj::Quat{
                 mine.rotation.x, mine.rotation.y,
                 mine.rotation.z, mine.rotation.w});
+        const auto mineProgressRoute =
+            mine.sourceObject->RouteProgress();
         mine.seconds += seconds;
-        if (mine.type == 10U || mine.type == 11U ||
-            mine.type == 12U || mine.type == 24U)
+        if (mineProgressRoute.mineArming)
         {
             const auto arming =
                 mine.sourceObject->ProgressMine(seconds);
@@ -5326,7 +5359,8 @@ void OriginalRaceSession::updateGameplay(
             deactivateMine(mine);
             continue;
         }
-        if (mine.type == 12U)
+        if (mineProgressRoute.handler ==
+            source::Proj::ProgressHandler::MineRip)
         {
             const auto* runtimeDefinition = runtimeProjectileDefinition(
                 race_, mine);
@@ -5361,8 +5395,11 @@ void OriginalRaceSession::updateGameplay(
                             : -1.0F;
                     core.velocity = {};
                     core.collision = source.collision;
+                    const auto childDefinition =
+                        nestedProjectileSourceDefinition(
+                            source, projectile.secondaryVisual);
                     configureMineSourceObject(
-                        logic_, core, projectile);
+                        logic_, core, childDefinition);
                     spawnedMines.push_back(std::move(core));
                 }
                 if (projectile.tertiaryProjectile.valid)
@@ -5392,8 +5429,11 @@ void OriginalRaceSession::updateGameplay(
                         fragment.collision = source.collision;
                         fragment.velocity =
                             sourceMineRipFragmentVelocity();
+                        const auto childDefinition =
+                            nestedProjectileSourceDefinition(
+                                source, projectile.tertiaryVisual);
                         configureMineSourceObject(
-                            logic_, fragment, projectile);
+                            logic_, fragment, childDefinition);
                         spawnedMines.push_back(
                             std::move(fragment));
                     }

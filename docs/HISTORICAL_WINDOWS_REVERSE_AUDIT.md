@@ -3355,6 +3355,33 @@ Crater и MineProton оба получают исходный mine-arming timer,
 MineProton использует обычный незаблокированный `MineContact`. Smoke-test
 проверяет enum routes, death guards, damage attribution и оба arming state.
 
+### P2.139 — восстановлен центральный `Proj::OnProgress` dispatch — выполнено
+
+После переноса отдельных формул выбор покадрового поведения всё ещё находился
+в `OriginalRaceSession`: числовые проверки отдельно решали, когда запускать
+Torpeda/Impulse homing, Laser/Frost ray, Fire/Drobilka mount update,
+Rocket/Thunder/Resonanse track-height и Mine/MineRip/MineProton arming. Это
+дублировало исходный `Proj::OnProgress` switch и особенно легко смешивало
+типы, которые используют общий prepare/contact, но не общий progress — так,
+`Crater` намеренно отсутствует в исходном update-switch.
+
+Concrete `Proj` теперь возвращает единый `ProgressRoute` с точным handler и
+признаками attached, ray, homing, rocket-height и mine-arming. Оба runtime
+контейнера — летящие/attached projectiles и stationary mines — используют
+этот маршрут для вызова уже перенесённых stateful методов. Из игровых циклов
+удалены все числовые проверки типа в progress-части; числовые значения
+остались лишь в definition/import и regression assertions. Тест фиксирует
+полный важный набор, включая отсутствие progress у Sonar и Crater и различие
+Torpeda homing от Rocket height correction.
+
+Новый source-dispatch также проявил скрытую ошибку фабрики `MineRip`: runtime
+ядра/осколка получал дочерний `type`, но concrete `Proj` создавался из
+родительского descriptor и потому снова исполнял `MineRipUpdate`. Теперь из
+импортированного `model2/model3` record строится собственный concrete
+descriptor с его type, visual, collision, lifetime, damage и DeathEffect —
+точно как отдельный `MapObj` в Windows. Это прекращает рекурсивное дробление и
+возвращает исходный lifecycle дочерних мин.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

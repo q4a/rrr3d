@@ -976,6 +976,11 @@ Proj::ContactRoute Proj::RouteContact(
         description_.type, destroyed, targetDestroyed);
 }
 
+Proj::ProgressRoute Proj::RouteProgress() const noexcept
+{
+    return ProgressRouteFor(description_.type);
+}
+
 float Proj::PrepareMaximumLife(
     float speed, float maximumDistance,
     float sampledMinimumLife) noexcept
@@ -1180,6 +1185,76 @@ Proj::ContactRoute Proj::ContactRouteFor(
     case ProjectileType::Laser:
     case ProjectileType::Spring:
     case ProjectileType::FrostRay:
+    default:
+        break;
+    }
+    return result;
+}
+
+Proj::ProgressRoute Proj::ProgressRouteFor(
+    std::uint32_t type) noexcept
+{
+    ProgressRoute result;
+    switch (static_cast<ProjectileType>(type))
+    {
+    case ProjectileType::Rocket:
+        result.handler = ProgressHandler::Rocket;
+        result.rocketHeight = true;
+        break;
+    case ProjectileType::Torpeda:
+        result.handler = ProgressHandler::Torpeda;
+        result.homing = true;
+        break;
+    case ProjectileType::Laser:
+        result.handler = ProgressHandler::Laser;
+        result.attached = true;
+        result.ray = true;
+        break;
+    case ProjectileType::Fire:
+        result.handler = ProgressHandler::Fire;
+        result.attached = true;
+        break;
+    case ProjectileType::Maslo:
+        result.handler = ProgressHandler::Maslo;
+        result.mineArming = true;
+        break;
+    case ProjectileType::Mine:
+        result.handler = ProgressHandler::Mine;
+        result.mineArming = true;
+        break;
+    case ProjectileType::MineRip:
+        result.handler = ProgressHandler::MineRip;
+        result.mineArming = true;
+        break;
+    case ProjectileType::MineProton:
+        result.handler = ProgressHandler::MineProton;
+        result.mineArming = true;
+        break;
+    case ProjectileType::Drobilka:
+        result.handler = ProgressHandler::Drobilka;
+        result.attached = true;
+        break;
+    case ProjectileType::Spring:
+        result.handler = ProgressHandler::Spring;
+        result.attached = true;
+        break;
+    case ProjectileType::FrostRay:
+        result.handler = ProgressHandler::FrostRay;
+        result.attached = true;
+        result.ray = true;
+        break;
+    case ProjectileType::Impulse:
+        result.handler = ProgressHandler::Impulse;
+        result.homing = true;
+        break;
+    case ProjectileType::Thunder:
+        result.handler = ProgressHandler::Thunder;
+        result.rocketHeight = true;
+        break;
+    case ProjectileType::Resonanse:
+        result.handler = ProgressHandler::Resonanse;
+        result.rocketHeight = true;
+        break;
     default:
         break;
     }
