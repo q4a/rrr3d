@@ -3676,6 +3676,26 @@ concrete `PrepareSource`/wheel gate/`PrepareSpring`, затем charge commit,
 network mine ids, attached Hyper, Spring impulse/lock и отсутствие расхода
 заряда у airborne Spring.
 
+### P2.156 — concrete live projectile descriptor ownership — выполнено
+
+Даже после concrete preparation live projectile loop заново находил
+`ProjectileDefinition` через session-owned `weaponDescription` snapshot или
+глобальный `race.weapons` fallback. Из него повторно читались transform,
+collision, ray offset/distance, damage, speed, relative-speed, angular speed,
+death visuals и death-projectile index. При любом различии snapshot и
+скопированного Windows `_desc` backend исполнял бы уже не состояние реального
+`Proj`.
+
+Live update/contact и `spawnProjectileImpact` теперь получают descriptor
+исключительно из `projectile.sourceObject->GetDesc()`. На concrete ownership
+переведены attached transforms, Fire/Drobilka boxes, Laser/Frost rays,
+Torpeda progression, Rocket clearance, Resonanse/Drobilka rotation, обычный и
+decoration damage, death effect и crater spawn selection. Перегрузка
+`runtimeProjectileDefinition(ProjectileRuntime)` удалена; snapshot остаётся
+только стабильным backend bookkeeping и для автономных `MineRuntime`
+fragment records, у которых отдельный source descriptor ещё переносится
+следующим блоком.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

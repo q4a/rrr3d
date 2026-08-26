@@ -16,24 +16,6 @@ namespace
 {
 
 const ProjectileDefinition* runtimeProjectileDefinition(
-    const Race& race, const ProjectileRuntime& projectile) noexcept
-{
-    if (projectile.weaponDescription != nullptr &&
-        projectile.descriptionProjectile <
-            projectile.weaponDescription->projectiles.size())
-    {
-        return &projectile.weaponDescription
-                    ->projectiles[projectile.descriptionProjectile];
-    }
-    if (projectile.weapon >= race.weapons.size() ||
-        projectile.projectile >=
-            race.weapons[projectile.weapon].projectiles.size())
-        return nullptr;
-    return &race.weapons[projectile.weapon]
-                .projectiles[projectile.projectile];
-}
-
-const ProjectileDefinition* runtimeProjectileDefinition(
     const Race& race, const MineRuntime& mine) noexcept
 {
     if (mine.weaponDescription != nullptr &&
@@ -3827,11 +3809,11 @@ void OriginalRaceSession::updateGameplay(
     auto spawnProjectileImpact =
         [&](ProjectileRuntime& projectile, const Vec3& position,
             std::size_t targetRacer) {
-            const auto* definition = runtimeProjectileDefinition(
-                race_, projectile);
-            if (definition == nullptr ||
+            if (projectile.sourceObject == nullptr ||
                 projectile.weapon >= race_.weapons.size())
                 return;
+            const auto* definition =
+                &projectile.sourceObject->GetDesc();
             const bool hasSourceDeathEffect = hasDeathEffect(*definition);
             source::GameObject* targetObject = nullptr;
             if (targetRacer < racerMapObjects_.size() &&
@@ -3958,11 +3940,8 @@ void OriginalRaceSession::updateGameplay(
             projectile.active = false;
             continue;
         }
-        const auto* runtimeDefinition = runtimeProjectileDefinition(
-            race_, projectile);
-        if (runtimeDefinition == nullptr)
-            continue;
-        const auto& projectileDefinition = *runtimeDefinition;
+        const auto& projectileDefinition =
+            projectile.sourceObject->GetDesc();
         const auto sourceProgressRoute =
             projectile.sourceObject->RouteProgress();
         projectile.ageSeconds += seconds;
@@ -4022,8 +4001,8 @@ void OriginalRaceSession::updateGameplay(
                 projectile.speed = length3(projectile.velocity);
             }
             const float maximumDistance =
-                projectile.maximumDistance > 0.0F
-                    ? projectile.maximumDistance
+                projectileDefinition.maximumDistance > 0.0F
+                    ? projectileDefinition.maximumDistance
                     : 3.0F;
             const bool sourceRay = sourceProgressRoute.ray;
             const auto sourceContactRoute =
@@ -4286,7 +4265,7 @@ void OriginalRaceSession::updateGameplay(
                 sourceVec(vehicles[projectile.target].body.position),
                 projectileDefinition.speed,
                 projectileDefinition.relativeSpeed,
-                projectile.angularSpeed);
+                projectileDefinition.angularSpeed);
             if (update.setLinearVelocity)
             {
                 projectile.rotation = runtimeQuat(update.rotation);
@@ -4462,7 +4441,7 @@ void OriginalRaceSession::updateGameplay(
                     ? impulseContact.damage
                     : (sonarContact
                            ? sonarResult.damage
-                           : projectile.damage);
+                           : projectileDefinition.damage);
             applyProjectileDamage(
                 *projectile.sourceObject, target, contactPoint,
                 std::max(sourceDamage, 0.0F),
@@ -4614,7 +4593,7 @@ void OriginalRaceSession::updateGameplay(
                  damageDecorationWithBox(
                      liveProjectileTransform,
                      projectileDefinition.collision,
-                     projectile.damage,
+                     projectileDefinition.damage,
                      projectile.damageOwner))
         {
             spawnProjectileImpact(
