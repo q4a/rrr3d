@@ -292,6 +292,16 @@ void Proj::SyncSourceTransform(
     SetWorldRot({rotation.x, rotation.y, rotation.z, rotation.w});
 }
 
+void Proj::SyncSourceWeaponTransform(
+    const Vec3& position, const Quat& rotation) noexcept
+{
+    if (weapon_ == nullptr || weapon_ == this)
+        return;
+    weapon_->SetWorldPos({position.x, position.y, position.z});
+    weapon_->SetWorldRot(
+        {rotation.x, rotation.y, rotation.z, rotation.w});
+}
+
 void Proj::LinkToSourceWeapon(
     const Vec3& worldPosition, const Quat& worldRotation) noexcept
 {
@@ -853,6 +863,76 @@ void Proj::RetargetImpulse(GameObject* target) noexcept
 {
     SetSourceTarget(target);
     sourceTimer_ = 0.0F;
+}
+
+Proj::LaserUpdateResult Proj::ProgressLaser(
+    float maximumDistance, bool hit, float hitDistance,
+    float deltaTime, float damage, bool distort,
+    float timeLife, float maximumTimeLife,
+    Vec3 worldDirection) noexcept
+{
+    auto result = LaserUpdate(
+        maximumDistance, hit, hitDistance, deltaTime, damage,
+        distort, timeLife, maximumTimeLife);
+    if (sourceModel2_ != nullptr)
+    {
+        if (hit)
+        {
+            const auto position = GetWorldPos();
+            sourceModel2_->GetGameObj().SetWorldPos(
+                {position[0] + worldDirection.x * result.distance,
+                 position[1] + worldDirection.y * result.distance,
+                 position[2] + worldDirection.z * result.distance});
+        }
+        else
+        {
+            sourceModel2_->GetGameObj().SetPos(
+                {result.distance, 0.0F, 0.0F});
+        }
+    }
+    return result;
+}
+
+Proj::ContinuousContactResult Proj::ContactDrobilka(
+    bool hasTarget, float damage, float deltaTime,
+    Vec3 contactPoint) noexcept
+{
+    auto result = DrobilkaContact(hasTarget, damage, deltaTime);
+    if (!hasTarget)
+        return result;
+    sourceTimer_ = 0.5F;
+    InitSourceModel(false);
+    if (sourceModel_ != nullptr)
+    {
+        sourceModel_->GetGameObj().SetWorldPos(
+            {contactPoint.x, contactPoint.y, contactPoint.z});
+    }
+    return result;
+}
+
+void Proj::ProgressDrobilka(float deltaTime) noexcept
+{
+    if (weapon_ != nullptr)
+    {
+        const float halfAngle = description_.angularSpeed * deltaTime * 0.5F;
+        const Quat delta{
+            std::sin(halfAngle), 0.0F, 0.0F,
+            std::cos(halfAngle)};
+        const auto rotation = weapon_->GetRot();
+        const Quat local{
+            rotation[0], rotation[1], rotation[2], rotation[3]};
+        const auto next = normalized(multiply(delta, local));
+        weapon_->SetRot({next.x, next.y, next.z, next.w});
+    }
+    if (sourceModel_ == nullptr ||
+        sourceModel_->GetGameObj().GetLiveState() == LiveState::Death)
+        return;
+    sourceTimer_ -= deltaTime;
+    if (sourceTimer_ <= 0.0F)
+    {
+        sourceModel_->GetGameObj().Death();
+        FreeSourceModel(false, false);
+    }
 }
 
 float Proj::PrepareMaximumLife(

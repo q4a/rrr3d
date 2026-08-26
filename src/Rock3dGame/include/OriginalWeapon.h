@@ -278,6 +278,15 @@ public:
         bool hasContactActor, bool hasTarget,
         bool contactIsTarget, float damage) noexcept;
     void RetargetImpulse(GameObject* target) noexcept;
+    LaserUpdateResult ProgressLaser(
+        float maximumDistance, bool hit, float hitDistance,
+        float deltaTime, float damage, bool distort,
+        float timeLife, float maximumTimeLife,
+        Vec3 worldDirection) noexcept;
+    ContinuousContactResult ContactDrobilka(
+        bool hasTarget, float damage, float deltaTime,
+        Vec3 contactPoint) noexcept;
+    void ProgressDrobilka(float deltaTime) noexcept;
 
     Proj();
     ~Proj() override;
@@ -291,6 +300,8 @@ public:
     void SetShot(const ShotDesc& value) noexcept;
     ShotDesc GetShot() const noexcept;
     void SyncSourceTransform(
+        const Vec3& position, const Quat& rotation) noexcept;
+    void SyncSourceWeaponTransform(
         const Vec3& position, const Quat& rotation) noexcept;
     // Backend adapters expose the five scratch members used by the original
     // type-specific Proj methods. Their meaning depends on description.type:

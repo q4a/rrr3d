@@ -143,6 +143,21 @@ int main()
         !nearVector(
             linkedProjectile.GetWorldPos(), {14.0F, 15.0F, 16.0F}))
         return 109;
+    const auto concreteLaser = linkedProjectile.ProgressLaser(
+        100.0F, true, 40.0F, 0.1F, 9.0F, true,
+        1.0F, 2.5F, {1.0F, 0.0F, 0.0F});
+    if (concreteLaser.distance != 40.0F ||
+        linkedProjectile.GetSourceModel2() == nullptr ||
+        !nearVector(
+            linkedProjectile.GetSourceModel2()->GetGameObj().GetWorldPos(),
+            {54.0F, 15.0F, 16.0F}))
+        return 120;
+    linkedProjectile.ProgressLaser(
+        100.0F, false, 0.0F, 0.1F, 9.0F, true,
+        1.0F, 2.5F, {1.0F, 0.0F, 0.0F});
+    if (linkedProjectile.GetSourceModel2()->GetGameObj().GetPos() !=
+        source::GameObject::Vector3{100.0F, 0.0F, 0.0F})
+        return 121;
     linkedProjectile.SetSourceTimer(0.4F);
     linkedProjectile.SetSourceVector({7.0F, 8.0F, 9.0F});
     linkedProjectile.SetSourceTick(2U);
@@ -201,18 +216,34 @@ int main()
 
     auto drobilkaDescription = sourceDescription;
     drobilkaDescription.type = 15U;
+    drobilkaDescription.angularSpeed = 3.14159265358979323846F;
     drobilkaDescription.secondaryVisual = {};
+    source::Weapon drobilkaWeapon;
     source::Proj drobilkaProjectile;
     source::Proj::ShotContext drobilkaContext;
     drobilkaContext.maximumLife = 4.0F;
     drobilkaProjectile.PrepareSource(
-        drobilkaDescription, nullptr, drobilkaContext);
+        drobilkaDescription, &drobilkaWeapon, drobilkaContext);
     if (drobilkaProjectile.GetSourceModel() != nullptr ||
         !drobilkaProjectile.GetIgnoreContactProj() ||
         !drobilkaProjectile.InitSourceModel() ||
         drobilkaProjectile.GetSourceModel() == nullptr ||
         drobilkaProjectile.GetIncludeList().GetLiveCount() != 1U)
         return 101;
+    const auto concreteDrobilka = drobilkaProjectile.ContactDrobilka(
+        true, 10.0F, 0.1F, {7.0F, 8.0F, 9.0F});
+    drobilkaProjectile.ProgressDrobilka(0.25F);
+    const auto spunWeapon = drobilkaWeapon.GetRot();
+    if (concreteDrobilka.damage != 1.0F ||
+        drobilkaProjectile.GetSourceModel() == nullptr ||
+        drobilkaProjectile.GetSourceModel()->GetGameObj().GetWorldPos() !=
+            source::GameObject::Vector3{7.0F, 8.0F, 9.0F} ||
+        std::abs(spunWeapon[0] - 0.38268343F) > 0.001F ||
+        std::abs(drobilkaProjectile.GetSourceTimer() - 0.25F) > 0.001F)
+        return 122;
+    drobilkaProjectile.ProgressDrobilka(0.3F);
+    if (drobilkaProjectile.GetSourceModel() != nullptr)
+        return 123;
 
     auto torpedaDescription = sourceDescription;
     torpedaDescription.type = 2U;

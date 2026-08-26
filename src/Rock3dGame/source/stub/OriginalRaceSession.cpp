@@ -3942,24 +3942,28 @@ void OriginalRaceSession::updateGameplay(
                 continue;
             }
             projectile.lifeSeconds -= seconds;
-            Transform shotTransform;
-            if (projectile.directWeapon)
+            const Transform attachedWeaponTransform =
+                projectile.directWeapon
+                    ? directWeaponWorldTransform(
+                          projectile.owner, projectile.weapon)
+                    : weaponWorldTransform(
+                          projectile.owner, projectile.weapon,
+                          projectile.mountSlot);
+            Transform localProjectile;
+            localProjectile.position = projectileDefinition.position;
+            localProjectile.rotation = projectileDefinition.rotation;
+            Transform shotTransform = compose(
+                attachedWeaponTransform, localProjectile);
+            if (projectileDefinition.type == 14U ||
+                projectileDefinition.type == 15U)
             {
-                Transform localProjectile;
-                localProjectile.position =
-                    projectileDefinition.position;
-                localProjectile.rotation =
-                    projectileDefinition.rotation;
-                shotTransform = compose(
-                    directWeaponWorldTransform(
-                        projectile.owner, projectile.weapon),
-                    localProjectile);
-            }
-            else
-            {
-                shotTransform = projectileWorldTransform(
-                    projectile.owner, projectile.weapon,
-                    projectile.mountSlot, projectileDefinition);
+                // FireUpdate/DrobilkaUpdate relocate through _desc.pos but
+                // then use the current weapon world rotation verbatim.
+                shotTransform.rotation =
+                    attachedWeaponTransform.rotation;
+                projectile.sourceObject->SyncSourceWeaponTransform(
+                    sourceVec(attachedWeaponTransform.position),
+                    sourceQuat(attachedWeaponTransform.rotation));
             }
             projectile.position = shotTransform.position;
             projectile.rotation = shotTransform.rotation;
@@ -3969,19 +3973,8 @@ void OriginalRaceSession::updateGameplay(
             projectile.sourceObject->SyncSourceTransform(
                 sourceVec(projectile.position),
                 sourceQuat(projectile.rotation));
-            if (projectileDefinition.type == 15U &&
-                projectile.sourceObject->GetSourceModel() != nullptr)
-            {
-                projectile.sourceObject->SetSourceTimer(
-                    projectile.sourceObject->GetSourceTimer() - seconds);
-                if (projectile.sourceObject->GetSourceTimer() <= 0.0F)
-                {
-                    projectile.sourceObject->GetSourceModel()
-                        ->GetGameObj().Death();
-                    projectile.sourceObject->FreeSourceModel(
-                        false, false);
-                }
-            }
+            if (projectileDefinition.type == 15U)
+                projectile.sourceObject->ProgressDrobilka(seconds);
             if (projectileDefinition.type == 14U)
             {
                 // Proj::FireUpdate mirrors the current mounted weapon/car
@@ -4012,12 +4005,13 @@ void OriginalRaceSession::updateGameplay(
                           projectile.direction, maximumDistance)
                     : WorldRayHit{};
             const auto laserUpdate = sourceRay
-                ? source::Proj::LaserUpdate(
+                ? projectile.sourceObject->ProgressLaser(
                       maximumDistance, rayHit.hit, rayHit.distance,
                       seconds, projectileDefinition.damage,
                       projectileDefinition.type == 3U,
                       projectile.ageSeconds,
-                      projectile.maximumLifeSeconds)
+                      projectile.maximumLifeSeconds,
+                      sourceVec(projectile.direction))
                 : source::Proj::LaserUpdateResult{};
             projectile.impactDistance =
                 sourceRay ? laserUpdate.distance : 0.0F;
@@ -4087,15 +4081,9 @@ void OriginalRaceSession::updateGameplay(
                     [&](const Vec3& contactPoint) {
                         if (projectileDefinition.type != 15U)
                             return;
-                        projectile.sourceObject->InitSourceModel(false);
-                        if (auto* sourceModel =
-                                projectile.sourceObject->GetSourceModel())
-                        {
-                            sourceModel->GetGameObj().SetWorldPos(
-                                {contactPoint.x, contactPoint.y,
-                                 contactPoint.z});
-                        }
-                        projectile.sourceObject->SetSourceTimer(0.5F);
+                        projectile.sourceObject->ContactDrobilka(
+                            true, projectileDefinition.damage,
+                            seconds, sourceVec(contactPoint));
                         auto effect = std::find_if(
                             effects_.begin(), effects_.end(),
                             [&](const RaceEffect& value) {

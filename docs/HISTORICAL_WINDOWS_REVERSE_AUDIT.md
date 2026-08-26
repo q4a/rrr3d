@@ -3286,6 +3286,22 @@ scale и сбрасывают homing delay при смене цели. Race-sess
 результаты ray/contact queries и применяет возвращённые velocity/transform к
 Jolt runtime; прямые `Get/SetSource*` пары из этих игровых переходов удалены.
 
+### P2.135 — Fire/Drobilka/Laser live visual transforms — выполнено
+
+Исходные `FireUpdate` и `DrobilkaUpdate` используют `_desc.pos`, но после
+первого кадра назначают projectile именно world rotation оружия. Session
+вместо этого каждый кадр повторно умножала serialized projectile rotation,
+изменяя направление контактного объёма и огня. Кроме того, impact model Laser
+и временная contact model Drobilka управлялись внешним helper-кодом.
+
+Attached runtime теперь отдельно вычисляет weapon transform: position
+получается через serialized offset, а Fire/Drobilka rotation берётся напрямую
+из оружия, как в Windows. Живой source `Weapon` синхронизируется с mount.
+Concrete `Proj` перемещает Laser model2 в hit/local endpoint, создаёт и
+удаляет Drobilka contact model по исходному 0.5-секундному таймеру и вращает
+source weapon через `_desc.angleSpeed`; session оставляет за собой только
+bgfx/Jolt presentation state.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
