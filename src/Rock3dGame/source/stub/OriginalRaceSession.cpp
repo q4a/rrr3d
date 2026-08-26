@@ -1204,6 +1204,9 @@ void OriginalRaceSession::reset()
     // AIPlayer::~AIPlayer writes the source-owned cheat flag back to its
     // Player. Release these owners before replacing the Player vector.
     aiPlayers_.clear();
+    // Car MapObjs bind the live Player::gameCar. Release the map side while
+    // Player storage is still valid, then rebuild both collections.
+    map_.Clear();
     racers_.clear();
     racers_.resize(race_.racers.size());
     racerMapObjects_.assign(race_.racers.size(), nullptr);
@@ -1216,7 +1219,6 @@ void OriginalRaceSession::reset()
     aiAttackTargetsScratch_.assign(race_.racers.size(), {});
     previousPositions_.assign(race_.racers.size(), {});
     racePlaceModel_.Reset();
-    map_.Clear();
     decorationActive_.assign(race_.decorationInstances.size(), true);
     decorationLife_.clear();
     decorationLife_.reserve(race_.decorationInstances.size());
@@ -3181,6 +3183,7 @@ void OriginalRaceSession::createRacerMapObject(std::size_t racer)
     auto& mapObject = map_.AddMapObj(
         source::MapObjCategory::Car,
         source::GameObjType::RockCar, vehicle->record, racer);
+    mapObject.BindGameObj(racers_[racer].gameCar);
     mapObject.SetPlayer(&racers_[racer]);
     mapObject.GetGameObj().ResetGameObject(vehicle->maximumLife);
     racerMapObjects_[racer] = &mapObject;
@@ -3233,6 +3236,45 @@ void OriginalRaceSession::destroyRacer(
             effect.transform.rotation = {};
         attachSourceLifeEffect(effect, source.visual.soundPaths, racer);
         effects_.push_back(std::move(effect));
+    }
+}
+
+void OriginalRaceSession::synchronizeRacerGameCars(
+    const std::vector<r3d::physics::VehicleState>& vehicles)
+{
+    for (std::size_t racer = 0U;
+         racer < racers_.size() && racer < vehicles.size(); ++racer)
+    {
+        auto& runtime = racers_[racer];
+        if (!runtime.HasCar() || racer >= racerMapObjects_.size() ||
+            racerMapObjects_[racer] == nullptr)
+            continue;
+        const auto& vehicle = vehicles[racer];
+        runtime.gameCar.SynchronizeSpeed(vehicle.speed);
+        const auto wheelCount = std::min(
+            runtime.gameCar.GetWheelCount(),
+            vehicle.wheelContacts.size());
+        for (std::size_t wheel = 0U; wheel < wheelCount; ++wheel)
+        {
+            const auto& contact = vehicle.wheelContacts[wheel];
+            runtime.gameCar.SetWheelContact(
+                wheel, contact.hasContact,
+                contact.longitudinalSlip, contact.lateralSlip,
+                contact.normalReaction, contact.normalImpulse);
+        }
+        runtime.gameCar.UpdateContactState(
+            !vehicle.bodyContacts.empty());
+        for (std::size_t wheel = 0U;
+             wheel < runtime.gameCar.GetWheelCount(); ++wheel)
+        {
+            auto* sourceWheel = runtime.gameCar.GetWheel(wheel);
+            if (sourceWheel == nullptr)
+                continue;
+            sourceWheel->SetAxleSpeed(
+                wheel < vehicle.wheelAngularSpeeds.size()
+                    ? vehicle.wheelAngularSpeeds[wheel]
+                    : 0.0F);
+        }
     }
 }
 
@@ -3400,39 +3442,6 @@ void OriginalRaceSession::updateGameplay(
                 {racer,
                  subtract(wanted, vehicles[racer].linearVelocity)});
         }
-        if (racer < vehicles.size())
-        {
-            runtime.gameCar.SynchronizeSpeed(vehicles[racer].speed);
-            const auto wheelCount = std::min(
-                runtime.gameCar.GetWheelCount(),
-                vehicles[racer].wheelContacts.size());
-            for (std::size_t wheel = 0U;
-                 wheel < wheelCount; ++wheel)
-            {
-                const auto& contact =
-                    vehicles[racer].wheelContacts[wheel];
-                runtime.gameCar.SetWheelContact(
-                    wheel, contact.hasContact,
-                    contact.longitudinalSlip,
-                    contact.lateralSlip,
-                    contact.normalReaction,
-                    contact.normalImpulse);
-            }
-            runtime.gameCar.UpdateContactState(
-                !vehicles[racer].bodyContacts.empty());
-            for (std::size_t wheel = 0U;
-                 wheel < runtime.gameCar.GetWheelCount(); ++wheel)
-            {
-                auto* sourceWheel = runtime.gameCar.GetWheel(wheel);
-                if (sourceWheel == nullptr)
-                    continue;
-                sourceWheel->SetAxleSpeed(
-                    wheel < vehicles[racer].wheelAngularSpeeds.size()
-                        ? vehicles[racer].wheelAngularSpeeds[wheel]
-                        : 0.0F);
-            }
-        }
-        runtime.gameCar.OnProgress(seconds);
         if (!externalVehicleFixedStep_ && !runtime.destroyed &&
             racer < vehicles.size())
         {
@@ -6616,6 +6625,10 @@ void OriginalRaceSession::update(
               r3d::physics::VehicleInput{});
     if (phase_ == RacePhase::Paused)
         return;
+    // Jolt supplies the completed physical state. The source Logic pass then
+    // progresses the one RockCar owned by the car MapObj, matching Windows
+    // object ordering without a second session-owned OnProgress call.
+    synchronizeRacerGameCars(vehicles);
     // AutoProj is a registered GameObject before GoRace. Its MineUpdate
     // therefore advances during the visible countdown even though race time
     // itself has not started. This is most visible on ptMaslo, whose model
@@ -6737,11 +6750,6 @@ void OriginalRaceSession::update(
     const auto gameModeAdvance = gameModeRaceState_.OnFrame(seconds);
     if (phase_ == RacePhase::Countdown)
     {
-        // RockCar and its nested Weapons are registered GameObjects before
-        // GoRace. Progress the complete source owner during countdown; in
-        // racing updateGameplay performs this once after wheel state sync.
-        for (auto& player : racers_)
-            player.gameCar.OnProgress(seconds);
         // Windows Race::OnFixedStep progresses Player state throughout the
         // countdown; only AISystem is gated by GoRace.
         progressPlayers(seconds, vehicles);
@@ -6770,8 +6778,6 @@ void OriginalRaceSession::update(
          gameModeAdvance.finishTimeEnded);
     if (phase_ == RacePhase::Finished && !finishTimerRunning)
     {
-        for (auto& player : racers_)
-            player.gameCar.OnProgress(seconds);
         progressPlayers(seconds, vehicles);
         return;
     }

@@ -322,7 +322,11 @@ MapObj::~MapObj()
 {
     SetPlayer(nullptr);
     if (gameObj_ != nullptr)
+    {
         gameObj_->SetMapObj(nullptr);
+        gameObj_->SetLogic(nullptr);
+        gameObj_->SetParent(nullptr);
+    }
 }
 
 MapObjects* MapObj::GetOwner() const noexcept { return owner_; }
@@ -359,12 +363,13 @@ void MapObj::CreateGameObj()
         replacement->AssignSource(*gameObj_);
         gameObj_->SetParent(nullptr);
         gameObj_->SetLogic(nullptr);
+        gameObj_->SetMapObj(nullptr);
     }
-    replacement->SetMapObj(this);
-    replacement->SetName({});
-    replacement->SetParent(nullptr);
-    gameObj_ = std::move(replacement);
-
+    ownedGameObj_ = std::move(replacement);
+    gameObj_ = ownedGameObj_.get();
+    gameObj_->SetMapObj(this);
+    gameObj_->SetName({});
+    gameObj_->SetParent(nullptr);
 }
 
 GameObject& MapObj::GetGameObj() noexcept { return *gameObj_; }
@@ -374,45 +379,75 @@ GameObject& MapObj::SetGameObj(GameObjType value)
     SetType(value);
     return *gameObj_;
 }
+void MapObj::BindGameObj(RockCar& value)
+{
+    if (type_ != GameObjType::RockCar)
+        throw std::invalid_argument(
+            "MapObj can bind RockCar only for gotRockCar");
+    if (gameObj_ == &value)
+        return;
+    if (value.GetMapObj() != nullptr)
+        throw std::invalid_argument(
+            "RockCar is already bound to another MapObj");
+
+    const std::string name = gameObj_ != nullptr
+        ? gameObj_->GetName() : std::string{};
+    GameObject* parent = gameObj_ != nullptr
+        ? gameObj_->GetParent() : nullptr;
+    if (gameObj_ != nullptr)
+    {
+        value.AssignSource(*gameObj_);
+        value.SetMaxLife(gameObj_->GetMaxLife());
+        value.CopyProxyStateFrom(*gameObj_);
+        gameObj_->SetParent(nullptr);
+        gameObj_->SetLogic(nullptr);
+        gameObj_->SetMapObj(nullptr);
+    }
+    ownedGameObj_.reset();
+    gameObj_ = &value;
+    gameObj_->SetMapObj(this);
+    gameObj_->SetName(name);
+    gameObj_->SetParent(parent);
+}
 GameCar* MapObj::GetGameCar() noexcept
 {
-    return dynamic_cast<GameCar*>(gameObj_.get());
+    return dynamic_cast<GameCar*>(gameObj_);
 }
 const GameCar* MapObj::GetGameCar() const noexcept
 {
-    return dynamic_cast<const GameCar*>(gameObj_.get());
+    return dynamic_cast<const GameCar*>(gameObj_);
 }
 RockCar* MapObj::GetRockCar() noexcept
 {
-    return dynamic_cast<RockCar*>(gameObj_.get());
+    return dynamic_cast<RockCar*>(gameObj_);
 }
 const RockCar* MapObj::GetRockCar() const noexcept
 {
-    return dynamic_cast<const RockCar*>(gameObj_.get());
+    return dynamic_cast<const RockCar*>(gameObj_);
 }
 Weapon* MapObj::GetWeapon() noexcept
 {
-    return dynamic_cast<Weapon*>(gameObj_.get());
+    return dynamic_cast<Weapon*>(gameObj_);
 }
 const Weapon* MapObj::GetWeapon() const noexcept
 {
-    return dynamic_cast<const Weapon*>(gameObj_.get());
+    return dynamic_cast<const Weapon*>(gameObj_);
 }
 DestrObj* MapObj::GetDestrObj() noexcept
 {
-    return dynamic_cast<DestrObj*>(gameObj_.get());
+    return dynamic_cast<DestrObj*>(gameObj_);
 }
 const DestrObj* MapObj::GetDestrObj() const noexcept
 {
-    return dynamic_cast<const DestrObj*>(gameObj_.get());
+    return dynamic_cast<const DestrObj*>(gameObj_);
 }
 AutoProj* MapObj::GetAutoProj() noexcept
 {
-    return dynamic_cast<AutoProj*>(gameObj_.get());
+    return dynamic_cast<AutoProj*>(gameObj_);
 }
 const AutoProj* MapObj::GetAutoProj() const noexcept
 {
-    return dynamic_cast<const AutoProj*>(gameObj_.get());
+    return dynamic_cast<const AutoProj*>(gameObj_);
 }
 
 const std::string& MapObj::GetName() const noexcept

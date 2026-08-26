@@ -161,6 +161,11 @@ public:
     GameObject& GetGameObj() noexcept;
     const GameObject& GetGameObj() const noexcept;
     GameObject& SetGameObj(GameObjType value);
+    // Player::CarState retains the RockCar created by Map::AddMapObj in the
+    // Windows object graph. Portable Player storage must remain stable for
+    // the Jolt adapter, so the MapObj binds that one live source object and
+    // releases its temporary record instance.
+    void BindGameObj(RockCar& value);
     GameCar* GetGameCar() noexcept;
     const GameCar* GetGameCar() const noexcept;
     RockCar* GetRockCar() noexcept;
@@ -208,7 +213,8 @@ private:
     GameObjType type_ = GameObjType::GameObj;
     MapObjCategory category_ = MapObjCategory::Effects;
     const MapObjRecord* recordProxy_ = nullptr;
-    std::unique_ptr<GameObject> gameObj_;
+    std::unique_ptr<GameObject> ownedGameObj_;
+    GameObject* gameObj_ = nullptr;
     std::string record_;
     std::string recordParent_;
 };

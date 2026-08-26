@@ -547,6 +547,8 @@ private:
         const std::vector<r3d::physics::VehicleState>& vehicles);
     void updatePlaces(
         const std::vector<r3d::physics::VehicleState>& vehicles);
+    void synchronizeRacerGameCars(
+        const std::vector<r3d::physics::VehicleState>& vehicles);
     void updateGameplay(
         float seconds,
         const std::vector<r3d::physics::VehicleState>& vehicles,

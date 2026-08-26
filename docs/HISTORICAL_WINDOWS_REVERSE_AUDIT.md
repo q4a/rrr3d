@@ -2979,6 +2979,31 @@ Regression создаёт каждый ранее заглушенный тип 
 `RockCar` продвигаются именно контейнером. Это восстанавливает concrete
 runtime object graph без переноса D3D9/PhysX actor ownership из адаптеров.
 
+### P2.121 — single live `Player::CarState` / `MapObj` RockCar — выполнено
+
+В Windows `Player::CreateCar` добавляет car record в `Map`, после чего
+`CarState::mapObj` и `CarState::gameObj` удерживают ссылки на один созданный
+`MapObj/RockCar`. Порт нарушал это устройство: `Player` содержал один
+`RockCar` для Jolt/gameplay, а `createRacerMapObject` создавал второй для
+Map/Logic, жизни и projectile target identity. После восстановления concrete
+factory оба объекта даже корректно обновлялись, но оставались параллельными.
+
+`MapObj` теперь умеет привязать стабильный live `Player::gameCar`, передавая
+ему record proxy state, Logic, имя и MapObj identity и освобождая временный
+record instance. Car category, projectile target, player slots, camera/debug
+telemetry и Jolt adapter видят один и тот же `RockCar`. При удалении карты
+внешний объект полностью отсоединяется, но не удаляется; reset сначала
+очищает MapObj-ссылки и только затем перестраивает `Player` storage, поэтому
+висячих указателей нет.
+
+Прямой session-вызов `gameCar.OnProgress` удалён. Завершённое Jolt-состояние
+speed/contact/axle-speed синхронизируется до `Logic::OnProgress`, а исходный
+Car category pass один раз обновляет `RockCar`, колёса, children и оружие во
+всех фазах, включая countdown. Рост smoke-счётчика `FxTrail` с 12 до 24 не
+является удвоением update: это максимум по четырём колёсам всех шести машин
+после того, как AI wheels также получают contact state до source slip pass.
+Regression отдельно проверяет bind identity и безопасное отсоединение.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

@@ -60,6 +60,7 @@ int main()
     // Windows MapObj::ClassList constructs a concrete instance for every
     // serialized GameObjType. Verify that the portable factory and progress
     // dispatch do not collapse cars and weapons to GameObject placeholders.
+    source::RockCar liveRockCar;
     source::MapObjects typedObjects;
     auto& gameCarObject = typedObjects.Add(
         source::GameObjType::GameCar,
@@ -70,10 +71,12 @@ int main()
     auto& weaponObject = typedObjects.Add(
         source::GameObjType::Weapon,
         source::MapObjCategory::Weapon, "Weapon\\laser", 40U);
+    rockCarObject.BindGameObj(liveRockCar);
     if (gameCarObject.GetGameCar() == nullptr ||
         gameCarObject.GetRockCar() != nullptr ||
         rockCarObject.GetGameCar() == nullptr ||
-        rockCarObject.GetRockCar() == nullptr ||
+        rockCarObject.GetRockCar() != &liveRockCar ||
+        liveRockCar.GetMapObj() != &rockCarObject ||
         weaponObject.GetWeapon() == nullptr)
         return 12;
     source::Weapon::Desc mapWeaponDescription;
@@ -90,6 +93,10 @@ int main()
         !rockCarObject.GetRockCar()
              ->GetWeapons().primary[0].IsReadyShot())
         return 14;
+    typedObjects.Clear();
+    if (liveRockCar.GetMapObj() != nullptr ||
+        liveRockCar.GetLogic() != nullptr)
+        return 15;
 
     auto& crush = objects.Add(
         source::GameObjType::GameObj,
