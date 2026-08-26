@@ -34,6 +34,18 @@ std::string makeRecordParent(std::string_view record)
     return std::string(record.substr(first, slash - first));
 }
 
+std::string makeRecordName(std::string_view record)
+{
+    while (!record.empty() &&
+           (record.back() == '/' || record.back() == '\\'))
+        record.remove_suffix(1U);
+    const auto slash = record.find_last_of("/\\");
+    return std::string(
+        slash == std::string_view::npos
+            ? record
+            : record.substr(slash + 1U));
+}
+
 } // namespace
 
 const char* GameObjTypeName(GameObjType value) noexcept
@@ -56,12 +68,14 @@ MapObjRecord::MapObjRecord(
     std::string path, std::string parent,
     MapObjCategory category, GameObjType type)
     : path_(std::move(path)),
+      name_(makeRecordName(path_)),
       parent_(parent.empty() ? makeRecordParent(path_) : std::move(parent)),
       category_(category), type_(type)
 {
 }
 
 const std::string& MapObjRecord::GetPath() const noexcept { return path_; }
+const std::string& MapObjRecord::GetName() const noexcept { return name_; }
 const std::string& MapObjRecord::GetParent() const noexcept
 {
     return parent_;
@@ -302,7 +316,7 @@ MapObj& MapObjects::Add(GameObjType type, MapObjCategory category,
                         std::string record, std::uint32_t id,
                         std::string recordParent)
 {
-    const std::string baseName = record.empty() ? "obj" : record;
+    const std::string baseName = makeRecordName(record);
     auto& object = Add(type, baseName);
     object.SetRecord(
         std::move(record), category, std::move(recordParent));
@@ -315,7 +329,7 @@ MapObj& MapObjects::Add(
 {
     auto object = std::make_unique<MapObj>(this);
     object->SetRecordProxy(&record);
-    object->SetName(MakeUniqueName(record.GetPath()));
+    object->SetName(MakeUniqueName(record.GetName()));
     object->SetId(id);
     object->SetParent(owner_);
     auto& result = *object;
@@ -449,6 +463,17 @@ std::string MapObjects::MakeUniqueName(std::string baseName) const
     if (baseName.empty())
         baseName = "obj";
     const auto exists = [&](std::string_view candidate) {
+        if (observer_ != nullptr)
+            return observer_->IsMapObjNameUsed(candidate);
+        if (owner_ != nullptr)
+        {
+            return std::any_of(
+                owner_->GetChildren().begin(), owner_->GetChildren().end(),
+                [&](const auto* object) {
+                    return object != nullptr &&
+                           object->GetName() == candidate;
+                });
+        }
         return std::any_of(
             objects_.begin(), objects_.end(),
             [&](const auto& object) {
@@ -456,9 +481,9 @@ std::string MapObjects::MakeUniqueName(std::string baseName) const
                        object->GetName() == candidate;
             });
     };
-    if (!exists(baseName))
-        return baseName;
-    for (std::size_t suffix = 1U;; ++suffix)
+    // LexStd Component::MakeUniqueName always appends a decimal suffix,
+    // starting with zero; the unsuffixed base is never returned.
+    for (std::size_t suffix = 0U;; ++suffix)
     {
         auto candidate = baseName + std::to_string(suffix);
         if (!exists(candidate))

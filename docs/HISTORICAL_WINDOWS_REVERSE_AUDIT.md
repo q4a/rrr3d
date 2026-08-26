@@ -2246,6 +2246,24 @@ lifetime value. `OriginalRaceSession` сначала применяет record m
 явную инициализацию. Parser regression проверяет реальные `semaphore0`,
 `track20`, `money0` и bonus `maxTimeLife=0` из `map1.r3dMap`.
 
+### P2.84 — source record name и глобальный `MakeUniqueName` — выполнено
+
+Windows `MapObjects::Add(MapObjRec*)` использует не полный путь записи, а
+leaf `MapObjRec::GetName()`. Затем общий `lsl::Component`-корень карты
+выполняет `MakeUniqueName`: всегда добавляет числовой суффикс начиная с нуля
+и проверяет все семь категорий, а не только текущий `MapObjects`. Portable
+runtime прежде создавал имя из полного record path, оставлял первый base без
+суффикса и допускал совпадения между категориями.
+
+`MapObjRecord` теперь отдельно хранит source leaf name. Оба record-based
+пути создания используют его; явный record overload извлекает тот же leaf.
+Observer карты проверяет глобальный live registry, а owner-based временные
+контейнеры проверяют общий `GameObject` child graph. Реализован точный цикл
+`base0`, `base1`, ... из `lslComponent.cpp`. Regressions покрывают
+`semaphore0`, `track10`, `money0`, одинаковый `smoke` в двух категориях и
+пару динамических машин `marauder0/marauder1`; map-file instance names затем
+по-прежнему заменяются сериализованными XML-именами на этапе P2.83.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

@@ -47,6 +47,10 @@ int main()
             source::MapObjCategory::Decoration ||
         semaphore.GetRecordProxy()->GetType() !=
             source::GameObjType::DestrObj ||
+        semaphore.GetRecordProxy()->GetName() != "semaphore" ||
+        semaphore.GetName() != "semaphore0" ||
+        track.GetRecordProxy()->GetName() != "track1" ||
+        track.GetName() != "track10" ||
         map.GetRecordLib(source::MapObjCategory::Decoration)
                 .FindRecord(semaphore.GetRecord()) !=
             semaphore.GetRecordProxy() ||
@@ -86,7 +90,7 @@ int main()
         source::GameObjType::Proj,
         "world\\db\\root\\ctBonus\\money", 5U);
     if (bonus.GetId() != 10U || map.GetMapObj(10U) != &bonus ||
-        bonus.GetSourceIndex() != 5U)
+        bonus.GetSourceIndex() != 5U || bonus.GetName() != "money0")
         return 3;
 
     bool duplicateRejected = false;
@@ -133,7 +137,12 @@ int main()
     auto& first = map.AddMapObj(
         source::MapObjCategory::Effects,
         source::GameObjType::GameObj, "Effect\\smoke", 0U);
-    if (first.GetId() != 1U || map.GetMapObj(1U) != &first)
+    auto& sameLeafInAnotherCategory = map.AddMapObj(
+        source::MapObjCategory::Decoration,
+        source::GameObjType::GameObj, "Decoration\\smoke", 1U);
+    if (first.GetId() != 1U || map.GetMapObj(1U) != &first ||
+        first.GetName() != "smoke0" ||
+        sameLeafInAnotherCategory.GetName() != "smoke1")
         return 9;
 
     map.Clear();
@@ -141,7 +150,11 @@ int main()
     auto& firstCar = map.AddMapObj(
         source::MapObjCategory::Car,
         source::GameObjType::RockCar, "Car\\marauder", 0U);
-    if (firstCar.GetId() != 294U)
+    auto& secondCar = map.AddMapObj(
+        source::MapObjCategory::Car,
+        source::GameObjType::RockCar, "Car\\marauder", 1U);
+    if (firstCar.GetId() != 294U || firstCar.GetName() != "marauder0" ||
+        secondCar.GetId() != 295U || secondCar.GetName() != "marauder1")
         return 10;
 
     source::GameObject fallingObject;

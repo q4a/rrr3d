@@ -53,6 +53,8 @@ int main()
         "Data\\Architecture\\tower", 42U);
     architecture.GetGameObj().ResetGameObject(10.0F);
     architecture.GetGameObj().SetMaxTimeLife(0.01F);
+    if (architecture.GetName() != "tower0")
+        return 10;
 
     auto& projectile = objects.Add(
         source::GameObjType::Proj,
@@ -60,7 +62,8 @@ int main()
         "Bonus\\maslo", 43U);
     projectile.GetGameObj().ResetGameObject(-1.0F);
     auto* autoProjectile = projectile.GetAutoProj();
-    if (autoProjectile == nullptr || projectile.IsSpecial() ||
+    if (autoProjectile == nullptr || projectile.GetName() != "maslo0" ||
+        projectile.IsSpecial() ||
         parent.GetChildren().size() != 2U ||
         autoProjectile->GetLogic() != &logic)
         return 3;
@@ -91,7 +94,8 @@ int main()
 
     auto& duplicate = objects.Add(
         source::GameObjType::GameObj, "Bonus\\maslo");
-    if (duplicate.GetName() == projectile.GetName())
+    if (duplicate.GetName() != "Bonus\\maslo0" ||
+        duplicate.GetName() == projectile.GetName())
         return 6;
 
     objects.Death(

@@ -212,4 +212,14 @@ void Map::OnMapObjRemoving(MapObj& value) noexcept
         objects_.erase(found);
 }
 
+bool Map::IsMapObjNameUsed(std::string_view value) const noexcept
+{
+    return std::any_of(
+        objects_.begin(), objects_.end(),
+        [&](const auto& item) {
+            return item.second != nullptr &&
+                   item.second->GetName() == value;
+        });
+}
+
 } // namespace r3d::game::originalrace::source

@@ -56,6 +56,7 @@ class MapObjRecord
 {
 public:
     const std::string& GetPath() const noexcept;
+    const std::string& GetName() const noexcept;
     const std::string& GetParent() const noexcept;
     MapObjCategory GetCategory() const noexcept;
     GameObjType GetType() const noexcept;
@@ -66,6 +67,7 @@ private:
                  MapObjCategory category, GameObjType type);
 
     std::string path_;
+    std::string name_;
     std::string parent_;
     MapObjCategory category_ = MapObjCategory::Effects;
     GameObjType type_ = GameObjType::GameObj;
@@ -163,6 +165,8 @@ class MapObjectsObserver
 public:
     virtual ~MapObjectsObserver() = default;
     virtual void OnMapObjRemoving(MapObj& value) noexcept = 0;
+    virtual bool IsMapObjNameUsed(
+        std::string_view value) const noexcept = 0;
 };
 
 // Source MapObjects deletes a dead object only after its OnProgress callback

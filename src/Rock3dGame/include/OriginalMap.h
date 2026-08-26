@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <map>
 #include <string>
+#include <string_view>
 
 namespace r3d::game::originalrace::source
 {
@@ -73,6 +74,8 @@ private:
     static std::size_t CategoryIndex(MapObjCategory value) noexcept;
     void Register(MapObj& value, std::uint32_t id);
     void OnMapObjRemoving(MapObj& value) noexcept override;
+    bool IsMapObjNameUsed(
+        std::string_view value) const noexcept override;
 
     // Record libraries outlive live category objects, matching DataBase.
     // Declaration order makes categories destruct before their proxies.
