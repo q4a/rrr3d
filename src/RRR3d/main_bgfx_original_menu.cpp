@@ -4146,6 +4146,7 @@ int main(int argc, char** argv)
     auto bindSourceVehicleFixedStep = [&]() {
         if (!physicsWorld)
             return;
+        raceSession.setExternalVehicleFixedStep(true);
         physicsWorld->setVehicleFixedStepController(
             [&raceSession](
                 std::size_t racer, float deltaTime,

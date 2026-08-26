@@ -2389,6 +2389,12 @@ const std::vector<RacerRuntime>& OriginalRaceSession::racers() const noexcept
     return racers_;
 }
 
+void OriginalRaceSession::setExternalVehicleFixedStep(
+    bool enabled) noexcept
+{
+    externalVehicleFixedStep_ = enabled;
+}
+
 physics::VehicleDriveCommand OriginalRaceSession::racerFixedStepDrive(
     std::size_t racer, float deltaTime,
     const physics::VehicleInput& input,
@@ -3423,6 +3429,45 @@ void OriginalRaceSession::updateGameplay(
             runtime.gameCar.SetLeadWheelSpeed(leadWheelSpeed);
         }
         runtime.gameCar.OnProgress(seconds);
+        if (!externalVehicleFixedStep_ && !runtime.destroyed &&
+            racer < vehicles.size())
+        {
+            const auto& vehicle = vehicles[racer];
+            bool anyContact = false;
+            bool drivenContact = false;
+            float drivenWheelAngularSpeed = 0.0F;
+            bool foundDrivenWheel = false;
+            const std::size_t fixedWheelCount = std::min(
+                vehicleDefinition.physics.wheels.size(),
+                vehicle.wheelContacts.size());
+            for (std::size_t wheel = 0U;
+                 wheel < fixedWheelCount; ++wheel)
+            {
+                anyContact = anyContact ||
+                    vehicle.wheelContacts[wheel].hasContact;
+                if (!vehicleDefinition.physics.wheels[wheel].driven)
+                    continue;
+                drivenContact = drivenContact ||
+                    vehicle.wheelContacts[wheel].hasContact;
+                if (!foundDrivenWheel &&
+                    wheel < vehicle.wheelAngularSpeeds.size())
+                {
+                    drivenWheelAngularSpeed =
+                        vehicle.wheelAngularSpeeds[wheel];
+                    foundDrivenWheel = true;
+                }
+            }
+            const float horizontalSpeed = std::sqrt(
+                vehicle.linearVelocity.x * vehicle.linearVelocity.x +
+                vehicle.linearVelocity.y * vehicle.linearVelocity.y);
+            const auto input = racer < vehicleInputs_.size()
+                ? vehicleInputs_[racer] : physics::VehicleInput{};
+            racerFixedStepDrive(
+                racer, seconds, input,
+                {vehicle.speed, length3(vehicle.linearVelocity),
+                 horizontalSpeed, drivenWheelAngularSpeed,
+                 anyContact, drivenContact});
+        }
         if (racer < vehicleInputs_.size())
         {
             vehicleInputs_[racer].springLocked =

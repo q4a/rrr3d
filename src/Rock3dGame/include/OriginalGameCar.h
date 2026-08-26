@@ -42,9 +42,6 @@ public:
 
     struct ProgressResult
     {
-        bool clutchReleased = false;
-        bool springReleased = false;
-        bool mineReleased = false;
         std::size_t behaviorsProgressed = 0U;
         std::size_t behaviorsRemoved = 0U;
         std::size_t wheelsProgressed = 0U;
@@ -133,6 +130,9 @@ public:
         float clampPitchAngle = 0.0F;
         bool applyExtraGravity = false;
         float airbornePitchAcceleration = 0.0F;
+        bool clutchReleased = false;
+        bool springReleased = false;
+        bool mineReleased = false;
     };
 
     GameCar();

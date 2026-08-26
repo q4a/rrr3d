@@ -20,8 +20,11 @@ int main()
         car.ConsumeClutchStrength() != 1.5F ||
         car.ConsumeClutchStrength() != 0.0F)
         return 2;
-    if (!car.OnProgress(0.38F).clutchReleased ||
-        car.IsClutchLocked())
+    car.OnProgress(0.38F);
+    if (!car.IsClutchLocked())
+        return 3;
+    const auto clutchRelease = car.OnFixedStepDrive(0.38F, {}, {});
+    if (!clutchRelease.clutchReleased || car.IsClutchLocked())
         return 3;
     if (car.LockClutch(1.0F, true))
         return 4;
@@ -33,7 +36,12 @@ int main()
         std::abs(car.GetMineTime() - 0.4F) > 0.0001F)
         return 5;
     car.OnProgress(0.4F);
-    if (!car.IsSpringLocked() || car.IsMineLocked())
+    if (!car.IsSpringLocked() || !car.IsMineLocked())
+        return 6;
+    const auto mineRelease = car.OnFixedStepDrive(0.4F, {}, {});
+    if (!mineRelease.mineReleased || car.IsMineLocked() ||
+        !car.IsSpringLocked() ||
+        std::abs(car.GetSpringTime() - 1.1F) > 0.0001F)
         return 6;
     car.CancelClutch();
     car.Reset();

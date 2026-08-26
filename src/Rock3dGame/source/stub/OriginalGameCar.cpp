@@ -217,25 +217,6 @@ GameCar::ProgressResult GameCar::OnProgress(float deltaTime) noexcept
         result.wheelBehaviorsProgressed +=
             wheelResult.behaviorsProgressed;
     }
-    if (clutchTime_ > 0.0F)
-    {
-        clutchTime_ -= deltaTime;
-        if (clutchTime_ < 0.0F)
-            clutchTime_ = 0.0F;
-        result.clutchReleased = clutchTime_ == 0.0F;
-    }
-    if (mineTime_ > 0.0F)
-    {
-        mineTime_ -= deltaTime;
-        if (mineTime_ < 0.0F)
-            mineTime_ = 0.0F;
-        result.mineReleased = mineTime_ == 0.0F;
-    }
-    if (springTime_ > 0.0F)
-    {
-        springTime_ = std::max(springTime_ - deltaTime, 0.0F);
-        result.springReleased = springTime_ == 0.0F;
-    }
     return result;
 }
 
@@ -311,6 +292,22 @@ GameCar::DriveCommand GameCar::OnFixedStepDrive(
     constexpr float radiansPerRevolution =
         6.28318530717958647692F;
     constexpr float directionDeadZone = 0.1F;
+    deltaTime = std::max(deltaTime, 0.0F);
+    DriveCommand command;
+    if (clutchTime_ > 0.0F)
+    {
+        clutchTime_ -= deltaTime;
+        if (clutchTime_ < 0.0F)
+            clutchTime_ = 0.0F;
+        command.clutchReleased = clutchTime_ == 0.0F;
+    }
+    if (mineTime_ > 0.0F)
+    {
+        mineTime_ -= deltaTime;
+        if (mineTime_ < 0.0F)
+            mineTime_ = 0.0F;
+        command.mineReleased = mineTime_ == 0.0F;
+    }
     auto calcRpm = [&](int gear) noexcept {
         if (gear < 0)
             return motor_.idlingRpm;
@@ -345,7 +342,6 @@ GameCar::DriveCommand GameCar::OnFixedStepDrive(
     else
         moveCar_ = MoveCarState::None;
 
-    DriveCommand command;
     command.brakeTorque = motor_.restBrakeTorque;
     switch (moveCar_)
     {
@@ -418,14 +414,14 @@ GameCar::DriveCommand GameCar::OnFixedStepDrive(
         {
             steeringAngle_ = std::min(
                 std::max(steeringAngle_, 0.0F) +
-                    dynamics_.steerSpeed * std::max(deltaTime, 0.0F),
+                    dynamics_.steerSpeed * deltaTime,
                 dynamics_.maximumSteerAngle);
         }
         else
         {
             steeringAngle_ = std::max(
                 std::min(steeringAngle_, 0.0F) -
-                    dynamics_.steerSpeed * std::max(deltaTime, 0.0F),
+                    dynamics_.steerSpeed * deltaTime,
                 -dynamics_.maximumSteerAngle);
         }
     }
@@ -455,7 +451,7 @@ GameCar::DriveCommand GameCar::OnFixedStepDrive(
             state.signedSpeed / 10.0F, -1.0F, 1.0F);
         command.steeringYaw =
             alpha * (steeringAngle_ / dynamics_.maximumSteerAngle) *
-            dynamics_.steerRotation * std::max(deltaTime, 0.0F);
+            dynamics_.steerRotation * deltaTime;
     }
 
     command.angularDamping = dynamics_.angularDamping;
@@ -463,6 +459,11 @@ GameCar::DriveCommand GameCar::OnFixedStepDrive(
         command.angularDamping[2U] = 1.0F;
     command.clampRollAngle = dynamics_.clampRollAngle;
     command.clampPitchAngle = dynamics_.clampPitchAngle;
+    if (springTime_ > 0.0F)
+    {
+        springTime_ = std::max(springTime_ - deltaTime, 0.0F);
+        command.springReleased = springTime_ == 0.0F;
+    }
     command.applyExtraGravity = !state.anyWheelContact;
     if (command.applyExtraGravity && state.horizontalSpeed > 1.0F &&
         !IsSpringLocked())
@@ -471,7 +472,7 @@ GameCar::DriveCommand GameCar::OnFixedStepDrive(
             dynamics_.airbornePitchAcceleration;
     }
     GetBehaviors().OnMotor(
-        std::max(deltaTime, 0.0F), command.rpm,
+        deltaTime, command.rpm,
         motor_.idlingRpm, motor_.maximumRpm);
     return command;
 }

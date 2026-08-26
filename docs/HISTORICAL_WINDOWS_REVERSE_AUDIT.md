@@ -2738,6 +2738,23 @@ owner, rear pivot, airborne/spring branches, clutch yaw suppression и damping.
 Полная arm64 Debug сборка, offline/network/physics и 360-frame Metal smoke
 прошли с теми же контрольными скоростями всех шести машин.
 
+### P2.110 — fixed-step lifetime `clutch/mine/spring` — выполнено
+
+Порт уменьшал `_clutchTime`, `_mineTime` и `_springTime` в
+`GameCar::OnProgress`, то есть один раз за UI/render frame. В Windows первые
+два таймера находятся в `GameCar::OnFixedStep`, а spring уменьшается внутри
+`JumpProgress`; при плавающем FPS прежний путь менял реальную длительность
+oil/mine/spring состояний и их physics gates.
+
+Таймеры удалены из `OnProgress` и перенесены в source fixed-step в исходном
+порядке: clutch/mine до `MotorProgress`, spring перед airborne pitch branch.
+Native runtime помечает сессию как имеющую внешний 1/120 Jolt callback;
+session-only regressions без physics world выполняют один эквивалентный
+source fixed-step сами. Это исключает и пропуск, и двойное уменьшение.
+Regression доказывает, что frame progress не меняет locks, а fixed-step
+освобождает их. Полные offline/network/physics тесты (включая MineRip
+contact/DeathEffect) и 360-frame Metal smoke прошли.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
