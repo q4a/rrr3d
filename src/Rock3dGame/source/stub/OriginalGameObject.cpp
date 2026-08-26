@@ -655,7 +655,7 @@ void GameObject::ResetGameObject(float maximumLifeValue) noexcept
 }
 
 GameObject::ProgressResult GameObject::OnProgress(
-    float deltaTime) noexcept
+    float deltaTime, bool allowLifetimeDeath) noexcept
 {
     ProgressResult result;
     timeLife += deltaTime;
@@ -680,7 +680,8 @@ GameObject::ProgressResult GameObject::OnProgress(
         touchAttributionSeconds = 0.0F;
         result.touchAttributionEnded = true;
     }
-    if (maximumTimeLife > 0.0F && timeLife > maximumTimeLife)
+    if (allowLifetimeDeath && maximumTimeLife > 0.0F &&
+        timeLife > maximumTimeLife)
         result.lifetimeDeath = Death();
     const auto behaviors = behaviors_->OnProgress(deltaTime);
     result.behaviorsProgressed = behaviors.progressed;

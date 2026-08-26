@@ -298,8 +298,7 @@ struct MineRuntime
     // Proj GameObjects.  In particular they must not share DeathEffect's
     // one-shot listener state when the parent runtime is copied to create
     // the autonomous model2/model3 objects.
-    std::shared_ptr<source::Proj> sourceObject =
-        std::make_shared<source::Proj>();
+    source::Proj* sourceObject = nullptr;
     std::uint8_t visualVariant = 0;
     Vec3 position;
     Quat rotation;
@@ -366,11 +365,9 @@ struct ProjectileRuntime
     // after the projectile has separated once instead of ignoring the owner
     // for its entire lifetime.
     bool ownerCollisionArmed = false;
-    // Proj is a source GameObject. Stable shared storage survives the local
-    // construction-to-vector transfer while preserving its concrete type-6
-    // DeathEffect listener identity.
-    std::shared_ptr<source::Proj> sourceObject =
-        std::make_shared<source::Proj>();
+    // Source Logic owns every successfully prepared Proj. Runtime keeps the
+    // same non-owning pointer that the original optional ProjList exposed.
+    source::Proj* sourceObject = nullptr;
     bool active = true;
 };
 

@@ -156,6 +156,7 @@ void Proj::PrepareSource(
     description_ = description;
     playerId_ = playerId;
     ResetSourceRuntimeState();
+    externalLifetimeManaged_ = true;
     ResetGameObject(-1.0F);
     SetMaxTimeLife(maximumLife);
     SetTimeLife(0.0F);
@@ -248,6 +249,16 @@ bool Proj::GetIgnoreContactProj() const noexcept
 void Proj::SetIgnoreContactProj(bool value) noexcept
 {
     ignoreContactProj_ = value;
+}
+
+void Proj::SetExternalLifetimeManaged(bool value) noexcept
+{
+    externalLifetimeManaged_ = value;
+}
+
+bool Proj::IsExternalLifetimeManaged() const noexcept
+{
+    return externalLifetimeManaged_;
 }
 
 bool Proj::InitSourceModel(bool secondary)

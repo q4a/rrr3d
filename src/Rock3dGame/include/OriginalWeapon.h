@@ -253,6 +253,8 @@ public:
     void SetSourceState(bool value) noexcept;
     bool GetIgnoreContactProj() const noexcept;
     void SetIgnoreContactProj(bool value) noexcept;
+    void SetExternalLifetimeManaged(bool value) noexcept;
+    bool IsExternalLifetimeManaged() const noexcept;
     bool InitSourceModel(bool secondary = false);
     bool FreeSourceModel(
         bool secondary = false, bool remove = false) noexcept;
@@ -288,6 +290,7 @@ private:
     bool sourceState_ = false;
     Vec3 sourceVector_{};
     bool ignoreContactProj_ = false;
+    bool externalLifetimeManaged_ = false;
     MapObj* sourceModel_ = nullptr;
     MapObj* sourceModel2_ = nullptr;
     DeathEffectBehavior* deathEffect_ = nullptr;

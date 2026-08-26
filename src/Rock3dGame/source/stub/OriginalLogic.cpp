@@ -221,6 +221,16 @@ void Logic::RegGameObj(GameObject* value)
     gameObjects_.emplace_back(value);
 }
 
+bool Logic::HasGameObj(const GameObject* value) const noexcept
+{
+    return value != nullptr &&
+           std::any_of(
+               gameObjects_.begin(), gameObjects_.end(),
+               [&](const auto& object) {
+                   return object.get() == value;
+               });
+}
+
 void Logic::CleanGameObjs() noexcept
 {
     for (auto& object : gameObjects_)
@@ -246,7 +256,11 @@ Logic::GameObjectProgress Logic::ProgressGameObjs(
             continue;
         }
         ++result.progressed;
-        object->OnProgress(deltaTime);
+        const auto* projectile = dynamic_cast<const Proj*>(object.get());
+        object->OnProgress(
+            deltaTime,
+            projectile == nullptr ||
+                !projectile->IsExternalLifetimeManaged());
         if (object->GetLiveState() == GameObject::LiveState::Death)
         {
             object->SetLogic(nullptr);

@@ -239,7 +239,8 @@ public:
     void CopyProxyStateFrom(const GameObject& value) noexcept;
 
     void ResetGameObject(float maximumLifeValue) noexcept;
-    ProgressResult OnProgress(float deltaTime) noexcept;
+    ProgressResult OnProgress(
+        float deltaTime, bool allowLifetimeDeath = true) noexcept;
 
     DamageResult Damage(std::size_t senderPlayerId, float value,
                         DamageType damageType = DamageType::Simple) noexcept;

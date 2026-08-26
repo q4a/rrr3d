@@ -603,6 +603,29 @@ int main()
         expiredLifetime.removed != 1U ||
         autoProjectileLogic.GetGameObjCount() != 0U)
         return 96;
+    auto* logicProjectile = new source::Proj();
+    r3d::game::originalrace::ProjectileDefinition logicDescription;
+    logicDescription.type = 17U;
+    logicProjectile->PrepareSource(
+        logicDescription, nullptr, nullptr,
+        source::GameObject::undefinedPlayerId, false, 0.01F, {}, {});
+    autoProjectileLogic.RegGameObj(logicProjectile);
+    const auto managedLifetime =
+        autoProjectileLogic.ProgressGameObjs(0.02F);
+    if (managedLifetime.progressed != 1U ||
+        managedLifetime.removed != 0U ||
+        !autoProjectileLogic.HasGameObj(logicProjectile) ||
+        logicProjectile->GetLiveState() !=
+            source::GameObject::LiveState::Live ||
+        logicProjectile->GetTimeLife() != 0.02F)
+        return 102;
+    logicProjectile->Death();
+    const auto releasedProjectile =
+        autoProjectileLogic.ProgressGameObjs(0.0F);
+    if (releasedProjectile.progressed != 1U ||
+        releasedProjectile.removed != 1U ||
+        autoProjectileLogic.HasGameObj(logicProjectile))
+        return 103;
     autoProjectileLogic.RegGameObj(new source::GameObject());
     autoProjectileLogic.CleanGameObjs();
     if (autoProjectileLogic.GetGameObjCount() != 0U)

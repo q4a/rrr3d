@@ -75,14 +75,15 @@ const DeathEffectDefinition* mineDeathEffectDefinition(
 }
 
 void configureProjectileSourceObject(
-    ProjectileRuntime& projectile,
+    source::Logic& logic, ProjectileRuntime& projectile,
     const ProjectileDefinition& definition,
     source::GameObject* weapon = nullptr,
     source::GameObject* target = nullptr,
     std::size_t playerId = source::GameObject::undefinedPlayerId,
     bool linkToWeapon = false)
 {
-    projectile.sourceObject = std::make_shared<source::Proj>();
+    auto* sourceObject = new source::Proj();
+    projectile.sourceObject = sourceObject;
     if (hasDeathEffect(definition))
     {
         projectile.sourceObject->ConfigureDeathEffect(
@@ -109,14 +110,17 @@ void configureProjectileSourceObject(
                 projectile.velocity.x, projectile.velocity.y,
                 projectile.velocity.z});
     }
+    logic.RegGameObj(sourceObject);
 }
 
 void configureMineSourceObject(
-    MineRuntime& mine, const ProjectileDefinition& definition,
+    source::Logic& logic, MineRuntime& mine,
+    const ProjectileDefinition& definition,
     source::GameObject* weapon = nullptr,
     std::size_t playerId = source::GameObject::undefinedPlayerId)
 {
-    mine.sourceObject = std::make_shared<source::Proj>();
+    auto* sourceObject = new source::Proj();
+    mine.sourceObject = sourceObject;
     const auto* death = mineDeathEffectDefinition(mine, definition);
     if (death != nullptr && hasDeathEffect(*death))
     {
@@ -136,6 +140,7 @@ void configureMineSourceObject(
     // starts with the original -1 sentinel and can contact immediately.
     mine.sourceObject->SetSourceTimer(
         definition.type == 13U ? -1.0F : 0.0F);
+    logic.RegGameObj(sourceObject);
 }
 
 Vec3 subtract(Vec3 first, Vec3 second)
@@ -1242,6 +1247,12 @@ void OriginalRaceSession::reset()
     // AIPlayer::~AIPlayer writes the source-owned cheat flag back to its
     // Player. Release these owners before replacing the Player vector.
     aiPlayers_.clear();
+    // Logic owns every transient Proj created by the previous run. Release
+    // them while their weapon/target MapObjs are still alive so listener
+    // teardown follows the Windows destruction order.
+    logic_.CleanGameObjs();
+    mines_.clear();
+    projectiles_.clear();
     // Car MapObjs bind the live Player::gameCar. Release the map side while
     // Player storage is still valid, then rebuild both collections.
     map_.Clear();
@@ -1356,8 +1367,6 @@ void OriginalRaceSession::reset()
     logic_.SetTouchCarDamage(race_.touchCarDamage);
     logic_.SetTouchCarDamageForce(race_.touchCarDamageForce);
     logic_.ResetContactBehavior(race_.contactSoundPaths.size());
-    mines_.clear();
-    projectiles_.clear();
     respawns_.clear();
     velocityRequests_.clear();
     angularVelocityRequests_.clear();
@@ -3891,7 +3900,7 @@ void OriginalRaceSession::updateGameplay(
             crater.impulseSpeed = spawned.speed;
             crater.ignoreOwnerCollision =
                 deathPlan.ignoreSenderCar;
-            configureMineSourceObject(crater, spawned);
+            configureMineSourceObject(logic_, crater, spawned);
             mines_.push_back(std::move(crater));
         };
 
@@ -3899,6 +3908,11 @@ void OriginalRaceSession::updateGameplay(
     {
         if (!projectile.active)
             continue;
+        if (!logic_.HasGameObj(projectile.sourceObject))
+        {
+            projectile.active = false;
+            continue;
+        }
         projectile.sourceObject->SyncSourceTransform(
             source::Proj::Vec3{
                 projectile.position.x, projectile.position.y,
@@ -3906,16 +3920,6 @@ void OriginalRaceSession::updateGameplay(
             source::Proj::Quat{
                 projectile.rotation.x, projectile.rotation.y,
                 projectile.rotation.z, projectile.rotation.w});
-        // The original Race owns the terminal projectile transition because it
-        // must install the DeathEffect contact context before Proj::Death().
-        // Do not let GameObject's generic lifetime path consume that transition
-        // one line earlier on the final frame.
-        const bool projectileExpiresThisStep =
-            projectile.maximumLifeSeconds > 0.0F &&
-            projectile.ageSeconds + seconds >
-                projectile.maximumLifeSeconds;
-        if (!projectileExpiresThisStep)
-            projectile.sourceObject->OnProgress(seconds);
         const auto* runtimeDefinition = runtimeProjectileDefinition(
             race_, projectile);
         if (runtimeDefinition == nullptr)
@@ -4863,7 +4867,7 @@ void OriginalRaceSession::updateGameplay(
                 projectile->maximumLife);
         }
         configureMineSourceObject(
-            mine, *projectile, liveWeapon, owner);
+            logic_, mine, *projectile, liveWeapon, owner);
         pushShotEffect(
             owner, weapon, PlayerProfile::weaponSlotCount + 1U,
             weaponTransform, *projectile);
@@ -5049,7 +5053,7 @@ void OriginalRaceSession::updateGameplay(
             runtimeProjectile.attached = true;
             runtimeProjectile.directWeapon = true;
             configureProjectileSourceObject(
-                runtimeProjectile, projectile, liveWeapon,
+                logic_, runtimeProjectile, projectile, liveWeapon,
                 nullptr, owner, true);
             projectiles_.push_back(std::move(runtimeProjectile));
         }
@@ -5228,7 +5232,8 @@ void OriginalRaceSession::updateGameplay(
     auto applyMineContact = [&](MineRuntime& mine, std::size_t racer,
                                 const Vec3& contactPoint) {
         if (!mine.active || racer >= vehicles.size() ||
-            racer >= racers_.size() || racers_[racer].IsDestroyed())
+            racer >= racers_.size() || racers_[racer].IsDestroyed() ||
+            !logic_.HasGameObj(mine.sourceObject))
             return false;
         const auto& vehicleDefinition = vehicleForRacer(racer);
         if (mine.type == 10U)
@@ -5312,20 +5317,17 @@ void OriginalRaceSession::updateGameplay(
     {
         if (!mine.active)
             continue;
+        if (!logic_.HasGameObj(mine.sourceObject))
+        {
+            mine.active = false;
+            continue;
+        }
         mine.sourceObject->SyncSourceTransform(
             source::Proj::Vec3{
                 mine.position.x, mine.position.y, mine.position.z},
             source::Proj::Quat{
                 mine.rotation.x, mine.rotation.y,
                 mine.rotation.z, mine.rotation.w});
-        // Race supplies the DeathEffect spawn context at expiration.  Letting
-        // GameObject auto-expire here would fire Death() without that context
-        // and discard nested projectiles such as MineRip's fragments.
-        const bool mineExpiresThisStep =
-            mine.maximumLife > 0.0F &&
-            mine.seconds + seconds > mine.maximumLife;
-        if (!mineExpiresThisStep)
-            mine.sourceObject->OnProgress(seconds);
         mine.seconds += seconds;
         if (mine.type == 10U || mine.type == 11U ||
             mine.type == 12U || mine.type == 24U)
@@ -5399,7 +5401,8 @@ void OriginalRaceSession::updateGameplay(
                             : -1.0F;
                     core.velocity = {};
                     core.collision = source.collision;
-                    configureMineSourceObject(core, projectile);
+                    configureMineSourceObject(
+                        logic_, core, projectile);
                     spawnedMines.push_back(std::move(core));
                 }
                 if (projectile.tertiaryProjectile.valid)
@@ -5430,7 +5433,7 @@ void OriginalRaceSession::updateGameplay(
                         fragment.velocity =
                             sourceMineRipFragmentVelocity();
                         configureMineSourceObject(
-                            fragment, projectile);
+                            logic_, fragment, projectile);
                         spawnedMines.push_back(
                             std::move(fragment));
                     }
@@ -6013,7 +6016,7 @@ void OriginalRaceSession::updateGameplay(
                     runtimeProjectile.maximumLifeSeconds;
                 runtimeProjectile.attached = true;
                 configureProjectileSourceObject(
-                    runtimeProjectile, projectile, liveWeapon,
+                    logic_, runtimeProjectile, projectile, liveWeapon,
                     sourceTarget, shooter,
                     projectileRules.linkedToWeapon);
                 projectiles_.push_back(std::move(runtimeProjectile));
@@ -6055,7 +6058,7 @@ void OriginalRaceSession::updateGameplay(
                 runtimeProjectile.ballistic =
                     projectileRules.ballistic;
                 configureProjectileSourceObject(
-                    runtimeProjectile, projectile, liveWeapon,
+                    logic_, runtimeProjectile, projectile, liveWeapon,
                     sourceTarget, shooter,
                     projectileRules.linkedToWeapon);
                 if (projectileRules.homing)
@@ -6677,6 +6680,7 @@ void OriginalRaceSession::completeRaceForExit(
         // World::Logic::CleanGameObjs and Map::Clear destroy these source
         // objects on Windows. Keeping them in the portable session allowed
         // stale effects and sound owners to survive behind FinishMenu.
+        logic_.CleanGameObjs();
         effects_.clear();
         mines_.clear();
         projectiles_.clear();
@@ -12526,7 +12530,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 if (mine.visualVariant == 1U ||
                     mine.visualVariant == 2U)
                 {
-                    const auto* object = mine.sourceObject.get();
+                    const auto* object = mine.sourceObject;
                     sourceFragments =
                         sourceFragments && object != nullptr &&
                         std::find(

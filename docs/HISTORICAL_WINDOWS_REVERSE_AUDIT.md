@@ -3141,6 +3141,31 @@ Laser и FrostRay получают оба source child objects. bgfx по-пре
 не являются renderer-заглушкой. Regression проверяет parent/listener graph,
 удаление model/model2 и lazy Drobilka path.
 
+### P2.128 — `Logic::RegGameObj` owns live projectiles — выполнено
+
+После переноса descriptor, scratch-state и child models оставался последний
+двойной владелец projectile graph. Windows `Weapon::CreateShot` выделяет
+`Proj`, вызывает `PrepareProj` и при успехе сразу передаёт объект в
+`Logic::RegGameObj`; `Logic::OnProgress` обновляет и удаляет его. Portable
+session вместо этого держала каждый projectile/mine в `shared_ptr` и отдельно
+вызывала `Proj::OnProgress`, поэтому уже перенесённый transient registry не
+участвовал в реальной гонке.
+
+Все успешные projectile/mine spawn paths теперь выделяют concrete `Proj` и
+передают его единственному `Logic` owner. Runtime-массивы хранят только
+оригинальный non-owning указатель, проверяемый через `HasGameObj`; ручной
+progress удалён. `Logic::CleanGameObjs` выполняется до разрушения car/weapon
+MapObjs при reset и exit, сохраняя listener teardown order оригинала.
+
+Поскольку Jolt collision adapter пока принимает терминальное решение после
+source `Logic` pass, `GameObject::OnProgress` получил узкую возможность
+отложить только автоматический lifetime death для таких `Proj`: time-life,
+include-list и behaviors прогрессируют в `Logic` ровно один раз, а session в
+тот же кадр устанавливает contact context `DeathEffect` и вызывает `Death`.
+Обычные зарегистрированные `GameObject` по-прежнему автоматически умирают на
+строгой границе `timeLife > maxTimeLife`. Regression проверяет оба режима,
+единоличное владение, удаление после death и безопасный lookup старого адреса.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

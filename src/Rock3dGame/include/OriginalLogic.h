@@ -179,6 +179,7 @@ public:
     // Source Logic::RegGameObj takes ownership of prepared transient
     // GameObjects (Weapon.cpp uses it for every successful fast projectile).
     void RegGameObj(GameObject* value);
+    bool HasGameObj(const GameObject* value) const noexcept;
     void CleanGameObjs() noexcept;
     GameObjectProgress ProgressGameObjs(float deltaTime) noexcept;
     ProgressResult OnProgress(float deltaTime) noexcept;
