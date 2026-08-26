@@ -481,6 +481,9 @@ public:
         GameObject* target, Vec3 carPosition,
         Vec3 carWorldRight, Vec3 oilPosition,
         Vec3 linearVelocity, float damage) noexcept;
+    BonusContactResult ContactBonus(
+        GameObject* target, Player* targetPlayer,
+        float damage) const noexcept;
     DamageCommand DamageTarget(
         GameObject* target, float damage,
         DamageType damageType = DamageType::Simple) noexcept;

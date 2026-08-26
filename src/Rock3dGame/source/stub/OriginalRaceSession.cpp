@@ -5624,7 +5624,7 @@ void OriginalRaceSession::updateGameplay(
     pendingNetworkMineContacts_.clear();
 
     auto takeBonus = [&](
-        std::size_t racer, std::size_t bonusIndex, BonusKind kind,
+        std::size_t racer, std::size_t bonusIndex,
         float value, bool networkReplicated) {
         if (racer >= racers_.size() ||
             bonusIndex >= race_.bonuses.size() ||
@@ -5633,31 +5633,32 @@ void OriginalRaceSession::updateGameplay(
             !bonusActive_[bonusIndex] || racers_[racer].IsDestroyed())
             return false;
         auto& runtime = racers_[racer];
-        const auto sourceBonus = source::Proj::BonusContact(
-            race_.bonuses[bonusIndex].projectileType, true, value,
-            runtime.GetMaxLife());
+        auto* bonusObject = bonusObjects().Get(bonusIndex);
+        auto* bonusProjectile = bonusObject->GetAutoProj();
+        if (bonusProjectile == nullptr)
+            return false;
+        const auto sourceBonus = bonusProjectile->ContactBonus(
+            &runtime.gameCar, &runtime, value);
+        if (!sourceBonus.take)
+            return false;
         const float sourceValue =
-            sourceBonus.take ? sourceBonus.value : value;
+            sourceBonus.value;
         source::PlayerBonusType sourceType;
-        switch (kind)
+        switch (sourceBonus.type)
         {
-        case BonusKind::Money:
+        case source::Proj::BonusContactType::Money:
             sourceType = source::PlayerBonusType::Money;
             break;
-        case BonusKind::Ammunition:
+        case source::Proj::BonusContactType::Charge:
             sourceType = source::PlayerBonusType::Charge;
             break;
-        case BonusKind::Medpack:
+        case source::Proj::BonusContactType::Medpack:
             sourceType = source::PlayerBonusType::Medpack;
             break;
-        case BonusKind::Shield:
+        case source::Proj::BonusContactType::Immortal:
             sourceType = source::PlayerBonusType::Immortal;
             break;
-        case BonusKind::Speed:
-        case BonusKind::SlowHazard:
-        case BonusKind::OilHazard:
-        case BonusKind::MineHazard:
-        case BonusKind::Unknown:
+        case source::Proj::BonusContactType::None:
             return false;
         }
         std::vector<std::uint32_t> weaponMaximumCharges;
@@ -5671,7 +5672,6 @@ void OriginalRaceSession::updateGameplay(
             sourceType == source::PlayerBonusType::Charge
                 ? sourceRandomUnit()
                 : 0.0F;
-        auto* bonusObject = bonusObjects().Get(bonusIndex);
         const auto result = source::Logic::TakeBonus(
             &runtime, &bonusObject->GetGameObj(), sourceType,
             sourceValue, weaponMaximumCharges, bonusRandomUnit);
@@ -5710,8 +5710,7 @@ void OriginalRaceSession::updateGameplay(
     for (const auto& bonus : pendingNetworkBonuses_)
     {
         takeBonus(
-            bonus.racer, bonus.bonus, bonus.kind,
-            bonus.value, true);
+            bonus.racer, bonus.bonus, bonus.value, true);
     }
     pendingNetworkBonuses_.clear();
 
@@ -5825,8 +5824,7 @@ void OriginalRaceSession::updateGameplay(
             }
 
             takeBonus(
-                racer, bonusIndex, bonus.kind,
-                bonus.value, false);
+                racer, bonusIndex, bonus.value, false);
             break;
         }
     }
@@ -9179,6 +9177,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             shieldBonus.record =
                 "world\\db\\root\\ctBonuses\\shield";
             shieldBonus.kind = BonusKind::Shield;
+            shieldBonus.projectileType = 7U;
             shieldBonus.value = 10.0F;
             shieldBonus.size = {1.0F, 1.0F, 1.0F};
             shieldBonus.collision.halfExtents =

@@ -3474,6 +3474,24 @@ Jolt velocity limit, но больше не воспроизводит source-у
 Regression проверяет hit/damage ray, 2.5-секундный model3 lifetime, identity
 оружия/снаряда, запрет повторного эффекта и reject обычного GameObject.
 
+### P2.145 — concrete bonus-contact ownership — выполнено
+
+Session всё ещё передавал в бонус независимый `BonusKind` и сводил исходный
+контакт к булевому `hasTarget`. Это допускало расхождение между реально
+созданным `Proj`, сетевым пакетом и типом награды, тогда как Windows
+`Proj::OnContact` получает тип непосредственно из `_desc`, находит игрока
+через `GameObject -> MapObj` и только затем вызывает `Logic::TakeBonus`.
+
+В concrete `Proj` восстановлен `ContactBonus`: он проверяет связь generic
+цели с `MapObj`, `Player` и именно `Player::gameCar`, выбирает Money/Charge/
+Medpack/Immortal из собственного source-description и для нулевой величины
+аптечки использует максимальную жизнь цели. Session сохраняет сетевую
+авторитетность, RNG и мутацию `Player`, но больше не дублирует source dispatch.
+Regression проверяет medpack fallback, тип, правильного владельца и reject
+чужого игрока/обычного объекта. Дополнительно исправлена неполная shield
+physics-fixture: ей задан исходный `ptImmortal`, без которого новый concrete
+dispatch корректно отказывался создавать эффект.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

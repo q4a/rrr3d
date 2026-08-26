@@ -1030,6 +1030,21 @@ Proj::ContactResult Proj::ContactMaslo(
     return result;
 }
 
+Proj::BonusContactResult Proj::ContactBonus(
+    GameObject* target, Player* targetPlayer,
+    float damage) const noexcept
+{
+    if (target == nullptr || targetPlayer == nullptr ||
+        target->GetMapObj() == nullptr ||
+        target->GetMapObj()->GetPlayer() != targetPlayer ||
+        &targetPlayer->gameCar != target)
+    {
+        return {};
+    }
+    return BonusContact(
+        description_.type, true, damage, target->GetMaxLife());
+}
+
 void Proj::ProgressDrobilka(float deltaTime) noexcept
 {
     if (weapon_ != nullptr)

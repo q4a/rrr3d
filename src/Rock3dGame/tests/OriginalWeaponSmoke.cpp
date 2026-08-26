@@ -1424,6 +1424,32 @@ int main()
         source::Proj::BonusContact(
             8U, true, 3.0F, 80.0F).take)
         return 61;
+    source::Player contactBonusPlayer;
+    contactBonusPlayer.Reset(80.0F, 1U);
+    source::MapObj contactBonusTargetMap;
+    contactBonusTargetMap.SetType(source::GameObjType::RockCar);
+    contactBonusTargetMap.BindGameObj(contactBonusPlayer.gameCar);
+    contactBonusTargetMap.SetPlayer(&contactBonusPlayer);
+    contactBonusPlayer.gameCar.ResetGameObject(80.0F);
+    auto medpackDescription = sourceDescription;
+    medpackDescription.type = 4U;
+    source::Proj medpackProjectile;
+    medpackProjectile.PrepareSource(
+        medpackDescription, nullptr, source::Proj::ShotContext{});
+    const auto concreteMedpack = medpackProjectile.ContactBonus(
+        &contactBonusPlayer.gameCar, &contactBonusPlayer, 0.0F);
+    source::Player wrongBonusPlayer;
+    if (!concreteMedpack.take ||
+        concreteMedpack.type !=
+            source::Proj::BonusContactType::Medpack ||
+        concreteMedpack.value != 80.0F ||
+        medpackProjectile.ContactBonus(
+            &contactBonusPlayer.gameCar,
+            &wrongBonusPlayer, 0.0F).take ||
+        medpackProjectile.ContactBonus(
+            &frostNonCarTarget,
+            &contactBonusPlayer, 0.0F).take)
+        return 139;
     const auto linkedDestroy = source::Proj::OnDestroy(
         true, true, false);
     const auto unlinkedDestroy = source::Proj::OnDestroy(
