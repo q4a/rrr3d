@@ -675,6 +675,25 @@ void Player::CreateCar(bool newRace) noexcept
             gameCar.BindWheels(
                 carRecord_->wheelSlipEffects,
                 carRecord_->wheelSlipSounds);
+            std::vector<GameCar::WheelDynamics> wheelDynamics;
+            wheelDynamics.reserve(carRecord_->physics.wheels.size());
+            for (const auto& wheel : carRecord_->physics.wheels)
+            {
+                wheelDynamics.push_back(
+                    {wheel.position.x, wheel.driven, wheel.steering});
+            }
+            gameCar.ConfigureDynamics(
+                {{carRecord_->physics.angularDamping.x,
+                  carRecord_->physics.angularDamping.y,
+                  carRecord_->physics.angularDamping.z},
+                 carRecord_->physics.airbornePitchAcceleration,
+                 carRecord_->physics.clampRollAngle,
+                 carRecord_->physics.clampPitchAngle,
+                 carRecord_->physics.steerAngle,
+                 carRecord_->physics.steerSpeed,
+                 carRecord_->physics.steerRotation,
+                 carRecord_->physics.gravitySteering},
+                wheelDynamics);
             gameCar.BindAnimationChildren(
                 !carRecord_->trackVisuals.empty(),
                 carRecord_->cushionVisuals.size());

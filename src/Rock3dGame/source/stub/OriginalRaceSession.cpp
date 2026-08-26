@@ -2399,12 +2399,17 @@ physics::VehicleDriveCommand OriginalRaceSession::racerFixedStepDrive(
     const auto command = racers_[racer].gameCar.OnFixedStepDrive(
         deltaTime,
         {input.throttle, input.reverse, input.brake,
-         input.motorTorqueScale},
+         input.steering, input.motorTorqueScale},
         {state.signedSpeed, state.absoluteSpeed,
-         state.drivenWheelAngularSpeed,
+         state.horizontalSpeed, state.drivenWheelAngularSpeed,
+         state.anyWheelContact,
          state.drivenWheelContact});
     return {command.motorTorque, command.brakeTorque,
-            command.rpm, command.gear};
+            command.rpm, command.gear, command.steeringAngle,
+            command.steeringYaw, command.rearWheelX,
+            command.angularDamping, command.clampRollAngle,
+            command.clampPitchAngle, command.applyExtraGravity,
+            command.airbornePitchAcceleration};
 }
 
 source::GameObjectFrameSync::NetworkCorrection

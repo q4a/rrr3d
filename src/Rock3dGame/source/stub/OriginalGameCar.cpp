@@ -111,8 +111,10 @@ GameCar& GameCar::operator=(const GameCar& other) noexcept
     mineTime_ = other.mineTime_;
     leadWheelSpeed_ = other.leadWheelSpeed_;
     motor_ = other.motor_;
+    dynamics_ = other.dynamics_;
     moveCar_ = other.moveCar_;
     currentGear_ = other.currentGear_;
+    steeringAngle_ = other.steeringAngle_;
     rpmVolumeRange_ = other.rpmVolumeRange_;
     rpmFrequencyRange_ = other.rpmFrequencyRange_;
     soundMotorMix_ = other.soundMotorMix_;
@@ -181,6 +183,10 @@ void GameCar::Reset() noexcept
     leadWheelSpeed_ = 0.0F;
     moveCar_ = MoveCarState::None;
     currentGear_ = -1;
+    steeringAngle_ = 0.0F;
+    for (auto& wheel : wheels_)
+        if (wheel != nullptr)
+            wheel->SetSteerAngle(0.0F);
     GetFrameSync().Reset();
     if (soundMotor_ != nullptr)
         soundMotor_->Reset();
@@ -272,6 +278,30 @@ void GameCar::ConfigureMotor(MotorDescription description) noexcept
     moveCar_ = MoveCarState::None;
 }
 
+void GameCar::ConfigureDynamics(
+    DynamicsDescription description,
+    const std::vector<WheelDynamics>& wheels) noexcept
+{
+    dynamics_ = description;
+    dynamics_.clampRollAngle =
+        std::max(dynamics_.clampRollAngle, 0.0F);
+    dynamics_.clampPitchAngle =
+        std::max(dynamics_.clampPitchAngle, 0.0F);
+    dynamics_.maximumSteerAngle =
+        std::max(dynamics_.maximumSteerAngle, 0.0F);
+    dynamics_.steerSpeed = std::max(dynamics_.steerSpeed, 0.0F);
+    steeringAngle_ = 0.0F;
+    const std::size_t count = std::min(wheels_.size(), wheels.size());
+    for (std::size_t index = 0U; index < count; ++index)
+    {
+        if (wheels_[index] == nullptr)
+            continue;
+        wheels_[index]->ConfigureDynamics(
+            wheels[index].positionX, wheels[index].driven,
+            wheels[index].steering);
+    }
+}
+
 GameCar::DriveCommand GameCar::OnFixedStepDrive(
     float deltaTime, FixedStepInput input,
     FixedStepState state) noexcept
@@ -304,6 +334,7 @@ GameCar::DriveCommand GameCar::OnFixedStepDrive(
     input.throttle = std::clamp(input.throttle, 0.0F, 1.0F);
     input.reverse = std::clamp(input.reverse, 0.0F, 1.0F);
     input.brake = std::clamp(input.brake, 0.0F, 1.0F);
+    input.steering = std::clamp(input.steering, -1.0F, 1.0F);
     input.motorTorqueScale = std::max(input.motorTorqueScale, 0.0F);
     if (input.brake > 0.0001F)
         moveCar_ = MoveCarState::Brake;
@@ -377,6 +408,68 @@ GameCar::DriveCommand GameCar::OnFixedStepDrive(
         state.absoluteSpeed > motor_.maximumSpeed)
         command.motorTorque = command.brakeTorque;
     command.gear = currentGear_;
+
+    const float targetSteering =
+        input.steering * dynamics_.maximumSteerAngle;
+    if (std::abs(input.steering) >= 0.999F &&
+        dynamics_.steerSpeed > 0.0F)
+    {
+        if (targetSteering > 0.0F)
+        {
+            steeringAngle_ = std::min(
+                std::max(steeringAngle_, 0.0F) +
+                    dynamics_.steerSpeed * std::max(deltaTime, 0.0F),
+                dynamics_.maximumSteerAngle);
+        }
+        else
+        {
+            steeringAngle_ = std::max(
+                std::min(steeringAngle_, 0.0F) -
+                    dynamics_.steerSpeed * std::max(deltaTime, 0.0F),
+                -dynamics_.maximumSteerAngle);
+        }
+    }
+    else
+    {
+        // Windows smManual is used by analogue input and AI.
+        steeringAngle_ = targetSteering;
+    }
+    command.steeringAngle = steeringAngle_;
+    command.rearWheelX = 0.0F;
+    for (auto& wheel : wheels_)
+    {
+        if (wheel == nullptr)
+            continue;
+        command.rearWheelX = std::min(
+            command.rearWheelX, wheel->GetPositionX());
+        if (wheel->IsSteering())
+            wheel->SetSteerAngle(steeringAngle_);
+    }
+    const bool steeringContact = dynamics_.gravitySteering
+        ? state.anyWheelContact : state.drivenWheelContact;
+    if (steeringContact && !IsClutchLocked() &&
+        std::abs(steeringAngle_) > 0.0001F &&
+        dynamics_.maximumSteerAngle > 0.0001F)
+    {
+        const float alpha = std::clamp(
+            state.signedSpeed / 10.0F, -1.0F, 1.0F);
+        command.steeringYaw =
+            alpha * (steeringAngle_ / dynamics_.maximumSteerAngle) *
+            dynamics_.steerRotation * std::max(deltaTime, 0.0F);
+    }
+
+    command.angularDamping = dynamics_.angularDamping;
+    if (IsClutchLocked())
+        command.angularDamping[2U] = 1.0F;
+    command.clampRollAngle = dynamics_.clampRollAngle;
+    command.clampPitchAngle = dynamics_.clampPitchAngle;
+    command.applyExtraGravity = !state.anyWheelContact;
+    if (command.applyExtraGravity && state.horizontalSpeed > 1.0F &&
+        !IsSpringLocked())
+    {
+        command.airbornePitchAcceleration =
+            dynamics_.airbornePitchAcceleration;
+    }
     GetBehaviors().OnMotor(
         std::max(deltaTime, 0.0F), command.rpm,
         motor_.idlingRpm, motor_.maximumRpm);
@@ -774,6 +867,10 @@ CarWheel& CarWheel::operator=(const CarWheel& other) noexcept
     slipEffectEnabled_ = other.slipEffectEnabled_;
     slipSoundEnabled_ = other.slipSoundEnabled_;
     pxSyncPose_ = other.pxSyncPose_;
+    positionX_ = other.positionX_;
+    steerAngle_ = other.steerAngle_;
+    driven_ = other.driven_;
+    steering_ = other.steering_;
     if (slipEffectEnabled_)
     {
         GetBehaviors().Add<WheelSlipBehavior>(
@@ -806,6 +903,7 @@ void CarWheel::Configure(bool slipEffect, bool slipSound)
     slipEffectEnabled_ = slipEffect;
     slipSoundEnabled_ = slipEffect && slipSound;
     pxSyncPose_ = {};
+    steerAngle_ = 0.0F;
     if (slipEffectEnabled_)
     {
         GetBehaviors().Add<WheelSlipBehavior>(
@@ -842,6 +940,40 @@ const GameObjectFrameSync::Pose& CarWheel::PxSyncWheel(
 const GameObjectFrameSync::Pose& CarWheel::GetPxSyncPose() const noexcept
 {
     return pxSyncPose_;
+}
+
+void CarWheel::ConfigureDynamics(
+    float positionX, bool driven, bool steering) noexcept
+{
+    positionX_ = positionX;
+    driven_ = driven;
+    steering_ = steering;
+    steerAngle_ = 0.0F;
+}
+
+void CarWheel::SetSteerAngle(float value) noexcept
+{
+    steerAngle_ = value;
+}
+
+float CarWheel::GetSteerAngle() const noexcept
+{
+    return steerAngle_;
+}
+
+float CarWheel::GetPositionX() const noexcept
+{
+    return positionX_;
+}
+
+bool CarWheel::IsDriven() const noexcept
+{
+    return driven_;
+}
+
+bool CarWheel::IsSteering() const noexcept
+{
+    return steering_;
 }
 
 void CarWheel::SetContact(

@@ -86,6 +86,7 @@ public:
         float throttle = 0.0F;
         float reverse = 0.0F;
         float brake = 0.0F;
+        float steering = 0.0F;
         float motorTorqueScale = 1.0F;
     };
 
@@ -93,8 +94,29 @@ public:
     {
         float signedSpeed = 0.0F;
         float absoluteSpeed = 0.0F;
+        float horizontalSpeed = 0.0F;
         float drivenWheelAngularSpeed = 0.0F;
+        bool anyWheelContact = false;
         bool drivenWheelContact = false;
+    };
+
+    struct DynamicsDescription
+    {
+        std::array<float, 3U> angularDamping{1.0F, 1.0F, 1.0F};
+        float airbornePitchAcceleration = 0.0F;
+        float clampRollAngle = 0.0F;
+        float clampPitchAngle = 0.0F;
+        float maximumSteerAngle = 0.0F;
+        float steerSpeed = 0.0F;
+        float steerRotation = 0.0F;
+        bool gravitySteering = false;
+    };
+
+    struct WheelDynamics
+    {
+        float positionX = 0.0F;
+        bool driven = false;
+        bool steering = false;
     };
 
     struct DriveCommand
@@ -103,6 +125,14 @@ public:
         float brakeTorque = 0.0F;
         float rpm = 0.0F;
         int gear = -1;
+        float steeringAngle = 0.0F;
+        float steeringYaw = 0.0F;
+        float rearWheelX = 0.0F;
+        std::array<float, 3U> angularDamping{1.0F, 1.0F, 1.0F};
+        float clampRollAngle = 0.0F;
+        float clampPitchAngle = 0.0F;
+        bool applyExtraGravity = false;
+        float airbornePitchAcceleration = 0.0F;
     };
 
     GameCar();
@@ -122,6 +152,9 @@ public:
         const std::vector<PxSyncPose>& physicalWheels,
         float deltaTime) noexcept;
     void ConfigureMotor(MotorDescription description) noexcept;
+    void ConfigureDynamics(
+        DynamicsDescription description,
+        const std::vector<WheelDynamics>& wheels) noexcept;
     DriveCommand OnFixedStepDrive(
         float deltaTime, FixedStepInput input,
         FixedStepState state) noexcept;
@@ -190,8 +223,10 @@ private:
     std::vector<std::unique_ptr<CarAnimationChild>> animationChildren_;
     float leadWheelSpeed_ = 0.0F;
     MotorDescription motor_;
+    DynamicsDescription dynamics_;
     MoveCarState moveCar_ = MoveCarState::None;
     int currentGear_ = -1;
+    float steeringAngle_ = 0.0F;
 };
 
 // Backend-neutral owner for GameBase.cpp::SoundMotor. SDL owns the two
@@ -258,6 +293,13 @@ public:
         GameObjectFrameSync::Pose graphBody,
         GameObjectFrameSync::Pose physicalWheel) noexcept;
     const GameObjectFrameSync::Pose& GetPxSyncPose() const noexcept;
+    void ConfigureDynamics(
+        float positionX, bool driven, bool steering) noexcept;
+    void SetSteerAngle(float value) noexcept;
+    float GetSteerAngle() const noexcept;
+    float GetPositionX() const noexcept;
+    bool IsDriven() const noexcept;
+    bool IsSteering() const noexcept;
     void SetContact(bool hasContact, float longitudinalSlip,
                     float lateralSlip) noexcept;
     GameObject::ProgressResult OnProgress(float deltaTime) noexcept;
@@ -276,6 +318,10 @@ private:
     bool slipEffectEnabled_ = false;
     bool slipSoundEnabled_ = false;
     GameObjectFrameSync::Pose pxSyncPose_;
+    float positionX_ = 0.0F;
+    float steerAngle_ = 0.0F;
+    bool driven_ = false;
+    bool steering_ = false;
 };
 
 class GusenizaAnim

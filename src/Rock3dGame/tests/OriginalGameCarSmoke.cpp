@@ -96,8 +96,8 @@ int main()
                         2000.0F, 0.805F, 400.0F, 10.0F, true});
     car.BindSoundMotor(volumeRange, frequencyRange);
     const auto firstGear = car.OnFixedStepDrive(
-        1.0F / 120.0F, {1.0F, 0.0F, 0.0F, 1.0F},
-        {0.0F, 0.0F, 0.0F, true});
+        1.0F / 120.0F, {1.0F, 0.0F, 0.0F, 0.0F, 1.0F},
+        {0.0F, 0.0F, 0.0F, 0.0F, true, true});
     const float expectedFirstGearTorque =
         2000.0F * 2.66F * 3.42F * 0.805F;
     if (firstGear.gear != 1 ||
@@ -108,15 +108,15 @@ int main()
         firstGear.brakeTorque != 400.0F)
         return 38;
     const auto shifted = car.OnFixedStepDrive(
-        1.0F / 120.0F, {1.0F, 0.0F, 0.0F, 1.0F},
-        {5.0F, 5.0F, 10000.0F, true});
+        1.0F / 120.0F, {1.0F, 0.0F, 0.0F, 0.0F, 1.0F},
+        {5.0F, 5.0F, 5.0F, 10000.0F, true, true});
     if (shifted.rpm != 7000.0F || shifted.gear != 2 ||
         shifted.motorTorque != expectedFirstGearTorque ||
         car.GetSoundMotorMix().currentRpm <= 0.0F)
         return 39;
     const auto reverseBrake = car.OnFixedStepDrive(
-        1.0F / 120.0F, {0.0F, 1.0F, 0.0F, 1.0F},
-        {2.0F, 2.0F, 10.0F, true});
+        1.0F / 120.0F, {0.0F, 1.0F, 0.0F, 0.0F, 1.0F},
+        {2.0F, 2.0F, 2.0F, 10.0F, true, true});
     if (reverseBrake.motorTorque != 0.0F ||
         reverseBrake.brakeTorque != 7500.0F ||
         // TransmissionProgress still runs while mcBack is braking forward
@@ -124,19 +124,19 @@ int main()
         reverseBrake.gear != 1)
         return 40;
     const auto reverseDrive = car.OnFixedStepDrive(
-        1.0F / 120.0F, {0.0F, 1.0F, 0.0F, 1.0F},
-        {0.0F, 0.0F, 0.0F, true});
+        1.0F / 120.0F, {0.0F, 1.0F, 0.0F, 0.0F, 1.0F},
+        {0.0F, 0.0F, 0.0F, 0.0F, true, true});
     if (reverseDrive.gear != 0 ||
         reverseDrive.motorTorque >= 0.0F)
         return 41;
     const auto braking = car.OnFixedStepDrive(
-        1.0F / 120.0F, {0.0F, 0.0F, 1.0F, 1.0F},
-        {-2.0F, 2.0F, 10.0F, true});
+        1.0F / 120.0F, {0.0F, 0.0F, 1.0F, 0.0F, 1.0F},
+        {-2.0F, 2.0F, 2.0F, 10.0F, true, true});
     if (braking.gear != -1 || braking.brakeTorque != 7500.0F)
         return 42;
     const auto speedLimited = car.OnFixedStepDrive(
-        1.0F / 120.0F, {1.0F, 0.0F, 0.0F, 3.0F},
-        {12.0F, 12.0F, 100.0F, true});
+        1.0F / 120.0F, {1.0F, 0.0F, 0.0F, 0.0F, 3.0F},
+        {12.0F, 12.0F, 12.0F, 100.0F, true, true});
     if (speedLimited.gear != 2 ||
         speedLimited.motorTorque != speedLimited.brakeTorque ||
         speedLimited.motorTorque != 400.0F)
@@ -148,6 +148,15 @@ int main()
     car.ReleaseSoundMotor();
 
     car.BindWheels({true, false}, {true, false});
+    constexpr float maximumSteerAngle =
+        3.14159265358979323846F / 6.0F;
+    constexpr float steerSpeed =
+        3.14159265358979323846F / 2.0F;
+    car.ConfigureDynamics(
+        {{0.5F, 0.6F, 0.7F}, 2.0F, 0.2F, 0.3F,
+         maximumSteerAngle, steerSpeed,
+         3.14159265358979323846F, false},
+        {{-1.0F, true, false}, {1.0F, false, true}});
     const auto* firstWheel = car.GetWheel(0U);
     const auto* secondWheel = car.GetWheel(1U);
     if (car.GetWheelCount() != 2U || firstWheel == nullptr ||
@@ -160,8 +169,46 @@ int main()
         firstWheel->GetBehaviors().Find(
             source::BehaviorType::PxWheelSlipEffect) == nullptr ||
         secondWheel->HasSlipEffect() ||
-        secondWheel->GetBehaviors().GetCount() != 0U)
+        secondWheel->GetBehaviors().GetCount() != 0U ||
+        !firstWheel->IsDriven() || firstWheel->IsSteering() ||
+        secondWheel->IsDriven() || !secondWheel->IsSteering())
         return 25;
+    const auto steered = car.OnFixedStepDrive(
+        1.0F / 120.0F, {0.0F, 0.0F, 0.0F, 1.0F, 1.0F},
+        {5.0F, 5.0F, 5.0F, 0.0F, true, true});
+    const float expectedSteering = steerSpeed / 120.0F;
+    if (std::abs(steered.steeringAngle - expectedSteering) > 0.0001F ||
+        steered.steeringYaw <= 0.0F || steered.rearWheelX != -1.0F ||
+        std::abs(car.GetWheel(1U)->GetSteerAngle() -
+                 expectedSteering) > 0.0001F ||
+        steered.angularDamping != std::array<float, 3U>{0.5F, 0.6F, 0.7F} ||
+        steered.applyExtraGravity)
+        return 45;
+    const auto airborne = car.OnFixedStepDrive(
+        1.0F / 120.0F, {},
+        {5.0F, 5.0F, 2.0F, 0.0F, false, false});
+    if (!airborne.applyExtraGravity ||
+        airborne.airbornePitchAcceleration != 2.0F ||
+        airborne.clampRollAngle != 0.2F ||
+        airborne.clampPitchAngle != 0.3F)
+        return 46;
+    car.LockSpring();
+    const auto springLocked = car.OnFixedStepDrive(
+        1.0F / 120.0F, {},
+        {5.0F, 5.0F, 2.0F, 0.0F, false, false});
+    if (!springLocked.applyExtraGravity ||
+        springLocked.airbornePitchAcceleration != 0.0F)
+        return 47;
+    car.Reset();
+    if (!car.LockClutch(0.0F, false))
+        return 48;
+    const auto clutchSteering = car.OnFixedStepDrive(
+        1.0F / 120.0F, {0.0F, 0.0F, 0.0F, 1.0F, 1.0F},
+        {5.0F, 5.0F, 5.0F, 0.0F, true, true});
+    if (clutchSteering.steeringYaw != 0.0F ||
+        clutchSteering.angularDamping[2U] != 1.0F)
+        return 49;
+    car.Reset();
     if (!car.SetWheelContact(0U, true, -0.65F, 0.9F) ||
         !car.SetWheelContact(1U, true, 5.0F, 5.0F) ||
         car.SetWheelContact(2U, true, 1.0F, 1.0F))

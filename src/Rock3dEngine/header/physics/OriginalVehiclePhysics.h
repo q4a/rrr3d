@@ -181,7 +181,9 @@ struct VehicleFixedStepState
 {
     float signedSpeed = 0.0F;
     float absoluteSpeed = 0.0F;
+    float horizontalSpeed = 0.0F;
     float drivenWheelAngularSpeed = 0.0F;
+    bool anyWheelContact = false;
     bool drivenWheelContact = false;
 };
 
@@ -191,6 +193,14 @@ struct VehicleDriveCommand
     float brakeTorque = 0.0F;
     float engineRpm = 0.0F;
     int gear = -1;
+    float steeringAngle = 0.0F;
+    float steeringYaw = 0.0F;
+    float rearWheelX = 0.0F;
+    std::array<float, 3U> angularDamping{1.0F, 1.0F, 1.0F};
+    float clampRollAngle = 0.0F;
+    float clampPitchAngle = 0.0F;
+    bool applyExtraGravity = false;
+    float airbornePitchAcceleration = 0.0F;
 };
 
 using VehicleFixedStepController = std::function<VehicleDriveCommand(

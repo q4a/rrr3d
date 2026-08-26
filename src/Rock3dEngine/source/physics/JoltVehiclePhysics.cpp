@@ -1189,51 +1189,47 @@ private:
                source.differentialRatio * source.torqueEfficiency;
     }
 
-    void stabilizeVehicle(VehicleRuntime& vehicle, bool anyContact) noexcept
+    void stabilizeVehicle(
+        VehicleRuntime& vehicle, bool anyContact,
+        const std::array<float, 3U>& angularDamping,
+        float clampRollAngle, float clampPitchAngle) noexcept
     {
-        const auto& source = vehicle.spawn.vehicle;
         auto& bodies = system_.GetBodyInterface();
         const JPH::Quat rotation = bodies.GetRotation(vehicle.body);
         JPH::Vec3 localAngularVelocity =
             rotation.Conjugated() *
             bodies.GetAngularVelocity(vehicle.body);
         localAngularVelocity.SetX(
-            localAngularVelocity.GetX() * source.angularDamping.x);
+            localAngularVelocity.GetX() * angularDamping[0U]);
         localAngularVelocity.SetZ(
-            localAngularVelocity.GetZ() * source.angularDamping.y);
+            localAngularVelocity.GetZ() * angularDamping[1U]);
         localAngularVelocity.SetY(
-            localAngularVelocity.GetY() *
-            (vehicle.wheelTractionEnabled
-                 ? source.angularDamping.z
-                 : 1.0F));
+            localAngularVelocity.GetY() * angularDamping[2U]);
         if (!anyContact)
         {
-            if (source.clampRollAngle > 0.0F)
+            if (clampRollAngle > 0.0F)
                 localAngularVelocity.SetX(std::clamp(
                     localAngularVelocity.GetX(),
-                    -2.0F * source.clampRollAngle,
-                    2.0F * source.clampRollAngle));
-            if (source.clampPitchAngle > 0.0F)
+                    -2.0F * clampRollAngle,
+                    2.0F * clampRollAngle));
+            if (clampPitchAngle > 0.0F)
                 localAngularVelocity.SetZ(std::clamp(
                     localAngularVelocity.GetZ(),
-                    -2.0F * source.clampPitchAngle,
-                    2.0F * source.clampPitchAngle));
+                    -2.0F * clampPitchAngle,
+                    2.0F * clampPitchAngle));
         }
         bodies.SetAngularVelocity(
             vehicle.body, rotation * localAngularVelocity);
 
-        if (source.clampRollAngle > 0.0F ||
-            source.clampPitchAngle > 0.0F)
+        if (clampRollAngle > 0.0F || clampPitchAngle > 0.0F)
         {
             Vec3 euler = quaternionToEulerXYZ(fromJolt(rotation));
-            if (source.clampRollAngle > 0.0F)
+            if (clampRollAngle > 0.0F)
                 euler.x = std::clamp(
-                    euler.x, -source.clampRollAngle,
-                    source.clampRollAngle);
-            if (source.clampPitchAngle > 0.0F)
+                    euler.x, -clampRollAngle, clampRollAngle);
+            if (clampPitchAngle > 0.0F)
                 euler.y = std::clamp(
-                    euler.y, -source.clampPitchAngle,
-                    source.clampPitchAngle);
+                    euler.y, -clampPitchAngle, clampPitchAngle);
             bodies.SetPositionAndRotation(
                 vehicle.body, bodies.GetPosition(vehicle.body),
                 toJolt(quaternionFromEulerXYZ(euler)),
@@ -1297,6 +1293,25 @@ private:
             correctedRotation, JPH::EActivation::Activate);
     }
 
+    void applyGameCarSteering(
+        VehicleRuntime& vehicle,
+        const VehicleDriveCommand& command) noexcept
+    {
+        vehicle.steeringAngle = command.steeringAngle;
+        if (std::abs(command.steeringYaw) <= 0.000001F)
+            return;
+        auto& bodies = system_.GetBodyInterface();
+        const auto rotation = bodies.GetRotation(vehicle.body);
+        const auto correctedRotation = rotation * JPH::Quat::sRotation(
+            JPH::Vec3::sAxisY(), -command.steeringYaw);
+        const JPH::Vec3 rearPivot{command.rearWheelX, 0.0F, 0.0F};
+        const auto position = bodies.GetPosition(vehicle.body);
+        const auto pivot = position + rotation * rearPivot;
+        bodies.SetPositionAndRotation(
+            vehicle.body, pivot - correctedRotation * rearPivot,
+            correctedRotation, JPH::EActivation::Activate);
+    }
+
     void prepareVehicleStep(std::size_t vehicleIndex,
                             VehicleRuntime& vehicle, VehicleInput input,
                             float delta) noexcept
@@ -1337,6 +1352,8 @@ private:
         const JPH::Quat rotation = bodies.GetRotation(vehicle.body);
         const JPH::Vec3 velocity =
             bodies.GetLinearVelocity(vehicle.body);
+        const JPH::Vec3 horizontalVelocity{
+            velocity.GetX(), 0.0F, velocity.GetZ()};
         const float signedSpeed =
             velocity.Dot(rotation * JPH::Vec3::sAxisX());
         // PhysX settles a braked wheel to exact zero. Jolt keeps tiny solver
@@ -1348,16 +1365,20 @@ private:
         float motorTorque = 0.0F;
         float rpm = sourceRpm(
             source, vehicle.currentGear, drivenWheelSpeed);
-        if (fixedStepController_)
+        VehicleDriveCommand gameCarCommand;
+        const bool gameCarControlled =
+            static_cast<bool>(fixedStepController_);
+        if (gameCarControlled)
         {
-            const auto command = fixedStepController_(
+            gameCarCommand = fixedStepController_(
                 vehicleIndex, delta, input,
-                {signedSpeed, velocity.Length(), drivenWheelSpeed,
-                 drivenContact});
-            motorTorque = command.motorTorque;
-            brakeTorque = command.brakeTorque;
-            rpm = command.engineRpm;
-            vehicle.currentGear = command.gear;
+                {signedSpeed, velocity.Length(),
+                 horizontalVelocity.Length(), drivenWheelSpeed,
+                 anyContact, drivenContact});
+            motorTorque = gameCarCommand.motorTorque;
+            brakeTorque = gameCarCommand.brakeTorque;
+            rpm = gameCarCommand.engineRpm;
+            vehicle.currentGear = gameCarCommand.gear;
         }
         else
         {
@@ -1425,9 +1446,26 @@ private:
         vehicle.motorTorque = motorTorque;
         vehicle.engineRpm = rpm;
 
-        stabilizeVehicle(vehicle, anyContact);
-        applySourceSteering(
-            vehicle, input.steering, delta, anyContact, drivenContact);
+        if (gameCarControlled)
+        {
+            stabilizeVehicle(
+                vehicle, anyContact, gameCarCommand.angularDamping,
+                gameCarCommand.clampRollAngle,
+                gameCarCommand.clampPitchAngle);
+            applyGameCarSteering(vehicle, gameCarCommand);
+        }
+        else
+        {
+            stabilizeVehicle(
+                vehicle, anyContact,
+                {source.angularDamping.x, source.angularDamping.y,
+                 vehicle.wheelTractionEnabled
+                     ? source.angularDamping.z : 1.0F},
+                source.clampRollAngle, source.clampPitchAngle);
+            applySourceSteering(
+                vehicle, input.steering, delta,
+                anyContact, drivenContact);
+        }
 
         // PhysX accepts restTorque on a rolling powered wheel. Jolt treats
         // the same value as a wheel lock at low speed, which previously held
@@ -1462,17 +1500,20 @@ private:
                 ->ApplyTorque(motorTorque, delta);
         }
 
-        if (!anyContact)
+        const bool applyExtraGravity = gameCarControlled
+            ? gameCarCommand.applyExtraGravity : !anyContact;
+        if (applyExtraGravity)
         {
             bodies.AddForce(
                 vehicle.body,
                 toJolt(Vec3{0.0F, 0.0F,
                             source.mass * description_.gravity}));
-            const JPH::Vec3 horizontal{
-                velocity.GetX(), 0.0F, velocity.GetZ()};
-            if (horizontal.Length() > 1.0F &&
-                !input.springLocked &&
-                source.airbornePitchAcceleration != 0.0F)
+            const float pitchAcceleration = gameCarControlled
+                ? gameCarCommand.airbornePitchAcceleration
+                : (horizontalVelocity.Length() > 1.0F &&
+                   !input.springLocked
+                       ? source.airbornePitchAcceleration : 0.0F);
+            if (pitchAcceleration != 0.0F)
             {
                 const JPH::Quat currentRotation =
                     bodies.GetRotation(vehicle.body);
@@ -1481,7 +1522,7 @@ private:
                     currentRotation *
                         JPH::Vec3{
                             0.0F, 0.0F,
-                            -source.airbornePitchAcceleration * delta});
+                            -pitchAcceleration * delta});
             }
         }
 

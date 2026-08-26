@@ -2716,6 +2716,28 @@ Regression закрепляет первую/автоматическую/revers
 reset и fixed-step RPM audio. Полная arm64 Debug сборка, 15 offline-тестов,
 2 network-теста, physics smoke и 360-frame bgfx/Metal smoke прошли.
 
+### P2.109 — source `WheelsProgress`/`JumpProgress`/`StabilizeForce` commands — выполнено
+
+После P2.108 Jolt всё ещё самостоятельно накапливал угол руля, выбирал
+contact gate, вычислял rear-wheel pivot/yaw, решал добавлять ли вторую gravity
+и airborne pitch, а также выбирал angular damping/clamp. Это оставляло три
+крупных части Windows `GameCar::OnFixedStep` владельцами backend-а.
+
+`GameCar` теперь загружает из оригинального `ctCar` dynamics description и
+флаги/позиции каждого дочернего `CarWheel`, хранит steering angle, повторяет
+`swOnLeft/swOnRight/smManual`, вычисляет source contact gate, yaw и заднюю
+точку поворота. Он же выдаёт команды `JumpProgress` и `StabilizeForce`,
+включая extra gravity, spring lock, `flyYTorque`, исходные `angDamping` (с
+сохранением sentinel `-1`) и roll/pitch clamp. Каждый steering `CarWheel`
+получает собственный угол. Jolt применяет эти готовые команды в своей системе
+координат и больше не принимает игровых решений в активном runtime; старые
+формулы остаются лишь fallback автономного engine smoke.
+
+Regression проверяет digital steering ramp, manual/contact gates, wheel
+owner, rear pivot, airborne/spring branches, clutch yaw suppression и damping.
+Полная arm64 Debug сборка, offline/network/physics и 360-frame Metal smoke
+прошли с теми же контрольными скоростями всех шести машин.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
