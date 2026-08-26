@@ -497,7 +497,6 @@ void Proj::ConfigureDeathEffect(
     bool targetChild) noexcept
 {
     GetBehaviors().Clear();
-    ResetGameObject(-1.0F);
     deathEffect_ = &GetBehaviors().Add<DeathEffectBehavior>(
         BehaviorType::DeathEffect,
         effectPhysicsIgnoreSenderCar, targetChild);
@@ -842,14 +841,12 @@ Proj::Quat Proj::ProgressResonanse(
 
 Proj::TorpedaUpdateResult Proj::ProgressTorpeda(
     float deltaTime, Vec3 position, Quat rotation,
-    bool hasTarget, Vec3 targetPosition,
-    float sourceSpeed, bool speedRelative,
-    float angleSpeed) noexcept
+    bool hasTarget, Vec3 targetPosition) noexcept
 {
     auto result = TorpedaUpdate(
         deltaTime, position, rotation, sourceVector_, sourceTimer_,
-        hasTarget, targetPosition, sourceSpeed, speedRelative,
-        angleSpeed);
+        hasTarget, targetPosition, description_.speed,
+        description_.relativeSpeed, description_.angularSpeed);
     sourceTimer_ = result.homingDelay;
     if (result.setLinearVelocity)
         sourceVector_ = result.linearVelocity;
@@ -877,7 +874,6 @@ Proj::MineRipUpdateResult Proj::ProgressMineRip(
     MineRipUpdateResult result;
     if (RouteProgress().handler != ProgressHandler::MineRip)
         return result;
-    SetTimeLife(GetTimeLife() + std::max(deltaTime, 0.0F));
     result.arming = ProgressMine(deltaTime, delay);
     result.split = MineRipUpdate(
         GetTimeLife(), description_.angularSpeed,
@@ -948,11 +944,11 @@ Proj::TorqueResult Proj::ContactRocket(
 
 Proj::ImpulseContactResult Proj::ContactImpulse(
     bool hasContactActor, bool hasTarget,
-    bool contactIsTarget, float damage) noexcept
+    bool contactIsTarget) noexcept
 {
     auto result = ImpulseContact(
         hasContactActor, hasTarget, contactIsTarget,
-        sourceTick_, damage);
+        sourceTick_, description_.damage);
     sourceTick_ = result.hitCount;
     return result;
 }
@@ -997,13 +993,13 @@ void Proj::RetargetImpulse(GameObject* target) noexcept
 
 Proj::LaserUpdateResult Proj::ProgressLaser(
     float maximumDistance, bool hit, float hitDistance,
-    float deltaTime, float damage, bool distort,
-    float timeLife, float maximumTimeLife,
+    float deltaTime, bool distort,
     Vec3 worldDirection) noexcept
 {
     auto result = LaserUpdate(
-        maximumDistance, hit, hitDistance, deltaTime, damage,
-        distort, timeLife, maximumTimeLife);
+        maximumDistance, hit, hitDistance, deltaTime,
+        description_.damage, distort, GetTimeLife(),
+        GetMaxTimeLife());
     if (sourceModel2_ != nullptr)
     {
         if (hit)
@@ -1025,13 +1021,12 @@ Proj::LaserUpdateResult Proj::ProgressLaser(
 
 Proj::LaserUpdateResult Proj::ProgressFrostRay(
     float maximumDistance, bool hit, float hitDistance,
-    float deltaTime, float damage,
-    float timeLife, float maximumTimeLife,
+    float deltaTime,
     Vec3 worldDirection) noexcept
 {
     return ProgressLaser(
-        maximumDistance, hit, hitDistance, deltaTime, damage,
-        false, timeLife, maximumTimeLife, worldDirection);
+        maximumDistance, hit, hitDistance, deltaTime,
+        false, worldDirection);
 }
 
 bool Proj::AttachFrostSlow(
@@ -1165,14 +1160,15 @@ Proj::ContactResult Proj::ContactLusha(
 Proj::ContactResult Proj::ContactMaslo(
     GameObject* target, Vec3 carPosition,
     Vec3 carWorldRight, Vec3 oilPosition,
-    Vec3 linearVelocity, float damage) noexcept
+    Vec3 linearVelocity) noexcept
 {
     auto* car = ResolveContactCar(target);
     if (car == nullptr)
         return {};
     auto result = MasloContact(
         carPosition, carWorldRight, oilPosition, linearVelocity,
-        damage, sourceTimer_ >= 0.0F, car->IsMineLocked(),
+        description_.damage, sourceTimer_ >= 0.0F,
+        car->IsMineLocked(),
         car->IsClutchLocked(), car->IsClutchImmunity());
     if (result.lockClutch &&
         !car->LockClutch(result.clutchStrength))
@@ -1181,8 +1177,7 @@ Proj::ContactResult Proj::ContactMaslo(
 }
 
 Proj::BonusContactResult Proj::ContactBonus(
-    GameObject* target, Player* targetPlayer,
-    float damage) const noexcept
+    GameObject* target, Player* targetPlayer) const noexcept
 {
     if (target == nullptr || targetPlayer == nullptr ||
         target->GetMapObj() == nullptr ||
@@ -1192,7 +1187,8 @@ Proj::BonusContactResult Proj::ContactBonus(
         return {};
     }
     return BonusContact(
-        description_.type, true, damage, target->GetMaxLife());
+        description_.type, true, description_.damage,
+        target->GetMaxLife());
 }
 
 void Proj::ProgressDrobilka(float deltaTime) noexcept

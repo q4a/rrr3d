@@ -440,11 +440,12 @@ public:
         Quat rotation, float deltaTime) noexcept;
     TorpedaUpdateResult ProgressTorpeda(
         float deltaTime, Vec3 position, Quat rotation,
-        bool hasTarget, Vec3 targetPosition,
-        float sourceSpeed, bool speedRelative,
-        float angleSpeed) noexcept;
+        bool hasTarget, Vec3 targetPosition) noexcept;
     MineUpdateResult ProgressMine(
         float deltaTime, float delay = 0.25F) noexcept;
+    // Original Proj::OnProgress first advances GameObject::_timeLife. The
+    // session calls this backend half only after Logic::OnProgress, so it
+    // must read that concrete clock rather than increment it again.
     MineRipUpdateResult ProgressMineRip(
         float deltaTime, float delay = 0.25F) noexcept;
     LaunchResult PrepareLaunch(
@@ -460,20 +461,18 @@ public:
         Vec3 linearVelocity) const noexcept;
     ImpulseContactResult ContactImpulse(
         bool hasContactActor, bool hasTarget,
-        bool contactIsTarget, float damage) noexcept;
+        bool contactIsTarget) noexcept;
     Player* FindNextTarget(
         Player* currentTarget, Player* weaponOwner,
         std::span<Player* const> players, float viewAngle) noexcept;
     void RetargetImpulse(GameObject* target) noexcept;
     LaserUpdateResult ProgressLaser(
         float maximumDistance, bool hit, float hitDistance,
-        float deltaTime, float damage, bool distort,
-        float timeLife, float maximumTimeLife,
+        float deltaTime, bool distort,
         Vec3 worldDirection) noexcept;
     LaserUpdateResult ProgressFrostRay(
         float maximumDistance, bool hit, float hitDistance,
-        float deltaTime, float damage,
-        float timeLife, float maximumTimeLife,
+        float deltaTime,
         Vec3 worldDirection) noexcept;
     bool AttachFrostSlow(
         GameObject* target, Player* targetPlayer,
@@ -496,10 +495,9 @@ public:
     ContactResult ContactMaslo(
         GameObject* target, Vec3 carPosition,
         Vec3 carWorldRight, Vec3 oilPosition,
-        Vec3 linearVelocity, float damage) noexcept;
+        Vec3 linearVelocity) noexcept;
     BonusContactResult ContactBonus(
-        GameObject* target, Player* targetPlayer,
-        float damage) const noexcept;
+        GameObject* target, Player* targetPlayer) const noexcept;
     DamageCommand DamageTarget(
         GameObject* target, float damage,
         DamageType damageType = DamageType::Simple) noexcept;

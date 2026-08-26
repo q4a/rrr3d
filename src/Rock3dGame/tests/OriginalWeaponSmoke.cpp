@@ -145,17 +145,19 @@ int main()
             linkedProjectile.GetWorldPos(), {14.0F, 15.0F, 16.0F}))
         return 109;
     const auto concreteLaser = linkedProjectile.ProgressLaser(
-        100.0F, true, 40.0F, 0.1F, 9.0F, true,
-        1.0F, 2.5F, {1.0F, 0.0F, 0.0F});
+        100.0F, true, 40.0F, 0.1F, true,
+        {1.0F, 0.0F, 0.0F});
     if (concreteLaser.distance != 40.0F ||
         linkedProjectile.GetSourceModel2() == nullptr ||
         !nearVector(
             linkedProjectile.GetSourceModel2()->GetGameObj().GetWorldPos(),
-            {54.0F, 15.0F, 16.0F}))
+            {54.0F, 15.0F, 16.0F}) ||
+        std::abs(concreteLaser.damage - 0.9F) > 0.001F ||
+        std::abs(concreteLaser.beamWidthScale - 0.5F) > 0.001F)
         return 120;
     linkedProjectile.ProgressLaser(
-        100.0F, false, 0.0F, 0.1F, 9.0F, true,
-        1.0F, 2.5F, {1.0F, 0.0F, 0.0F});
+        100.0F, false, 0.0F, 0.1F, true,
+        {1.0F, 0.0F, 0.0F});
     if (linkedProjectile.GetSourceModel2()->GetGameObj().GetPos() !=
         source::GameObject::Vector3{100.0F, 0.0F, 0.0F})
         return 121;
@@ -251,6 +253,9 @@ int main()
 
     auto torpedaDescription = sourceDescription;
     torpedaDescription.type = 2U;
+    torpedaDescription.speed = 20.0F;
+    torpedaDescription.relativeSpeed = false;
+    torpedaDescription.angularSpeed = 0.0F;
     torpedaDescription.secondaryVisual = {};
     source::Proj::ShotContext torpedaContext;
     torpedaContext.launchVelocity = {3.0F, 4.0F, 5.0F};
@@ -265,6 +270,7 @@ int main()
 
     auto oilDescription = sourceDescription;
     oilDescription.type = 10U;
+    oilDescription.damage = 1.5F;
     oilDescription.secondaryVisual = {};
     source::Proj oilProjectile;
     oilProjectile.PrepareSource(
@@ -318,8 +324,8 @@ int main()
         frostDescription, &frostWeapon,
         source::Proj::ShotContext{});
     const auto concreteFrost = concreteFrostProjectile.ProgressFrostRay(
-        100.0F, true, 20.0F, 0.1F, 5.0F,
-        0.0F, 1.0F, {1.0F, 0.0F, 0.0F});
+        100.0F, true, 20.0F, 0.1F,
+        {1.0F, 0.0F, 0.0F});
     if (!concreteFrost.applyDamage || concreteFrost.distance != 20.0F ||
         !concreteFrostProjectile.AttachFrostSlow(
             &frostTargetPlayer.gameCar, &frostTargetPlayer, 8U, 2U) ||
@@ -333,6 +339,8 @@ int main()
         return 138;
 
     source::Proj projectileObject;
+    projectileObject.SetMaxTimeLife(4.25F);
+    projectileObject.SetTimeLife(0.5F);
     projectileObject.ConfigureDeathEffect(true, true);
     auto* projectileDeathBehavior =
         projectileObject.GetDeathEffectBehavior();
@@ -343,6 +351,10 @@ int main()
         projectileObject.GetBehaviors().Find(
             source::BehaviorType::DeathEffect) !=
             projectileDeathBehavior ||
+        projectileObject.GetMaxTimeLife() != 4.25F ||
+        projectileObject.GetTimeLife() != 0.5F ||
+        projectileObject.GetLiveState() !=
+            source::GameObject::LiveState::Live ||
         projectileObject.GetListenerCount() != 1U)
         return 6;
     const auto projectileDeath =
@@ -1059,12 +1071,18 @@ int main()
         return 46;
 
     const auto concreteTorpeda = torpedaProjectile.ProgressTorpeda(
-        0.1F, {}, {}, true, {0.0F, 10.0F, 0.0F},
-        20.0F, false, 0.0F);
+        0.1F, {}, {}, true, {0.0F, 10.0F, 0.0F});
     if (concreteTorpeda.setLinearVelocity ||
         std::abs(torpedaProjectile.GetSourceTimer() - 0.3F) > 0.001F ||
         torpedaProjectile.GetSourceVector() !=
             source::Proj::Vec3{3.0F, 4.0F, 5.0F})
+        return 116;
+    const auto concreteTorpedaAimed =
+        torpedaProjectile.ProgressTorpeda(
+            0.3F, {}, {}, true, {0.0F, 10.0F, 0.0F});
+    if (!concreteTorpedaAimed.setLinearVelocity ||
+        std::abs(concreteTorpedaAimed.linearVelocity.y - 20.0F) >
+            0.001F)
         return 116;
 
     if (std::abs(source::Proj::ThunderUpdate(0.1F, 0.16F) + 0.06F) >
@@ -1250,7 +1268,7 @@ int main()
     oilProjectile.SetSourceTimer(-1.0F);
     const auto concreteMaslo = oilProjectile.ContactMaslo(
         oilTargetCar.GetWheel(0U), {}, {0.0F, 1.0F, 0.0F},
-        {0.0F, 1.0F, 0.0F}, {4.0F, 0.0F, 0.0F}, 1.5F);
+        {0.0F, 1.0F, 0.0F}, {4.0F, 0.0F, 0.0F});
     if (source::Proj::ResolveContactCar(
             oilTargetCar.GetWheel(0U)) != &oilTargetCar ||
         !concreteMaslo.lockClutch ||
@@ -1268,8 +1286,10 @@ int main()
     mineRipProjectile.PrepareSource(
         mineRipDescription, nullptr,
         source::Proj::ShotContext{});
+    mineRipProjectile.OnProgress(2.0F, false);
     const auto concreteMineRipWait =
         mineRipProjectile.ProgressMineRip(2.0F);
+    mineRipProjectile.OnProgress(0.0011F, false);
     const auto concreteMineRipSplit =
         mineRipProjectile.ProgressMineRip(0.0011F);
     if (concreteMineRipWait.split ||
@@ -1300,6 +1320,7 @@ int main()
 
     auto impulseDescription = sourceDescription;
     impulseDescription.type = 21U;
+    impulseDescription.damage = 12.0F;
     impulseDescription.secondaryVisual = {};
     source::GameObject firstImpulseTarget;
     source::GameObject secondImpulseTarget;
@@ -1309,10 +1330,10 @@ int main()
     impulseProjectile.PrepareSource(
         impulseDescription, nullptr, impulseContext);
     const auto concreteFirstImpulse =
-        impulseProjectile.ContactImpulse(true, true, true, 12.0F);
+        impulseProjectile.ContactImpulse(true, true, true);
     impulseProjectile.RetargetImpulse(&secondImpulseTarget);
     const auto concreteSecondImpulse =
-        impulseProjectile.ContactImpulse(true, true, true, 12.0F);
+        impulseProjectile.ContactImpulse(true, true, true);
     if (concreteFirstImpulse.hitCount != 1U ||
         concreteFirstImpulse.damage != 12.0F ||
         concreteSecondImpulse.hitCount != 2U ||
@@ -1590,11 +1611,12 @@ int main()
     contactBonusPlayer.gameCar.ResetGameObject(80.0F);
     auto medpackDescription = sourceDescription;
     medpackDescription.type = 4U;
+    medpackDescription.damage = 0.0F;
     source::Proj medpackProjectile;
     medpackProjectile.PrepareSource(
         medpackDescription, nullptr, source::Proj::ShotContext{});
     const auto concreteMedpack = medpackProjectile.ContactBonus(
-        &contactBonusPlayer.gameCar, &contactBonusPlayer, 0.0F);
+        &contactBonusPlayer.gameCar, &contactBonusPlayer);
     source::Player wrongBonusPlayer;
     if (!concreteMedpack.take ||
         concreteMedpack.type !=
@@ -1602,10 +1624,10 @@ int main()
         concreteMedpack.value != 80.0F ||
         medpackProjectile.ContactBonus(
             &contactBonusPlayer.gameCar,
-            &wrongBonusPlayer, 0.0F).take ||
+            &wrongBonusPlayer).take ||
         medpackProjectile.ContactBonus(
             &frostNonCarTarget,
-            &contactBonusPlayer, 0.0F).take)
+            &contactBonusPlayer).take)
         return 139;
     source::Logic logic;
     logic.SetTouchBorderDamage({10.0F, 20.0F});

@@ -3914,7 +3914,20 @@ void OriginalRaceSession::updateGameplay(
             projectile.sourceObject->GetDesc();
         const auto sourceProgressRoute =
             projectile.sourceObject->RouteProgress();
-        projectile.ageSeconds += seconds;
+        // Logic::OnProgress has already executed GameObject::OnProgress for
+        // this concrete Proj. Mirror its single source clock instead of
+        // advancing a second session-owned lifetime.
+        projectile.ageSeconds =
+            projectile.sourceObject->GetTimeLife();
+        projectile.maximumLifeSeconds =
+            projectile.sourceObject->GetMaxTimeLife();
+        projectile.lifeSeconds =
+            projectile.maximumLifeSeconds > 0.0F
+                ? std::max(
+                      projectile.maximumLifeSeconds -
+                          projectile.ageSeconds,
+                      0.0F)
+                : projectile.maximumLifeSeconds;
         if (projectile.attached)
         {
             if (projectile.owner >= vehicles.size() ||
@@ -3923,7 +3936,6 @@ void OriginalRaceSession::updateGameplay(
                 projectile.active = false;
                 continue;
             }
-            projectile.lifeSeconds -= seconds;
             const Transform attachedWeaponTransform =
                 projectile.directWeapon
                     ? directWeaponWorldTransform(
@@ -3999,16 +4011,10 @@ void OriginalRaceSession::updateGameplay(
                       ? projectile.sourceObject->ProgressFrostRay(
                             maximumDistance, rayHit.hit,
                             rayHit.distance, seconds,
-                            projectileDefinition.damage,
-                            projectile.ageSeconds,
-                            projectile.maximumLifeSeconds,
                             sourceVec(projectile.direction))
                       : projectile.sourceObject->ProgressLaser(
                             maximumDistance, rayHit.hit,
-                            rayHit.distance, seconds,
-                            projectileDefinition.damage, true,
-                            projectile.ageSeconds,
-                            projectile.maximumLifeSeconds,
+                            rayHit.distance, seconds, true,
                             sourceVec(projectile.direction));
             projectile.impactDistance =
                 sourceRay ? laserUpdate.distance : 0.0F;
@@ -4198,8 +4204,9 @@ void OriginalRaceSession::updateGameplay(
             }
             // GameObject::OnProgress expires only after _timeLife becomes
             // strictly greater than _maxTimeLife.
-            if (projectile.maximumLifeSeconds > 0.0F &&
-                projectile.ageSeconds > projectile.maximumLifeSeconds)
+            if (projectile.sourceObject->GetMaxTimeLife() > 0.0F &&
+                projectile.sourceObject->GetTimeLife() >
+                    projectile.sourceObject->GetMaxTimeLife())
             {
                 spawnProjectileImpact(
                     projectile, projectile.position,
@@ -4232,10 +4239,7 @@ void OriginalRaceSession::updateGameplay(
                 projectile.sourceObject->ProgressTorpeda(
                 seconds, sourceVec(projectile.position),
                 sourceQuat(projectile.rotation), hasTarget,
-                sourceVec(vehicles[projectile.target].body.position),
-                projectileDefinition.speed,
-                projectileDefinition.relativeSpeed,
-                projectileDefinition.angularSpeed);
+                sourceVec(vehicles[projectile.target].body.position));
             if (update.setLinearVelocity)
             {
                 projectile.rotation = runtimeQuat(update.rotation);
@@ -4246,7 +4250,6 @@ void OriginalRaceSession::updateGameplay(
         }
         const Vec3 previous = projectile.position;
         const float speed = std::max(projectile.speed, 1.0F);
-        projectile.lifeSeconds -= seconds;
         const bool detachedGravity =
             projectile.detachedFromWeapon &&
             sourceProgressRoute.handler ==
@@ -4391,8 +4394,7 @@ void OriginalRaceSession::updateGameplay(
                     ? projectile.sourceObject->ContactImpulse(
                           true, targetedImpulse,
                           !targetedImpulse ||
-                              target == projectile.target,
-                          projectileDefinition.damage)
+                              target == projectile.target)
                     : source::Proj::ImpulseContactResult{};
             if (projectileContactRoute.handler ==
                     source::Proj::ContactHandler::Impulse &&
@@ -4572,8 +4574,9 @@ void OriginalRaceSession::updateGameplay(
             projectile.active = false;
         }
         if (projectile.active &&
-            projectile.maximumLifeSeconds > 0.0F &&
-            projectile.ageSeconds > projectile.maximumLifeSeconds)
+            projectile.sourceObject->GetMaxTimeLife() > 0.0F &&
+            projectile.sourceObject->GetTimeLife() >
+                projectile.sourceObject->GetMaxTimeLife())
         {
             spawnProjectileImpact(
                 projectile, projectile.position,
@@ -5169,7 +5172,7 @@ void OriginalRaceSession::updateGameplay(
     };
     auto applyMasloContact = [&](
         source::Proj* projectile, std::size_t racer,
-        const Vec3& oilPosition, float damage) {
+        const Vec3& oilPosition) {
         if (racer >= vehicles.size() || racer >= racers_.size())
             return false;
         if (projectile == nullptr)
@@ -5185,8 +5188,7 @@ void OriginalRaceSession::updateGameplay(
             {oilPosition.x, oilPosition.y, oilPosition.z},
             {vehicles[racer].linearVelocity.x,
              vehicles[racer].linearVelocity.y,
-             vehicles[racer].linearVelocity.z},
-            damage);
+             vehicles[racer].linearVelocity.z});
         if (!sourceResult.lockClutch)
             return false;
         const auto& vehicleDefinition = vehicleForRacer(racer);
@@ -5237,8 +5239,7 @@ void OriginalRaceSession::updateGameplay(
             source::Proj::ContactHandler::Maslo)
         {
             return applyMasloContact(
-                mine.sourceObject, racer, mine.position,
-                sourceDefinition.damage);
+                mine.sourceObject, racer, mine.position);
         }
         if (!sourceContactRoute.appliesDamage)
             return false;
@@ -5338,7 +5339,8 @@ void OriginalRaceSession::updateGameplay(
                 mine.rotation.z, mine.rotation.w});
         const auto mineProgressRoute =
             mine.sourceObject->RouteProgress();
-        mine.seconds += seconds;
+        mine.seconds = mine.sourceObject->GetTimeLife();
+        mine.maximumLife = mine.sourceObject->GetMaxTimeLife();
         source::Proj::MineRipUpdateResult mineRipProgress;
         if (mineProgressRoute.mineArming)
         {
@@ -5645,7 +5647,7 @@ void OriginalRaceSession::updateGameplay(
 
     auto takeBonus = [&](
         std::size_t racer, std::size_t bonusIndex,
-        float value, bool networkReplicated) {
+        bool networkReplicated) {
         if (racer >= racers_.size() ||
             bonusIndex >= race_.bonuses.size() ||
             bonusIndex >= bonusActive_.size() ||
@@ -5658,7 +5660,7 @@ void OriginalRaceSession::updateGameplay(
         if (bonusProjectile == nullptr)
             return false;
         const auto sourceBonus = bonusProjectile->ContactBonus(
-            &runtime.gameCar, &runtime, value);
+            &runtime.gameCar, &runtime);
         if (!sourceBonus.take)
             return false;
         const float sourceValue =
@@ -5730,7 +5732,7 @@ void OriginalRaceSession::updateGameplay(
     for (const auto& bonus : pendingNetworkBonuses_)
     {
         takeBonus(
-            bonus.racer, bonus.bonus, bonus.value, true);
+            bonus.racer, bonus.bonus, true);
     }
     pendingNetworkBonuses_.clear();
 
@@ -5823,7 +5825,7 @@ void OriginalRaceSession::updateGameplay(
                     mapBonus != nullptr
                         ? mapBonus->GetAutoProj()
                         : nullptr,
-                    racer, bonus.transform.position, bonus.value);
+                    racer, bonus.transform.position);
                 continue;
             }
             if (bonus.kind == BonusKind::MineHazard)
@@ -5859,7 +5861,7 @@ void OriginalRaceSession::updateGameplay(
             }
 
             takeBonus(
-                racer, bonusIndex, bonus.value, false);
+                racer, bonusIndex, false);
             break;
         }
     }
@@ -12483,24 +12485,43 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             }
             sourceVehicles[0].body.position.x += 1000.0F;
             sourceVehicles[0].body.position.y += 1000.0F;
-            bool splitObserved = false;
-            for (int frame = 0; frame < 130; ++frame)
+            const auto splitCounts = [&]() {
+                return std::pair{
+                    std::count_if(
+                        splitSession.mines().begin(),
+                        splitSession.mines().end(),
+                        [](const MineRuntime& mine) {
+                            return mine.visualVariant == 1U;
+                        }),
+                    std::count_if(
+                        splitSession.mines().begin(),
+                        splitSession.mines().end(),
+                        [](const MineRuntime& mine) {
+                            return mine.visualVariant == 2U;
+                        })};
+            };
+            // GameObject::OnProgress owns _timeLife. At the exact
+            // angleSpeed threshold MineRip must still be intact; a second
+            // session-side clock used to split it roughly twice as early.
+            for (int frame = 0; frame < 120; ++frame)
             {
                 splitSession.update(
                     1.0F / 60.0F, sourceVehicles,
                     sourceInput);
-                const auto coreCount = std::count_if(
-                    splitSession.mines().begin(),
-                    splitSession.mines().end(),
-                    [](const MineRuntime& mine) {
-                        return mine.visualVariant == 1U;
-                    });
-                const auto pieceCount = std::count_if(
-                    splitSession.mines().begin(),
-                    splitSession.mines().end(),
-                    [](const MineRuntime& mine) {
-                        return mine.visualVariant == 2U;
-                    });
+                if (splitCounts() != std::pair{0, 0})
+                {
+                    throw std::runtime_error(
+                        "source MineRip split before its concrete "
+                        "GameObject clock crossed angleSpeed");
+                }
+            }
+            bool splitObserved = false;
+            for (int frame = 0; frame < 10; ++frame)
+            {
+                splitSession.update(
+                    1.0F / 60.0F, sourceVehicles,
+                    sourceInput);
+                const auto [coreCount, pieceCount] = splitCounts();
                 if (coreCount == 1 && pieceCount == 5)
                 {
                     splitObserved = true;
@@ -12614,9 +12635,37 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             if (!splitSession.mines().empty() ||
                 !secondaryDeath || !tertiaryDeath)
             {
+                const auto* firstMine = splitSession.mines().empty()
+                    ? nullptr
+                    : &splitSession.mines().front();
                 throw std::runtime_error(
                     "source MineRip nested minTimeLife/DeathEffect "
-                    "lifecycle failed");
+                    "lifecycle failed: mines=" +
+                    std::to_string(splitSession.mines().size()) +
+                    ", secondaryDeath=" +
+                    std::string(secondaryDeath ? "true" : "false") +
+                    ", tertiaryDeath=" +
+                    std::string(tertiaryDeath ? "true" : "false") +
+                    ", runtimeAge=" +
+                    std::to_string(
+                        firstMine != nullptr ? firstMine->seconds : -1.0F) +
+                    ", runtimeMax=" +
+                    std::to_string(
+                        firstMine != nullptr
+                            ? firstMine->maximumLife
+                            : -1.0F) +
+                    ", sourceAge=" +
+                    std::to_string(
+                        firstMine != nullptr &&
+                                firstMine->sourceObject != nullptr
+                            ? firstMine->sourceObject->GetTimeLife()
+                            : -1.0F) +
+                    ", sourceMax=" +
+                    std::to_string(
+                        firstMine != nullptr &&
+                                firstMine->sourceObject != nullptr
+                            ? firstMine->sourceObject->GetMaxTimeLife()
+                            : -1.0F));
             }
         }
 

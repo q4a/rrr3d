@@ -3714,6 +3714,28 @@ description принадлежит дочернему `Proj`. Удалены о�
 проверяет type/damage/speed в собственном descriptor каждого MineRip child и
 сохранение descriptor обычного projectile после замены `WeaponItem::WpnDesc`.
 
+### P2.158 — единый `GameObject::_timeLife` и сохранение lifetime при DeathEffect — выполнено
+
+`Logic::OnProgress` уже вызывал базовый `GameObject::OnProgress` для каждого
+transient `Proj` и увеличивал `_timeLife`, но `ProgressMineRip` затем прибавлял
+тот же `deltaTime` повторно. MineRip поэтому раскалывался примерно вдвое раньше
+исходного `GetTimeLife() > angleSpeed`. Одновременно `ConfigureDeathEffect`
+вызывал `ResetGameObject(-1)` после `PrepareSource` и стирал рассчитанный
+`_maxTimeLife` у любого projectile/mine с death effect. Session-owned
+`ageSeconds/maximumLife` скрывали эту потерю, оставляя source object
+бессрочным и создавая риск накопления живых объектов и падения FPS.
+
+Теперь единственный clock продвигается базовым `GameObject::OnProgress`, а
+session лишь зеркалирует concrete `_timeLife/_maxTimeLife` для renderer и
+backend. MineRip читает уже продвинутый clock; strict `>` expiration всех
+projectile/mine проверяется по concrete object. Добавление `DeathEffect`
+больше не сбрасывает live-state и lifetime. Заодно stateful Torpeda,
+Laser/FrostRay, Impulse, Maslo и bonus contact перестали принимать копии
+descriptor-полей и читают speed/relative-speed/angle/damage/lifetime прямо из
+собственного `_desc`. Regression запрещает split до точного двухсекундного
+порога, проверяет 4–4.5-секундную жизнь MineRip children и сохранение lifetime
+после подключения DeathEffect.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
