@@ -1,5 +1,6 @@
 #include "OriginalWeapon.h"
 
+#include "OriginalLogic.h"
 #include "OriginalMapObj.h"
 
 #include <algorithm>
@@ -162,6 +163,7 @@ void Proj::PrepareSource(
     SetTimeLife(0.0F);
     SetSourceWeapon(weapon, linkToWeapon);
     SetSourceTarget(target);
+    shotTarget_ = {};
     SyncSourceTransform(position, rotation);
     // Every successful PrepareProj path calls InitModel except Spring and
     // Drobilka. Drobilka creates its model lazily on the first contact.
@@ -207,6 +209,17 @@ void Proj::SetSourceTarget(GameObject* value) noexcept
     target_ = value;
     if (target_ != nullptr)
         target_->InsertListener(this);
+}
+
+void Proj::SetShot(const ShotDesc& value) noexcept
+{
+    shotTarget_ = value.target;
+    SetSourceTarget(value.targetMapObject);
+}
+
+Proj::ShotDesc Proj::GetShot() const noexcept
+{
+    return {target_, shotTarget_};
 }
 
 void Proj::SyncSourceTransform(
@@ -1140,6 +1153,31 @@ const std::array<float, 3U>& Weapon::GetLastShotPosition() const noexcept
     return shotEffect_ != nullptr
         ? shotEffect_->GetLastShotPosition()
         : empty;
+}
+
+Proj* Weapon::CreateShot(
+    Weapon* weapon, const ProjectileDefinition& description,
+    const ShotContext& context)
+{
+    if (context.logic == nullptr)
+        return nullptr;
+
+    auto* projectile = new Proj();
+    projectile->PrepareSource(
+        description, weapon, context.shot.targetMapObject,
+        context.playerId, context.linkToWeapon, context.maximumLife,
+        context.position, context.rotation);
+    projectile->SetShot(context.shot);
+    context.logic->RegGameObj(projectile);
+
+    if (weapon != nullptr)
+    {
+        weapon->OnShot(true);
+        weapon->OnProjectilePrepared(
+            {description.position.x, description.position.y,
+             description.position.z});
+    }
+    return projectile;
 }
 
 WeaponItem::WeaponItem(SlotType type) noexcept : SlotItem(type) {}

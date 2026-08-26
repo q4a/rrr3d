@@ -77,28 +77,33 @@ const DeathEffectDefinition* mineDeathEffectDefinition(
 void configureProjectileSourceObject(
     source::Logic& logic, ProjectileRuntime& projectile,
     const ProjectileDefinition& definition,
-    source::GameObject* weapon = nullptr,
+    source::Weapon* weapon = nullptr,
     source::GameObject* target = nullptr,
     std::size_t playerId = source::GameObject::undefinedPlayerId,
     bool linkToWeapon = false)
 {
-    auto* sourceObject = new source::Proj();
-    projectile.sourceObject = sourceObject;
+    source::Proj::ShotContext context;
+    context.logic = &logic;
+    context.shot.targetMapObject = target;
+    context.playerId = playerId;
+    context.linkToWeapon = linkToWeapon;
+    context.maximumLife = projectile.maximumLifeSeconds;
+    context.position = {
+        projectile.position.x, projectile.position.y,
+        projectile.position.z};
+    context.rotation = {
+        projectile.rotation.x, projectile.rotation.y,
+        projectile.rotation.z, projectile.rotation.w};
+    projectile.sourceObject = source::Weapon::CreateShot(
+        weapon, definition, context);
+    if (projectile.sourceObject == nullptr)
+        return;
     if (hasDeathEffect(definition))
     {
         projectile.sourceObject->ConfigureDeathEffect(
             definition.deathEffect.effectPhysicsIgnoreSenderCar,
             definition.deathEffect.targetChild);
     }
-    projectile.sourceObject->PrepareSource(
-        definition, weapon, target, playerId, linkToWeapon,
-        projectile.maximumLifeSeconds,
-        source::Proj::Vec3{
-            projectile.position.x, projectile.position.y,
-            projectile.position.z},
-        source::Proj::Quat{
-            projectile.rotation.x, projectile.rotation.y,
-            projectile.rotation.z, projectile.rotation.w});
     const auto rules = source::Proj::GetTypeRules(definition.type);
     projectile.sourceObject->SetIgnoreContactProj(
         rules.rocketPrepare || definition.type == 3U);
@@ -110,17 +115,39 @@ void configureProjectileSourceObject(
                 projectile.velocity.x, projectile.velocity.y,
                 projectile.velocity.z});
     }
-    logic.RegGameObj(sourceObject);
 }
 
 void configureMineSourceObject(
     source::Logic& logic, MineRuntime& mine,
     const ProjectileDefinition& definition,
-    source::GameObject* weapon = nullptr,
+    source::Weapon* weapon = nullptr,
     std::size_t playerId = source::GameObject::undefinedPlayerId)
 {
-    auto* sourceObject = new source::Proj();
-    mine.sourceObject = sourceObject;
+    source::Proj::ShotContext context;
+    context.logic = &logic;
+    context.playerId = playerId;
+    context.maximumLife = mine.maximumLife;
+    context.position = {
+        mine.position.x, mine.position.y, mine.position.z};
+    context.rotation = {
+        mine.rotation.x, mine.rotation.y,
+        mine.rotation.z, mine.rotation.w};
+    if (weapon != nullptr)
+    {
+        mine.sourceObject = source::Weapon::CreateShot(
+            weapon, definition, context);
+    }
+    else
+    {
+        auto* sourceObject = new source::Proj();
+        sourceObject->PrepareSource(
+            definition, nullptr, nullptr, playerId, false,
+            mine.maximumLife, context.position, context.rotation);
+        logic.RegGameObj(sourceObject);
+        mine.sourceObject = sourceObject;
+    }
+    if (mine.sourceObject == nullptr)
+        return;
     const auto* death = mineDeathEffectDefinition(mine, definition);
     if (death != nullptr && hasDeathEffect(*death))
     {
@@ -128,19 +155,10 @@ void configureMineSourceObject(
             death->effectPhysicsIgnoreSenderCar,
             death->targetChild);
     }
-    mine.sourceObject->PrepareSource(
-        definition, weapon, nullptr, playerId, false,
-        mine.maximumLife,
-        source::Proj::Vec3{
-            mine.position.x, mine.position.y, mine.position.z},
-        source::Proj::Quat{
-            mine.rotation.x, mine.rotation.y,
-            mine.rotation.z, mine.rotation.w});
     // MinePrepare arms through _time1 >= 0, while autonomous MinePiece
     // starts with the original -1 sentinel and can contact immediately.
     mine.sourceObject->SetSourceTimer(
         definition.type == 13U ? -1.0F : 0.0F);
-    logic.RegGameObj(sourceObject);
 }
 
 Vec3 subtract(Vec3 first, Vec3 second)
@@ -4619,37 +4637,6 @@ void OriginalRaceSession::updateGameplay(
             const ProjectileDefinition& projectile) {
             if (weapon >= race_.weapons.size())
                 return;
-            if (owner < racers_.size())
-            {
-                source::Weapon* sourceWeapon = nullptr;
-                if (soundSource < PlayerProfile::weaponSlotCount)
-                {
-                    const auto items =
-                        racers_[owner].GetPrimaryWeaponItems();
-                    sourceWeapon = items[soundSource] != nullptr
-                        ? items[soundSource]->GetWeapon() : nullptr;
-                }
-                else if (soundSource == PlayerProfile::weaponSlotCount)
-                {
-                    auto* item = racers_[owner].GetHyperWeaponItem();
-                    sourceWeapon = item != nullptr
-                        ? item->GetWeapon() : nullptr;
-                }
-                else if (soundSource ==
-                         PlayerProfile::weaponSlotCount + 1U)
-                {
-                    auto* item = racers_[owner].GetMineWeaponItem();
-                    sourceWeapon = item != nullptr
-                        ? item->GetWeapon() : nullptr;
-                }
-                if (sourceWeapon != nullptr)
-                {
-                    sourceWeapon->OnProjectilePrepared(
-                        {projectile.position.x,
-                         projectile.position.y,
-                         projectile.position.z});
-                }
-            }
             const auto& source = race_.weapons[weapon].shotEffect;
             // Weapon::CreateShot calls Behaviors::OnShot once for every
             // projectile which PrepareProj accepted. ShotEffect then uses
@@ -6086,6 +6073,16 @@ void OriginalRaceSession::updateGameplay(
                 damageDecoration(
                     projectileDecoration,
                     std::max(projectile.damage, 0.0F), shooter);
+            }
+            if (rayProjectile && liveWeapon != nullptr)
+            {
+                // The source ray Proj completes in its first update.  The
+                // Jolt adapter resolves it synchronously, but the successful
+                // PrepareProj callback still belongs to Weapon::CreateShot.
+                liveWeapon->OnProjectilePrepared(
+                    {projectile.position.x,
+                     projectile.position.y,
+                     projectile.position.z});
             }
             RaceEffect fired;
             fired.kind = RaceEventKind::WeaponFired;

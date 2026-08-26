@@ -3166,6 +3166,32 @@ include-list и behaviors прогрессируют в `Logic` ровно од�
 строгой границе `timeLife > maxTimeLife`. Regression проверяет оба режима,
 единоличное владение, удаление после death и безопасный lookup старого адреса.
 
+### P2.129 — `Weapon::CreateShot` и `Proj::ShotDesc` — выполнено
+
+После восстановления владения `Logic` сама транзакция выстрела всё ещё была
+разорвана: session-helper выделял и регистрировал `Proj`, `WeaponItem` отдельно
+сбрасывал shot timer, а `pushShotEffect` вручную вызывал source behavior.
+В оригинальном `Weapon.cpp` всё это делает один `Weapon::CreateShot` после
+успешного `PrepareProj`, причём `Behaviors::OnShot` вызывается отдельно для
+каждого projectile descriptor.
+
+Portable `Proj` теперь снова хранит полный `ShotDesc`: listener-ссылку на
+конкретный target `GameObject` и независимую world target position для
+варианта `Weapon::Shot(vec3)`. Backend-neutral `ShotContext` переносит только
+значения, которые раньше получались от PhysX actor preparation: transform,
+maximum lifetime и link flag. Новый `Weapon::CreateShot` создаёт concrete
+`Proj`, применяет descriptor/context, передаёт единственное владение в
+`Logic`, сбрасывает source shot timer и отправляет точную локальную позицию
+descriptor в `Behaviors::OnShot`.
+
+Primary, attached, Hyper и установленная Mine теперь проходят через эту
+транзакцию; автономные crater/MineRip children остаются прямым source spawn,
+поскольку в Windows они создаются из `MapObj`, а не оружием. Мгновенные ray
+типы по-прежнему разрешаются Jolt-адаптером синхронно, но получают тот же один
+успешный source callback. Regression проверяет target object/vector, Logic
+ownership, transform/player attribution, timer reset, локальную shot-effect
+позицию и отказ фабрики без `Logic`.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

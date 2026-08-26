@@ -38,6 +38,30 @@ public:
         bool operator==(const Quat&) const noexcept = default;
     };
 
+    // Weapon.h::Proj::ShotDesc is copied into every projectile before its
+    // type-specific PrepareProj path runs.  The concrete target listener is
+    // maintained by Proj; this value also preserves the independent world
+    // target used by Weapon::Shot(const glm::vec3&).
+    struct ShotDesc
+    {
+        GameObject* targetMapObject = nullptr;
+        Vec3 target{};
+    };
+
+    // PhysX supplied the final actor transform from PrepareProj.  The Jolt
+    // adapter supplies those backend values explicitly while source Logic,
+    // target attribution and ownership remain in the original transaction.
+    struct ShotContext
+    {
+        Logic* logic = nullptr;
+        ShotDesc shot;
+        std::size_t playerId = GameObject::undefinedPlayerId;
+        bool linkToWeapon = false;
+        float maximumLife = -1.0F;
+        Vec3 position{};
+        Quat rotation{};
+    };
+
     struct ContactResult
     {
         Vec3 linearVelocity;
@@ -235,6 +259,8 @@ public:
     void SetSourceWeapon(
         GameObject* value, bool linkToWeapon = false) noexcept;
     void SetSourceTarget(GameObject* value) noexcept;
+    void SetShot(const ShotDesc& value) noexcept;
+    ShotDesc GetShot() const noexcept;
     void SyncSourceTransform(
         const Vec3& position, const Quat& rotation) noexcept;
     // Backend adapters expose the five scratch members used by the original
@@ -283,6 +309,7 @@ private:
     ProjectileDefinition description_;
     GameObject* weapon_ = nullptr;
     GameObject* target_ = nullptr;
+    Vec3 shotTarget_{};
     std::size_t playerId_ = GameObject::undefinedPlayerId;
     bool prepared_ = false;
     std::uint32_t sourceTick_ = 0U;
@@ -366,6 +393,9 @@ private:
 class Weapon : public GameObject
 {
 public:
+    using ShotDesc = Proj::ShotDesc;
+    using ShotContext = Proj::ShotContext;
+
     struct Desc
     {
         float shotDelay = 0.0F;
@@ -407,6 +437,13 @@ public:
                  std::span<const ProjectileDefinition> projectiles);
     const ShotEffect& GetShotEffect() const noexcept;
     const std::array<float, 3U>& GetLastShotPosition() const noexcept;
+
+    // Backend-neutral Weapon::CreateShot commit point.  Preparation values
+    // which used to come from PhysX are carried by ShotContext; successful
+    // objects are immediately transferred to Logic exactly as in Windows.
+    static Proj* CreateShot(
+        Weapon* weapon, const ProjectileDefinition& description,
+        const ShotContext& context);
 
 private:
     void BindSourceBehaviors();

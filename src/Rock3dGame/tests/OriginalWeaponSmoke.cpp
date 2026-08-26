@@ -626,6 +626,51 @@ int main()
         releasedProjectile.removed != 1U ||
         autoProjectileLogic.HasGameObj(logicProjectile))
         return 103;
+
+    source::Weapon factoryWeapon;
+    factoryWeapon.OnProgress(1.0F);
+    source::GameObject factoryTarget;
+    r3d::game::originalrace::ProjectileDefinition factoryDescription;
+    factoryDescription.type = 17U;
+    factoryDescription.position = {1.0F, 2.0F, 3.0F};
+    source::Proj::ShotContext factoryContext;
+    factoryContext.logic = &autoProjectileLogic;
+    factoryContext.shot.targetMapObject = &factoryTarget;
+    factoryContext.shot.target = {9.0F, 8.0F, 7.0F};
+    factoryContext.playerId = 4U;
+    factoryContext.maximumLife = 3.0F;
+    factoryContext.position = {6.0F, 5.0F, 4.0F};
+    auto* factoryProjectile = source::Weapon::CreateShot(
+        &factoryWeapon, factoryDescription, factoryContext);
+    if (factoryProjectile == nullptr ||
+        !autoProjectileLogic.HasGameObj(factoryProjectile) ||
+        autoProjectileLogic.GetGameObjCount() != 1U ||
+        factoryProjectile->GetLogic() != &autoProjectileLogic ||
+        factoryProjectile->GetSourceTarget() != &factoryTarget ||
+        factoryProjectile->GetShot().targetMapObject != &factoryTarget ||
+        factoryProjectile->GetShot().target !=
+            source::Proj::Vec3{9.0F, 8.0F, 7.0F} ||
+        factoryProjectile->GetSourcePlayerId() != 4U ||
+        factoryProjectile->GetWorldPos() !=
+            source::GameObject::Vector3{6.0F, 5.0F, 4.0F} ||
+        factoryWeapon.GetShotTime() != 0.0F ||
+        factoryWeapon.GetShotEffect().GetShotCount() != 1U ||
+        factoryWeapon.GetLastShotPosition() !=
+            std::array<float, 3U>{1.0F, 2.0F, 3.0F})
+        return 104;
+    source::Proj::ShotContext invalidFactoryContext;
+    if (source::Weapon::CreateShot(
+            &factoryWeapon, factoryDescription,
+            invalidFactoryContext) != nullptr ||
+        autoProjectileLogic.GetGameObjCount() != 1U)
+        return 105;
+    factoryProjectile->Death();
+    const auto releasedFactoryProjectile =
+        autoProjectileLogic.ProgressGameObjs(0.0F);
+    if (releasedFactoryProjectile.removed != 1U ||
+        autoProjectileLogic.GetGameObjCount() != 0U ||
+        factoryTarget.GetListenerCount() != 0U)
+        return 106;
     autoProjectileLogic.RegGameObj(new source::GameObject());
     autoProjectileLogic.CleanGameObjs();
     if (autoProjectileLogic.GetGameObjCount() != 0U)
