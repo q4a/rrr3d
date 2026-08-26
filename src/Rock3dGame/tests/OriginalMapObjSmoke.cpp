@@ -1,4 +1,5 @@
 #include "OriginalGameObject.h"
+#include "OriginalLogic.h"
 #include "OriginalMapObj.h"
 #include "OriginalPlayer.h"
 #include "OriginalWeapon.h"
@@ -18,7 +19,9 @@ int main()
         return 1;
 
     source::GameObject parent;
+    source::Logic logic;
     parent.ResetGameObject(100.0F);
+    parent.SetLogic(&logic);
     source::MapObjects objects(&parent);
     objects.Reserve(4U);
     source::Player player;
@@ -55,10 +58,12 @@ int main()
     projectile.GetGameObj().ResetGameObject(-1.0F);
     auto* autoProjectile = projectile.GetAutoProj();
     if (autoProjectile == nullptr || projectile.IsSpecial() ||
-        parent.GetChildren().size() != 3U)
+        parent.GetChildren().size() != 3U ||
+        autoProjectile->GetLogic() != &logic)
         return 3;
     autoProjectile->Reset(source::AutoProj::masloType);
-    autoProjectile->LogicInited();
+    if (!autoProjectile->IsPrepared())
+        return 9;
 
     // Only Decoration/Misc and Decoration/Crush belong to the source
     // special list. The architecture lifetime and oil arming timer must not

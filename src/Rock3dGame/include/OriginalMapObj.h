@@ -105,7 +105,6 @@ private:
     GameObjType type_ = GameObjType::GameObj;
     MapObjCategory category_ = MapObjCategory::Effects;
     std::unique_ptr<GameObject> gameObj_;
-    std::unique_ptr<AutoProj> autoProj_;
     std::string name_;
     std::string record_;
     std::string recordParent_;

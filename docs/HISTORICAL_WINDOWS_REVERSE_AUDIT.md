@@ -2170,6 +2170,21 @@ Portable-смена concrete `GameObjType` сохраняет уже актив�
 двухуровневое наследование `Logic`, detach и очистку include list;
 `OriginalMapObjSmoke` проверяет граф при type replacement и удалении.
 
+### P2.79 — `GameObject::LogicInited/LogicReleased` и `AutoProj` — выполнено
+
+Оригинальный `AutoProj` является наследником `Proj/GameObject`, а не
+параллельным объектом рядом с ним. Portable-модель теперь повторяет эту
+иерархию: `MapObj` с `gotProj` владеет конкретным `AutoProj` через общий
+`GameObject`, а `GetAutoProj` выполняет только typed view.
+
+`GameObject::SetLogic` восстановил source-порядок: освобождает старое
+concrete-состояние, назначает владельца дочерним объектам и затем вызывает
+`LogicInited`. `AutoProj` готовит map-projectile только при реальном Logic,
+освобождается при detach и повторно подготавливается после загрузки нового
+type. Ручной вызов из `OriginalRaceSession` удалён. Weapon и MapObj
+regressions проверяют ожидание Logic, автоматический init/release и oil
+arming/scale через активный object graph.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

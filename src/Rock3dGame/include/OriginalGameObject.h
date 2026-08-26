@@ -151,6 +151,10 @@ public:
     bool destroyed = false;
 
 protected:
+    // GameObject.cpp releases the old concrete object before propagating a
+    // new Logic through children, then initializes the concrete object.
+    virtual void LogicReleased() noexcept {}
+    virtual void LogicInited() noexcept {}
     virtual void OnDestroyEvent() noexcept {}
     virtual void OnDeathEvent(
         DamageType, GameObject*) noexcept {}

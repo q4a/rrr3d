@@ -612,18 +612,25 @@ bool AutoProj::UsesMineUpdate(std::uint32_t type) noexcept
 
 void AutoProj::Reset(std::uint32_t type) noexcept
 {
+    LogicReleased();
     type_ = type;
-    prepared_ = false;
     armingTimer_ = -1.0F;
     modelScale_ = -1.0F;
+    if (GetLogic() != nullptr)
+        LogicInited();
 }
 
-void AutoProj::LogicInited(bool hasLogic) noexcept
+AutoProj::~AutoProj()
+{
+    LogicReleased();
+}
+
+void AutoProj::LogicInited() noexcept
 {
     // AutoProj::InitProj is idempotent and does nothing until GetLogic()
     // succeeds.  PrepareProj(NULL, ctx) preserves the map object's position
     // and rotation; those transforms remain owned by BonusInstance here.
-    if (prepared_ || !hasLogic)
+    if (prepared_ || GetLogic() == nullptr)
         return;
     prepared_ = true;
     if (UsesMineUpdate(type_))

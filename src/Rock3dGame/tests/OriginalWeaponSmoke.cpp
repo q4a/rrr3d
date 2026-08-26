@@ -388,10 +388,10 @@ int main()
 
     source::AutoProj autoOil;
     autoOil.Reset(10U);
-    autoOil.LogicInited(false);
     if (autoOil.IsPrepared())
         return 62;
-    autoOil.LogicInited();
+    source::Logic autoProjectileLogic;
+    autoOil.SetLogic(&autoProjectileLogic);
     if (!autoOil.IsPrepared() || !autoOil.IsArming() ||
         autoOil.GetModelScale() != 0.0F)
         return 63;
@@ -403,13 +403,13 @@ int main()
     if (autoOil.IsArming() ||
         std::abs(autoOil.GetModelScale() - 1.0F) > 0.001F)
         return 65;
-    autoOil.LogicReleased();
-    if (autoOil.IsPrepared())
+    autoOil.SetLogic(nullptr);
+    if (autoOil.IsPrepared() || autoOil.GetLogic() != nullptr)
         return 66;
 
     source::AutoProj autoMinePiece;
     autoMinePiece.Reset(13U);
-    autoMinePiece.LogicInited();
+    autoMinePiece.SetLogic(&autoProjectileLogic);
     autoMinePiece.OnProgress(1.0F);
     if (!autoMinePiece.IsPrepared() || autoMinePiece.IsArming() ||
         autoMinePiece.GetModelScale() >= 0.0F)

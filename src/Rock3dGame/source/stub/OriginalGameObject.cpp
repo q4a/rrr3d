@@ -178,12 +178,16 @@ void GameObject::SetLogic(Logic* value) noexcept
 {
     if (logic_ == value)
         return;
+    if (logic_ != nullptr)
+        LogicReleased();
     logic_ = value;
     for (auto* child : children_)
     {
         if (child != nullptr)
             child->SetLogic(value);
     }
+    if (logic_ != nullptr)
+        LogicInited();
 }
 
 void GameObject::InsertChild(GameObject* value)

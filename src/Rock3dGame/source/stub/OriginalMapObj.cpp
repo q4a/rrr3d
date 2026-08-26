@@ -66,7 +66,9 @@ void MapObj::CreateGameObj()
         ? gameObj_->GetParent()
         : nullptr;
     std::unique_ptr<GameObject> replacement;
-    if (type_ == GameObjType::DestrObj)
+    if (type_ == GameObjType::Proj)
+        replacement = std::make_unique<AutoProj>();
+    else if (type_ == GameObjType::DestrObj)
         replacement = std::make_unique<DestrObj>();
     else
         replacement = std::make_unique<GameObject>();
@@ -77,15 +79,12 @@ void MapObj::CreateGameObj()
     {
         *replacement = *gameObj_;
         gameObj_->SetParent(nullptr);
+        gameObj_->SetLogic(nullptr);
     }
     replacement->SetMapObj(this);
     replacement->SetParent(parent);
     gameObj_ = std::move(replacement);
 
-    if (type_ == GameObjType::Proj)
-        autoProj_ = std::make_unique<AutoProj>();
-    else
-        autoProj_.reset();
 }
 
 GameObject& MapObj::GetGameObj() noexcept { return *gameObj_; }
@@ -103,10 +102,13 @@ const DestrObj* MapObj::GetDestrObj() const noexcept
 {
     return dynamic_cast<const DestrObj*>(gameObj_.get());
 }
-AutoProj* MapObj::GetAutoProj() noexcept { return autoProj_.get(); }
+AutoProj* MapObj::GetAutoProj() noexcept
+{
+    return dynamic_cast<AutoProj*>(gameObj_.get());
+}
 const AutoProj* MapObj::GetAutoProj() const noexcept
 {
-    return autoProj_.get();
+    return dynamic_cast<const AutoProj*>(gameObj_.get());
 }
 
 const std::string& MapObj::GetName() const noexcept { return name_; }

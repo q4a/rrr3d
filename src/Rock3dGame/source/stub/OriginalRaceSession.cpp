@@ -1160,7 +1160,6 @@ void OriginalRaceSession::reset()
         mapObject.GetGameObj().ResetGameObject(-1.0F);
         auto* projectile = mapObject.GetAutoProj();
         projectile->Reset(bonus.projectileType);
-        projectile->LogicInited();
         bonusScales_[index] = projectile->GetModelScale();
     }
     bonusNetworkPendingContact_.assign(

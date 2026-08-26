@@ -1,5 +1,6 @@
 #pragma once
 
+#include "OriginalGameObject.h"
 #include "OriginalRace.h"
 #include "OriginalSlot.h"
 
@@ -224,14 +225,15 @@ public:
 // source object prepares itself when Logic is attached, keeps the serialized
 // map transform, and releases only its prepared state when Logic goes away.
 // MineUpdate owns the short arming interval used by the oil model/contact.
-class AutoProj
+class AutoProj : public GameObject
 {
 public:
     static constexpr std::uint32_t masloType = 10U;
 
+    ~AutoProj() override;
     void Reset(std::uint32_t type) noexcept;
-    void LogicInited(bool hasLogic = true) noexcept;
-    void LogicReleased() noexcept;
+    void LogicInited() noexcept override;
+    void LogicReleased() noexcept override;
     void OnProgress(float deltaTime) noexcept;
 
     bool IsPrepared() const noexcept;
