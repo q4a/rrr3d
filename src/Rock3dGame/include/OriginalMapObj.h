@@ -183,6 +183,7 @@ public:
     std::size_t GetSourceIndex() const noexcept;
     void SetSourceIndex(std::size_t value) noexcept;
     bool IsSpecial() const noexcept;
+    void CopySerializedStateFrom(const MapObj& value);
 
 private:
     void CreateGameObj();

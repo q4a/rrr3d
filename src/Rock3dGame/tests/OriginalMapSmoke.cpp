@@ -221,6 +221,59 @@ int main()
         map.GetGroundTouchDeath().OnContact(nullptr))
         return 11;
 
+    source::Map cloneMap(&logic);
+    auto& cloneSource = cloneMap.AddMapObj(
+        source::MapObjCategory::Decoration,
+        source::GameObjType::DestrObj,
+        "world\\db\\root\\ctDecoration\\Crush\\crate", 4U);
+    cloneSource.SetSourceIndex(77U);
+    cloneSource.GetGameObj().ResetGameObject(30.0F);
+    cloneSource.GetGameObj().SetLife(18.0F);
+    cloneSource.GetGameObj().SetPos({1.0F, 2.0F, 3.0F});
+    cloneSource.GetGameObj().SetScale({2.0F, 3.0F, 4.0F});
+    cloneSource.GetGameObj().SetRot({0.0F, 0.0F, 0.5F, 0.8660254F});
+    cloneSource.GetGameObj().SetMaxTimeLife(9.0F);
+    cloneSource.GetGameObj().SetTimeLife(1.5F);
+    auto& childRecord =
+        cloneMap.GetRecordLib(source::MapObjCategory::Effects)
+            .GetOrCreateRecord(
+                "world\\db\\root\\ctEffects\\spark2",
+                source::GameObjType::GameObj);
+    auto& cloneSourceChild = cloneSource.GetGameObj().GetIncludeList().Add(
+        childRecord, 4U);
+    cloneSourceChild.SetName("sparkChild");
+    cloneSourceChild.GetGameObj().ResetGameObject(-1.0F);
+    cloneSourceChild.GetGameObj().SetPos({5.0F, 6.0F, 7.0F});
+
+    auto& clone = cloneMap.AddMapObj(cloneSource);
+    const auto* clonedChild = clone.GetGameObj().GetIncludeList().Get(0U);
+    if (cloneSource.GetId() != 1U || cloneSource.GetName() != "crate0" ||
+        clone.GetId() != 2U || clone.GetName() != "crate1" ||
+        clone.GetRecordProxy() != cloneSource.GetRecordProxy() ||
+        clone.GetPlayer() != nullptr ||
+        clone.GetSourceIndex() != source::Map::invalidSourceIndex ||
+        clone.GetGameObj().GetLogic() != &logic ||
+        clone.GetGameObj().GetMaxLife() != 30.0F ||
+        clone.GetGameObj().GetLife() != 18.0F ||
+        clone.GetGameObj().GetPos() !=
+            source::GameObject::Vector3{1.0F, 2.0F, 3.0F} ||
+        clone.GetGameObj().GetScale() !=
+            source::GameObject::Vector3{2.0F, 3.0F, 4.0F} ||
+        clone.GetGameObj().GetRot() !=
+            source::GameObject::Quaternion{
+                0.0F, 0.0F, 0.5F, 0.8660254F} ||
+        clone.GetGameObj().GetMaxTimeLife() != 9.0F ||
+        clone.GetGameObj().GetTimeLife() != 1.5F ||
+        clone.GetGameObj().GetIncludeList().GetLiveCount() != 1U ||
+        clonedChild == nullptr || clonedChild->GetName() != "sparkChild" ||
+        clonedChild->GetId() != 4U ||
+        clonedChild->GetRecordProxy() != &childRecord ||
+        clonedChild->GetParent() != &clone.GetGameObj() ||
+        clonedChild->GetGameObj().GetLogic() != &logic ||
+        clonedChild->GetGameObj().GetPos() !=
+            source::GameObject::Vector3{5.0F, 6.0F, 7.0F})
+        return 18;
+
     std::cout << "original Map ownership, trace, death plane, category "
                  "registry and global ID rules passed\n";
     return 0;

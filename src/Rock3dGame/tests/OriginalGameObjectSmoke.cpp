@@ -92,6 +92,27 @@ int main()
         assignTarget.GetName() != "targetName")
         return 63;
 
+    source::GameObject proxySource;
+    proxySource.ResetGameObject(80.0F);
+    proxySource.SetLife(31.0F);
+    proxySource.SetPos({1.0F, 2.0F, 3.0F});
+    proxySource.SetScale({4.0F, 5.0F, 6.0F});
+    proxySource.SetRot({0.1F, 0.2F, 0.3F, 0.9F});
+    proxySource.SetMaxTimeLife(7.0F);
+    proxySource.SetTimeLife(2.5F);
+    source::GameObject proxyTarget;
+    proxyTarget.ResetGameObject(12.0F);
+    proxyTarget.CopyProxyStateFrom(proxySource);
+    if (proxyTarget.GetMaxLife() != 12.0F ||
+        proxyTarget.GetLife() != 31.0F ||
+        proxyTarget.GetPos() != source::GameObject::Vector3{1.0F, 2.0F, 3.0F} ||
+        proxyTarget.GetScale() != source::GameObject::Vector3{4.0F, 5.0F, 6.0F} ||
+        proxyTarget.GetRot() !=
+            source::GameObject::Quaternion{0.1F, 0.2F, 0.3F, 0.9F} ||
+        proxyTarget.GetMaxTimeLife() != 7.0F ||
+        proxyTarget.GetTimeLife() != 2.5F)
+        return 64;
+
     source::GameObject object;
     object.ResetGameObject(100.0F);
     if (object.GetLife() != 100.0F || object.IsImmortal() ||

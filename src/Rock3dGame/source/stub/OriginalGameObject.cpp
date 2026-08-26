@@ -154,6 +154,9 @@ GameObject& GameObject::operator=(const GameObject& other) noexcept
     name_ = other.name_;
     SetLogic(other.logic_);
     objectDestroyed_ = other.objectDestroyed_;
+    position_ = other.position_;
+    scale_ = other.scale_;
+    rotation_ = other.rotation_;
     // GameObject::Assign does not copy the legacy listener container. Its
     // entries point at behaviors owned by the concrete source object.
     listeners_.clear();
@@ -178,6 +181,40 @@ void GameObject::AssignSource(GameObject& value) noexcept
 
 const std::string& GameObject::GetName() const noexcept { return name_; }
 void GameObject::SetName(std::string value) { name_ = std::move(value); }
+const GameObject::Vector3& GameObject::GetPos() const noexcept
+{
+    return position_;
+}
+void GameObject::SetPos(Vector3 value) noexcept
+{
+    position_ = value;
+}
+const GameObject::Vector3& GameObject::GetScale() const noexcept
+{
+    return scale_;
+}
+void GameObject::SetScale(Vector3 value) noexcept
+{
+    scale_ = value;
+}
+const GameObject::Quaternion& GameObject::GetRot() const noexcept
+{
+    return rotation_;
+}
+void GameObject::SetRot(Quaternion value) noexcept
+{
+    rotation_ = value;
+}
+
+void GameObject::CopyProxyStateFrom(const GameObject& value) noexcept
+{
+    position_ = value.position_;
+    scale_ = value.scale_;
+    rotation_ = value.rotation_;
+    life = value.life;
+    maximumTimeLife = value.maximumTimeLife;
+    timeLife = value.timeLife;
+}
 
 MapObj* GameObject::GetMapObj() noexcept { return mapObj_; }
 const MapObj* GameObject::GetMapObj() const noexcept { return mapObj_; }

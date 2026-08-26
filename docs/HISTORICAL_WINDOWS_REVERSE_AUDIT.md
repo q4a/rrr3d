@@ -2284,6 +2284,27 @@ root/Misc hierarchy, library/parent identity, canonical/relative equality и
 обе коллизии namespace. XML `SerialNode` ownership и writer всё ещё остаются
 за parser boundary.
 
+### P2.86 — `GameObject` proxy transform и `Map::AddMapObj(ref)` — выполнено
+
+`GameObject::SaveProxy/LoadProxy` Windows хранит `pos`, `scale`, `rot`,
+`life`, `maxTimeLife`, `timeLife` и include list. Portable `GameObject` до
+этого этапа вообще не имел координат: `.r3dMap` transforms существовали
+только в параллельных renderer/physics массивах. Поэтому runtime Map нельзя
+было считать полноценным владельцем proxy state, а исходный clone path
+`Map::AddMapObj(MapObj* ref)` отсутствовал.
+
+В `GameObject` добавлены backend-neutral position/scale/quaternion и узкий
+`CopyProxyStateFrom`, не смешанный с C++ value copy или `AssignSource`.
+`OriginalRaceSession` назначает transform каждому decoration, track и bonus
+MapObj в порядке source proxy load; integrated smoke сверяет реальные первые
+placements `map1`. Затем перенесён `Map::AddMapObj(ref)`: он требует record
+proxy, создаёт новый объект через общий catalog, получает новый глобальный ID
+и source unique name, копирует record `maxLife`, шесть proxy-полей и
+рекурсивный serialized include graph. Player association, sourceIndex,
+listeners, Logic identity, death/touch runtime и имя исходного instance не
+копируются. Map regression покрывает `crate0 -> crate1`, общий record,
+новый ID, transform/lifetime и вложенный `sparkChild` с parent/Logic.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

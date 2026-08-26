@@ -83,6 +83,20 @@ Quat runtimeQuat(source::Proj::Quat value)
     return {value.x, value.y, value.z, value.w};
 }
 
+void applySourceProxyTransform(
+    source::GameObject& object, const Transform& transform) noexcept
+{
+    object.SetPos({
+        transform.position.x, transform.position.y,
+        transform.position.z});
+    object.SetScale({
+        transform.scale.x, transform.scale.y,
+        transform.scale.z});
+    object.SetRot({
+        transform.rotation.x, transform.rotation.y,
+        transform.rotation.z, transform.rotation.w});
+}
+
 struct EffectTiming
 {
     float emissionSeconds = 0.0F;
@@ -1126,6 +1140,7 @@ void OriginalRaceSession::reset()
             source::GameObjType::DestrObj, definition.record,
             instance.mapObjectId, index);
         auto* object = mapObject.GetDestrObj();
+        applySourceProxyTransform(*object, instance.transform);
         object->ResetGameObject(
             definition.maximumLife >= 0.0F
                 ? definition.maximumLife
@@ -1154,6 +1169,7 @@ void OriginalRaceSession::reset()
             source::GameObjType::GameObj, definition.record,
             instance.mapObjectId, index);
         auto& object = mapObject.GetGameObj();
+        applySourceProxyTransform(object, instance.transform);
         object.ResetGameObject(-1.0F);
         if (instance.hasProxyState)
         {
@@ -1175,6 +1191,7 @@ void OriginalRaceSession::reset()
             source::GameObjType::Proj, bonus.record,
             bonus.mapObjectId, index);
         auto& object = mapObject.GetGameObj();
+        applySourceProxyTransform(object, bonus.transform);
         object.ResetGameObject(-1.0F);
         if (bonus.hasProxyState)
         {
@@ -2343,6 +2360,11 @@ const std::vector<bool>& OriginalRaceSession::bonusActive() const noexcept
 const std::vector<float>& OriginalRaceSession::bonusScales() const noexcept
 {
     return bonusScales_;
+}
+
+const source::Map& OriginalRaceSession::sourceMap() const noexcept
+{
+    return map_;
 }
 
 bool OriginalRaceSession::racerHasAiController(
@@ -6470,6 +6492,40 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 "source RandomRange/Player::TakeBonus formula failed");
         }
         OriginalRaceSession session(race);
+        const auto sourceTransformMatches = [](
+            const source::GameObject& object,
+            const Transform& transform) {
+            const auto& position = object.GetPos();
+            const auto& scale = object.GetScale();
+            const auto& rotation = object.GetRot();
+            return std::abs(position[0] - transform.position.x) < 0.001F &&
+                   std::abs(position[1] - transform.position.y) < 0.001F &&
+                   std::abs(position[2] - transform.position.z) < 0.001F &&
+                   std::abs(scale[0] - transform.scale.x) < 0.001F &&
+                   std::abs(scale[1] - transform.scale.y) < 0.001F &&
+                   std::abs(scale[2] - transform.scale.z) < 0.001F &&
+                   std::abs(rotation[0] - transform.rotation.x) < 0.001F &&
+                   std::abs(rotation[1] - transform.rotation.y) < 0.001F &&
+                   std::abs(rotation[2] - transform.rotation.z) < 0.001F &&
+                   std::abs(rotation[3] - transform.rotation.w) < 0.001F;
+        };
+        const auto verifyPlacedProxy = [&](const auto& instance) {
+            const auto* object = session.sourceMap().GetMapObj(
+                instance.mapObjectId, true);
+            return object != nullptr &&
+                   sourceTransformMatches(
+                       object->GetGameObj(), instance.transform);
+        };
+        if ((!race.decorationInstances.empty() &&
+             !verifyPlacedProxy(race.decorationInstances.front())) ||
+            (!race.trackInstances.empty() &&
+             !verifyPlacedProxy(race.trackInstances.front())) ||
+            (!race.bonuses.empty() &&
+             !verifyPlacedProxy(race.bonuses.front())))
+        {
+            throw std::runtime_error(
+                "GameObject::LoadProxy placement transform was not bound");
+        }
         for (std::size_t racer = 0U;
              racer < session.racers().size(); ++racer)
         {

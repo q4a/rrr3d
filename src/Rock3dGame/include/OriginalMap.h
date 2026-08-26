@@ -41,6 +41,7 @@ public:
         MapObjCategory category, GameObjType type,
         std::string record, std::uint32_t sourceId,
         std::size_t sourceIndex);
+    MapObj& AddMapObj(const MapObj& value);
     bool DelMapObj(MapObj* value) noexcept;
     void ReserveIdsThrough(std::uint32_t value) noexcept;
     void Clear() noexcept;

@@ -453,6 +453,7 @@ public:
     const std::vector<float>& decorationLife() const noexcept;
     const std::vector<bool>& bonusActive() const noexcept;
     const std::vector<float>& bonusScales() const noexcept;
+    const source::Map& sourceMap() const noexcept;
     bool racerHasAiController(std::size_t racer) const noexcept;
     std::uint32_t racerMapObjectId(std::size_t racer) const noexcept;
     std::size_t racerForMapObjectId(

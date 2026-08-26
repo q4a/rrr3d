@@ -79,6 +79,19 @@ MapObj& Map::AddMapObj(
     return result;
 }
 
+MapObj& Map::AddMapObj(const MapObj& value)
+{
+    const auto* record = value.GetRecordProxy();
+    if (record == nullptr)
+        throw std::invalid_argument(
+            "Map::AddMapObj clone requires a source record proxy");
+    auto& result = AddMapObj(
+        record->GetCategory(), value.GetType(), record->GetPath(),
+        invalidSourceIndex);
+    result.CopySerializedStateFrom(value);
+    return result;
+}
+
 void Map::Register(MapObj& value, std::uint32_t id)
 {
     value.SetId(id);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -48,6 +49,8 @@ public:
 class GameObject
 {
 public:
+    using Vector3 = std::array<float, 3U>;
+    using Quaternion = std::array<float, 4U>;
     using Children = std::vector<GameObject*>;
     using IncludeList = MapObjects;
 
@@ -91,6 +94,16 @@ public:
 
     const std::string& GetName() const noexcept;
     void SetName(std::string value);
+    const Vector3& GetPos() const noexcept;
+    void SetPos(Vector3 value) noexcept;
+    const Vector3& GetScale() const noexcept;
+    void SetScale(Vector3 value) noexcept;
+    const Quaternion& GetRot() const noexcept;
+    void SetRot(Quaternion value) noexcept;
+
+    // State serialized by GameObject::SaveProxy/LoadProxy. Record source
+    // state (graph/physics definition and maxLife) is copied separately.
+    void CopyProxyStateFrom(const GameObject& value) noexcept;
 
     void ResetGameObject(float maximumLifeValue) noexcept;
     ProgressResult OnProgress(float deltaTime) noexcept;
@@ -189,6 +202,9 @@ private:
     Children children_;
     IncludeList* includeList_ = nullptr;
     std::string name_;
+    Vector3 position_{};
+    Vector3 scale_{1.0F, 1.0F, 1.0F};
+    Quaternion rotation_{0.0F, 0.0F, 0.0F, 1.0F};
     bool objectDestroyed_ = false;
 };
 

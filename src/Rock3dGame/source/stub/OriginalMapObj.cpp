@@ -453,6 +453,40 @@ bool MapObj::IsSpecial() const noexcept
            (recordParent_ == "Misc" || recordParent_ == "Crush");
 }
 
+void MapObj::CopySerializedStateFrom(const MapObj& value)
+{
+    gameObj_->SetMaxLife(value.GetGameObj().GetMaxLife());
+    gameObj_->CopyProxyStateFrom(value.GetGameObj());
+
+    auto& destinationIncludes = gameObj_->GetIncludeList();
+    destinationIncludes.Clear();
+    const auto& sourceIncludes = value.GetGameObj().GetIncludeList();
+    destinationIncludes.Reserve(sourceIncludes.GetLiveCount());
+    for (std::size_t slot = 0U;
+         slot < sourceIncludes.GetSlotCount(); ++slot)
+    {
+        const auto* sourceChild = sourceIncludes.Get(slot);
+        if (sourceChild == nullptr)
+            continue;
+        MapObj* destinationChild = nullptr;
+        if (sourceChild->GetRecordProxy() != nullptr)
+        {
+            destinationChild = &destinationIncludes.Add(
+                *sourceChild->GetRecordProxy(), sourceChild->GetId());
+        }
+        else
+        {
+            destinationChild = &destinationIncludes.Add(
+                sourceChild->GetType(), sourceChild->GetCategory(),
+                sourceChild->GetRecord(), sourceChild->GetId(),
+                sourceChild->GetRecordParent());
+        }
+        destinationChild->SetName(sourceChild->GetName());
+        destinationChild->SetSourceIndex(sourceChild->GetSourceIndex());
+        destinationChild->CopySerializedStateFrom(*sourceChild);
+    }
+}
+
 MapObjects::MapObjects(GameObject* owner) noexcept : owner_(owner) {}
 void MapObjects::SetObserver(MapObjectsObserver* value) noexcept
 {
