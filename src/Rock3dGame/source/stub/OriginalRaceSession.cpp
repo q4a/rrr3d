@@ -2409,7 +2409,8 @@ physics::VehicleDriveCommand OriginalRaceSession::racerFixedStepDrive(
         {state.signedSpeed, state.absoluteSpeed,
          state.horizontalSpeed, state.drivenWheelAngularSpeed,
          state.anyWheelContact,
-         state.drivenWheelContact});
+         state.drivenWheelContact, state.allWheelContact,
+         state.bodyContact});
     return {command.motorTorque, command.brakeTorque,
             command.rpm, command.gear, command.steeringAngle,
             command.steeringYaw, command.rearWheelX,
@@ -3410,8 +3411,12 @@ void OriginalRaceSession::updateGameplay(
                 runtime.gameCar.SetWheelContact(
                     wheel, contact.hasContact,
                     contact.longitudinalSlip,
-                    contact.lateralSlip);
+                    contact.lateralSlip,
+                    contact.normalReaction,
+                    contact.normalImpulse);
             }
+            runtime.gameCar.UpdateContactState(
+                !vehicles[racer].bodyContacts.empty());
             float leadWheelSpeed = 0.0F;
             const auto speedWheelCount = std::min(
                 vehicles[racer].wheelAngularSpeeds.size(),
@@ -3451,10 +3456,13 @@ void OriginalRaceSession::updateGameplay(
             const std::size_t fixedWheelCount = std::min(
                 vehicleDefinition.physics.wheels.size(),
                 vehicle.wheelContacts.size());
+            bool allContact = fixedWheelCount > 0U;
             for (std::size_t wheel = 0U;
                  wheel < fixedWheelCount; ++wheel)
             {
                 anyContact = anyContact ||
+                    vehicle.wheelContacts[wheel].hasContact;
+                allContact = allContact &&
                     vehicle.wheelContacts[wheel].hasContact;
                 if (!vehicleDefinition.physics.wheels[wheel].driven)
                     continue;
@@ -3477,7 +3485,8 @@ void OriginalRaceSession::updateGameplay(
                 racer, seconds, input,
                 {vehicle.speed, length3(vehicle.linearVelocity),
                  horizontalSpeed, drivenWheelAngularSpeed,
-                 anyContact, drivenContact});
+                 anyContact, drivenContact, allContact,
+                 !vehicle.bodyContacts.empty()});
         }
         if (racer < vehicleInputs_.size())
         {

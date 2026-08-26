@@ -185,6 +185,11 @@ struct VehicleFixedStepState
     float drivenWheelAngularSpeed = 0.0F;
     bool anyWheelContact = false;
     bool drivenWheelContact = false;
+    // GameCar::WheelsProgress keeps a second flag which is true only when
+    // every serialized wheel reports contact. Body contacts are delivered
+    // separately by GameCar::OnContact in the same fixed-step lifetime.
+    bool allWheelContact = false;
+    bool bodyContact = false;
 };
 
 struct VehicleDriveCommand

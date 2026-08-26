@@ -95,6 +95,8 @@ public:
         float drivenWheelAngularSpeed = 0.0F;
         bool anyWheelContact = false;
         bool drivenWheelContact = false;
+        bool allWheelContact = false;
+        bool bodyContact = false;
     };
 
     struct DynamicsDescription
@@ -177,7 +179,13 @@ public:
     void ReleaseWheels() noexcept;
     bool SetWheelContact(
         std::size_t wheel, bool hasContact,
-        float longitudinalSlip, float lateralSlip) noexcept;
+        float longitudinalSlip, float lateralSlip,
+        float normalReaction = 0.0F,
+        float normalImpulse = 0.0F) noexcept;
+    void UpdateContactState(bool bodyContact) noexcept;
+    bool IsAnyWheelContact() const noexcept;
+    bool IsWheelsContact() const noexcept;
+    bool IsBodyContact() const noexcept;
     WheelSlipProgress GetWheelSlipResult(
         std::size_t wheel) const noexcept;
     std::size_t GetWheelCount() const noexcept;
@@ -228,6 +236,9 @@ private:
     MoveCarState moveCar_ = MoveCarState::None;
     int currentGear_ = -1;
     float steeringAngle_ = 0.0F;
+    bool anyWheelContact_ = false;
+    bool wheelsContact_ = false;
+    bool bodyContact_ = false;
 };
 
 // Backend-neutral owner for GameBase.cpp::SoundMotor. SDL owns the two
@@ -307,7 +318,11 @@ public:
     bool IsDriven() const noexcept;
     bool IsSteering() const noexcept;
     void SetContact(bool hasContact, float longitudinalSlip,
-                    float lateralSlip) noexcept;
+                    float lateralSlip, float normalReaction,
+                    float normalImpulse) noexcept;
+    bool HasContact() const noexcept;
+    float GetNormalReaction() const noexcept;
+    float GetNormalImpulse() const noexcept;
     GameObject::ProgressResult OnProgress(float deltaTime) noexcept;
     const WheelSlipProgress& GetSlipResult() const noexcept;
     bool HasSlipEffect() const noexcept;
@@ -320,6 +335,11 @@ private:
     WheelSlipProgress slipResult_;
     float longitudinalSlip_ = 0.0F;
     float lateralSlip_ = 0.0F;
+    // Windows CarWheel::_nReac is written by MyContactModify before the
+    // resulting normalForce is clamped. Keep the raw ratio and the solver
+    // impulse distinct at the source-object boundary.
+    float normalReaction_ = 0.0F;
+    float normalImpulse_ = 0.0F;
     bool hasContact_ = false;
     bool slipEffectEnabled_ = false;
     bool slipSoundEnabled_ = false;

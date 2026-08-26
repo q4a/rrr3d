@@ -217,10 +217,24 @@ int main()
         clutchSteering.angularDamping[2U] != 1.0F)
         return 49;
     car.Reset();
-    if (!car.SetWheelContact(0U, true, -0.65F, 0.9F) ||
+    if (!car.SetWheelContact(
+            0U, true, -0.65F, 0.9F, 1.25F, 0.0125F) ||
         !car.SetWheelContact(1U, true, 5.0F, 5.0F) ||
         car.SetWheelContact(2U, true, 1.0F, 1.0F))
         return 26;
+    car.UpdateContactState(true);
+    if (!car.IsAnyWheelContact() || !car.IsWheelsContact() ||
+        !car.IsBodyContact() ||
+        std::abs(car.GetWheel(0U)->GetNormalReaction() - 1.25F) >
+            0.0001F ||
+        std::abs(car.GetWheel(0U)->GetNormalImpulse() - 0.0125F) >
+            0.0001F)
+        return 50;
+    car.SetWheelContact(1U, false, 0.0F, 0.0F);
+    car.UpdateContactState(false);
+    if (!car.IsAnyWheelContact() || car.IsWheelsContact() ||
+        car.IsBodyContact())
+        return 51;
     const auto wheelProgress = car.OnProgress(1.0F / 60.0F);
     const auto ownedSlip = car.GetWheelSlipResult(0U);
     if (wheelProgress.wheelsProgressed != 2U ||
@@ -235,7 +249,10 @@ int main()
         copiedWheelCar.GetWheel(0U)->GetParent() != &copiedWheelCar ||
         !copiedWheelCar.GetWheel(0U)->HasSlipEffect() ||
         copiedWheelCar.GetWheel(0U)->GetListenerCount() != 1U ||
-        !copiedWheelCar.GetWheelSlipResult(0U).active)
+        !copiedWheelCar.GetWheelSlipResult(0U).active ||
+        std::abs(
+            copiedWheelCar.GetWheel(0U)->GetNormalReaction() - 1.25F) >
+            0.0001F)
         return 28;
     constexpr float halfQuarterTurn = 0.70710678118654752440F;
     const source::GameObjectFrameSync::Pose physicalBody{

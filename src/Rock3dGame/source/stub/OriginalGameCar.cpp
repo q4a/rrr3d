@@ -125,6 +125,9 @@ GameCar& GameCar::operator=(const GameCar& other) noexcept
     moveCar_ = other.moveCar_;
     currentGear_ = other.currentGear_;
     steeringAngle_ = other.steeringAngle_;
+    anyWheelContact_ = other.anyWheelContact_;
+    wheelsContact_ = other.wheelsContact_;
+    bodyContact_ = other.bodyContact_;
     rpmVolumeRange_ = other.rpmVolumeRange_;
     rpmFrequencyRange_ = other.rpmFrequencyRange_;
     soundMotorMix_ = other.soundMotorMix_;
@@ -194,9 +197,17 @@ void GameCar::Reset() noexcept
     moveCar_ = MoveCarState::None;
     currentGear_ = -1;
     steeringAngle_ = 0.0F;
+    anyWheelContact_ = false;
+    wheelsContact_ = false;
+    bodyContact_ = false;
     for (auto& wheel : wheels_)
+    {
         if (wheel != nullptr)
+        {
             wheel->ResetMotion();
+            wheel->SetContact(false, 0.0F, 0.0F, 0.0F, 0.0F);
+        }
+    }
     GetFrameSync().Reset();
     if (soundMotor_ != nullptr)
         soundMotor_->Reset();
@@ -303,6 +314,13 @@ GameCar::DriveCommand GameCar::OnFixedStepDrive(
         6.28318530717958647692F;
     constexpr float directionDeadZone = 0.1F;
     deltaTime = std::max(deltaTime, 0.0F);
+    // GameCar::OnFixedStep resets these flags before WheelsProgress and
+    // OnContact fills bodyContact during the solver step. The backend gives
+    // us the previous completed solver state at this call boundary; the
+    // outer session refreshes it again after the current step completes.
+    anyWheelContact_ = state.anyWheelContact;
+    wheelsContact_ = state.allWheelContact;
+    bodyContact_ = state.bodyContact;
     DriveCommand command;
     if (clutchTime_ > 0.0F)
     {
@@ -564,14 +582,45 @@ void GameCar::ReleaseWheels() noexcept
 
 bool GameCar::SetWheelContact(
     std::size_t wheel, bool hasContact,
-    float longitudinalSlip, float lateralSlip) noexcept
+    float longitudinalSlip, float lateralSlip,
+    float normalReaction, float normalImpulse) noexcept
 {
     auto* target = GetWheel(wheel);
     if (target == nullptr)
         return false;
     target->SetContact(
-        hasContact, longitudinalSlip, lateralSlip);
+        hasContact, longitudinalSlip, lateralSlip,
+        normalReaction, normalImpulse);
     return true;
+}
+
+void GameCar::UpdateContactState(bool bodyContact) noexcept
+{
+    anyWheelContact_ = false;
+    wheelsContact_ = true;
+    for (const auto& wheel : wheels_)
+    {
+        const bool contact = wheel != nullptr && wheel->HasContact();
+        anyWheelContact_ = anyWheelContact_ || contact;
+        if (!contact)
+            wheelsContact_ = false;
+    }
+    bodyContact_ = bodyContact;
+}
+
+bool GameCar::IsAnyWheelContact() const noexcept
+{
+    return anyWheelContact_;
+}
+
+bool GameCar::IsWheelsContact() const noexcept
+{
+    return wheelsContact_;
+}
+
+bool GameCar::IsBodyContact() const noexcept
+{
+    return bodyContact_;
 }
 
 WheelSlipProgress GameCar::GetWheelSlipResult(
@@ -874,6 +923,8 @@ CarWheel& CarWheel::operator=(const CarWheel& other) noexcept
     slipResult_ = other.slipResult_;
     longitudinalSlip_ = other.longitudinalSlip_;
     lateralSlip_ = other.lateralSlip_;
+    normalReaction_ = other.normalReaction_;
+    normalImpulse_ = other.normalImpulse_;
     hasContact_ = other.hasContact_;
     slipEffectEnabled_ = other.slipEffectEnabled_;
     slipSoundEnabled_ = other.slipSoundEnabled_;
@@ -914,6 +965,8 @@ void CarWheel::Configure(bool slipEffect, bool slipSound)
     hasContact_ = false;
     longitudinalSlip_ = 0.0F;
     lateralSlip_ = 0.0F;
+    normalReaction_ = 0.0F;
+    normalImpulse_ = 0.0F;
     slipEffectEnabled_ = slipEffect;
     slipSoundEnabled_ = slipEffect && slipSound;
     pxSyncPose_ = {};
@@ -1033,11 +1086,29 @@ bool CarWheel::IsSteering() const noexcept
 
 void CarWheel::SetContact(
     bool hasContact, float longitudinalSlip,
-    float lateralSlip) noexcept
+    float lateralSlip, float normalReaction,
+    float normalImpulse) noexcept
 {
     hasContact_ = hasContact;
     longitudinalSlip_ = longitudinalSlip;
     lateralSlip_ = lateralSlip;
+    normalReaction_ = hasContact ? normalReaction : 0.0F;
+    normalImpulse_ = hasContact ? normalImpulse : 0.0F;
+}
+
+bool CarWheel::HasContact() const noexcept
+{
+    return hasContact_;
+}
+
+float CarWheel::GetNormalReaction() const noexcept
+{
+    return normalReaction_;
+}
+
+float CarWheel::GetNormalImpulse() const noexcept
+{
+    return normalImpulse_;
 }
 
 GameObject::ProgressResult CarWheel::OnProgress(

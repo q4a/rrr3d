@@ -2798,6 +2798,24 @@ lock он равен нулю, при превышении `tireSpring` опор
 impulse, поэтому debug/parity проверки больше не вынуждены угадывать их по
 движению кузова.
 
+### P2.113 — `GameCar` wheel/body contact ownership — выполнено
+
+Backend уже передавал `hasContact` и slip в source `CarWheel`, а кузовные
+manifold использовались session-логикой для урона и эффектов. Однако сами
+Windows-поля `GameCar::_anyWheelContact`, `_wheelsContact`, `_bodyContact` и
+`CarWheel::_nReac` отсутствовали: разные потребители повторно выводили часть
+состояния из Jolt-массивов, а raw normal reaction из P2.112 останавливалась на
+physics boundary.
+
+`GameCar` теперь снова владеет всеми тремя контактными флагами, обновляет их
+в source fixed-step и повторно подтверждает по завершённому solver frame.
+`CarWheel` хранит контакт, `_nReac`-эквивалент и разрешённый normal impulse;
+copy/reset сохраняют исходный lifetime. `OriginalRaceSession` больше не
+обрывает эти данные между Jolt и source-объектом. Regression проверяет any/all
+wheel transitions, отдельный body contact и raw/clamped wheel telemetry.
+Следующий отдельный блок — оставшаяся адаптация anisotropic body friction из
+`GameCar::OnContactModify`, которая не должна маскироваться этими флагами.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

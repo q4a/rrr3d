@@ -1387,6 +1387,7 @@ private:
         const auto& source = vehicle.spawn.vehicle;
         bool anyContact = false;
         bool drivenContact = false;
+        bool allContact = !vehicle.constraint->GetWheels().empty();
         float drivenWheelSpeed = 0.0F;
         bool foundDrivenWheel = false;
         for (JPH::uint index = 0;
@@ -1394,6 +1395,7 @@ private:
         {
             const auto* wheel = vehicle.constraint->GetWheel(index);
             anyContact = anyContact || wheel->HasContact();
+            allContact = allContact && wheel->HasContact();
             if (!source.wheels[index].driven)
                 continue;
             drivenContact = drivenContact || wheel->HasContact();
@@ -1430,7 +1432,8 @@ private:
                 vehicleIndex, delta, input,
                 {signedSpeed, velocity.Length(),
                  horizontalVelocity.Length(), drivenWheelSpeed,
-                 anyContact, drivenContact});
+                 anyContact, drivenContact, allContact,
+                 !vehicle.state.bodyContacts.empty()});
             motorTorque = gameCarCommand.motorTorque;
             brakeTorque = gameCarCommand.brakeTorque;
             rpm = gameCarCommand.engineRpm;
