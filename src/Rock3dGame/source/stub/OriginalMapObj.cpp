@@ -7,6 +7,7 @@
 #include <array>
 #include <stdexcept>
 #include <utility>
+#include <vector>
 
 namespace r3d::game::originalrace::source
 {
@@ -64,13 +65,60 @@ const char* MapObjCategoryName(MapObjCategory value) noexcept
         : "ctEffects";
 }
 
+MapObjRecordNode::MapObjRecordNode(
+    std::string name, MapObjRecordLibrary* library,
+    MapObjRecordNode* parent)
+    : name_(std::move(name)), library_(library), parent_(parent)
+{
+}
+
+const std::string& MapObjRecordNode::GetName() const noexcept
+{
+    return name_;
+}
+const MapObjRecordNode* MapObjRecordNode::GetParent() const noexcept
+{
+    return parent_;
+}
+const MapObjRecordLibrary* MapObjRecordNode::GetLibrary() const noexcept
+{
+    return library_;
+}
+const MapObjRecordNode* MapObjRecordNode::FindNode(
+    std::string_view name) const noexcept
+{
+    const auto found = nodes_.find(std::string(name));
+    return found == nodes_.end() ? nullptr : found->second.get();
+}
+const MapObjRecord* MapObjRecordNode::FindRecord(
+    std::string_view name) const noexcept
+{
+    const auto found = std::find_if(
+        records_.begin(), records_.end(),
+        [&](const auto* record) {
+            return record != nullptr && record->GetName() == name;
+        });
+    return found == records_.end() ? nullptr : *found;
+}
+std::size_t MapObjRecordNode::GetNodeCount() const noexcept
+{
+    return nodes_.size();
+}
+std::size_t MapObjRecordNode::GetRecordCount() const noexcept
+{
+    return records_.size();
+}
+
 MapObjRecord::MapObjRecord(
     std::string path, std::string parent,
-    MapObjCategory category, GameObjType type)
+    MapObjRecordLibrary* library, MapObjRecordNode* parentNode,
+    GameObjType type)
     : path_(std::move(path)),
       name_(makeRecordName(path_)),
-      parent_(parent.empty() ? makeRecordParent(path_) : std::move(parent)),
-      category_(category), type_(type)
+      parent_(parent.empty() && parentNode != nullptr
+                  ? parentNode->GetName()
+                  : std::move(parent)),
+      library_(library), parentNode_(parentNode), type_(type)
 {
 }
 
@@ -80,27 +128,100 @@ const std::string& MapObjRecord::GetParent() const noexcept
 {
     return parent_;
 }
+const MapObjRecordNode* MapObjRecord::GetParentNode() const noexcept
+{
+    return parentNode_;
+}
+const MapObjRecordLibrary* MapObjRecord::GetLibrary() const noexcept
+{
+    return library_;
+}
 MapObjCategory MapObjRecord::GetCategory() const noexcept
 {
-    return category_;
+    return library_ != nullptr
+        ? library_->GetCategory()
+        : MapObjCategory::Effects;
 }
 GameObjType MapObjRecord::GetType() const noexcept { return type_; }
 
-MapObjRecordLibrary::MapObjRecordLibrary(
-    MapObjCategory category) noexcept
-    : category_(category)
+MapObjRecordLibrary::MapObjRecordLibrary()
+    : root_(new MapObjRecordNode(
+          MapObjCategoryName(category_), this, nullptr))
 {
 }
 
-void MapObjRecordLibrary::SetCategory(MapObjCategory value) noexcept
+MapObjRecordLibrary::MapObjRecordLibrary(
+    MapObjCategory category)
+    : category_(category),
+      root_(new MapObjRecordNode(
+          MapObjCategoryName(category_), this, nullptr))
+{
+}
+
+void MapObjRecordLibrary::SetCategory(MapObjCategory value)
 {
     if (records_.empty())
+    {
         category_ = value;
+        root_.reset(new MapObjRecordNode(
+            MapObjCategoryName(category_), this, nullptr));
+    }
 }
 
 MapObjCategory MapObjRecordLibrary::GetCategory() const noexcept
 {
     return category_;
+}
+
+std::vector<std::string> MapObjRecordLibrary::RecordPathParts(
+    std::string_view path) const
+{
+    std::vector<std::string> parts;
+    std::size_t first = 0U;
+    while (first < path.size())
+    {
+        const auto slash = path.find_first_of("/\\", first);
+        const auto end = slash == std::string_view::npos
+            ? path.size()
+            : slash;
+        if (end > first)
+            parts.emplace_back(path.substr(first, end - first));
+        if (slash == std::string_view::npos)
+            break;
+        first = slash + 1U;
+    }
+
+    const std::string_view categoryName = MapObjCategoryName(category_);
+    const auto category = std::find(parts.begin(), parts.end(), categoryName);
+    if (category != parts.end())
+        parts.erase(parts.begin(), category + 1);
+    if (parts.empty())
+        parts.emplace_back("obj");
+    return parts;
+}
+
+MapObjRecordNode* MapObjRecordLibrary::GetOrCreateParentNode(
+    const std::vector<std::string>& parts)
+{
+    auto* node = root_.get();
+    for (std::size_t index = 0U; index + 1U < parts.size(); ++index)
+    {
+        if (node->FindRecord(parts[index]) != nullptr)
+            throw std::invalid_argument(
+                "MapObj record node '" + parts[index] +
+                "' collides with an existing record");
+        const auto found = node->nodes_.find(parts[index]);
+        if (found != node->nodes_.end())
+        {
+            node = found->second.get();
+            continue;
+        }
+        auto child = std::unique_ptr<MapObjRecordNode>(
+            new MapObjRecordNode(parts[index], this, node));
+        node = child.get();
+        node->parent_->nodes_.emplace(parts[index], std::move(child));
+    }
+    return node;
 }
 
 MapObjRecord& MapObjRecordLibrary::GetOrCreateRecord(
@@ -118,10 +239,27 @@ MapObjRecord& MapObjRecordLibrary::GetOrCreateRecord(
         }
         return *found->second;
     }
+    const auto parts = RecordPathParts(path);
+    auto* parentNode = GetOrCreateParentNode(parts);
+    if (const auto* existing = parentNode->FindRecord(parts.back()))
+    {
+        if (existing->GetType() != type)
+            throw std::invalid_argument(
+                "MapObj record '" + path + "' changes type from " +
+                GameObjTypeName(existing->GetType()) + " to " +
+                GameObjTypeName(type));
+        return *const_cast<MapObjRecord*>(existing);
+    }
+    if (parentNode->FindNode(parts.back()) != nullptr)
+        throw std::invalid_argument(
+            "MapObj record '" + path +
+            "' collides with an existing record node");
+
     const std::string key = path;
     auto record = std::unique_ptr<MapObjRecord>(new MapObjRecord(
-        std::move(path), std::move(parent), category_, type));
+        std::move(path), std::move(parent), this, parentNode, type));
     auto& result = *record;
+    parentNode->records_.push_back(&result);
     records_.emplace(key, std::move(record));
     return result;
 }
@@ -137,12 +275,32 @@ const MapObjRecord* MapObjRecordLibrary::FindRecord(
     std::string_view path) const
 {
     const auto found = records_.find(std::string(path));
-    return found == records_.end() ? nullptr : found->second.get();
+    if (found != records_.end())
+        return found->second.get();
+
+    const auto parts = RecordPathParts(path);
+    const auto* node = root_.get();
+    for (std::size_t index = 0U; index + 1U < parts.size(); ++index)
+    {
+        node = node->FindNode(parts[index]);
+        if (node == nullptr)
+            return nullptr;
+    }
+    return node->FindRecord(parts.back());
 }
 
 std::size_t MapObjRecordLibrary::GetRecordCount() const noexcept
 {
     return records_.size();
+}
+
+MapObjRecordNode& MapObjRecordLibrary::GetRootNode() noexcept
+{
+    return *root_;
+}
+const MapObjRecordNode& MapObjRecordLibrary::GetRootNode() const noexcept
+{
+    return *root_;
 }
 
 void MapObjRecordLibrary::AddProxyTo(

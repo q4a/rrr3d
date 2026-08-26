@@ -58,6 +58,29 @@ int main()
             "world\\db\\root\\ctTrack\\track1",
             source::MapObjCategory::Track) != 1U)
         return 2;
+    auto& decorationRecords =
+        map.GetRecordLib(source::MapObjCategory::Decoration);
+    const auto& decorationRoot = decorationRecords.GetRootNode();
+    const auto* miscNode = decorationRoot.FindNode("Misc");
+    if (decorationRoot.GetName() != "ctDecoration" ||
+        decorationRoot.GetParent() != nullptr ||
+        decorationRoot.GetLibrary() != &decorationRecords ||
+        decorationRoot.GetNodeCount() != 1U || miscNode == nullptr ||
+        miscNode->GetParent() != &decorationRoot ||
+        miscNode->GetLibrary() != &decorationRecords ||
+        miscNode->GetRecordCount() != 1U ||
+        miscNode->FindRecord("semaphore") != semaphore.GetRecordProxy() ||
+        semaphore.GetRecordProxy()->GetParentNode() != miscNode ||
+        semaphore.GetRecordProxy()->GetLibrary() != &decorationRecords ||
+        decorationRecords.FindRecord("Misc\\semaphore") !=
+            semaphore.GetRecordProxy() ||
+        decorationRecords.FindRecord("semaphore") != nullptr)
+        return 15;
+    auto& relativeSemaphore = decorationRecords.GetOrCreateRecord(
+        "Misc\\semaphore", source::GameObjType::DestrObj);
+    if (&relativeSemaphore != semaphore.GetRecordProxy() ||
+        decorationRecords.GetRecordCount() != 1U)
+        return 17;
     auto& sharedTrackRecord =
         map.GetRecordLib(source::MapObjCategory::Track)
             .GetOrCreateRecord(
@@ -79,6 +102,39 @@ int main()
     }
     if (!recordTypeMismatchRejected)
         return 14;
+
+    source::MapObjRecordLibrary collisionLibrary(
+        source::MapObjCategory::Decoration);
+    collisionLibrary.GetOrCreateRecord(
+        "world\\db\\root\\ctDecoration\\Misc\\sign",
+        source::GameObjType::GameObj);
+    bool recordOverNodeRejected = false;
+    bool nodeOverRecordRejected = false;
+    try
+    {
+        collisionLibrary.GetOrCreateRecord(
+            "world\\db\\root\\ctDecoration\\Misc",
+            source::GameObjType::GameObj);
+    }
+    catch (const std::invalid_argument&)
+    {
+        recordOverNodeRejected = true;
+    }
+    collisionLibrary.GetOrCreateRecord(
+        "world\\db\\root\\ctDecoration\\single",
+        source::GameObjType::GameObj);
+    try
+    {
+        collisionLibrary.GetOrCreateRecord(
+            "world\\db\\root\\ctDecoration\\single\\child",
+            source::GameObjType::GameObj);
+    }
+    catch (const std::invalid_argument&)
+    {
+        nodeOverRecordRejected = true;
+    }
+    if (!recordOverNodeRejected || !nodeOverRecordRejected)
+        return 16;
     track.SetType(source::GameObjType::DestrObj);
     if (track.GetGameObj().GetLogic() != &logic ||
         track.GetDestrObj() == nullptr ||

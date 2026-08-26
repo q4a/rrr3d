@@ -15,6 +15,9 @@ class AutoProj;
 class GameObject;
 class DestrObj;
 class MapObj;
+class MapObjRecord;
+class MapObjRecordLibrary;
+class MapObjRecordNode;
 class MapObjects;
 class MapObjectsObserver;
 class Player;
@@ -48,6 +51,33 @@ enum class MapObjCategory : std::uint8_t
 const char* GameObjTypeName(GameObjType value) noexcept;
 const char* MapObjCategoryName(MapObjCategory value) noexcept;
 
+// Runtime counterpart of RecordNode. The source library owns a hierarchy of
+// folder nodes shared by all records, so parent identity is stable and can be
+// compared directly instead of being reconstructed from path strings.
+class MapObjRecordNode
+{
+public:
+    const std::string& GetName() const noexcept;
+    const MapObjRecordNode* GetParent() const noexcept;
+    const MapObjRecordLibrary* GetLibrary() const noexcept;
+    const MapObjRecordNode* FindNode(std::string_view name) const noexcept;
+    const MapObjRecord* FindRecord(std::string_view name) const noexcept;
+    std::size_t GetNodeCount() const noexcept;
+    std::size_t GetRecordCount() const noexcept;
+
+private:
+    friend class MapObjRecordLibrary;
+    MapObjRecordNode(std::string name, MapObjRecordLibrary* library,
+                     MapObjRecordNode* parent);
+
+    std::string name_;
+    MapObjRecordLibrary* library_ = nullptr;
+    MapObjRecordNode* parent_ = nullptr;
+    std::unordered_map<std::string,
+                       std::unique_ptr<MapObjRecordNode>> nodes_;
+    std::vector<const MapObjRecord*> records_;
+};
+
 // Stable source Record identity. MapObjRec obtains its category from the
 // owning MapObjLib and stores the concrete GameObject type loaded from the
 // serialized record. XML nodes remain parser-owned; runtime proxy identity
@@ -58,28 +88,32 @@ public:
     const std::string& GetPath() const noexcept;
     const std::string& GetName() const noexcept;
     const std::string& GetParent() const noexcept;
+    const MapObjRecordNode* GetParentNode() const noexcept;
+    const MapObjRecordLibrary* GetLibrary() const noexcept;
     MapObjCategory GetCategory() const noexcept;
     GameObjType GetType() const noexcept;
 
 private:
     friend class MapObjRecordLibrary;
     MapObjRecord(std::string path, std::string parent,
-                 MapObjCategory category, GameObjType type);
+                 MapObjRecordLibrary* library,
+                 MapObjRecordNode* parentNode, GameObjType type);
 
     std::string path_;
     std::string name_;
     std::string parent_;
-    MapObjCategory category_ = MapObjCategory::Effects;
+    MapObjRecordLibrary* library_ = nullptr;
+    MapObjRecordNode* parentNode_ = nullptr;
     GameObjType type_ = GameObjType::GameObj;
 };
 
 class MapObjRecordLibrary
 {
 public:
-    MapObjRecordLibrary() = default;
-    explicit MapObjRecordLibrary(MapObjCategory category) noexcept;
+    MapObjRecordLibrary();
+    explicit MapObjRecordLibrary(MapObjCategory category);
 
-    void SetCategory(MapObjCategory value) noexcept;
+    void SetCategory(MapObjCategory value);
     MapObjCategory GetCategory() const noexcept;
     MapObjRecord& GetOrCreateRecord(
         std::string path, GameObjType type,
@@ -87,11 +121,18 @@ public:
     MapObjRecord* FindRecord(std::string_view path);
     const MapObjRecord* FindRecord(std::string_view path) const;
     std::size_t GetRecordCount() const noexcept;
+    MapObjRecordNode& GetRootNode() noexcept;
+    const MapObjRecordNode& GetRootNode() const noexcept;
     void AddProxyTo(MapObj& object, const MapObjRecord& record) const;
 
 private:
+    std::vector<std::string> RecordPathParts(
+        std::string_view path) const;
+    MapObjRecordNode* GetOrCreateParentNode(
+        const std::vector<std::string>& parts);
     MapObjCategory category_ = MapObjCategory::Effects;
     std::unordered_map<std::string, std::unique_ptr<MapObjRecord>> records_;
+    std::unique_ptr<MapObjRecordNode> root_;
 };
 
 // Backend-neutral owner corresponding to source MapObj.  The portable

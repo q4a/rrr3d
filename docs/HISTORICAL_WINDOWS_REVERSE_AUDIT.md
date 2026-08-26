@@ -2264,6 +2264,26 @@ Observer карты проверяет глобальный live registry, а ow
 пару динамических машин `marauder0/marauder1`; map-file instance names затем
 по-прежнему заменяются сериализованными XML-именами на этапе P2.83.
 
+### P2.85 — `RecordLib/RecordNode` runtime hierarchy — выполнено
+
+Исходный `RecordLib::GetOrCreateRecord` делит путь по `\\`, создаёт общие
+`RecordNode` и сохраняет в каждой записи стабильные `_lib` и `_parent`.
+Portable `MapObjRecordLibrary` прежде индексировал только полный path, а
+parent сводил к строке последнего сегмента. Из-за этого относительный source
+lookup (`Misc\\semaphore`), parent identity и правила общего namespace
+record/node отсутствовали.
+
+Для семи map libraries теперь существует собственный корневой узел с именем
+категории (`ctEffects` ... `ctBonus`). Полный portable path нормализуется от
+category segment, промежуточные узлы создаются один раз, а `MapObjRecord`
+содержит стабильные ссылки на library и parent node. `FindRecord` и
+`GetOrCreateRecord` принимают как canonical path, так и исходный относительный
+путь и возвращают один объект. Как в `RecordLib::ValidateName`, создание
+record поверх node и node поверх record отклоняется. Map regression проверяет
+root/Misc hierarchy, library/parent identity, canonical/relative equality и
+обе коллизии namespace. XML `SerialNode` ownership и writer всё ещё остаются
+за parser boundary.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
