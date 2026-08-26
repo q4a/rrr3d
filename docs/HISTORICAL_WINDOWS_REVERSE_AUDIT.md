@@ -2136,6 +2136,24 @@ Weapon/Logic regression проверяет persistence всех четырёх �
 двухточечный contact lifecycle уже через владельца `Logic`; physics smoke
 покрывает фактический border/car путь.
 
+### P2.77 — `MapObjList::InsertItem` назначает `GameObject::Logic` — выполнено
+
+В Windows `Map::MapObjList::InsertItem` до выдачи ID вызывает
+`value->GetGameObj().SetLogic(world->GetLogic())`. Portable registry выдавал
+ID и owner, но не создавал эту связь. Поэтому восстановленные
+`GameObject::_mapObj` и `MapObj::_player` ещё не замыкались на глобальный
+damage/contact owner.
+
+`source::GameObject` снова имеет `GetLogic/SetLogic`; source `Assign`
+сохраняет эту ссылку при замене concrete type. `source::Map` принимает общий
+`Logic` owner и назначает его каждому объекту при Add, до регистрации ID.
+`OriginalRaceSession` конструирует `Map(&logic_)`, поэтому decorations,
+track, bonuses и все динамические cars используют один Logic instance.
+
+Как и в исходнике, постоянный ground `MapObj`, созданный вне семи
+`MapObjList`, Logic-ссылку не получает. Map regression проверяет этот случай,
+обычный inserted object и сохранение Logic после `gotGameObj → gotDestrObj`.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

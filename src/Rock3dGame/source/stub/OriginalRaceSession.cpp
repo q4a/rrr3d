@@ -1062,7 +1062,7 @@ std::string workshopReference(std::string_view record)
 
 OriginalRaceSession::OriginalRaceSession(
     const Race& race, bool legacyWindowsDebug)
-    : legacyWindowsDebug_(legacyWindowsDebug), race_(race)
+    : legacyWindowsDebug_(legacyWindowsDebug), race_(race), map_(&logic_)
 {
     if (race_.tracePath.size() < 2 || race_.tracePoints.empty() ||
         race_.racers.empty())

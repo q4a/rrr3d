@@ -13,6 +13,8 @@
 namespace r3d::game::originalrace::source
 {
 
+class Logic;
+
 // Backend-neutral Map.cpp runtime registry. XML/resource parsing remains in
 // OriginalRace, while this class owns the seven live category collections
 // and the global MapObj ID namespace used by gameplay and network RPCs.
@@ -24,7 +26,7 @@ public:
     static constexpr std::size_t invalidSourceIndex =
         static_cast<std::size_t>(-1);
 
-    Map();
+    explicit Map(Logic* logic = nullptr);
     ~Map() override;
 
     Map(const Map&) = delete;
@@ -54,6 +56,8 @@ public:
     const MapObj* GetMapObj(
         std::uint32_t id, bool includeDead = false) const noexcept;
     MapObj* GetSemaphore() noexcept;
+    Logic* GetLogic() noexcept;
+    const Logic* GetLogic() const noexcept;
     MapObj& GetGround() noexcept;
     const MapObj& GetGround() const noexcept;
     TouchDeath& GetGroundTouchDeath() noexcept;
@@ -69,6 +73,7 @@ private:
 
     std::array<MapObjects, 7U> categories_;
     Objects objects_;
+    Logic* logic_ = nullptr;
     // Map.cpp owns these for the complete lifetime of the world.  The Jolt
     // adapter supplies the physical Z=0 plane; this object retains its
     // source gameplay identity and TouchDeath behavior.

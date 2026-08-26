@@ -1,4 +1,5 @@
 #include "OriginalGameObject.h"
+#include "OriginalLogic.h"
 #include "OriginalMap.h"
 
 #include <iostream>
@@ -8,10 +9,13 @@ namespace source = r3d::game::originalrace::source;
 
 int main()
 {
-    source::Map map;
+    source::Logic logic;
+    source::Map map(&logic);
     if (map.GetTrace().GetTrackCount() != 4U ||
+        map.GetLogic() != &logic ||
         map.GetGround().GetId() != source::Map::defaultMapObjId ||
         map.GetGround().GetOwner() != nullptr ||
+        map.GetGround().GetGameObj().GetLogic() != nullptr ||
         !map.GetObjects().empty())
         return 1;
 
@@ -37,10 +41,15 @@ int main()
         map.GetSemaphore() != &semaphore ||
         map.GetLastId() != 9U || map.GetObjects().size() != 2U ||
         semaphore.GetSourceIndex() != 2U ||
+        semaphore.GetGameObj().GetLogic() != &logic ||
         map.GetMapObjCount(
             "world\\db\\root\\ctTrack\\track1",
             source::MapObjCategory::Track) != 1U)
         return 2;
+    track.SetType(source::GameObjType::DestrObj);
+    if (track.GetGameObj().GetLogic() != &logic ||
+        track.GetDestrObj() == nullptr)
+        return 12;
 
     auto& bonus = map.AddMapObj(
         source::MapObjCategory::Bonus,

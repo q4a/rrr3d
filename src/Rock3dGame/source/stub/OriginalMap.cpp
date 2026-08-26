@@ -21,7 +21,7 @@ std::string_view recordName(std::string_view value) noexcept
 
 } // namespace
 
-Map::Map()
+Map::Map(Logic* logic) : logic_(logic)
 {
     for (auto& category : categories_)
         category.SetObserver(this);
@@ -68,6 +68,7 @@ MapObj& Map::AddMapObj(
     auto& result = categories_[CategoryIndex(category)].Add(
         type, category, std::move(record), sourceId);
     result.SetSourceIndex(sourceIndex);
+    result.GetGameObj().SetLogic(logic_);
     Register(result, sourceId);
     return result;
 }
@@ -170,6 +171,8 @@ MapObj* Map::GetSemaphore() noexcept
     return nullptr;
 }
 
+Logic* Map::GetLogic() noexcept { return logic_; }
+const Logic* Map::GetLogic() const noexcept { return logic_; }
 MapObj& Map::GetGround() noexcept { return ground_; }
 const MapObj& Map::GetGround() const noexcept { return ground_; }
 TouchDeath& Map::GetGroundTouchDeath() noexcept

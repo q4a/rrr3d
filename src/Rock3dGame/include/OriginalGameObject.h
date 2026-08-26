@@ -22,6 +22,7 @@ namespace source
 {
 
 class GameObject;
+class Logic;
 class MapObj;
 
 // Backend-neutral GameObjListener. Reference counting belongs to the legacy
@@ -102,6 +103,9 @@ public:
     bool IsObjectDestroyed() const noexcept;
     MapObj* GetMapObj() noexcept;
     const MapObj* GetMapObj() const noexcept;
+    Logic* GetLogic() noexcept;
+    const Logic* GetLogic() const noexcept;
+    void SetLogic(Logic* value) noexcept;
 
     void SetImmortalFlag(bool value) noexcept;
     bool GetImmortalFlag() const noexcept;
@@ -154,6 +158,7 @@ private:
     void SendDeath(DamageType damageType, GameObject* target) noexcept;
     std::vector<GameObjectListener*> listeners_;
     MapObj* mapObj_ = nullptr;
+    Logic* logic_ = nullptr;
     bool objectDestroyed_ = false;
 };
 

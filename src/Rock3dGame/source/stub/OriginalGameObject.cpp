@@ -131,6 +131,7 @@ GameObject& GameObject::operator=(const GameObject& other) noexcept
     touchAttributionSeconds = other.touchAttributionSeconds;
     immortalFlag = other.immortalFlag;
     destroyed = other.destroyed;
+    logic_ = other.logic_;
     objectDestroyed_ = other.objectDestroyed_;
     // GameObject::Assign does not copy the legacy listener container. Its
     // entries point at behaviors owned by the concrete source object.
@@ -151,6 +152,9 @@ GameObject& GameObject::operator=(GameObject&& other) noexcept
 MapObj* GameObject::GetMapObj() noexcept { return mapObj_; }
 const MapObj* GameObject::GetMapObj() const noexcept { return mapObj_; }
 void GameObject::SetMapObj(MapObj* value) noexcept { mapObj_ = value; }
+Logic* GameObject::GetLogic() noexcept { return logic_; }
+const Logic* GameObject::GetLogic() const noexcept { return logic_; }
+void GameObject::SetLogic(Logic* value) noexcept { logic_ = value; }
 
 void GameObject::ResetGameObject(float maximumLifeValue) noexcept
 {
