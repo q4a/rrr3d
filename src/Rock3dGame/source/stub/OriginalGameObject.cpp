@@ -4,7 +4,9 @@
 #include "OriginalMapObj.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <stdexcept>
 #include <utility>
 
 namespace r3d::game::originalrace::source
@@ -17,6 +19,12 @@ using SyncVector = GameObjectFrameSync::Vector;
 using SyncQuaternion = GameObjectFrameSync::Quaternion;
 
 constexpr float syncPi = 3.14159265358979323846F;
+constexpr std::array<const char*, 15U> behaviorTypeNames{
+    "btTouchDeath", "btResurrectObj", "btFxSystemWaitingEnd",
+    "btFxSystemSrcSpeed", "btLowLifePoints", "btDamageEffect",
+    "btDeathEffect", "btLifeEffect", "btSlowEffect",
+    "btPxWheelSlipEffect", "btShotEffect", "btImmortalEffect",
+    "btSoundMotor", "btGusenizaAnim", "btPodushkaAnim"};
 
 SyncVector subtractSync(SyncVector left, SyncVector right) noexcept
 {
@@ -171,13 +179,170 @@ float shortestSignedAngle(float angle) noexcept
 
 } // namespace
 
+const char* BehaviorTypeName(BehaviorType value) noexcept
+{
+    const auto index = static_cast<std::size_t>(value);
+    return index < behaviorTypeNames.size()
+        ? behaviorTypeNames[index]
+        : "btTouchDeath";
+}
+
+Behavior::Behavior(Behaviors* owner) noexcept : owner_(owner) {}
+
+void Behavior::Remove() noexcept { removed_ = true; }
+bool Behavior::IsRemoved() const noexcept { return removed_; }
+Behaviors* Behavior::GetOwner() noexcept { return owner_; }
+const Behaviors* Behavior::GetOwner() const noexcept { return owner_; }
+GameObject* Behavior::GetGameObj() noexcept
+{
+    return owner_ != nullptr ? owner_->GetGameObj() : nullptr;
+}
+const GameObject* Behavior::GetGameObj() const noexcept
+{
+    return owner_ != nullptr ? owner_->GetGameObj() : nullptr;
+}
+Logic* Behavior::GetLogic() noexcept
+{
+    auto* object = GetGameObj();
+    return object != nullptr ? object->GetLogic() : nullptr;
+}
+const Logic* Behavior::GetLogic() const noexcept
+{
+    const auto* object = GetGameObj();
+    return object != nullptr ? object->GetLogic() : nullptr;
+}
+
+Behaviors::Behaviors(GameObject* gameObject) noexcept
+    : gameObject_(gameObject)
+{
+}
+
+Behaviors::~Behaviors() { Clear(); }
+
+Behavior& Behaviors::Add(
+    BehaviorType type, std::unique_ptr<Behavior> value)
+{
+    if (value == nullptr || value->GetOwner() != this)
+        throw std::invalid_argument("Behavior owner mismatch");
+    if (gameObject_ == nullptr)
+        throw std::invalid_argument("Behavior listener insertion failed");
+    entries_.push_back({type, std::move(value)});
+    auto& result = *entries_.back().value;
+    if (!gameObject_->InsertListener(&result))
+    {
+        entries_.pop_back();
+        throw std::invalid_argument("Behavior listener insertion failed");
+    }
+    return result;
+}
+
+Behavior* Behaviors::Find(BehaviorType type) noexcept
+{
+    return const_cast<Behavior*>(
+        static_cast<const Behaviors*>(this)->Find(type));
+}
+
+const Behavior* Behaviors::Find(BehaviorType type) const noexcept
+{
+    const auto found = std::find_if(
+        entries_.begin(), entries_.end(),
+        [&](const Entry& entry) { return entry.type == type; });
+    return found != entries_.end() ? found->value.get() : nullptr;
+}
+
+bool Behaviors::RemoveAt(std::size_t index) noexcept
+{
+    if (index >= entries_.size())
+        return false;
+    if (gameObject_ != nullptr && entries_[index].value != nullptr)
+        gameObject_->RemoveListener(entries_[index].value.get());
+    entries_.erase(
+        entries_.begin() + static_cast<std::ptrdiff_t>(index));
+    return true;
+}
+
+bool Behaviors::Delete(Behavior* value) noexcept
+{
+    const auto found = std::find_if(
+        entries_.begin(), entries_.end(),
+        [&](const Entry& entry) { return entry.value.get() == value; });
+    return found != entries_.end() &&
+           RemoveAt(static_cast<std::size_t>(
+               std::distance(entries_.begin(), found)));
+}
+
+void Behaviors::Clear() noexcept
+{
+    while (!entries_.empty())
+        RemoveAt(entries_.size() - 1U);
+}
+
+std::size_t Behaviors::GetCount() const noexcept
+{
+    return entries_.size();
+}
+
+Behaviors::ProgressResult Behaviors::OnProgress(
+    float deltaTime) noexcept
+{
+    ProgressResult result;
+    for (std::size_t index = 0U; index < entries_.size();)
+    {
+        auto* behavior = entries_[index].value.get();
+        if (behavior == nullptr || behavior->IsRemoved())
+        {
+            result.removed += RemoveAt(index) ? 1U : 0U;
+            continue;
+        }
+        ++result.progressed;
+        behavior->OnProgress(deltaTime);
+        ++index;
+    }
+    return result;
+}
+
+void Behaviors::OnShot(
+    const std::array<float, 3U>& position) noexcept
+{
+    for (auto& entry : entries_)
+        if (entry.value != nullptr)
+            entry.value->OnShot(position);
+}
+
+void Behaviors::OnMotor(float deltaTime, float rpm,
+                        float minimumRpm, float maximumRpm) noexcept
+{
+    for (auto& entry : entries_)
+        if (entry.value != nullptr)
+            entry.value->OnMotor(
+                deltaTime, rpm, minimumRpm, maximumRpm);
+}
+
+void Behaviors::OnImmortalStatus(bool status) noexcept
+{
+    for (auto& entry : entries_)
+        if (entry.value != nullptr)
+            entry.value->OnImmortalStatus(status);
+}
+
+GameObject* Behaviors::GetGameObj() noexcept { return gameObject_; }
+const GameObject* Behaviors::GetGameObj() const noexcept
+{
+    return gameObject_;
+}
+
 GameObject::GameObject()
-    : includeList_(new IncludeList(this))
+    : includeList_(new IncludeList(this)),
+      behaviors_(new Behaviors(this))
 {
 }
 
 GameObject::~GameObject()
 {
+    DestroyObject();
+    if (behaviors_ != nullptr)
+        behaviors_->Clear();
+    delete behaviors_;
     if (includeList_ != nullptr)
         includeList_->Clear();
     ClearChildren();
@@ -214,6 +379,8 @@ GameObject& GameObject::operator=(const GameObject& other) noexcept
     rotation_ = other.rotation_;
     // GameObject::Assign does not copy the legacy listener container. Its
     // entries point at behaviors owned by the concrete source object.
+    if (behaviors_ != nullptr)
+        behaviors_->Clear();
     listeners_.clear();
     return *this;
 }
@@ -410,6 +577,12 @@ const GameObject::IncludeList& GameObject::GetIncludeList() const noexcept
     return *includeList_;
 }
 
+Behaviors& GameObject::GetBehaviors() noexcept { return *behaviors_; }
+const Behaviors& GameObject::GetBehaviors() const noexcept
+{
+    return *behaviors_;
+}
+
 void GameObject::ResetGameObject(float maximumLifeValue) noexcept
 {
     maximumLife = maximumLifeValue;
@@ -437,8 +610,12 @@ GameObject::ProgressResult GameObject::OnProgress(
             shieldSeconds = 0.0F;
             result.immortalityEnded = true;
             OnImmortalStatusEvent(false);
+            behaviors_->OnImmortalStatus(false);
         }
     }
+    const auto included = includeList_->OnProgress(deltaTime);
+    result.includedProgressed = included.progressed;
+    result.includedRemoved = included.removed;
     if (touchAttributionSeconds > 0.0F &&
         (touchAttributionSeconds -= deltaTime) <= 0.0F)
     {
@@ -448,6 +625,9 @@ GameObject::ProgressResult GameObject::OnProgress(
     }
     if (maximumTimeLife > 0.0F && timeLife > maximumTimeLife)
         result.lifetimeDeath = Death();
+    const auto behaviors = behaviors_->OnProgress(deltaTime);
+    result.behaviorsProgressed = behaviors.progressed;
+    result.behaviorsRemoved = behaviors.removed;
     return result;
 }
 
@@ -543,14 +723,14 @@ void GameObject::Healt(float value) noexcept
     life = std::min(life + value, maximumLife);
 }
 
-void GameObject::LowLife() noexcept
+void GameObject::LowLife(Behavior* behavior) noexcept
 {
     OnLowLifeEvent();
     const auto lowLifeListeners = listeners_;
     for (auto* listener : lowLifeListeners)
     {
         if (listener != nullptr)
-            listener->OnLowLife(*this);
+            listener->OnLowLife(*this, behavior);
     }
 }
 
@@ -628,7 +808,10 @@ void GameObject::Immortal(float time) noexcept
     const bool turnOn = shieldSeconds <= 0.0F && time > 0.0F;
     shieldSeconds = time;
     if (turnOn)
+    {
         OnImmortalStatusEvent(true);
+        behaviors_->OnImmortalStatus(true);
+    }
 }
 bool GameObject::IsImmortal() const noexcept
 {

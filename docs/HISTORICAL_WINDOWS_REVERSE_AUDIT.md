@@ -2402,6 +2402,25 @@ observer/destruction. `OnProgressSpecial` проходит только этот
 выполняется после unlock. Regression проверяет наблюдаемый lock из death
 listener, отклонённое reentrant removal и одноразовое удаление после callback.
 
+### P2.92 — `Behavior/Behaviors` owner и recursive include progress — выполнено
+
+Сверка `GameObject.cpp::OnProgress` выявила функциональный разрыв после
+восстановления глобального Logic pass: Windows внутри каждого GameObject
+сначала обновляет собственный `includeList`, а после lifetime/touch checks —
+полиморфный контейнер `Behaviors`. Portable GameObject не вызывал ни один из
+этих проходов, поэтому вложенный timed effect мог не завершиться вообще.
+
+Перенесены точный 15-элементный `BehaviorType`, базовый `Behavior` с owner,
+Logic lookup и deferred `Remove`, а также owning `Behaviors`: Add/Find/Delete,
+автоматическая listener registration, progress-before-next-pass removal и
+dispatch `OnShot`, `OnMotor`, `OnImmortalStatus`. GameObject создаёт и
+разрушает этот owner в исходном порядке; immortality start/end проходят через
+него. `OnProgress` теперь рекурсивно прогрессирует include MapObjects до
+touch/lifetime и Behaviors после них, возвращая отдельную диагностику обеих
+групп. Regression покрывает serialized type names, порядок damage/shot/motor/
+immortality callbacks, delayed self-removal и реальное удаление вложенного
+timed MapObj.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

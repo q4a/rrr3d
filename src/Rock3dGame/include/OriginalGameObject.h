@@ -4,7 +4,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <memory>
 #include <string>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 namespace r3d::game::originalrace
@@ -24,6 +27,8 @@ namespace source
 {
 
 class GameObject;
+class Behavior;
+class Behaviors;
 class Logic;
 class Map;
 class MapObj;
@@ -42,6 +47,119 @@ public:
     virtual void OnDamage(
         GameObject&, float, DamageType) noexcept {}
     virtual void OnLowLife(GameObject&) noexcept {}
+    virtual void OnLowLife(
+        GameObject& sender, Behavior*) noexcept
+    {
+        OnLowLife(sender);
+    }
+};
+
+// GameBase.h::BehaviorType. Keep the serialized numeric order even when a
+// backend-specific behavior is introduced in a later source block.
+enum class BehaviorType : std::uint8_t
+{
+    TouchDeath = 0,
+    ResurrectObj,
+    FxSystemWaitingEnd,
+    FxSystemSrcSpeed,
+    LowLifePoints,
+    DamageEffect,
+    DeathEffect,
+    LifeEffect,
+    SlowEffect,
+    PxWheelSlipEffect,
+    ShotEffect,
+    ImmortalEffect,
+    SoundMotor,
+    GusenizaAnim,
+    PodushkaAnim,
+};
+
+const char* BehaviorTypeName(BehaviorType value) noexcept;
+
+// Backend-neutral transcription of GameBase::Behavior. Concrete behavior
+// state machines keep their renderer/physics adapters, while this base owns
+// the original GameObject listener registration and deferred removal flag.
+class Behavior : public GameObjectListener
+{
+public:
+    explicit Behavior(Behaviors* owner) noexcept;
+    ~Behavior() override = default;
+
+    virtual void OnProgress(float deltaTime) noexcept = 0;
+
+    void Remove() noexcept;
+    bool IsRemoved() const noexcept;
+    Behaviors* GetOwner() noexcept;
+    const Behaviors* GetOwner() const noexcept;
+    GameObject* GetGameObj() noexcept;
+    const GameObject* GetGameObj() const noexcept;
+    Logic* GetLogic() noexcept;
+    const Logic* GetLogic() const noexcept;
+
+protected:
+    virtual void OnShot(
+        const std::array<float, 3U>&) noexcept {}
+    virtual void OnMotor(float, float, float, float) noexcept {}
+    virtual void OnImmortalStatus(bool) noexcept {}
+
+private:
+    friend class Behaviors;
+    Behaviors* owner_ = nullptr;
+    bool removed_ = false;
+};
+
+class Behaviors
+{
+public:
+    struct ProgressResult
+    {
+        std::size_t progressed = 0U;
+        std::size_t removed = 0U;
+    };
+
+    explicit Behaviors(GameObject* gameObject) noexcept;
+    ~Behaviors();
+    Behaviors(const Behaviors&) = delete;
+    Behaviors& operator=(const Behaviors&) = delete;
+
+    Behavior& Add(BehaviorType type, std::unique_ptr<Behavior> value);
+    template<class _Behavior, class... _Args>
+    _Behavior& Add(BehaviorType type, _Args&&... args)
+    {
+        static_assert(std::is_base_of_v<Behavior, _Behavior>);
+        auto value = std::make_unique<_Behavior>(
+            this, std::forward<_Args>(args)...);
+        auto* result = value.get();
+        Add(type, std::move(value));
+        return *result;
+    }
+
+    Behavior* Find(BehaviorType type) noexcept;
+    const Behavior* Find(BehaviorType type) const noexcept;
+    bool Delete(Behavior* value) noexcept;
+    void Clear() noexcept;
+    std::size_t GetCount() const noexcept;
+
+    ProgressResult OnProgress(float deltaTime) noexcept;
+    void OnShot(const std::array<float, 3U>& position) noexcept;
+    void OnMotor(float deltaTime, float rpm,
+                 float minimumRpm, float maximumRpm) noexcept;
+    void OnImmortalStatus(bool status) noexcept;
+
+    GameObject* GetGameObj() noexcept;
+    const GameObject* GetGameObj() const noexcept;
+
+private:
+    struct Entry
+    {
+        BehaviorType type = BehaviorType::TouchDeath;
+        std::unique_ptr<Behavior> value;
+    };
+    bool RemoveAt(std::size_t index) noexcept;
+
+    GameObject* gameObject_ = nullptr;
+    std::vector<Entry> entries_;
 };
 
 // Gameplay-owned part of GameObject. Graph/PhysX actors and listener
@@ -69,6 +187,10 @@ public:
         bool immortalityEnded = false;
         bool touchAttributionEnded = false;
         bool lifetimeDeath = false;
+        std::size_t includedProgressed = 0U;
+        std::size_t includedRemoved = 0U;
+        std::size_t behaviorsProgressed = 0U;
+        std::size_t behaviorsRemoved = 0U;
     };
 
     struct DamageResult
@@ -124,7 +246,7 @@ public:
         GameObject* target = nullptr) noexcept;
     bool Resc() noexcept;
     void Healt(float value) noexcept;
-    void LowLife() noexcept;
+    void LowLife(Behavior* behavior = nullptr) noexcept;
 
     bool InsertListener(GameObjectListener* value) noexcept;
     bool RemoveListener(GameObjectListener* value) noexcept;
@@ -147,6 +269,8 @@ public:
     const Children& GetChildren() const noexcept;
     IncludeList& GetIncludeList() noexcept;
     const IncludeList& GetIncludeList() const noexcept;
+    Behaviors& GetBehaviors() noexcept;
+    const Behaviors& GetBehaviors() const noexcept;
 
     void SetImmortalFlag(bool value) noexcept;
     bool GetImmortalFlag() const noexcept;
@@ -207,6 +331,7 @@ private:
     GameObject* parent_ = nullptr;
     Children children_;
     IncludeList* includeList_ = nullptr;
+    Behaviors* behaviors_ = nullptr;
     std::string name_;
     Vector3 position_{};
     Vector3 scale_{1.0F, 1.0F, 1.0F};

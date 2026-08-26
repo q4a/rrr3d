@@ -45,10 +45,112 @@ struct TrackingListener final : source::GameObjectListener
     }
 };
 
+struct TrackingBehavior final : source::Behavior
+{
+    TrackingBehavior(source::Behaviors* owner, int identifier,
+                     std::vector<int>* events, bool removeOnProgress)
+        : Behavior(owner), identifier(identifier), events(events),
+          removeOnProgress(removeOnProgress)
+    {
+    }
+
+    void OnProgress(float) noexcept override
+    {
+        events->push_back(identifier);
+        if (removeOnProgress)
+            Remove();
+    }
+
+    void OnDamage(source::GameObject&, float,
+                  original::DamageType) noexcept override
+    {
+        events->push_back(identifier + 10);
+    }
+
+protected:
+    void OnShot(const std::array<float, 3U>&) noexcept override
+    {
+        events->push_back(identifier + 20);
+    }
+
+    void OnMotor(float, float, float, float) noexcept override
+    {
+        events->push_back(identifier + 30);
+    }
+
+    void OnImmortalStatus(bool status) noexcept override
+    {
+        events->push_back(identifier + (status ? 40 : 50));
+    }
+
+private:
+    int identifier = 0;
+    std::vector<int>* events = nullptr;
+    bool removeOnProgress = false;
+};
+
 } // namespace
 
 int main()
 {
+    if (std::string(source::BehaviorTypeName(
+            source::BehaviorType::ShotEffect)) != "btShotEffect" ||
+        std::string(source::BehaviorTypeName(
+            source::BehaviorType::PodushkaAnim)) != "btPodushkaAnim")
+        return 65;
+
+    source::GameObject behaviorOwner;
+    behaviorOwner.ResetGameObject(20.0F);
+    auto& timedInclude = behaviorOwner.GetIncludeList().Add(
+        source::GameObjType::GameObj, "timedInclude");
+    timedInclude.GetGameObj().ResetGameObject(-1.0F);
+    timedInclude.GetGameObj().SetMaxTimeLife(0.01F);
+    std::vector<int> behaviorEvents;
+    auto& firstBehavior =
+        behaviorOwner.GetBehaviors().Add<TrackingBehavior>(
+            source::BehaviorType::DamageEffect, 1,
+            &behaviorEvents, true);
+    auto& secondBehavior =
+        behaviorOwner.GetBehaviors().Add<TrackingBehavior>(
+            source::BehaviorType::LifeEffect, 2,
+            &behaviorEvents, false);
+    if (firstBehavior.GetGameObj() != &behaviorOwner ||
+        firstBehavior.GetLogic() != nullptr ||
+        behaviorOwner.GetBehaviors().Find(
+            source::BehaviorType::DamageEffect) != &firstBehavior ||
+        behaviorOwner.GetBehaviors().GetCount() != 2U ||
+        behaviorOwner.GetListenerCount() != 2U)
+        return 66;
+    behaviorOwner.Damage(0U, 1.0F, original::DamageType::Energy);
+    behaviorOwner.GetBehaviors().OnShot({1.0F, 2.0F, 3.0F});
+    behaviorOwner.GetBehaviors().OnMotor(0.1F, 1000.0F, 500.0F, 5000.0F);
+    behaviorOwner.Immortal(1.0F);
+    if (behaviorEvents !=
+        std::vector<int>({11, 12, 21, 22, 31, 32, 41, 42}))
+        return 67;
+    behaviorEvents.clear();
+    const auto firstBehaviorProgress = behaviorOwner.OnProgress(0.5F);
+    if (firstBehaviorProgress.includedProgressed != 1U ||
+        firstBehaviorProgress.includedRemoved != 1U ||
+        firstBehaviorProgress.behaviorsProgressed != 2U ||
+        firstBehaviorProgress.behaviorsRemoved != 0U ||
+        behaviorEvents != std::vector<int>({1, 2}) ||
+        behaviorOwner.GetIncludeList().GetLiveCount() != 0U ||
+        behaviorOwner.GetBehaviors().GetCount() != 2U)
+        return 68;
+    behaviorEvents.clear();
+    const auto secondBehaviorProgress = behaviorOwner.OnProgress(0.5F);
+    if (!secondBehaviorProgress.immortalityEnded ||
+        secondBehaviorProgress.behaviorsProgressed != 1U ||
+        secondBehaviorProgress.behaviorsRemoved != 1U ||
+        behaviorEvents != std::vector<int>({51, 52, 2}) ||
+        behaviorOwner.GetBehaviors().GetCount() != 1U ||
+        behaviorOwner.GetListenerCount() != 1U ||
+        !behaviorOwner.GetBehaviors().Delete(&secondBehavior) ||
+        behaviorOwner.GetBehaviors().GetCount() != 0U ||
+        behaviorOwner.GetListenerCount() != 0U)
+        return 69;
+
     source::Logic firstLogic;
     source::Logic secondLogic;
     source::GameObject graphParent;
