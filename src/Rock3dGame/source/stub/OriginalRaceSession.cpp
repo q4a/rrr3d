@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <iterator>
+#include <memory>
 #include <numeric>
 #include <optional>
 #include <stdexcept>
@@ -4993,11 +4994,41 @@ void OriginalRaceSession::updateGameplay(
                 replicatedProjectileId, newCharge);
             return;
         }
+        const Vec3 position = vehicles[owner].body.position;
+        const float sampledMinimumLife = sampleSourceRange(
+            projectile.minimumLife, projectile.maximumLife);
+        const float duration = source::Proj::PrepareMaximumLife(
+            projectile.speed, projectile.maximumDistance,
+            sampledMinimumLife);
+        const Transform weaponTransform =
+            directWeaponWorldTransform(
+                owner, racers_[owner].hyperWeapon);
+        Transform localProjectile;
+        localProjectile.position = projectile.position;
+        localProjectile.rotation = projectile.rotation;
+        auto projectileTransform =
+            compose(weaponTransform, localProjectile);
+        if (replicatedPosition != nullptr)
+            projectileTransform.position = *replicatedPosition;
+
         source::Proj::SpringPrepareResult springPreparation;
+        std::unique_ptr<source::Proj> springSourceObject;
         if (projectile.type == 17U)
         {
-            springPreparation = source::Proj::SpringPrepare(
-                liveWeapon, projectile.speed);
+            source::Proj::ShotContext springContext;
+            springContext.logic = &logic_;
+            springContext.playerId = owner;
+            springContext.maximumLife = duration;
+            springContext.position =
+                sourceVec(projectileTransform.position);
+            springContext.rotation =
+                sourceQuat(projectileTransform.rotation);
+            springSourceObject = std::make_unique<source::Proj>();
+            springSourceObject->PrepareSource(
+                projectile, liveWeapon, springContext);
+            springSourceObject->SetExternalLifetimeManaged(false);
+            springPreparation =
+                springSourceObject->PrepareSpring();
             if (!springPreparation.prepared)
             {
                 racers_[owner].Shot(
@@ -5010,16 +5041,17 @@ void OriginalRaceSession::updateGameplay(
                 *item, true, false,
                 replicatedProjectileId, newCharge))
             return;
+        if (springSourceObject != nullptr)
+        {
+            logic_.RegGameObj(springSourceObject.release());
+            liveWeapon->OnProjectilePrepared(
+                {projectile.position.x, projectile.position.y,
+                 projectile.position.z});
+        }
         const std::uint32_t networkProjectileId =
             networkReplicated && replicatedProjectileId != 0U
                 ? replicatedProjectileId
                 : racers_[owner].GetNextBonusProjectileId();
-        const Vec3 position = vehicles[owner].body.position;
-        const float sampledMinimumLife = sampleSourceRange(
-            projectile.minimumLife, projectile.maximumLife);
-        const float duration = source::Proj::PrepareMaximumLife(
-            projectile.speed, projectile.maximumDistance,
-            sampledMinimumLife);
         if (projectile.type == 17U)
         {
             velocityRequests_.push_back(
@@ -5039,18 +5071,8 @@ void OriginalRaceSession::updateGameplay(
                      vehicles[owner].body.rotation,
                      {projectile.speed, 0.0F, 0.0F})});
         }
-        const Transform weaponTransform =
-            directWeaponWorldTransform(
-                owner, racers_[owner].hyperWeapon);
         if (projectile.type == 1U)
         {
-            Transform localProjectile;
-            localProjectile.position = projectile.position;
-            localProjectile.rotation = projectile.rotation;
-            auto projectileTransform =
-                compose(weaponTransform, localProjectile);
-            if (replicatedPosition != nullptr)
-                projectileTransform.position = *replicatedPosition;
             ProjectileRuntime runtimeProjectile;
             runtimeProjectile.owner = owner;
             runtimeProjectile.damageOwner = owner;

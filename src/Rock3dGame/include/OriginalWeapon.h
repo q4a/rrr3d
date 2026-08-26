@@ -479,6 +479,7 @@ public:
     ContinuousContactResult ContactSonar(
         GameObject* target, Vec3 linearVelocity,
         float deltaTime) const noexcept;
+    SpringPrepareResult PrepareSpring() noexcept;
     bool ContactMine(
         GameObject* target, bool testMineLock,
         bool mineBugEnabled) const noexcept;

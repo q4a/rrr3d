@@ -1030,6 +1030,16 @@ Proj::ContinuousContactResult Proj::ContactSonar(
         description_.damage, deltaTime);
 }
 
+Proj::SpringPrepareResult Proj::PrepareSpring() noexcept
+{
+    if (!prepared_ ||
+        RouteProgress().handler != ProgressHandler::Spring)
+    {
+        return {};
+    }
+    return SpringPrepare(weapon_, description_.speed);
+}
+
 bool Proj::ContactMine(
     GameObject* target, bool testMineLock,
     bool mineBugEnabled) const noexcept

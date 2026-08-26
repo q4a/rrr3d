@@ -3528,6 +3528,26 @@ Session продолжала вызывать статические `FireContac
 Regression теперь проверяет source descriptor каждой разновидности,
 Drobilka model/timer, Sonar impulse и null-target rejection.
 
+### P2.148 — concrete `SpringPrepare` и source lifetime — выполнено
+
+Spring оставался особым исключением: session вызывала статический
+`SpringPrepare(weapon, speed)` до транзакции `Player::Shot`, применяла Jolt
+velocity request, но настоящий `Proj`, который Windows создаёт, связывает с
+оружием и регистрирует в `Logic`, вообще не существовал. Из-за этого source
+object graph, `PrepareProj` failure и per-projectile shot behavior формально
+обходились.
+
+В concrete `Proj` восстановлен `PrepareSpring`, использующий собственные
+`_weapon` и `_desc.speed` после обычного `PrepareSource`. Hyper-slot adapter
+теперь создаёт source-снаряд с исходным world/local transform и lifetime,
+выполняет wheel-contact gate и `GameCar::LockSpring` внутри него, регистрирует
+его в `Logic` только после успешной charge transaction и отправляет
+`OnProjectilePrepared`. Jolt получает только готовую local velocity command и
+синхронизирует backend spring-lock. Не имеющий отдельного runtime-представления
+source-снаряд переведён на собственный `GameObject` lifetime, поэтому он не
+остаётся навсегда в Logic. Regression проверяет concrete descriptor speed,
+weapon/car ownership, wheel gate, lock и отказ объекта другого типа.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

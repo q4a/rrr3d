@@ -1155,11 +1155,18 @@ int main()
     contactCar.UpdateContactState(false);
     source::Weapon contactWeapon;
     contactWeapon.SetParent(&contactCar);
-    const auto concreteSpring = source::Proj::SpringPrepare(
-        &contactWeapon, 6.0F);
+    auto springDescription = sourceDescription;
+    springDescription.type = 17U;
+    springDescription.speed = 6.0F;
+    source::Proj springProjectile;
+    springProjectile.PrepareSource(
+        springDescription, &contactWeapon,
+        source::Proj::ShotContext{});
+    const auto concreteSpring = springProjectile.PrepareSpring();
     if (!concreteSpring.prepared || !concreteSpring.lockSpring ||
         concreteSpring.localVelocityChange.z != 6.0F ||
-        !contactCar.IsSpringLocked())
+        !contactCar.IsSpringLocked() ||
+        oilProjectile.PrepareSpring().prepared)
         return 134;
     source::GameCar mineTargetCar;
     source::GameObject nonCarTarget;
