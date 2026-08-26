@@ -25,6 +25,7 @@ namespace source
 
 class GameObject;
 class Logic;
+class Map;
 class MapObj;
 class MapObjects;
 
@@ -287,6 +288,9 @@ private:
 class DestrObj : public GameObject
 {
 public:
+    DestrObj();
+    ~DestrObj() override;
+
     DamageResult Damage(
         std::size_t senderPlayerId, float value,
         DamageType damageType = DamageType::Simple) noexcept;
@@ -298,8 +302,12 @@ public:
         GameObject* target = nullptr) noexcept override;
     bool OnProgress(float deltaTime) noexcept;
     bool HasPendingDestruction() const noexcept;
+    MapObjects& GetDestrList() noexcept;
+    const MapObjects& GetDestrList() const noexcept;
+    std::size_t ReleaseDestruction(Map& map);
 
 private:
+    MapObjects* destructionList_ = nullptr;
     bool checkDestruction_ = false;
 };
 

@@ -14,6 +14,7 @@ namespace r3d::game::originalrace::source
 class AutoProj;
 class GameObject;
 class DestrObj;
+class Map;
 class MapObj;
 class MapObjRecord;
 class MapObjRecordLibrary;
@@ -208,6 +209,7 @@ class MapObjectsObserver
 public:
     virtual ~MapObjectsObserver() = default;
     virtual void OnMapObjRemoving(MapObj& value) noexcept = 0;
+    virtual void OnDestrObjSeparating(DestrObj& value) = 0;
     virtual bool IsMapObjNameUsed(
         std::string_view value) const noexcept = 0;
 };

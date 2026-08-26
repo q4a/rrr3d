@@ -76,6 +76,7 @@ private:
     static std::size_t CategoryIndex(MapObjCategory value) noexcept;
     void Register(MapObj& value, std::uint32_t id);
     void OnMapObjRemoving(MapObj& value) noexcept override;
+    void OnDestrObjSeparating(DestrObj& value) override;
     bool IsMapObjNameUsed(
         std::string_view value) const noexcept override;
 

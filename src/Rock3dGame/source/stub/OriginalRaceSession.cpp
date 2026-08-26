@@ -1141,6 +1141,16 @@ void OriginalRaceSession::reset()
             instance.mapObjectId, index);
         auto* object = mapObject.GetDestrObj();
         applySourceProxyTransform(*object, instance.transform);
+        object->GetDestrList().Reserve(
+            definition.destructionPieces.size());
+        for (const auto& piece : definition.destructionPieces)
+        {
+            auto& fragment = object->GetDestrList().Add(
+                source::GameObjType::GameObj, "obj");
+            applySourceProxyTransform(
+                fragment.GetGameObj(), piece.transform);
+            fragment.GetGameObj().ResetGameObject(-1.0F);
+        }
         object->ResetGameObject(
             definition.maximumLife >= 0.0F
                 ? definition.maximumLife
@@ -7753,6 +7763,26 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     1.0F / 60.0F, vehicles, destructionInput);
             const std::size_t instance = static_cast<std::size_t>(
                 sourceDestruction - race.decorationInstances.begin());
+            const auto& destructionDefinition =
+                race.decorationDefinitions.at(
+                    sourceDestruction->definition);
+            const auto* destructionMapObject =
+                destructionSession.sourceMap().GetMapObj(
+                    sourceDestruction->mapObjectId, true);
+            if (destructionMapObject == nullptr ||
+                destructionMapObject->GetDestrObj() == nullptr ||
+                destructionMapObject->GetDestrObj()
+                        ->GetDestrList().GetLiveCount() !=
+                    destructionDefinition.destructionPieces.size())
+            {
+                throw std::runtime_error(
+                    "source DestrObj serialized destruction list was not "
+                    "instantiated");
+            }
+            const std::size_t mapObjectsBefore =
+                destructionSession.sourceMap().GetObjects().size();
+            const std::uint32_t lastMapIdBefore =
+                destructionSession.sourceMap().GetLastId();
             Vec3 sourceContact = sourceDestruction->transform.position;
             Vec3 sourceRayOrigin;
             Vec3 sourceRayDirection;
@@ -7878,6 +7908,45 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                         sourceDefinition.collisionShapes.size()) +
                     ", ownedMeshes=" +
                     std::to_string(ownedMeshes));
+            }
+            const auto& separatedMap = destructionSession.sourceMap();
+            if (separatedMap.GetMapObj(
+                    sourceDestruction->mapObjectId, true) != nullptr ||
+                separatedMap.GetObjects().size() !=
+                    mapObjectsBefore - 1U +
+                        destructionDefinition.destructionPieces.size() ||
+                separatedMap.GetLastId() !=
+                    lastMapIdBefore +
+                        destructionDefinition.destructionPieces.size())
+            {
+                throw std::runtime_error(
+                    "source DestrObj children were not transferred into "
+                    "the runtime Map");
+            }
+            for (std::size_t piece = 0U;
+                 piece < destructionDefinition.destructionPieces.size();
+                 ++piece)
+            {
+                const auto* separated = separatedMap.GetMapObj(
+                    lastMapIdBefore +
+                        static_cast<std::uint32_t>(piece) + 1U,
+                    true);
+                if (separated == nullptr ||
+                    separated->GetName() !=
+                        "item" + std::to_string(piece) ||
+                    separated->GetCategory() !=
+                        source::MapObjCategory::Decoration ||
+                    separated->GetParent() != nullptr ||
+                    separated->GetGameObj().GetPos() !=
+                        source::GameObject::Vector3{
+                            sourceDestruction->transform.position.x,
+                            sourceDestruction->transform.position.y,
+                            sourceDestruction->transform.position.z})
+                {
+                    throw std::runtime_error(
+                        "source DestrObj transferred child proxy state "
+                        "mismatch");
+                }
             }
             const auto removedActorRay = raycastWorld(
                 race, destructionSession.decorationActive(),

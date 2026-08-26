@@ -245,6 +245,11 @@ void Map::OnMapObjRemoving(MapObj& value) noexcept
         objects_.erase(found);
 }
 
+void Map::OnDestrObjSeparating(DestrObj& value)
+{
+    value.ReleaseDestruction(*this);
+}
+
 bool Map::IsMapObjNameUsed(std::string_view value) const noexcept
 {
     return std::any_of(

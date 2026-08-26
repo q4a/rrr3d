@@ -323,6 +323,63 @@ int main()
         transferMap.GetMapObj(2U) != &insertedRecordless)
         return 21;
 
+    source::Map destructionMap(&logic);
+    auto& destructibleMapObject = destructionMap.AddMapObj(
+        source::MapObjCategory::Decoration,
+        source::GameObjType::DestrObj,
+        "world\\db\\root\\ctDecoration\\Crush\\barricade", 0U);
+    auto* destructible = destructibleMapObject.GetDestrObj();
+    destructible->ResetGameObject(10.0F);
+    destructible->SetPos({12.0F, 13.0F, 14.0F});
+    destructible->SetRot({0.0F, 0.0F, 0.7071068F, 0.7071068F});
+    auto& firstPiece = destructible->GetDestrList().Add(
+        source::GameObjType::GameObj, "obj");
+    firstPiece.GetGameObj().ResetGameObject(-1.0F);
+    firstPiece.GetGameObj().SetPos({1.0F, 0.0F, 0.0F});
+    firstPiece.GetGameObj().SetScale({2.0F, 2.0F, 2.0F});
+    auto& secondPiece = destructible->GetDestrList().Add(
+        source::GameObjType::GameObj, "obj");
+    secondPiece.GetGameObj().ResetGameObject(-1.0F);
+    secondPiece.GetGameObj().SetPos({-1.0F, 0.0F, 0.0F});
+    if (destructible->GetChildren().size() != 2U ||
+        destructible->GetDestrList().GetLiveCount() != 2U ||
+        firstPiece.GetName() != "obj0" || secondPiece.GetName() != "obj1")
+        return 22;
+    destructible->Damage(
+        0U, 10.0F,
+        r3d::game::originalrace::DamageType::Simple);
+    const auto destructibleMapObjectId = destructibleMapObject.GetId();
+    auto& destructionObjects = destructionMap.GetMapObjList(
+        source::MapObjCategory::Decoration);
+    if (!destructionObjects.ProgressOne(0U, 0.0F) ||
+        destructionMap.GetMapObj(destructibleMapObjectId, true) !=
+            nullptr ||
+        destructionObjects.GetLiveCount() != 2U ||
+        destructionObjects.GetSlotCount() != 3U ||
+        destructionMap.GetObjects().size() != 2U)
+        return 23;
+    const auto* releasedFirst = destructionObjects.Get(1U);
+    const auto* releasedSecond = destructionObjects.Get(2U);
+    if (releasedFirst == nullptr || releasedSecond == nullptr ||
+        releasedFirst != &firstPiece || releasedSecond != &secondPiece ||
+        releasedFirst->GetId() != 2U || releasedSecond->GetId() != 3U ||
+        releasedFirst->GetName() != "item0" ||
+        releasedSecond->GetName() != "item1" ||
+        releasedFirst->GetRecordProxy() != nullptr ||
+        releasedFirst->GetCategory() !=
+            source::MapObjCategory::Decoration ||
+        releasedFirst->GetParent() != nullptr ||
+        releasedFirst->GetGameObj().GetLogic() != &logic ||
+        releasedFirst->GetGameObj().GetPos() !=
+            source::GameObject::Vector3{12.0F, 13.0F, 14.0F} ||
+        releasedFirst->GetGameObj().GetRot() !=
+            source::GameObject::Quaternion{
+                0.0F, 0.0F, 0.7071068F, 0.7071068F} ||
+        releasedFirst->GetGameObj().GetScale() !=
+            source::GameObject::Vector3{2.0F, 2.0F, 2.0F} ||
+        releasedFirst->GetGameObj().IsObjectDestroyed())
+        return 24;
+
     std::cout << "original Map ownership, trace, death plane, category "
                  "registry and global ID rules passed\n";
     return 0;

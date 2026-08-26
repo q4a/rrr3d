@@ -2326,6 +2326,26 @@ source `itemN` через общий name root и новый parent. `Map::Inser
 record/life/transform, новый owner/name/ID; отдельно покрыт `Decoration`
 fallback для объекта без record.
 
+### P2.88 — active `DestrObj::_destrList` separation — выполнено
+
+До этого Jolt/renderer создавали исходные meshes и bodies частей по
+параллельному `DecorationDebrisDefinition`, но runtime `DestrObj` содержал
+только флаг `_checkDestruction`: его собственный `_destrList` оставался
+пустым. Это воспроизводило видимый распад, но не исходный object lifecycle из
+`GameCar.cpp::DestrObj::OnProgress`.
+
+`DestrObj` теперь владеет отдельным `MapObjects` destruction list, прогрессирует
+его перед обработкой смерти и при первом separation передаёт каждую часть в
+`Map::InsertMapObj`. Map observer выполняет transfer до удаления умершего
+родителя: pointer/serialized scale и lifetime сохраняются, parent/owner
+снимаются, world position/rotation принимаются от родителя, а Map назначает
+`Decoration`, новый ID, Logic и глобальное `itemN`. `OriginalRaceSession`
+инстанцирует список из каждого `ObjectDefinition::destructionPieces` уже при
+source reset. Unit regression покрывает два recordless fragment; integrated
+`map1` regression проверяет все 14 частей `crush1`, удаление parent ID и
+одноразовую регистрацию новых live MapObj. Jolt остаётся только физическим
+backend этих же частей.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

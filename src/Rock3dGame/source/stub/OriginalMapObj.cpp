@@ -617,7 +617,10 @@ bool MapObjects::ProgressSlot(
     if (mapObject == nullptr)
         return false;
     if (auto* destructible = mapObject->GetDestrObj())
-        destructible->OnProgress(deltaTime);
+    {
+        if (destructible->OnProgress(deltaTime) && observer_ != nullptr)
+            observer_->OnDestrObjSeparating(*destructible);
+    }
     else
         mapObject->GetGameObj().OnProgress(deltaTime);
     if (auto* projectile = mapObject->GetAutoProj())

@@ -1,5 +1,6 @@
 #include "OriginalGameObject.h"
 
+#include "OriginalMap.h"
 #include "OriginalMapObj.h"
 
 #include <algorithm>
@@ -724,6 +725,18 @@ bool GameObjectFrameSync::HasActiveCorrection() const noexcept
            rotSyncAngle2_ != 0.0F || rotSyncLength2_ != 0.0F;
 }
 
+DestrObj::DestrObj()
+    : destructionList_(new MapObjects(this))
+{
+}
+
+DestrObj::~DestrObj()
+{
+    if (destructionList_ != nullptr)
+        destructionList_->Clear();
+    delete destructionList_;
+}
+
 GameObject::DamageResult DestrObj::Damage(
     std::size_t senderPlayerId, float value,
     DamageType damageType) noexcept
@@ -755,6 +768,7 @@ bool DestrObj::Death(
 bool DestrObj::OnProgress(float deltaTime) noexcept
 {
     GameObject::OnProgress(deltaTime);
+    destructionList_->OnProgress(deltaTime);
     if (!checkDestruction_)
         return false;
     checkDestruction_ = false;
@@ -764,6 +778,40 @@ bool DestrObj::OnProgress(float deltaTime) noexcept
 bool DestrObj::HasPendingDestruction() const noexcept
 {
     return checkDestruction_;
+}
+
+MapObjects& DestrObj::GetDestrList() noexcept
+{
+    return *destructionList_;
+}
+
+const MapObjects& DestrObj::GetDestrList() const noexcept
+{
+    return *destructionList_;
+}
+
+std::size_t DestrObj::ReleaseDestruction(Map& map)
+{
+    const auto position = GetPos();
+    const auto rotation = GetRot();
+    std::size_t released = 0U;
+    for (std::size_t slot = 0U;
+         slot < destructionList_->GetSlotCount(); ++slot)
+    {
+        auto* child = destructionList_->Get(slot);
+        if (child == nullptr)
+            continue;
+        auto detached = destructionList_->Extract(child);
+        if (detached == nullptr)
+            continue;
+        detached->SetName({});
+        auto& inserted = map.InsertMapObj(std::move(detached));
+        inserted.GetGameObj().SetPos(position);
+        inserted.GetGameObj().SetRot(rotation);
+        ++released;
+    }
+    destructionList_->Clear();
+    return released;
 }
 
 bool TouchDeath::OnContact(GameObject* target) const noexcept
