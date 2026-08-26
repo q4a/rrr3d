@@ -16277,8 +16277,8 @@ int main(int argc, char** argv)
                     {
                         const std::uint32_t targetObjectId =
                             event.target < originalRace->racers.size()
-                                ? originalRace->racers[event.target]
-                                      .mapObjectId
+                                ? raceSession.racerMapObjectId(
+                                      event.target)
                                 : 0U;
                         std::vector<std::array<float, 3>> coordinates;
                         coordinates.reserve(

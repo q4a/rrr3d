@@ -454,6 +454,7 @@ public:
     const std::vector<bool>& bonusActive() const noexcept;
     const std::vector<float>& bonusScales() const noexcept;
     bool racerHasAiController(std::size_t racer) const noexcept;
+    std::uint32_t racerMapObjectId(std::size_t racer) const noexcept;
     std::size_t racerForMapObjectId(
         std::uint32_t mapObjectId) const noexcept;
     std::size_t decorationForMapObjectId(
@@ -508,6 +509,8 @@ private:
     void queueRespawn(
         std::size_t racer,
         const std::vector<r3d::physics::VehicleState>& vehicles);
+    void createRacerMapObject(std::size_t racer);
+    void freeRacerMapObject(std::size_t racer) noexcept;
     void destroyRacer(
         std::size_t racer, Vec3 position,
         const r3d::physics::VehicleState& vehicle,
@@ -559,6 +562,7 @@ private:
     std::vector<bool> networkOwnedRacers_;
     std::size_t humanRacer_ = RacerRuntime::invalidWeapon;
     std::vector<RacerRuntime> racers_;
+    std::vector<source::MapObj*> racerMapObjects_;
     std::vector<r3d::physics::VehicleInput> vehicleInputs_;
     std::vector<bool> decorationActive_;
     std::vector<float> decorationLife_;

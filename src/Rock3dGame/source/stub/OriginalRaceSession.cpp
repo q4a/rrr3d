@@ -1100,6 +1100,7 @@ void OriginalRaceSession::reset()
     // Player. Release these owners before replacing the Player vector.
     aiPlayers_.clear();
     racers_.assign(race_.racers.size(), {});
+    racerMapObjects_.assign(race_.racers.size(), nullptr);
     vehicleInputs_.assign(race_.racers.size(), {});
     humanPlayer_.SetCurWeapon(0);
     aiPlayers_.reserve(race_.racers.size());
@@ -1202,11 +1203,6 @@ void OriginalRaceSession::reset()
                 ? sourceRacer.configuredVehicle
                 : race_.vehicles.at(std::min(
                       vehicleIndex, race_.vehicles.size() - 1U));
-        auto& racerMapObject = map_.AddMapObj(
-            source::MapObjCategory::Car,
-            source::GameObjType::RockCar, vehicle.record, index);
-        racerMapObject.SetPlayerId(index);
-        racerMapObject.GetGameObj().ResetGameObject(-1.0F);
         racers_[index].Reset(
             vehicle.maximumLife,
             static_cast<std::uint32_t>(index + 1U), &sourceTrace_);
@@ -1221,6 +1217,7 @@ void OriginalRaceSession::reset()
             sourceRacer.netSlot, sourceRacer.name,
             sourceRacer.netName, sourceRacer.color);
         racers_[index].SetCar(&vehicle);
+        createRacerMapObject(index);
         for (std::size_t weaponIndex = 0;
              weaponIndex < race_.weapons.size(); ++weaponIndex)
         {
@@ -1685,6 +1682,7 @@ bool OriginalRaceSession::disconnectNetworkRacer(
 
     auto& runtime = racers_[racer];
     runtime.Disconnect();
+    freeRacerMapObject(racer);
     releaseRacerProjectileReferences(racer);
     if (racer < vehicleInputs_.size())
         vehicleInputs_[racer] = {};
@@ -2324,6 +2322,15 @@ bool OriginalRaceSession::racerHasAiController(
     return racer < aiPlayers_.size() && aiPlayers_[racer].HasCar();
 }
 
+std::uint32_t OriginalRaceSession::racerMapObjectId(
+    std::size_t racer) const noexcept
+{
+    return racer < racerMapObjects_.size() &&
+                   racerMapObjects_[racer] != nullptr
+        ? racerMapObjects_[racer]->GetId()
+        : source::Map::defaultMapObjId;
+}
+
 std::size_t OriginalRaceSession::racerForMapObjectId(
     std::uint32_t mapObjectId) const noexcept
 {
@@ -2677,6 +2684,12 @@ OriginalRaceSession::progressPlayers(
             difficultyIndex, cheatPlayers);
 
         if (results[racer].restore ==
+            source::PlayerRestoreStep::ActivateCar)
+        {
+            createRacerMapObject(racer);
+        }
+
+        if (results[racer].restore ==
             source::PlayerRestoreStep::QueueRespawn)
         {
             queueRespawn(racer, vehicles);
@@ -2871,6 +2884,32 @@ void OriginalRaceSession::queueRespawn(
          reset.position, 0.0F});
 }
 
+void OriginalRaceSession::createRacerMapObject(std::size_t racer)
+{
+    if (racer >= racers_.size() || racer >= racerMapObjects_.size() ||
+        racerMapObjects_[racer] != nullptr)
+        return;
+    const auto* vehicle = racers_[racer].GetCarRecord();
+    if (vehicle == nullptr)
+        return;
+    auto& mapObject = map_.AddMapObj(
+        source::MapObjCategory::Car,
+        source::GameObjType::RockCar, vehicle->record, racer);
+    mapObject.SetPlayerId(racer);
+    mapObject.GetGameObj().ResetGameObject(vehicle->maximumLife);
+    racerMapObjects_[racer] = &mapObject;
+}
+
+void OriginalRaceSession::freeRacerMapObject(
+    std::size_t racer) noexcept
+{
+    if (racer >= racerMapObjects_.size() ||
+        racerMapObjects_[racer] == nullptr)
+        return;
+    map_.DelMapObj(racerMapObjects_[racer]);
+    racerMapObjects_[racer] = nullptr;
+}
+
 void OriginalRaceSession::destroyRacer(
     std::size_t racer, Vec3 position,
     const r3d::physics::VehicleState& vehicle,
@@ -2882,6 +2921,7 @@ void OriginalRaceSession::destroyRacer(
     auto& runtime = racers_[racer];
     // Player::OnDeath/OnDestroy begins the exact cTimeRestoreCar lifecycle.
     runtime.Destroy();
+    freeRacerMapObject(racer);
     appendPlayerGameEvents(racer, position, false);
     releaseRacerProjectileReferences(racer);
     if (racer < vehicleInputs_.size())
@@ -6118,6 +6158,8 @@ void OriginalRaceSession::completeRaceForExit(
         std::fill(decorationActive_.begin(), decorationActive_.end(), false);
         std::fill(bonusActive_.begin(), bonusActive_.end(), false);
         map_.Clear();
+        std::fill(
+            racerMapObjects_.begin(), racerMapObjects_.end(), nullptr);
         std::fill(vehicleInputs_.begin(), vehicleInputs_.end(),
                   r3d::physics::VehicleInput{});
         pairContactEffect_.Reset(race_.contactSoundPaths.size());
@@ -8573,6 +8615,14 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             for (int frame = 0; frame < 250; ++frame)
                 deathSession.update(
                     1.0F / 60.0F, deathVehicles, deathInput);
+            const auto deathInitialMapObjectId =
+                deathSession.racerMapObjectId(0U);
+            if (deathInitialMapObjectId ==
+                source::Map::defaultMapObjId)
+            {
+                throw std::runtime_error(
+                    "source Player::CreateCar has no initial MapObj ID");
+            }
             deathVehicles[0].speed = 25.0F;
             deathVehicles[0].linearVelocity = {-25.0F, 0.0F, 0.0F};
             deathVehicles[0].bodyContacts = {
@@ -8626,6 +8676,11 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 deathSession.racers().front().life != 0.0F ||
                 deathSession.racers().front()
                     .lowLifePoints.IsEffectMaked() ||
+                deathSession.racerMapObjectId(0U) !=
+                    source::Map::defaultMapObjId ||
+                deathSession.racerForMapObjectId(
+                    deathInitialMapObjectId) !=
+                    RacerRuntime::invalidWeapon ||
                 !deathSession.takeRespawns().empty() ||
                 sourceVehicle.deathEffects.size() != 2U ||
                 sourceDeathEffectCount !=
@@ -8656,16 +8711,26 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             if (deathRespawns.size() != 1U ||
                 deathSession.racers().front().life !=
                     deathSession.racers().front().maximumLife ||
-                !deathSession.racers().front().destroyed)
+                !deathSession.racers().front().destroyed ||
+                deathSession.racerMapObjectId(0U) !=
+                    source::Map::defaultMapObjId)
             {
                 throw std::runtime_error(
                     "source two-second vehicle restore was not queued");
             }
             deathSession.update(0.1F, deathVehicles, deathInput);
-            if (deathSession.racers().front().destroyed)
+            const auto deathRestoredMapObjectId =
+                deathSession.racerMapObjectId(0U);
+            if (deathSession.racers().front().destroyed ||
+                deathRestoredMapObjectId <= deathInitialMapObjectId ||
+                deathSession.racerForMapObjectId(
+                    deathRestoredMapObjectId) != 0U ||
+                deathSession.racerForMapObjectId(
+                    deathInitialMapObjectId) !=
+                    RacerRuntime::invalidWeapon)
             {
                 throw std::runtime_error(
-                    "source restored vehicle did not re-enter gameplay");
+                    "source restored vehicle did not receive a new MapObj");
             }
         }
 
@@ -12043,11 +12108,18 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 throw std::runtime_error(
                     "remote human received local AI control");
             }
+            const auto disconnectedMapObjectId =
+                networkSession.racerMapObjectId(1U);
             if (!networkSession.disconnectNetworkRacer(1U) ||
                 networkSession.disconnectNetworkRacer(1U) ||
                 !networkSession.racers()[1].disconnected ||
                 !networkSession.racers()[1].destroyed ||
-                networkSession.racerHasAiController(1U))
+                networkSession.racerHasAiController(1U) ||
+                networkSession.racerMapObjectId(1U) !=
+                    source::Map::defaultMapObjId ||
+                networkSession.racerForMapObjectId(
+                    disconnectedMapObjectId) !=
+                    RacerRuntime::invalidWeapon)
             {
                 throw std::runtime_error(
                     "NetPlayer destructor racer removal state failed");
@@ -12308,9 +12380,13 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             }
         }
 
+        const auto manualResetMapObjectId =
+            session.racerMapObjectId(session.humanRacer());
         input.reset = true;
         session.update(1.0F / 60.0F, vehicles, input);
-        if (session.takeRespawns().empty())
+        if (session.takeRespawns().empty() ||
+            session.racerMapObjectId(session.humanRacer()) !=
+                manualResetMapObjectId)
             throw std::runtime_error("reset/respawn transition failed");
         error.clear();
         return true;

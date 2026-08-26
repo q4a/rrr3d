@@ -2057,6 +2057,27 @@ duplicate rejection и reset ID до единицы. Session regression пров
 `MapObj` и выдать новый ID при respawn, как в Windows; текущий первый ID уже
 точен, но пока остаётся статичным в течение заезда.
 
+### P2.73 — динамический car `MapObj` death/respawn lifecycle — выполнено
+
+Сверка `Player::OnDestroy`, `FreeCar`, `OnProgress` и `CreateCar` закрыла
+оговорку P2.72. В Windows взорванная машина немедленно удаляет свой `MapObj`
+из `Map`, две секунды не имеет ID, затем после вычисления reset pose создаёт
+новый car object с очередным `_lastId`. Прежний descriptor `Racer::mapObjectId`
+ошибочно оставался неизменным весь заезд и мог направить сетевой Shot в уже
+удалённую машину.
+
+Session теперь хранит конкретный car `MapObj` каждого Player. `destroyRacer`
+и network disconnect удаляют его из registry; `QueueRespawn` работает без
+car ID, а `ActivateCar` создаёт новый `gotRockCar` и выдаёт следующий ID.
+Обычный ручной `ResetCar` не пересоздаёт actor и сохраняет ID. Исходящая
+сетевая цель Shot берётся из текущего session registry; входящий ID уже
+разрешается тем же `Map::GetMapObj`.
+
+Physics regression фиксирует весь переход: initial nonzero ID, отсутствие
+старого ID сразу после death, ноль во время restore, строго больший ID после
+`CreateCar(false)`, недоступность старого ID и неизменность ID при ручном
+reset. Network regression отдельно проверяет удаление car ID при disconnect.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
