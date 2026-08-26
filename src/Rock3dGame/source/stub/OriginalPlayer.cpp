@@ -9,6 +9,25 @@
 namespace r3d::game::originalrace::source
 {
 
+namespace
+{
+
+Weapon::Desc makeWeaponDescription(
+    const WeaponDefinition& definition)
+{
+    Weapon::Desc result;
+    result.shotDelay = definition.shotDelay;
+    result.projectiles.reserve(definition.projectiles.size());
+    for (const auto& projectile : definition.projectiles)
+    {
+        if (!projectile.spawnOnParentDeath)
+            result.projectiles.push_back(projectile);
+    }
+    return result;
+}
+
+} // namespace
+
 class Player::LowLifeBehavior final : public Behavior
 {
 public:
@@ -144,6 +163,42 @@ void Player::ClearSlowBehavior() noexcept
     auto& behaviors = gameCar.GetBehaviors();
     if (auto* behavior = behaviors.Find(BehaviorType::SlowEffect))
         behaviors.Delete(behavior);
+}
+
+void Player::AttachWeaponMapObjects() noexcept
+{
+    auto& weapons = gameCar.GetWeapons();
+    for (std::size_t slot = 0U;
+         slot < PlayerSlotRack::slotCount; ++slot)
+    {
+        auto& item = slotRack_.GetSlot(
+            static_cast<PlayerSlotType>(slot)).GetItem();
+        auto* weaponItem = item.IsWeaponItem();
+        if (weaponItem == nullptr)
+            continue;
+        std::string record = weaponItem->GetMapObjRecord();
+        if (record.empty())
+            record = weaponItem->GetRecord();
+        auto& mapObject = weapons.Add(
+            weaponItem->GetWpnDesc(), std::move(record));
+        mapObject.GetGameObj().SetPos(weaponItem->GetPos());
+        mapObject.GetGameObj().SetRot(weaponItem->GetRot());
+        weaponItem->AttachWeapon(mapObject.GetWeapon());
+        weaponItem->OnCreateCar();
+    }
+}
+
+void Player::DetachWeaponMapObjects() noexcept
+{
+    for (std::size_t slot = 0U;
+         slot < PlayerSlotRack::slotCount; ++slot)
+    {
+        auto& item = slotRack_.GetSlot(
+            static_cast<PlayerSlotType>(slot)).GetItem();
+        if (item.IsWeaponItem() != nullptr)
+            item.OnDestroyCar();
+    }
+    gameCar.GetWeapons().Clear();
 }
 
 const std::array<float, 3> Player::humanEasingMinimumDistance{
@@ -770,10 +825,15 @@ void Player::CreateCar(bool newRace) noexcept
         }
         car.OnCreateCar(newRace);
         Resc();
+        AttachWeaponMapObjects();
         for (std::size_t slot = 0U;
              slot < PlayerSlotRack::slotCount; ++slot)
-            slotRack_.GetSlot(static_cast<PlayerSlotType>(slot))
-                .GetItem().OnCreateCar();
+        {
+            auto& item = slotRack_.GetSlot(
+                static_cast<PlayerSlotType>(slot)).GetItem();
+            if (item.IsWeaponItem() == nullptr)
+                item.OnCreateCar();
+        }
     }
     if (!newRace)
         return;
@@ -788,8 +848,13 @@ void Player::FreeCar(bool freeState) noexcept
     {
         for (std::size_t slot = 0U;
              slot < PlayerSlotRack::slotCount; ++slot)
-            slotRack_.GetSlot(static_cast<PlayerSlotType>(slot))
-                .GetItem().OnDestroyCar();
+        {
+            auto& item = slotRack_.GetSlot(
+                static_cast<PlayerSlotType>(slot)).GetItem();
+            if (item.IsWeaponItem() == nullptr)
+                item.OnDestroyCar();
+        }
+        DetachWeaponMapObjects();
     }
     carPresent_ = false;
     gameCar.RemoveListener(this);
@@ -826,6 +891,10 @@ void Player::ReloadWeapons(
 void Player::BindWeaponItems(
     std::span<const WeaponDefinition> definitions) noexcept
 {
+    const bool rebuildLiveWeapons = carPresent_;
+    if (rebuildLiveWeapons)
+        DetachWeaponMapObjects();
+
     auto itemType = [](const WeaponDefinition& definition) noexcept {
         return static_cast<SlotType>(definition.itemType);
     };
@@ -841,17 +910,10 @@ void Player::BindWeaponItems(
         const auto expectedType = itemType(definitions[definitionIndex]);
         auto* item = physicalSlot.GetItem().IsWeaponItem();
         if (item == nullptr || physicalSlot.GetType() != expectedType)
-        {
-            if (carPresent_)
-                physicalSlot.GetItem().OnDestroyCar();
             item = physicalSlot.CreateItem(expectedType).IsWeaponItem();
-            if (carPresent_)
-                physicalSlot.GetItem().OnCreateCar();
-        }
         return item;
     };
-    auto bind = [&](WeaponItem* item, Weapon* weapon,
-                    std::size_t definitionIndex,
+    auto bind = [&](WeaponItem* item, std::size_t definitionIndex,
                     std::uint32_t countCharge,
                     std::uint32_t* currentCharge) {
         if (item == nullptr)
@@ -860,13 +922,16 @@ void Player::BindWeaponItems(
             definitionIndex >= definitions.size())
         {
             item->Bind(nullptr, 0U, 0U, nullptr);
+            item->SetMapObjRecord({});
             return;
         }
         const auto& definition = definitions[definitionIndex];
         item->Bind(
-            weapon, definition.maximumCharge, countCharge,
+            nullptr, definition.maximumCharge, countCharge,
             currentCharge, definition.chargeStep, definition.damage,
             definition.chargeCost);
+        item->SetMapObjRecord(definition.record);
+        item->SetWpnDesc(makeWeaponDescription(definition));
     };
 
     for (std::size_t slot = 0U; slot < weaponSlotCount; ++slot)
@@ -874,8 +939,7 @@ void Player::BindWeaponItems(
         const auto physicalType = static_cast<PlayerSlotType>(
             static_cast<std::size_t>(PlayerSlotType::Weapon1) + slot);
         auto* item = ensureItem(physicalType, weaponSlots[slot]);
-        bind(item, &gameCar.GetWeapons().primary[slot],
-             weaponSlots[slot], weaponCapacity[slot],
+        bind(item, weaponSlots[slot], weaponCapacity[slot],
              &weaponCharges[slot]);
         const std::size_t definitionIndex = weaponSlots[slot];
         if (definitionIndex == invalidWeapon ||
@@ -885,7 +949,7 @@ void Player::BindWeaponItems(
         if (auto* droid = dynamic_cast<DroidItem*>(item))
         {
             droid->Bind(
-                &gameCar.GetWeapons().primary[slot],
+                nullptr,
                 definition.maximumCharge, weaponCapacity[slot],
                 &weaponCharges[slot], definition.repairValue,
                 definition.repairPeriod);
@@ -893,19 +957,24 @@ void Player::BindWeaponItems(
         else if (auto* reflector = dynamic_cast<ReflectorItem*>(item))
         {
             reflector->Bind(
-                &gameCar.GetWeapons().primary[slot],
+                nullptr,
                 definition.maximumCharge, weaponCapacity[slot],
                 &weaponCharges[slot], definition.reflectValue);
         }
+        item->SetMapObjRecord(definition.record);
+        item->SetWpnDesc(makeWeaponDescription(definition));
         item->SetChargeStep(definition.chargeStep);
         item->SetDamage(definition.damage);
         item->SetChargeCost(definition.chargeCost);
     }
     bind(ensureItem(PlayerSlotType::Hyper, hyperWeapon),
-         &gameCar.GetWeapons().hyper, hyperWeapon, hyperCapacity,
+         hyperWeapon, hyperCapacity,
          &hyperCharge);
     bind(ensureItem(PlayerSlotType::Mine, mineWeapon),
-         &gameCar.GetWeapons().mine, mineWeapon, mineCapacity, &mines);
+         mineWeapon, mineCapacity, &mines);
+
+    if (rebuildLiveWeapons)
+        AttachWeaponMapObjects();
 }
 
 std::array<WeaponItem*, Player::weaponSlotCount>
@@ -1007,12 +1076,12 @@ bool Player::Shot(WeaponItem& item, bool projectileCreated,
     return result;
 }
 
-WeaponRack& Player::GetWeaponRack() noexcept
+RockCar::Weapons& Player::GetWeaponRack() noexcept
 {
     return gameCar.GetWeapons();
 }
 
-const WeaponRack& Player::GetWeaponRack() const noexcept
+const RockCar::Weapons& Player::GetWeaponRack() const noexcept
 {
     return gameCar.GetWeapons();
 }
@@ -1025,8 +1094,13 @@ void Player::BindSlots(
     {
         for (std::size_t slot = 0U;
              slot < PlayerSlotRack::slotCount; ++slot)
-            slotRack_.GetSlot(static_cast<PlayerSlotType>(slot))
-                .GetItem().OnDestroyCar();
+        {
+            auto& item = slotRack_.GetSlot(
+                static_cast<PlayerSlotType>(slot)).GetItem();
+            if (item.IsWeaponItem() == nullptr)
+                item.OnDestroyCar();
+        }
+        DetachWeaponMapObjects();
     }
     slotRack_.Bind(workshop, loadout);
     if (carRecord_ != nullptr)
@@ -1068,10 +1142,15 @@ void Player::BindSlots(
     }
     if (carPresent_)
     {
+        AttachWeaponMapObjects();
         for (std::size_t slot = 0U;
              slot < PlayerSlotRack::slotCount; ++slot)
-            slotRack_.GetSlot(static_cast<PlayerSlotType>(slot))
-                .GetItem().OnCreateCar();
+        {
+            auto& item = slotRack_.GetSlot(
+                static_cast<PlayerSlotType>(slot)).GetItem();
+            if (item.IsWeaponItem() == nullptr)
+                item.OnCreateCar();
+        }
     }
 }
 
@@ -1082,14 +1161,42 @@ void Player::SetSlot(
 {
     auto& slot = slotRack_.GetSlot(type);
     if (carPresent_)
-        slot.GetItem().OnDestroyCar();
+    {
+        auto& oldItem = slot.GetItem();
+        if (auto* weaponItem = oldItem.IsWeaponItem())
+        {
+            auto* weapon = weaponItem->GetWeapon();
+            auto* mapObject =
+                weapon != nullptr ? weapon->GetMapObj() : nullptr;
+            oldItem.OnDestroyCar();
+            gameCar.GetWeapons().Remove(mapObject);
+        }
+        else
+        {
+            oldItem.OnDestroyCar();
+        }
+    }
     slot.SetRecord(record);
     if (record == nullptr)
         return;
     slot.GetItem().SetPos(position);
     slot.GetItem().SetRot(rotation);
     if (carPresent_)
-        slot.GetItem().OnCreateCar();
+    {
+        auto& item = slot.GetItem();
+        if (auto* weaponItem = item.IsWeaponItem())
+        {
+            std::string mapRecord = weaponItem->GetMapObjRecord();
+            if (mapRecord.empty())
+                mapRecord = weaponItem->GetRecord();
+            auto& mapObject = gameCar.GetWeapons().Add(
+                weaponItem->GetWpnDesc(), std::move(mapRecord));
+            mapObject.GetGameObj().SetPos(position);
+            mapObject.GetGameObj().SetRot(rotation);
+            weaponItem->AttachWeapon(mapObject.GetWeapon());
+        }
+        item.OnCreateCar();
+    }
 }
 
 void Player::ApplyMobility(

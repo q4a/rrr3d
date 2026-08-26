@@ -149,7 +149,7 @@ Logic::ShotPlan Logic::ShotAll(
     ShotPlan result;
     result.humanShotEvent = human;
     const std::size_t count = std::min(
-        primaryWeapons.size(), WeaponRack::primarySlotCount);
+        primaryWeapons.size(), std::size_t{4U});
     for (std::size_t slot = 0U; slot < count; ++slot)
     {
         if (primaryWeapons[slot] == nullptr ||

@@ -83,15 +83,16 @@ int main()
     mapWeaponDescription.shotDelay = 0.1F;
     weaponObject.GetWeapon()->SetDesc(mapWeaponDescription);
     weaponObject.GetWeapon()->Reset();
-    rockCarObject.GetRockCar()->GetWeapons().primary[0].SetDesc(
-        mapWeaponDescription);
-    rockCarObject.GetRockCar()->GetWeapons().primary[0].Reset();
+    auto& carWeaponObject =
+        rockCarObject.GetRockCar()->GetWeapons().Add(
+            mapWeaponDescription, "Weapon\\carLaser");
+    auto* carWeapon = carWeaponObject.GetWeapon();
     if (typedObjects.ProgressOne(2U, 0.11F) ||
         !weaponObject.GetWeapon()->IsReadyShot())
         return 13;
     if (typedObjects.ProgressOne(1U, 0.11F) ||
-        !rockCarObject.GetRockCar()
-             ->GetWeapons().primary[0].IsReadyShot())
+        carWeapon == nullptr || !carWeapon->IsReadyShot() ||
+        carWeapon->GetParent() != rockCarObject.GetRockCar())
         return 14;
     typedObjects.Clear();
     if (liveRockCar.GetMapObj() != nullptr ||

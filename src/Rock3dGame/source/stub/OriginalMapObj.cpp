@@ -680,6 +680,19 @@ bool MapObjects::Remove(std::size_t slot) noexcept
     return true;
 }
 
+bool MapObjects::Remove(MapObj* value) noexcept
+{
+    if (value == nullptr)
+        return false;
+    const auto found = std::find_if(
+        objects_.begin(), objects_.end(),
+        [value](const auto& object) { return object.get() == value; });
+    if (found == objects_.end())
+        return false;
+    return Remove(static_cast<std::size_t>(
+        std::distance(objects_.begin(), found)));
+}
+
 bool MapObjects::ProgressSlot(
     std::size_t slot, float deltaTime) noexcept
 {

@@ -377,6 +377,7 @@ public:
               std::uint32_t chargeStep = 1U,
               float damage = 0.0F,
               int chargeCost = 0) noexcept;
+    void AttachWeapon(Weapon* weapon) noexcept;
 
     WeaponItem* IsWeaponItem() noexcept override;
     const WeaponItem* IsWeaponItem() const noexcept override;
@@ -409,6 +410,8 @@ public:
     void SetWpnDesc(const Weapon::Desc& value);
     Weapon* GetWeapon() const noexcept;
     Weapon::Desc GetDesc() const;
+    const std::string& GetMapObjRecord() const noexcept;
+    void SetMapObjRecord(std::string value);
 
 private:
     Weapon* weapon_ = nullptr;
@@ -419,6 +422,7 @@ private:
     std::uint32_t chargeStep_ = 1U;
     float damage_ = 0.0F;
     int chargeCost_ = 0;
+    std::string mapObjRecord_;
     Weapon::DescHandle weaponDesc_ =
         std::make_shared<Weapon::Desc>();
 };
@@ -493,21 +497,6 @@ public:
 
 private:
     float reflectValue_ = 0.25F;
-};
-
-// One source Weapon map object exists for every installed Player slot,
-// including Hyper and Mine. The rack is embedded in Player and replaces the
-// old parallel session timers without changing the backend projectile step.
-struct WeaponRack
-{
-    static constexpr std::size_t primarySlotCount = 4U;
-
-    void Reset() noexcept;
-    void OnProgress(float deltaTime) noexcept;
-
-    std::array<Weapon, primarySlotCount> primary;
-    Weapon hyper;
-    Weapon mine;
 };
 
 } // namespace r3d::game::originalrace::source

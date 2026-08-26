@@ -3049,6 +3049,32 @@ behavior во время destroy/death dispatch, а snapshot продолжал 
 `GameObject`, единую life identity, исходный event order и безопасное
 удаление listener во время callback.
 
+### P2.124 — dynamic `RockCar::Weapons` MapObj ownership — выполнено
+
+Оригинальный Windows `RockCar` не содержит фиксированный массив из шести
+`Weapon`. Его вложенный `RockCar::Weapons` наследует `MapObjects`, а каждый
+установленный `WeaponItem::OnCreateCar` добавляет туда конкретный `MapObj`
+из оружейной записи. `OnDestroyCar` освобождает эту ссылку, удаление машины
+уничтожает collection, а `RockCar::OnProgress` обновляет только реально
+установленные объекты. Прежний portable `WeaponRack` создавал шесть оружий
+всегда, в том числе для пустых слотов, и не имел ни MapObj identity, ни
+исходного parent transform.
+
+Возвращён динамический `RockCar::Weapons : MapObjects`. Он создаёт
+`gotWeapon`, назначает car parent, сохраняет record/transform слота,
+прогрессирует оружие через общий source container и повторяет специальные
+кэши `GetHyperDrive`/`GetMines` по типу первого projectile. Вставка и
+удаление теперь проходят через virtual source hooks `MapObjects`, включая
+безопасное удаление конкретного `MapObj`.
+
+`Player::CreateCar`, `FreeCar`, `BindSlots`, live `SetSlot` и повторное
+применение weapon definitions теперь создают и освобождают те же объекты,
+которые видят `WeaponItem`, session shots и shot effects. Фиксированный
+`WeaponRack` удалён; session больше не конфигурирует параллельные таймеры.
+Regression проверяет parent/owner identity, динамическое число объектов,
+progress через `RockCar`, Hyper/Mine cache invalidation и удаление weapon
+MapObj вместе с car lifecycle.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

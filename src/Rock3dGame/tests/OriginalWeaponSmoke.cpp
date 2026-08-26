@@ -101,7 +101,8 @@ int main()
             &projectileTarget, true, true).createEffect)
         return 6;
 
-    source::WeaponRack rack;
+    source::RockCar rackCar;
+    auto& rack = rackCar.GetWeapons();
     std::array<r3d::game::originalrace::ProjectileDefinition, 2U>
         itemProjectiles{};
     itemProjectiles[0].type = 0U;
@@ -110,23 +111,49 @@ int main()
     itemProjectiles[0].damage = 6.0F;
     itemProjectiles[1] = itemProjectiles[0];
     itemProjectiles[1].damage = 6.5F;
-    rack.primary[2].SetDesc(0.2F, itemProjectiles);
-    rack.hyper.SetDesc(
-        0.3F, std::span<const std::uint32_t>{});
-    rack.mine.SetDesc(0.4F, projectiles);
+    source::Weapon::Desc primaryDescription;
+    primaryDescription.shotDelay = 0.2F;
+    primaryDescription.projectiles.assign(
+        itemProjectiles.begin(), itemProjectiles.end());
+    source::Weapon::Desc hyperDescription;
+    hyperDescription.shotDelay = 0.3F;
+    hyperDescription.projectiles.resize(1U);
+    hyperDescription.projectiles.front().type = 1U;
+    source::Weapon::Desc mineDescription;
+    mineDescription.shotDelay = 0.4F;
+    mineDescription.projectiles.resize(1U);
+    mineDescription.projectiles.front().type = 11U;
+    source::Weapon::Desc emptyDescription;
+    auto& primaryWeapon0 = *rack.Add(
+        emptyDescription, "Weapon\\primary0").GetWeapon();
+    auto& primaryWeapon1 = *rack.Add(
+        emptyDescription, "Weapon\\primary1").GetWeapon();
+    auto& primaryWeapon2 = *rack.Add(
+        primaryDescription, "Weapon\\primary2").GetWeapon();
+    auto& hyperWeapon = *rack.Add(
+        hyperDescription, "Weapon\\hyper").GetWeapon();
+    auto& mineWeapon = *rack.Add(
+        mineDescription, "Weapon\\mine").GetWeapon();
     rack.OnProgress(0.5F);
-    if (!rack.primary[2].IsReadyShot() ||
-        !rack.hyper.IsReadyShot() || !rack.mine.IsReadyShot())
+    if (!primaryWeapon2.IsReadyShot() ||
+        !hyperWeapon.IsReadyShot() || !mineWeapon.IsReadyShot() ||
+        rack.GetHyperDrive() != &hyperWeapon ||
+        rack.GetMines() != &mineWeapon ||
+        primaryWeapon2.GetParent() != &rackCar)
         return 7;
-    rack.Reset();
-    if (rack.primary[2].IsReadyShot() ||
-        rack.hyper.IsReadyShot() || rack.mine.IsReadyShot())
+    primaryWeapon0.Reset();
+    primaryWeapon1.Reset();
+    primaryWeapon2.Reset();
+    hyperWeapon.Reset();
+    mineWeapon.Reset();
+    if (primaryWeapon2.IsReadyShot() ||
+        hyperWeapon.IsReadyShot() || mineWeapon.IsReadyShot())
         return 8;
 
     std::uint32_t charge = 2U;
     source::WeaponItem item(
-        &rack.primary[2], 7U, 4U, &charge, 2U, 12.5F, 100);
-    rack.primary[2].OnProgress(0.3F);
+        &primaryWeapon2, 7U, 4U, &charge, 2U, 12.5F, 100);
+    primaryWeapon2.OnProgress(0.3F);
     if (item.IsInstalled() || item.IsReadyShot() ||
         item.GetWeapon() != nullptr || item.Shot(true) || charge != 2U)
         return 8;
@@ -179,9 +206,10 @@ int main()
         item.GetDesc().Front().type != 2U ||
         std::abs(item.GetDamage(true) - 13.5F) > 0.0001F)
         return 11;
+    item.AttachWeapon(&primaryWeapon2);
     item.OnCreateCar();
-    if (rack.primary[2].GetDesc().Front().type != 2U ||
-        std::abs(rack.primary[2].GetDesc().shotDelay - 0.75F) >
+    if (primaryWeapon2.GetDesc().Front().type != 2U ||
+        std::abs(primaryWeapon2.GetDesc().shotDelay - 0.75F) >
             0.0001F)
         return 11;
     item.OnDestroyCar();
@@ -190,9 +218,9 @@ int main()
     // still create a shot at currentCharge==0 and clamp the decrement to 0.
     charge = 0U;
     source::WeaponItem infinite(
-        &rack.mine, 0U, 0U, &charge);
+        &mineWeapon, 0U, 0U, &charge);
     infinite.OnCreateCar();
-    rack.mine.OnProgress(1.0F);
+    mineWeapon.OnProgress(1.0F);
     if (!infinite.HasShotCharge() || !infinite.Shot(true) || charge != 0U)
         return 12;
 
@@ -200,22 +228,22 @@ int main()
     // applies it even if projectile preparation fails, exactly as Player.cpp.
     charge = 3U;
     source::WeaponItem replicated(
-        &rack.hyper, 7U, 3U, &charge);
+        &hyperWeapon, 7U, 3U, &charge);
     replicated.OnCreateCar();
     if (replicated.Shot(false, 1) ||
         replicated.GetCurCharge() != 1U || charge != 3U)
         return 13;
 
-    rack.primary[0].SetDesc(
+    primaryWeapon0.SetDesc(
         0.1F, std::span<const std::uint32_t>{});
-    rack.primary[1].SetDesc(
+    primaryWeapon1.SetDesc(
         0.1F, std::span<const std::uint32_t>{});
-    rack.primary[0].OnProgress(0.2F);
+    primaryWeapon0.OnProgress(0.2F);
     std::uint32_t firstCharge = 1U;
     std::uint32_t secondCharge = 1U;
     std::array<source::WeaponItem, 2U> primary{
-        source::WeaponItem(&rack.primary[0], 7U, 1U, &firstCharge),
-        source::WeaponItem(&rack.primary[1], 7U, 1U, &secondCharge)};
+        source::WeaponItem(&primaryWeapon0, 7U, 1U, &firstCharge),
+        source::WeaponItem(&primaryWeapon1, 7U, 1U, &secondCharge)};
     std::array<source::WeaponItem*, 2U> primaryItems{
         &primary[0], &primary[1]};
     for (auto& primaryItem : primary)
@@ -236,7 +264,7 @@ int main()
 
     std::uint32_t droidCharge = 0U;
     source::DroidItem droid(
-        &rack.primary[0], 1U, 1U, &droidCharge, 17.0F, 1.0F);
+        &primaryWeapon0, 1U, 1U, &droidCharge, 17.0F, 1.0F);
     float life = 80.0F;
     droid.OnCreateCar();
     if (!droid.IsProgressRegistered() ||
@@ -255,6 +283,7 @@ int main()
         droid.OnProgress(2.0F, life, 100.0F, false) != 0.0F ||
         life != 85.0F)
         return 19;
+    droid.AttachWeapon(&primaryWeapon0);
     droid.OnCreateCar();
     if (droid.GetRepairTime() != 0.0F)
         return 20;
@@ -766,6 +795,16 @@ int main()
         finalReleased.front().slot != 0U ||
         contacts.GetPairCount() != 0U)
         return 41;
+
+    auto* hyperMapObject = hyperWeapon.GetMapObj();
+    auto* mineMapObject = mineWeapon.GetMapObj();
+    if (!rack.Remove(hyperMapObject) ||
+        rack.GetHyperDrive() != nullptr ||
+        rack.GetMines() != &mineWeapon ||
+        !rack.Remove(mineMapObject) ||
+        rack.GetMines() != nullptr ||
+        rack.GetLiveCount() != 3U)
+        return 64;
 
     std::cout << "original Weapon/Proj/WeaponItem/Droid/Reflector/Logic "
                  "source rules passed\n";

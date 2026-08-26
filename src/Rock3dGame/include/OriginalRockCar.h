@@ -1,6 +1,7 @@
 #pragma once
 
 #include "OriginalGameCar.h"
+#include "OriginalMapObj.h"
 #include "OriginalWeapon.h"
 
 namespace r3d::game::originalrace::source
@@ -26,16 +27,46 @@ public:
 class RockCar : public GameCar
 {
 public:
-    RockCar() = default;
-    RockCar(const RockCar&) = default;
-    RockCar& operator=(const RockCar&) = default;
-    RockCar(RockCar&&) noexcept = default;
-    RockCar& operator=(RockCar&&) noexcept = default;
-    ~RockCar() override = default;
+    // Direct transcription of RockCar::Weapons. Every installed slot is a
+    // concrete Weapon MapObj parented to the car; Hyper and Mine retain the
+    // source first-projectile lookup cache.
+    class Weapons final : public MapObjects
+    {
+    public:
+        explicit Weapons(RockCar* owner) noexcept;
+
+        MapObj& Add(
+            const Weapon::Desc& description,
+            std::string record = {});
+        Weapon* GetWeapon(std::size_t slot) noexcept;
+        const Weapon* GetWeapon(std::size_t slot) const noexcept;
+        Weapon* GetHyperDrive() noexcept;
+        const Weapon* GetHyperDrive() const noexcept;
+        Weapon* GetMines() noexcept;
+        const Weapon* GetMines() const noexcept;
+        void CopyFrom(const Weapons& value);
+
+    protected:
+        void InsertItem(MapObj& value) override;
+        void RemoveItem(MapObj& value) noexcept override;
+
+    private:
+        void RefreshSpecial(Weapon& value) noexcept;
+
+        Weapon* hyperDrive_ = nullptr;
+        Weapon* mines_ = nullptr;
+    };
+
+    RockCar();
+    RockCar(const RockCar& value);
+    RockCar& operator=(const RockCar& value);
+    RockCar(RockCar&& value) noexcept;
+    RockCar& operator=(RockCar&& value) noexcept;
+    ~RockCar() override;
 
     ProgressResult OnProgress(float deltaTime) noexcept;
-    WeaponRack& GetWeapons() noexcept;
-    const WeaponRack& GetWeapons() const noexcept;
+    Weapons& GetWeapons() noexcept;
+    const Weapons& GetWeapons() const noexcept;
     void SetEventSink(RockCarEventSink* value) noexcept;
     RockCarEventSink* GetEventSink() noexcept;
     const RockCarEventSink* GetEventSink() const noexcept;
@@ -49,7 +80,7 @@ protected:
         DamageType damageType) noexcept override;
 
 private:
-    WeaponRack weapons_;
+    std::unique_ptr<Weapons> weapons_;
     RockCarEventSink* eventSink_ = nullptr;
 };
 

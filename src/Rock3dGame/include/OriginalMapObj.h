@@ -244,6 +244,7 @@ public:
 
     MapObjects() = default;
     explicit MapObjects(GameObject* owner) noexcept;
+    virtual ~MapObjects() = default;
     void SetObserver(MapObjectsObserver* value) noexcept;
 
     MapObj& Add(GameObjType type, std::string baseName = "obj");
@@ -263,6 +264,7 @@ public:
     bool IsLocked() const noexcept;
 
     bool Remove(std::size_t slot) noexcept;
+    bool Remove(MapObj* value) noexcept;
     bool ProgressOne(std::size_t slot, float deltaTime) noexcept;
     ProgressResult OnProgress(float deltaTime) noexcept;
     ProgressResult OnProgressSpecial(float deltaTime) noexcept;
@@ -270,12 +272,14 @@ public:
 
     GameObject* GetOwner() const noexcept;
 
-private:
+protected:
     friend class MapObj;
     static std::string RecordParent(std::string_view record);
     std::string MakeUniqueName(std::string baseName) const;
-    void InsertItem(MapObj& value);
-    void RemoveItem(MapObj& value) noexcept;
+    virtual void InsertItem(MapObj& value);
+    virtual void RemoveItem(MapObj& value) noexcept;
+
+private:
     void SpecialListChanged(MapObj& value, bool remove) noexcept;
     bool ProgressSlot(std::size_t slot, float deltaTime) noexcept;
 

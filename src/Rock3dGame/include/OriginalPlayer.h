@@ -334,8 +334,8 @@ public:
     bool Shot(WeaponItem& item, bool projectileCreated,
               bool mineSlot, std::uint32_t projectileId,
               int newCharge = -1) noexcept;
-    WeaponRack& GetWeaponRack() noexcept;
-    const WeaponRack& GetWeaponRack() const noexcept;
+    RockCar::Weapons& GetWeaponRack() noexcept;
+    const RockCar::Weapons& GetWeaponRack() const noexcept;
     void BindSlots(
         const std::vector<OriginalWorkshopItem>& workshop,
         const std::vector<RacerSlot>& loadout);
@@ -486,6 +486,8 @@ private:
     class SlowBehavior;
     void BindSourceBehaviors();
     void ClearSlowBehavior() noexcept;
+    void AttachWeaponMapObjects() noexcept;
+    void DetachWeaponMapObjects() noexcept;
 
     int id_ = undefinedId;
     int gamerId_ = -1;

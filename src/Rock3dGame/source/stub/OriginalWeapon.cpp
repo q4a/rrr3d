@@ -961,7 +961,7 @@ const WeaponItem* WeaponItem::IsWeaponItem() const noexcept
 
 void WeaponItem::OnCreateCar() noexcept
 {
-    carAttached_ = true;
+    carAttached_ = weapon_ != nullptr;
     if (weapon_ != nullptr)
         weapon_->SetDescHandle(weaponDesc_);
 }
@@ -969,6 +969,7 @@ void WeaponItem::OnCreateCar() noexcept
 void WeaponItem::OnDestroyCar() noexcept
 {
     carAttached_ = false;
+    weapon_ = nullptr;
 }
 
 void WeaponItem::Bind(
@@ -986,6 +987,13 @@ void WeaponItem::Bind(
     weaponDesc_ = weapon != nullptr
                       ? weapon->GetDescHandle()
                       : std::make_shared<Weapon::Desc>();
+}
+
+void WeaponItem::AttachWeapon(Weapon* weapon) noexcept
+{
+    weapon_ = weapon;
+    if (weapon_ != nullptr)
+        weapon_->SetDescHandle(weaponDesc_);
 }
 
 bool WeaponItem::Shot(bool projectileCreated, int newCharge) noexcept
@@ -1127,6 +1135,16 @@ Weapon::Desc WeaponItem::GetDesc() const
     return weapon != nullptr ? weapon->GetDesc() : *weaponDesc_;
 }
 
+const std::string& WeaponItem::GetMapObjRecord() const noexcept
+{
+    return mapObjRecord_;
+}
+
+void WeaponItem::SetMapObjRecord(std::string value)
+{
+    mapObjRecord_ = std::move(value);
+}
+
 DroidItem::DroidItem() noexcept : WeaponItem(SlotType::Droid) {}
 
 DroidItem::DroidItem(
@@ -1256,22 +1274,6 @@ void ReflectorItem::SetReflectValue(float value) noexcept
 float ReflectorItem::Reflect(float damage) const noexcept
 {
     return damage * std::clamp(1.0F - reflectValue_, 0.0F, 1.0F);
-}
-
-void WeaponRack::Reset() noexcept
-{
-    for (auto& weapon : primary)
-        weapon.Reset();
-    hyper.Reset();
-    mine.Reset();
-}
-
-void WeaponRack::OnProgress(float deltaTime) noexcept
-{
-    for (auto& weapon : primary)
-        weapon.OnProgress(deltaTime);
-    hyper.OnProgress(deltaTime);
-    mine.OnProgress(deltaTime);
 }
 
 } // namespace r3d::game::originalrace::source

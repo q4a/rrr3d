@@ -164,13 +164,14 @@ int main()
     droidWeaponDescription.shotDelay = 0.5F;
     droidWeaponDescription.projectiles.resize(1U);
     droidWeaponDescription.projectiles.front().type = 1U;
-    playerWeapons.primary[0].SetDesc(droidWeaponDescription);
-    playerWeapons.primary[0].Reset();
-    playerWeapons.primary[0].OnShot();
-    if (playerWeapons.primary[0].IsReadyShot())
+    auto& playerWeaponObject = playerWeapons.Add(
+        droidWeaponDescription, "Weapon\\testDroid");
+    auto* playerWeapon = playerWeaponObject.GetWeapon();
+    playerWeapon->OnShot();
+    if (playerWeapon->IsReadyShot())
         return 62;
     player.gameCar.OnProgress(0.51F);
-    if (!playerWeapons.primary[0].IsReadyShot())
+    if (!playerWeapon->IsReadyShot())
         return 63;
     r3d::game::originalrace::OriginalWorkshopItem droidRecord;
     droidRecord.record =
@@ -308,6 +309,12 @@ int main()
         player.GetMineWeaponItem() == nullptr ||
         player.GetMineWeaponItem()->GetCurCharge() != 1U)
         return 64;
+    if (player.GetWeaponRack().GetLiveCount() != 5U ||
+        firstWeaponItems[0]->GetWeapon()->GetParent() != &player.gameCar ||
+        firstWeaponItems[0]->GetWeapon()->GetMapObj() == nullptr ||
+        firstWeaponItems[0]->GetWeapon()->GetMapObj()->GetOwner() !=
+            &player.GetWeaponRack())
+        return 80;
     const auto hyper = player.TakeAmmunition(
         0.5F, maximumCharges, 0.0F);
     if (hyper.slot != source::PlayerBonusSlot::Hyper ||

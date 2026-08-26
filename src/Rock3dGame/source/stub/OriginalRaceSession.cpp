@@ -1560,43 +1560,6 @@ void OriginalRaceSession::reset()
         }
         racers_[index].BindSlots(race_.workshop, activeLoadout);
         racers_[index].SyncSelectedWeapon(race_.weapons.size());
-        auto configureWeapon = [&](source::Weapon& runtimeWeapon,
-                                   std::size_t weaponIndex) {
-            if (weaponIndex == RacerRuntime::invalidWeapon ||
-                weaponIndex >= race_.weapons.size())
-            {
-                runtimeWeapon.SetDesc(source::Weapon::Desc{});
-                runtimeWeapon.Reset();
-                return;
-            }
-            const auto& definition = race_.weapons[weaponIndex];
-            std::vector<ProjectileDefinition> projectiles;
-            projectiles.reserve(definition.projectiles.size());
-            for (const auto& projectile : definition.projectiles)
-            {
-                if (projectile.spawnOnParentDeath)
-                    continue;
-                projectiles.push_back(projectile);
-            }
-            runtimeWeapon.SetDesc(
-                definition.shotDelay,
-                projectiles);
-            runtimeWeapon.Reset();
-        };
-        auto& weaponRack = racers_[index].GetWeaponRack();
-        for (std::size_t slot = 0U;
-             slot < PlayerProfile::weaponSlotCount; ++slot)
-        {
-            configureWeapon(
-                weaponRack.primary[slot],
-                racers_[index].weaponSlots[slot]);
-        }
-        configureWeapon(
-            weaponRack.hyper,
-            racers_[index].hyperWeapon);
-        configureWeapon(
-            weaponRack.mine,
-            racers_[index].mineWeapon);
         racers_[index].BindWeaponItems(race_.weapons);
         racers_[index].CreateCar(true);
         racers_[index].car.SetSize(vehicle.boundingSize);
@@ -4562,21 +4525,26 @@ void OriginalRaceSession::updateGameplay(
                 return;
             if (owner < racers_.size())
             {
-                auto& rack = racers_[owner].GetWeaponRack();
                 source::Weapon* sourceWeapon = nullptr;
                 if (soundSource < PlayerProfile::weaponSlotCount)
                 {
-                    sourceWeapon =
-                        &rack.primary[soundSource];
+                    const auto items =
+                        racers_[owner].GetPrimaryWeaponItems();
+                    sourceWeapon = items[soundSource] != nullptr
+                        ? items[soundSource]->GetWeapon() : nullptr;
                 }
                 else if (soundSource == PlayerProfile::weaponSlotCount)
                 {
-                    sourceWeapon = &rack.hyper;
+                    auto* item = racers_[owner].GetHyperWeaponItem();
+                    sourceWeapon = item != nullptr
+                        ? item->GetWeapon() : nullptr;
                 }
                 else if (soundSource ==
                          PlayerProfile::weaponSlotCount + 1U)
                 {
-                    sourceWeapon = &rack.mine;
+                    auto* item = racers_[owner].GetMineWeaponItem();
+                    sourceWeapon = item != nullptr
+                        ? item->GetWeapon() : nullptr;
                 }
                 if (sourceWeapon != nullptr)
                 {
@@ -4832,15 +4800,18 @@ void OriginalRaceSession::updateGameplay(
         racers_[humanRacer_].mineWeapon != RacerRuntime::invalidWeapon &&
         racers_[humanRacer_].mineWeapon < race_.weapons.size())
     {
+        auto* mineItem = racers_[humanRacer_].GetMineWeaponItem();
+        auto* mineWeapon = mineItem != nullptr
+            ? mineItem->GetWeapon() : nullptr;
         const bool maslo =
-            racers_[humanRacer_].GetWeaponRack().mine.IsMaslo();
+            mineWeapon != nullptr && mineWeapon->IsMaslo();
         if (humanControl.mineAnalogBinding || maslo)
         {
             const float alpha =
                 std::clamp(humanControl.mineHeld, 0.0F, 1.0F);
             const float sourceDelay = (1.0F - alpha) * 0.6F;
-            if (racers_[humanRacer_].GetWeaponRack().mine.IsReadyShot(
-                    sourceDelay))
+            if (mineWeapon != nullptr &&
+                mineWeapon->IsReadyShot(sourceDelay))
             {
                 source::Logic::ShotPlan humanShot;
                 humanShot.humanShotEvent = true;
@@ -4859,7 +4830,8 @@ void OriginalRaceSession::updateGameplay(
                 RacerRuntime::invalidWeapon ||
             racers_[owner].hyperWeapon >= race_.weapons.size() ||
             (!networkReplicated &&
-             !racers_[owner].GetWeaponRack().hyper.IsReadyShot()))
+             (racers_[owner].GetHyperWeaponItem() == nullptr ||
+              !racers_[owner].GetHyperWeaponItem()->IsReadyShot())))
             return;
         auto* item = hyperWeaponItem(owner);
         if (item == nullptr || !item->IsInstalled())
