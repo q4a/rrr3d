@@ -17905,8 +17905,12 @@ int main(int argc, char** argv)
                 raceRenderer.moveDebugCamera(
                     cameraStyle, forward, right, raceRenderSeconds);
             }
+            const float sourceFreeWheelSpeed =
+                raceSession.racers()[humanRacer]
+                    .gameCar.GetDrivenWheelSpeed();
             const auto raceCamera = raceRenderer.makeCamera(
                 *device, physicsWorld->vehicle(humanRacer),
+                sourceFreeWheelSpeed,
                 static_cast<std::uint32_t>(pixelWidth),
                 static_cast<std::uint32_t>(pixelHeight),
                 cameraStyle,

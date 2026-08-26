@@ -125,6 +125,7 @@ public:
         bool driven = false;
         bool steering = false;
         bool inverted = false;
+        float radius = 0.0F;
     };
 
     struct DriveCommand
@@ -180,6 +181,14 @@ public:
     void SetMotorTorqueK(float value) noexcept;
     float GetWheelSteerK() const noexcept;
     void SetWheelSteerK(float value) noexcept;
+    // The Windows getters read the live PhysX actor/wheel shapes. The
+    // portable backend synchronizes that same physical state into GameCar,
+    // which remains the gameplay-facing telemetry authority.
+    void SynchronizeSpeed(float signedSpeed) noexcept;
+    float GetSpeed() const noexcept;
+    float GetLeadWheelSpeed() const noexcept;
+    float GetDrivenWheelSpeed() const noexcept;
+    float GetRPM() const noexcept;
 
     void BindSoundMotor(
         const std::array<float, 2>& rpmVolumeRange,
@@ -211,8 +220,6 @@ public:
     void BindAnimationChildren(
         bool trackAnimation, std::size_t cushionAnimations);
     void ReleaseAnimationChildren() noexcept;
-    void SetLeadWheelSpeed(float value) noexcept;
-    float GetLeadWheelSpeed() const noexcept;
     float GetTrackTextureOffset() const noexcept;
     float GetCushionAngle(std::size_t index) const noexcept;
     std::size_t GetAnimationChildCount() const noexcept;
@@ -247,7 +254,7 @@ private:
     std::array<float, 2> rpmFrequencyRange_{0.0F, 1.0F};
     std::vector<std::unique_ptr<CarWheel>> wheels_;
     std::vector<std::unique_ptr<CarAnimationChild>> animationChildren_;
-    float leadWheelSpeed_ = 0.0F;
+    float signedSpeed_ = 0.0F;
     MotorDescription motor_;
     DynamicsDescription dynamics_;
     MoveCarState moveCar_ = MoveCarState::None;
@@ -329,7 +336,7 @@ public:
     const GameObjectFrameSync::Pose& GetPxSyncPose() const noexcept;
     void ConfigureDynamics(
         float positionX, bool driven, bool steering,
-        bool inverted) noexcept;
+        bool inverted, float radius) noexcept;
     void SetSteerAngle(float value) noexcept;
     void SetAxleSpeed(float value) noexcept;
     void ResetMotion() noexcept;
@@ -337,6 +344,7 @@ public:
     float GetAxleSpeed() const noexcept;
     float GetSummAngle() const noexcept;
     float GetPositionX() const noexcept;
+    float GetRadius() const noexcept;
     bool IsDriven() const noexcept;
     bool IsSteering() const noexcept;
     void SetContact(bool hasContact, float longitudinalSlip,
@@ -367,6 +375,7 @@ private:
     bool slipSoundEnabled_ = false;
     GameObjectFrameSync::Pose pxSyncPose_;
     float positionX_ = 0.0F;
+    float radius_ = 0.0F;
     float steerAngle_ = 0.0F;
     float axleSpeed_ = 0.0F;
     float summAngle_ = 0.0F;

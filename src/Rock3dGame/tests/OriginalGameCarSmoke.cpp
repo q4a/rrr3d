@@ -185,7 +185,8 @@ int main()
         {{0.5F, 0.6F, 0.7F}, 2.0F, 0.2F, 0.3F,
          maximumSteerAngle, steerSpeed,
          3.14159265358979323846F, false},
-        {{-1.0F, true, false}, {1.0F, false, true}});
+        {{-1.0F, true, false, false, 0.5F},
+         {1.0F, false, true, false, 0.4F}});
     const auto* firstWheel = car.GetWheel(0U);
     const auto* secondWheel = car.GetWheel(1U);
     if (car.GetWheelCount() != 2U || firstWheel == nullptr ||
@@ -200,8 +201,29 @@ int main()
         secondWheel->HasSlipEffect() ||
         secondWheel->GetBehaviors().GetCount() != 0U ||
         !firstWheel->IsDriven() || firstWheel->IsSteering() ||
-        secondWheel->IsDriven() || !secondWheel->IsSteering())
+        secondWheel->IsDriven() || !secondWheel->IsSteering() ||
+        firstWheel->GetRadius() != 0.5F ||
+        secondWheel->GetRadius() != 0.4F)
         return 25;
+    car.OnFixedStepDrive(
+        1.0F / 120.0F, {1.0F, 0.0F, 0.0F, 0.0F},
+        {2.0F, 2.0F, 2.0F, 6.0F, true, true});
+    car.GetWheel(0U)->SetAxleSpeed(6.0F);
+    car.GetWheel(1U)->SetAxleSpeed(-4.0F);
+    constexpr float expectedSourceRpm =
+        6.0F * 2.66F * 3.42F * 60.0F /
+        6.28318530717958647692F;
+    car.SynchronizeSpeed(-12.0F);
+    if (car.GetSpeed() != -12.0F || car.GetLeadWheelSpeed() != 3.0F ||
+        std::abs(car.GetDrivenWheelSpeed() + 1.6F) > 0.0001F ||
+        std::abs(car.GetRPM() - expectedSourceRpm) > 0.01F)
+        return 55;
+    car.SynchronizeSpeed(0.99F);
+    car.GetWheel(0U)->SetAxleSpeed(0.2F);
+    car.GetWheel(1U)->SetAxleSpeed(0.2F);
+    if (car.GetSpeed() != 0.0F || car.GetLeadWheelSpeed() != 0.0F ||
+        car.GetDrivenWheelSpeed() != 0.0F)
+        return 56;
     const auto steered = car.OnFixedStepDrive(
         1.0F / 120.0F, {0.0F, 0.0F, 0.0F, 1.0F},
         {5.0F, 5.0F, 5.0F, 0.0F, true, true});
@@ -317,13 +339,13 @@ int main()
         std::abs(spunWheelPose.rotation.w -
                  std::cos(expectedHalfSpin)) > 0.0001F)
         return 51;
-    animatedWheel->ConfigureDynamics(-1.0F, true, false, true);
+    animatedWheel->ConfigureDynamics(-1.0F, true, false, true, 0.5F);
     const auto& invertedWheelPose = animatedWheel->PxSyncWheel(
         {}, {}, {{1.0F, 0.0F, 0.0F}, {}});
     if (std::abs(invertedWheelPose.rotation.z - 1.0F) > 0.0001F ||
         std::abs(invertedWheelPose.rotation.w) > 0.0001F)
         return 52;
-    animatedWheel->ConfigureDynamics(-1.0F, true, false, false);
+    animatedWheel->ConfigureDynamics(-1.0F, true, false, false, 0.5F);
     car.GetFrameSync().Reset();
     car.GetFrameSync().SetPosSync2(
         {2.0F, 0.0F, 0.0F}, {1.0F, 0.0F, 0.0F});
@@ -344,6 +366,8 @@ int main()
         !car.GetChildren().empty())
         return 29;
 
+    car.BindWheels({false}, {false});
+    car.ConfigureDynamics({}, {{0.0F, true, false, false, 0.5F}});
     car.BindAnimationChildren(true, 2U);
     const auto* trackChild = car.GetAnimationChild(0U);
     const auto* cushionChild = car.GetAnimationChild(1U);
@@ -361,7 +385,7 @@ int main()
         cushionChild->GetBehaviors().Find(
             source::BehaviorType::PodushkaAnim) == nullptr)
         return 30;
-    car.SetLeadWheelSpeed(5.0F);
+    car.GetWheel(0U)->SetAxleSpeed(10.0F);
     const auto animationProgress = car.OnProgress(0.5F);
     if (animationProgress.animationChildrenProgressed != 2U ||
         animationProgress.animationBehaviorsProgressed != 3U ||
@@ -370,7 +394,7 @@ int main()
                  0.25F * 3.14159265358979323846F) > 0.0001F ||
         car.GetCushionAngle(0U) != car.GetCushionAngle(1U))
         return 31;
-    car.SetLeadWheelSpeed(0.1F);
+    car.GetWheel(0U)->SetAxleSpeed(0.2F);
     if (car.GetLeadWheelSpeed() != 0.0F)
         return 32;
     source::GameCar copiedAnimationCar = car;
@@ -384,6 +408,7 @@ int main()
             car.GetCushionAngle(1U))
         return 33;
     car.ReleaseAnimationChildren();
+    car.ReleaseWheels();
     if (car.GetAnimationChildCount() != 0U ||
         !car.GetChildren().empty())
         return 34;

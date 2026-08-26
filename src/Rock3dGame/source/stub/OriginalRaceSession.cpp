@@ -3404,6 +3404,7 @@ void OriginalRaceSession::updateGameplay(
         }
         if (racer < vehicles.size())
         {
+            runtime.gameCar.SynchronizeSpeed(vehicles[racer].speed);
             const auto wheelCount = std::min(
                 runtime.gameCar.GetWheelCount(),
                 vehicles[racer].wheelContacts.size());
@@ -3421,10 +3422,6 @@ void OriginalRaceSession::updateGameplay(
             }
             runtime.gameCar.UpdateContactState(
                 !vehicles[racer].bodyContacts.empty());
-            float leadWheelSpeed = 0.0F;
-            const auto speedWheelCount = std::min(
-                vehicles[racer].wheelAngularSpeeds.size(),
-                vehicleDefinition.physics.wheels.size());
             for (std::size_t wheel = 0U;
                  wheel < runtime.gameCar.GetWheelCount(); ++wheel)
             {
@@ -3436,17 +3433,6 @@ void OriginalRaceSession::updateGameplay(
                         ? vehicles[racer].wheelAngularSpeeds[wheel]
                         : 0.0F);
             }
-            for (std::size_t wheel = 0U;
-                 wheel < speedWheelCount; ++wheel)
-            {
-                if (!vehicleDefinition.physics.wheels[wheel].driven)
-                    continue;
-                leadWheelSpeed =
-                    vehicles[racer].wheelAngularSpeeds[wheel] *
-                    vehicleDefinition.physics.wheels[wheel].radius;
-                break;
-            }
-            runtime.gameCar.SetLeadWheelSpeed(leadWheelSpeed);
         }
         runtime.gameCar.OnProgress(seconds);
         if (!externalVehicleFixedStep_ && !runtime.destroyed &&

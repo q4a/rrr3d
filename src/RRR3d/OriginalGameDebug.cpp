@@ -205,6 +205,7 @@ std::vector<std::string> OriginalGameDebug::lines(
 
     const auto& vehicle = vehicles[humanRacer];
     const auto& racer = session.racers()[humanRacer];
+    const auto& sourceCar = racer.gameCar;
     const auto& input = humanRacer >= session.vehicleInputs().size()
                             ? r3d::physics::VehicleInput{}
                             : session.vehicleInputs()[humanRacer];
@@ -230,12 +231,13 @@ std::vector<std::string> OriginalGameDebug::lines(
             std::to_string(vehicle.resetCount));
         result.push_back("Position " + vectorText(vehicle.body.position));
         result.push_back(
-            "Speed " + floatText(vehicle.speed * 3.6F) +
-            " km/h  Axle " + floatText(vehicle.drivenWheelSpeed * 3.6F) +
+            "Speed " + floatText(sourceCar.GetSpeed() * 3.6F) +
+            " km/h  Axle " +
+            floatText(sourceCar.GetDrivenWheelSpeed() * 3.6F) +
             " km/h");
         result.push_back(
-            "RPM " + floatText(vehicle.engineRpm, 0) + "  Gear " +
-            std::to_string(vehicle.gear) + "  contacts " +
+            "RPM " + floatText(sourceCar.GetRPM(), 0) + "  Gear " +
+            std::to_string(sourceCar.GetCurGear()) + "  contacts " +
             std::to_string(vehicle.contactCount));
         result.push_back(
             "Input gas " + floatText(input.throttle) + " reverse " +

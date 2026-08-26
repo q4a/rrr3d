@@ -2935,12 +2935,13 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
 
 Camera OriginalRaceRenderer::makeCamera(
     const GraphicsDevice& device, const r3d::physics::VehicleState& vehicle,
-    std::uint32_t width, std::uint32_t height,
+    float sourceFreeWheelSpeed, std::uint32_t width,
+    std::uint32_t height,
     r3d::game::originalrace::PreferredCamera style,
     float cameraDistance, float seconds) noexcept
 {
     return makeCamera(
-        device, vehicle, width, height,
+        device, vehicle, sourceFreeWheelSpeed, width, height,
         style == r3d::game::originalrace::PreferredCamera::Isometric
             ? RaceCameraStyle::Isometric
             : RaceCameraStyle::ThirdPerson,
@@ -2949,7 +2950,8 @@ Camera OriginalRaceRenderer::makeCamera(
 
 Camera OriginalRaceRenderer::makeCamera(
     const GraphicsDevice& device, const r3d::physics::VehicleState& vehicle,
-    std::uint32_t width, std::uint32_t height, RaceCameraStyle style,
+    float sourceFreeWheelSpeed, std::uint32_t width,
+    std::uint32_t height, RaceCameraStyle style,
     float cameraDistance, float seconds) noexcept
 {
     const float aspect =
@@ -2965,7 +2967,7 @@ Camera OriginalRaceRenderer::makeCamera(
     // velocity to the car direction. The old portable camera discarded Z
     // and therefore reacted to suspension motion with a different pose.
     auto targetVelocity = vehicle.linearVelocity;
-    if (vehicle.drivenWheelSpeed < 0.1F)
+    if (sourceFreeWheelSpeed < 0.1F)
     {
         const auto bodyRotation =
             normalizeQuaternion(vehicle.body.rotation);

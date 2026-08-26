@@ -76,13 +76,15 @@ public:
 
     r3d::renderer::Camera makeCamera(
         const r3d::renderer::GraphicsDevice& device,
-        const r3d::physics::VehicleState& vehicle, std::uint32_t width,
+        const r3d::physics::VehicleState& vehicle,
+        float sourceFreeWheelSpeed, std::uint32_t width,
         std::uint32_t height,
         r3d::game::originalrace::PreferredCamera style,
         float cameraDistance, float seconds) noexcept;
     r3d::renderer::Camera makeCamera(
         const r3d::renderer::GraphicsDevice& device,
-        const r3d::physics::VehicleState& vehicle, std::uint32_t width,
+        const r3d::physics::VehicleState& vehicle,
+        float sourceFreeWheelSpeed, std::uint32_t width,
         std::uint32_t height, RaceCameraStyle style,
         float cameraDistance, float seconds) noexcept;
     r3d::renderer::Camera makePresentationCamera(

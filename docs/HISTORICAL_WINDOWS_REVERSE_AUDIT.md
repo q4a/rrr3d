@@ -2883,6 +2883,31 @@ Regression покрывает digital accumulation, мгновенный manual 
 lookup и сохранение `smManual` при AI reverse/forward blocking cycle. Debug
 overlay теперь также показывает фактический manual/digital режим.
 
+### P2.117 — source `GameCar` speed/RPM/wheel telemetry — выполнено
+
+В Windows `GameCar` является единым gameplay-facing владельцем четырёх
+значений: `GetSpeed`, `GetLeadWheelSpeed`, исторически неверно названного
+`GetDrivenWheelSpeed` и `GetRPM`. Последний из wheel-speed методов намеренно
+читает первое колесо вне `GetLeadGroup`, то есть первое свободное колесо;
+именно его использует `CameraManager` для подавления обратного дрожания.
+Порт обходил этот контракт: session отдельно кэшировала скорость ведущего
+колеса, а camera/debug напрямую читали повторные вычисления из Jolt state.
+
+Радиус теперь входит в живое состояние каждого source `CarWheel`, рядом с
+уже перенесёнными axle speed, lead/steer и animation fields. Восстановленные
+методы `GameCar` выбирают первое ведущее/свободное колесо в исходном порядке,
+умножают axle speed на его радиус и применяют source dead zones 0.1 м/с и
+1 м/с. `GetRPM` снова использует axle первого ведущего колеса, текущую
+source-передачу, gear ratio, differential и ограничение max RPM.
+
+Jolt синхронизирует в `GameCar` только завершённое физическое состояние.
+Удалены отдельный `leadWheelSpeed` cache и его повторный цикл по vehicle
+description. Camera получает source `GetDrivenWheelSpeed`, а game-debug —
+source `GetSpeed/GetRPM/GetCurGear`; одноимённые поля `VehicleState` остаются
+backend telemetry для автономных physics tests, но больше не подменяют
+игровой объект в активном runtime. Regression проверяет оба порядка выбора
+колеса, радиусы, знаки, dead zones, RPM-формулу, copy/reset и track animation.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

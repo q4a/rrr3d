@@ -119,7 +119,7 @@ GameCar& GameCar::operator=(const GameCar& other) noexcept
     clutchTime_ = other.clutchTime_;
     springTime_ = other.springTime_;
     mineTime_ = other.mineTime_;
-    leadWheelSpeed_ = other.leadWheelSpeed_;
+    signedSpeed_ = other.signedSpeed_;
     motor_ = other.motor_;
     dynamics_ = other.dynamics_;
     moveCar_ = other.moveCar_;
@@ -196,7 +196,7 @@ void GameCar::Reset() noexcept
     clutchTime_ = 0.0F;
     springTime_ = 0.0F;
     mineTime_ = 0.0F;
-    leadWheelSpeed_ = 0.0F;
+    signedSpeed_ = 0.0F;
     moveCar_ = MoveCarState::None;
     steerWheel_ = SteerWheelState::None;
     currentGear_ = -1;
@@ -306,7 +306,8 @@ void GameCar::ConfigureDynamics(
             continue;
         wheels_[index]->ConfigureDynamics(
             wheels[index].positionX, wheels[index].driven,
-            wheels[index].steering, wheels[index].inverted);
+            wheels[index].steering, wheels[index].inverted,
+            wheels[index].radius);
     }
 }
 
@@ -320,6 +321,7 @@ GameCar::DriveCommand GameCar::OnFixedStepDrive(
         6.28318530717958647692F;
     constexpr float directionDeadZone = 0.1F;
     deltaTime = std::max(deltaTime, 0.0F);
+    SynchronizeSpeed(state.signedSpeed);
     // GameCar::OnFixedStep resets these flags before WheelsProgress and
     // OnContact fills bodyContact during the solver step. The backend gives
     // us the previous completed solver state at this call boundary; the
@@ -567,6 +569,72 @@ void GameCar::SetWheelSteerK(float value) noexcept
     wheelSteerK_ = value;
 }
 
+void GameCar::SynchronizeSpeed(float signedSpeed) noexcept
+{
+    signedSpeed_ = std::abs(signedSpeed) < 1.0F
+                       ? 0.0F
+                       : signedSpeed;
+}
+
+float GameCar::GetSpeed() const noexcept
+{
+    return signedSpeed_;
+}
+
+float GameCar::GetLeadWheelSpeed() const noexcept
+{
+    const auto found = std::find_if(
+        wheels_.begin(), wheels_.end(),
+        [](const auto& wheel) {
+            return wheel != nullptr && wheel->IsDriven();
+        });
+    if (found == wheels_.end())
+        return 0.0F;
+    const float speed =
+        (*found)->GetAxleSpeed() * (*found)->GetRadius();
+    return std::abs(speed) > 0.1F ? speed : 0.0F;
+}
+
+float GameCar::GetDrivenWheelSpeed() const noexcept
+{
+    // Preserve the source's historical name: this deliberately reads the
+    // first wheel outside GetLeadGroup, i.e. the first non-driven wheel.
+    const auto found = std::find_if(
+        wheels_.begin(), wheels_.end(),
+        [](const auto& wheel) {
+            return wheel != nullptr && !wheel->IsDriven();
+        });
+    if (found == wheels_.end())
+        return 0.0F;
+    const float speed =
+        (*found)->GetAxleSpeed() * (*found)->GetRadius();
+    return std::abs(speed) > 0.1F ? speed : 0.0F;
+}
+
+float GameCar::GetRPM() const noexcept
+{
+    constexpr std::array<float, 6U> gearRatios{
+        1.5F, 2.66F, 1.78F, 1.30F, 1.00F, 0.74F};
+    constexpr float radiansPerRevolution =
+        6.28318530717958647692F;
+    if (currentGear_ < 0)
+        return motor_.idlingRpm;
+    const auto found = std::find_if(
+        wheels_.begin(), wheels_.end(),
+        [](const auto& wheel) {
+            return wheel != nullptr && wheel->IsDriven();
+        });
+    if (found == wheels_.end())
+        return motor_.idlingRpm;
+    const float ratio = gearRatios[static_cast<std::size_t>(
+        std::clamp(currentGear_, 0,
+                   static_cast<int>(gearRatios.size() - 1U)))];
+    const float rpm =
+        std::abs((*found)->GetAxleSpeed()) * ratio *
+        motor_.differentialRatio * 60.0F / radiansPerRevolution;
+    return std::min(rpm, motor_.maximumRpm);
+}
+
 void GameCar::BindSoundMotor(
     const std::array<float, 2>& rpmVolumeRange,
     const std::array<float, 2>& rpmFrequencyRange)
@@ -723,16 +791,6 @@ void GameCar::ReleaseAnimationChildren() noexcept
         if (child != nullptr)
             child->SetParent(nullptr);
     animationChildren_.clear();
-}
-
-void GameCar::SetLeadWheelSpeed(float value) noexcept
-{
-    leadWheelSpeed_ = std::abs(value) > 0.1F ? value : 0.0F;
-}
-
-float GameCar::GetLeadWheelSpeed() const noexcept
-{
-    return leadWheelSpeed_;
 }
 
 float GameCar::GetTrackTextureOffset() const noexcept
@@ -1080,9 +1138,10 @@ const GameObjectFrameSync::Pose& CarWheel::GetPxSyncPose() const noexcept
 
 void CarWheel::ConfigureDynamics(
     float positionX, bool driven, bool steering,
-    bool inverted) noexcept
+    bool inverted, float radius) noexcept
 {
     positionX_ = positionX;
+    radius_ = std::max(radius, 0.0F);
     driven_ = driven;
     steering_ = steering;
     inverted_ = inverted;
@@ -1124,6 +1183,11 @@ float CarWheel::GetSummAngle() const noexcept
 float CarWheel::GetPositionX() const noexcept
 {
     return positionX_;
+}
+
+float CarWheel::GetRadius() const noexcept
+{
+    return radius_;
 }
 
 bool CarWheel::IsDriven() const noexcept

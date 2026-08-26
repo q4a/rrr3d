@@ -686,7 +686,8 @@ void Player::CreateCar(bool newRace) noexcept
                 wheelDynamics.push_back(
                     {wheel.position.x, wheel.driven, wheel.steering,
                      wheelIndex < carRecord_->wheelInverted.size() &&
-                         carRecord_->wheelInverted[wheelIndex]});
+                         carRecord_->wheelInverted[wheelIndex],
+                     wheel.radius});
             }
             gameCar.ConfigureDynamics(
                 {{carRecord_->physics.angularDamping.x,
