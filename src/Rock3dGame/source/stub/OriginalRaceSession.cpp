@@ -2389,6 +2389,41 @@ const std::vector<RacerRuntime>& OriginalRaceSession::racers() const noexcept
     return racers_;
 }
 
+source::GameObjectFrameSync::NetworkCorrection
+OriginalRaceSession::synchronizeRacerNetworkPose(
+    std::size_t racer,
+    source::GameObjectFrameSync::Vector physicsPosition,
+    source::GameObjectFrameSync::Vector graphPosition,
+    source::GameObjectFrameSync::Quaternion graphRotation,
+    source::GameObjectFrameSync::Vector targetPosition,
+    source::GameObjectFrameSync::Quaternion targetRotation) noexcept
+{
+    if (racer >= racers_.size())
+        return {};
+    return racers_[racer].GetFrameSync().OnNetworkPose(
+        physicsPosition, graphPosition, graphRotation,
+        targetPosition, targetRotation);
+}
+
+bool OriginalRaceSession::racerFrameCorrectionActive(
+    std::size_t racer) const noexcept
+{
+    return racer < racers_.size() &&
+           racers_[racer].GetFrameSync().HasActiveCorrection();
+}
+
+source::GameObjectFrameSync::Pose
+OriginalRaceSession::racerFramePose(
+    std::size_t racer,
+    source::GameObjectFrameSync::Pose physicsPose,
+    float deltaTime) noexcept
+{
+    if (racer >= racers_.size())
+        return physicsPose;
+    return racers_[racer].GetFrameSync().OnFrame(
+        physicsPose, deltaTime);
+}
+
 source::SoundMotorMix OriginalRaceSession::racerMotorMix(
     std::size_t racer) const noexcept
 {

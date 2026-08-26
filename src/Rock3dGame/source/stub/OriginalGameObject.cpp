@@ -334,7 +334,8 @@ const GameObject* Behaviors::GetGameObj() const noexcept
 
 GameObject::GameObject()
     : includeList_(new IncludeList(this)),
-      behaviors_(new Behaviors(this))
+      behaviors_(new Behaviors(this)),
+      frameSync_(std::make_unique<GameObjectFrameSync>())
 {
 }
 
@@ -378,6 +379,8 @@ GameObject& GameObject::operator=(const GameObject& other) noexcept
     position_ = other.position_;
     scale_ = other.scale_;
     rotation_ = other.rotation_;
+    if (frameSync_ != nullptr && other.frameSync_ != nullptr)
+        *frameSync_ = *other.frameSync_;
     // GameObject::Assign does not copy the legacy listener container. Its
     // entries point at behaviors owned by the concrete source object.
     if (behaviors_ != nullptr)
@@ -583,6 +586,14 @@ const Behaviors& GameObject::GetBehaviors() const noexcept
 {
     return *behaviors_;
 }
+GameObjectFrameSync& GameObject::GetFrameSync() noexcept
+{
+    return *frameSync_;
+}
+const GameObjectFrameSync& GameObject::GetFrameSync() const noexcept
+{
+    return *frameSync_;
+}
 
 void GameObject::ResetGameObject(float maximumLifeValue) noexcept
 {
@@ -595,6 +606,7 @@ void GameObject::ResetGameObject(float maximumLifeValue) noexcept
     touchAttributionSeconds = 0.0F;
     immortalFlag = false;
     destroyed = false;
+    frameSync_->Reset();
     objectDestroyed_ = false;
 }
 

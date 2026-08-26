@@ -5768,10 +5768,6 @@ int main(int argc, char** argv)
         raceVehicles[index] = physicsWorld->vehicle(index);
     std::vector<r3d::physics::VehicleState> raceRenderVehicles =
         raceVehicles;
-#ifdef RRR3D_NETWORK
-    std::vector<r3d::game::originalrace::source::GameObjectFrameSync>
-        networkVehicleFrameSync(raceVehicles.size());
-#endif
     float raceElapsedSeconds = 0.0F;
     bool integratedRaceStartObserved = !options->raceRenderSmokeTest;
     bool raceLoadingFrameObserved = !options->raceRenderSmokeTest;
@@ -6838,10 +6834,6 @@ int main(int argc, char** argv)
                  index < physicsWorld->vehicleCount(); ++index)
                 raceVehicles[index] = physicsWorld->vehicle(index);
             raceRenderVehicles = raceVehicles;
-#ifdef RRR3D_NETWORK
-            networkVehicleFrameSync.assign(
-                raceVehicles.size(), {});
-#endif
             return true;
         }
         catch (const std::exception& exception)
@@ -7175,10 +7167,6 @@ int main(int argc, char** argv)
              index < physicsWorld->vehicleCount(); ++index)
             raceVehicles[index] = physicsWorld->vehicle(index);
         raceRenderVehicles = raceVehicles;
-#ifdef RRR3D_NETWORK
-        networkVehicleFrameSync.assign(
-            raceVehicles.size(), {});
-#endif
         inRace = true;
         if (options->raceRenderSmokeTest)
             integratedRaceStartObserved = true;
@@ -15901,12 +15889,6 @@ int main(int argc, char** argv)
                     {
                         continue;
                     }
-                    if (networkVehicleFrameSync.size() <
-                        raceVehicles.size())
-                    {
-                        networkVehicleFrameSync.resize(
-                            raceVehicles.size());
-                    }
                     if (raceRenderVehicles.size() < raceVehicles.size())
                         raceRenderVehicles = raceVehicles;
                     const auto& physicsPose =
@@ -15914,7 +15896,8 @@ int main(int argc, char** argv)
                     const auto& graphPose =
                         raceRenderVehicles[index].body;
                     const auto networkCorrection =
-                        networkVehicleFrameSync[index].OnNetworkPose(
+                        raceSession.synchronizeRacerNetworkPose(
+                            index,
                         {physicsPose.position.x,
                          physicsPose.position.y,
                          physicsPose.position.z},
@@ -17132,15 +17115,15 @@ int main(int argc, char** argv)
             {
                 const auto syncCount = std::min(
                     raceRenderVehicles.size(),
-                    networkVehicleFrameSync.size());
+                    raceSession.racers().size());
                 for (std::size_t index = 0U;
                      index < syncCount; ++index)
                 {
-                    auto& frameSync = networkVehicleFrameSync[index];
-                    if (!frameSync.HasActiveCorrection())
+                    if (!raceSession.racerFrameCorrectionActive(index))
                         continue;
                     const auto physicalBody = raceVehicles[index].body;
-                    const auto graphPose = frameSync.OnFrame(
+                    const auto graphPose = raceSession.racerFramePose(
+                        index,
                         {{physicalBody.position.x,
                           physicalBody.position.y,
                           physicalBody.position.z},

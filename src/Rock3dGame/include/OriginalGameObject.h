@@ -27,6 +27,7 @@ namespace source
 {
 
 class GameObject;
+class GameObjectFrameSync;
 class Behavior;
 class Behaviors;
 class Logic;
@@ -276,6 +277,8 @@ public:
     const IncludeList& GetIncludeList() const noexcept;
     Behaviors& GetBehaviors() noexcept;
     const Behaviors& GetBehaviors() const noexcept;
+    GameObjectFrameSync& GetFrameSync() noexcept;
+    const GameObjectFrameSync& GetFrameSync() const noexcept;
 
     void SetImmortalFlag(bool value) noexcept;
     bool GetImmortalFlag() const noexcept;
@@ -337,6 +340,10 @@ private:
     Children children_;
     IncludeList* includeList_ = nullptr;
     Behaviors* behaviors_ = nullptr;
+    // SetPosSync/SetRotSync are state of the source GameObject, not of the
+    // renderer or network adapter. Indirection only permits the definition
+    // to remain below GameObject in this header.
+    std::unique_ptr<GameObjectFrameSync> frameSync_;
     std::string name_;
     Vector3 position_{};
     Vector3 scale_{1.0F, 1.0F, 1.0F};

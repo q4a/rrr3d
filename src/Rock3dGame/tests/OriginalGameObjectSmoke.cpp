@@ -278,7 +278,8 @@ int main()
         !object.OnProgress(0.001F).lifetimeDeath)
         return 13;
 
-    source::GameObjectFrameSync frameSync;
+    source::GameObject frameSyncOwner;
+    auto& frameSync = frameSyncOwner.GetFrameSync();
     constexpr float halfQuarterTurn =
         0.70710678118654752440F;
     const source::GameObjectFrameSync::Pose targetPose{
@@ -331,6 +332,11 @@ int main()
             frameSync.OnFrame(originPose, 0.2F).position.x - 1.0F) >
             0.0001F)
         return 53;
+    frameSync.SetPosSync({1.0F, 0.0F, 0.0F});
+    frameSyncOwner.ResetGameObject(-1.0F);
+    if (&frameSyncOwner.GetFrameSync() != &frameSync ||
+        frameSync.HasActiveCorrection())
+        return 96;
 
     source::GameObject listened;
     listened.ResetGameObject(20.0F);

@@ -2639,6 +2639,24 @@ listener-driven include detach/insert, проверяет type-1 самосто�
 двухступенчатую смерть, world transform, ownership и type-2 particle end;
 offline/network/physics и 360-frame Metal smoke прошли.
 
+### P2.105 — `GameObject` владеет network frame-sync — выполнено
+
+Математика Windows `SetPosSync/SetRotSync` и второго correction channel уже
+была перенесена точно, но runtime-владелец оставался платформенным:
+`main_bgfx_original_menu.cpp` держал отдельный `networkVehicleFrameSync`
+vector, вручную resize/reset его при reload и сопоставлял индекс с `Player`.
+В Windows эти поля принадлежат самому `GameObject`; внешний массив мог
+расходиться с source lifetime при reset/disconnect.
+
+Каждый `GameObject` теперь владеет своим `GameObjectFrameSync`, копирует его
+как object runtime state и очищает в `ResetGameObject`. `OriginalRaceSession`
+маршрутизирует `NetPlayer::ResponseStream` pose к конкретному `Player` и
+выполняет source `OnFrame` correction; SDL/bgfx adapter только передаёт
+network/Jolt pose и применяет вычисленный graph transform к render body и
+колёсам. Внешний vector и три ручных reset/resize пути удалены. Regression
+проверяет owner identity, оба correction channel и очистку на object reset;
+network/offline/physics и 360-frame Metal smoke прошли.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

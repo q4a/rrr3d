@@ -451,6 +451,19 @@ public:
     const std::vector<r3d::physics::VehicleInput>& vehicleInputs() const
         noexcept;
     const std::vector<RacerRuntime>& racers() const noexcept;
+    source::GameObjectFrameSync::NetworkCorrection
+    synchronizeRacerNetworkPose(
+        std::size_t racer,
+        source::GameObjectFrameSync::Vector physicsPosition,
+        source::GameObjectFrameSync::Vector graphPosition,
+        source::GameObjectFrameSync::Quaternion graphRotation,
+        source::GameObjectFrameSync::Vector targetPosition,
+        source::GameObjectFrameSync::Quaternion targetRotation) noexcept;
+    bool racerFrameCorrectionActive(std::size_t racer) const noexcept;
+    source::GameObjectFrameSync::Pose racerFramePose(
+        std::size_t racer,
+        source::GameObjectFrameSync::Pose physicsPose,
+        float deltaTime) noexcept;
     source::SoundMotorMix racerMotorMix(
         std::size_t racer) const noexcept;
     std::size_t humanRacer() const noexcept;
