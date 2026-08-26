@@ -5391,10 +5391,21 @@ void OriginalRaceSession::updateGameplay(
         const auto mineProgressRoute =
             mine.sourceObject->RouteProgress();
         mine.seconds += seconds;
+        source::Proj::MineRipUpdateResult mineRipProgress;
         if (mineProgressRoute.mineArming)
         {
-            const auto arming =
-                mine.sourceObject->ProgressMine(seconds);
+            source::Proj::MineUpdateResult arming;
+            if (mineProgressRoute.handler ==
+                source::Proj::ProgressHandler::MineRip)
+            {
+                mineRipProgress =
+                    mine.sourceObject->ProgressMineRip(seconds);
+                arming = mineRipProgress.arming;
+            }
+            else
+            {
+                arming = mine.sourceObject->ProgressMine(seconds);
+            }
             if (arming.visualScale >= 0.0F)
                 mine.armingAlpha = arming.visualScale;
         }
@@ -5437,8 +5448,7 @@ void OriginalRaceSession::updateGameplay(
                 continue;
             }
             const auto& projectile = *runtimeDefinition;
-            if (source::Proj::MineRipUpdate(
-                    mine.seconds, projectile.angularSpeed, false))
+            if (mineRipProgress.split)
             {
                 if (projectile.secondaryProjectile.valid)
                 {

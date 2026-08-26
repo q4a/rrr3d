@@ -1196,6 +1196,23 @@ int main()
         !source::Proj::MineRipUpdate(2.001F, 2.0F, false) ||
         source::Proj::MineRipUpdate(3.0F, 2.0F, true))
         return 54;
+    auto mineRipDescription = sourceDescription;
+    mineRipDescription.type = 12U;
+    mineRipDescription.angularSpeed = 2.0F;
+    source::Proj mineRipProjectile;
+    mineRipProjectile.PrepareSource(
+        mineRipDescription, nullptr,
+        source::Proj::ShotContext{});
+    const auto concreteMineRipWait =
+        mineRipProjectile.ProgressMineRip(2.0F);
+    const auto concreteMineRipSplit =
+        mineRipProjectile.ProgressMineRip(0.0011F);
+    if (concreteMineRipWait.split ||
+        !concreteMineRipSplit.split ||
+        concreteMineRipSplit.arming.timer != -1.0F ||
+        std::abs(mineRipProjectile.GetTimeLife() - 2.0011F) > 0.0001F ||
+        oilProjectile.ProgressMineRip(3.0F).split)
+        return 144;
 
     const auto firstImpulse = source::Proj::ImpulseContact(
         true, true, true, 0U, 12.0F);

@@ -860,6 +860,20 @@ Proj::MineUpdateResult Proj::ProgressMine(
     return result;
 }
 
+Proj::MineRipUpdateResult Proj::ProgressMineRip(
+    float deltaTime, float delay) noexcept
+{
+    MineRipUpdateResult result;
+    if (RouteProgress().handler != ProgressHandler::MineRip)
+        return result;
+    SetTimeLife(GetTimeLife() + std::max(deltaTime, 0.0F));
+    result.arming = ProgressMine(deltaTime, delay);
+    result.split = MineRipUpdate(
+        GetTimeLife(), description_.angularSpeed,
+        GetLiveState() == LiveState::Death);
+    return result;
+}
+
 float Proj::ProgressThunder(float deltaTime) noexcept
 {
     sourceTimer_ = ThunderUpdate(sourceTimer_, deltaTime);

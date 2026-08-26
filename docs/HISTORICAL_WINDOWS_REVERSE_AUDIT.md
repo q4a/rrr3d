@@ -3548,6 +3548,23 @@ source-снаряд переведён на собственный `GameObject` 
 остаётся навсегда в Logic. Regression проверяет concrete descriptor speed,
 weapon/car ownership, wheel gate, lock и отказ объекта другого типа.
 
+### P2.149 — concrete `MineRipUpdate` time/arming ownership — выполнено
+
+Разрывная мина вызывала `ProgressMine` на source object, но момент деления
+session определяла второй статической формулой по своему `mine.seconds` и
+копии `projectile.angularSpeed`. В Windows один `Proj::MineRipUpdate` сначала
+выполняет `MineUpdate`, затем сравнивает собственный `GetTimeLife()` с
+`_desc.angleSpeed` и проверяет live state. Поэтому split мог расходиться с
+source lifetime и arming state.
+
+В `Proj` восстановлен concrete `ProgressMineRip`: он продвигает собственный
+external lifetime, обновляет `_time1`/arming и формирует split-команду из
+своего descriptor и live state. Session использует единый результат для
+визуальной фазы и создания model2/model3 дочерних мин, сохраняя у себя только
+Jolt-траектории и регистрацию дочерних объектов. Статический `MineRipUpdate`
+из race session удалён. Regression проверяет строгую границу `>` после 2
+секунд, armed timer, source `GetTimeLife` и отказ projectile другого типа.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

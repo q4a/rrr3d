@@ -152,6 +152,12 @@ public:
         bool armed = true;
     };
 
+    struct MineRipUpdateResult
+    {
+        MineUpdateResult arming;
+        bool split = false;
+    };
+
     struct ImpulseContactResult
     {
         float damage = 0.0F;
@@ -446,6 +452,8 @@ public:
         float sourceSpeed, bool speedRelative,
         float angleSpeed) noexcept;
     MineUpdateResult ProgressMine(
+        float deltaTime, float delay = 0.25F) noexcept;
+    MineRipUpdateResult ProgressMineRip(
         float deltaTime, float delay = 0.25F) noexcept;
     float ProgressThunder(float deltaTime) noexcept;
     ThunderContactResult ContactThunder(
