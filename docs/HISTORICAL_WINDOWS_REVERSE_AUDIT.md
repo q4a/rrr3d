@@ -2547,6 +2547,25 @@ behavior сохраняет и локальное source значение, и г
 parent rotation/inverse-scale и сохранение последнего значения при отсутствии
 physics actor; полный physics/Metal smoke прошёл.
 
+### P2.100 — `Weapon : GameObject` и concrete `ShotEffect` — выполнено
+
+Portable `Weapon` хранил правильные `_shotTime`, immutable `Desc` и счётчик
+успешно подготовленных projectiles, но оставался отдельным value object.
+`OnProjectilePrepared` напрямую увеличивал счётчик, поэтому исходные
+`Weapon::GetBehaviors().OnShot(iter->pos)`, type 10 и listener ownership не
+существовали.
+
+Теперь каждый из шести slot-owned Weapon наследует source `GameObject` и
+создаёт concrete `ShotEffectBehavior` типа 10. `OnProgress` сначала выполняет
+общий object/include/behavior pass, затем увеличивает strict readiness timer.
+После каждого успешного `PrepareProj` session передаёт serialized `Proj::pos`
+через `Behaviors::OnShot`; behavior сохраняет позицию и собственный shot
+count. Reset сохраняет description, но очищает timer/object/effect state, как
+нужно resident slot object. Copy/move пересобирают локальные owner/listener
+связи. Regression проверяет type 10, listener identity, multi-projectile
+dispatch, точную позицию, copy rebinding и прежние charge/readiness правила;
+offline/network/physics/Metal проверки прошли.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

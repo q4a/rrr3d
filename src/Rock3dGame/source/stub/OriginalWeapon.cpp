@@ -690,11 +690,93 @@ std::uint64_t ShotEffect::GetShotCount() const noexcept
     return shotCount_;
 }
 
-Weapon::Weapon() : desc_(std::make_shared<Desc>()) {}
+ShotEffectBehavior::ShotEffectBehavior(Behaviors* owner) noexcept
+    : Behavior(owner)
+{
+}
+
+void ShotEffectBehavior::OnProgress(float) noexcept {}
+
+void ShotEffectBehavior::Reset() noexcept
+{
+    state_.Reset();
+    lastShotPosition_ = {};
+}
+
+const ShotEffect& ShotEffectBehavior::GetState() const noexcept
+{
+    return state_;
+}
+
+const std::array<float, 3U>&
+ShotEffectBehavior::GetLastShotPosition() const noexcept
+{
+    return lastShotPosition_;
+}
+
+void ShotEffectBehavior::CopyStateFrom(
+    const ShotEffectBehavior& value) noexcept
+{
+    state_ = value.state_;
+    lastShotPosition_ = value.lastShotPosition_;
+}
+
+void ShotEffectBehavior::OnShot(
+    const std::array<float, 3U>& position) noexcept
+{
+    lastShotPosition_ = position;
+    state_.OnShot();
+}
+
+Weapon::Weapon() : desc_(std::make_shared<Desc>())
+{
+    ResetGameObject(-1.0F);
+    BindSourceBehaviors();
+}
 
 Weapon::Weapon(const Desc& desc)
     : desc_(std::make_shared<Desc>(desc))
 {
+    ResetGameObject(-1.0F);
+    BindSourceBehaviors();
+}
+
+Weapon::Weapon(const Weapon& other)
+    : GameObject(other), desc_(other.desc_), shotTime_(other.shotTime_)
+{
+    BindSourceBehaviors();
+    if (other.shotEffect_ != nullptr)
+        shotEffect_->CopyStateFrom(*other.shotEffect_);
+}
+
+Weapon& Weapon::operator=(const Weapon& other)
+{
+    if (this == &other)
+        return *this;
+    GameObject::operator=(other);
+    desc_ = other.desc_;
+    shotTime_ = other.shotTime_;
+    BindSourceBehaviors();
+    if (other.shotEffect_ != nullptr)
+        shotEffect_->CopyStateFrom(*other.shotEffect_);
+    return *this;
+}
+
+Weapon::Weapon(Weapon&& other)
+    : Weapon(static_cast<const Weapon&>(other))
+{
+}
+
+Weapon& Weapon::operator=(Weapon&& other)
+{
+    return *this = static_cast<const Weapon&>(other);
+}
+
+void Weapon::BindSourceBehaviors()
+{
+    GetBehaviors().Clear();
+    shotEffect_ = &GetBehaviors().Add<ShotEffectBehavior>(
+        BehaviorType::ShotEffect);
 }
 
 const ProjectileDefinition& Weapon::Desc::Front() const noexcept
@@ -706,11 +788,14 @@ const ProjectileDefinition& Weapon::Desc::Front() const noexcept
 void Weapon::Reset() noexcept
 {
     shotTime_ = 0.0F;
-    shotEffect_.Reset();
+    ResetGameObject(-1.0F);
+    if (shotEffect_ != nullptr)
+        shotEffect_->Reset();
 }
 
 void Weapon::OnProgress(float deltaTime) noexcept
 {
+    GameObject::OnProgress(deltaTime);
     shotTime_ += deltaTime;
 }
 
@@ -744,11 +829,12 @@ void Weapon::OnShot(bool projectileCreated) noexcept
         shotTime_ = 0.0F;
 }
 
-void Weapon::OnProjectilePrepared() noexcept
+void Weapon::OnProjectilePrepared(
+    const std::array<float, 3U>& position) noexcept
 {
     // Behaviors::OnShot is inside Weapon::CreateShot's projectile loop in
     // the Windows source, after each successful PrepareProj call.
-    shotEffect_.OnShot();
+    GetBehaviors().OnShot(position);
 }
 
 const Weapon::Desc& Weapon::GetDesc() const noexcept
@@ -801,7 +887,16 @@ void Weapon::SetDesc(
 
 const ShotEffect& Weapon::GetShotEffect() const noexcept
 {
-    return shotEffect_;
+    static const ShotEffect empty;
+    return shotEffect_ != nullptr ? shotEffect_->GetState() : empty;
+}
+
+const std::array<float, 3U>& Weapon::GetLastShotPosition() const noexcept
+{
+    static const std::array<float, 3U> empty{};
+    return shotEffect_ != nullptr
+        ? shotEffect_->GetLastShotPosition()
+        : empty;
 }
 
 WeaponItem::WeaponItem(SlotType type) noexcept : SlotItem(type) {}

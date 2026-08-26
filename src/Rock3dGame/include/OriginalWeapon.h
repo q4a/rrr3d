@@ -265,10 +265,30 @@ private:
     std::uint64_t shotCount_ = 0U;
 };
 
+class ShotEffectBehavior final : public Behavior
+{
+public:
+    explicit ShotEffectBehavior(Behaviors* owner) noexcept;
+
+    void OnProgress(float deltaTime) noexcept override;
+    void Reset() noexcept;
+    const ShotEffect& GetState() const noexcept;
+    const std::array<float, 3U>& GetLastShotPosition() const noexcept;
+    void CopyStateFrom(const ShotEffectBehavior& value) noexcept;
+
+protected:
+    void OnShot(
+        const std::array<float, 3U>& position) noexcept override;
+
+private:
+    ShotEffect state_;
+    std::array<float, 3U> lastShotPosition_{};
+};
+
 // Backend-neutral transcription of the original Weapon timer and Desc
 // ownership. Projectile preparation remains at the Jolt/bgfx session
 // boundary; readiness and successful-shot lifetime belong here.
-class Weapon
+class Weapon : public GameObject
 {
 public:
     struct Desc
@@ -283,6 +303,11 @@ public:
 
     Weapon();
     explicit Weapon(const Desc& desc);
+    Weapon(const Weapon& other);
+    Weapon& operator=(const Weapon& other);
+    Weapon(Weapon&& other);
+    Weapon& operator=(Weapon&& other);
+    ~Weapon() override = default;
 
     void Reset() noexcept;
     void OnProgress(float deltaTime) noexcept;
@@ -294,7 +319,8 @@ public:
     // Weapon::CreateShot dispatches Behaviors::OnShot separately for every
     // projectile accepted by PrepareProj.  Keep this separate from the
     // WeaponItem transaction because one trigger may create several actors.
-    void OnProjectilePrepared() noexcept;
+    void OnProjectilePrepared(
+        const std::array<float, 3U>& position = {}) noexcept;
 
     const Desc& GetDesc() const noexcept;
     DescHandle GetDescHandle() const noexcept;
@@ -305,11 +331,14 @@ public:
     void SetDesc(float shotDelay,
                  std::span<const ProjectileDefinition> projectiles);
     const ShotEffect& GetShotEffect() const noexcept;
+    const std::array<float, 3U>& GetLastShotPosition() const noexcept;
 
 private:
+    void BindSourceBehaviors();
+
     DescHandle desc_;
     float shotTime_ = 0.0F;
-    ShotEffect shotEffect_;
+    ShotEffectBehavior* shotEffect_ = nullptr;
 };
 
 // Backend-neutral transcription of Player::WeaponItem. The Windows object

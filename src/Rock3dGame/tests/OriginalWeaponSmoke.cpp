@@ -31,7 +31,13 @@ int main()
     const std::array<std::uint32_t, 2> projectiles{10U, 11U};
     source::Weapon weapon;
     weapon.SetDesc(0.1F, projectiles);
-    if (weapon.IsReadyShot() || !weapon.IsMaslo() ||
+    auto* shotBehavior = dynamic_cast<source::ShotEffectBehavior*>(
+        weapon.GetBehaviors().Find(source::BehaviorType::ShotEffect));
+    if (shotBehavior == nullptr ||
+        shotBehavior->GetGameObj() != &weapon ||
+        weapon.GetBehaviors().GetCount() != 1U ||
+        weapon.GetListenerCount() != 1U ||
+        weapon.IsReadyShot() || !weapon.IsMaslo() ||
         std::abs(weapon.GetShotTime()) > 0.0001F)
         return 1;
 
@@ -52,8 +58,22 @@ int main()
         weapon.GetShotEffect().GetShotCount() != 0U)
         return 5;
     weapon.OnProjectilePrepared();
-    weapon.OnProjectilePrepared();
-    if (weapon.GetShotEffect().GetShotCount() != 2U)
+    weapon.OnProjectilePrepared({1.0F, 2.0F, 3.0F});
+    if (weapon.GetShotEffect().GetShotCount() != 2U ||
+        weapon.GetLastShotPosition() !=
+            std::array<float, 3U>{1.0F, 2.0F, 3.0F})
+        return 6;
+    source::Weapon copiedWeapon = weapon;
+    const auto* copiedShotBehavior =
+        dynamic_cast<const source::ShotEffectBehavior*>(
+            copiedWeapon.GetBehaviors().Find(
+                source::BehaviorType::ShotEffect));
+    if (copiedShotBehavior == nullptr ||
+        copiedShotBehavior->GetGameObj() != &copiedWeapon ||
+        copiedWeapon.GetListenerCount() != 1U ||
+        copiedWeapon.GetShotEffect().GetShotCount() != 2U ||
+        copiedWeapon.GetLastShotPosition() !=
+            std::array<float, 3U>{1.0F, 2.0F, 3.0F})
         return 6;
 
     source::WeaponRack rack;

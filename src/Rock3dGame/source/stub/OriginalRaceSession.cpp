@@ -4355,7 +4355,12 @@ void OriginalRaceSession::updateGameplay(
                     sourceWeapon = &rack.mine;
                 }
                 if (sourceWeapon != nullptr)
-                    sourceWeapon->OnProjectilePrepared();
+                {
+                    sourceWeapon->OnProjectilePrepared(
+                        {projectile.position.x,
+                         projectile.position.y,
+                         projectile.position.z});
+                }
             }
             const auto& source = race_.weapons[weapon].shotEffect;
             // Weapon::CreateShot calls Behaviors::OnShot once for every
