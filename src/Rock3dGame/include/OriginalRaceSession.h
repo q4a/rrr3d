@@ -567,6 +567,9 @@ private:
     std::size_t findWeapon(std::string_view record,
                            WeaponSlot slot) const noexcept;
     const Vehicle& vehicleForRacer(std::size_t racer) const noexcept;
+    bool findDecorationWithBox(
+        Transform transform, ProjectileCollisionBox collision,
+        std::size_t& hit, Vec3* contactPoint = nullptr) const;
     bool damageDecorationWithBox(
         Transform transform, ProjectileCollisionBox collision,
         float damage, std::size_t attacker,

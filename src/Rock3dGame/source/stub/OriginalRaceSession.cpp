@@ -2108,9 +2108,9 @@ void OriginalRaceSession::queueNetworkMineContact(
     pendingNetworkMineContacts_.push_back(std::move(contact));
 }
 
-bool OriginalRaceSession::damageDecorationWithBox(
+bool OriginalRaceSession::findDecorationWithBox(
     Transform transform, ProjectileCollisionBox collision,
-    float damage, std::size_t attacker, Vec3* contactPoint)
+    std::size_t& hit, Vec3* contactPoint) const
 {
     if (!hasBox(collision))
         return false;
@@ -2133,7 +2133,8 @@ bool OriginalRaceSession::damageDecorationWithBox(
             continue;
         if (contactPoint != nullptr)
             *contactPoint = closestPoint(target, source.center);
-        return damageDecoration(index, damage, attacker);
+        hit = index;
+        return true;
     }
     for (std::size_t meshIndex = 0;
          meshIndex < race_.collisionMeshes.size() &&
@@ -2178,11 +2179,22 @@ bool OriginalRaceSession::damageDecorationWithBox(
                 *contactPoint = multiply(
                     add(add(first, second), third), 1.0F / 3.0F);
             }
-            return damageDecoration(
-                instanceIndex, damage, attacker);
+            hit = instanceIndex;
+            return true;
         }
     }
     return false;
+}
+
+bool OriginalRaceSession::damageDecorationWithBox(
+    Transform transform, ProjectileCollisionBox collision,
+    float damage, std::size_t attacker, Vec3* contactPoint)
+{
+    std::size_t hit = 0U;
+    if (!findDecorationWithBox(
+            transform, collision, hit, contactPoint))
+        return false;
+    return damageDecoration(hit, damage, attacker);
 }
 
 bool OriginalRaceSession::damageDecoration(
@@ -4107,9 +4119,6 @@ void OriginalRaceSession::updateGameplay(
                         if (sourceContactRoute.handler !=
                             source::Proj::ContactHandler::Drobilka)
                             return;
-                        projectile.sourceObject->ContactDrobilka(
-                            true, projectileDefinition.damage,
-                            seconds, sourceVec(contactPoint));
                         auto effect = std::find_if(
                             effects_.begin(), effects_.end(),
                             [&](const RaceEffect& value) {
@@ -4169,12 +4178,11 @@ void OriginalRaceSession::updateGameplay(
                     const auto contact =
                         sourceContactRoute.handler ==
                                 source::Proj::ContactHandler::Drobilka
-                            ? source::Proj::DrobilkaContact(
-                                  true, projectileDefinition.damage,
-                                  seconds)
-                            : source::Proj::FireContact(
-                                  true, projectileDefinition.damage,
-                                  seconds);
+                            ? projectile.sourceObject->ContactDrobilka(
+                                  &racers_[target].gameCar, seconds,
+                                  sourceVec(contactPoint))
+                            : projectile.sourceObject->ContactFire(
+                                  &racers_[target].gameCar, seconds);
                     refreshDrobilkaContact(contactPoint);
                     applyProjectileDamage(
                         *projectile.sourceObject, target, contactPoint,
@@ -4182,35 +4190,57 @@ void OriginalRaceSession::updateGameplay(
                         sourceContactRoute.damageType);
                 }
                 Vec3 decorationContact;
+                std::size_t decorationTarget = 0U;
                 if (sourceContactRoute.handler ==
                         source::Proj::ContactHandler::Drobilka &&
-                    damageDecorationWithBox(
+                    findDecorationWithBox(
                         shotTransform,
                         projectileDefinition.collision,
-                        std::max(
-                            projectileDefinition.damage * seconds,
-                            0.0F),
-                        projectile.damageOwner, &decorationContact))
+                        decorationTarget, &decorationContact))
                 {
-                    refreshDrobilkaContact(decorationContact);
+                    auto* mapObject =
+                        decorationObjects().Get(decorationTarget);
+                    auto* target = mapObject != nullptr
+                        ? mapObject->GetDestrObj()
+                        : nullptr;
+                    const auto contact =
+                        projectile.sourceObject->ContactDrobilka(
+                            target, seconds,
+                            sourceVec(decorationContact));
+                    if (contact.damage > 0.0F &&
+                        damageDecoration(
+                            decorationTarget, contact.damage,
+                            projectile.damageOwner))
+                    {
+                        refreshDrobilkaContact(decorationContact);
+                    }
                 }
             }
-            const auto decorationContact =
-                sourceContactRoute.handler ==
-                        source::Proj::ContactHandler::Drobilka
-                    ? source::Proj::DrobilkaContact(
-                          true, projectileDefinition.damage, seconds)
-                    : source::Proj::FireContact(
-                          true, projectileDefinition.damage, seconds);
-            const float decorationDamage =
-                std::max(decorationContact.damage, 0.0F);
             if (sourceContact &&
-                     sourceContactRoute.handler !=
-                         source::Proj::ContactHandler::Drobilka)
+                sourceContactRoute.handler ==
+                    source::Proj::ContactHandler::Fire)
             {
-                damageDecorationWithBox(
-                    shotTransform, projectileDefinition.collision,
-                    decorationDamage, projectile.damageOwner);
+                std::size_t decorationTarget = 0U;
+                if (findDecorationWithBox(
+                        shotTransform,
+                        projectileDefinition.collision,
+                        decorationTarget))
+                {
+                    auto* mapObject =
+                        decorationObjects().Get(decorationTarget);
+                    auto* target = mapObject != nullptr
+                        ? mapObject->GetDestrObj()
+                        : nullptr;
+                    const auto contact =
+                        projectile.sourceObject->ContactFire(
+                            target, seconds);
+                    if (contact.damage > 0.0F)
+                    {
+                        damageDecoration(
+                            decorationTarget, contact.damage,
+                            projectile.damageOwner);
+                    }
+                }
             }
             // GameObject::OnProgress expires only after _timeLife becomes
             // strictly greater than _maxTimeLife.
@@ -4417,10 +4447,9 @@ void OriginalRaceSession::updateGameplay(
                 continue;
             }
             const auto sonarResult = sonarContact
-                ? source::Proj::SonarContact(
-                      true, sourceVec(projectile.velocity),
-                      projectileDefinition.mass,
-                      projectileDefinition.damage, seconds)
+                ? projectile.sourceObject->ContactSonar(
+                      &racers_[target].gameCar,
+                      sourceVec(projectile.velocity), seconds)
                 : source::Proj::ContinuousContactResult{};
             const float sourceDamage =
                 projectileContactRoute.handler ==
@@ -4547,11 +4576,28 @@ void OriginalRaceSession::updateGameplay(
             projectileContactRoute.handler ==
                 source::Proj::ContactHandler::Sonar)
         {
-            damageDecorationWithBox(
-                liveProjectileTransform,
-                projectileDefinition.collision,
-                projectile.damage * seconds,
-                projectile.damageOwner);
+            std::size_t decorationTarget = 0U;
+            if (findDecorationWithBox(
+                    liveProjectileTransform,
+                    projectileDefinition.collision,
+                    decorationTarget))
+            {
+                auto* mapObject =
+                    decorationObjects().Get(decorationTarget);
+                auto* target = mapObject != nullptr
+                    ? mapObject->GetDestrObj()
+                    : nullptr;
+                const auto contact =
+                    projectile.sourceObject->ContactSonar(
+                        target, sourceVec(projectile.velocity),
+                        seconds);
+                if (contact.damage > 0.0F)
+                {
+                    damageDecoration(
+                        decorationTarget, contact.damage,
+                        projectile.damageOwner);
+                }
+            }
         }
         else if (projectile.active &&
                  !(sourceProgressRoute.handler ==

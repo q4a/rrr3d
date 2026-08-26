@@ -983,13 +983,29 @@ bool Proj::AttachFrostSlow(
         duration, weapon, projectile);
 }
 
+Proj::ContinuousContactResult Proj::ContactFire(
+    GameObject* target, float deltaTime) const noexcept
+{
+    if (target == nullptr ||
+        RouteContact(target->destroyed).handler != ContactHandler::Fire)
+    {
+        return {};
+    }
+    return FireContact(true, description_.damage, deltaTime);
+}
+
 Proj::ContinuousContactResult Proj::ContactDrobilka(
-    bool hasTarget, float damage, float deltaTime,
+    GameObject* target, float deltaTime,
     Vec3 contactPoint) noexcept
 {
-    auto result = DrobilkaContact(hasTarget, damage, deltaTime);
-    if (!hasTarget)
-        return result;
+    if (target == nullptr ||
+        RouteContact(target->destroyed).handler !=
+            ContactHandler::Drobilka)
+    {
+        return {};
+    }
+    auto result = DrobilkaContact(
+        true, description_.damage, deltaTime);
     sourceTimer_ = 0.5F;
     InitSourceModel(false);
     if (sourceModel_ != nullptr)
@@ -998,6 +1014,20 @@ Proj::ContinuousContactResult Proj::ContactDrobilka(
             {contactPoint.x, contactPoint.y, contactPoint.z});
     }
     return result;
+}
+
+Proj::ContinuousContactResult Proj::ContactSonar(
+    GameObject* target, Vec3 linearVelocity,
+    float deltaTime) const noexcept
+{
+    if (target == nullptr ||
+        RouteContact(target->destroyed).handler != ContactHandler::Sonar)
+    {
+        return {};
+    }
+    return SonarContact(
+        true, linearVelocity, description_.mass,
+        description_.damage, deltaTime);
 }
 
 bool Proj::ContactMine(

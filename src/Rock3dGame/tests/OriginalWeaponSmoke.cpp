@@ -217,6 +217,7 @@ int main()
 
     auto drobilkaDescription = sourceDescription;
     drobilkaDescription.type = 15U;
+    drobilkaDescription.damage = 10.0F;
     drobilkaDescription.angularSpeed = 3.14159265358979323846F;
     drobilkaDescription.secondaryVisual = {};
     source::Weapon drobilkaWeapon;
@@ -231,8 +232,10 @@ int main()
         drobilkaProjectile.GetSourceModel() == nullptr ||
         drobilkaProjectile.GetIncludeList().GetLiveCount() != 1U)
         return 101;
+    source::GameObject drobilkaTarget;
+    drobilkaTarget.ResetGameObject(100.0F);
     const auto concreteDrobilka = drobilkaProjectile.ContactDrobilka(
-        true, 10.0F, 0.1F, {7.0F, 8.0F, 9.0F});
+        &drobilkaTarget, 0.1F, {7.0F, 8.0F, 9.0F});
     drobilkaProjectile.ProgressDrobilka(0.25F);
     const auto spunWeapon = drobilkaWeapon.GetRot();
     if (concreteDrobilka.damage != 1.0F ||
@@ -1264,6 +1267,32 @@ int main()
             false, {3.0F, 0.0F, 0.0F}, 2.0F,
             8.0F, 0.25F).applyImpulse)
         return 58;
+    auto fireDescription = sourceDescription;
+    fireDescription.type = 14U;
+    fireDescription.damage = 8.0F;
+    source::Proj fireProjectile;
+    fireProjectile.PrepareSource(
+        fireDescription, &sourceWeapon, linkedContext);
+    const auto concreteFire = fireProjectile.ContactFire(
+        &velocityContactTarget, 0.25F);
+    if (concreteFire.damage != 2.0F ||
+        fireProjectile.ContactFire(nullptr, 0.25F).damage != 0.0F)
+        return 142;
+    auto sonarDescription = sourceDescription;
+    sonarDescription.type = 16U;
+    sonarDescription.damage = 8.0F;
+    sonarDescription.mass = 2.0F;
+    source::Proj sonarProjectile;
+    sonarProjectile.PrepareSource(
+        sonarDescription, &sourceWeapon, linkedContext);
+    const auto concreteSonar = sonarProjectile.ContactSonar(
+        &velocityContactTarget, {3.0F, 0.0F, 0.0F}, 0.25F);
+    if (concreteSonar.damage != 2.0F ||
+        !concreteSonar.applyImpulse ||
+        concreteSonar.impulse.x != 6.0F ||
+        sonarProjectile.ContactSonar(
+            nullptr, {3.0F, 0.0F, 0.0F}, 0.25F).applyImpulse)
+        return 143;
     const auto springPrepared = source::Proj::SpringPrepare(
         true, true, 17.0F);
     if (!springPrepared.prepared || !springPrepared.lockSpring ||

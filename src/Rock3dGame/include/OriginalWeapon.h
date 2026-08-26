@@ -471,9 +471,14 @@ public:
     bool AttachFrostSlow(
         GameObject* target, Player* targetPlayer,
         std::size_t weapon, std::size_t projectile) noexcept;
+    ContinuousContactResult ContactFire(
+        GameObject* target, float deltaTime) const noexcept;
     ContinuousContactResult ContactDrobilka(
-        bool hasTarget, float damage, float deltaTime,
+        GameObject* target, float deltaTime,
         Vec3 contactPoint) noexcept;
+    ContinuousContactResult ContactSonar(
+        GameObject* target, Vec3 linearVelocity,
+        float deltaTime) const noexcept;
     bool ContactMine(
         GameObject* target, bool testMineLock,
         bool mineBugEnabled) const noexcept;

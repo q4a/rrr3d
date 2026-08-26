@@ -3510,6 +3510,24 @@ delta и переводит подтверждённое source-событие �
 Regression проверяет поворот стрелки на 90 градусов, source damage, порог
 лужи, null-target и отбрасывание неверного contact route.
 
+### P2.147 — concrete continuous contacts Fire/Drobilka/Sonar — выполнено
+
+Session продолжала вызывать статические `FireContact`, `DrobilkaContact` и
+`SonarContact`, передавая копии damage/mass. Для Drobilka результат считался
+дважды: статическая формула давала урон, а concrete вызов отдельно сбрасывал
+`_time1`, создавал `_model` и перемещал его в точку контакта. Контакты с
+декорациями вообще получали готовое число урона до разрешения source-объекта.
+
+В `Proj` восстановлены concrete `ContactFire`, `ContactDrobilka` и
+`ContactSonar`: они проверяют реальный contact route/target, читают
+`_desc.damage` и `_desc.mass`, а Drobilka одним вызовом также владеет timer и
+контактной моделью. Поиск пересечения с разрушаемой декорацией отделён от
+применения урона, поэтому и машина, и `DestrObj` сначала передаются живому
+снаряду, после чего Jolt/session исполняет возвращённые damage/impulse
+команды. Все статические вызовы этой тройки из race session удалены.
+Regression теперь проверяет source descriptor каждой разновидности,
+Drobilka model/timer, Sonar impulse и null-target rejection.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
