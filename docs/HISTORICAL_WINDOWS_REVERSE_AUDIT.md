@@ -2457,6 +2457,23 @@ effect/model ownership. Destroy/Disconnect немедленно очищают �
 behavior. Regression проверяет создание, запрет повторного attach, ограничение
 скорости, release, удаление на следующем проходе и cleanup при уничтожении.
 
+### P2.95 — `GameCar` owner и concrete `SoundMotor` behavior — выполнено
+
+Формулы `SoundMotor` уже совпадали с Windows, но state machine находилась в
+SDL application loop и не была частью source object graph. Из-за этого
+`GameCar::GetBehaviors().OnMotor`, type identity, progress и destruction
+lifecycle оставались формальными, а backend самостоятельно сбрасывал RPM.
+
+Portable `GameCar` теперь является `GameObject`. При `Player::CreateCar` он
+создаёт concrete `btSoundMotor` с serialized volume/frequency ranges; motor
+callback проходит через общий `Behaviors::OnMotor`, а обычный progress — через
+`GameObject::OnProgress`. `FreeCar` уничтожает behavior и source RPM state,
+после чего SDL освобождает только две platform voices. Main loop больше не
+владеет дублирующим `SoundMotor`; он получает готовый mix через session
+boundary. Copy/move car state пересоздаёт локальный listener graph без ссылок
+на другой объект. Regression проверяет type/listener identity, callback,
+progress, copy rebinding и destruction cleanup.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

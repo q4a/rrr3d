@@ -6,17 +6,93 @@
 namespace r3d::game::originalrace::source
 {
 
+class GameCar::SoundMotorBehavior final : public Behavior
+{
+public:
+    SoundMotorBehavior(Behaviors* owner, GameCar* car) noexcept
+        : Behavior(owner), car_(car)
+    {
+    }
+
+    void OnProgress(float) noexcept override
+    {
+        // Windows SoundMotor::OnProgress only updates Source3d world
+        // positions. SDL applies that backend boundary from the car pose.
+    }
+
+protected:
+    void OnMotor(float deltaTime, float rpm,
+                 float minimumRpm, float maximumRpm) noexcept override
+    {
+        if (car_ == nullptr || car_->soundMotor_ == nullptr)
+            return;
+        car_->soundMotorMix_ = car_->soundMotor_->OnMotor(
+            deltaTime, rpm, minimumRpm, maximumRpm,
+            car_->rpmVolumeRange_, car_->rpmFrequencyRange_);
+    }
+
+private:
+    GameCar* car_ = nullptr;
+};
+
+GameCar::GameCar() = default;
+
+GameCar::GameCar(const GameCar& other) : GameObject(other)
+{
+    *this = other;
+}
+
+GameCar& GameCar::operator=(const GameCar& other) noexcept
+{
+    if (this == &other)
+        return *this;
+    GameObject::operator=(other);
+    clutchStrength_ = other.clutchStrength_;
+    clutchTime_ = other.clutchTime_;
+    springTime_ = other.springTime_;
+    mineTime_ = other.mineTime_;
+    rpmVolumeRange_ = other.rpmVolumeRange_;
+    rpmFrequencyRange_ = other.rpmFrequencyRange_;
+    soundMotorMix_ = other.soundMotorMix_;
+    if (other.HasSoundMotor())
+    {
+        BindSoundMotor(rpmVolumeRange_, rpmFrequencyRange_);
+        *soundMotor_ = *other.soundMotor_;
+        soundMotorMix_ = other.soundMotorMix_;
+    }
+    else
+    {
+        ReleaseSoundMotor();
+    }
+    return *this;
+}
+
+GameCar::GameCar(GameCar&& other) : GameCar(other) {}
+
+GameCar& GameCar::operator=(GameCar&& other) noexcept
+{
+    return *this = static_cast<const GameCar&>(other);
+}
+
+GameCar::~GameCar() { ReleaseSoundMotor(); }
+
 void GameCar::Reset() noexcept
 {
     clutchStrength_ = 0.0F;
     clutchTime_ = 0.0F;
     springTime_ = 0.0F;
     mineTime_ = 0.0F;
+    if (soundMotor_ != nullptr)
+        soundMotor_->Reset();
+    soundMotorMix_ = {};
 }
 
 GameCar::ProgressResult GameCar::OnProgress(float deltaTime) noexcept
 {
     ProgressResult result;
+    const auto gameObject = GameObject::OnProgress(deltaTime);
+    result.behaviorsProgressed = gameObject.behaviorsProgressed;
+    result.behaviorsRemoved = gameObject.behaviorsRemoved;
     if (clutchTime_ > 0.0F)
     {
         clutchTime_ -= deltaTime;
@@ -37,6 +113,45 @@ GameCar::ProgressResult GameCar::OnProgress(float deltaTime) noexcept
         result.springReleased = springTime_ == 0.0F;
     }
     return result;
+}
+
+void GameCar::BindSoundMotor(
+    const std::array<float, 2>& rpmVolumeRange,
+    const std::array<float, 2>& rpmFrequencyRange)
+{
+    ReleaseSoundMotor();
+    rpmVolumeRange_ = rpmVolumeRange;
+    rpmFrequencyRange_ = rpmFrequencyRange;
+    soundMotor_ = std::make_unique<SoundMotor>();
+    GetBehaviors().Add<SoundMotorBehavior>(
+        BehaviorType::SoundMotor, this);
+}
+
+void GameCar::ReleaseSoundMotor() noexcept
+{
+    GetBehaviors().Clear();
+    soundMotor_.reset();
+    soundMotorMix_ = {};
+}
+
+SoundMotorMix GameCar::OnMotor(
+    float deltaTime, float rpm, float minimumRpm,
+    float maximumRpm) noexcept
+{
+    GetBehaviors().OnMotor(
+        deltaTime, rpm, minimumRpm, maximumRpm);
+    return soundMotorMix_;
+}
+
+const SoundMotorMix& GameCar::GetSoundMotorMix() const noexcept
+{
+    return soundMotorMix_;
+}
+
+bool GameCar::HasSoundMotor() const noexcept
+{
+    return soundMotor_ != nullptr &&
+           GetBehaviors().Find(BehaviorType::SoundMotor) != nullptr;
 }
 
 bool GameCar::LockClutch(float strength, bool clutchImmunity) noexcept

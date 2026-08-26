@@ -9,7 +9,9 @@ int main()
 {
     source::GameCar car;
     if (car.IsClutchLocked() || car.IsSpringLocked() ||
-        car.IsMineLocked())
+        car.IsMineLocked() || car.HasSoundMotor() ||
+        car.GetBehaviors().GetCount() != 0U ||
+        car.GetListenerCount() != 0U)
         return 1;
 
     if (!car.LockClutch(1.5F, false) ||
@@ -59,6 +61,36 @@ int main()
     motor.Reset();
     if (motor.GetCurrentRpm() != 0.0F)
         return 10;
+
+    car.BindSoundMotor(volumeRange, frequencyRange);
+    if (!car.HasSoundMotor() ||
+        car.GetBehaviors().GetCount() != 1U ||
+        car.GetBehaviors().Find(
+            source::BehaviorType::SoundMotor) == nullptr ||
+        car.GetListenerCount() != 1U)
+        return 20;
+    const auto ownerIdle = car.OnMotor(
+        1.0F / 60.0F, 1000.0F, 1000.0F, 6000.0F);
+    if (std::abs(ownerIdle.currentRpm - 166.66667F) > 0.001F ||
+        car.GetSoundMotorMix().currentRpm != ownerIdle.currentRpm)
+        return 21;
+    const auto ownerProgress = car.OnProgress(0.0F);
+    if (ownerProgress.behaviorsProgressed != 1U ||
+        ownerProgress.behaviorsRemoved != 0U)
+        return 22;
+    source::GameCar copiedCar = car;
+    if (!copiedCar.HasSoundMotor() ||
+        copiedCar.GetBehaviors().GetCount() != 1U ||
+        copiedCar.GetListenerCount() != 1U ||
+        copiedCar.GetSoundMotorMix().currentRpm !=
+            ownerIdle.currentRpm)
+        return 23;
+    car.ReleaseSoundMotor();
+    if (car.HasSoundMotor() ||
+        car.GetBehaviors().GetCount() != 0U ||
+        car.GetListenerCount() != 0U ||
+        car.GetSoundMotorMix().currentRpm != 0.0F)
+        return 24;
 
     source::PxWheelSlipEffect slip;
     const auto quiet = slip.OnProgress(true, 0.4F, 0.7F, true);

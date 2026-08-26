@@ -434,6 +434,8 @@ public:
     const std::vector<r3d::physics::VehicleInput>& vehicleInputs() const
         noexcept;
     const std::vector<RacerRuntime>& racers() const noexcept;
+    source::SoundMotorMix progressRacerMotor(
+        std::size_t racer, float deltaTime, float rpm) noexcept;
     std::size_t humanRacer() const noexcept;
     // Race::GetTotalPoints and Planet::GetRequestPoints iterate the active
     // PlayerList and include both the local Human and network Opponents.

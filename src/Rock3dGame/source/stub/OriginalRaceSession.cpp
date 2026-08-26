@@ -2298,6 +2298,17 @@ const std::vector<RacerRuntime>& OriginalRaceSession::racers() const noexcept
     return racers_;
 }
 
+source::SoundMotorMix OriginalRaceSession::progressRacerMotor(
+    std::size_t racer, float deltaTime, float rpm) noexcept
+{
+    if (racer >= racers_.size())
+        return {};
+    const auto& definition = vehicleForRacer(racer);
+    return racers_[racer].gameCar.OnMotor(
+        deltaTime, rpm, definition.physics.idlingRpm,
+        definition.physics.maximumRpm);
+}
+
 std::size_t OriginalRaceSession::humanRacer() const noexcept
 {
     return humanRacer_;

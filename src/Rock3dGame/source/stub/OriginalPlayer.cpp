@@ -657,6 +657,12 @@ void Player::CreateCar(bool newRace) noexcept
     if (!carPresent_)
     {
         carPresent_ = true;
+        if (carRecord_ != nullptr)
+        {
+            gameCar.BindSoundMotor(
+                carRecord_->rpmVolumeRange,
+                carRecord_->rpmFrequencyRange);
+        }
         car.OnCreateCar(newRace);
         Resc();
         for (std::size_t slot = 0U;
@@ -681,6 +687,7 @@ void Player::FreeCar(bool freeState) noexcept
                 .GetItem().OnDestroyCar();
     }
     carPresent_ = false;
+    gameCar.ReleaseSoundMotor();
     car.OnFreeCar(freeState);
 }
 

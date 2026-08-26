@@ -4563,7 +4563,6 @@ int main(int argc, char** argv)
         r3d::audio::SoundHandle rpm = r3d::audio::invalidSound;
         r3d::audio::VoiceHandle idleVoice = r3d::audio::invalidVoice;
         r3d::audio::VoiceHandle rpmVoice = r3d::audio::invalidVoice;
-        r3d::game::originalrace::source::SoundMotor behavior;
         bool spatialProxyPlaying = false;
     };
     struct WheelSlipAudio
@@ -4818,7 +4817,6 @@ int main(int argc, char** argv)
             for (auto& voice : wheelSlipVoices[racer])
                 stopRaceLoopVoice(voice.voice);
         }
-        engine.behavior.Reset();
         // Source3d::Play allocates its Proxy, but ApplyX3dEffect starts that
         // Proxy only while the emitter is strictly inside distScaler.  Keep
         // the backend voice allocated and initially paused so emitters born
@@ -17254,13 +17252,10 @@ int main(int argc, char** argv)
                             : originalRace->vehicles.at(
                                   sourceRacer.vehicle);
                     auto& motorAudio = engineAudio[racer];
-                    const auto motorMix = motorAudio.behavior.OnMotor(
+                    const auto motorMix = raceSession.progressRacerMotor(
+                        racer,
                         audioPaused ? 0.0F : frameSeconds,
-                        raceVehicles[racer].engineRpm,
-                        definition.physics.idlingRpm,
-                        definition.physics.maximumRpm,
-                        definition.rpmVolumeRange,
-                        definition.rpmFrequencyRange);
+                        raceVehicles[racer].engineRpm);
                     const auto& source =
                         raceVehicles[racer].body.position;
                     const float dx = source.x - listener.x;
