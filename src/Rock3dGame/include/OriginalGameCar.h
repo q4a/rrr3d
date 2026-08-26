@@ -4,11 +4,13 @@
 
 #include <array>
 #include <memory>
+#include <vector>
 
 namespace r3d::game::originalrace::source
 {
 
 class SoundMotor;
+class CarWheel;
 
 struct SoundMotorMix
 {
@@ -16,6 +18,17 @@ struct SoundMotorMix
     float idleVolume = 1.0F;
     float rpmVolume = 0.0F;
     float rpmFrequencyRatio = 1.0F;
+};
+
+struct WheelSlipProgress
+{
+    float slip = 0.0F;
+    float volume = 0.0F;
+    bool active = false;
+    bool makeEffect = false;
+    bool freeEffect = false;
+    bool playSound = false;
+    bool stopSound = false;
 };
 
 // Gameplay-owned lock state from GameCar. Wheel/actor operations are Jolt
@@ -33,6 +46,8 @@ public:
         bool mineReleased = false;
         std::size_t behaviorsProgressed = 0U;
         std::size_t behaviorsRemoved = 0U;
+        std::size_t wheelsProgressed = 0U;
+        std::size_t wheelBehaviorsProgressed = 0U;
     };
 
     GameCar();
@@ -54,6 +69,18 @@ public:
         float maximumRpm) noexcept;
     const SoundMotorMix& GetSoundMotorMix() const noexcept;
     bool HasSoundMotor() const noexcept;
+    void BindWheels(
+        const std::vector<bool>& slipEffects,
+        const std::vector<bool>& slipSounds);
+    void ReleaseWheels() noexcept;
+    bool SetWheelContact(
+        std::size_t wheel, bool hasContact,
+        float longitudinalSlip, float lateralSlip) noexcept;
+    WheelSlipProgress GetWheelSlipResult(
+        std::size_t wheel) const noexcept;
+    std::size_t GetWheelCount() const noexcept;
+    CarWheel* GetWheel(std::size_t wheel) noexcept;
+    const CarWheel* GetWheel(std::size_t wheel) const noexcept;
 
     bool LockClutch(float strength, bool clutchImmunity) noexcept;
     void CancelClutch() noexcept;
@@ -80,6 +107,7 @@ private:
     SoundMotorMix soundMotorMix_;
     std::array<float, 2> rpmVolumeRange_{0.0F, 1.0F};
     std::array<float, 2> rpmFrequencyRange_{0.0F, 1.0F};
+    std::vector<std::unique_ptr<CarWheel>> wheels_;
 };
 
 // Backend-neutral owner for GameBase.cpp::SoundMotor. SDL owns the two
@@ -111,16 +139,7 @@ public:
     static constexpr float lateralThreshold = 0.7F;
     static constexpr float volumeScale = 4.0F;
 
-    struct ProgressResult
-    {
-        float slip = 0.0F;
-        float volume = 0.0F;
-        bool active = false;
-        bool makeEffect = false;
-        bool freeEffect = false;
-        bool playSound = false;
-        bool stopSound = false;
-    };
+    using ProgressResult = WheelSlipProgress;
 
     void Reset() noexcept;
     ProgressResult OnProgress(
@@ -133,6 +152,40 @@ public:
 
 private:
     bool effectMaked_ = false;
+};
+
+// GameCar owns one source CarWheel GameObject per serialized wheel. The Jolt
+// adapter supplies NxWheelContactData-equivalent values; the wheel's concrete
+// behavior remains the sole authority for visual and audio slip transitions.
+class CarWheel : public GameObject
+{
+public:
+    CarWheel();
+    CarWheel(bool slipEffect, bool slipSound);
+    CarWheel(const CarWheel& other);
+    CarWheel& operator=(const CarWheel& other) noexcept;
+    CarWheel(CarWheel&& other);
+    CarWheel& operator=(CarWheel&& other) noexcept;
+    ~CarWheel() override;
+
+    void Configure(bool slipEffect, bool slipSound);
+    void SetContact(bool hasContact, float longitudinalSlip,
+                    float lateralSlip) noexcept;
+    GameObject::ProgressResult OnProgress(float deltaTime) noexcept;
+    const WheelSlipProgress& GetSlipResult() const noexcept;
+    bool HasSlipEffect() const noexcept;
+    bool HasSlipSound() const noexcept;
+
+private:
+    class WheelSlipBehavior;
+
+    PxWheelSlipEffect slipEffect_;
+    WheelSlipProgress slipResult_;
+    float longitudinalSlip_ = 0.0F;
+    float lateralSlip_ = 0.0F;
+    bool hasContact_ = false;
+    bool slipEffectEnabled_ = false;
+    bool slipSoundEnabled_ = false;
 };
 
 class GusenizaAnim

@@ -662,6 +662,9 @@ void Player::CreateCar(bool newRace) noexcept
             gameCar.BindSoundMotor(
                 carRecord_->rpmVolumeRange,
                 carRecord_->rpmFrequencyRange);
+            gameCar.BindWheels(
+                carRecord_->wheelSlipEffects,
+                carRecord_->wheelSlipSounds);
         }
         car.OnCreateCar(newRace);
         Resc();
@@ -687,6 +690,7 @@ void Player::FreeCar(bool freeState) noexcept
                 .GetItem().OnDestroyCar();
     }
     carPresent_ = false;
+    gameCar.ReleaseWheels();
     gameCar.ReleaseSoundMotor();
     car.OnFreeCar(freeState);
 }

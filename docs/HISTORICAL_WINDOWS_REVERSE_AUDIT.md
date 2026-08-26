@@ -2474,6 +2474,25 @@ boundary. Copy/move car state пересоздаёт локальный listener
 на другой объект. Regression проверяет type/listener identity, callback,
 progress, copy rebinding и destruction cleanup.
 
+### P2.96 — `CarWheel` object graph и `PxWheelSlipEffect` owner — выполнено
+
+До этого Jolt contact slip дважды интерпретировался вне source graph: renderer
+сам вычислял активность следа/дыма, а SDL держал отдельную state machine для
+звука шин. В Windows каждое колесо является `CarWheel : GameObject`, владеет
+собственным `btPxWheelSlipEffect`, а оба backend-результата исходят из одного
+`OnProgress` этого behavior.
+
+`GameCar` теперь создаёт все serialized колёса как child GameObjects. Только
+колёса с source type 9 получают concrete behavior; первое из них сохраняет
+процедурно назначенный `SkidAsphalt`, остальные остаются visual-only. Session
+передаёт Jolt `contact/longitudinalSlip/lateralSlip`, затем один раз выполняет
+car/wheel behavior graph. Metal и SDL читают общий `WheelSlipProgress`, не
+повторяя thresholds или lifetime. Motor callback также перенесён из audio loop
+в session pass, поэтому source state больше не зависит от наличия SDL audio.
+Copy/move пересобирает parent/listener связи; `FreeCar` удаляет wheels до car
+behavior. Regression проверяет hierarchy, exact type, silent wheel, единый
+transition, copy rebinding и полный cleanup.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

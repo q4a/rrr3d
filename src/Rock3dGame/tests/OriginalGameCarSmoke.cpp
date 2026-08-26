@@ -92,6 +92,46 @@ int main()
         car.GetSoundMotorMix().currentRpm != 0.0F)
         return 24;
 
+    car.BindWheels({true, false}, {true, false});
+    const auto* firstWheel = car.GetWheel(0U);
+    const auto* secondWheel = car.GetWheel(1U);
+    if (car.GetWheelCount() != 2U || firstWheel == nullptr ||
+        secondWheel == nullptr || firstWheel->GetParent() != &car ||
+        secondWheel->GetParent() != &car ||
+        !firstWheel->HasSlipEffect() ||
+        !firstWheel->HasSlipSound() ||
+        firstWheel->GetBehaviors().GetCount() != 1U ||
+        firstWheel->GetListenerCount() != 1U ||
+        firstWheel->GetBehaviors().Find(
+            source::BehaviorType::PxWheelSlipEffect) == nullptr ||
+        secondWheel->HasSlipEffect() ||
+        secondWheel->GetBehaviors().GetCount() != 0U)
+        return 25;
+    if (!car.SetWheelContact(0U, true, -0.65F, 0.9F) ||
+        !car.SetWheelContact(1U, true, 5.0F, 5.0F) ||
+        car.SetWheelContact(2U, true, 1.0F, 1.0F))
+        return 26;
+    const auto wheelProgress = car.OnProgress(1.0F / 60.0F);
+    const auto ownedSlip = car.GetWheelSlipResult(0U);
+    if (wheelProgress.wheelsProgressed != 2U ||
+        wheelProgress.wheelBehaviorsProgressed != 1U ||
+        !ownedSlip.active || !ownedSlip.makeEffect ||
+        !ownedSlip.playSound || ownedSlip.volume != 1.0F ||
+        car.GetWheelSlipResult(1U).active)
+        return 27;
+    source::GameCar copiedWheelCar = car;
+    if (copiedWheelCar.GetWheelCount() != 2U ||
+        copiedWheelCar.GetWheel(0U) == nullptr ||
+        copiedWheelCar.GetWheel(0U)->GetParent() != &copiedWheelCar ||
+        !copiedWheelCar.GetWheel(0U)->HasSlipEffect() ||
+        copiedWheelCar.GetWheel(0U)->GetListenerCount() != 1U ||
+        !copiedWheelCar.GetWheelSlipResult(0U).active)
+        return 28;
+    car.ReleaseWheels();
+    if (car.GetWheelCount() != 0U ||
+        !car.GetChildren().empty())
+        return 29;
+
     source::PxWheelSlipEffect slip;
     const auto quiet = slip.OnProgress(true, 0.4F, 0.7F, true);
     if (quiet.active || quiet.makeEffect || !quiet.stopSound)

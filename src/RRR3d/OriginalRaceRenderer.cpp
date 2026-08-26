@@ -5269,16 +5269,16 @@ void OriginalRaceRenderer::draw(
                 wheelIndex < state.wheelContacts.size()
                     ? &state.wheelContacts[wheelIndex]
                     : nullptr;
+            const auto* sourceWheel =
+                racer < racerRuntime.size()
+                    ? racerRuntime[racer].gameCar.GetWheel(wheelIndex)
+                    : nullptr;
             const bool wheelEffectEnabled =
-                wheelIndex < definition.wheelSlipEffects.size() &&
-                definition.wheelSlipEffects[wheelIndex];
+                sourceWheel != nullptr && sourceWheel->HasSlipEffect();
             const bool slipping =
                 wheelEffectEnabled && contact != nullptr &&
-                r3d::game::originalrace::source::PxWheelSlipEffect::
-                        SourceSlip(
-                            contact->hasContact,
-                            contact->longitudinalSlip,
-                            contact->lateralSlip) > 0.0F;
+                racerRuntime[racer].gameCar
+                    .GetWheelSlipResult(wheelIndex).active;
             const auto* trailPath =
                 racer < wheelTrailPaths_.size() &&
                         wheelIndex < wheelTrailPaths_[racer].size()
@@ -6194,16 +6194,10 @@ void OriginalRaceRenderer::renderFrame(
                 sampleTimes.erase(sampleTimes.begin());
                 path.erase(path.begin());
             }
-            const bool wheelEffectEnabled =
-                wheel < definition.wheelSlipEffects.size() &&
-                definition.wheelSlipEffects[wheel];
             const bool slipping =
-                wheelEffectEnabled &&
-                r3d::game::originalrace::source::PxWheelSlipEffect::
-                        SourceSlip(
-                            contact.hasContact,
-                            contact.longitudinalSlip,
-                            contact.lateralSlip) > 0.0F;
+                racer < racerRuntime.size() &&
+                racerRuntime[racer].gameCar
+                    .GetWheelSlipResult(wheel).active;
             if (slipping)
             {
                 if (smokeStarts[wheel] < 0.0F)

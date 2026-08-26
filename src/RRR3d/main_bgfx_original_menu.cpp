@@ -4568,7 +4568,6 @@ int main(int argc, char** argv)
     struct WheelSlipAudio
     {
         r3d::audio::VoiceHandle voice = r3d::audio::invalidVoice;
-        r3d::game::originalrace::source::PxWheelSlipEffect behavior;
         bool spatialProxyPlaying = false;
     };
     struct ShotEffectAudio
@@ -17252,10 +17251,8 @@ int main(int argc, char** argv)
                             : originalRace->vehicles.at(
                                   sourceRacer.vehicle);
                     auto& motorAudio = engineAudio[racer];
-                    const auto motorMix = raceSession.progressRacerMotor(
-                        racer,
-                        audioPaused ? 0.0F : frameSeconds,
-                        raceVehicles[racer].engineRpm);
+                    const auto motorMix =
+                        raceSession.racerMotorMix(racer);
                     const auto& source =
                         raceVehicles[racer].body.position;
                     const float dx = source.x - listener.x;
@@ -17309,15 +17306,10 @@ int main(int argc, char** argv)
                     for (std::size_t wheel = 0;
                          wheel < wheelCount; ++wheel)
                     {
-                        const auto& contact =
-                            raceVehicles[racer].wheelContacts[wheel];
                         auto& voice = slipVoices[wheel];
-                        const auto slip = voice.behavior.OnProgress(
-                            definition.wheelSlipEffects[wheel] &&
-                                contact.hasContact,
-                            contact.longitudinalSlip,
-                            contact.lateralSlip,
-                            definition.wheelSlipSounds[wheel]);
+                        const auto slip =
+                            raceSession.racers()[racer]
+                                .gameCar.GetWheelSlipResult(wheel);
                         if (!slip.active)
                         {
                             if (slip.stopSound && voice.voice !=

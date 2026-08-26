@@ -2298,15 +2298,12 @@ const std::vector<RacerRuntime>& OriginalRaceSession::racers() const noexcept
     return racers_;
 }
 
-source::SoundMotorMix OriginalRaceSession::progressRacerMotor(
-    std::size_t racer, float deltaTime, float rpm) noexcept
+source::SoundMotorMix OriginalRaceSession::racerMotorMix(
+    std::size_t racer) const noexcept
 {
     if (racer >= racers_.size())
         return {};
-    const auto& definition = vehicleForRacer(racer);
-    return racers_[racer].gameCar.OnMotor(
-        deltaTime, rpm, definition.physics.idlingRpm,
-        definition.physics.maximumRpm);
+    return racers_[racer].gameCar.GetSoundMotorMix();
 }
 
 std::size_t OriginalRaceSession::humanRacer() const noexcept
@@ -3195,6 +3192,26 @@ void OriginalRaceSession::updateGameplay(
             velocityRequests_.push_back(
                 {racer,
                  subtract(wanted, vehicles[racer].linearVelocity)});
+        }
+        if (racer < vehicles.size())
+        {
+            runtime.gameCar.OnMotor(
+                seconds, vehicles[racer].engineRpm,
+                vehicleDefinition.physics.idlingRpm,
+                vehicleDefinition.physics.maximumRpm);
+            const auto wheelCount = std::min(
+                runtime.gameCar.GetWheelCount(),
+                vehicles[racer].wheelContacts.size());
+            for (std::size_t wheel = 0U;
+                 wheel < wheelCount; ++wheel)
+            {
+                const auto& contact =
+                    vehicles[racer].wheelContacts[wheel];
+                runtime.gameCar.SetWheelContact(
+                    wheel, contact.hasContact,
+                    contact.longitudinalSlip,
+                    contact.lateralSlip);
+            }
         }
         runtime.gameCar.OnProgress(seconds);
         if (racer < vehicleInputs_.size())

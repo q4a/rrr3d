@@ -46,6 +46,8 @@ GameCar& GameCar::operator=(const GameCar& other) noexcept
 {
     if (this == &other)
         return *this;
+    ReleaseWheels();
+    ReleaseSoundMotor();
     GameObject::operator=(other);
     clutchStrength_ = other.clutchStrength_;
     clutchTime_ = other.clutchTime_;
@@ -64,6 +66,27 @@ GameCar& GameCar::operator=(const GameCar& other) noexcept
     {
         ReleaseSoundMotor();
     }
+    std::vector<bool> slipEffects;
+    std::vector<bool> slipSounds;
+    slipEffects.reserve(other.wheels_.size());
+    slipSounds.reserve(other.wheels_.size());
+    for (const auto& wheel : other.wheels_)
+    {
+        slipEffects.push_back(
+            wheel != nullptr && wheel->HasSlipEffect());
+        slipSounds.push_back(
+            wheel != nullptr && wheel->HasSlipSound());
+    }
+    BindWheels(slipEffects, slipSounds);
+    for (std::size_t index = 0U; index < wheels_.size(); ++index)
+    {
+        if (wheels_[index] != nullptr &&
+            other.wheels_[index] != nullptr)
+        {
+            *wheels_[index] = *other.wheels_[index];
+            wheels_[index]->SetParent(this);
+        }
+    }
     return *this;
 }
 
@@ -74,7 +97,11 @@ GameCar& GameCar::operator=(GameCar&& other) noexcept
     return *this = static_cast<const GameCar&>(other);
 }
 
-GameCar::~GameCar() { ReleaseSoundMotor(); }
+GameCar::~GameCar()
+{
+    ReleaseWheels();
+    ReleaseSoundMotor();
+}
 
 void GameCar::Reset() noexcept
 {
@@ -93,6 +120,15 @@ GameCar::ProgressResult GameCar::OnProgress(float deltaTime) noexcept
     const auto gameObject = GameObject::OnProgress(deltaTime);
     result.behaviorsProgressed = gameObject.behaviorsProgressed;
     result.behaviorsRemoved = gameObject.behaviorsRemoved;
+    for (auto& wheel : wheels_)
+    {
+        if (wheel == nullptr)
+            continue;
+        const auto wheelResult = wheel->OnProgress(deltaTime);
+        ++result.wheelsProgressed;
+        result.wheelBehaviorsProgressed +=
+            wheelResult.behaviorsProgressed;
+    }
     if (clutchTime_ > 0.0F)
     {
         clutchTime_ -= deltaTime;
@@ -152,6 +188,67 @@ bool GameCar::HasSoundMotor() const noexcept
 {
     return soundMotor_ != nullptr &&
            GetBehaviors().Find(BehaviorType::SoundMotor) != nullptr;
+}
+
+void GameCar::BindWheels(
+    const std::vector<bool>& slipEffects,
+    const std::vector<bool>& slipSounds)
+{
+    ReleaseWheels();
+    const std::size_t count = std::max(
+        slipEffects.size(), slipSounds.size());
+    wheels_.reserve(count);
+    for (std::size_t index = 0U; index < count; ++index)
+    {
+        auto wheel = std::make_unique<CarWheel>(
+            index < slipEffects.size() && slipEffects[index],
+            index < slipSounds.size() && slipSounds[index]);
+        wheel->SetParent(this);
+        wheels_.push_back(std::move(wheel));
+    }
+}
+
+void GameCar::ReleaseWheels() noexcept
+{
+    for (auto& wheel : wheels_)
+        if (wheel != nullptr)
+            wheel->SetParent(nullptr);
+    wheels_.clear();
+}
+
+bool GameCar::SetWheelContact(
+    std::size_t wheel, bool hasContact,
+    float longitudinalSlip, float lateralSlip) noexcept
+{
+    auto* target = GetWheel(wheel);
+    if (target == nullptr)
+        return false;
+    target->SetContact(
+        hasContact, longitudinalSlip, lateralSlip);
+    return true;
+}
+
+WheelSlipProgress GameCar::GetWheelSlipResult(
+    std::size_t wheel) const noexcept
+{
+    const auto* target = GetWheel(wheel);
+    return target != nullptr ? target->GetSlipResult()
+                             : WheelSlipProgress{};
+}
+
+std::size_t GameCar::GetWheelCount() const noexcept
+{
+    return wheels_.size();
+}
+
+CarWheel* GameCar::GetWheel(std::size_t wheel) noexcept
+{
+    return wheel < wheels_.size() ? wheels_[wheel].get() : nullptr;
+}
+
+const CarWheel* GameCar::GetWheel(std::size_t wheel) const noexcept
+{
+    return wheel < wheels_.size() ? wheels_[wheel].get() : nullptr;
 }
 
 bool GameCar::LockClutch(float strength, bool clutchImmunity) noexcept
@@ -306,6 +403,122 @@ PxWheelSlipEffect::ProgressResult PxWheelSlipEffect::OnProgress(
 bool PxWheelSlipEffect::IsEffectMaked() const noexcept
 {
     return effectMaked_;
+}
+
+class CarWheel::WheelSlipBehavior final : public Behavior
+{
+public:
+    WheelSlipBehavior(Behaviors* owner, CarWheel* wheel) noexcept
+        : Behavior(owner), wheel_(wheel)
+    {
+    }
+
+    void OnProgress(float) noexcept override
+    {
+        if (wheel_ == nullptr)
+            return;
+        wheel_->slipResult_ = wheel_->slipEffect_.OnProgress(
+            wheel_->hasContact_, wheel_->longitudinalSlip_,
+            wheel_->lateralSlip_, wheel_->slipSoundEnabled_);
+    }
+
+private:
+    CarWheel* wheel_ = nullptr;
+};
+
+CarWheel::CarWheel() = default;
+
+CarWheel::CarWheel(bool slipEffect, bool slipSound)
+{
+    Configure(slipEffect, slipSound);
+}
+
+CarWheel::CarWheel(const CarWheel& other) : GameObject(other)
+{
+    *this = other;
+}
+
+CarWheel& CarWheel::operator=(const CarWheel& other) noexcept
+{
+    if (this == &other)
+        return *this;
+    GameObject::operator=(other);
+    slipEffect_ = other.slipEffect_;
+    slipResult_ = other.slipResult_;
+    longitudinalSlip_ = other.longitudinalSlip_;
+    lateralSlip_ = other.lateralSlip_;
+    hasContact_ = other.hasContact_;
+    slipEffectEnabled_ = other.slipEffectEnabled_;
+    slipSoundEnabled_ = other.slipSoundEnabled_;
+    if (slipEffectEnabled_)
+    {
+        GetBehaviors().Add<WheelSlipBehavior>(
+            BehaviorType::PxWheelSlipEffect, this);
+    }
+    return *this;
+}
+
+CarWheel::CarWheel(CarWheel&& other) : CarWheel(other) {}
+
+CarWheel& CarWheel::operator=(CarWheel&& other) noexcept
+{
+    return *this = static_cast<const CarWheel&>(other);
+}
+
+CarWheel::~CarWheel()
+{
+    GetBehaviors().Clear();
+    SetParent(nullptr);
+}
+
+void CarWheel::Configure(bool slipEffect, bool slipSound)
+{
+    GetBehaviors().Clear();
+    slipEffect_.Reset();
+    slipResult_ = {};
+    hasContact_ = false;
+    longitudinalSlip_ = 0.0F;
+    lateralSlip_ = 0.0F;
+    slipEffectEnabled_ = slipEffect;
+    slipSoundEnabled_ = slipEffect && slipSound;
+    if (slipEffectEnabled_)
+    {
+        GetBehaviors().Add<WheelSlipBehavior>(
+            BehaviorType::PxWheelSlipEffect, this);
+    }
+}
+
+void CarWheel::SetContact(
+    bool hasContact, float longitudinalSlip,
+    float lateralSlip) noexcept
+{
+    hasContact_ = hasContact;
+    longitudinalSlip_ = longitudinalSlip;
+    lateralSlip_ = lateralSlip;
+}
+
+GameObject::ProgressResult CarWheel::OnProgress(
+    float deltaTime) noexcept
+{
+    slipResult_ = {};
+    return GameObject::OnProgress(deltaTime);
+}
+
+const WheelSlipProgress& CarWheel::GetSlipResult() const noexcept
+{
+    return slipResult_;
+}
+
+bool CarWheel::HasSlipEffect() const noexcept
+{
+    return slipEffectEnabled_ &&
+           GetBehaviors().Find(
+               BehaviorType::PxWheelSlipEffect) != nullptr;
+}
+
+bool CarWheel::HasSlipSound() const noexcept
+{
+    return slipSoundEnabled_;
 }
 
 void GusenizaAnim::Reset() noexcept
