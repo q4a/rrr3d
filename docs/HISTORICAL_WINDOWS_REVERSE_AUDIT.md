@@ -2585,6 +2585,25 @@ session call удалён. Подготовка всех free/attached/hyper pro
 target identity, single-spawn и flags; nested death projectile, disconnect,
 network, physics и Metal smoke прошли.
 
+### P2.102 — source death graph для mine/AutoProj — выполнено
+
+После переноса обычных projectiles ветви `Mine`, `ptCrater` и `MineRip`
+по-прежнему обходили `Proj`: session напрямую читала `DeathEffectDefinition`
+и создавала `RaceEffect`. Особенно опасным было копирование родительского
+`MineRuntime` при распаде `MineRip`: один listener-state нельзя разделять
+между автономными `model2`/`model3` объектами.
+
+Каждая поставленная мина, mortar crater, отдельное ядро и каждый из пяти
+осколков теперь владеют самостоятельным source `Proj`. Для вложенных объектов
+behavior типа 6 конфигурируется из их собственного secondary/tertiary
+`DeathEffect`, получает общий `OnProgress` и завершается только через
+`GameObject::Death`. Контакт передаёт реальный target car GameObject, поэтому
+`targetChild`, local transform и LifeEffect attachment больше не являются
+session-заглушкой; скорость уничтожаемого объекта поступает в concrete
+`FxSystemSrcSpeed`. Regression проверяет шесть различных owner-адресов,
+наличие type-6 behavior на каждом и независимое появление secondary/tertiary
+death effects. Полные offline/network/physics и 360-frame Metal smoke прошли.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

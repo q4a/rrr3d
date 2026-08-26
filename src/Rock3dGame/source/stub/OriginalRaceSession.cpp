@@ -48,12 +48,30 @@ const ProjectileDefinition* runtimeProjectileDefinition(
     return &race.weapons[mine.weapon].projectiles[mine.projectile];
 }
 
+bool hasDeathEffect(const DeathEffectDefinition& definition) noexcept
+{
+    return !definition.visual.record.empty() ||
+           !definition.visual.visualNodes.empty() ||
+           !definition.visual.particleEmitters.empty() ||
+           !definition.visual.soundPaths.empty();
+}
+
 bool hasDeathEffect(const ProjectileDefinition& definition) noexcept
 {
-    return !definition.deathEffect.visual.record.empty() ||
-           !definition.deathEffect.visual.visualNodes.empty() ||
-           !definition.deathEffect.visual.particleEmitters.empty() ||
-           !definition.deathEffect.visual.soundPaths.empty();
+    return hasDeathEffect(definition.deathEffect);
+}
+
+const DeathEffectDefinition* mineDeathEffectDefinition(
+    const MineRuntime& mine,
+    const ProjectileDefinition& definition) noexcept
+{
+    if (mine.visualVariant == 1U &&
+        definition.secondaryProjectile.valid)
+        return &definition.secondaryProjectile.deathEffect;
+    if (mine.visualVariant == 2U &&
+        definition.tertiaryProjectile.valid)
+        return &definition.tertiaryProjectile.deathEffect;
+    return &definition.deathEffect;
 }
 
 void configureProjectileSourceObject(
@@ -66,6 +84,19 @@ void configureProjectileSourceObject(
         projectile.sourceObject->ConfigureDeathEffect(
             definition.deathEffect.effectPhysicsIgnoreSenderCar,
             definition.deathEffect.targetChild);
+    }
+}
+
+void configureMineSourceObject(
+    MineRuntime& mine, const ProjectileDefinition& definition)
+{
+    mine.sourceObject = std::make_shared<source::Proj>();
+    const auto* death = mineDeathEffectDefinition(mine, definition);
+    if (death != nullptr && hasDeathEffect(*death))
+    {
+        mine.sourceObject->ConfigureDeathEffect(
+            death->effectPhysicsIgnoreSenderCar,
+            death->targetChild);
     }
 }
 
@@ -3697,7 +3728,8 @@ void OriginalRaceSession::updateGameplay(
             crater.impulseSpeed = spawned.speed;
             crater.ignoreOwnerCollision =
                 deathPlan.ignoreSenderCar;
-            mines_.push_back(crater);
+            configureMineSourceObject(crater, spawned);
+            mines_.push_back(std::move(crater));
         };
 
     for (auto& projectile : projectiles_)
@@ -4605,10 +4637,11 @@ void OriginalRaceSession::updateGameplay(
                 projectile->minimumLife,
                 projectile->maximumLife);
         }
+        configureMineSourceObject(mine, *projectile);
         pushShotEffect(
             owner, weapon, PlayerProfile::weaponSlotCount + 1U,
             weaponTransform, *projectile);
-        mines_.push_back(mine);
+        mines_.push_back(std::move(mine));
         RaceEvent mineEvent;
         mineEvent.kind = RaceEventKind::MinePlaced;
         mineEvent.racer = owner;
@@ -4820,44 +4853,88 @@ void OriginalRaceSession::updateGameplay(
     }
 
     std::vector<MineRuntime> spawnedMines;
-    auto spawnMineDeathEffect = [&](const MineRuntime& mine) {
+    auto spawnMineDeathEffect = [&](
+        MineRuntime& mine,
+        std::size_t targetRacer = RacerRuntime::invalidWeapon) {
         const auto* runtimeDefinition = runtimeProjectileDefinition(
             race_, mine);
         if (runtimeDefinition == nullptr)
+        {
+            mine.sourceObject->Death();
             return;
-        const auto& definition = *runtimeDefinition;
-        const DeathEffectDefinition* death =
-            &definition.deathEffect;
+        }
+        const auto* death = mineDeathEffectDefinition(
+            mine, *runtimeDefinition);
         std::uint8_t deathVariant = 3U;
-        if (mine.visualVariant == 1U &&
-            definition.secondaryProjectile.valid)
-        {
-            death = &definition.secondaryProjectile.deathEffect;
+        if (mine.visualVariant == 1U)
             deathVariant = 5U;
-        }
-        else if (mine.visualVariant == 2U &&
-                 definition.tertiaryProjectile.valid)
-        {
-            death = &definition.tertiaryProjectile.deathEffect;
+        else if (mine.visualVariant == 2U)
             deathVariant = 6U;
+        const bool hasSourceDeathEffect =
+            death != nullptr && hasDeathEffect(*death);
+        source::GameObject* targetObject = nullptr;
+        if (targetRacer < racerMapObjects_.size() &&
+            racerMapObjects_[targetRacer] != nullptr)
+        {
+            targetObject =
+                &racerMapObjects_[targetRacer]->GetGameObj();
         }
+        const auto deathPlan = hasSourceDeathEffect
+            ? mine.sourceObject->DestroyWithEffect(
+                  targetObject, true,
+                  mine.damageOwner < vehicles.size())
+            : source::DeathEffect::SpawnResult{};
+        if (!hasSourceDeathEffect)
+            mine.sourceObject->Death();
+        if (!deathPlan.createEffect)
+            return;
         const auto timing =
             sourceEffectTiming(death->visual, 0.7F);
-        if (death->visual.visualNodes.empty() &&
-            death->visual.particleEmitters.empty() &&
-            death->visual.soundPaths.empty())
-            return;
+        Transform effectTransform;
+        Vec3 effectOrigin = add(mine.position, death->position);
+        if (deathPlan.targetChild && targetRacer < vehicles.size())
+        {
+            const Transform& parent = vehicles[targetRacer].body;
+            const Quat inverseRotation{
+                -parent.rotation.x, -parent.rotation.y,
+                -parent.rotation.z, parent.rotation.w};
+            const Vec3 unscaled = rotate(
+                inverseRotation,
+                subtract(mine.position, parent.position));
+            const auto removeScale = [](float value, float scale) {
+                return std::abs(scale) > 0.000001F
+                           ? value / scale
+                           : value;
+            };
+            effectTransform.position = {
+                removeScale(unscaled.x, parent.scale.x) +
+                    death->position.x,
+                removeScale(unscaled.y, parent.scale.y) +
+                    death->position.y,
+                removeScale(unscaled.z, parent.scale.z) +
+                    death->position.z};
+            effectOrigin = compose(parent, effectTransform).position;
+        }
         RaceEffect impact;
         impact.kind = RaceEventKind::ProjectileImpact;
-        impact.origin = add(mine.position, death->position);
+        impact.origin = effectOrigin;
         impact.target = add(impact.origin, {0.0F, 0.0F, 1.0F});
         applySourceEffectTiming(impact, timing, death->visual);
         impact.weapon = mine.weapon;
         impact.projectile = mine.projectile;
         impact.visualVariant = deathVariant;
         impact.ignoreRotation = death->ignoreRotation;
+        impact.sourceVelocity = mine.velocity;
+        if (deathPlan.targetChild && targetRacer < vehicles.size())
+        {
+            impact.parentRacer = targetRacer;
+            impact.transform = effectTransform;
+        }
         attachSourceLifeEffect(
-            impact, death->visual.soundPaths, mine.owner);
+            impact, death->visual.soundPaths, mine.owner,
+            deathPlan.targetChild && targetRacer < vehicles.size()
+                ? targetRacer
+                : RacerRuntime::invalidWeapon);
         effects_.push_back(std::move(impact));
     };
     auto applyMasloContact = [&](
@@ -4906,6 +4983,8 @@ void OriginalRaceSession::updateGameplay(
     auto deactivateMine = [&](MineRuntime& mine) {
         if (!mine.active)
             return;
+        if (!mine.sourceObject->destroyed)
+            mine.sourceObject->Death();
         if (mine.owner < racers_.size() &&
             mine.networkProjectileId != 0U)
         {
@@ -4970,7 +5049,7 @@ void OriginalRaceSession::updateGameplay(
         }
         if (mine.type != 20U)
         {
-            spawnMineDeathEffect(mine);
+            spawnMineDeathEffect(mine, racer);
             deactivateMine(mine);
         }
         return true;
@@ -5003,6 +5082,7 @@ void OriginalRaceSession::updateGameplay(
     {
         if (!mine.active)
             continue;
+        mine.sourceObject->OnProgress(seconds);
         mine.seconds += seconds;
         if (mine.type == 10U || mine.type == 11U ||
             mine.type == 12U || mine.type == 24U)
@@ -5077,7 +5157,8 @@ void OriginalRaceSession::updateGameplay(
                             : -1.0F;
                     core.velocity = {};
                     core.collision = source.collision;
-                    spawnedMines.push_back(core);
+                    configureMineSourceObject(core, projectile);
+                    spawnedMines.push_back(std::move(core));
                 }
                 if (projectile.tertiaryProjectile.valid)
                 {
@@ -5107,7 +5188,10 @@ void OriginalRaceSession::updateGameplay(
                         fragment.collision = source.collision;
                         fragment.velocity =
                             sourceMineRipFragmentVelocity();
-                        spawnedMines.push_back(fragment);
+                        configureMineSourceObject(
+                            fragment, projectile);
+                        spawnedMines.push_back(
+                            std::move(fragment));
                     }
                 }
                 spawnMineDeathEffect(mine);
@@ -5185,8 +5269,10 @@ void OriginalRaceSession::updateGameplay(
                 break;
         }
     }
-    mines_.insert(mines_.end(), spawnedMines.begin(),
-                  spawnedMines.end());
+    mines_.insert(
+        mines_.end(),
+        std::make_move_iterator(spawnedMines.begin()),
+        std::make_move_iterator(spawnedMines.end()));
     mines_.erase(
         std::remove_if(mines_.begin(), mines_.end(),
                        [](const MineRuntime& mine) {
@@ -12109,12 +12195,17 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 }
             }
             bool sourceFragments = splitObserved;
+            std::vector<const source::Proj*> sourceFragmentObjects;
             for (const auto& mine : splitSession.mines())
             {
                 if (mine.visualVariant == 1U)
                 {
                     sourceFragments =
                         sourceFragments &&
+                        mine.sourceObject != nullptr &&
+                        mine.sourceObject
+                                ->GetDeathEffectBehavior() !=
+                            nullptr &&
                         mine.owner ==
                             RacerRuntime::invalidWeapon &&
                         !mine.linkedToOwner &&
@@ -12131,6 +12222,10 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 {
                     sourceFragments =
                         sourceFragments &&
+                        mine.sourceObject != nullptr &&
+                        mine.sourceObject
+                                ->GetDeathEffectBehavior() !=
+                            nullptr &&
                         mine.owner ==
                             RacerRuntime::invalidWeapon &&
                         !mine.linkedToOwner &&
@@ -12147,12 +12242,25 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                             0.01F &&
                         mine.velocity.z > 0.0F;
                 }
+                if (mine.visualVariant == 1U ||
+                    mine.visualVariant == 2U)
+                {
+                    const auto* object = mine.sourceObject.get();
+                    sourceFragments =
+                        sourceFragments && object != nullptr &&
+                        std::find(
+                            sourceFragmentObjects.begin(),
+                            sourceFragmentObjects.end(), object) ==
+                            sourceFragmentObjects.end();
+                    sourceFragmentObjects.push_back(object);
+                }
             }
-            if (!sourceFragments)
+            if (!sourceFragments ||
+                sourceFragmentObjects.size() != 6U)
             {
                 throw std::runtime_error(
-                    "source MineRip nested projectile values/impulses "
-                    "were not preserved");
+                    "source MineRip nested projectile values/impulses/"
+                    "independent Proj graph were not preserved");
             }
             bool secondaryDeath = false;
             bool tertiaryDeath = false;

@@ -294,6 +294,12 @@ struct MineRuntime
     std::size_t projectile = 0;
     source::Weapon::DescHandle weaponDescription;
     std::size_t descriptionProjectile = 0;
+    // Mine, MineRip core and every detached fragment are distinct source
+    // Proj GameObjects.  In particular they must not share DeathEffect's
+    // one-shot listener state when the parent runtime is copied to create
+    // the autonomous model2/model3 objects.
+    std::shared_ptr<source::Proj> sourceObject =
+        std::make_shared<source::Proj>();
     std::uint8_t visualVariant = 0;
     Vec3 position;
     Quat rotation;
