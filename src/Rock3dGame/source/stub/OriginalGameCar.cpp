@@ -69,6 +69,68 @@ SyncVector rotateSync(
         value.z + 2.0F * (rotation.w * cross.z + cross2.z)};
 }
 
+using ContactVector = GameCar::ContactVector;
+
+float contactLength(ContactVector value) noexcept
+{
+    return std::sqrt(
+        value.x * value.x + value.y * value.y + value.z * value.z);
+}
+
+ContactVector normalizedContact(ContactVector value) noexcept
+{
+    const float length = contactLength(value);
+    if (length <= 0.000001F)
+        return {};
+    return {value.x / length, value.y / length, value.z / length};
+}
+
+float contactDot(ContactVector left, ContactVector right) noexcept
+{
+    return left.x * right.x + left.y * right.y + left.z * right.z;
+}
+
+ContactVector contactCross(
+    ContactVector left, ContactVector right) noexcept
+{
+    return {
+        left.y * right.z - left.z * right.y,
+        left.z * right.x - left.x * right.z,
+        left.x * right.y - left.y * right.x};
+}
+
+ContactVector contactAdd(
+    ContactVector left, ContactVector right) noexcept
+{
+    return {left.x + right.x, left.y + right.y, left.z + right.z};
+}
+
+ContactVector contactMultiply(ContactVector value, float scale) noexcept
+{
+    return {value.x * scale, value.y * scale, value.z * scale};
+}
+
+float contactDamage(
+    const std::array<float, 2U>& damage,
+    const std::array<float, 2U>& forceRange,
+    float force, float& forceAlpha) noexcept
+{
+    forceAlpha = 0.0F;
+    if (forceRange[1U] > forceRange[0U])
+    {
+        forceAlpha = std::clamp(
+            (force - forceRange[0U]) /
+                (forceRange[1U] - forceRange[0U]),
+            0.0F, 1.0F);
+    }
+    else if (force > forceRange[0U])
+    {
+        forceAlpha = 0.5F;
+    }
+    return damage[0U] +
+           (damage[1U] - damage[0U]) * forceAlpha;
+}
+
 } // namespace
 
 class GameCar::SoundMotorBehavior final : public Behavior
@@ -197,6 +259,131 @@ GameCar::~GameCar()
 
 GameCar* GameCar::IsCar() noexcept { return this; }
 const GameCar* GameCar::IsCar() const noexcept { return this; }
+
+GameCar::ContactResult GameCar::OnContact(
+    const ContactInput& contact, const ContactRules& rules) noexcept
+{
+    ContactResult result;
+    bodyContact_ = true;
+    result.bodyContact = true;
+
+    const float forceLength = contactLength(contact.normalForce);
+    if (contact.target == ContactTarget::Track)
+    {
+        float forceAlpha = 0.0F;
+        const float damage = contactDamage(
+            rules.borderDamage, rules.borderDamageForce,
+            forceLength, forceAlpha);
+
+        if (!rules.springBorders && forceAlpha == 0.0F)
+            return result;
+
+        if (forceLength > 0.01F)
+        {
+            ContactVector normal = normalizedContact(contact.normalForce);
+            if (contact.invertNormal)
+                normal = contactMultiply(normal, -1.0F);
+
+            const bool borderContact =
+                std::abs(normal.z) < 0.5F && contact.shotTransparency;
+            if (borderContact)
+            {
+                CancelClutch();
+                result.cancelClutch = true;
+            }
+
+            if (borderContact && contactLength(contact.linearVelocity) > 16.0F)
+            {
+                if (rules.springBorders)
+                {
+                    ContactVector tangent =
+                        normalizedContact(contact.linearVelocity);
+                    const float tangentDot =
+                        std::abs(contactDot(tangent, normal));
+                    const ContactVector direction =
+                        normalizedContact(contact.forward);
+                    const float directionDot =
+                        contactDot(direction, normal);
+                    const float directionTravelDot =
+                        contactDot(direction, tangent);
+
+                    if (tangentDot > 0.1F &&
+                        (directionDot < 0.707F ||
+                         directionTravelDot < -0.707F))
+                    {
+                        if (tangentDot < 0.995F)
+                        {
+                            const ContactVector binormal =
+                                contactCross(normal, tangent);
+                            tangent = contact.frictionForce;
+                            tangent.z = binormal.z > 0.0F
+                                ? std::abs(tangent.z)
+                                : -std::abs(tangent.z);
+                            tangent = contactCross(
+                                normalizedContact(tangent), normal);
+                        }
+                        else
+                        {
+                            tangent = {};
+                        }
+
+                        const float normalVelocity = std::clamp(
+                            std::abs(contactDot(
+                                normal, contact.linearVelocity)),
+                            4.0F, 14.0F);
+                        const float tangentVelocity =
+                            contactDot(tangent, contact.linearVelocity) *
+                            0.5F;
+                        result.linearVelocity = contactAdd(
+                            contactMultiply(normal, normalVelocity),
+                            contactMultiply(tangent, tangentVelocity));
+                        result.linearVelocity.z = 0.0F;
+                        result.setLinearVelocity = true;
+                    }
+                }
+
+                if (forceAlpha > 0.0F && damage > 0.0F)
+                {
+                    result.damageTarget = ContactDamageTarget::Source;
+                    result.attackerPlayerId = contact.sourcePlayerId;
+                    result.damage = damage;
+                }
+            }
+        }
+        return result;
+    }
+
+    if (contact.target == ContactTarget::Car)
+    {
+        if (!contact.targetDynamic)
+            return result;
+        float forceAlpha = 0.0F;
+        const float damage = contactDamage(
+            rules.carDamage, rules.carDamageForce,
+            forceLength, forceAlpha);
+        if (forceAlpha <= 0.0F || damage <= 0.0F)
+            return result;
+        if (contact.sourceKineticEnergy > contact.targetKineticEnergy)
+        {
+            result.damageTarget = ContactDamageTarget::Target;
+            result.attackerPlayerId = contact.sourcePlayerId;
+        }
+        else
+        {
+            result.damageTarget = ContactDamageTarget::Source;
+            result.attackerPlayerId = contact.targetPlayerId;
+        }
+        result.damage = damage;
+        return result;
+    }
+
+    if (contact.target == ContactTarget::Other)
+    {
+        result.attackerPlayerId = contact.sourcePlayerId;
+        result.touchTarget = true;
+    }
+    return result;
+}
 
 void GameCar::Reset() noexcept
 {

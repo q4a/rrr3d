@@ -89,7 +89,7 @@ Windows target не компилируется.
 | Track collision | PhysX triangle meshes | Jolt triangle meshes из исходных shapes | Перенесено | Используемый race path получает исходные triangles/material groups |
 | Vehicle descriptions | `DataBase::CarDesc`, `RockCar` | XML/source constants → `VehicleDescription` | Частично | Mass, body, wheels, motor/gears/suspension перенесены; весь `RockCar`/PhysX state и contact callbacks не перенесены |
 | Vehicle simulation | PhysX 2.8.4 `NxWheelShape` | Jolt custom vehicle adapter | Частично | Нативная замена работает; `GameCar` снова является source `GameObject`, serialized `SoundMotor` живёт в его owner, каждый `CarWheel` — child с type-9 `PxWheelSlipEffect`, а included actors гусеницы/подушки владеют exact type-13/type-14 behaviors. Session один раз преобразует Jolt contacts/axle speed в общий результат для Metal и SDL. `GameCar::LockSpring` подавляет airborne pitch как в source, но полная численная эквивалентность PhysX tire/suspension/solver ещё не доказана |
-| Car-to-track/car contacts | `GameCar::OnContactModify`, `GameCar::OnContact`, PhysX reports | Jolt contacts → source-derived session dispatch | Перенесено с backend-адаптацией | Сохранены surface groups, normal/friction force, до двух manifold points, border/car damage, energy owner и spring-border redirect. PhysX solver заменён Jolt, но `sumFrictionForce` теперь передаётся и как вектор, а не только как величина |
+| Car-to-track/car contacts | `GameCar::OnContactModify`, `GameCar::OnContact`, PhysX reports | Jolt contacts → `source::GameCar::OnContact` commands | Перенесено с backend-адаптацией | Source `GameCar` владеет body-contact flag, damage thresholds, shot-transparent border gate, clutch release, exact spring redirect и kinetic-energy attribution; session только подаёт Jolt normal/friction/velocity/energy snapshot и применяет результат. PhysX solver заменён Jolt, но `sumFrictionForce` передаётся и как вектор, а не только как величина |
 | Bonus/mine/crater contacts | `Proj::ComputeAABB`, `MineContact`, `MasloContact`, `MineRipUpdate` | source AABB/OBB, lock/contact state и nested-projectile runtime | Частично | Удалены сферы и hardcode осколков; source boxes, 0.25/0.4 lock rules, `ptMineProton`, impulse, oil clutch, nested lifetime/death effects перенесены. Map `AutoProj` снова наследует `GameObject` и готовится/освобождается через `LogicInited/Released`. Динамика осколков остаётся адаптацией к Jolt, не численной копией PhysX |
 | Mine placement | `Proj::MinePrepare` PhysX track raycast | source triangle raycast в `OriginalRaceSession` | Перенесено | Используются serialized `proj.pos`, ray `+2/-Z`, только `TrackPlane`, `max(-AABB.min.z, 0.01)`, hit normal; miss не расходует заряд |
 | Countdown/checkpoints/laps/place | `GameMode::GoRace`, `Race.cpp`, `Trace.cpp`, `Player.cpp`, `StringLibrary` | active `GameModeRaceState`, `RaceLifecycle`, `RacePlaceModel`, `Player::CarState` + HUD/renderer adapters | Частично | `GameMode` владеет точными offline/network wait/1/2/3/go и finish clocks, включая pause и `>3.0f`; `Race`/`Player` владеют lap/result/place. Исходные `tablo0..tablo4`, block и semaphore перенесены; HUD/minimap/finish labels используют общий source UTF-16LE StringLibrary для всех шести языков. Все special race modes/edge cases ещё не сопоставлены |
@@ -1453,6 +1453,21 @@ Regression одновременно проверяет движение и вы�
 отрисовкой AIDebug. Прошли arm64 build, 25/25 offline, 2/2 network, physics
 и 360-frame bgfx/Metal race smoke; следующая gameplay-ревизия — `GameCar`
 callback order.
+
+### B8b: единый source GameCar contact callback
+
+Оригинальный `GameCar::OnContact` был подтверждён как оставшаяся
+session-owned реализация: его track и car branches находились в разных
+частях gameplay loop. Теперь `source::GameCar` атомарно выполняет исходные
+border/car пороги, clutch release, spring redirect, kinetic-energy damage
+attribution и decoration touch. Jolt adapter передаёт normal/friction force,
+velocity/forward и energy, затем применяет только готовую команду.
+
+Удалена отсутствующая в Windows подстановка binormal при нулевой friction
+force; проверка скорости снова использует модуль линейной скорости PhysX, а
+не отдельное session-поле speed. Regression покрывает все существенные
+ветви callback. Следующий B8c — следующий подтверждённый разрыв в
+`Player/Race/Weapon` после прямой сверки методов.
 
 ## Очередь дальнейшего переноса
 

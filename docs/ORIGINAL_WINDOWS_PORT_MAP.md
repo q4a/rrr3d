@@ -55,7 +55,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `FinalMenu` | `mainmenu2::FinalMenuFrameState` + bgfx/CoreText view | Source owner, active frame | Legacy Widget API заменён backend draw/input/audio; credits, 107 s clock, slide alpha, Back и layout принадлежат source owner |
 | `FinishMenu` | `originalracemenu::FinishMenuFrameState` + bgfx/CoreText view | Source owner, active frame | Legacy Widget API заменён backend draw/input; result order, timing, events и layout принадлежат source owner |
 | `GameBase` | `OriginalGameObject`, behaviors, effects, motor sound state | Source owner, partial | Закрыть отсутствующие behavior subclasses и единый progress dispatch |
-| `GameCar` | `source::GameCar` + Jolt vehicle adapter | Source owner, partial | Сравнить каждый PhysX callback/order и убрать session-owned car branches |
+| `GameCar` | `source::GameCar::{OnFixedStepDrive,OnContact,OnPxSync}` + Jolt vehicle adapter | Source owner, active drive/contact frame | Оставшиеся PhysX solver queries и actor operations являются Jolt boundary; продолжить аудит public serialization/editor-only методов |
 | `GameMode` | `source::GameModeState` + `GameModeRaceState` | Source owner, active race path | Startup/movie/config и часть menu/audio backend-команд ещё находятся в host |
 | `GameObject` | `source::GameObject`, frame sync, listener/contact graph | Source owner, active core | Подключить оставшиеся fixed/frame callbacks и убрать backend-view ветви session |
 | `HudMenu` | `OriginalRaceHud` | Distributed | Данные в отдельном владельце, но source Widget/Menu graph отсутствует |
@@ -413,8 +413,25 @@ session-вызов `UpdateAttack` удалён. Regression проверяет, �
 Прошли arm64 build, 25/25 offline, 2/2 network, physics и 360-frame
 bgfx/Metal race smoke с шестью машинами.
 
-Следующий B8b — метод-к-методу ревизия `GameCar` PhysX/Jolt callback order и
-удаление подтверждённых session-owned car branches.
+Результат B8b: прямая сверка `GameCar::OnContact` подтвердила, что исходная
+транзакция была вручную разделена между двумя местами
+`OriginalRaceSession::updateGameplay`. В session находились собственные
+формулы border/car damage, выбор жертвы по kinetic energy, clutch release и
+spring-border redirect; при нулевом friction vector она дополнительно
+подставляла отсутствующее в Windows направление.
+
+`source::GameCar::OnContact` теперь снова является единым владельцем
+исходного порядка: выставляет body contact, вычисляет пороги, определяет
+shot-transparent border, снимает clutch lock, возвращает точную скорость
+отскока, выбирает source/target damage по kinetic energy и формирует
+нулевой touch для прочих объектов. Session только переводит Jolt snapshots
+в backend-neutral input и применяет готовые velocity/damage commands.
+Regression закрепляет low-force early return, high-speed border damage,
+spring redirect, обе ветви car energy и decoration touch.
+
+Следующий B8c — продолжение метода-к-методу аудита оставшихся partial
+`Player/Race/Weapon` владельцев и удаление следующей подтверждённой
+session-owned gameplay ветви.
 
 ## Правило обновления карты
 

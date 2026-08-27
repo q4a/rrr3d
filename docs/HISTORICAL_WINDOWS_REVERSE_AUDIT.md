@@ -4376,6 +4376,32 @@ offline, 2/2 network, physics и 360-frame bgfx/Metal race smoke. Следующ
 блок B8b — полная сверка `GameCar` callback/order с заменой PhysX queries на
 Jolt snapshots.
 
+### P2.187 — `GameCar::OnContact` возвращён исходному владельцу — выполнено
+
+Сверка с `eff9338:prog/Rock3dGame/source/game/GameCar.cpp` подтвердила не
+просто backend-замену, а оставшийся суррогат. Border-contact и car-contact
+ветви одного Windows callback были разнесены по разным участкам
+`OriginalRaceSession::updateGameplay`; session сама интерполировала damage,
+выбирала жертву по kinetic energy, снимала clutch и строила spring velocity.
+Кроме того, при нулевом `sumFrictionForce` прежняя копия подставляла
+геометрический binormal, чего в оригинале нет.
+
+Добавлен backend-neutral `source::GameCar::OnContact`. Он сохраняет точный
+порядок Windows: `_bodyContact = true`; track damage threshold и
+`!springBorders && alpha == 0` early return; нормализация/inversion normal;
+проверка `cdgShotTransparency`; сброс clutch; порог модуля скорости `>16`;
+spring-border redirect по normal/friction/forward; touch damage; car victim
+по `computeKineticEnergy`; нулевой `target->Damage` для прочего объекта.
+Метод возвращает только команды velocity/damage/touch, потому что Jolt body
+и конкретный MapObj остаются backend-адаптером.
+
+`OriginalRaceSession` теперь лишь классифицирует Jolt actor, передаёт
+normal/friction force, velocity, forward и kinetic-energy snapshot, затем
+исполняет source result. Отдельные session-owned damage/rebound формулы
+удалены. `OriginalGameCarSmoke` закрепляет early return без сброса clutch,
+border damage, spring redirect, обе energy-ветви и decoration touch.
+Следующий B8c — аудит оставшихся partial `Player/Race/Weapon` методов.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

@@ -3874,24 +3874,6 @@ void OriginalRaceSession::updateGameplay(
                 command.damageType);
         };
 
-    auto damageFromContact =
-        [](const std::array<float, 2>& damage,
-           const std::array<float, 2>& forceRange,
-           float force, float& forcePart) {
-        forcePart = 0.0F;
-        if (forceRange[1] > forceRange[0])
-        {
-            forcePart = std::clamp(
-                (force - forceRange[0]) /
-                    (forceRange[1] - forceRange[0]),
-                0.0F, 1.0F);
-        }
-        else if (force > forceRange[0])
-        {
-            forcePart = 0.5F;
-        }
-        return damage[0] + (damage[1] - damage[0]) * forcePart;
-    };
     auto applyTouchDamage =
         [&](std::size_t target, std::size_t attacker,
             float damage, Vec3 position) {
@@ -3902,6 +3884,19 @@ void OriginalRaceSession::updateGameplay(
             target, attacker, position, damage,
             DamageType::Touch);
     };
+    const source::GameCar::ContactRules contactRules{
+        springBorders_, logic_.GetTouchBorderDamage(),
+        logic_.GetTouchBorderDamageForce(),
+        logic_.GetTouchCarDamage(),
+        logic_.GetTouchCarDamageForce()};
+    const auto sourceContactVector =
+        [](Vec3 value) -> source::GameCar::ContactVector {
+        return {value.x, value.y, value.z};
+    };
+    const auto backendContactVector =
+        [](source::GameCar::ContactVector value) -> Vec3 {
+        return {value.x, value.y, value.z};
+    };
 
     for (std::size_t racer = 0;
          racer < vehicles.size() && racer < racers_.size(); ++racer)
@@ -3909,72 +3904,42 @@ void OriginalRaceSession::updateGameplay(
         for (const auto& contact : vehicles[racer].bodyContacts)
         {
             if (contact.surface !=
-                    r3d::physics::CollisionSurface::TrackBorder ||
-                std::abs(contact.normal.z) >= 0.5F)
+                    r3d::physics::CollisionSurface::TrackBorder &&
+                contact.surface !=
+                    r3d::physics::CollisionSurface::TrackPlane)
                 continue;
-            racers_[racer].gameCar.CancelClutch();
-            float forcePart = 0.0F;
-            const float damage = damageFromContact(
-                logic_.GetTouchBorderDamage(),
-                logic_.GetTouchBorderDamageForce(),
-                contact.force, forcePart);
-            if ((!springBorders_ && forcePart == 0.0F) ||
-                vehicles[racer].speed <= 16.0F)
-                continue;
-
-            if (springBorders_)
+            source::GameCar::ContactInput sourceContact;
+            sourceContact.target = source::GameCar::ContactTarget::Track;
+            sourceContact.normalForce = sourceContactVector(
+                multiply(contact.normal, contact.force));
+            sourceContact.frictionForce =
+                sourceContactVector(contact.frictionForceVector);
+            sourceContact.linearVelocity =
+                sourceContactVector(vehicles[racer].linearVelocity);
+            sourceContact.forward = sourceContactVector(
+                forward(vehicles[racer].body.rotation));
+            sourceContact.sourcePlayerId = racer;
+            sourceContact.shotTransparency =
+                contact.surface ==
+                r3d::physics::CollisionSurface::TrackBorder;
+            const auto result = racers_[racer].gameCar.OnContact(
+                sourceContact, contactRules);
+            if (result.setLinearVelocity)
             {
-                const Vec3 normal = normalized3(contact.normal);
-                const Vec3 velocity = vehicles[racer].linearVelocity;
-                const Vec3 travel = normalized3(velocity);
-                const float tangentDot =
-                    std::abs(dot3(travel, normal));
-                const Vec3 direction =
-                    normalized3(forward(vehicles[racer].body.rotation));
-                const float directionDot = dot3(direction, normal);
-                const float directionTravelDot =
-                    dot3(direction, travel);
-                if (tangentDot > 0.1F &&
-                    (directionDot < 0.707F ||
-                     directionTravelDot < -0.707F))
-                {
-                    Vec3 tangent{};
-                    if (tangentDot < 0.995F)
-                    {
-                        // GameCar::OnContact first uses norm x travel only
-                        // to choose the vertical sign.  It then applies that
-                        // sign to PhysX sumFrictionForce and crosses the
-                        // normalized result with the contact normal.
-                        const Vec3 binormal = cross(normal, travel);
-                        tangent = contact.frictionForceVector;
-                        tangent.z = binormal.z > 0.0F
-                                        ? std::abs(tangent.z)
-                                        : -std::abs(tangent.z);
-                        if (length3(tangent) <= 0.0001F)
-                        {
-                            // A resting/first-frame Jolt manifold can have
-                            // no solved friction impulse. Preserve the same
-                            // geometric direction without inventing force.
-                            tangent = binormal;
-                        }
-                        tangent = cross(normalized3(tangent), normal);
-                    }
-                    const float normalVelocity = std::clamp(
-                        std::abs(dot3(normal, velocity)), 4.0F, 14.0F);
-                    const float tangentVelocity =
-                        dot3(tangent, velocity) * 0.5F;
-                    Vec3 wanted = add(
-                        multiply(normal, normalVelocity),
-                        multiply(tangent, tangentVelocity));
-                    wanted.z = 0.0F;
-                    velocityRequests_.push_back(
-                        {racer, subtract(wanted, velocity)});
-                }
+                const Vec3 wanted =
+                    backendContactVector(result.linearVelocity);
+                velocityRequests_.push_back(
+                    {racer, subtract(
+                        wanted, vehicles[racer].linearVelocity)});
             }
-            if (forcePart > 0.0F && damage > 0.0F)
+            if (result.damageTarget ==
+                    source::GameCar::ContactDamageTarget::Source &&
+                result.damage > 0.0F)
+            {
                 applyTouchDamage(
-                    racer, racer, damage,
+                    racer, result.attackerPlayerId, result.damage,
                     vehicles[racer].body.position);
+            }
         }
     }
     auto spawnProjectileImpact =
@@ -6536,6 +6501,42 @@ void OriginalRaceSession::updateGameplay(
     }
     const std::size_t collisionRacers =
         std::min(vehicles.size(), racers_.size());
+    auto kineticEnergy = [&](std::size_t racer) {
+        if (std::isfinite(vehicles[racer].kineticEnergy) &&
+            vehicles[racer].kineticEnergy >= 0.0F)
+        {
+            return vehicles[racer].kineticEnergy;
+        }
+        const auto& definition = vehicleForRacer(racer);
+        const float translational =
+            0.5F * definition.physics.mass *
+            dot3(vehicles[racer].linearVelocity,
+                 vehicles[racer].linearVelocity);
+        const Vec3 localMomentum = rotate(
+            {-vehicles[racer].body.rotation.x,
+             -vehicles[racer].body.rotation.y,
+             -vehicles[racer].body.rotation.z,
+             vehicles[racer].body.rotation.w},
+            vehicles[racer].angularMomentum);
+        const Vec3 extent = definition.physics.halfExtents;
+        const float inertiaX = std::max(
+            definition.physics.mass / 3.0F *
+                (extent.y * extent.y + extent.z * extent.z),
+            0.0001F);
+        const float inertiaY = std::max(
+            definition.physics.mass / 3.0F *
+                (extent.x * extent.x + extent.z * extent.z),
+            0.0001F);
+        const float inertiaZ = std::max(
+            definition.physics.mass / 3.0F *
+                (extent.x * extent.x + extent.y * extent.y),
+            0.0001F);
+        const float rotational = 0.5F *
+            (localMomentum.x * localMomentum.x / inertiaX +
+             localMomentum.y * localMomentum.y / inertiaY +
+             localMomentum.z * localMomentum.z / inertiaZ);
+        return translational + rotational;
+    };
     for (std::size_t first = 0; first < collisionRacers; ++first)
     {
         if (racers_[first].IsDestroyed())
@@ -6550,57 +6551,32 @@ void OriginalRaceSession::updateGameplay(
             const std::size_t second = contact.otherVehicle;
             if (racers_[second].IsDestroyed())
                 continue;
-            float forcePart = 0.0F;
-            const float damage = damageFromContact(
-                logic_.GetTouchCarDamage(),
-                logic_.GetTouchCarDamageForce(),
-                contact.force, forcePart);
-            if (forcePart <= 0.0F || damage <= 0.0F)
+            source::GameCar::ContactInput sourceContact;
+            sourceContact.target = source::GameCar::ContactTarget::Car;
+            sourceContact.normalForce = sourceContactVector(
+                multiply(contact.normal, contact.force));
+            sourceContact.sourceKineticEnergy = kineticEnergy(first);
+            sourceContact.targetKineticEnergy = kineticEnergy(second);
+            sourceContact.sourcePlayerId = first;
+            sourceContact.targetPlayerId = second;
+            sourceContact.targetDynamic = true;
+            const auto result = racers_[first].gameCar.OnContact(
+                sourceContact, contactRules);
+            std::size_t target = collisionRacers;
+            if (result.damageTarget ==
+                source::GameCar::ContactDamageTarget::Source)
+            {
+                target = first;
+            }
+            else if (result.damageTarget ==
+                     source::GameCar::ContactDamageTarget::Target)
+            {
+                target = second;
+            }
+            if (target >= collisionRacers || result.damage <= 0.0F)
                 continue;
-            auto kineticEnergy = [&](std::size_t racer) {
-                if (std::isfinite(vehicles[racer].kineticEnergy) &&
-                    vehicles[racer].kineticEnergy >= 0.0F)
-                {
-                    return vehicles[racer].kineticEnergy;
-                }
-                const auto& definition = vehicleForRacer(racer);
-                const float translational =
-                    0.5F * definition.physics.mass *
-                    dot3(vehicles[racer].linearVelocity,
-                         vehicles[racer].linearVelocity);
-                const Vec3 localMomentum = rotate(
-                    {-vehicles[racer].body.rotation.x,
-                     -vehicles[racer].body.rotation.y,
-                     -vehicles[racer].body.rotation.z,
-                     vehicles[racer].body.rotation.w},
-                    vehicles[racer].angularMomentum);
-                const Vec3 extent = definition.physics.halfExtents;
-                const float inertiaX = std::max(
-                    definition.physics.mass / 3.0F *
-                        (extent.y * extent.y + extent.z * extent.z),
-                    0.0001F);
-                const float inertiaY = std::max(
-                    definition.physics.mass / 3.0F *
-                        (extent.x * extent.x + extent.z * extent.z),
-                    0.0001F);
-                const float inertiaZ = std::max(
-                    definition.physics.mass / 3.0F *
-                        (extent.x * extent.x + extent.y * extent.y),
-                    0.0001F);
-                const float rotational = 0.5F *
-                    (localMomentum.x * localMomentum.x / inertiaX +
-                     localMomentum.y * localMomentum.y / inertiaY +
-                     localMomentum.z * localMomentum.z / inertiaZ);
-                return translational + rotational;
-            };
-            const float firstEnergy = kineticEnergy(first);
-            const float secondEnergy = kineticEnergy(second);
-            const std::size_t target =
-                firstEnergy > secondEnergy ? second : first;
-            const std::size_t attacker =
-                target == first ? second : first;
             applyTouchDamage(
-                target, attacker, damage,
+                target, result.attackerPlayerId, result.damage,
                 vehicles[target].body.position);
         }
     }
@@ -6625,11 +6601,21 @@ void OriginalRaceSession::updateGameplay(
                 !race_.decorationDefinitions[instance.definition]
                      .destructible)
                 continue;
+            source::GameCar::ContactInput sourceContact;
+            sourceContact.target = source::GameCar::ContactTarget::Other;
+            sourceContact.sourcePlayerId = racer;
+            const auto result = racers_[racer].gameCar.OnContact(
+                sourceContact, contactRules);
             // GameCar::OnContact calls target->Damage(playerId, 0, dtTouch)
             // for every non-car GameObject. A gotDestrObj has maxLife == 0,
             // so that zero-value contact is immediately lethal even though
             // its NX_AF_DISABLE_RESPONSE actor never blocks the car.
-            damageDecoration(contact.otherDecoration, 0.0F, racer);
+            if (result.touchTarget)
+            {
+                damageDecoration(
+                    contact.otherDecoration, 0.0F,
+                    result.attackerPlayerId);
+            }
         }
     }
 }

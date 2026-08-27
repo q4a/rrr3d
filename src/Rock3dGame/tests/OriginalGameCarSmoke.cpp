@@ -367,6 +367,88 @@ int main()
     if (!car.IsAnyWheelContact() || car.IsWheelsContact() ||
         car.IsBodyContact())
         return 51;
+
+    source::GameCar contactCar;
+    const source::GameCar::ContactRules contactRules{
+        false, {10.0F, 20.0F}, {30.0F, 40.0F},
+        {4.0F, 8.0F}, {30.0F, 40.0F}};
+    contactCar.LockClutch(1.0F);
+    source::GameCar::ContactInput lowBorder;
+    lowBorder.target = source::GameCar::ContactTarget::Track;
+    lowBorder.normalForce = {20.0F, 0.0F, 0.0F};
+    lowBorder.linearVelocity = {20.0F, 0.0F, 0.0F};
+    lowBorder.sourcePlayerId = 7U;
+    lowBorder.shotTransparency = true;
+    const auto lowBorderResult =
+        contactCar.OnContact(lowBorder, contactRules);
+    if (!lowBorderResult.bodyContact || !contactCar.IsBodyContact() ||
+        lowBorderResult.cancelClutch ||
+        !contactCar.IsClutchLocked() ||
+        lowBorderResult.damageTarget !=
+            source::GameCar::ContactDamageTarget::None)
+        return 71;
+
+    source::GameCar::ContactInput damagingBorder = lowBorder;
+    damagingBorder.normalForce = {35.0F, 0.0F, 0.0F};
+    const auto damagingBorderResult =
+        contactCar.OnContact(damagingBorder, contactRules);
+    if (!damagingBorderResult.cancelClutch ||
+        contactCar.IsClutchLocked() ||
+        damagingBorderResult.setLinearVelocity ||
+        damagingBorderResult.damageTarget !=
+            source::GameCar::ContactDamageTarget::Source ||
+        damagingBorderResult.attackerPlayerId != 7U ||
+        std::abs(damagingBorderResult.damage - 15.0F) > 0.0001F)
+        return 72;
+
+    source::GameCar::ContactRules springRules = contactRules;
+    springRules.springBorders = true;
+    source::GameCar::ContactInput springBorder = lowBorder;
+    springBorder.linearVelocity = {-20.0F, 10.0F, 0.0F};
+    springBorder.frictionForce = {0.0F, 1.0F, 1.0F};
+    const auto springBorderResult =
+        contactCar.OnContact(springBorder, springRules);
+    if (!springBorderResult.cancelClutch ||
+        !springBorderResult.setLinearVelocity ||
+        springBorderResult.damageTarget !=
+            source::GameCar::ContactDamageTarget::None ||
+        std::abs(springBorderResult.linearVelocity.x - 14.0F) >
+            0.0001F ||
+        std::abs(springBorderResult.linearVelocity.y - 2.5F) >
+            0.0001F ||
+        springBorderResult.linearVelocity.z != 0.0F)
+        return 73;
+
+    source::GameCar::ContactInput carContact;
+    carContact.target = source::GameCar::ContactTarget::Car;
+    carContact.normalForce = {35.0F, 0.0F, 0.0F};
+    carContact.sourceKineticEnergy = 100.0F;
+    carContact.targetKineticEnergy = 20.0F;
+    carContact.sourcePlayerId = 7U;
+    carContact.targetPlayerId = 9U;
+    carContact.targetDynamic = true;
+    const auto targetDamage = contactCar.OnContact(carContact, contactRules);
+    carContact.sourceKineticEnergy = 10.0F;
+    const auto sourceDamage = contactCar.OnContact(carContact, contactRules);
+    if (targetDamage.damageTarget !=
+            source::GameCar::ContactDamageTarget::Target ||
+        targetDamage.attackerPlayerId != 7U ||
+        std::abs(targetDamage.damage - 6.0F) > 0.0001F ||
+        sourceDamage.damageTarget !=
+            source::GameCar::ContactDamageTarget::Source ||
+        sourceDamage.attackerPlayerId != 9U ||
+        std::abs(sourceDamage.damage - 6.0F) > 0.0001F)
+        return 74;
+
+    source::GameCar::ContactInput otherContact;
+    otherContact.target = source::GameCar::ContactTarget::Other;
+    otherContact.sourcePlayerId = 12U;
+    const auto otherResult =
+        contactCar.OnContact(otherContact, contactRules);
+    if (!otherResult.touchTarget ||
+        otherResult.attackerPlayerId != 12U ||
+        otherResult.damage != 0.0F)
+        return 75;
     const auto wheelProgress = car.OnProgress(1.0F / 60.0F);
     const auto ownedSlip = car.GetWheelSlipResult(0U);
     if (wheelProgress.wheelsProgressed != 2U ||
@@ -558,7 +640,7 @@ int main()
     if (cushion.GetAngle() != 0.0F)
         return 19;
 
-    std::cout << "original GameCar lock, SoundMotor and wheel-slip "
-                 "animation rules passed\n";
+    std::cout << "original GameCar lock, contact, SoundMotor and "
+                 "wheel-slip animation rules passed\n";
     return 0;
 }

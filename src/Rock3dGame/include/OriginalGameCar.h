@@ -3,6 +3,7 @@
 #include "OriginalGameObject.h"
 
 #include <array>
+#include <limits>
 #include <memory>
 #include <vector>
 
@@ -156,6 +157,78 @@ public:
         bool mineReleased = false;
     };
 
+    // Backend-neutral arguments and commands for the original
+    // GameCar::OnContact PhysX callback. Jolt resolves actor/category
+    // identity and applies the returned velocity/damage command; all
+    // gameplay thresholds, attribution and spring-border geometry remain
+    // owned by GameCar exactly as in the Windows source.
+    struct ContactVector
+    {
+        float x = 0.0F;
+        float y = 0.0F;
+        float z = 0.0F;
+    };
+
+    enum class ContactTarget
+    {
+        None,
+        Track,
+        Car,
+        Other,
+    };
+
+    enum class ContactDamageTarget
+    {
+        None,
+        Source,
+        Target,
+    };
+
+    struct ContactRules
+    {
+        bool springBorders = false;
+        std::array<float, 2U> borderDamage{};
+        std::array<float, 2U> borderDamageForce{};
+        std::array<float, 2U> carDamage{};
+        std::array<float, 2U> carDamageForce{};
+    };
+
+    struct ContactInput
+    {
+        ContactTarget target = ContactTarget::None;
+        ContactVector normalForce{};
+        ContactVector frictionForce{};
+        ContactVector linearVelocity{};
+        ContactVector forward{1.0F, 0.0F, 0.0F};
+        float sourceKineticEnergy = 0.0F;
+        float targetKineticEnergy = 0.0F;
+        std::size_t sourcePlayerId =
+            std::numeric_limits<std::size_t>::max();
+        std::size_t targetPlayerId =
+            std::numeric_limits<std::size_t>::max();
+        bool targetDynamic = false;
+        bool shotTransparency = false;
+        // PhysX reports which pair actor owns this callback. Jolt already
+        // orients its contact normal for the source vehicle, so its adapter
+        // leaves this false.
+        bool invertNormal = false;
+    };
+
+    struct ContactResult
+    {
+        bool bodyContact = false;
+        bool cancelClutch = false;
+        bool setLinearVelocity = false;
+        ContactVector linearVelocity{};
+        ContactDamageTarget damageTarget = ContactDamageTarget::None;
+        std::size_t attackerPlayerId =
+            std::numeric_limits<std::size_t>::max();
+        float damage = 0.0F;
+        // Original non-track/non-car branch invokes target->Damage(sender,
+        // 0, dtTouch). The adapter owns the concrete target pointer.
+        bool touchTarget = false;
+    };
+
     GameCar();
     GameCar(const GameCar& other);
     GameCar& operator=(const GameCar& other) noexcept;
@@ -181,6 +254,9 @@ public:
     DriveCommand OnFixedStepDrive(
         float deltaTime, FixedStepInput input,
         FixedStepState state) noexcept;
+    ContactResult OnContact(
+        const ContactInput& contact,
+        const ContactRules& rules) noexcept;
     int GearUp() noexcept;
     int GearDown() noexcept;
     const MotorDescription& GetMotorDesc() const noexcept;
