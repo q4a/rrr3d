@@ -4240,6 +4240,26 @@ graph, midpoint дверей, lamp phases и layout. Автономная arm64 
 offline, 2/2 network, physics и 360-frame bgfx/Metal race smoke прошли.
 Следующая граница B6e.4b — `AchievmentFrame`.
 
+### P2.181 — `RaceMenu2::AchievmentFrame` получил исходного владельца — выполнено
+
+Карточки и profile transaction были source-derived, но definitions,
+selection, purchase modal и navigation оставались в renderer. Упрощённый
+алгоритм шёл только по запрошенному направлению и не повторял рекурсивный
+`Menu::NavElementFind`; кроме того, порт сразу назначал focus карточке 0,
+тогда как `SetNavElements` снимает focus со всех widgets, и первый direction
+лишь устанавливает зарегистрированный key Back.
+
+`originalracemenu::AchievementFrameState` теперь владеет точными девятью
+definitions/order/positions, состояниями Missing/Locked/Unlocked/Opened,
+serialized price, Back+9 graph, исходным initial no-focus, recursive disabled
+traversal, reverse mouse overlap, Buy confirmation и layout. Host оставляет
+points/profile write и специальное применение armor4, затем обновляет source
+snapshot; bgfx/CoreText только исполняют draw. Regression проверяет definitions,
+первый direction → Back, Back → Phaser, обход locked Tankchetti к MusicTrack,
+Yes/No, opened disable, locked pointer и координаты. Автономная arm64 сборка,
+23/23 offline, 2/2 network, physics и 360-frame bgfx/Metal race smoke прошли.
+Следующая граница B6e.5 — Finish/Final owners.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

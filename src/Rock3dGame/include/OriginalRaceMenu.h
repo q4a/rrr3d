@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <string_view>
 #include <vector>
 
 namespace r3d::game::originalracemenu
@@ -519,6 +520,112 @@ private:
     float doorTime_ = -1.0F;
     std::size_t focus_ = 0U;
     AngarTravelDialogState travelDialog_;
+};
+
+enum class AchievementState : std::uint8_t
+{
+    Missing,
+    Locked,
+    Unlocked,
+    Opened,
+};
+
+struct AchievementDefinition
+{
+    std::string_view name;
+    std::string_view lockedImage;
+    std::string_view openedImage;
+    float x = 0.0F;
+    float y = 0.0F;
+};
+
+struct AchievementEntry
+{
+    AchievementState state = AchievementState::Missing;
+    std::uint32_t price = 0U;
+};
+
+enum class AchievementCommandType : std::uint8_t
+{
+    Back,
+    RequestPurchase,
+    Purchase,
+};
+
+struct AchievementCommand
+{
+    AchievementCommandType type = AchievementCommandType::Back;
+    std::size_t achievement = 0U;
+};
+
+struct AchievementConfirmationState
+{
+    bool visible = false;
+    std::size_t pending = 0U;
+    bool yesFocused = true;
+};
+
+struct AchievementLayout
+{
+    float scale = 1.0F;
+    float centerX = 0.0F;
+    float centerY = 0.0F;
+    float bottomPanelY = 0.0F;
+    float rewardsY = 0.0F;
+    float pointsY = 0.0F;
+    float backX = 0.0F;
+    float backY = 0.0F;
+
+    float cardX(std::size_t index) const noexcept;
+    float cardY(std::size_t index) const noexcept;
+};
+
+class AchievementFrameState
+{
+public:
+    static constexpr std::size_t achievementCount = 9U;
+    static constexpr std::size_t backFocus = achievementCount;
+    static constexpr std::size_t noFocus = backFocus + 1U;
+
+    static const std::array<AchievementDefinition, achievementCount>&
+        definitions() noexcept;
+
+    void show(
+        const std::array<AchievementEntry, achievementCount>& entries)
+        noexcept;
+    void hide() noexcept;
+    void update(
+        const std::array<AchievementEntry, achievementCount>& entries)
+        noexcept;
+
+    const std::array<AchievementEntry, achievementCount>& entries()
+        const noexcept;
+    const AchievementEntry* entry(std::size_t index) const noexcept;
+    std::size_t focus() const noexcept;
+    bool setPointerFocus(std::size_t focus) noexcept;
+    bool focusable(std::size_t focus) const noexcept;
+
+    const AchievementConfirmationState& confirmation() const noexcept;
+    void cancelPurchase() noexcept;
+    void setPurchaseYesFocused(bool value) noexcept;
+    std::optional<AchievementCommand> handle(
+        const rrr3d::input::ActionEvent& event) noexcept;
+
+    AchievementLayout layout(float viewportWidth, float viewportHeight,
+                             float backWidth,
+                             float backHeight) const noexcept;
+
+private:
+    static std::size_t direction(
+        rrr3d::input::Action action) noexcept;
+    std::size_t findFocusable(
+        std::size_t element, std::vector<std::size_t> ignored,
+        std::size_t navigationDirection) const noexcept;
+    void moveFocus(std::size_t navigationDirection) noexcept;
+
+    std::array<AchievementEntry, achievementCount> entries_{};
+    std::size_t focus_ = noFocus;
+    AchievementConfirmationState confirmation_{};
 };
 
 } // namespace r3d::game::originalracemenu

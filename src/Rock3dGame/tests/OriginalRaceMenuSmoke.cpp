@@ -349,6 +349,72 @@ int main()
         directChange->planet != 1U)
         return fail("AngarFrame skirmish direct travel differs");
 
+    const auto& achievementDefinitions =
+        AchievementFrameState::definitions();
+    if (achievementDefinitions[0U].name != "viper" ||
+        achievementDefinitions[8U].name != "armor4" ||
+        achievementDefinitions[8U].openedImage.find("musicTrack.png") ==
+            std::string_view::npos)
+        return fail("AchievmentFrame source definition order differs");
+    std::array<AchievementEntry,
+               AchievementFrameState::achievementCount>
+        achievementEntries{};
+    for (auto& entry : achievementEntries)
+        entry.state = AchievementState::Locked;
+    achievementEntries[6U] = {AchievementState::Unlocked, 600U};
+    achievementEntries[8U] = {AchievementState::Unlocked, 800U};
+    AchievementFrameState achievements;
+    achievements.show(achievementEntries);
+    if (achievements.focus() != AchievementFrameState::noFocus)
+        return fail("AchievmentFrame OnShow focus reset differs");
+    achievements.handle(event(Action::TurnLeft));
+    if (achievements.focus() != AchievementFrameState::backFocus)
+        return fail("AchievmentFrame first direction focus differs");
+    achievements.handle(event(Action::MenuUp));
+    if (achievements.focus() != 6U)
+        return fail("AchievmentFrame Back-to-phaser graph differs");
+    achievements.handle(event(Action::TurnLeft));
+    if (achievements.focus() != 8U)
+        return fail("AchievmentFrame recursive disabled traversal differs");
+    const auto rewardRequest =
+        achievements.handle(event(Action::MenuConfirm));
+    if (!rewardRequest ||
+        rewardRequest->type !=
+            AchievementCommandType::RequestPurchase ||
+        rewardRequest->achievement != 8U ||
+        !achievements.confirmation().visible ||
+        !achievements.confirmation().yesFocused)
+        return fail("AchievmentFrame purchase request differs");
+    achievements.setPurchaseYesFocused(false);
+    if (achievements.handle(event(Action::MenuConfirm)).has_value() ||
+        achievements.confirmation().visible)
+        return fail("AchievmentFrame purchase No result differs");
+    achievements.handle(event(Action::MenuConfirm));
+    const auto rewardPurchase =
+        achievements.handle(event(Action::MenuConfirm));
+    if (!rewardPurchase ||
+        rewardPurchase->type != AchievementCommandType::Purchase ||
+        rewardPurchase->achievement != 8U)
+        return fail("AchievmentFrame purchase Yes result differs");
+    achievementEntries[8U].state = AchievementState::Opened;
+    achievements.update(achievementEntries);
+    if (achievements.focus() != AchievementFrameState::noFocus)
+        return fail("AchievmentFrame opened button disable differs");
+    achievements.setPointerFocus(0U);
+    if (achievements.handle(event(Action::MenuConfirm)).has_value())
+        return fail("AchievmentFrame locked pointer click differs");
+
+    const auto achievementLayout = achievements.layout(
+        1920.0F, 1080.0F, 100.0F, 50.0F);
+    if (!close(achievementLayout.scale, 1.5F) ||
+        !close(achievementLayout.cardX(0U), 1215.0F) ||
+        !close(achievementLayout.cardY(0U), 157.5F) ||
+        !close(achievementLayout.rewardsY, 832.5F) ||
+        !close(achievementLayout.pointsY, 1040.0F) ||
+        !close(achievementLayout.backX, 50.0F) ||
+        !close(achievementLayout.backY, 1042.0F))
+        return fail("AchievmentFrame source layout differs");
+
     std::cout << "original RaceMenu2 frames smoke passed\n";
     return 0;
 }

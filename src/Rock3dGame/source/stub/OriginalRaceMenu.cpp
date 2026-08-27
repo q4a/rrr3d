@@ -1246,4 +1246,313 @@ AngarLayout AngarFrameState::layout(
     return result;
 }
 
+namespace
+{
+
+constexpr std::array<AchievementDefinition, 9U>
+    achievementDefinitions{{
+        {"viper", "Data/GUI/Rewards/viperLock.png",
+         "Data/GUI/Rewards/viper.png", 200.0F, 105.0F},
+        {"buggi", "Data/GUI/Rewards/buggiLock.png",
+         "Data/GUI/Rewards/buggi.png", 405.0F, 155.0F},
+        {"airblade", "Data/GUI/Rewards/airbladeLock.png",
+         "Data/GUI/Rewards/airblade.png", 0.0F, 245.0F},
+        {"reflector", "Data/GUI/Rewards/reflectorLock.png",
+         "Data/GUI/Rewards/reflector.png", -190.0F, 125.0F},
+        {"droid", "Data/GUI/Rewards/droidLock.png",
+         "Data/GUI/Rewards/droid.png", -380.0F, 95.0F},
+        {"tankchetti", "Data/GUI/Rewards/tankchettiLock.png",
+         "Data/GUI/Rewards/tankchetti.png", -325.0F, 265.0F},
+        {"phaser", "Data/GUI/Rewards/phaserLock.png",
+         "Data/GUI/Rewards/phaser.png", -190.0F, 400.0F},
+        {"mustang", "Data/GUI/Rewards/mustangLock.png",
+         "Data/GUI/Rewards/mustang.png", 205.0F, 375.0F},
+        {"armor4", "Data/GUI/Rewards/musicTrackLock.png",
+         "Data/GUI/Rewards/musicTrack.png", 445.0F, 315.0F},
+    }};
+
+constexpr std::size_t noTarget = AchievementFrameState::noFocus;
+
+// Menu::NavDir order is left, right, up, down.  This is the literal graph
+// registered by AchievmentFrame::UpdateAchievments.
+constexpr std::array<std::array<std::size_t, 4U>, 10U>
+    achievementNavigation{{
+        {3U, 1U, 9U, 2U},          // viper
+        {0U, 4U, 9U, 8U},          // buggi
+        {5U, 8U, 3U, 6U},          // airblade
+        {4U, 0U, 9U, 5U},          // reflector
+        {1U, 3U, 9U, 5U},          // droid
+        {8U, 2U, 4U, 6U},          // tankchetti
+        {5U, 7U, 2U, 9U},          // phaser
+        {6U, 8U, 2U, 9U},          // mustang
+        {7U, 5U, 1U, 9U},          // musicTrack
+        {noTarget, noTarget, 6U, 6U}, // Back
+    }};
+
+std::array<std::size_t, 4U> directionOrder(
+    std::size_t direction) noexcept
+{
+    const std::size_t opposite = direction == 0U ? 1U
+        : direction == 1U ? 0U
+        : direction == 2U ? 3U
+                          : 2U;
+    const std::size_t third = direction == 0U ? 2U
+        : direction == 1U ? 3U
+        : direction == 2U ? 0U
+                          : 1U;
+    const std::size_t fourth = direction == 0U ? 3U
+        : direction == 1U ? 2U
+        : direction == 2U ? 1U
+                          : 0U;
+    return {direction, opposite, third, fourth};
+}
+
+bool sameAxis(std::size_t left, std::size_t right) noexcept
+{
+    return (left < 2U) == (right < 2U);
+}
+
+} // namespace
+
+const std::array<AchievementDefinition,
+                 AchievementFrameState::achievementCount>&
+AchievementFrameState::definitions() noexcept
+{
+    return achievementDefinitions;
+}
+
+float AchievementLayout::cardX(std::size_t index) const noexcept
+{
+    if (index >= achievementDefinitions.size())
+        return centerX;
+    return centerX + (achievementDefinitions[index].x - 30.0F) * scale;
+}
+
+float AchievementLayout::cardY(std::size_t index) const noexcept
+{
+    if (index >= achievementDefinitions.size())
+        return centerY;
+    return achievementDefinitions[index].y * scale;
+}
+
+void AchievementFrameState::show(
+    const std::array<AchievementEntry, achievementCount>& entries) noexcept
+{
+    entries_ = entries;
+    focus_ = noFocus;
+    confirmation_ = {};
+}
+
+void AchievementFrameState::hide() noexcept
+{
+    entries_ = {};
+    focus_ = noFocus;
+    confirmation_ = {};
+}
+
+void AchievementFrameState::update(
+    const std::array<AchievementEntry, achievementCount>& entries) noexcept
+{
+    entries_ = entries;
+    if (focus_ < achievementCount && !focusable(focus_))
+        focus_ = noFocus;
+}
+
+const std::array<AchievementEntry,
+                 AchievementFrameState::achievementCount>&
+AchievementFrameState::entries() const noexcept
+{
+    return entries_;
+}
+
+const AchievementEntry* AchievementFrameState::entry(
+    std::size_t index) const noexcept
+{
+    return index < achievementCount ? &entries_[index] : nullptr;
+}
+
+std::size_t AchievementFrameState::focus() const noexcept
+{
+    return focus_;
+}
+
+bool AchievementFrameState::setPointerFocus(std::size_t focus) noexcept
+{
+    if (focus > backFocus)
+        return false;
+    focus_ = focus;
+    return true;
+}
+
+bool AchievementFrameState::focusable(std::size_t focus) const noexcept
+{
+    return focus == backFocus ||
+           (focus < achievementCount &&
+            entries_[focus].state == AchievementState::Unlocked);
+}
+
+const AchievementConfirmationState&
+AchievementFrameState::confirmation() const noexcept
+{
+    return confirmation_;
+}
+
+void AchievementFrameState::cancelPurchase() noexcept
+{
+    confirmation_ = {};
+}
+
+void AchievementFrameState::setPurchaseYesFocused(bool value) noexcept
+{
+    confirmation_.yesFocused = value;
+}
+
+std::size_t AchievementFrameState::direction(
+    rrr3d::input::Action action) noexcept
+{
+    using rrr3d::input::Action;
+    return action == Action::TurnLeft ? 0U
+        : action == Action::TurnRight ? 1U
+        : action == Action::MenuUp ? 2U
+                                   : 3U;
+}
+
+std::size_t AchievementFrameState::findFocusable(
+    std::size_t element, std::vector<std::size_t> ignored,
+    std::size_t navigationDirection) const noexcept
+{
+    if (element > backFocus || navigationDirection >= 4U)
+        return noFocus;
+    for (const std::size_t edge : directionOrder(navigationDirection))
+    {
+        const std::size_t next = achievementNavigation[element][edge];
+        if (next == noTarget)
+            continue;
+        if (!ignored.empty() && next == ignored.front() &&
+            sameAxis(edge, navigationDirection) && focusable(element))
+        {
+            return element;
+        }
+        if (std::find(ignored.begin(), ignored.end(), next) != ignored.end())
+            continue;
+        if (sameAxis(edge, navigationDirection) && focusable(next))
+            return next;
+        ignored.push_back(element);
+        const std::size_t found =
+            findFocusable(next, ignored, navigationDirection);
+        if (found != noFocus)
+            return found;
+    }
+    return noFocus;
+}
+
+void AchievementFrameState::moveFocus(
+    std::size_t navigationDirection) noexcept
+{
+    if (navigationDirection >= 4U)
+        return;
+    // Menu::OnHandleInput focuses the registered key (Back) on the first
+    // direction when no widget currently owns focus; it does not also move.
+    if (focus_ == noFocus)
+    {
+        focus_ = backFocus;
+        return;
+    }
+    const std::size_t next =
+        achievementNavigation[focus_][navigationDirection];
+    if (next == noTarget)
+        return;
+    if (focusable(next))
+    {
+        focus_ = next;
+        return;
+    }
+    const std::size_t found = findFocusable(
+        next, {focus_}, navigationDirection);
+    if (found != noFocus)
+        focus_ = found;
+}
+
+std::optional<AchievementCommand> AchievementFrameState::handle(
+    const rrr3d::input::ActionEvent& event) noexcept
+{
+    if (!event.active)
+        return std::nullopt;
+    using rrr3d::input::Action;
+    if (confirmation_.visible)
+    {
+        if (event.action == Action::TurnLeft ||
+            event.action == Action::MenuUp)
+        {
+            confirmation_.yesFocused = true;
+        }
+        else if (event.action == Action::TurnRight ||
+                 event.action == Action::MenuDown)
+        {
+            confirmation_.yesFocused = false;
+        }
+        else if (!event.repeated &&
+                 (event.action == Action::MenuBack ||
+                  event.action == Action::Pause))
+        {
+            cancelPurchase();
+        }
+        else if (!event.repeated &&
+                 event.action == Action::MenuConfirm)
+        {
+            const auto pending = confirmation_.pending;
+            const bool accepted = confirmation_.yesFocused;
+            cancelPurchase();
+            if (accepted && pending < achievementCount &&
+                entries_[pending].state == AchievementState::Unlocked)
+            {
+                return AchievementCommand{
+                    AchievementCommandType::Purchase, pending};
+            }
+        }
+        return std::nullopt;
+    }
+    if (event.action == Action::TurnLeft ||
+        event.action == Action::TurnRight ||
+        event.action == Action::MenuUp ||
+        event.action == Action::MenuDown)
+    {
+        moveFocus(direction(event.action));
+        return std::nullopt;
+    }
+    if (event.repeated)
+        return std::nullopt;
+    if (event.action == Action::MenuBack || event.action == Action::Pause)
+        return AchievementCommand{AchievementCommandType::Back, 0U};
+    if (event.action != Action::MenuConfirm)
+        return std::nullopt;
+    if (focus_ == backFocus)
+        return AchievementCommand{AchievementCommandType::Back, 0U};
+    if (focus_ < achievementCount &&
+        entries_[focus_].state == AchievementState::Unlocked)
+    {
+        confirmation_ = {true, focus_, true};
+        return AchievementCommand{
+            AchievementCommandType::RequestPurchase, focus_};
+    }
+    return std::nullopt;
+}
+
+AchievementLayout AchievementFrameState::layout(
+    float viewportWidth, float viewportHeight, float backWidth,
+    float backHeight) const noexcept
+{
+    AchievementLayout result;
+    result.scale = std::min(
+        viewportWidth / 1090.0F, viewportHeight / 720.0F);
+    result.centerX = viewportWidth * 0.5F;
+    result.centerY = viewportHeight * 0.5F;
+    result.bottomPanelY = viewportHeight - 80.0F;
+    result.rewardsY = 555.0F * result.scale;
+    result.pointsY = result.bottomPanelY + 40.0F;
+    result.backX = backWidth * 0.5F;
+    result.backY = result.bottomPanelY + 17.0F + backHeight * 0.5F;
+    return result;
+}
+
 } // namespace r3d::game::originalracemenu

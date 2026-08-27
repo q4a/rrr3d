@@ -456,43 +456,10 @@ struct Options
 };
 
 #ifdef RRR3D_PHYSICS
-struct OriginalAchievementVisual
-{
-    std::string_view name;
-    std::string_view lockedImage;
-    std::string_view openedImage;
-    float x;
-    float y;
-};
-
-// RaceMenu2::AchievmentFrame::UpdateAchievments keeps these arrays in Box
-// order.  armor4 intentionally uses the original musicTrack artwork.
-constexpr std::array<OriginalAchievementVisual, 9>
-    originalAchievementVisuals{{
-        {"viper", "Data/GUI/Rewards/viperLock.png",
-         "Data/GUI/Rewards/viper.png", 200.0F, 105.0F},
-        {"buggi", "Data/GUI/Rewards/buggiLock.png",
-         "Data/GUI/Rewards/buggi.png", 405.0F, 155.0F},
-        {"airblade", "Data/GUI/Rewards/airbladeLock.png",
-         "Data/GUI/Rewards/airblade.png", 0.0F, 245.0F},
-        {"reflector", "Data/GUI/Rewards/reflectorLock.png",
-         "Data/GUI/Rewards/reflector.png", -190.0F, 125.0F},
-        {"droid", "Data/GUI/Rewards/droidLock.png",
-         "Data/GUI/Rewards/droid.png", -380.0F, 95.0F},
-        {"tankchetti", "Data/GUI/Rewards/tankchettiLock.png",
-         "Data/GUI/Rewards/tankchetti.png", -325.0F, 265.0F},
-        {"phaser", "Data/GUI/Rewards/phaserLock.png",
-         "Data/GUI/Rewards/phaser.png", -190.0F, 400.0F},
-        {"mustang", "Data/GUI/Rewards/mustangLock.png",
-         "Data/GUI/Rewards/mustang.png", 205.0F, 375.0F},
-        {"armor4", "Data/GUI/Rewards/musicTrackLock.png",
-         "Data/GUI/Rewards/musicTrack.png", 445.0F, 315.0F},
-    }};
-
+const auto& originalAchievementVisuals =
+    r3d::game::originalracemenu::AchievementFrameState::definitions();
 constexpr std::size_t originalAchievementBack =
-    originalAchievementVisuals.size();
-constexpr std::size_t originalAchievementNoTarget =
-    originalAchievementBack + 1U;
+    r3d::game::originalracemenu::AchievementFrameState::backFocus;
 
 r3d::physics::Vec3 rotateRaceVector(
     const r3d::physics::Quat& rotation,
@@ -511,23 +478,6 @@ r3d::physics::Vec3 rotateRaceVector(
             rotation.x * twiceCross.y - rotation.y * twiceCross.x};
 }
 
-// Menu::NavDir order is left, right, up, down.  This is the literal
-// AchievmentFrame navigation graph; locked buttons are skipped by following
-// the same direction, as Menu::NavElementFind did on Windows.
-constexpr std::array<std::array<std::size_t, 4>, 10>
-    originalAchievementNavigation{{
-        {3U, 1U, originalAchievementBack, 2U}, // viper
-        {0U, 4U, originalAchievementBack, 8U}, // buggi
-        {5U, 8U, 3U, 6U},                     // airblade
-        {4U, 0U, originalAchievementBack, 5U}, // reflector
-        {1U, 3U, originalAchievementBack, 5U}, // droid
-        {8U, 2U, 4U, 6U},                     // tankchetti
-        {5U, 7U, 2U, originalAchievementBack}, // phaser
-        {6U, 8U, 2U, originalAchievementBack}, // mustang
-        {7U, 5U, 1U, originalAchievementBack}, // musicTrack
-        {originalAchievementNoTarget, originalAchievementNoTarget, 6U,
-         6U}, // Back
-    }};
 #endif
 
 struct TextVisual
@@ -5202,6 +5152,8 @@ int main(int argc, char** argv)
         sourceSpaceshipFrame;
     r3d::game::originalracemenu::AngarFrameState
         sourceAngarFrame;
+    r3d::game::originalracemenu::AchievementFrameState
+        sourceAchievementFrame;
     float gamersSceneSeconds = 0.0F;
     bool gamersFrameObserved = !options->gamersFrameSmokeTest;
     bool gamersPlanet3DObserved = !options->gamersFrameSmokeTest;
@@ -5223,10 +5175,6 @@ int main(int argc, char** argv)
         r3d::game::originalracemenu::WorkshopConfirmationType;
     float workshopDragX = menu::virtualWidth * 0.5F;
     float workshopDragY = menu::virtualHeight * 0.5F;
-    bool achievementPurchaseDialogVisible = false;
-    bool achievementPurchaseYesFocused = true;
-    std::size_t achievementPendingPurchase =
-        originalAchievementNoTarget;
 #endif
     auto activeMenuPage = [&]() -> MenuPageVisual& {
         switch (menuStack.back())
@@ -5471,6 +5419,8 @@ int main(int argc, char** argv)
             sourceWorkshopFrame.hide();
         if (leavingScreen == MenuScreen::Planets)
             sourceAngarFrame.hide();
+        if (leavingScreen == MenuScreen::Achievements)
+            sourceAchievementFrame.hide();
         if (menuStack.back() == MenuScreen::RaceMenu)
         {
             sourceRaceMenu.setState(
@@ -5787,7 +5737,7 @@ int main(int argc, char** argv)
                sourceWorkshopFrame.confirmation().type !=
                    WorkshopConfirmation::None ||
                sourceAngarFrame.travelDialog().visible ||
-               achievementPurchaseDialogVisible ||
+               sourceAchievementFrame.confirmation().visible ||
                bindingCaptureAction.has_value();
     };
     auto acceptDialogYesFocused = [&]() {
@@ -5806,8 +5756,8 @@ int main(int argc, char** argv)
             return sourceWorkshopFrame.confirmation().yesFocused;
         if (sourceAngarFrame.travelDialog().visible)
             return sourceAngarFrame.travelDialog().yesFocused;
-        if (achievementPurchaseDialogVisible)
-            return achievementPurchaseYesFocused;
+        if (sourceAchievementFrame.confirmation().visible)
+            return sourceAchievementFrame.confirmation().yesFocused;
         return false;
     };
     auto setAcceptDialogFocus = [&](bool yes) {
@@ -5828,8 +5778,8 @@ int main(int argc, char** argv)
             sourceWorkshopFrame.setConfirmationYesFocused(yes);
         else if (sourceAngarFrame.travelDialog().visible)
             sourceAngarFrame.setTravelYesFocused(yes);
-        else if (achievementPurchaseDialogVisible)
-            achievementPurchaseYesFocused = yes;
+        else if (sourceAchievementFrame.confirmation().visible)
+            sourceAchievementFrame.setPurchaseYesFocused(yes);
     };
     auto wrapAcceptDialogMessage =
         [&](std::string_view value, float maximumWidth,
@@ -9110,31 +9060,58 @@ int main(int argc, char** argv)
                     acceptFrameImage.height) *
                     0.5F);
     };
+    auto sourceAchievementEntries = [&]() {
+        using Entry =
+            r3d::game::originalracemenu::AchievementEntry;
+        using State =
+            r3d::game::originalracemenu::AchievementState;
+        std::array<
+            Entry,
+            r3d::game::originalracemenu::
+                AchievementFrameState::achievementCount>
+            result{};
+        for (std::size_t index = 0U;
+             index < originalAchievementVisuals.size(); ++index)
+        {
+            const auto item = profileState.achievementItems.find(
+                std::string(originalAchievementVisuals[index].name));
+            if (item == profileState.achievementItems.end())
+                continue;
+            const auto state = item->second.values.find("state");
+            if (state != item->second.values.end())
+            {
+                result[index].state =
+                    state->second == "asLocked" ? State::Locked
+                    : state->second == "asUnlocked" ? State::Unlocked
+                    : state->second == "asOpened" ? State::Opened
+                                                   : State::Missing;
+            }
+            const auto price = item->second.values.find("price");
+            if (price != item->second.values.end())
+            {
+                const auto parsed = std::from_chars(
+                    price->second.data(),
+                    price->second.data() + price->second.size(),
+                    result[index].price);
+                if (parsed.ec != std::errc{})
+                    result[index].price = 0U;
+            }
+        }
+        return result;
+    };
     auto refreshAchievementsPage = [&]() {
+        sourceAchievementFrame.update(sourceAchievementEntries());
         std::vector<std::string> prices;
         prices.reserve(originalAchievementVisuals.size());
-        for (const auto& visual : originalAchievementVisuals)
+        for (std::size_t index = 0U;
+             index < originalAchievementVisuals.size(); ++index)
         {
-            const auto item =
-                profileState.achievementItems.find(
-                    std::string(visual.name));
-            if (item == profileState.achievementItems.end())
-            {
-                prices.emplace_back(" ");
-                continue;
-            }
-            const auto state = item->second.values.find("state");
-            const auto price = item->second.values.find("price");
             prices.push_back(
-                state != item->second.values.end() &&
-                        state->second == "asUnlocked" &&
-                        price != item->second.values.end()
+                sourceAchievementFrame.entries()[index].state ==
+                        r3d::game::originalracemenu::
+                            AchievementState::Unlocked
                     ? originalCurrency(
-                          static_cast<std::uint32_t>(
-                              std::max(
-                                  std::strtol(
-                                      price->second.c_str(), nullptr, 10),
-                                  0L)))
+                          sourceAchievementFrame.entries()[index].price)
                     : " ");
         }
         auto replacement = createStyledPage(
@@ -9151,64 +9128,18 @@ int main(int argc, char** argv)
             menu::Rgba8{250, 88, 0, 255}, resolvedFont);
         device->destroy(achievementPoints.texture);
         achievementPoints = pointsReplacement;
-        menuSelection =
-            std::min(menuSelection, originalAchievementBack);
+        menuSelection = sourceAchievementFrame.focus();
     };
-    auto achievementState =
-        [&](std::size_t index) -> std::string_view {
-            if (index >= originalAchievementVisuals.size())
-                return {};
-            const auto item =
-                profileState.achievementItems.find(
-                    std::string(
-                        originalAchievementVisuals[index].name));
-            if (item == profileState.achievementItems.end())
-                return {};
-            const auto state = item->second.values.find("state");
-            return state == item->second.values.end()
-                       ? std::string_view{}
-                       : std::string_view(state->second);
-        };
+    auto achievementState = [&](std::size_t index) {
+        const auto* entry = sourceAchievementFrame.entry(index);
+        return entry == nullptr
+                   ? r3d::game::originalracemenu::
+                         AchievementState::Missing
+                   : entry->state;
+    };
     auto achievementPrice = [&](std::size_t index) {
-        std::uint32_t price = 0U;
-        if (index >= originalAchievementVisuals.size())
-            return price;
-        const auto item =
-            profileState.achievementItems.find(
-                std::string(originalAchievementVisuals[index].name));
-        if (item == profileState.achievementItems.end())
-            return price;
-        const auto value = item->second.values.find("price");
-        if (value == item->second.values.end())
-            return price;
-        const auto parsed = std::from_chars(
-            value->second.data(),
-            value->second.data() + value->second.size(), price);
-        return parsed.ec == std::errc{} ? price : 0U;
-    };
-    auto achievementFocusable = [&](std::size_t index) {
-        return index == originalAchievementBack ||
-               achievementState(index) == "asUnlocked";
-    };
-    auto moveAchievementFocus = [&](std::size_t direction) {
-        if (direction >= 4U ||
-            menuSelection > originalAchievementBack)
-            return;
-        std::size_t next =
-            originalAchievementNavigation[menuSelection][direction];
-        for (std::size_t attempts = 0U;
-             attempts < originalAchievementNavigation.size();
-             ++attempts)
-        {
-            if (next == originalAchievementNoTarget)
-                return;
-            if (achievementFocusable(next))
-            {
-                menuSelection = next;
-                return;
-            }
-            next = originalAchievementNavigation[next][direction];
-        }
+        const auto* entry = sourceAchievementFrame.entry(index);
+        return entry == nullptr ? 0U : entry->price;
     };
     auto showOriginalRaceMenu = [&]() {
 #ifdef RRR3D_NETWORK
@@ -12403,9 +12334,14 @@ int main(int argc, char** argv)
                     const float virtualY =
                         pointerY * menu::virtualHeight /
                         static_cast<float>(windowHeight);
-                        const float scale = std::min(
-                            menu::virtualWidth / 1090.0F,
-                            menu::virtualHeight / 720.0F);
+                        const auto achievementLayout =
+                            sourceAchievementFrame.layout(
+                                menu::virtualWidth,
+                                menu::virtualHeight,
+                                static_cast<float>(
+                                    garageBackImage.width),
+                                static_cast<float>(
+                                    garageBackImage.height));
                         for (std::size_t reverse = 0U;
                              reverse <
                              originalAchievementVisuals.size();
@@ -12414,42 +12350,35 @@ int main(int argc, char** argv)
                             const std::size_t index =
                                 originalAchievementVisuals.size() -
                                 1U - reverse;
-                            const auto& visual =
-                                originalAchievementVisuals[index];
                             const auto& image =
-                                achievementState(index) == "asOpened"
+                                achievementState(index) ==
+                                        r3d::game::originalracemenu::
+                                            AchievementState::Opened
                                     ? achievementOpenedImages[index]
                                     : achievementLockedImages[index];
                             const float centerX =
-                                menu::virtualWidth * 0.5F +
-                                (visual.x - 30.0F) * scale;
-                            const float centerY = visual.y * scale;
+                                achievementLayout.cardX(index);
+                            const float centerY =
+                                achievementLayout.cardY(index);
                             if (std::abs(virtualX - centerX) <=
                                     static_cast<float>(image.width) *
-                                        scale * 0.5F &&
+                                        achievementLayout.scale * 0.5F &&
                                 std::abs(virtualY - centerY) <=
                                     static_cast<float>(image.height) *
-                                        scale * 0.5F)
+                                        achievementLayout.scale * 0.5F)
                             {
                                 hoveredAchievement = index;
                                 break;
                             }
                         }
-                        const float backX =
-                            static_cast<float>(
-                                garageBackImage.width) *
-                            0.5F;
-                        const float backY =
-                            menu::virtualHeight - 80.0F + 17.0F +
-                            static_cast<float>(
-                                garageBackImage.height) *
-                                0.5F;
                         if (!hoveredAchievement &&
-                            std::abs(virtualX - backX) <=
+                            std::abs(
+                                virtualX - achievementLayout.backX) <=
                                 static_cast<float>(
                                     garageBackImage.width) *
                                     0.5F &&
-                            std::abs(virtualY - backY) <=
+                            std::abs(
+                                virtualY - achievementLayout.backY) <=
                                 static_cast<float>(
                                     garageBackImage.height) *
                                     0.5F)
@@ -12460,7 +12389,9 @@ int main(int argc, char** argv)
                 }
                 if (hoveredAchievement)
                 {
-                    menuSelection = *hoveredAchievement;
+                    if (sourceAchievementFrame.setPointerFocus(
+                            *hoveredAchievement))
+                        menuSelection = sourceAchievementFrame.focus();
                 }
                 pointerTargetsItem =
                     hoveredAchievement.has_value() ||
@@ -13730,179 +13661,92 @@ int main(int argc, char** argv)
                 }
                 if (menuStack.back() == MenuScreen::Achievements)
                 {
-                    if (achievementPurchaseDialogVisible)
-                    {
-                        if (inputEvent.action ==
-                                rrr3d::input::Action::TurnLeft ||
-                            inputEvent.action ==
-                                rrr3d::input::Action::MenuUp)
-                        {
-                            achievementPurchaseYesFocused = true;
-                        }
-                        else if (
-                            inputEvent.action ==
-                                rrr3d::input::Action::TurnRight ||
-                            inputEvent.action ==
-                                rrr3d::input::Action::MenuDown)
-                        {
-                            achievementPurchaseYesFocused = false;
-                        }
-                        else if (
-                            !inputEvent.repeated &&
-                            (inputEvent.action ==
-                                 rrr3d::input::Action::MenuBack ||
-                             inputEvent.action ==
-                                 rrr3d::input::Action::Pause))
-                        {
-                            achievementPurchaseDialogVisible = false;
-                            achievementPendingPurchase =
-                                originalAchievementNoTarget;
-                        }
-                        else if (
-                            !inputEvent.repeated &&
-                            inputEvent.action ==
-                                rrr3d::input::Action::MenuConfirm)
-                        {
+                    const bool dialogWasVisible =
+                        sourceAchievementFrame.confirmation().visible;
+                    const auto command =
+                        sourceAchievementFrame.handle(inputEvent);
+                    menuSelection = sourceAchievementFrame.focus();
 #ifdef RRR3D_AUDIO
-                            playMainButtonClick();
-#endif
-                            const auto pending =
-                                achievementPendingPurchase;
-                            const bool accepted =
-                                achievementPurchaseYesFocused;
-                            achievementPurchaseDialogVisible = false;
-                            achievementPendingPurchase =
-                                originalAchievementNoTarget;
-                            if (accepted &&
-                                pending <
-                                    originalAchievementVisuals.size() &&
-                                achievementState(pending) ==
-                                    "asUnlocked")
-                            {
-                                const auto price =
-                                    achievementPrice(pending);
-                                if (profileState.achievementPoints <
-                                    price)
-                                {
-                                    showInfoDialog(
-                                        localized("svWarning"),
-                                        localized(
-                                            "svHintCantPoints"),
-                                        localized("svOk"),
-                                        menu::virtualWidth * 0.5F,
-                                        menu::virtualHeight * 0.5F);
-                                }
-                                else
-                                {
-                                    profileState.achievementPoints -=
-                                        price;
-                                    profileState
-                                        .achievementItems[
-                                            std::string(
-                                                originalAchievementVisuals
-                                                    [pending]
-                                                    .name)]
-                                        .values["state"] = "asOpened";
-                                    if (originalAchievementVisuals[pending]
-                                            .name == "armor4")
-                                    {
-                                        std::string armorError;
-                                        const bool substituted =
-                                            applyArmor4Presentation(
-                                                *originalGarage);
-                                        workshopRenderer.shutdown(*device);
-                                        if (!substituted ||
-                                            !workshopRenderer.initialize(
-                                                *device,
-                                                originalResourceManager,
-                                                *originalGarage,
-                                                *originalRace,
-                                                armorError))
-                                        {
-                                            std::cerr
-                                                << "Unable to apply source "
-                                                   "armor4 presentation: "
-                                                << armorError << '\n';
-                                            runtimeSmokeFailed = true;
-                                            running = false;
-                                        }
-                                    }
-                                    saveRaceProfile();
-                                    refreshAchievementsPage();
-                                    std::cout
-                                        << "Original AchievmentFrame "
-                                           "reward opened: "
-                                        << originalAchievementVisuals
-                                               [pending]
-                                               .name
-                                        << '\n';
-                                }
-                            }
-                        }
-                        continue;
-                    }
-                    if (inputEvent.action ==
-                        rrr3d::input::Action::TurnLeft)
-                    {
-                        moveAchievementFocus(0U);
-                        continue;
-                    }
-                    if (inputEvent.action ==
-                        rrr3d::input::Action::TurnRight)
-                    {
-                        moveAchievementFocus(1U);
-                        continue;
-                    }
-                    if (inputEvent.action ==
-                        rrr3d::input::Action::MenuUp)
-                    {
-                        moveAchievementFocus(2U);
-                        continue;
-                    }
-                    if (inputEvent.action ==
-                        rrr3d::input::Action::MenuDown)
-                    {
-                        moveAchievementFocus(3U);
-                        continue;
-                    }
-                    if (inputEvent.repeated)
-                        continue;
-                    if (inputEvent.action ==
-                            rrr3d::input::Action::MenuBack ||
+                    if (dialogWasVisible && !inputEvent.repeated &&
                         inputEvent.action ==
-                            rrr3d::input::Action::Pause)
+                            rrr3d::input::Action::MenuConfirm)
                     {
-#ifdef RRR3D_AUDIO
                         playMainButtonClick();
-#endif
-                        backMenu();
-                        continue;
                     }
-                    if (inputEvent.action ==
-                        rrr3d::input::Action::MenuConfirm)
-                    {
+#endif
+                    if (!command)
+                        continue;
+                    using AchievementCommand =
+                        r3d::game::originalracemenu::
+                            AchievementCommandType;
 #ifdef RRR3D_AUDIO
+                    if (!dialogWasVisible)
                         playMainButtonClick();
 #endif
-                        if (menuSelection ==
-                            originalAchievementBack)
+                    if (command->type == AchievementCommand::Back)
+                    {
+                        backMenu();
+                    }
+                    else if (command->type ==
+                             AchievementCommand::RequestPurchase)
+                    {
+                        showAcceptDialog(
+                            localized("svBuyReward"),
+                            localized("svYes"),
+                            localized("svNo"),
+                            menu::virtualWidth * 0.5F,
+                            menu::virtualHeight * 0.5F);
+                    }
+                    else
+                    {
+                        const auto pending = command->achievement;
+                        const auto price = achievementPrice(pending);
+                        if (profileState.achievementPoints < price)
                         {
-                            backMenu();
-                        }
-                        else if (
-                            achievementState(menuSelection) ==
-                            "asUnlocked")
-                        {
-                            achievementPendingPurchase =
-                                menuSelection;
-                            achievementPurchaseYesFocused = true;
-                            achievementPurchaseDialogVisible = true;
-                            showAcceptDialog(
-                                localized("svBuyReward"),
-                                localized("svYes"),
-                                localized("svNo"),
+                            showInfoDialog(
+                                localized("svWarning"),
+                                localized("svHintCantPoints"),
+                                localized("svOk"),
                                 menu::virtualWidth * 0.5F,
                                 menu::virtualHeight * 0.5F);
+                        }
+                        else
+                        {
+                            profileState.achievementPoints -= price;
+                            profileState
+                                .achievementItems[std::string(
+                                    originalAchievementVisuals[pending]
+                                        .name)]
+                                .values["state"] = "asOpened";
+                            if (originalAchievementVisuals[pending].name ==
+                                "armor4")
+                            {
+                                std::string armorError;
+                                const bool substituted =
+                                    applyArmor4Presentation(
+                                        *originalGarage);
+                                workshopRenderer.shutdown(*device);
+                                if (!substituted ||
+                                    !workshopRenderer.initialize(
+                                        *device,
+                                        originalResourceManager,
+                                        *originalGarage, *originalRace,
+                                        armorError))
+                                {
+                                    std::cerr
+                                        << "Unable to apply source armor4 "
+                                           "presentation: "
+                                        << armorError << '\n';
+                                    runtimeSmokeFailed = true;
+                                    running = false;
+                                }
+                            }
+                            saveRaceProfile();
+                            refreshAchievementsPage();
+                            std::cout
+                                << "Original AchievmentFrame reward opened: "
+                                << originalAchievementVisuals[pending].name
+                                << '\n';
                         }
                     }
                     continue;
@@ -14679,11 +14523,10 @@ int main(int argc, char** argv)
                     {
                         sourceRaceMenu.setState(
                             r3d::game::originalracemenu::State::Achievements);
-                        achievementPurchaseDialogVisible = false;
-                        achievementPendingPurchase =
-                            originalAchievementNoTarget;
-                        refreshAchievementsPage();
                         pushMenu(MenuScreen::Achievements);
+                        sourceAchievementFrame.show(
+                            sourceAchievementEntries());
+                        refreshAchievementsPage();
                     }
                     else if (*raceMenuCommand == RaceMainCommand::Options)
                     {
@@ -20351,35 +20194,35 @@ int main(int argc, char** argv)
         else if (drawingOriginalAchievements)
         {
             raceAchievementFrameObserved = true;
-            const float centerX = menu::virtualWidth * 0.5F;
-            const float centerY = menu::virtualHeight * 0.5F;
-            const float scale = std::min(
-                menu::virtualWidth / 1090.0F,
-                menu::virtualHeight / 720.0F);
+            const auto achievementLayout =
+                sourceAchievementFrame.layout(
+                    menu::virtualWidth, menu::virtualHeight,
+                    static_cast<float>(garageBackImage.width),
+                    static_cast<float>(garageBackImage.height));
+            const float scale = achievementLayout.scale;
             drawQuad(
                 *device, quad, shader, achievementBackground,
                 menu::virtualWidth, menu::virtualHeight,
-                centerX, centerY, 85.0F, transparent);
+                achievementLayout.centerX,
+                achievementLayout.centerY, 85.0F, transparent);
             drawQuad(
                 *device, quad, shader, achievementPanel,
                 static_cast<float>(achievementPanelImage.width) *
                     scale,
                 static_cast<float>(achievementPanelImage.height) *
                     scale,
-                centerX,
+                achievementLayout.centerX,
                 static_cast<float>(achievementPanelImage.height) *
                     scale * 0.5F,
                 60.0F, transparent);
 
-            const float bottomPanelPositionY =
-                menu::virtualHeight - 80.0F;
             drawQuad(
                 *device, quad, shader, achievementBottomPanel,
                 menu::virtualWidth,
                 static_cast<float>(
                     achievementBottomPanelImage.height),
-                centerX,
-                bottomPanelPositionY -
+                achievementLayout.centerX,
+                achievementLayout.bottomPanelY -
                     static_cast<float>(
                         achievementBottomPanelImage.height) *
                         0.5F,
@@ -20388,22 +20231,26 @@ int main(int argc, char** argv)
             drawQuad(
                 *device, quad, shader, achievementRewards.texture,
                 achievementRewards.width * scale,
-                achievementRewards.height * scale, centerX,
-                555.0F * scale, 15.0F, transparent);
+                achievementRewards.height * scale,
+                achievementLayout.centerX,
+                achievementLayout.rewardsY, 15.0F, transparent);
             drawQuad(
                 *device, quad, shader, achievementPoints.texture,
                 achievementPoints.width, achievementPoints.height,
-                centerX, bottomPanelPositionY + 40.0F,
+                achievementLayout.centerX,
+                achievementLayout.pointsY,
                 15.0F, transparent);
 
             for (std::size_t index = 0U;
                  index < originalAchievementVisuals.size(); ++index)
             {
                 const auto state = achievementState(index);
-                const bool opened = state == "asOpened";
-                const bool unlocked = state == "asUnlocked";
-                const auto& visual =
-                    originalAchievementVisuals[index];
+                const bool opened = state ==
+                    r3d::game::originalracemenu::
+                        AchievementState::Opened;
+                const bool unlocked = state ==
+                    r3d::game::originalracemenu::
+                        AchievementState::Unlocked;
                 const auto& image =
                     opened ? achievementOpenedImages[index]
                            : achievementLockedImages[index];
@@ -20411,8 +20258,9 @@ int main(int argc, char** argv)
                     opened ? achievementOpenedTextures[index]
                            : achievementLockedTextures[index];
                 const float imageX =
-                    centerX + (visual.x - 30.0F) * scale;
-                const float imageY = visual.y * scale;
+                    achievementLayout.cardX(index);
+                const float imageY =
+                    achievementLayout.cardY(index);
                 const float imageWidth =
                     static_cast<float>(image.width) * scale;
                 const float imageHeight =
@@ -20423,7 +20271,7 @@ int main(int argc, char** argv)
                     45.0F, transparent);
 
                 const bool focused =
-                    menuSelection == index && unlocked;
+                    sourceAchievementFrame.focus() == index && unlocked;
                 const Texture buttonTexture =
                     opened
                         ? achievementOkSelected
@@ -20466,12 +20314,8 @@ int main(int argc, char** argv)
             }
 
             const bool backFocused =
-                menuSelection == originalAchievementBack;
-            const float backX =
-                static_cast<float>(garageBackImage.width) * 0.5F;
-            const float backY =
-                bottomPanelPositionY + 17.0F +
-                static_cast<float>(garageBackImage.height) * 0.5F;
+                sourceAchievementFrame.focus() ==
+                originalAchievementBack;
             drawQuad(
                 *device, quad, shader,
                 backFocused ? garageBackSelected : garageBack,
@@ -20481,7 +20325,8 @@ int main(int argc, char** argv)
                 static_cast<float>(
                     backFocused ? garageBackSelectedImage.height
                                 : garageBackImage.height),
-                backX, backY, 35.0F, transparent);
+                achievementLayout.backX,
+                achievementLayout.backY, 35.0F, transparent);
             const auto& backText =
                 backFocused
                     ? achievementsPage.selected[
@@ -20490,7 +20335,9 @@ int main(int argc, char** argv)
                           originalAchievementBack];
             drawQuad(
                 *device, quad, shader, backText.texture,
-                backText.width, backText.height, backX, backY,
+                backText.width, backText.height,
+                achievementLayout.backX,
+                achievementLayout.backY,
                 15.0F, transparent);
 
         }
