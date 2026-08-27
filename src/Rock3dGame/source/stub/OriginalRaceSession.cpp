@@ -3090,30 +3090,159 @@ void OriginalRaceSession::updateAiTracks(
     aiSystem_.ComputeTracks(aiSystemEntriesScratch_);
 }
 
-r3d::physics::VehicleInput OriginalRaceSession::aiInput(
-    std::size_t racer, const r3d::physics::VehicleState& vehicle,
-    float seconds)
+void OriginalRaceSession::progressAi(
+    float seconds,
+    const std::vector<r3d::physics::VehicleState>& vehicles)
 {
-    if (racer >= racers_.size() || racer >= aiPlayers_.size() ||
-        racers_[racer].GetFinished() || racers_[racer].IsDestroyed())
+    aiProgressScratch_.assign(racers_.size(), {});
+    aiProgressValidScratch_.assign(racers_.size(), false);
+
+    auto& attackTargets = aiAttackTargetsScratch_;
+    attackTargets.resize(racers_.size());
+    for (std::size_t target = 0U; target < racers_.size(); ++target)
+    {
+        source::AICar::AttackTarget state;
+        state.active =
+            target < vehicles.size() &&
+            !racers_[target].IsDestroyed() &&
+            !racers_[target].disconnected;
+        if (target < vehicles.size())
+            state.position = vehicles[target].body.position;
+        state.radius = racers_[target].car.GetRadius();
+        state.size = racers_[target].car.GetSize();
+        attackTargets[target] = state;
+    }
+
+    const auto sourceVehicleState = [&](std::size_t racer) {
+        source::AICar::VehicleState state;
+        const auto& vehicle = vehicles[racer];
+        state.position = vehicle.body.position;
+        state.direction =
+            normalized2(forward(vehicle.body.rotation));
+        state.direction3 =
+            normalized3(forward(vehicle.body.rotation));
+        state.speed = vehicle.speed;
+        state.size = racers_[racer].car.GetSize();
+        state.steeringControl =
+            racers_[racer].gameCar.GetKSteerControl();
+        state.mapObject = true;
+        state.cheatSlower = racers_[racer].car.cheatSlower;
+        return state;
+    };
+
+    for (std::size_t racer = 0U;
+         racer < racers_.size() && racer < vehicles.size() &&
+         racer < aiPlayers_.size(); ++racer)
+    {
+        auto& runtime = racers_[racer];
+        const bool sourceComputer = runtime.IsComputer();
+        const bool debugHuman =
+            debugHumanAiControl_ && racer == humanRacer_;
+        if ((!sourceComputer && !debugHuman) ||
+            runtime.GetFinished() || runtime.IsDestroyed() ||
+            !aiPlayers_[racer].HasCar() ||
+            (sourceComputer && networkGameplayEnabled_ &&
+             (racer >= networkOwnedRacers_.size() ||
+              !networkOwnedRacers_[racer])))
+        {
+            continue;
+        }
+
+        const auto vehicle = sourceVehicleState(racer);
+        if (debugHuman && !sourceComputer)
+        {
+            aiProgressScratch_[racer].command =
+                aiPlayers_[racer].OnProgress(
+                    seconds, vehicle, &sourceRandomUnit);
+            aiProgressValidScratch_[racer] = true;
+            continue;
+        }
+
+        std::array<source::AICar::AttackWeapon,
+                   PlayerProfile::weaponSlotCount> attackWeapons{};
+        const auto primaryItems = runtime.GetPrimaryWeaponItems();
+        std::size_t attackWeaponCount = 0U;
+        for (std::size_t slot = 0U;
+             slot < runtime.weaponSlots.size(); ++slot)
+        {
+            const std::size_t weaponIndex = runtime.weaponSlots[slot];
+            if (weaponIndex == RacerRuntime::invalidWeapon ||
+                weaponIndex >= race_.weapons.size())
+            {
+                continue;
+            }
+            const auto* item = primaryItems[slot];
+            const auto* liveWeapon =
+                item != nullptr ? item->GetWeapon() : nullptr;
+            if (liveWeapon == nullptr)
+                continue;
+            const auto& description = liveWeapon->GetDesc();
+            const auto& projectile = description.Front();
+            auto& state = attackWeapons[attackWeaponCount++];
+            state.slot = slot;
+            state.projectileType = projectile.type;
+            state.maximumDistance = projectile.maximumDistance;
+            state.capacity = item->GetCntCharge();
+            state.charge = item->GetCurCharge();
+            state.ready = liveWeapon->IsReadyShot(
+                std::max(description.shotDelay, 0.25F));
+        }
+
+        source::AICar::AttackContext context;
+        context.owner = racer;
+        context.targets = attackTargets;
+        context.weapons =
+            std::span<const source::AICar::AttackWeapon>(
+                attackWeapons.data(), attackWeaponCount);
+        context.enabled = true;
+        context.randomSource = &sourceRandomUnit;
+        context.uniformRandomSource = &sourceUniformRandomUnit;
+        if (runtime.hyperWeapon != RacerRuntime::invalidWeapon &&
+            runtime.hyperWeapon < race_.weapons.size())
+        {
+            const auto* item = runtime.GetHyperWeaponItem();
+            const auto* liveWeapon =
+                item != nullptr ? item->GetWeapon() : nullptr;
+            context.hyper.installed = liveWeapon != nullptr;
+            if (liveWeapon != nullptr)
+            {
+                context.hyper.projectileSpeed =
+                    liveWeapon->GetDesc().Front().speed;
+                context.hyper.capacity = item->GetCntCharge();
+                context.hyper.charge = item->GetCurCharge();
+            }
+        }
+        if (runtime.mineWeapon != RacerRuntime::invalidWeapon &&
+            runtime.mineWeapon < race_.weapons.size())
+        {
+            const auto* item = runtime.GetMineWeaponItem();
+            const auto* liveWeapon =
+                item != nullptr ? item->GetWeapon() : nullptr;
+            context.mine.installed = liveWeapon != nullptr;
+            if (liveWeapon != nullptr)
+            {
+                context.mine.oil =
+                    liveWeapon->GetDesc().Front().type ==
+                    source::AutoProj::masloType;
+                context.mine.capacity = item->GetCntCharge();
+                context.mine.charge = item->GetCurCharge();
+            }
+        }
+
+        aiProgressScratch_[racer] = aiPlayers_[racer].OnProgress(
+            seconds, vehicle, context, &sourceRandomUnit);
+        aiProgressValidScratch_[racer] = true;
+    }
+}
+
+r3d::physics::VehicleInput OriginalRaceSession::aiInput(
+    std::size_t racer,
+    const source::AICar::Command& command) const
+{
+    if (racer >= racers_.size())
         return {};
 
     const auto& vehicleDefinition = vehicleForRacer(racer);
-    source::AICar::VehicleState sourceVehicle;
-    sourceVehicle.position = vehicle.body.position;
-    sourceVehicle.direction =
-        normalized2(forward(vehicle.body.rotation));
-    sourceVehicle.direction3 =
-        normalized3(forward(vehicle.body.rotation));
-    sourceVehicle.speed = vehicle.speed;
-    sourceVehicle.size = racers_[racer].car.GetSize();
-    sourceVehicle.steeringControl =
-        racers_[racer].gameCar.GetKSteerControl();
-    sourceVehicle.mapObject = true;
-    sourceVehicle.cheatSlower = racers_[racer].car.cheatSlower;
-
-    const auto command = aiPlayers_[racer].OnProgress(
-        seconds, sourceVehicle, &sourceRandomUnit);
     r3d::physics::VehicleInput input;
     input.steering = clampSteering(
         command.steeringAngle /
@@ -6380,125 +6509,20 @@ void OriginalRaceSession::updateGameplay(
         runtime.SyncSelectedWeapon(race_.weapons.size());
     }
     pendingNetworkShots_.clear();
-    auto& attackTargets = aiAttackTargetsScratch_;
-    attackTargets.resize(racers_.size());
-    for (std::size_t target = 0U; target < racers_.size(); ++target)
-    {
-        source::AICar::AttackTarget state;
-        state.active =
-            target < vehicles.size() &&
-            !racers_[target].IsDestroyed() &&
-            !racers_[target].disconnected;
-        if (target < vehicles.size())
-            state.position = vehicles[target].body.position;
-        state.radius = racers_[target].car.GetRadius();
-        state.size = racers_[target].car.GetSize();
-        attackTargets[target] = state;
-    }
+    // AISystem::OnProgress has already run the source-owned
+    // PathState -> AttackState -> ControlState transaction.  Only execute
+    // its weapon commands here, after the primary/network shot adapters have
+    // established their backend lambdas.
     for (std::size_t racer = 0U;
-         racer < racers_.size() && racer < vehicles.size(); ++racer)
+         racer < racers_.size() &&
+         racer < aiProgressScratch_.size() &&
+         racer < aiProgressValidScratch_.size(); ++racer)
     {
         auto& runtime = racers_[racer];
-        // AICar::AttackState::Update returns before changing retained targets
-        // or RNG state while the source CarState has no live curTile.
-        if (!racers_[racer].IsComputer() ||
-            (networkGameplayEnabled_ &&
-             (racer >= networkOwnedRacers_.size() ||
-              !networkOwnedRacers_[racer])) ||
-            runtime.IsDestroyed() ||
-            racer >= aiPlayers_.size() ||
-            runtime.car.GetLiveTile() == nullptr)
-        {
+        if (!aiProgressValidScratch_[racer] ||
+            !runtime.IsComputer())
             continue;
-        }
-
-        source::AICar::VehicleState sourceVehicle;
-        sourceVehicle.position = vehicles[racer].body.position;
-        sourceVehicle.direction =
-            normalized2(forward(vehicles[racer].body.rotation));
-        sourceVehicle.direction3 =
-            normalized3(forward(vehicles[racer].body.rotation));
-        sourceVehicle.speed = vehicles[racer].speed;
-        sourceVehicle.size = runtime.car.GetSize();
-        sourceVehicle.steeringControl =
-            runtime.gameCar.GetKSteerControl();
-        sourceVehicle.mapObject = true;
-
-        std::array<source::AICar::AttackWeapon,
-                   PlayerProfile::weaponSlotCount> attackWeapons{};
-        const auto primaryItems = runtime.GetPrimaryWeaponItems();
-        std::size_t attackWeaponCount = 0U;
-        for (std::size_t slot = 0U;
-             slot < runtime.weaponSlots.size(); ++slot)
-        {
-            const std::size_t weaponIndex =
-                runtime.weaponSlots[slot];
-            if (weaponIndex == RacerRuntime::invalidWeapon ||
-                weaponIndex >= race_.weapons.size())
-            {
-                continue;
-            }
-            const auto* item = primaryItems[slot];
-            if (item == nullptr)
-                continue;
-            const auto* liveWeapon = item->GetWeapon();
-            if (liveWeapon == nullptr)
-                continue;
-            const auto& description = liveWeapon->GetDesc();
-            const auto& projectile = description.Front();
-            source::AICar::AttackWeapon state;
-            state.slot = slot;
-            state.projectileType = projectile.type;
-            state.maximumDistance = projectile.maximumDistance;
-            state.capacity = item->GetCntCharge();
-            state.charge = item->GetCurCharge();
-            state.ready = liveWeapon->IsReadyShot(
-                std::max(description.shotDelay, 0.25F));
-            attackWeapons[attackWeaponCount++] = state;
-        }
-
-        source::AICar::AttackContext context;
-        context.owner = racer;
-        context.targets = attackTargets;
-        context.weapons = std::span<const source::AICar::AttackWeapon>(
-            attackWeapons.data(), attackWeaponCount);
-        context.enabled = true;
-        context.randomSource = &sourceRandomUnit;
-        context.uniformRandomSource = &sourceUniformRandomUnit;
-        if (runtime.hyperWeapon != RacerRuntime::invalidWeapon &&
-            runtime.hyperWeapon < race_.weapons.size())
-        {
-            const auto* item = runtime.GetHyperWeaponItem();
-            const auto* liveWeapon =
-                item != nullptr ? item->GetWeapon() : nullptr;
-            context.hyper.installed = liveWeapon != nullptr;
-            if (liveWeapon != nullptr)
-            {
-                context.hyper.projectileSpeed =
-                    liveWeapon->GetDesc().Front().speed;
-                context.hyper.capacity = item->GetCntCharge();
-                context.hyper.charge = item->GetCurCharge();
-            }
-        }
-        if (runtime.mineWeapon != RacerRuntime::invalidWeapon &&
-            runtime.mineWeapon < race_.weapons.size())
-        {
-            const auto* item = runtime.GetMineWeaponItem();
-            const auto* liveWeapon =
-                item != nullptr ? item->GetWeapon() : nullptr;
-            context.mine.installed = liveWeapon != nullptr;
-            if (liveWeapon != nullptr)
-            {
-                context.mine.oil =
-                    liveWeapon->GetDesc().Front().type ==
-                    source::AutoProj::masloType;
-                context.mine.capacity = item->GetCntCharge();
-                context.mine.charge = item->GetCurCharge();
-            }
-        }
-
-        const auto decision = aiPlayers_[racer].UpdateAttack(
-            sourceVehicle, context);
+        const auto& decision = aiProgressScratch_[racer].attack;
         if (decision.hasWeaponShot())
         {
             runtime.selectedWeaponSlot = decision.weaponSlot;
@@ -7042,32 +7066,17 @@ void OriginalRaceSession::update(
     const auto playerProgress = progressPlayers(seconds, vehicles);
 
     updateAiTracks(vehicles);
+    progressAi(seconds, vehicles);
     for (std::size_t racer = 0U;
-         racer < racers_.size() && racer < vehicles.size(); ++racer)
+         racer < vehicleInputs_.size() &&
+         racer < aiProgressScratch_.size() &&
+         racer < aiProgressValidScratch_.size(); ++racer)
     {
-        if (racers_[racer].IsComputer() &&
-            racer < aiPlayers_.size() &&
-            aiPlayers_[racer].HasCar() &&
-            (!networkGameplayEnabled_ ||
-             (racer < networkOwnedRacers_.size() &&
-              networkOwnedRacers_[racer])))
+        if (aiProgressValidScratch_[racer])
         {
             vehicleInputs_[racer] =
-                aiInput(racer, vehicles[racer], seconds);
+                aiInput(racer, aiProgressScratch_[racer].command);
         }
-    }
-    if (debugHumanAiControl_ && humanRacer_ < vehicleInputs_.size() &&
-        humanRacer_ < aiPlayers_.size() &&
-        aiPlayers_[humanRacer_].HasCar() &&
-        !racers_[humanRacer_].GetFinished() &&
-        !racers_[humanRacer_].IsDestroyed() &&
-        humanRacer_ < vehicles.size())
-    {
-        // AIDebug F7 flips AICar::_enbAI for the human car. Reuse the same
-        // portable AICar path controller as opponents instead of creating a
-        // synthetic racer or a second physics vehicle.
-        vehicleInputs_[humanRacer_] =
-            aiInput(humanRacer_, vehicles[humanRacer_], seconds);
     }
 
     for (std::size_t racer = 0U;

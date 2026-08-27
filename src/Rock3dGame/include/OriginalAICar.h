@@ -108,6 +108,16 @@ public:
         }
     };
 
+    // AICar::UpdateAI performs these three state machines as one source
+    // transaction: PathState, AttackState, then ControlState.  Keep the
+    // resulting gameplay decisions together so a backend adapter cannot
+    // accidentally move weapon selection to another point in the frame.
+    struct ProgressResult
+    {
+        Command command;
+        AttackDecision attack;
+    };
+
     struct PathState
     {
         explicit PathState(std::uint32_t trackCount = 4U);
@@ -192,6 +202,10 @@ public:
     Command Update(float deltaTime, const Player::CarState& car,
                    const VehicleState& vehicle, bool enabled = true,
                    RandomSource randomSource = nullptr);
+    ProgressResult Update(
+        float deltaTime, const Player::CarState& car,
+        const VehicleState& vehicle, const AttackContext& attackContext,
+        bool enabled = true, RandomSource randomSource = nullptr);
     bool TakeResetCar() noexcept;
 
     PathState path;
@@ -229,9 +243,10 @@ public:
     AICar::Command OnProgress(
         float deltaTime, const AICar::VehicleState& vehicle,
         AICar::RandomSource randomSource = nullptr);
-    AICar::AttackDecision UpdateAttack(
-        const AICar::VehicleState& vehicle,
-        const AICar::AttackContext& context);
+    AICar::ProgressResult OnProgress(
+        float deltaTime, const AICar::VehicleState& vehicle,
+        const AICar::AttackContext& attackContext,
+        AICar::RandomSource randomSource = nullptr);
     void DisposeTarget(std::size_t player) noexcept;
     bool TakeResetCar() noexcept;
 

@@ -281,6 +281,32 @@ int main()
         1.0F / 60.0F, vehicle, &testRandom);
     if (command.move != source::AICar::MoveCarState::Accelerate)
         return 25;
+
+    // Windows AICar::UpdateAI advances Path, Attack and Control in one
+    // transaction.  The combined overload must therefore produce both the
+    // weapon decision and movement command from the same current path state.
+    std::array<source::AICar::AttackTarget, 2> combinedTargets{};
+    combinedTargets[0] = {
+        vehicle.position, 4.0F, 2.0F, true};
+    combinedTargets[1] = {
+        {60.0F, 15.0F, 0.0F}, 4.0F, 2.0F, true};
+    std::array<source::AICar::AttackWeapon, 1> combinedWeapons{{
+        {0U, 0U, 100.0F, 10U, 10U, true}}};
+    source::AICar::AttackContext combinedContext;
+    combinedContext.owner = 0U;
+    combinedContext.targets = combinedTargets;
+    combinedContext.weapons = combinedWeapons;
+    combinedContext.randomSource = &testRandom;
+    combinedContext.uniformRandomSource = &testUniformRandom;
+    randomValue = 1.0F;
+    const auto combinedProgress = computerOwner.OnProgress(
+        1.0F / 60.0F, vehicle, combinedContext, &testRandom);
+    if (combinedProgress.command.move !=
+            source::AICar::MoveCarState::Accelerate ||
+        !combinedProgress.attack.hasWeaponShot() ||
+        combinedProgress.attack.weaponSlot != 0U ||
+        combinedProgress.attack.weaponTarget != 1U)
+        return 30;
     computerOwner.FreeCar();
     if (computerOwner.HasCar() || computerOwner.GetCar() != nullptr ||
         computerOwner.OnProgress(

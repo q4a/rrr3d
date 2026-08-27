@@ -44,8 +44,8 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 
 | Исходный `.cpp` | Активный macOS-владелец | Статус | Оставшаяся граница |
 | --- | --- | --- | --- |
-| `AICar` | `source::AICar::{PathState,ControlState,AttackState}` | Source owner, partial | Свести session adapter к входному physics snapshot и выходной команде |
-| `AIPlayer` | `source::AIPlayer`, `source::AISystem` | Source owner, partial | Проверить полный порядок `OnProgress`, сетевые ветви и debug ownership |
+| `AICar` | `source::AICar::{PathState,AttackState,ControlState,ProgressResult}` | Source owner, active frame | Jolt/weapon snapshot и исполнение готовых move/shot команд остаются backend adapter |
+| `AIPlayer` | `source::AIPlayer`, `source::AISystem` | Source owner, active frame | Сетевой authority filter и AIDebug Metal/text submission остаются host boundary |
 | `AchievmentModel` | `source::AchievmentModel` | Source owner, partial | Закрыть все event/condition subclasses и persistence order |
 | `CameraManager` | `source::CameraManager` | Source owner, race path | Ещё не перенесены FlyTo, AutoObserver и screen/ray utility; bgfx строит matrices |
 | `ControlManager` | `originalcontrol::ControlManager` + `SdlInputManager` | Source owner, active input path | Mouse screen/ray messages и menu/widget listeners остаются в блоках View/Menu |
@@ -395,6 +395,26 @@ B7 завершён. Следующий крупный этап B8 — повт�
 После возврата общих владельцев повторить метод-к-методу аудит оставшихся
 partial классов. На этом этапе session должен стать orchestration adapter,
 а не второй реализацией игры.
+
+Результат B8a: повторная сверка `AICar::UpdateAI`, `AICar::OnProgress`,
+`AIPlayer::OnProgress` и `AISystem::OnProgress` обнаружила реальное нарушение
+порядка. Session сначала отдельно выполняла Path/Control и записывала Jolt
+input, а `AttackState` вызывала значительно позже внутри projectile/weapon
+прохода. В Windows один `UpdateAI` всегда исполняет
+`PathState -> AttackState -> ControlState`, причём attack видит текущий brake
+и обновляет retained targets/RNG до control/reset.
+
+Добавлен единый `AICar::ProgressResult` и combined `AIPlayer::OnProgress`.
+`OriginalRaceSession::progressAi` теперь только собирает physics/weapon
+snapshot, вызывает один source frame и сохраняет готовые move/attack commands;
+Jolt input и `Weapon::Shot` исполняются позднее как backend commands. Отдельный
+session-вызов `UpdateAttack` удалён. Regression проверяет, что один кадр
+одновременно выдаёт source acceleration и правильное решение выстрела.
+Прошли arm64 build, 25/25 offline, 2/2 network, physics и 360-frame
+bgfx/Metal race smoke с шестью машинами.
+
+Следующий B8b — метод-к-методу ревизия `GameCar` PhysX/Jolt callback order и
+удаление подтверждённых session-owned car branches.
 
 ## Правило обновления карты
 

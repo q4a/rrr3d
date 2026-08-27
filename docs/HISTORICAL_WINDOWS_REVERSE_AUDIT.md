@@ -4352,6 +4352,30 @@ build, 25/25 offline, 2/2 network, physics и 360-frame Metal race smoke с
 `--game-debug`, где F6 включает новый путь. B7 закрыт; следующая граница B8 —
 оставшиеся partial `Race/Player/AI/GameCar/Weapon` owners.
 
+### P2.186 — восстановлена атомарная последовательность `AICar::UpdateAI` — выполнено
+
+Метод-к-методу сравнение `eff9338:AICar.cpp` выявило не отсутствие формулы,
+а ошибочное разнесение уже перенесённых частей по кадру. Windows
+`AICar::UpdateAI` неизменно вызывает `_path.Update`, `_attack.Update`, затем
+`_control.Update`, а `AICar::OnProgress` после этого выполняет reset-control.
+Порт вызывал Path/Control из `aiInput`, а Attack — позже внутри большого
+`OriginalRaceSession::updateGameplay`. Поэтому выбор hyper/mine/weapon мог
+видеть другой frame state, а target/RNG менялись после control.
+
+Новый combined `AICar::Update` и `AIPlayer::OnProgress` возвращают один
+`ProgressResult` с move/reset и attack-командами, сохраняя исходный порядок.
+Session собирает только Jolt pose/speed и живой `WeaponItem` snapshot,
+вызывает source transaction один раз и затем переводит команды в
+`VehicleInput`/`Weapon::Shot`. Отдельный публичный `AIPlayer::UpdateAttack` и
+повторная session dispatch удалены; network authority и debug-human gate
+остались адаптерной границей.
+
+`OriginalAICarSmoke` теперь закрепляет одновременную acceleration и front
+weapon decision из одного текущего path state. Прошли arm64 build, 25/25
+offline, 2/2 network, physics и 360-frame bgfx/Metal race smoke. Следующий
+блок B8b — полная сверка `GameCar` callback/order с заменой PhysX queries на
+Jolt snapshots.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

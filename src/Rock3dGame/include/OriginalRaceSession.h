@@ -506,9 +506,11 @@ private:
         const std::vector<r3d::physics::VehicleState>& vehicles);
     r3d::physics::VehicleInput aiInput(
         std::size_t racer,
-        const r3d::physics::VehicleState& vehicle,
-        float seconds);
+        const source::AICar::Command& command) const;
     void updateAiTracks(
+        const std::vector<r3d::physics::VehicleState>& vehicles);
+    void progressAi(
+        float seconds,
         const std::vector<r3d::physics::VehicleState>& vehicles);
     void updatePlaces(
         const std::vector<r3d::physics::VehicleState>& vehicles);
@@ -602,6 +604,10 @@ private:
     // Per-frame adapter snapshot reused without allocation. Retained target
     // ownership lives in source::AICar::AttackState, not in this buffer.
     std::vector<source::AICar::AttackTarget> aiAttackTargetsScratch_;
+    // One source AICar::UpdateAI result per racer.  The session executes the
+    // returned Jolt and weapon commands but never reorders Path/Attack/Control.
+    std::vector<source::AICar::ProgressResult> aiProgressScratch_;
+    std::vector<bool> aiProgressValidScratch_;
     std::vector<Vec3> previousPositions_;
     std::vector<RaceEvent> events_;
     std::vector<RaceEffect> effects_;

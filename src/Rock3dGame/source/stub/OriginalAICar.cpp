@@ -786,6 +786,33 @@ AICar::Command AICar::Update(
     return command;
 }
 
+AICar::ProgressResult AICar::Update(
+    float deltaTime, const Player::CarState& car,
+    const VehicleState& vehicle, const AttackContext& attackContext,
+    bool enabled, RandomSource randomSource)
+{
+    // AICar::UpdateAI in the Windows source owns this exact order.  In
+    // particular AttackState observes the PathState (including its brake
+    // decision) from this frame, while ControlState is not allowed to run in
+    // a separate RaceSession pass before target/RNG state advances.
+    path.Update(deltaTime, car, vehicle, randomSource);
+    AttackContext enabledAttack = attackContext;
+    enabledAttack.enabled = enabled && attackContext.enabled;
+
+    ProgressResult result;
+    result.attack = attack.Update(
+        car, vehicle, path, enabledAttack);
+    result.command = control.Update(
+        deltaTime, vehicle, path, enabled);
+    if (enabled)
+    {
+        result.command.resetCar = control.UpdateResetCar(
+            deltaTime, car, vehicle);
+        resetCar_ = resetCar_ || result.command.resetCar;
+    }
+    return result;
+}
+
 bool AICar::TakeResetCar() noexcept
 {
     const bool result = resetCar_;
@@ -886,16 +913,16 @@ AICar::Command AIPlayer::OnProgress(
         deltaTime, player_->car, vehicle, enabled_, randomSource);
 }
 
-AICar::AttackDecision AIPlayer::UpdateAttack(
-    const AICar::VehicleState& vehicle,
-    const AICar::AttackContext& context)
+AICar::ProgressResult AIPlayer::OnProgress(
+    float deltaTime, const AICar::VehicleState& vehicle,
+    const AICar::AttackContext& attackContext,
+    AICar::RandomSource randomSource)
 {
     if (!carCreated_ || player_ == nullptr)
         return {};
-    AICar::AttackContext enabledContext = context;
-    enabledContext.enabled = enabled_ && context.enabled;
-    return car_.attack.Update(
-        player_->car, vehicle, car_.path, enabledContext);
+    return car_.Update(
+        deltaTime, player_->car, vehicle, attackContext,
+        enabled_, randomSource);
 }
 
 void AIPlayer::DisposeTarget(std::size_t player) noexcept

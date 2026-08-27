@@ -1438,6 +1438,22 @@ Network, video и Steam явно выключены.
   list. Полный disk round-trip дополнительно проверяет achievement items,
   conditions/iterations и намеренно ошибочное имя `dfficulty`.
 
+### B8a: атомарный AI progress frame
+
+Повторная сверка с оригинальными `AICar::UpdateAI`, `AICar::OnProgress`,
+`AIPlayer::OnProgress` и `AISystem::OnProgress` подтвердила один оставшийся
+структурный дефект: Path/Control и Attack выполнялись двумя session-проходами
+в разных точках кадра. Теперь `source::AICar` сам сохраняет точный порядок
+`PathState -> AttackState -> ControlState`, а `source::AIPlayer` возвращает
+единый move/attack result. Session передаёт только Jolt/weapon snapshot и
+исполняет готовые команды; отдельного session-owned вызова Attack больше нет.
+
+Regression одновременно проверяет движение и выбор цели/оружия из одного
+кадра. Открытая AI-граница ограничена network authority filter и backend
+отрисовкой AIDebug. Прошли arm64 build, 25/25 offline, 2/2 network, physics
+и 360-frame bgfx/Metal race smoke; следующая gameplay-ревизия — `GameCar`
+callback order.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity
