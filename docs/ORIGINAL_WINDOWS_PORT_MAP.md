@@ -48,7 +48,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `AIPlayer` | `source::AIPlayer`, `source::AISystem` | Source owner, partial | Проверить полный порядок `OnProgress`, сетевые ветви и debug ownership |
 | `AchievmentModel` | `source::AchievmentModel` | Source owner, partial | Закрыть все event/condition subclasses и persistence order |
 | `CameraManager` | `source::CameraManager` | Source owner, race path | Ещё не перенесены FlyTo, AutoObserver и screen/ray utility; bgfx строит matrices |
-| `ControlManager` | `OriginalControlBindings` + `SdlInputManager` + main event switch | Backend boundary | Вернуть source action dispatcher/event list поверх SDL device state |
+| `ControlManager` | `originalcontrol::ControlManager` + `SdlInputManager` | Source owner, active input path | Mouse screen/ray messages и menu/widget listeners остаются в блоках View/Menu |
 | `DataBase` | `OriginalRace`, `OriginalGarage`, `OriginalGameData` loaders | Distributed | Вернуть record libraries/fix-up ownership и единый object factory |
 | `DialogMenu2` | Ручные frames в `main_bgfx_original_menu` | Distributed | Перенести widget state, focus/invalidate и dialog transitions |
 | `Environment` | `Race::environment` + `OriginalRaceRenderer` | Distributed | Перенести environment owner, weather/lamp progress и graph commands |
@@ -94,12 +94,24 @@ renderer удалена inline race-camera state machine. Оставшаяся �
 исходного файла (FlyTo, AutoObserver и screen/ray utility) сохранена в строке
 карты как отдельный следующий camera block, а не объявлена готовой.
 
-### B2 — ControlManager action dispatcher
+### B2 — ControlManager action dispatcher (выполнено)
 
 Объединить уже перенесённые VirtualKey tables и SDL device snapshot с
 исходными `GetGameAction*`, normalization, ordered event list и focus reset.
 Меню и HumanPlayer должны получать source input messages, а не отдельные
 ручные switch-блоки.
+
+Результат: добавлен самостоятельный `originalcontrol::ControlManager` с
+точным порядком 25 `GameAction`, `GetGameAction*`, исходной signed
+dead-zone/trigger normalization, polled raw/action state, ordered
+`ControlEvent` dispatch и focus/device reset. `SdlInputManager` больше не
+хранит собственные action maps и не вычисляет нормализованные значения:
+он переводит SDL scancode/button/axis в source `VirtualKey` и передаёт raw
+диапазоны новому владельцу. Активный `HumanPlayer` polling path получает
+состояние от него; portable menu/debug actions сохранены как расширение вне
+исходной таблицы. Отдельные mouse screen/ray messages и подключение исходных
+widget listeners остаются явно открыты в блоках View/Menu, а не считаются
+частью выполненного device/action блока.
 
 ### B3 — World/GameMode event pump
 

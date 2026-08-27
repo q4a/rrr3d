@@ -1,6 +1,7 @@
 #pragma once
 
 #include "InputActions.h"
+#include "OriginalControlManager.h"
 
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_gamepad.h>
@@ -10,7 +11,6 @@
 #include <map>
 #include <optional>
 #include <string>
-#include <tuple>
 #include <vector>
 
 namespace rrr3d::input
@@ -63,28 +63,13 @@ class SdlInputManager
 		SDL_Gamepad *handle = nullptr;
 	};
 
-	struct GamepadAxisBinding
-	{
-		Action action = Action::Accelerate;
-		int direction = 0;
-		bool trigger = false;
-	};
+    bool openGamepad(SDL_JoystickID device_id) noexcept;
+    void closeGamepad(SDL_JoystickID device_id) noexcept;
+    void appendGamepadReleases(std::vector<ActionEvent> &events, SDL_JoystickID device_id) const;
 
-	bool openGamepad(SDL_JoystickID device_id) noexcept;
-	void closeGamepad(SDL_JoystickID device_id) noexcept;
-	void appendGamepadReleases(std::vector<ActionEvent> &events, SDL_JoystickID device_id) const;
-	void clearHeldSource(Source source) noexcept;
-	void clearHeldDevice(SDL_JoystickID device_id) noexcept;
-
-	bool initialized_ = false;
-	std::map<SDL_Scancode, std::vector<Action>> keyboard_actions_;
-	std::map<SDL_GamepadButton, std::vector<Action>>
-	    gamepad_button_actions_;
-	std::map<SDL_GamepadAxis, std::vector<GamepadAxisBinding>>
-	    gamepad_axis_actions_;
-	std::map<SDL_JoystickID, GamepadState> gamepads_;
-	std::map<std::tuple<Action, Source, SDL_JoystickID>, float>
-	    held_action_values_;
+    bool initialized_ = false;
+    std::map<SDL_JoystickID, GamepadState> gamepads_;
+    r3d::game::originalcontrol::ControlManager control_;
 };
 
 } // namespace rrr3d::input

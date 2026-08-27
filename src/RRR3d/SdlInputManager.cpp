@@ -1,7 +1,5 @@
 #include "SdlInputManager.h"
 
-#include "OriginalControlBindings.h"
-
 #include <SDL3/SDL.h>
 
 #include <algorithm>
@@ -9,7 +7,6 @@
 #include <cmath>
 #include <limits>
 #include <optional>
-#include <string_view>
 
 namespace rrr3d::input
 {
@@ -20,45 +17,6 @@ void appendDigital(std::vector<ActionEvent> &events, Action action, bool active,
                    SDL_JoystickID device_id = 0)
 {
 	events.push_back({action, active ? 1.0F : 0.0F, active, repeated, source, device_id});
-}
-
-void appendAnalog(std::vector<ActionEvent> &events, Action action, float value, Source source, SDL_JoystickID device_id)
-{
-	events.push_back({action, value, value > 0.0F, false, source, device_id});
-}
-
-float applySourceStickDeadZone(
-    Sint16 rawValue, SDL_GamepadAxis axis, int direction) noexcept
-{
-	const int activation =
-	    axis == SDL_GAMEPAD_AXIS_RIGHTX ||
-	            axis == SDL_GAMEPAD_AXIS_RIGHTY
-	        ? 8689
-	        : 7849;
-	const int normalization =
-	    activation == 8689 && direction == 0 ? 8689 : 7849;
-	const int raw = static_cast<int>(rawValue);
-	const int magnitude = std::abs(raw);
-	if (magnitude <= activation)
-		return 0.0F;
-	// Directional right-thumb entries intentionally normalize with the left
-	// threshold: that is how cVirtualKeyInfo is declared in ControlManager.
-	const float scaled = static_cast<float>(magnitude - normalization) /
-	                     static_cast<float>(32767 - normalization);
-	const float signedValue = std::copysign(scaled, static_cast<float>(raw));
-	if (direction < 0)
-		return std::max(-signedValue, 0.0F);
-	if (direction > 0)
-		return std::max(signedValue, 0.0F);
-	return std::abs(signedValue);
-}
-
-float applyTriggerDeadZone(Sint16 value) noexcept
-{
-	const float normalized = std::clamp(static_cast<float>(value) / 32767.0F, 0.0F, 1.0F);
-	if (normalized <= SdlInputManager::triggerDeadZone)
-		return 0.0F;
-	return (normalized - SdlInputManager::triggerDeadZone) / (1.0F - SdlInputManager::triggerDeadZone);
 }
 
 constexpr std::array<Action, 32> allActions = {
@@ -72,169 +30,6 @@ constexpr std::array<Action, 32> allActions = {
 	Action::Debug1, Action::Debug2, Action::Debug3, Action::Debug4,
 	Action::Debug5, Action::Debug6, Action::Debug7, Action::DebugOverlay,
 	Action::DebugPagePrevious, Action::DebugPageNext};
-
-SDL_Scancode legacyScancode(const std::string &name) noexcept
-{
-	const std::string canonical =
-	    r3d::game::originalcontrol::canonicalVirtualKeyName(
-	        r3d::game::originalcontrol::ControllerType::Keyboard, name);
-	if (canonical == "None")
-		return SDL_SCANCODE_UNKNOWN;
-	if (canonical == "Up Arrow")
-		return SDL_SCANCODE_UP;
-	if (canonical == "Down Arrow")
-		return SDL_SCANCODE_DOWN;
-	if (canonical == "Left Arrow")
-		return SDL_SCANCODE_LEFT;
-	if (canonical == "Right Arrow")
-		return SDL_SCANCODE_RIGHT;
-	if (canonical == "Enter")
-		return SDL_SCANCODE_RETURN;
-	if (canonical == "Escape")
-		return SDL_SCANCODE_ESCAPE;
-	if (canonical == "Space")
-		return SDL_SCANCODE_SPACE;
-	// Windows maps VK_BACK to the keyboard table's vkButtonX entry. The
-	// persisted name is therefore "X", not "Backspace". A and B are table
-	// entries without keyboard state handlers and remain inactive after a
-	// source-compatible reload.
-	if (canonical == "X")
-		return SDL_SCANCODE_BACKSPACE;
-	if (canonical == "A" || canonical == "B")
-		return SDL_SCANCODE_UNKNOWN;
-	const auto scancode = SDL_GetScancodeFromName(canonical.c_str());
-	return scancode;
-}
-
-std::optional<Action> gameAction(std::string_view name) noexcept
-{
-	if (name == "gaAccel")
-		return Action::Accelerate;
-	if (name == "gaBreak")
-		return Action::Brake;
-	if (name == "gaWheelLeft")
-		return Action::TurnLeft;
-	if (name == "gaWheelRight")
-		return Action::TurnRight;
-	if (name == "gaShot")
-		return Action::UseWeapon;
-	if (name == "gaShotAll")
-		return Action::UseAllWeapons;
-	if (name == "gaMine")
-		return Action::UseMine;
-	if (name == "gaHyper")
-		return Action::UseHyper;
-	if (name == "gaWeaponDown")
-		return Action::PreviousWeapon;
-	if (name == "gaWeaponUp")
-		return Action::NextWeapon;
-	if (name == "gaShot1")
-		return Action::SelectWeapon1;
-	if (name == "gaShot2")
-		return Action::SelectWeapon2;
-	if (name == "gaShot3")
-		return Action::SelectWeapon3;
-	if (name == "gaShot4")
-		return Action::SelectWeapon4;
-	if (name == "gaViewSwitch")
-		return Action::ToggleCamera;
-	if (name == "gaResetCar")
-		return Action::ResetVehicle;
-	if (name == "gaAction")
-		return Action::MenuConfirm;
-	if (name == "gaEscape")
-		return Action::Pause;
-	if (name == "gaDebug1")
-		return Action::Debug1;
-	if (name == "gaDebug2")
-		return Action::Debug2;
-	if (name == "gaDebug3")
-		return Action::Debug3;
-	if (name == "gaDebug4")
-		return Action::Debug4;
-	if (name == "gaDebug5")
-		return Action::Debug5;
-	if (name == "gaDebug6")
-		return Action::Debug6;
-	if (name == "gaDebug7")
-		return Action::Debug7;
-	return std::nullopt;
-}
-
-std::optional<SDL_GamepadButton>
-gamepadButton(std::string_view name) noexcept
-{
-	if (name == "A")
-		return SDL_GAMEPAD_BUTTON_SOUTH;
-	if (name == "B")
-		return SDL_GAMEPAD_BUTTON_EAST;
-	if (name == "X")
-		return SDL_GAMEPAD_BUTTON_WEST;
-	if (name == "Y")
-		return SDL_GAMEPAD_BUTTON_NORTH;
-	if (name == "DPad Up")
-		return SDL_GAMEPAD_BUTTON_DPAD_UP;
-	if (name == "DPad Down")
-		return SDL_GAMEPAD_BUTTON_DPAD_DOWN;
-	if (name == "DPad Left")
-		return SDL_GAMEPAD_BUTTON_DPAD_LEFT;
-	if (name == "DPad Right")
-		return SDL_GAMEPAD_BUTTON_DPAD_RIGHT;
-	if (name == "Left Shoulder")
-		return SDL_GAMEPAD_BUTTON_LEFT_SHOULDER;
-	if (name == "Right Shoulder")
-		return SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER;
-	if (name == "L.Thumb Press")
-		return SDL_GAMEPAD_BUTTON_LEFT_STICK;
-	if (name == "R.Thumb Press")
-		return SDL_GAMEPAD_BUTTON_RIGHT_STICK;
-	if (name == "Back")
-		return SDL_GAMEPAD_BUTTON_BACK;
-	if (name == "Start")
-		return SDL_GAMEPAD_BUTTON_START;
-	return std::nullopt;
-}
-
-struct ParsedAxis
-{
-	SDL_GamepadAxis axis = SDL_GAMEPAD_AXIS_INVALID;
-	int direction = 0;
-	bool trigger = false;
-};
-
-std::optional<ParsedAxis> gamepadAxis(std::string_view name) noexcept
-{
-	if (name == "Left Trigger")
-		return ParsedAxis{SDL_GAMEPAD_AXIS_LEFT_TRIGGER, 1, true};
-	if (name == "Right Trigger")
-		return ParsedAxis{SDL_GAMEPAD_AXIS_RIGHT_TRIGGER, 1, true};
-	if (name == "L.Thumb Move X")
-		return ParsedAxis{SDL_GAMEPAD_AXIS_LEFTX, 0, false};
-	if (name == "L.Thumb Move Y")
-		return ParsedAxis{SDL_GAMEPAD_AXIS_LEFTY, 0, false};
-	if (name == "R.Thumb Move X")
-		return ParsedAxis{SDL_GAMEPAD_AXIS_RIGHTX, 0, false};
-	if (name == "R.Thumb Move Y")
-		return ParsedAxis{SDL_GAMEPAD_AXIS_RIGHTY, 0, false};
-	if (name == "L.Thumb Left")
-		return ParsedAxis{SDL_GAMEPAD_AXIS_LEFTX, -1, false};
-	if (name == "L.Thumb Right")
-		return ParsedAxis{SDL_GAMEPAD_AXIS_LEFTX, 1, false};
-	if (name == "L.Thumb Up")
-		return ParsedAxis{SDL_GAMEPAD_AXIS_LEFTY, -1, false};
-	if (name == "L.Thumb Down")
-		return ParsedAxis{SDL_GAMEPAD_AXIS_LEFTY, 1, false};
-	if (name == "R.Thumb Left")
-		return ParsedAxis{SDL_GAMEPAD_AXIS_RIGHTX, -1, false};
-	if (name == "R.Thumb Right")
-		return ParsedAxis{SDL_GAMEPAD_AXIS_RIGHTX, 1, false};
-	if (name == "R.Thumb Up")
-		return ParsedAxis{SDL_GAMEPAD_AXIS_RIGHTY, -1, false};
-	if (name == "R.Thumb Down")
-		return ParsedAxis{SDL_GAMEPAD_AXIS_RIGHTY, 1, false};
-	return std::nullopt;
-}
-
 } // namespace
 
 std::optional<std::string> originalKeyboardBindingName(
@@ -398,70 +193,22 @@ void SdlInputManager::shutdown() noexcept
 		SDL_CloseGamepad(state.handle);
 	}
 	gamepads_.clear();
-	keyboard_actions_.clear();
-	gamepad_button_actions_.clear();
-	gamepad_axis_actions_.clear();
-	held_action_values_.clear();
+	control_.ResetInput();
 	initialized_ = false;
 }
 
 void SdlInputManager::applyKeyboardBindings(
     const std::map<std::string, std::string> &bindings)
 {
-	clearHeldSource(Source::Keyboard);
-	keyboard_actions_.clear();
-	for (const auto &[name, key] : bindings)
-	{
-		const auto action = gameAction(name);
-		const auto scancode = legacyScancode(key);
-		if (!action || scancode == SDL_SCANCODE_UNKNOWN)
-			continue;
-		auto &actions = keyboard_actions_[scancode];
-		if (std::find(actions.begin(), actions.end(), *action) ==
-		    actions.end())
-			actions.push_back(*action);
-	}
+	control_.ApplyBindings(
+	    r3d::game::originalcontrol::ControllerType::Keyboard, bindings);
 }
 
 void SdlInputManager::applyGamepadBindings(
     const std::map<std::string, std::string> &bindings)
 {
-	clearHeldSource(Source::GamepadButton);
-	clearHeldSource(Source::GamepadAxis);
-	gamepad_button_actions_.clear();
-	gamepad_axis_actions_.clear();
-	for (const auto &[name, key] : bindings)
-	{
-		const auto action = gameAction(name);
-		const std::string canonical =
-		    r3d::game::originalcontrol::canonicalVirtualKeyName(
-		        r3d::game::originalcontrol::ControllerType::Gamepad,
-		        key);
-		if (!action || canonical == "None")
-			continue;
-		if (const auto button = gamepadButton(canonical))
-		{
-			auto &actions = gamepad_button_actions_[*button];
-			if (std::find(actions.begin(), actions.end(), *action) ==
-			    actions.end())
-				actions.push_back(*action);
-			continue;
-		}
-		if (const auto axis = gamepadAxis(canonical))
-		{
-			auto &actions = gamepad_axis_actions_[axis->axis];
-			const auto duplicate = std::find_if(
-			    actions.begin(), actions.end(),
-			    [&](const GamepadAxisBinding &value) {
-				    return value.action == *action &&
-				           value.direction == axis->direction &&
-				           value.trigger == axis->trigger;
-			    });
-			if (duplicate == actions.end())
-				actions.push_back(
-				    {*action, axis->direction, axis->trigger});
-		}
-	}
+	control_.ApplyBindings(
+	    r3d::game::originalcontrol::ControllerType::Gamepad, bindings);
 }
 
 bool SdlInputManager::openGamepad(SDL_JoystickID device_id) noexcept
@@ -503,6 +250,9 @@ void SdlInputManager::appendGamepadReleases(std::vector<ActionEvent> &events, SD
 std::vector<ActionEvent> SdlInputManager::processEvent(const SDL_Event &event)
 {
 	std::vector<ActionEvent> events;
+	const auto appendSourceEvents = [&](std::vector<ActionEvent> sourceEvents) {
+		events.insert(events.end(), sourceEvents.begin(), sourceEvents.end());
+	};
 	switch (event.type)
 	{
 	case SDL_EVENT_GAMEPAD_ADDED:
@@ -555,12 +305,21 @@ std::vector<ActionEvent> SdlInputManager::processEvent(const SDL_Event &event)
 		default:
 			break;
 		}
-		const auto found = keyboard_actions_.find(event.key.scancode);
-		if (found != keyboard_actions_.end())
+		// A/B are unreachable keyboard VirtualKey table entries in the source;
+		// X is VK_BACK, not the X character. Preserve that collision exactly.
+		const bool sourceCharacterCollision =
+		    event.key.scancode == SDL_SCANCODE_A ||
+		    event.key.scancode == SDL_SCANCODE_B ||
+		    event.key.scancode == SDL_SCANCODE_X;
+		if (!sourceCharacterCollision)
 		{
-			for (const auto action : found->second)
-				appendDigital(events, action, down, repeat,
-				              Source::Keyboard);
+			if (const auto key = originalKeyboardBindingName(
+			        event.key.scancode))
+			{
+				appendSourceEvents(control_.OnVirtualKey(
+				    r3d::game::originalcontrol::ControllerType::Keyboard,
+				    *key, down ? 1 : 0, repeat, Source::Keyboard));
+			}
 		}
 		break;
 	}
@@ -597,14 +356,13 @@ std::vector<ActionEvent> SdlInputManager::processEvent(const SDL_Event &event)
 		default:
 			break;
 		}
-		if (const auto found = gamepad_button_actions_.find(
-		        static_cast<SDL_GamepadButton>(event.gbutton.button));
-		    found != gamepad_button_actions_.end())
+		if (const auto key = originalGamepadButtonBindingName(
+		        static_cast<SDL_GamepadButton>(event.gbutton.button)))
 		{
-			for (const auto action : found->second)
-				appendDigital(events, action, event.gbutton.down, false,
-				              Source::GamepadButton,
-				              event.gbutton.which);
+			appendSourceEvents(control_.OnVirtualKey(
+			    r3d::game::originalcontrol::ControllerType::Gamepad,
+			    *key, event.gbutton.down ? 1 : 0, false,
+			    Source::GamepadButton, event.gbutton.which));
 		}
 		break;
 
@@ -614,20 +372,73 @@ std::vector<ActionEvent> SdlInputManager::processEvent(const SDL_Event &event)
 			break;
 
 		const auto axis = static_cast<SDL_GamepadAxis>(event.gaxis.axis);
-		if (const auto found = gamepad_axis_actions_.find(axis);
-		    found != gamepad_axis_actions_.end())
+		if (axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER ||
+		    axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER)
 		{
-			for (const auto &binding : found->second)
-			{
-				float value = binding.trigger
-				                  ? applyTriggerDeadZone(event.gaxis.value)
-				                  : applySourceStickDeadZone(
-				                        event.gaxis.value, axis,
-				                        binding.direction);
-				appendAnalog(events, binding.action, value,
-				             Source::GamepadAxis, event.gaxis.which);
-			}
+			const int sourceValue = std::clamp(
+			    static_cast<int>(std::lround(
+			        static_cast<float>(std::max<Sint16>(
+			            event.gaxis.value, 0)) * 255.0F / 32767.0F)),
+			    0, 255);
+			appendSourceEvents(control_.OnVirtualKey(
+			    r3d::game::originalcontrol::ControllerType::Gamepad,
+			    axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER
+			        ? "Left Trigger"
+			        : "Right Trigger",
+			    sourceValue, false, Source::GamepadAxis,
+			    event.gaxis.which));
+			break;
 		}
+
+		const char* fullKey = nullptr;
+		const char* negativeKey = nullptr;
+		const char* positiveKey = nullptr;
+		int activationThreshold = 7849;
+		switch (axis)
+		{
+		case SDL_GAMEPAD_AXIS_LEFTX:
+			fullKey = "L.Thumb Move X";
+			negativeKey = "L.Thumb Left";
+			positiveKey = "L.Thumb Right";
+			break;
+		case SDL_GAMEPAD_AXIS_LEFTY:
+			fullKey = "L.Thumb Move Y";
+			negativeKey = "L.Thumb Up";
+			positiveKey = "L.Thumb Down";
+			break;
+		case SDL_GAMEPAD_AXIS_RIGHTX:
+			fullKey = "R.Thumb Move X";
+			negativeKey = "R.Thumb Left";
+			positiveKey = "R.Thumb Right";
+			activationThreshold = 8689;
+			break;
+		case SDL_GAMEPAD_AXIS_RIGHTY:
+			fullKey = "R.Thumb Move Y";
+			negativeKey = "R.Thumb Up";
+			positiveKey = "R.Thumb Down";
+			activationThreshold = 8689;
+			break;
+		default:
+			break;
+		}
+		if (fullKey == nullptr)
+			break;
+
+		const int raw = static_cast<int>(event.gaxis.value);
+		appendSourceEvents(control_.OnVirtualKey(
+		    r3d::game::originalcontrol::ControllerType::Gamepad,
+		    fullKey, raw, false, Source::GamepadAxis,
+		    event.gaxis.which));
+		appendSourceEvents(control_.OnVirtualKey(
+		    r3d::game::originalcontrol::ControllerType::Gamepad,
+		    negativeKey,
+		    raw < -activationThreshold ? raw : 0,
+		    false, Source::GamepadAxis, event.gaxis.which));
+		appendSourceEvents(control_.OnVirtualKey(
+		    r3d::game::originalcontrol::ControllerType::Gamepad,
+		    positiveKey,
+		    raw > activationThreshold ? raw : 0,
+		    false, Source::GamepadAxis, event.gaxis.which));
 		break;
 	}
 
@@ -652,70 +463,26 @@ std::vector<ActionEvent> SdlInputManager::processEvent(const SDL_Event &event)
 	}
 	if (event.type == SDL_EVENT_WINDOW_FOCUS_LOST)
 	{
-		held_action_values_.clear();
+		control_.ResetInput();
 	}
 	else
 	{
 		if (event.type == SDL_EVENT_GAMEPAD_REMOVED)
-			clearHeldDevice(event.gdevice.which);
+			control_.ClearHeldDevice(event.gdevice.which);
 		for (const auto &eventValue : unique)
-		{
-			if (eventValue.source == Source::System)
-				continue;
-			held_action_values_[{eventValue.action, eventValue.source,
-			                     eventValue.device_id}] =
-			    eventValue.active ? std::clamp(eventValue.value, 0.0F, 1.0F)
-			                      : 0.0F;
-		}
+			control_.UpdateActionState(eventValue);
 	}
 	return unique;
 }
 
 float SdlInputManager::heldValue(Action action) const noexcept
 {
-	float value = 0.0F;
-	for (const auto &[key, held] : held_action_values_)
-	{
-		if (std::get<0>(key) == action)
-			value = std::max(value, held);
-	}
-	return value;
+	return control_.HeldValue(action);
 }
 
 float SdlInputManager::heldValue(Action action, Source source) const noexcept
 {
-	float value = 0.0F;
-	for (const auto &[key, held] : held_action_values_)
-	{
-		if (std::get<0>(key) == action &&
-		    std::get<1>(key) == source)
-			value = std::max(value, held);
-	}
-	return value;
-}
-
-void SdlInputManager::clearHeldSource(Source source) noexcept
-{
-	for (auto entry = held_action_values_.begin();
-	     entry != held_action_values_.end();)
-	{
-		if (std::get<1>(entry->first) == source)
-			entry = held_action_values_.erase(entry);
-		else
-			++entry;
-	}
-}
-
-void SdlInputManager::clearHeldDevice(SDL_JoystickID device_id) noexcept
-{
-	for (auto entry = held_action_values_.begin();
-	     entry != held_action_values_.end();)
-	{
-		if (std::get<2>(entry->first) == device_id)
-			entry = held_action_values_.erase(entry);
-		else
-			++entry;
-	}
+	return control_.HeldValue(action, source);
 }
 
 std::size_t SdlInputManager::connectedGamepadCount() const noexcept

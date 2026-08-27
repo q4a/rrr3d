@@ -31,6 +31,7 @@ else()
         source/stub/MusicCat.cpp
         source/stub/OriginalAudioSpec.cpp
         source/stub/OriginalControlBindings.cpp
+        source/stub/OriginalControlManager.cpp
         source/stub/OriginalGameData.cpp
         source/stub/PortableGame.cpp
         include/InputActions.h
@@ -39,6 +40,7 @@ else()
         include/PortableInput.h
         include/OriginalAudioSpec.h
         include/OriginalControlBindings.h
+        include/OriginalControlManager.h
         include/OriginalGameData.h
         include/MainMenu2Spec.h
         include/Rock3dGame.h
@@ -117,6 +119,21 @@ else()
         )
     endif()
     add_library(${PROJECT_NAME} STATIC ${_rrr3d_portable_game_sources})
+endif()
+
+if(NOT WIN32)
+    add_executable(rrr3d_original_control_manager_smoke
+        tests/OriginalControlManagerSmoke.cpp
+    )
+    target_link_libraries(rrr3d_original_control_manager_smoke PRIVATE
+        ${PROJECT_NAME}
+    )
+    rrr3d_set_common_target_options(
+        rrr3d_original_control_manager_smoke)
+    add_test(
+        NAME rrr3d_original_control_manager_smoke
+        COMMAND rrr3d_original_control_manager_smoke
+    )
 endif()
 
 if(NOT WIN32 AND RRR3D_BUILD_ORIGINAL_MENU)

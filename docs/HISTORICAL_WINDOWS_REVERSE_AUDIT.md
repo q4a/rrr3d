@@ -3903,6 +3903,32 @@ debug retained pose. `FlyTo`, `AutoObserver`, screen-to-ray и editor light
 ветви остаются явно открытой частью CameraManager, а не считаются
 перенесёнными данным блоком.
 
+### P2.167 — `ControlManager` возвращён как source owner — выполнено
+
+Предыдущая сверка уже восстановила точные `cVirtualKeyInfo`,
+`cGameActionStr` и profile bindings, но исполняемым владельцем оставался
+`SdlInputManager`: он строил параллельные keyboard/button/axis maps, вручную
+вычислял dead zones и отдельно хранил held action state. Поэтому исходный
+`GetGameAction`, `GetGameActionState(..., withAlpha)` и ordered
+`ControlEvent` graph не существовали как класс.
+
+Добавлен backend-neutral `originalcontrol::ControlManager`. Он владеет всеми
+25 source actions в исходном enum-порядке, canonical bindings, raw
+VirtualKey state, точной signed normalization для trigger/thumb ranges,
+двухконтроллерным polling, ordered input/progress/frame dispatch и очисткой
+при focus loss/hot-unplug. SDL теперь оставляет у себя только device handles,
+scancode/button/axis translation и rumble; значения осей передаются в
+XInput-совместимых диапазонах, включая различие activation/normalization
+threshold у правого стика. Исторические keyboard A/B/X collisions также
+сохранены, а не заменены удобными алиасами.
+
+Новый deterministic smoke проверяет shared-key action order, прекращение
+цепочки обработчиком, repeat, digital `withAlpha`, signed steering,
+trigger threshold, progress/frame ordering и device/focus reset. Существующий
+SDL virtual-gamepad regression продолжает проверять живой adapter path.
+Mouse screen/ray events и регистрация исходных menu widgets относятся к
+последующим View/Menu ownership blocks и здесь не объявлены готовыми.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
