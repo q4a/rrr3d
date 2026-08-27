@@ -4475,6 +4475,26 @@ Regression закрепляет неизвестный achievement=true, зап�
 переход Locked→Unlocked→Opened, атомарное списание points, недостаточный
 баланс, map/gamer gates и сохранение records/custom fields.
 
+### P2.191 — `DataBase` снова владеет семью `RecordLib` — выполнено
+
+Повторная сверка `DataBase.cpp`, `RecordLib.cpp`, `MapObj.cpp` и active
+session path выявила ошибку ownership. Иерархия typed records уже была
+перенесена, но семь библиотек хранились внутри `source::Map`, а функция
+`OriginalRaceSession::registerSourceDataBase` вручную создавала source-loader
+для каждой карты. В Windows `DataBase` живёт дольше Map и является единым
+владельцем библиотек и concrete source-load transaction.
+
+Добавлен active backend-neutral `source::DataBase`. Он владеет всеми семью
+категориями, выполняет единый `Configure/Clear`, предоставляет исходные
+`GetMapObjLib/GetRecord`, загружает records ctDecoration/ctTrack/ctBonus/ctCar
+и сохраняет source-before-proxy порядок. `source::Map` теперь получает
+DataBase извне; только isolated unit map создаёт локальный owner. Из session
+удалена вся 116-строчная повторная регистрация record loaders.
+
+Map regression проверяет external owner identity, четыре категории,
+destructible child source transform, car life, точный record lookup и
+безопасный reload/fix-up после уничтожения live MapObj.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

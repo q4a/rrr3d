@@ -49,7 +49,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `AchievmentModel` | `source::AchievmentModel` | Source owner, active condition/reward path | XML чтение/запись остаётся profile adapter; source owner владеет всеми 9 conditions, reward states, покупкой и garage/gamer gates |
 | `CameraManager` | `source::{CameraManager,AutoObserver}` | Source owner, active race/presentation path | FlyTo, AutoObserver и screen/ray policy source-owned; bgfx строит только matrices, SDL переводит pointer events |
 | `ControlManager` | `originalcontrol::ControlManager` + `SdlInputManager` | Source owner, active input path | Mouse screen/ray messages и menu/widget listeners остаются в блоках View/Menu |
-| `DataBase` | `OriginalRace`, `OriginalGarage`, `OriginalGameData` loaders | Distributed | Вернуть record libraries/fix-up ownership и единый object factory |
+| `DataBase` | `source::DataBase` + `OriginalRace` reader | Source owner, active record path | Полный graph/material/physics catalog остаётся разделённым по разрешённым bgfx/Jolt adapters |
 | `DialogMenu2` | `originalmenu::DialogSystem` + GPU text caches | Source owner, active dialogs | Остался уже перенесённый отдельно UserChat и backend draw submission |
 | `Environment` | `source::Environment` + `OriginalRaceRenderer` | Source owner, active race/presentation path | Weather/world/quality/rain lifetime принадлежат source owner; bgfx/Metal исполняет pass/material commands и lamp shadow submission |
 | `FinalMenu` | `mainmenu2::FinalMenuFrameState` + bgfx/CoreText view | Source owner, active frame | Legacy Widget API заменён backend draw/input/audio; credits, 107 s clock, slide alpha, Back и layout принадлежат source owner |
@@ -62,7 +62,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `HumanPlayer` | `source::HumanPlayer` | Source owner, partial | Подключить полный source input message path и event order |
 | `Logic` | `source::Logic` + `WorldEventPump` progress registration | Source owner, active object/contact core | Убрать оставшиеся network authority и projectile backend-view loops из session |
 | `MainMenu2` | `mainmenu2::{Controller,FrameController,ProfileFrameState,FinalMenuFrameState}` + `originalmenu::ScreenStack` | Source owner, active Main/Profile/Final path | Остались concrete network callbacks и backend draw submission |
-| `Map` | `source::Map` | Source owner, partial | Завершить load/fix-up ownership и backend create/destroy commands |
+| `Map` | `source::Map` + shared `source::DataBase` | Source owner, active registry path | XML parsing и backend actor create/destroy остаются adapters |
 | `MapObj` | `source::MapObj*` record/list hierarchy | Source owner, partial | Убрать importer/runtime mirrors и проверить все concrete object types |
 | `Menu` | `originalmenu::MenuSystem` + source Main/Profile/Dialog/Options/Race/Finish/Final owners | Source owner, frame core | Завершить concrete network callbacks; bgfx/CoreText/SDL остаются backend boundary |
 | `MenuSystem` | `originalmenu::{MenuSystem,ScreenStack,FrameState}` | Source owner, active menu path | Подключить concrete navigation graphs; bgfx остаётся draw executor |
@@ -70,7 +70,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `Player` | `source::Player`, `CarState`, behaviors, `PresentationState` | Source owner, active gameplay/presentation state | bgfx/Jolt исполняют graph/actor commands; продолжить аудит remaining event/listener and profile bridges |
 | `Race` | `OriginalRace`, `OriginalRaceSession`, lifecycle/place/tournament | Source owner, partial | Разложить 7 971-строчный источник по исходным владельцам вместо session |
 | `RaceMenu2` | `originalracemenu::{RaceMenuState,RaceMainFrameState,GamersFrameState,GarageFrameState,WorkshopFrameState,SpaceshipFrameState,AngarFrameState,AchievementFrameState}` | Source owner, all six offline frame paths | Проверить оставшиеся network callbacks и оставить bgfx/CoreText backend boundary |
-| `RecordLib` | Набор XML/R3D import helpers | Distributed | Вернуть typed record library, proxy/source load и fix-up pass |
+| `RecordLib` | `source::{MapObjRecordLibrary,MapObjRecordNode,MapObjRecord}` | Source owner, active hierarchy | Editor-only mutation/serialization API не входит в пользовательский runtime |
 | `ResourceManager` | `OriginalResourceManager` + native readers/uploaders | Source owner, graph/sound path | Mesh/image/sound identity и lifetime общие; font/material-library ownership ещё нужно завершить |
 | `RockCar` | `source::RockCar`, event sink | Source owner, partial | Проверить attachment/listener lifetime вместе с Player/GameCar |
 | `Trace` | `source::{Trace,WayPath,WayNode,WayPoint}` | Source owner, active race/debug path | Editor serialization остаётся вне пользовательской игры; gameplay geometry и TraceGfx используют один owner |
@@ -173,12 +173,20 @@ object factory и resource identity. Текущие проверенные XML/R
 `MapObjRecordLibrary` и активной загрузкой гонки. `MapObjRecord` теперь, как
 Windows `MapObjRec`, хранит source-loader; `MapObj::SetRecordProxy`
 синхронно загружает source-часть записи, после чего `.r3dMap` накладывает
-только proxy transform/life/name. `OriginalRaceSession` заранее регистрирует
-в семи библиотеках определения `ctDecoration`, `ctTrack`, `ctBonus` и
-`ctCar`; ручная повторная сборка destructible fragments, базовой жизни и
-`AutoProj` bonus description из session удалена. Таким образом parser
-остаётся reader, `DataBase`-каталог снова является фабрикой concrete
-gameplay object.
+только proxy transform/life/name. Definitions `ctDecoration`, `ctTrack`,
+`ctBonus` и `ctCar` загружаются как source records; ручная повторная сборка
+destructible fragments, базовой жизни и `AutoProj` bonus description из
+instance-load path удалена. Таким образом parser остаётся reader, а
+record-каталог является фабрикой concrete gameplay object.
+
+Follow-up B5a.1 вернул и самого владельца `DataBase.cpp`. Семь
+`MapObjRecordLibrary` больше не принадлежат `Map`, а живут в отдельном
+`source::DataBase`; `Map` получает стабильные record identities по ссылке.
+`DataBase::Configure` выполняет единый clear/load/fix-up transaction при
+смене карты, а `OriginalRaceSession` больше не содержит
+`registerSourceDataBase` и lambdas загрузки записей. Standalone Map-smoke
+получает локальный DataBase, active Race — общий owner с правильным порядком
+уничтожения `Map -> RecordLib`.
 
 Результат B5b: добавлен единый `OriginalResourceManager`, который возвращает
 стабильную identity по каноническому физическому пути и владеет decoded

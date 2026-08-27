@@ -1,6 +1,8 @@
+#include "OriginalDataBase.h"
 #include "OriginalGameObject.h"
 #include "OriginalLogic.h"
 #include "OriginalMap.h"
+#include "OriginalRace.h"
 
 #include <cmath>
 #include <iostream>
@@ -542,7 +544,84 @@ int main()
     if (progressLogic.GetMap() != nullptr)
         return 31;
 
+    r3d::game::originalrace::Race databaseRace;
+    r3d::game::originalrace::ObjectDefinition databaseDecoration;
+    databaseDecoration.record =
+        "world\\db\\root\\ctDecoration\\Crush\\databaseCrate";
+    databaseDecoration.maximumLife = 12.0F;
+    databaseDecoration.maximumTimeLife = 4.0F;
+    databaseDecoration.destructionPieces.resize(1U);
+    databaseDecoration.destructionPieces.front().transform.position =
+        {1.0F, 2.0F, 3.0F};
+    databaseRace.decorationDefinitions.push_back(databaseDecoration);
+    r3d::game::originalrace::ObjectDefinition databaseTrack;
+    databaseTrack.record =
+        "world\\db\\root\\ctTrack\\databaseTrack";
+    databaseRace.trackDefinitions.push_back(databaseTrack);
+    r3d::game::originalrace::BonusInstance databaseBonus;
+    databaseBonus.record =
+        "world\\db\\root\\ctBonus\\databaseBonus";
+    databaseRace.bonuses.push_back(databaseBonus);
+    r3d::game::originalrace::Vehicle databaseCar;
+    databaseCar.record = "world\\db\\root\\ctCar\\databaseCar";
+    databaseCar.maximumLife = 222.0F;
+    databaseRace.vehicles.push_back(databaseCar);
+
+    source::DataBase database;
+    database.Configure(databaseRace);
+    source::Logic databaseLogic;
+    source::Map databaseMap(&databaseLogic, &database);
+    auto& configuredDecoration = databaseMap.AddMapObj(
+        source::MapObjCategory::Decoration,
+        source::GameObjType::DestrObj,
+        databaseDecoration.record, 41U, 0U);
+    auto& configuredCar = databaseMap.AddMapObj(
+        source::MapObjCategory::Car,
+        source::GameObjType::RockCar,
+        databaseCar.record, 42U, 0U);
+    bool missingDatabaseRecordRejected = false;
+    try
+    {
+        databaseMap.AddMapObj(
+            source::MapObjCategory::Track,
+            source::GameObjType::GameObj,
+            "world\\db\\root\\ctTrack\\notConfigured", 43U, 0U);
+    }
+    catch (const std::invalid_argument&)
+    {
+        missingDatabaseRecordRejected = true;
+    }
+    const auto* configuredFragment =
+        configuredDecoration.GetDestrObj()->GetDestrList().Get(0U);
+    if (!missingDatabaseRecordRejected ||
+        &databaseMap.GetDataBase() != &database ||
+        database.GetRecordCount() != 4U ||
+        database.GetRecord(
+            source::MapObjCategory::Decoration,
+            databaseDecoration.record) !=
+            configuredDecoration.GetRecordProxy() ||
+        configuredDecoration.GetGameObj().GetMaxLife() != 12.0F ||
+        configuredDecoration.GetGameObj().GetMaxTimeLife() != 4.0F ||
+        configuredFragment == nullptr ||
+        configuredFragment->GetGameObj().GetPos() !=
+            source::GameObject::Vector3{1.0F, 2.0F, 3.0F} ||
+        configuredCar.GetGameObj().GetMaxLife() != 222.0F)
+        return 32;
+
+    databaseMap.Clear();
+    databaseRace.decorationDefinitions.front().record =
+        "world\\db\\root\\ctDecoration\\Crush\\reconfiguredCrate";
+    database.Configure(databaseRace);
+    if (database.GetRecord(
+            source::MapObjCategory::Decoration,
+            databaseDecoration.record, false) != nullptr ||
+        database.GetRecord(
+            source::MapObjCategory::Decoration,
+            databaseRace.decorationDefinitions.front().record, false) ==
+            nullptr)
+        return 33;
+
     std::cout << "original Map ownership, trace, death plane, category "
-                 "registry and global ID rules passed\n";
+                 "registry, DataBase records and global ID rules passed\n";
     return 0;
 }

@@ -134,6 +134,7 @@ public:
         std::string parent = {});
     MapObjRecord* FindRecord(std::string_view path);
     const MapObjRecord* FindRecord(std::string_view path) const;
+    void Clear() noexcept;
     std::size_t GetRecordCount() const noexcept;
     MapObjRecordNode& GetRootNode() noexcept;
     const MapObjRecordNode& GetRootNode() const noexcept;

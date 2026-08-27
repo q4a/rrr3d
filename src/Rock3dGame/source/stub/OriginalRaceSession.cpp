@@ -9,7 +9,6 @@
 #include <numeric>
 #include <optional>
 #include <stdexcept>
-#include <unordered_set>
 
 namespace r3d::game::originalrace
 {
@@ -1133,7 +1132,8 @@ std::string workshopReference(std::string_view record)
 
 OriginalRaceSession::OriginalRaceSession(
     const Race& race, bool legacyWindowsDebug)
-    : legacyWindowsDebug_(legacyWindowsDebug), race_(race), map_(&logic_)
+    : legacyWindowsDebug_(legacyWindowsDebug), race_(race),
+      map_(&logic_, &dataBase_)
 {
     if (race_.tracePath.size() < 2 || race_.tracePoints.empty() ||
         race_.racers.empty())
@@ -1151,117 +1151,6 @@ source::MapObjects& OriginalRaceSession::decorationObjects() noexcept
 source::MapObjects& OriginalRaceSession::bonusObjects() noexcept
 {
     return map_.GetMapObjList(source::MapObjCategory::Bonus);
-}
-
-void OriginalRaceSession::registerSourceDataBase()
-{
-    auto& decorationLibrary =
-        map_.GetRecordLib(source::MapObjCategory::Decoration);
-    for (const auto& definition : race_.decorationDefinitions)
-    {
-        const auto* sourceDefinition = &definition;
-        decorationLibrary.DefineRecord(
-            definition.record, source::GameObjType::DestrObj,
-            [sourceDefinition](source::MapObj& mapObject) {
-                auto* object = mapObject.GetDestrObj();
-                if (object == nullptr)
-                    throw std::runtime_error(
-                        "DataBase decoration record created wrong type");
-                object->ResetGameObject(
-                    sourceDefinition->maximumLife >= 0.0F
-                        ? sourceDefinition->maximumLife
-                        : -1.0F);
-                object->SetMaxTimeLife(
-                    sourceDefinition->maximumTimeLife);
-                object->GetDestrList().Reserve(
-                    sourceDefinition->destructionPieces.size());
-                for (const auto& piece :
-                     sourceDefinition->destructionPieces)
-                {
-                    auto& fragment = object->GetDestrList().Add(
-                        source::GameObjType::GameObj, "obj");
-                    applySourceProxyTransform(
-                        fragment.GetGameObj(), piece.transform);
-                    fragment.GetGameObj().ResetGameObject(-1.0F);
-                }
-            });
-    }
-
-    auto& trackLibrary =
-        map_.GetRecordLib(source::MapObjCategory::Track);
-    for (const auto& definition : race_.trackDefinitions)
-    {
-        const auto* sourceDefinition = &definition;
-        trackLibrary.DefineRecord(
-            definition.record, source::GameObjType::GameObj,
-            [sourceDefinition](source::MapObj& mapObject) {
-                auto& object = mapObject.GetGameObj();
-                object.ResetGameObject(
-                    sourceDefinition->maximumLife >= 0.0F
-                        ? sourceDefinition->maximumLife
-                        : -1.0F);
-                object.SetMaxTimeLife(
-                    sourceDefinition->maximumTimeLife);
-            });
-    }
-
-    auto& bonusLibrary =
-        map_.GetRecordLib(source::MapObjCategory::Bonus);
-    std::unordered_set<std::string> registeredBonuses;
-    for (const auto& bonus : race_.bonuses)
-    {
-        if (!registeredBonuses.insert(bonus.record).second)
-            continue;
-        const auto* sourceBonus = &bonus;
-        bonusLibrary.DefineRecord(
-            bonus.record, source::GameObjType::Proj,
-            [sourceBonus](source::MapObj& mapObject) {
-                auto* projectile = mapObject.GetAutoProj();
-                if (projectile == nullptr)
-                    throw std::runtime_error(
-                        "DataBase bonus record created wrong type");
-                mapObject.GetGameObj().ResetGameObject(-1.0F);
-                ProjectileDefinition sourceDescription;
-                sourceDescription.type = sourceBonus->projectileType;
-                sourceDescription.visual = sourceBonus->visual;
-                sourceDescription.deathEffect = sourceBonus->deathEffect;
-                sourceDescription.size = sourceBonus->size;
-                sourceDescription.offset = sourceBonus->offset;
-                sourceDescription.collision = sourceBonus->collision;
-                sourceDescription.modelBounds = sourceBonus->modelBounds;
-                sourceDescription.modelBoundsValid =
-                    sourceBonus->modelBoundsValid;
-                sourceDescription.speed = sourceBonus->speed;
-                sourceDescription.damage = sourceBonus->value;
-                sourceDescription.modelSize = sourceBonus->modelSize;
-                projectile->Reset(sourceDescription);
-            });
-    }
-
-    auto& carLibrary =
-        map_.GetRecordLib(source::MapObjCategory::Car);
-    for (const auto& vehicle : race_.vehicles)
-    {
-        const auto* sourceVehicle = &vehicle;
-        carLibrary.DefineRecord(
-            vehicle.record, source::GameObjType::RockCar,
-            [sourceVehicle](source::MapObj& mapObject) {
-                mapObject.GetGameObj().ResetGameObject(
-                    sourceVehicle->maximumLife);
-            });
-    }
-    for (const auto& racer : race_.racers)
-    {
-        if (!racer.hasConfiguredVehicle)
-            continue;
-        const auto* sourceVehicle = &racer.configuredVehicle;
-        carLibrary.DefineRecord(
-            sourceVehicle->record, source::GameObjType::RockCar,
-            [sourceVehicle](source::MapObj& mapObject) {
-                mapObject.GetGameObj().ResetGameObject(
-                    sourceVehicle->maximumLife);
-            });
-    }
 }
 
 void OriginalRaceSession::reset()
@@ -1291,7 +1180,7 @@ void OriginalRaceSession::reset()
     // Car MapObjs bind the live Player::gameCar. Release the map side while
     // Player storage is still valid, then rebuild both collections.
     map_.Clear();
-    registerSourceDataBase();
+    dataBase_.Configure(race_);
     racers_.clear();
     racers_.resize(race_.racers.size());
     racerMapObjects_.assign(race_.racers.size(), nullptr);

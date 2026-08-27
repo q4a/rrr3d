@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <map>
+#include <memory>
 #include <string>
 #include <string_view>
 
@@ -15,10 +16,11 @@ namespace r3d::game::originalrace::source
 {
 
 class Logic;
+class DataBase;
 
-// Backend-neutral Map.cpp runtime registry. XML/resource parsing remains in
-// OriginalRace, while this class owns the seven live category collections
-// and the global MapObj ID namespace used by gameplay and network RPCs.
+// Backend-neutral Map.cpp runtime registry. DataBase owns record libraries;
+// Map owns the seven live category collections and global MapObj ID namespace
+// used by gameplay and network RPCs.
 class Map final : private MapObjectsObserver
 {
 public:
@@ -27,7 +29,7 @@ public:
     static constexpr std::size_t invalidSourceIndex =
         static_cast<std::size_t>(-1);
 
-    explicit Map(Logic* logic = nullptr);
+    explicit Map(Logic* logic = nullptr, DataBase* dataBase = nullptr);
     ~Map() override;
 
     Map(const Map&) = delete;
@@ -57,6 +59,8 @@ public:
     MapObjRecordLibrary& GetRecordLib(MapObjCategory category) noexcept;
     const MapObjRecordLibrary& GetRecordLib(
         MapObjCategory category) const noexcept;
+    DataBase& GetDataBase() noexcept;
+    const DataBase& GetDataBase() const noexcept;
     MapObj* GetMapObj(
         std::uint32_t id, bool includeDead = false) noexcept;
     const MapObj* GetMapObj(
@@ -80,9 +84,10 @@ private:
     bool IsMapObjNameUsed(
         std::string_view value) const noexcept override;
 
-    // Record libraries outlive live category objects, matching DataBase.
-    // Declaration order makes categories destruct before their proxies.
-    std::array<MapObjRecordLibrary, 7U> recordLibraries_;
+    // Standalone smokes own a local DataBase; the active World/Session passes
+    // its shared source owner. Categories always die before ownedDataBase_.
+    std::unique_ptr<DataBase> ownedDataBase_;
+    DataBase* dataBase_ = nullptr;
     std::array<MapObjects, 7U> categories_;
     Objects objects_;
     Logic* logic_ = nullptr;

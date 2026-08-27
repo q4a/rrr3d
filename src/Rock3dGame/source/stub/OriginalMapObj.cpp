@@ -313,6 +313,13 @@ const MapObjRecord* MapObjRecordLibrary::FindRecord(
     return node->FindRecord(parts.back());
 }
 
+void MapObjRecordLibrary::Clear() noexcept
+{
+    records_.clear();
+    root_->records_.clear();
+    root_->nodes_.clear();
+}
+
 std::size_t MapObjRecordLibrary::GetRecordCount() const noexcept
 {
     return records_.size();

@@ -1,5 +1,6 @@
 #include "OriginalMap.h"
 
+#include "OriginalDataBase.h"
 #include "OriginalGameObject.h"
 #include "OriginalLogic.h"
 
@@ -22,15 +23,17 @@ std::string_view recordName(std::string_view value) noexcept
 
 } // namespace
 
-Map::Map(Logic* logic) : logic_(logic)
+Map::Map(Logic* logic, DataBase* dataBase)
+    : ownedDataBase_(
+          dataBase == nullptr ? std::make_unique<DataBase>() : nullptr),
+      dataBase_(dataBase != nullptr ? dataBase : ownedDataBase_.get()),
+      logic_(logic)
 {
     if (logic_ != nullptr)
         logic_->SetMap(this);
     for (std::size_t index = 0U; index < categories_.size(); ++index)
     {
         categories_[index].SetObserver(this);
-        recordLibraries_[index].SetCategory(
-            static_cast<MapObjCategory>(index));
     }
     groundTouchDeath_ = &ground_.GetGameObj().GetBehaviors()
         .Add<TouchDeath>(BehaviorType::TouchDeath);
@@ -77,9 +80,25 @@ MapObj& Map::AddMapObj(
             "' (existing '" + existing + "')");
     }
     const auto categoryIndex = CategoryIndex(category);
-    auto& recordProxy = recordLibraries_[categoryIndex].GetOrCreateRecord(
-        std::move(record), type);
-    auto& result = categories_[categoryIndex].Add(recordProxy, sourceId);
+    auto* recordProxy = dataBase_->GetRecord(category, record, false);
+    if (recordProxy == nullptr && ownedDataBase_ == nullptr)
+    {
+        throw std::invalid_argument(
+            "MapObj record '" + record + "' is absent from DataBase");
+    }
+    if (recordProxy == nullptr)
+    {
+        recordProxy = &dataBase_->GetMapObjLib(category)
+                           .GetOrCreateRecord(std::move(record), type);
+    }
+    else if (recordProxy->GetType() != type)
+    {
+        throw std::invalid_argument(
+            "MapObj record '" + record + "' changes type from " +
+            GameObjTypeName(recordProxy->GetType()) + " to " +
+            GameObjTypeName(type));
+    }
+    auto& result = categories_[categoryIndex].Add(*recordProxy, sourceId);
     result.SetSourceIndex(sourceIndex);
     result.GetGameObj().SetLogic(logic_);
     Register(result, sourceId);
@@ -185,13 +204,16 @@ const MapObjects& Map::GetMapObjList(
 MapObjRecordLibrary& Map::GetRecordLib(
     MapObjCategory category) noexcept
 {
-    return recordLibraries_[CategoryIndex(category)];
+    return dataBase_->GetMapObjLib(category);
 }
 const MapObjRecordLibrary& Map::GetRecordLib(
     MapObjCategory category) const noexcept
 {
-    return recordLibraries_[CategoryIndex(category)];
+    return dataBase_->GetMapObjLib(category);
 }
+
+DataBase& Map::GetDataBase() noexcept { return *dataBase_; }
+const DataBase& Map::GetDataBase() const noexcept { return *dataBase_; }
 
 MapObj* Map::GetMapObj(std::uint32_t id, bool includeDead) noexcept
 {

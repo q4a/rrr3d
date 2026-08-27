@@ -2287,3 +2287,14 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - Analog normalization повторяет `alphaMax/alphaThreshold`: trigger 30/255,
   left thumb 7849/32767 и right-thumb activation 8689/32767 с исходной
   directional-table особенностью.
+
+### Source DataBase/RecordLib ownership follow-up
+
+- Семь typed `MapObjRecordLibrary` перенесены из `source::Map` в отдельный
+  active `source::DataBase`, повторяющий lifetime Windows `World::DataBase`.
+- Единый `Configure` теперь владеет clear/load/fix-up для records текущей
+  карты; `OriginalRaceSession::registerSourceDataBase` и его повторные
+  source-loader lambdas удалены.
+- `Map` хранит только live categories/global IDs и получает стабильные
+  records от DataBase. Regression проверяет source-before-proxy загрузку,
+  destructible includes, car life, lookup и безопасную смену карты.

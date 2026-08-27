@@ -62,6 +62,7 @@ else()
             source/stub/OriginalGameMode.cpp
             source/stub/OriginalWorld.cpp
             source/stub/OriginalAchievmentModel.cpp
+            source/stub/OriginalDataBase.cpp
             source/stub/OriginalGameCar.cpp
             source/stub/OriginalLogic.cpp
             source/stub/OriginalMainMenu.cpp
@@ -86,6 +87,7 @@ else()
             include/OriginalGameMode.h
             include/OriginalWorld.h
             include/OriginalAchievmentModel.h
+            include/OriginalDataBase.h
             include/OriginalGameCar.h
             include/OriginalLogic.h
             include/OriginalMainMenu.h

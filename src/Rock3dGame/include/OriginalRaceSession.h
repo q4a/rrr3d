@@ -2,6 +2,7 @@
 
 #include "OriginalAICar.h"
 #include "OriginalAchievmentModel.h"
+#include "OriginalDataBase.h"
 #include "OriginalGameObject.h"
 #include "OriginalHumanPlayer.h"
 #include "OriginalLogic.h"
@@ -499,7 +500,6 @@ private:
     const TracePoint& tracePoint(std::size_t path,
                                  std::size_t pathNode) const;
     void buildSourceTrace();
-    void registerSourceDataBase();
     TraceNodeRef racerTraceNode(std::size_t racer) const noexcept;
     float tracePathLength(std::size_t path) const;
     float lapPosition(
@@ -598,7 +598,9 @@ private:
     std::vector<float> decorationLife_;
     // Active source owner. The parallel arrays are renderer/physics views,
     // no longer the authority for damage or death.
-    // Source Map owns the global objects, Trace and permanent death plane.
+    // Source DataBase owns the seven RecordLib trees; Map owns live global
+    // objects, Trace and the permanent death plane.
+    source::DataBase dataBase_;
     source::Map map_;
     std::vector<bool> bonusActive_;
     std::vector<float> bonusScales_;
