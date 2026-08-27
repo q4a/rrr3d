@@ -4,6 +4,7 @@
 #include "OriginalGameData.h"
 #include "OriginalMainMenu.h"
 #include "OriginalMenuSystem.h"
+#include "OriginalOptionsMenu.h"
 #ifdef RRR3D_NETWORK
 #include "OriginalNetwork.h"
 #endif
@@ -2983,8 +2984,6 @@ int main(int argc, char** argv)
     constexpr menu::Rgba8 optionsStateSelectedColor{235, 115, 62, 255};
     constexpr menu::Rgba8 raceTextColor{214, 214, 214, 255};
     constexpr menu::Rgba8 raceInfoColor{214, 184, 164, 255};
-    auto optionsDraftConfig = profileState.config;
-    auto optionsDraftDifficulty = profileState.player.difficulty;
     auto sourceDifficultyIndex = [](std::string_view difficulty) {
         if (difficulty == "gdEasy")
             return 0;
@@ -3003,9 +3002,6 @@ int main(int argc, char** argv)
     originalDisplayModes.reserve(sourceDisplayModes.size());
     for (const auto& mode : sourceDisplayModes)
         originalDisplayModes.emplace_back(mode.width, mode.height);
-    const auto configuredDisplayMode = std::pair{
-        optionsDraftConfig.resolutionWidth,
-        optionsDraftConfig.resolutionHeight};
     if (originalDisplayModes.empty())
         originalDisplayModes.push_back(
             {originalMinimumWidth, originalMinimumHeight});
@@ -3022,42 +3018,32 @@ int main(int argc, char** argv)
         sourceLanguages.push_back(language.name);
     const auto& sourceCommentators =
         originalGameDataCatalog.commentatorStyles;
-    auto sourceListIndex = [](const auto& values,
-                              std::string_view selected) {
-        const auto found =
-            std::find(values.begin(), values.end(), selected);
-        return found == values.end()
-                   ? std::size_t{0}
-                   : static_cast<std::size_t>(
-                         found - values.begin());
-    };
-    std::size_t startOptionsCameraIndex = 2U;
-    std::size_t startOptionsResolutionIndex =
-        nearestOriginalDisplayMode(
-            sourceDisplayModes, configuredDisplayMode.first,
-            configuredDisplayMode.second);
-    if (startOptionsResolutionIndex >= originalDisplayModes.size())
-        startOptionsResolutionIndex = 0U;
-    std::size_t startOptionsLanguageIndex = sourceListIndex(
-        sourceLanguages, optionsDraftConfig.language);
-    std::size_t startOptionsCommentatorIndex = sourceListIndex(
-        sourceCommentators, optionsDraftConfig.commentatorStyle);
-    std::size_t startOptionsFocus = 0U;
-    bool startOptionsApplyEnabled = false;
+    r3d::game::originaloptions::OptionsMenuState sourceOptionsMenu({
+        originalDisplayModes, sourceLanguages,
+        std::vector<std::string>(sourceCommentators.begin(),
+                                 sourceCommentators.end())});
+    r3d::game::originaloptions::StartOptionsMenuState
+        sourceStartOptionsMenu({
+            originalDisplayModes, sourceLanguages,
+            std::vector<std::string>(sourceCommentators.begin(),
+                                     sourceCommentators.end())});
+    sourceOptionsMenu.begin(
+        profileState.config, profileState.player.difficulty);
+    sourceStartOptionsMenu.begin(profileState.config);
+    auto& optionsDraftConfig = sourceOptionsMenu.draft();
+    auto& optionsDraftDifficulty = sourceOptionsMenu.difficulty();
     auto startOptionsValues = [&]() {
-        const auto& resolution =
-            originalDisplayModes[startOptionsResolutionIndex];
+        const auto& resolution = sourceStartOptionsMenu.resolution();
         return std::vector<std::string>{
-            startOptionsCameraIndex == 0U
+            sourceStartOptionsMenu.cameraIndex() == 0U
                 ? localized("svCameraSecView")
-                : startOptionsCameraIndex == 1U
+                : sourceStartOptionsMenu.cameraIndex() == 1U
                       ? localized("svCameraOrtho")
                       : localized("svSelectItem"),
             std::to_string(resolution.first) + " x " +
                 std::to_string(resolution.second),
-            std::string(sourceLanguages[startOptionsLanguageIndex]),
-            std::string(
-                sourceCommentators[startOptionsCommentatorIndex])};
+            std::string(sourceStartOptionsMenu.language()),
+            std::string(sourceStartOptionsMenu.commentator())};
     };
     auto onOff = [&](bool value) {
         return localized(value ? "svOn" : "svOff");
@@ -3088,8 +3074,6 @@ int main(int argc, char** argv)
             "gaShotAll", "gaHyper", "gaMine", "gaWeaponDown",
             "gaWeaponUp", "gaViewSwitch", "gaAction", "gaEscape",
             "gaResetCar"};
-    static constexpr std::size_t controlsVisibleRows = 6U;
-    bool controlsUseGamepad = false;
     auto gameOptionsLabels = [&]() {
         return std::vector<std::string>{
             localized(
@@ -9516,21 +9500,23 @@ int main(int argc, char** argv)
         case MenuScreen::GameOptions:
             replaceOptionsPage(
                 gameOptionsPage, gameOptionsLabels());
-#ifdef RRR3D_NETWORK
-            if (networkMatchStarted && !networkHostRequested)
             {
-                // OptionsMenu::GameFrame::LoadCfg disables every setting
-                // owned by NetRace when this peer is not the host. Camera,
-                // HUD and video remain local exactly as in Menu.cpp.
-                for (std::size_t index = 3U; index <= 10U; ++index)
-                    gameOptionsPage.enabled[index] = false;
+                r3d::game::originaloptions::Availability availability;
+                availability.difficulty =
+                    !profileState.player.name.empty();
+#ifdef RRR3D_NETWORK
+                availability.networkClient =
+                    networkMatchStarted && !networkHostRequested;
+#endif
+                gameOptionsPage.enabled =
+                    sourceOptionsMenu.enabledItems(
+                        MenuScreen::GameOptions, availability);
                 if (menuSelection < gameOptionsPage.enabled.size() &&
                     !gameOptionsPage.enabled[menuSelection])
                 {
                     menuSelection = 2U;
                 }
             }
-#endif
             break;
         case MenuScreen::GraphicsOptions:
             replaceOptionsPage(
@@ -9672,23 +9658,12 @@ int main(int argc, char** argv)
     };
 #endif
     auto isOriginalOptionsScreen = [](MenuScreen screen) {
-        return screen == MenuScreen::GameOptions ||
-               screen == MenuScreen::GraphicsOptions ||
-               screen == MenuScreen::SoundOptions ||
-               screen == MenuScreen::ControlsOptions;
+        return r3d::game::originaloptions::OptionsMenuState::owns(screen);
     };
-    auto optionsStateIndex = [](MenuScreen screen) {
-        switch (screen)
-        {
-        case MenuScreen::GraphicsOptions:
-            return 1U;
-        case MenuScreen::SoundOptions:
-            return 2U;
-        case MenuScreen::ControlsOptions:
-            return 3U;
-        default:
-            return 0U;
-        }
+    auto optionsStateIndex = [&](MenuScreen screen) {
+        return static_cast<std::size_t>(
+            r3d::game::originaloptions::OptionsMenuState::tabForScreen(
+                screen));
     };
     auto refreshStartOptionsValues = [&]() {
         auto replacement = createStyledPage(
@@ -9697,51 +9672,13 @@ int main(int argc, char** argv)
         destroyPage(startOptionsValuePage);
         startOptionsValuePage = std::move(replacement);
     };
-    auto cycleStartOptionsIndex = [](std::size_t index,
-                                     std::size_t count,
-                                     int direction) {
-        if (count == 0U)
-            return std::size_t{0};
-        if (direction < 0)
-            return index == 0U ? count - 1U : index - 1U;
-        return (index + 1U) % count;
-    };
     auto adjustStartOption = [&](int direction) {
 #ifdef RRR3D_AUDIO
         playOriginalMenuSound(
             rrr3d::audio::OriginalMenuSound::ChangeOption);
 #endif
-        switch (startOptionsFocus)
-        {
-        case 0U:
-            // StartOptionsMenu::OnSelect always resolves the initial
-            // cPrefCameraEnd/"Select" sentinel to pcIsometric.  Subsequent
-            // arrow presses loop between the two real values.
-            if (startOptionsCameraIndex >= 2U)
-                startOptionsCameraIndex = 1U;
-            else
-                startOptionsCameraIndex = cycleStartOptionsIndex(
-                    startOptionsCameraIndex, 2U, direction);
-            startOptionsApplyEnabled = true;
-            break;
-        case 1U:
-            startOptionsResolutionIndex = cycleStartOptionsIndex(
-                startOptionsResolutionIndex,
-                originalDisplayModes.size(), direction);
-            break;
-        case 2U:
-            startOptionsLanguageIndex = cycleStartOptionsIndex(
-                startOptionsLanguageIndex,
-                sourceLanguages.size(), direction);
-            break;
-        case 3U:
-            startOptionsCommentatorIndex = cycleStartOptionsIndex(
-                startOptionsCommentatorIndex,
-                sourceCommentators.size(), direction);
-            break;
-        default:
+        if (!sourceStartOptionsMenu.adjustFocused(direction))
             return;
-        }
         refreshStartOptionsValues();
     };
     auto finishStartOptions = [&]() {
@@ -9755,41 +9692,25 @@ int main(int argc, char** argv)
             profileState.config.quality.frameRateMode = "sfrFixed";
             sourceDiscreteVideoChanged = false;
         }
-        const auto& resolution =
-            originalDisplayModes[startOptionsResolutionIndex];
+        const auto& resolution = sourceStartOptionsMenu.resolution();
         std::cout
             << "Original StartOptionsMenu -> MainMenu2: camera="
-            << (startOptionsCameraIndex == 0U
+            << (sourceStartOptionsMenu.cameraIndex() == 0U
                     ? "pcThirdPerson"
                     : "pcIsometric")
             << ", resolution=" << resolution.first << 'x'
             << resolution.second << ", language="
-            << sourceLanguages[startOptionsLanguageIndex]
+            << sourceStartOptionsMenu.language()
             << ", commentator="
-            << sourceCommentators[startOptionsCommentatorIndex]
+            << sourceStartOptionsMenu.commentator()
             << '\n';
     };
     auto applyStartOptions = [&]() {
-        if (!startOptionsApplyEnabled ||
-            startOptionsCameraIndex >= 2U)
-        {
-            return;
-        }
         const auto previous = profileState.config;
-        const auto& resolution =
-            originalDisplayModes[startOptionsResolutionIndex];
-        profileState.config.preferredCamera =
-            startOptionsCameraIndex == 0U
-                ? r3d::game::originalrace::
-                      PreferredCamera::ThirdPerson
-                : r3d::game::originalrace::
-                      PreferredCamera::Isometric;
-        profileState.config.resolutionWidth = resolution.first;
-        profileState.config.resolutionHeight = resolution.second;
-        profileState.config.language =
-            sourceLanguages[startOptionsLanguageIndex];
-        profileState.config.commentatorStyle =
-            sourceCommentators[startOptionsCommentatorIndex];
+        const auto sourceApply =
+            sourceStartOptionsMenu.apply(profileState.config);
+        if (!sourceApply.applied)
+            return;
         profileState.config.discreteVideoCard =
             sourceCurrentDiscreteVideoCard;
         profileState.preferredCameraSerialized = true;
@@ -9897,21 +9818,19 @@ int main(int argc, char** argv)
         }
     };
     auto setOptionsState = [&](std::size_t state) {
+        const auto tab = static_cast<r3d::game::originaloptions::Tab>(
+            std::min<std::size_t>(state, 3U));
+        sourceOptionsMenu.setTab(tab);
         menuStack.set_back(
-            std::array{
-                MenuScreen::GameOptions,
-                MenuScreen::GraphicsOptions,
-                MenuScreen::SoundOptions,
-                MenuScreen::ControlsOptions}
-                [std::min<std::size_t>(state, 3U)]);
+            r3d::game::originaloptions::OptionsMenuState::screenForTab(tab));
         menuSelection = 0U;
         bindingCaptureAction.reset();
         refreshCurrentOptionsPage();
     };
     auto beginOriginalOptions = [&]() {
-        optionsDraftConfig = profileState.config;
-        optionsDraftDifficulty = profileState.player.difficulty;
-        controlsUseGamepad = false;
+        sourceOptionsMenu.begin(
+            profileState.config, profileState.player.difficulty);
+        sourceOptionsMenu.setControlsUseGamepad(false);
         bindingCaptureAction.reset();
         pushMenu(MenuScreen::GameOptions);
         refreshCurrentOptionsPage();
@@ -9928,15 +9847,15 @@ int main(int argc, char** argv)
             r3d::audio::Bus::Voice,
             profileState.config.voiceVolume);
 #endif
-        optionsDraftConfig = profileState.config;
-        optionsDraftDifficulty = profileState.player.difficulty;
+        sourceOptionsMenu.cancel(
+            profileState.config, profileState.player.difficulty);
         bindingCaptureAction.reset();
         backMenu();
     };
     auto applyOriginalOptions = [&]() {
         const auto previousConfig = profileState.config;
-        profileState.config = optionsDraftConfig;
-        profileState.player.difficulty = optionsDraftDifficulty;
+        sourceOptionsMenu.commit(
+            profileState.config, profileState.player.difficulty);
 
         const bool windowConfigurationChanged =
             profileState.config.fullScreen !=
@@ -10093,18 +10012,7 @@ int main(int argc, char** argv)
             backMenu();
         }
     };
-    auto cycleValue = [](std::uint32_t value,
-                         std::uint32_t count, int direction) {
-        if (count == 0U)
-            return 0U;
-        const int normalized =
-            (static_cast<int>(value % count) + direction +
-             static_cast<int>(count)) %
-            static_cast<int>(count);
-        return static_cast<std::uint32_t>(normalized);
-    };
     auto adjustCurrentOption = [&](int direction) {
-        direction = direction < 0 ? -1 : 1;
         const auto& optionPage = activeMenuPage();
         if (menuSelection >= optionPage.enabled.size() ||
             !optionPage.enabled[menuSelection])
@@ -10116,247 +10024,26 @@ int main(int argc, char** argv)
         playOriginalMenuSound(
             rrr3d::audio::OriginalMenuSound::ChangeOption);
 #endif
-        switch (menuStack.back())
-        {
-        case MenuScreen::GameOptions:
-            switch (menuSelection)
-            {
-            case 0:
-                optionsDraftConfig.preferredCamera =
-                    optionsDraftConfig.preferredCamera ==
-                            r3d::game::originalrace::
-                                PreferredCamera::ThirdPerson
-                        ? r3d::game::originalrace::
-                              PreferredCamera::Isometric
-                        : r3d::game::originalrace::
-                              PreferredCamera::ThirdPerson;
-                break;
-            case 1:
-                optionsDraftConfig.cameraDistance =
-                    std::clamp(
-                        optionsDraftConfig.cameraDistance +
-                            static_cast<float>(direction) * 0.25F,
-                        1.0F, 2.0F);
-                break;
-            case 2:
-                optionsDraftConfig.enableHud =
-                    !optionsDraftConfig.enableHud;
-                break;
-            case 3: {
-                static constexpr std::array<std::string_view, 3>
-                    difficulties{
-                        "gdEasy", "gdNormal", "gdHard"};
-                const auto found = std::find(
-                    difficulties.begin(), difficulties.end(),
-                    optionsDraftDifficulty);
-                const auto index =
-                    found == difficulties.end()
-                        ? 1U
-                        : static_cast<std::uint32_t>(
-                              found - difficulties.begin());
-                optionsDraftDifficulty =
-                    difficulties[cycleValue(index, 3U, direction)];
-                break;
-            }
-            case 4:
-                optionsDraftConfig.springBorders =
-                    !optionsDraftConfig.springBorders;
-                break;
-            case 5:
-                optionsDraftConfig.upgradeMaxLevel =
-                    cycleValue(
-                        optionsDraftConfig.upgradeMaxLevel,
-                        3U, direction);
-                break;
-            case 6:
-                optionsDraftConfig.weaponMaxLevel =
-                    cycleValue(
-                        std::clamp(
-                            optionsDraftConfig.weaponMaxLevel,
-                            1U, 4U) -
-                            1U,
-                        4U, direction) +
-                    1U;
-                break;
-            case 7:
-                optionsDraftConfig.maxPlayers =
-                    cycleValue(
-                        std::clamp(
-                            optionsDraftConfig.maxPlayers,
-                            2U,
-                            r3d::game::originalrace::
-                                originalMaximumPlayers) -
-                            2U,
-                        r3d::game::originalrace::
-                                originalMaximumPlayers -
-                            1U,
-                        direction) +
-                    2U;
-                break;
-            case 8:
-                optionsDraftConfig.maxComputers =
-                    cycleValue(
-                        optionsDraftConfig.maxComputers,
-                        r3d::game::originalrace::
-                            originalMaximumComputers +
-                            1U,
-                        direction);
-                break;
-            case 9:
-                optionsDraftConfig.lapsCount =
-                    std::clamp(
-                        static_cast<int>(
-                            optionsDraftConfig.lapsCount) +
-                            direction,
-                        1, 8);
-                break;
-            case 10:
-                optionsDraftConfig.enableMineBug =
-                    !optionsDraftConfig.enableMineBug;
-                break;
-            case 11:
-                optionsDraftConfig.disableVideo =
-                    !optionsDraftConfig.disableVideo;
-                break;
-            default:
-                return;
-            }
-            break;
-        case MenuScreen::GraphicsOptions:
-            switch (menuSelection)
-            {
-            case 0: {
-                const auto current = std::find(
-                    originalDisplayModes.begin(),
-                    originalDisplayModes.end(),
-                    std::pair{
-                        optionsDraftConfig.resolutionWidth,
-                        optionsDraftConfig.resolutionHeight});
-                const auto index =
-                    current == originalDisplayModes.end()
-                        ? static_cast<std::uint32_t>(
-                              nearestOriginalDisplayMode(
-                                  sourceDisplayModes,
-                                  optionsDraftConfig.resolutionWidth,
-                                  optionsDraftConfig.resolutionHeight))
-                        : static_cast<std::uint32_t>(
-                              current - originalDisplayModes.begin());
-                const auto& mode = originalDisplayModes[cycleValue(
-                    index,
-                    static_cast<std::uint32_t>(
-                        originalDisplayModes.size()),
-                    direction)];
-                optionsDraftConfig.resolutionWidth = mode.first;
-                optionsDraftConfig.resolutionHeight = mode.second;
-                break;
-            }
-            case 1:
-                optionsDraftConfig.quality.filtering =
-                    cycleValue(
-                        optionsDraftConfig.quality.filtering,
-                        4U, direction);
-                break;
-            case 2:
-                optionsDraftConfig.quality.msaa =
-                    cycleValue(
-                        optionsDraftConfig.quality.msaa,
-                        3U, direction);
-                break;
-            case 3:
-                optionsDraftConfig.quality.shadow =
-                    cycleValue(
-                        optionsDraftConfig.quality.shadow,
-                        3U, direction);
-                break;
-            case 4:
-                optionsDraftConfig.quality.environment =
-                    cycleValue(
-                        optionsDraftConfig.quality.environment,
-                        3U, direction);
-                break;
-            case 5:
-                optionsDraftConfig.quality.light =
-                    cycleValue(
-                        optionsDraftConfig.quality.light,
-                        3U, direction);
-                break;
-            case 6:
-                optionsDraftConfig.quality.postEffect =
-                    cycleValue(
-                        optionsDraftConfig.quality.postEffect,
-                        3U, direction);
-                break;
-            case 7:
-                optionsDraftConfig.fullScreen =
-                    !optionsDraftConfig.fullScreen;
-                break;
-            default:
-                return;
-            }
-            break;
-        case MenuScreen::SoundOptions:
-            switch (menuSelection)
-            {
-            case 0:
-                optionsDraftConfig.language = sourceLanguages[cycleValue(
-                    static_cast<std::uint32_t>(sourceListIndex(
-                        sourceLanguages, optionsDraftConfig.language)),
-                    static_cast<std::uint32_t>(sourceLanguages.size()),
-                    direction)];
-                break;
-            case 1:
-                optionsDraftConfig.commentatorStyle =
-                    sourceCommentators[cycleValue(
-                        static_cast<std::uint32_t>(sourceListIndex(
-                            sourceCommentators,
-                            optionsDraftConfig.commentatorStyle)),
-                        static_cast<std::uint32_t>(
-                            sourceCommentators.size()),
-                        direction)];
-                break;
-            case 2:
-                optionsDraftConfig.musicVolume =
-                    std::clamp(
-                        optionsDraftConfig.musicVolume +
-                            static_cast<float>(direction) * 0.1F,
-                        0.0F, 2.0F);
+        if (!sourceOptionsMenu.adjust(
+                menuStack.back(), menuSelection, direction))
+            return;
 #ifdef RRR3D_AUDIO
+        if (menuStack.back() == MenuScreen::SoundOptions)
+        {
+            if (menuSelection == 2U)
                 audio.setBusVolume(
                     r3d::audio::Bus::Music,
                     optionsDraftConfig.musicVolume);
-#endif
-                break;
-            case 3:
-                optionsDraftConfig.effectsVolume =
-                    std::clamp(
-                        optionsDraftConfig.effectsVolume +
-                            static_cast<float>(direction) * 0.1F,
-                        0.0F, 2.0F);
-#ifdef RRR3D_AUDIO
+            else if (menuSelection == 3U)
                 audio.setBusVolume(
                     r3d::audio::Bus::Effects,
                     optionsDraftConfig.effectsVolume);
-#endif
-                break;
-            case 4:
-                optionsDraftConfig.voiceVolume =
-                    std::clamp(
-                        optionsDraftConfig.voiceVolume +
-                            static_cast<float>(direction) * 0.1F,
-                        0.0F, 2.0F);
-#ifdef RRR3D_AUDIO
+            else if (menuSelection == 4U)
                 audio.setBusVolume(
                     r3d::audio::Bus::Voice,
                     optionsDraftConfig.voiceVolume);
-#endif
-                break;
-            default:
-                return;
-            }
-            break;
-        default:
-            return;
         }
+#endif
         refreshCurrentOptionsPage();
     };
     showFinishMenu = [&](bool persistProgress) {
@@ -11806,7 +11493,7 @@ int main(int argc, char** argv)
                                     virtualX - (centerX + 100.0F)) <=
                                     145.0F)
                             {
-                                startOptionsFocus = row;
+                                sourceStartOptionsMenu.setFocus(row);
                                 pointerHandled = true;
                                 if (event.type ==
                                     SDL_EVENT_MOUSE_BUTTON_DOWN)
@@ -11831,7 +11518,9 @@ int main(int argc, char** argv)
                                     startOptionsButtonImage.height) *
                                     0.5F)
                         {
-                            startOptionsFocus = 4U;
+                            sourceStartOptionsMenu.setFocus(
+                                r3d::game::originaloptions::
+                                    StartOptionsMenuState::applyRow);
                             if (event.type ==
                                 SDL_EVENT_MOUSE_BUTTON_DOWN)
                             {
@@ -11854,19 +11543,17 @@ int main(int argc, char** argv)
                     if (inputEvent.action ==
                         rrr3d::input::Action::MenuUp)
                     {
-                        startOptionsFocus =
-                            startOptionsFocus == 0U
-                                ? 4U
-                                : startOptionsFocus - 1U;
+                        sourceStartOptionsMenu.moveFocus(-1);
                     }
                     else if (inputEvent.action ==
                              rrr3d::input::Action::MenuDown)
                     {
-                        startOptionsFocus =
-                            (startOptionsFocus + 1U) % 5U;
+                        sourceStartOptionsMenu.moveFocus(1);
                     }
                     else if (
-                        startOptionsFocus < 4U &&
+                        sourceStartOptionsMenu.focus() <
+                            r3d::game::originaloptions::
+                                StartOptionsMenuState::optionRows &&
                         (inputEvent.action ==
                              rrr3d::input::Action::TurnLeft ||
                          inputEvent.action ==
@@ -11881,7 +11568,9 @@ int main(int argc, char** argv)
                     else if (
                         inputEvent.action ==
                             rrr3d::input::Action::MenuConfirm &&
-                        startOptionsFocus == 4U)
+                        sourceStartOptionsMenu.focus() ==
+                            r3d::game::originaloptions::
+                                StartOptionsMenuState::applyRow)
                     {
 #ifdef RRR3D_AUDIO
                         playMainButtonClick();
@@ -11928,11 +11617,9 @@ int main(int argc, char** argv)
                 }
                 if (bindingName && !bindingName->empty())
                 {
-                    auto& bindings =
-                        bindingCaptureGamepad
-                            ? optionsDraftConfig.gamepadControls
-                            : optionsDraftConfig.keyboardControls;
-                    bindings[*bindingCaptureAction] = *bindingName;
+                    sourceOptionsMenu.setControlBinding(
+                        *bindingCaptureAction, bindingCaptureGamepad,
+                        *bindingName);
                     std::cout
                         << "Original ControlsFrame: "
                         << *bindingCaptureAction << " -> "
@@ -13026,8 +12713,8 @@ int main(int argc, char** argv)
                          ++state)
                     {
                         const float stateY =
-                            centerY - 125.0F +
-                            static_cast<float>(state) * 100.0F;
+                            sourceOptionsMenu.stateButtonY(
+                                menu::virtualHeight, state);
                         if (virtualX >= centerX - 600.0F &&
                             virtualX <= centerX - 250.0F &&
                             std::abs(virtualY - stateY) <= 45.0F)
@@ -13037,42 +12724,20 @@ int main(int argc, char** argv)
                         }
                     }
 
+                    const auto optionsTab =
+                        r3d::game::originaloptions::OptionsMenuState::
+                            tabForScreen(menuStack.back());
                     const std::size_t rowCount =
-                        menuStack.back() == MenuScreen::GameOptions
-                            ? gameOptionNamesPage.labels.size()
-                        : menuStack.back() ==
-                                  MenuScreen::GraphicsOptions
-                            ? graphicsOptionNamesPage.labels.size()
-                        : menuStack.back() ==
-                                  MenuScreen::SoundOptions
-                            ? soundOptionNamesPage.labels.size()
-                            : originalControlActions.size();
+                        sourceOptionsMenu.rowCount(optionsTab);
                     const std::size_t visibleRows =
-                        menuStack.back() == MenuScreen::GameOptions
-                            ? 7U
-                        : menuStack.back() ==
-                                  MenuScreen::ControlsOptions
-                            ? controlsVisibleRows
-                            : rowCount;
-                    const std::size_t scrollAnchor =
-                        menuSelection < rowCount
-                            ? menuSelection
-                            : rowCount - 1U;
+                        sourceOptionsMenu.visibleRowCount(optionsTab);
+                    sourceOptionsMenu.ensureVisible(
+                        optionsTab, menuSelection);
                     const std::size_t firstVisible =
-                        scrollAnchor < visibleRows
-                            ? 0U
-                            : std::min(
-                                  scrollAnchor - visibleRows + 1U,
-                                  rowCount - visibleRows);
+                        sourceOptionsMenu.scroll(optionsTab);
                     const float firstRowY =
-                        centerY -
-                        (menuStack.back() ==
-                                 MenuScreen::ControlsOptions
-                             ? 130.0F
-                         : menuStack.back() ==
-                                   MenuScreen::GameOptions
-                             ? 178.0F
-                             : 174.0F);
+                        sourceOptionsMenu.firstRowY(
+                            optionsTab, menu::virtualHeight);
                     if (virtualX >= centerX - 420.0F &&
                         virtualX <= centerX + 520.0F)
                     {
@@ -13091,9 +12756,8 @@ int main(int argc, char** argv)
                                             ControlsOptions &&
                                     virtualX >= centerX + 165.0F)
                                 {
-                                    controlsUseGamepad =
-                                        virtualX >=
-                                        centerX + 345.0F;
+                                    sourceOptionsMenu.setControlsUseGamepad(
+                                        virtualX >= centerX + 345.0F);
                                 }
                                 break;
                             }
@@ -13133,12 +12797,11 @@ int main(int argc, char** argv)
                                       arrowHalfWidth)
                                 : 0;
                         const float upY =
-                            centerY -
-                            (menuStack.back() ==
-                                     MenuScreen::ControlsOptions
-                                 ? 150.0F
-                                 : 200.0F);
-                        const float downY = centerY + 195.0F;
+                            sourceOptionsMenu.upArrowY(
+                                optionsTab, menu::virtualHeight);
+                        const float downY =
+                            sourceOptionsMenu.downArrowY(
+                                menu::virtualHeight);
                         if (arrowDirection != 0)
                         {
                             menuSelection = *hoveredOption;
@@ -13149,9 +12812,9 @@ int main(int argc, char** argv)
                                 virtualX -
                                 (centerX + 150.0F)) <= 35.0F &&
                             std::abs(virtualY - upY) <= 35.0F &&
-                            menuSelection > 0U)
+                            sourceOptionsMenu.canScrollUp(optionsTab))
                         {
-                            --menuSelection;
+                            sourceOptionsMenu.scrollGrid(optionsTab, -1);
                             pointerHandledOriginalOptions = true;
                         }
                         else if (
@@ -13159,9 +12822,9 @@ int main(int argc, char** argv)
                                 virtualX -
                                 (centerX + 150.0F)) <= 35.0F &&
                             std::abs(virtualY - downY) <= 35.0F &&
-                            menuSelection + 1U < rowCount)
+                            sourceOptionsMenu.canScrollDown(optionsTab))
                         {
-                            ++menuSelection;
+                            sourceOptionsMenu.scrollGrid(optionsTab, 1);
                             pointerHandledOriginalOptions = true;
                         }
                         else if (hoveredState)
@@ -13172,7 +12835,13 @@ int main(int argc, char** argv)
                     }
                 }
                 if (hoveredOption)
+                {
                     menuSelection = *hoveredOption;
+                    sourceOptionsMenu.ensureVisible(
+                        r3d::game::originaloptions::OptionsMenuState::
+                            tabForScreen(menuStack.back()),
+                        menuSelection);
+                }
                 pointerTargetsItem =
                     hoveredOption.has_value() ||
                     hoveredState.has_value() ||
@@ -13284,13 +12953,9 @@ int main(int argc, char** argv)
 #endif
                     if (*pointerAcceptChoice)
                     {
-                        auto& bindings =
-                            bindingCaptureGamepad
-                                ? optionsDraftConfig
-                                      .gamepadControls
-                                : optionsDraftConfig
-                                      .keyboardControls;
-                        bindings[*bindingCaptureAction] = "None";
+                        sourceOptionsMenu.setControlBinding(
+                            *bindingCaptureAction,
+                            bindingCaptureGamepad, "None");
                     }
                     bindingCaptureAction.reset();
                     refreshCurrentOptionsPage();
@@ -14761,6 +14426,21 @@ int main(int argc, char** argv)
                                 break;
                         }
                     }
+#ifdef RRR3D_PHYSICS
+                    if (isOriginalOptionsScreen(menuStack.back()))
+                    {
+                        const auto tab =
+                            r3d::game::originaloptions::
+                                OptionsMenuState::tabForScreen(
+                                    menuStack.back());
+                        if (menuSelection <
+                            sourceOptionsMenu.rowCount(tab))
+                        {
+                            sourceOptionsMenu.ensureVisible(
+                                tab, menuSelection);
+                        }
+                    }
+#endif
                     continue;
                 }
                 if (inputEvent.action ==
@@ -14783,6 +14463,21 @@ int main(int argc, char** argv)
                                 break;
                         }
                     }
+#ifdef RRR3D_PHYSICS
+                    if (isOriginalOptionsScreen(menuStack.back()))
+                    {
+                        const auto tab =
+                            r3d::game::originaloptions::
+                                OptionsMenuState::tabForScreen(
+                                    menuStack.back());
+                        if (menuSelection <
+                            sourceOptionsMenu.rowCount(tab))
+                        {
+                            sourceOptionsMenu.ensureVisible(
+                                tab, menuSelection);
+                        }
+                    }
+#endif
                     continue;
                 }
 #ifdef RRR3D_PHYSICS
@@ -14880,9 +14575,9 @@ int main(int argc, char** argv)
                         menuSelection <
                             originalControlActions.size())
                     {
-                        controlsUseGamepad =
+                        sourceOptionsMenu.setControlsUseGamepad(
                             inputEvent.action ==
-                            rrr3d::input::Action::TurnRight;
+                            rrr3d::input::Action::TurnRight);
                     }
                     continue;
                 }
@@ -15500,7 +15195,8 @@ int main(int argc, char** argv)
                     {
                         bindingCaptureAction =
                             originalControlActions[menuSelection];
-                        bindingCaptureGamepad = controlsUseGamepad;
+                        bindingCaptureGamepad =
+                            sourceOptionsMenu.controlsUseGamepad();
                         showAcceptDialog(
                             localized("svPressKey"),
                             localized("svDeleteKey"),
@@ -18352,7 +18048,8 @@ int main(int argc, char** argv)
             {
                 const float rowY = centerY - 145.0F +
                     static_cast<float>(row) * 50.0F;
-                const bool selected = startOptionsFocus == row;
+                const bool selected =
+                    sourceStartOptionsMenu.focus() == row;
                 drawQuad(
                     *device, quad, shader, optionsRow,
                     static_cast<float>(optionsRowImage.width),
@@ -18422,9 +18119,11 @@ int main(int argc, char** argv)
                 static_cast<float>(startOptionsButtonImage.height),
                 applyX, applyY, 35.0F, transparent);
             const auto& apply =
-                !startOptionsApplyEnabled
+                !sourceStartOptionsMenu.applyEnabled()
                     ? startOptionsActionPage.disabled.front()
-                    : startOptionsFocus == 4U
+                    : sourceStartOptionsMenu.focus() ==
+                              r3d::game::originaloptions::
+                                  StartOptionsMenuState::applyRow
                           ? startOptionsActionPage.selected.front()
                           : startOptionsActionPage.normal.front();
             drawQuad(
@@ -18435,8 +18134,10 @@ int main(int argc, char** argv)
             startOptionsFrameObserved = true;
             startOptionsSelectGateObserved =
                 startOptionsSelectGateObserved ||
-                (startOptionsCameraIndex == 2U &&
-                 !startOptionsApplyEnabled);
+                (sourceStartOptionsMenu.cameraIndex() ==
+                     r3d::game::originaloptions::
+                         StartOptionsMenuState::cameraSentinel &&
+                 !sourceStartOptionsMenu.applyEnabled());
             startOptionsAllRowsObserved =
                 startOptionsAllRowsObserved ||
                 (startOptionsLabelPage.labels.size() == 4U &&
@@ -18619,8 +18320,8 @@ int main(int argc, char** argv)
                 const bool selectedState = index == state;
                 const float buttonX = optionsCenterX - 558.0F;
                 const float buttonY =
-                    optionsCenterY - 125.0F +
-                    static_cast<float>(index) * 100.0F;
+                    sourceOptionsMenu.stateButtonY(
+                        menu::virtualHeight, index);
                 const auto& stateText =
                     selectedState
                         ? optionsStatePage.selected[index]
@@ -18652,36 +18353,26 @@ int main(int argc, char** argv)
             }
 
             const MenuPageVisual* names = nullptr;
-            std::size_t rowCount = 0U;
-            std::size_t visibleRows = 0U;
-            float firstRowY = optionsCenterY - 174.0F;
+            const auto optionsTab =
+                r3d::game::originaloptions::OptionsMenuState::
+                    tabForScreen(menuStack.back());
             if (menuStack.back() == MenuScreen::GameOptions)
             {
                 names = &gameOptionNamesPage;
-                rowCount = gameOptionNamesPage.labels.size();
-                visibleRows = 7U;
-                firstRowY = optionsCenterY - 178.0F;
             }
             else if (
                 menuStack.back() == MenuScreen::GraphicsOptions)
             {
                 names = &graphicsOptionNamesPage;
-                rowCount = graphicsOptionNamesPage.labels.size();
-                visibleRows = rowCount;
             }
             else if (
                 menuStack.back() == MenuScreen::SoundOptions)
             {
                 names = &soundOptionNamesPage;
-                rowCount = soundOptionNamesPage.labels.size();
-                visibleRows = rowCount;
             }
             else
             {
                 names = &controlsOptionsPage;
-                rowCount = originalControlActions.size();
-                visibleRows = controlsVisibleRows;
-                firstRowY = optionsCenterY - 130.0F;
                 drawQuad(
                     *device, quad, shader, keyboardIcon,
                     static_cast<float>(keyboardIconImage.width),
@@ -18695,16 +18386,19 @@ int main(int argc, char** argv)
                     optionsCenterX + 435.0F,
                     optionsCenterY - 190.0F, 25.0F, transparent);
             }
-            visibleRows = std::min(visibleRows, rowCount);
-            const std::size_t scrollAnchor =
-                menuSelection < rowCount ? menuSelection
-                                         : rowCount - 1U;
+            const std::size_t rowCount =
+                sourceOptionsMenu.rowCount(optionsTab);
+            const std::size_t visibleRows = std::min(
+                sourceOptionsMenu.visibleRowCount(optionsTab),
+                rowCount);
+            if (menuSelection < rowCount)
+                sourceOptionsMenu.ensureVisible(
+                    optionsTab, menuSelection);
             const std::size_t firstVisible =
-                scrollAnchor < visibleRows
-                    ? 0U
-                    : std::min(
-                          scrollAnchor - visibleRows + 1U,
-                          rowCount - visibleRows);
+                sourceOptionsMenu.scroll(optionsTab);
+            const float firstRowY =
+                sourceOptionsMenu.firstRowY(
+                    optionsTab, menu::virtualHeight);
 
             auto drawTextAt = [&](const TextVisual& text, float x,
                                   float y, float maxWidth) {
@@ -18766,7 +18460,7 @@ int main(int argc, char** argv)
                     {
                         const bool selectedKey =
                             selectedRow &&
-                            controlsUseGamepad ==
+                            sourceOptionsMenu.controlsUseGamepad() ==
                                 (controller == 1U);
                         const float keyX =
                             optionsCenterX + 255.0F +

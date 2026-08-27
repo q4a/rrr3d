@@ -4121,6 +4121,31 @@ clamp после удаления. Сборка arm64, 21/21 offline, 2/2 networ
 360-frame Metal smoke прошли. Следующая граница B6d — `OptionsMenu` frames;
 полный concrete Widget tree этим блоком ещё не объявлен завершённым.
 
+### P2.176 — `OptionsMenu` и first-run `StartOptionsMenu` снова имеют source owner — выполнено
+
+Четыре option pages уже выглядели близко к Windows и использовали исходные
+ресурсы, но их draft, steppers, control column и scrolling всё ещё были
+несколькими сотнями строк switch/локальных переменных в renderer entry point.
+Это дало наблюдаемое семантическое расхождение: camera distance и laps на
+краях зажимались, хотя Windows `StepperBox` циклически переходит к первому или
+последнему значению. First-run frame также отдельно хранил camera sentinel,
+focus, четыре индекса и Apply gate в host.
+
+Добавлены backend-neutral `originaloptions::OptionsMenuState` и
+`StartOptionsMenuState`, прямо сопоставленные с `GameFrame`, `MediaFrame`,
+`NetworkTab`, `ControlFrame`, `OptionsMenu` и `StartOptionsMenu` из
+`eff9338:prog/Rock3dGame/source/game/OptionsMenu.cpp`. Они владеют 12/8/5/18
+rows, source availability, draft commit/cancel, всеми option mutations,
+bindings и columns, grid geometry, first-launch `cPrefCameraEnd` sentinel,
+camera-only Apply enable и navigation ring. SDL/Cocoa, live volume,
+commentator reload, XML persistence и bgfx/CoreText остались backend-командами.
+
+Новый `rrr3d_original_options_menu_smoke` проверяет endpoint wrap, gates,
+display/language/volume steppers, bindings, обе сетки и полный StartOptions
+Apply lifecycle. Сборка arm64, 22/22 offline, 2/2 network, physics и
+360-frame Metal smoke прошли. Следующая граница B6e — concrete
+Planet/Garage/Workshop/Race и Finish/Final owners.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

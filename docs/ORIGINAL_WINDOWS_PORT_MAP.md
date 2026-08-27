@@ -64,9 +64,9 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `MainMenu2` | `mainmenu2::{Controller,FrameController,ProfileFrameState}` + `originalmenu::ScreenStack` | Source owner, active Main/Profile path | Остались concrete network callbacks, credits progress и backend draw submission |
 | `Map` | `source::Map` | Source owner, partial | Завершить load/fix-up ownership и backend create/destroy commands |
 | `MapObj` | `source::MapObj*` record/list hierarchy | Source owner, partial | Убрать importer/runtime mirrors и проверить все concrete object types |
-| `Menu` | `originalmenu::MenuSystem` + source Main/Profile/Dialog owners | Source owner, frame core | Перенести Options, Planet/Garage/Workshop/Race и Finish/Final frame owners |
+| `Menu` | `originalmenu::MenuSystem` + source Main/Profile/Dialog/Options owners | Source owner, frame core | Перенести Planet/Garage/Workshop/Race и Finish/Final frame owners |
 | `MenuSystem` | `originalmenu::{MenuSystem,ScreenStack,FrameState}` | Source owner, active menu path | Подключить concrete navigation graphs; bgfx остаётся draw executor |
-| `OptionsMenu` | Ручные option pages + `OriginalProfile` | Distributed | Вернуть source controls, apply/reset/autodetect transitions |
+| `OptionsMenu` | `originaloptions::{OptionsMenuState,StartOptionsMenuState}` + backend visuals | Source owner, active options path | Legacy Widget events заменены SDL input, CoreText и bgfx draw submission |
 | `Player` | `source::Player`, `CarState`, behavior classes | Source owner, partial | Убрать оставшиеся session mirrors, проверить full event/listener order |
 | `Race` | `OriginalRace`, `OriginalRaceSession`, lifecycle/place/tournament | Source owner, partial | Разложить 7 971-строчный источник по исходным владельцам вместо session |
 | `RaceMenu2` | Ручные garage/workshop/race frames | Distributed | Вернуть source car/weapon frame graph и command transitions |
@@ -209,7 +209,7 @@ Milestone 8.
 Открытая B5d: вернуть source identity для font descriptors и material-library
 descriptors/samplers. Их backend payload останется CoreText и bgfx/Metal.
 
-### B6 — Menu/MenuSystem и исходные frames (B6a–B6c выполнены)
+### B6 — Menu/MenuSystem и исходные frames (B6a–B6d выполнены)
 
 Перенести widget tree крупными экранами: common dialog/frame primitives,
 MainMenu/Profile, Options, Planet/Garage/Workshop/Race и Finish/Final. Metal
@@ -260,9 +260,24 @@ host entry point только выполняет команды профиля �
 состояние CoreText/bgfx. Отдельный regression закрепляет доступность,
 wrap/disabled navigation, всю сетку ProfileFrame и layout.
 
-Открытая B6d: перенести Options frames, затем
-Planet/Garage/Workshop/Race и Finish/Final. Их draw data пока частично
-формируется функциями большого host entry point.
+Результат B6d: `originaloptions::OptionsMenuState` теперь владеет четырьмя
+исходными вкладками Game/Media/Network/Controls, draft lifecycle
+LoadCfg/ApplyChanges/CancelChanges, availability gates, всеми stepper и
+volume mutations, control bindings, keyboard/gamepad column, tab mapping,
+grid scroll и координатами. Исправлены два конкретных host-расхождения:
+camera distance 1.00–2.00 и laps 1–8 снова циклически переходят через
+границы, как `gui::StepperBox`, вместо clamp.
+
+Отдельный `StartOptionsMenuState` владеет исходным `cPrefCameraEnd/Select`
+sentinel, единственным camera-driven Apply gate, четырьмя catalog indices,
+кольцом focus и ApplyChanges. Активный host выполняет только Cocoa window,
+audio reload, persistence и bgfx/CoreText submission. Regression закрепляет
+12/8/5/18 rows, network/difficulty gates, layout/scroll, wrap, draft
+commit/cancel, bindings и весь first-run camera gate.
+
+Открытая B6e: перенести Planet/Garage/Workshop/Race и Finish/Final concrete
+frame owners. Их draw data пока частично формируется функциями большого host
+entry point.
 
 ### B7 — Environment/TraceGfx/render policy
 
