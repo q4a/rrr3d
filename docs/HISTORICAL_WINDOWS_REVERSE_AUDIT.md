@@ -3977,6 +3977,25 @@ car/decor projectile contacts, mines, hazards и bonuses используют э
 что target погибает до switch, поэтому rocket handler подавляется. Полное
 сворачивание Jolt movement/raycast views из session остаётся B4b.
 
+### P2.170 — `MapObjRec` снова загружает source до proxy — выполнено
+
+Хотя portable `MapObjRecordLibrary` уже восстанавливал стабильную identity и
+иерархию `RecordNode`, запись не содержала сериализованную source-часть.
+`MapObj::SetRecordProxy` менял concrete type и path, а
+`OriginalRaceSession::reset` затем вручную собирал `DestrObj`, fragments,
+base life и bonus `AutoProj::Desc`. Это нарушало главную транзакцию Windows
+`MapObj::SetRecord -> MapObjRec::Load -> MapObj::LoadSource`, после которой
+map placement загружает только proxy transform/lifetime/name.
+
+`MapObjRecord` теперь владеет source-loader, `DefineRecord` связывает его со
+стабильной записью, а `SetRecordProxy` синхронно применяет source до
+placement state. Session заранее регистрирует definitions трассы,
+декораций, бонусов и машин, после чего активные `Map::AddMapObj` получают
+concrete gameplay object только через каталог. Ручная сборка тех же полей
+удалена. Map regression проверяет, что source life/lifetime загружены
+автоматически и record identity не меняется. Graph/audio cache identity
+остаётся отдельным B5b.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

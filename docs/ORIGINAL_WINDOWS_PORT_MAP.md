@@ -167,6 +167,22 @@ Jolt/render views, а часть type-specific ray/movement queries всё ещ�
 object factory и resource identity. Текущие проверенные XML/R3D parsers
 становятся backend readers, а не владельцами игровых объектов.
 
+Результат B5a: устранён разрыв между уже перенесённой иерархией
+`MapObjRecordLibrary` и активной загрузкой гонки. `MapObjRecord` теперь, как
+Windows `MapObjRec`, хранит source-loader; `MapObj::SetRecordProxy`
+синхронно загружает source-часть записи, после чего `.r3dMap` накладывает
+только proxy transform/life/name. `OriginalRaceSession` заранее регистрирует
+в семи библиотеках определения `ctDecoration`, `ctTrack`, `ctBonus` и
+`ctCar`; ручная повторная сборка destructible fragments, базовой жизни и
+`AutoProj` bonus description из session удалена. Таким образом parser
+остаётся reader, `DataBase`-каталог снова является фабрикой concrete
+gameplay object.
+
+Открытая B5b: graph/audio ресурсы ещё кэшируются несколькими backend-
+владельцами. Нужно вернуть единый `ResourceManager` identity catalog и
+перевести mesh/image/material/sound readers на ссылки этого каталога, не
+перенося D3D9/XAudio реализации.
+
 ### B6 — Menu/MenuSystem и исходные frames
 
 Перенести widget tree крупными экранами: common dialog/frame primitives,

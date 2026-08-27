@@ -145,6 +145,15 @@ MapObjCategory MapObjRecord::GetCategory() const noexcept
         : MapObjCategory::Effects;
 }
 GameObjType MapObjRecord::GetType() const noexcept { return type_; }
+bool MapObjRecord::HasSource() const noexcept
+{
+    return static_cast<bool>(sourceLoader_);
+}
+void MapObjRecord::LoadSource(MapObj& object) const
+{
+    if (sourceLoader_)
+        sourceLoader_(object);
+}
 
 MapObjRecordLibrary::MapObjRecordLibrary()
     : root_(new MapObjRecordNode(
@@ -264,6 +273,19 @@ MapObjRecord& MapObjRecordLibrary::GetOrCreateRecord(
     parentNode->records_.push_back(&result);
     records_.emplace(key, std::move(record));
     return result;
+}
+
+MapObjRecord& MapObjRecordLibrary::DefineRecord(
+    std::string path, GameObjType type,
+    MapObjRecord::SourceLoader sourceLoader, std::string parent)
+{
+    if (!sourceLoader)
+        throw std::invalid_argument(
+            "MapObj source record requires a loader");
+    auto& record = GetOrCreateRecord(
+        std::move(path), type, std::move(parent));
+    record.sourceLoader_ = std::move(sourceLoader);
+    return record;
 }
 
 MapObjRecord* MapObjRecordLibrary::FindRecord(
@@ -498,6 +520,12 @@ void MapObj::SetRecordProxy(const MapObjRecord* value)
     SetRecord(
         value->GetPath(), value->GetCategory(), value->GetParent());
     recordProxy_ = value;
+    // MapObj::SetRecord in the Windows runtime synchronously loads the
+    // complete source MapObj stored by DataBase. The map-file reader then
+    // overlays only SaveProxy fields (transform/lifetime/includes). Keep
+    // this transaction in the record owner rather than rebuilding source
+    // objects in OriginalRaceSession.
+    value->LoadSource(*this);
 }
 
 Player* MapObj::GetPlayer() noexcept { return player_; }

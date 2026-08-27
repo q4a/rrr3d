@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -89,6 +90,8 @@ private:
 class MapObjRecord
 {
 public:
+    using SourceLoader = std::function<void(MapObj&)>;
+
     const std::string& GetPath() const noexcept;
     const std::string& GetName() const noexcept;
     const std::string& GetParent() const noexcept;
@@ -96,6 +99,8 @@ public:
     const MapObjRecordLibrary* GetLibrary() const noexcept;
     MapObjCategory GetCategory() const noexcept;
     GameObjType GetType() const noexcept;
+    bool HasSource() const noexcept;
+    void LoadSource(MapObj& object) const;
 
 private:
     friend class MapObjRecordLibrary;
@@ -109,6 +114,7 @@ private:
     MapObjRecordLibrary* library_ = nullptr;
     MapObjRecordNode* parentNode_ = nullptr;
     GameObjType type_ = GameObjType::GameObj;
+    SourceLoader sourceLoader_;
 };
 
 class MapObjRecordLibrary
@@ -121,6 +127,10 @@ public:
     MapObjCategory GetCategory() const noexcept;
     MapObjRecord& GetOrCreateRecord(
         std::string path, GameObjType type,
+        std::string parent = {});
+    MapObjRecord& DefineRecord(
+        std::string path, GameObjType type,
+        MapObjRecord::SourceLoader sourceLoader,
         std::string parent = {});
     MapObjRecord* FindRecord(std::string_view path);
     const MapObjRecord* FindRecord(std::string_view path) const;

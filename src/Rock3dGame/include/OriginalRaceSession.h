@@ -491,6 +491,7 @@ private:
     const TracePoint& tracePoint(std::size_t path,
                                  std::size_t pathNode) const;
     void buildSourceTrace();
+    void registerSourceDataBase();
     TraceNodeRef racerTraceNode(std::size_t racer) const noexcept;
     float tracePathLength(std::size_t path) const;
     float lapPosition(

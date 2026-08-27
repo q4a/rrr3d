@@ -24,12 +24,23 @@ int main()
     auto* tracePath = map.GetTrace().AddPath();
     tracePath->Add(tracePoint);
 
+    bool semaphoreSourceLoaded = false;
+    auto& semaphoreRecord =
+        map.GetRecordLib(source::MapObjCategory::Decoration)
+            .DefineRecord(
+                "world\\db\\root\\ctDecoration\\Misc\\semaphore",
+                source::GameObjType::DestrObj,
+                [&](source::MapObj& value) {
+                    semaphoreSourceLoaded = true;
+                    value.GetGameObj().ResetGameObject(10.0F);
+                    value.GetGameObj().SetMaxTimeLife(6.0F);
+                });
+
     auto& semaphore = map.AddMapObj(
         source::MapObjCategory::Decoration,
         source::GameObjType::DestrObj,
         "world\\db\\root\\ctDecoration\\Misc\\semaphore",
         7U, 2U);
-    semaphore.GetGameObj().ResetGameObject(10.0F);
     auto& track = map.AddMapObj(
         source::MapObjCategory::Track,
         source::GameObjType::GameObj,
@@ -43,7 +54,10 @@ int main()
         map.GetLastId() != 9U || map.GetObjects().size() != 2U ||
         semaphore.GetSourceIndex() != 2U ||
         semaphore.GetGameObj().GetLogic() != &logic ||
-        semaphore.GetRecordProxy() == nullptr ||
+        !semaphoreSourceLoaded ||
+        semaphore.GetRecordProxy() != &semaphoreRecord ||
+        semaphore.GetGameObj().GetMaxLife() != 10.0F ||
+        semaphore.GetGameObj().GetMaxTimeLife() != 6.0F ||
         semaphore.GetRecordProxy()->GetCategory() !=
             source::MapObjCategory::Decoration ||
         semaphore.GetRecordProxy()->GetType() !=
