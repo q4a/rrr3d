@@ -46,7 +46,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | --- | --- | --- | --- |
 | `AICar` | `source::AICar::{PathState,AttackState,ControlState,ProgressResult}` | Source owner, active frame | Jolt/weapon snapshot и исполнение готовых move/shot команд остаются backend adapter |
 | `AIPlayer` | `source::AIPlayer`, `source::AISystem` | Source owner, active frame | Сетевой authority filter и AIDebug Metal/text submission остаются host boundary |
-| `AchievmentModel` | `source::AchievmentModel` | Source owner, partial | Закрыть все event/condition subclasses и persistence order |
+| `AchievmentModel` | `source::AchievmentModel` | Source owner, active condition/reward path | XML чтение/запись остаётся profile adapter; source owner владеет всеми 9 conditions, reward states, покупкой и garage/gamer gates |
 | `CameraManager` | `source::{CameraManager,AutoObserver}` | Source owner, active race/presentation path | FlyTo, AutoObserver и screen/ray policy source-owned; bgfx строит только matrices, SDL переводит pointer events |
 | `ControlManager` | `originalcontrol::ControlManager` + `SdlInputManager` | Source owner, active input path | Mouse screen/ray messages и menu/widget listeners остаются в блоках View/Menu |
 | `DataBase` | `OriginalRace`, `OriginalGarage`, `OriginalGameData` loaders | Distributed | Вернуть record libraries/fix-up ownership и единый object factory |

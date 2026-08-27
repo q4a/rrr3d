@@ -1311,13 +1311,8 @@ int main(int argc, char** argv)
     }
     const auto achievementOpened =
         [&](std::string_view name) {
-            const auto item = profileState.achievementItems.find(
-                std::string(name));
-            if (item == profileState.achievementItems.end())
-                return false;
-            const auto state = item->second.values.find("state");
-            return state != item->second.values.end() &&
-                   state->second == "asOpened";
+            return r3d::game::originalrace::source::AchievmentModel::
+                CheckAchievment(profileState.achievementItems, name);
         };
     if (!profileWarning.empty())
         std::cerr << "Profile import warning: " << profileWarning << '\n';
@@ -8751,29 +8746,26 @@ int main(int argc, char** argv)
         for (std::size_t index = 0U;
              index < originalAchievementVisuals.size(); ++index)
         {
-            const auto item = profileState.achievementItems.find(
-                std::string(originalAchievementVisuals[index].name));
-            if (item == profileState.achievementItems.end())
+            const auto item = raceSession.achievementItem(
+                originalAchievementVisuals[index].name);
+            if (!item)
                 continue;
-            const auto state = item->second.values.find("state");
-            if (state != item->second.values.end())
+            switch (item->state)
             {
-                result[index].state =
-                    state->second == "asLocked" ? State::Locked
-                    : state->second == "asUnlocked" ? State::Unlocked
-                    : state->second == "asOpened" ? State::Opened
-                                                   : State::Missing;
+            case r3d::game::originalrace::source::
+                AchievmentState::Locked:
+                result[index].state = State::Locked;
+                break;
+            case r3d::game::originalrace::source::
+                AchievmentState::Unlocked:
+                result[index].state = State::Unlocked;
+                break;
+            case r3d::game::originalrace::source::
+                AchievmentState::Opened:
+                result[index].state = State::Opened;
+                break;
             }
-            const auto price = item->second.values.find("price");
-            if (price != item->second.values.end())
-            {
-                const auto parsed = std::from_chars(
-                    price->second.data(),
-                    price->second.data() + price->second.size(),
-                    result[index].price);
-                if (parsed.ec != std::errc{})
-                    result[index].price = 0U;
-            }
+            result[index].price = item->price;
         }
         return result;
     };
@@ -8801,7 +8793,7 @@ int main(int argc, char** argv)
         auto pointsReplacement = createText(
             *device,
             localized("svPoints") + " " +
-                originalCurrency(profileState.achievementPoints),
+                originalCurrency(raceSession.achievementPoints()),
             menu::headerFontHeight, false,
             menu::Rgba8{250, 88, 0, 255}, resolvedFont);
         device->destroy(achievementPoints.texture);
@@ -8814,10 +8806,6 @@ int main(int argc, char** argv)
                    ? r3d::game::originalracemenu::
                          AchievementState::Missing
                    : entry->state;
-    };
-    auto achievementPrice = [&](std::size_t index) {
-        const auto* entry = sourceAchievementFrame.entry(index);
-        return entry == nullptr ? 0U : entry->price;
     };
     auto showOriginalRaceMenu = [&]() {
 #ifdef RRR3D_NETWORK
@@ -13360,8 +13348,9 @@ int main(int argc, char** argv)
                     else
                     {
                         const auto pending = command->achievement;
-                        const auto price = achievementPrice(pending);
-                        if (profileState.achievementPoints < price)
+                        const auto name =
+                            originalAchievementVisuals[pending].name;
+                        if (!raceSession.purchaseAchievement(name))
                         {
                             showInfoDialog(
                                 localized("svWarning"),
@@ -13372,14 +13361,9 @@ int main(int argc, char** argv)
                         }
                         else
                         {
-                            profileState.achievementPoints -= price;
-                            profileState
-                                .achievementItems[std::string(
-                                    originalAchievementVisuals[pending]
-                                        .name)]
-                                .values["state"] = "asOpened";
-                            if (originalAchievementVisuals[pending].name ==
-                                "armor4")
+                            raceSession.writeAchievementProfile(
+                                profileState);
+                            if (name == "armor4")
                             {
                                 std::string armorError;
                                 const bool substituted =
@@ -13405,7 +13389,7 @@ int main(int argc, char** argv)
                             refreshAchievementsPage();
                             std::cout
                                 << "Original AchievmentFrame reward opened: "
-                                << originalAchievementVisuals[pending].name
+                                << name
                                 << '\n';
                         }
                     }

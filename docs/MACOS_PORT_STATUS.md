@@ -1699,6 +1699,11 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - Отдельный unit smoke покрывает классы 1–9, timeout, persistence,
   difficulty scoring и NULL finish event; 12 non-network CTest, resource,
   map1 physics и 240-frame Metal/Jolt smoke проходят.
+- Follow-up закрыл reward layer из того же Windows translation unit:
+  `Achievment/AchievmentMapObj/AchievmentGamer`, три состояния, purchase с
+  атомарным `ConsumePoints`, map-object/gamer gates и item persistence теперь
+  принадлежат active `source::AchievmentModel`. AchievmentFrame и Garage
+  больше не содержат собственные копии этих правил.
 
 ### Source Race::OnLapPass/CompleteRace owner block
 

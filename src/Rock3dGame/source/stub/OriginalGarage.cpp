@@ -1,5 +1,7 @@
 #include "OriginalGarage.h"
 
+#include "OriginalAchievmentModel.h"
+
 #include "resource/ResourceFileSystem.h"
 
 #include <tinyxml.h>
@@ -769,52 +771,15 @@ OriginalGarageStats originalGarageStats(
 bool originalRecordAchievementUnlocked(
     const ProfileState& profile, std::string_view record) noexcept
 {
-    for (const auto& [name, item] : profile.achievementItems)
-    {
-        (void)name;
-        if (item.classId != 1U)
-            continue;
-        const bool containsRecord = std::any_of(
-            item.records.begin(), item.records.end(),
-            [&](const auto& candidate) {
-                return candidate.record == record;
-            });
-        if (!containsRecord)
-            continue;
-        const auto state = item.values.find("state");
-        if (state == item.values.end() ||
-            state->second != "asOpened")
-            return false;
-    }
-    return true;
+    return source::AchievmentModel::CheckMapObj(
+        profile.achievementItems, record);
 }
 
 bool originalGamerUnlocked(
     const ProfileState& profile, std::uint32_t gamerId) noexcept
 {
-    for (const auto& [name, item] : profile.achievementItems)
-    {
-        (void)name;
-        if (item.classId != 2U)
-            continue;
-        const auto id = item.values.find("gamerId");
-        if (id == item.values.end())
-            continue;
-        try
-        {
-            if (std::stoul(id->second) != gamerId)
-                continue;
-        }
-        catch (const std::exception&)
-        {
-            continue;
-        }
-        const auto state = item.values.find("state");
-        if (state == item.values.end() ||
-            state->second != "asOpened")
-            return false;
-    }
-    return true;
+    return source::AchievmentModel::CheckGamerId(
+        profile.achievementItems, static_cast<int>(gamerId));
 }
 
 bool originalCarUnlocked(const OriginalGarageCatalog& catalog,

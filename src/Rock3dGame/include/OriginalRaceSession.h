@@ -358,6 +358,14 @@ public:
     void writePlayerProfile(PlayerProfile& profile) const;
     void applyAchievementProfile(const ProfileState& profile);
     void writeAchievementProfile(ProfileState& profile) const;
+    std::optional<source::AchievmentItemView> achievementItem(
+        std::string_view name) const noexcept;
+    std::uint32_t achievementPoints() const noexcept;
+    bool purchaseAchievement(std::string_view name);
+    bool checkAchievement(std::string_view name) const noexcept;
+    bool checkAchievementMapObject(
+        std::string_view record) const noexcept;
+    bool checkAchievementGamer(int gamerId) const noexcept;
     void setCampaign(bool campaign) noexcept;
     void setEnableMineBug(bool enabled) noexcept;
     void setSpringBorders(bool enabled) noexcept;

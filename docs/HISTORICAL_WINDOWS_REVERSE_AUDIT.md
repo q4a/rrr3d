@@ -4455,6 +4455,26 @@ observer idle turn/clamp/reversal и drag threshold. Arm64 build и отдель
 CameraManager smoke прошли; также прошли 25/25 offline, 2/2 network, Jolt
 physics и 360-frame SDL/bgfx/Metal race regression.
 
+### P2.190 — возвращены `Achievment`, `AchievmentMapObj` и `AchievmentGamer` — выполнено
+
+Прямая сверка `AchievmentModel.cpp` обнаружила, что девять condition-классов
+уже принадлежали active `source::AchievmentModel`, но верхний reward layer
+оставался распределённой повторной реализацией. Entry point вручную разбирал
+`asLocked/asUnlocked/asOpened`, вычитал points и открывал карточку, а Garage
+отдельно обходил records и gamerId. Это было функциональным surrogate, а не
+переносом исходных владельцев.
+
+`source::AchievmentModel` теперь хранит полный профиль items без потери
+неизвестных полей, выполняет исходные `Unlock`, `Open`, `Buy`,
+`ConsumePoints`, `CheckAchievment`, `CheckMapObj` и `CheckGamerId` и сохраняет
+результат обратно через profile adapter. `OriginalRaceSession` публикует этот
+owner активным Race/Menu-клиентам; AchievmentFrame больше не меняет XML-map
+самостоятельно, а Garage/Gamers делегируют тому же source rule set.
+
+Regression закрепляет неизвестный achievement=true, запрет покупки locked,
+переход Locked→Unlocked→Opened, атомарное списание points, недостаточный
+баланс, map/gamer gates и сохранение records/custom fields.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

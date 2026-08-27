@@ -1,10 +1,36 @@
 #include "OriginalAchievmentModel.h"
 
 #include <algorithm>
+#include <charconv>
 #include <cmath>
+#include <limits>
 
 namespace r3d::game::originalrace::source
 {
+namespace
+{
+
+const AchievementItemProfile* findItem(
+    const AchievmentModel::Items& items,
+    std::string_view name) noexcept
+{
+    const auto found = std::find_if(
+        items.begin(), items.end(),
+        [&](const auto& entry) { return entry.first == name; });
+    return found == items.end() ? nullptr : &found->second;
+}
+
+AchievementItemProfile* findItem(
+    AchievmentModel::Items& items,
+    std::string_view name) noexcept
+{
+    const auto found = std::find_if(
+        items.begin(), items.end(),
+        [&](const auto& entry) { return entry.first == name; });
+    return found == items.end() ? nullptr : &found->second;
+}
+
+} // namespace
 
 void AchievmentModel::Configure(
     const std::vector<AchievementDefinition>* definitions,
@@ -47,6 +73,169 @@ void AchievmentModel::ResetRaceState() noexcept
 void AchievmentModel::SetCampaign(bool value) noexcept
 {
     campaign_ = value;
+}
+
+void AchievmentModel::ConfigureItems(const Items& items)
+{
+    items_ = items;
+}
+
+void AchievmentModel::WriteItems(Items& items) const
+{
+    items = items_;
+}
+
+AchievmentState AchievmentModel::ReadState(
+    const AchievementItemProfile& item) noexcept
+{
+    const auto found = std::find_if(
+        item.values.begin(), item.values.end(),
+        [](const auto& entry) { return entry.first == "state"; });
+    if (found == item.values.end())
+        return AchievmentState::Locked;
+    if (found->second == "asOpened" || found->second == "2")
+        return AchievmentState::Opened;
+    if (found->second == "asUnlocked" || found->second == "1")
+        return AchievmentState::Unlocked;
+    return AchievmentState::Locked;
+}
+
+void AchievmentModel::WriteState(
+    AchievementItemProfile& item, AchievmentState state)
+{
+    static constexpr std::string_view tokens[]{
+        "asLocked", "asUnlocked", "asOpened"};
+    item.values["state"] = std::string(
+        tokens[static_cast<std::size_t>(state)]);
+}
+
+std::uint32_t AchievmentModel::ReadUnsigned(
+    const AchievementItemProfile& item,
+    std::string_view field) noexcept
+{
+    const auto found = std::find_if(
+        item.values.begin(), item.values.end(),
+        [&](const auto& entry) { return entry.first == field; });
+    if (found == item.values.end())
+        return 0U;
+    std::uint32_t result = 0U;
+    const auto parsed = std::from_chars(
+        found->second.data(),
+        found->second.data() + found->second.size(), result);
+    return parsed.ec == std::errc{} ? result : 0U;
+}
+
+std::optional<AchievmentItemView> AchievmentModel::GetItem(
+    std::string_view name) const noexcept
+{
+    const auto* item = findItem(items_, name);
+    if (item == nullptr)
+        return std::nullopt;
+    const auto gamerId = ReadUnsigned(*item, "gamerId");
+    return AchievmentItemView{
+        item->classId, ReadState(*item), ReadUnsigned(*item, "price"),
+        gamerId <= static_cast<std::uint32_t>(
+                       std::numeric_limits<int>::max())
+            ? static_cast<int>(gamerId)
+            : 0};
+}
+
+bool AchievmentModel::Unlock(std::string_view name)
+{
+    auto* item = findItem(items_, name);
+    if (item == nullptr || ReadState(*item) != AchievmentState::Locked)
+        return false;
+    WriteState(*item, AchievmentState::Unlocked);
+    return true;
+}
+
+bool AchievmentModel::Open(std::string_view name)
+{
+    auto* item = findItem(items_, name);
+    if (item == nullptr || ReadState(*item) != AchievmentState::Unlocked)
+        return false;
+    WriteState(*item, AchievmentState::Opened);
+    return true;
+}
+
+bool AchievmentModel::ConsumePoints(std::uint32_t value) noexcept
+{
+    if (points_ < value)
+        return false;
+    points_ -= value;
+    return true;
+}
+
+bool AchievmentModel::Buy(std::string_view name)
+{
+    auto* item = findItem(items_, name);
+    if (item == nullptr || ReadState(*item) != AchievmentState::Unlocked)
+        return false;
+    if (!ConsumePoints(ReadUnsigned(*item, "price")))
+        return false;
+    WriteState(*item, AchievmentState::Opened);
+    return true;
+}
+
+bool AchievmentModel::CheckAchievment(
+    std::string_view name) const noexcept
+{
+    return CheckAchievment(items_, name);
+}
+
+bool AchievmentModel::CheckMapObj(
+    std::string_view record) const noexcept
+{
+    return CheckMapObj(items_, record);
+}
+
+bool AchievmentModel::CheckGamerId(int gamerId) const noexcept
+{
+    return CheckGamerId(items_, gamerId);
+}
+
+bool AchievmentModel::CheckAchievment(
+    const Items& items, std::string_view name) noexcept
+{
+    const auto* item = findItem(items, name);
+    return item == nullptr || ReadState(*item) == AchievmentState::Opened;
+}
+
+bool AchievmentModel::CheckMapObj(
+    const Items& items, std::string_view record) noexcept
+{
+    for (const auto& [name, item] : items)
+    {
+        (void)name;
+        if (item.classId != 1U ||
+            ReadState(item) == AchievmentState::Opened)
+            continue;
+        if (std::any_of(
+                item.records.begin(), item.records.end(),
+                [&](const AchievementRecord& candidate) {
+                    return candidate.record == record;
+                }))
+            return false;
+    }
+    return true;
+}
+
+bool AchievmentModel::CheckGamerId(
+    const Items& items, int gamerId) noexcept
+{
+    for (const auto& [name, item] : items)
+    {
+        (void)name;
+        if (item.classId != 2U ||
+            ReadState(item) == AchievmentState::Opened)
+            continue;
+        const auto itemGamerId = ReadUnsigned(item, "gamerId");
+        if (itemGamerId <= static_cast<std::uint32_t>(
+                               std::numeric_limits<int>::max()) &&
+            static_cast<int>(itemGamerId) == gamerId)
+            return false;
+    }
+    return true;
 }
 
 bool AchievmentModel::CompleteIteration(

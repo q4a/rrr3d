@@ -1742,6 +1742,7 @@ void OriginalRaceSession::applyAchievementProfile(
     achievementModel_.Configure(
         &race_.achievements, initialAchievementPoints_,
         initialAchievementIterations_, achievementMultiplier);
+    achievementModel_.ConfigureItems(profile.achievementItems);
     achievementModel_.SetCampaign(campaign_);
 }
 
@@ -1756,6 +1757,41 @@ void OriginalRaceSession::writeAchievementProfile(
 {
     profile.achievementPoints = achievementModel_.GetPoints();
     profile.achievementIterations = achievementModel_.GetIterations();
+    achievementModel_.WriteItems(profile.achievementItems);
+}
+
+std::optional<source::AchievmentItemView>
+OriginalRaceSession::achievementItem(std::string_view name) const noexcept
+{
+    return achievementModel_.GetItem(name);
+}
+
+std::uint32_t OriginalRaceSession::achievementPoints() const noexcept
+{
+    return achievementModel_.GetPoints();
+}
+
+bool OriginalRaceSession::purchaseAchievement(
+    std::string_view name)
+{
+    return achievementModel_.Buy(name);
+}
+
+bool OriginalRaceSession::checkAchievement(
+    std::string_view name) const noexcept
+{
+    return achievementModel_.CheckAchievment(name);
+}
+
+bool OriginalRaceSession::checkAchievementMapObject(
+    std::string_view record) const noexcept
+{
+    return achievementModel_.CheckMapObj(record);
+}
+
+bool OriginalRaceSession::checkAchievementGamer(int gamerId) const noexcept
+{
+    return achievementModel_.CheckGamerId(gamerId);
 }
 
 void OriginalRaceSession::setEnableMineBug(bool enabled) noexcept
@@ -9038,6 +9074,52 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             {
                 throw std::runtime_error(
                     "source skirmish achievement points suppression failed");
+            }
+
+            source::AchievmentModel rewardModel;
+            rewardModel.Configure(nullptr, 100U, {}, 1.0F);
+            source::AchievmentModel::Items rewardItems;
+            auto& mapReward = rewardItems["sourceMapReward"];
+            mapReward.classId = 1U;
+            mapReward.values["state"] = "asLocked";
+            mapReward.values["price"] = "40";
+            mapReward.values["custom"] = "preserved";
+            mapReward.records.push_back(
+                {"car", "ctCar", "world\\db\\root\\ctCar\\buggi"});
+            auto& gamerReward = rewardItems["sourceGamerReward"];
+            gamerReward.classId = 2U;
+            gamerReward.values["state"] = "asUnlocked";
+            gamerReward.values["price"] = "120";
+            gamerReward.values["gamerId"] = "9";
+            rewardModel.ConfigureItems(rewardItems);
+            if (rewardModel.CheckAchievment("sourceMapReward") ||
+                !rewardModel.CheckAchievment("unknownSourceReward") ||
+                rewardModel.CheckMapObj(
+                    "world\\db\\root\\ctCar\\buggi") ||
+                rewardModel.CheckGamerId(9) ||
+                rewardModel.Buy("sourceMapReward") ||
+                !rewardModel.Unlock("sourceMapReward") ||
+                !rewardModel.Buy("sourceMapReward") ||
+                rewardModel.GetPoints() != 60U ||
+                !rewardModel.CheckAchievment("sourceMapReward") ||
+                !rewardModel.CheckMapObj(
+                    "world\\db\\root\\ctCar\\buggi") ||
+                rewardModel.Buy("sourceGamerReward") ||
+                rewardModel.GetPoints() != 60U)
+            {
+                throw std::runtime_error(
+                    "source Achievment reward state/consume checks failed");
+            }
+            source::AchievmentModel::Items savedRewardItems;
+            rewardModel.WriteItems(savedRewardItems);
+            const auto savedMap = savedRewardItems.find("sourceMapReward");
+            if (savedMap == savedRewardItems.end() ||
+                savedMap->second.values["state"] != "asOpened" ||
+                savedMap->second.values["custom"] != "preserved" ||
+                savedMap->second.records.size() != 1U)
+            {
+                throw std::runtime_error(
+                    "source Achievment reward persistence failed");
             }
         }
 
