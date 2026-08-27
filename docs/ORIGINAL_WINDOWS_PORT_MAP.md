@@ -73,8 +73,8 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `RecordLib` | Набор XML/R3D import helpers | Distributed | Вернуть typed record library, proxy/source load и fix-up pass |
 | `ResourceManager` | `OriginalResourceManager` + native readers/uploaders | Source owner, graph/sound path | Mesh/image/sound identity и lifetime общие; font/material-library ownership ещё нужно завершить |
 | `RockCar` | `source::RockCar`, event sink | Source owner, partial | Проверить attachment/listener lifetime вместе с Player/GameCar |
-| `Trace` | `source::{Trace,WayPath,WayNode,WayPoint}` | Source owner, strong | Осталась graph/debug visualization boundary |
-| `TraceGfx` | `OriginalRaceRenderer` debug draw | Backend boundary | Перенести source trace visual state, оставить bgfx submission |
+| `Trace` | `source::{Trace,WayPath,WayNode,WayPoint}` | Source owner, active race/debug path | Editor serialization остаётся вне пользовательской игры; gameplay geometry и TraceGfx используют один owner |
+| `TraceGfx` | `source::TraceGfx` + transient bgfx submission | Source owner, active F6 path | Selection/link/geometry/material policy source-owned; D3D9 Box/Sprite/DrawPrimitiveUP заменены backend triangles |
 | `View` | SDL window/input + bgfx device | Backend boundary | Перенести source view policy: reset/display/input coordinate lifecycle |
 | `Weapon` | `source::{Weapon,Proj,AutoProj,WeaponItem...}` | Source owner, active contact core | Полностью свернуть type-specific progress backend-view loops в Proj adapter |
 | `World` | `source::WorldEventPump` + native `WorldHost` | Source owner, event core | Подключить к спискам все race objects/environment/network adapters вместо оставшихся session loops |
@@ -373,9 +373,22 @@ Middle/High/night/isometric quality graph и пересоздание rain пр�
 камеры. Автономная arm64 сборка, 24/24 offline, 2/2 network, physics,
 360-frame race, Finish и Final Metal smoke прошли.
 
-Открытая B7b: перенести состояние `TraceGfx` (selection/reference lifetime,
-waypoint/path/tile/link draw records) в отдельного source owner, оставив
-линии/triangles/sprite submission границей bgfx.
+Результат B7b: добавлен `source::TraceGfx` с исходными `SetSelPoint`,
+`SetSelPath`, `SetSelNode`, `SetPointLink`, материалом transparency/alpha 0.5,
+отключёнными lighting/Z-write/Z-test/fog/cull и backend-neutral draw list.
+Он выдаёт красные waypoint boxes, серый диапазон отдельных paths, зелёные
+selection path/point/tile и направленный point-link. Прежняя придуманная
+зелёная лента шириной 0.16 и принудительно замкнутый последний сегмент удалены.
+
+F6/AIDebug использует живой `source::Map::Trace`; bgfx переводит source
+records в transient triangles вместо D3D9 `Box`, `Sprite` и
+`DrawPrimitiveUP`, не владея selection или цветами. Regression проверяет
+material flags, box/path geometry, grayscale range, все selections/link и
+release удалённой ссылки. Прошли arm64 build, 25/25 offline, 2/2 network,
+physics и отдельный 360-frame `--game-debug` Metal race smoke с активным F6.
+
+B7 завершён. Следующий крупный этап B8 — повторный метод-к-методу аудит
+оставшихся partial `Race/Player/AI/GameCar/Weapon` владельцев.
 
 ### B8 — завершение Race/Player/AI/GameCar/Weapon parity
 

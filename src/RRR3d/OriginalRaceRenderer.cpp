@@ -151,63 +151,6 @@ std::vector<std::uint32_t> skyIndices()
     return result;
 }
 
-std::pair<std::vector<StaticMeshVertex>, std::vector<std::uint32_t>>
-debugTraceGeometry(const r3d::game::originalrace::Race& race)
-{
-    std::vector<StaticMeshVertex> vertices;
-    std::vector<std::uint32_t> indices;
-    const std::vector<std::vector<std::uint32_t>> fallback{
-        race.tracePath};
-    const auto& paths = race.tracePaths.empty() ? fallback
-                                                : race.tracePaths;
-    auto pointForId = [&](std::uint32_t id)
-        -> const r3d::game::originalrace::TracePoint* {
-        const auto found = std::find_if(
-            race.tracePoints.begin(), race.tracePoints.end(),
-            [id](const auto& point) { return point.id == id; });
-        return found == race.tracePoints.end() ? nullptr : &*found;
-    };
-    constexpr float halfWidth = 0.08F;
-    constexpr float elevation = 0.35F;
-    for (const auto& path : paths)
-    {
-        if (path.size() < 2U)
-            continue;
-        for (std::size_t node = 0U; node < path.size(); ++node)
-        {
-            const auto* first = pointForId(path[node]);
-            const auto* second = pointForId(path[(node + 1U) % path.size()]);
-            if (first == nullptr || second == nullptr || first == second)
-                continue;
-            const float dx = second->position.x - first->position.x;
-            const float dy = second->position.y - first->position.y;
-            const float length = std::sqrt(dx * dx + dy * dy);
-            if (length <= 0.0001F)
-                continue;
-            const float px = -dy / length * halfWidth;
-            const float py = dx / length * halfWidth;
-            const auto base = static_cast<std::uint32_t>(vertices.size());
-            vertices.insert(vertices.end(), {
-                {first->position.x + px, first->position.y + py,
-                 first->position.z + elevation, 0.0F, 0.0F, 1.0F,
-                 0.0F, 0.0F},
-                {first->position.x - px, first->position.y - py,
-                 first->position.z + elevation, 0.0F, 0.0F, 1.0F,
-                 0.0F, 1.0F},
-                {second->position.x + px, second->position.y + py,
-                 second->position.z + elevation, 0.0F, 0.0F, 1.0F,
-                 1.0F, 0.0F},
-                {second->position.x - px, second->position.y - py,
-                 second->position.z + elevation, 0.0F, 0.0F, 1.0F,
-                 1.0F, 1.0F}});
-            indices.insert(indices.end(),
-                           {base, base + 1U, base + 2U,
-                            base + 1U, base + 3U, base + 2U});
-        }
-    }
-    return {std::move(vertices), std::move(indices)};
-}
-
 constexpr std::array<StaticMeshVertex, 4> effectVertices{{
     {-0.5F, -0.5F, 0.0F, 0.0F, 0.0F, 1.0F, 0.0F, 1.0F},
     {0.5F, -0.5F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F},
@@ -2474,18 +2417,10 @@ bool OriginalRaceRenderer::initialize(
         effectMesh_ = device.createMesh(
             effectVertices.data(), effectVertices.size(),
             effectIndices.data(), effectIndices.size());
-        const auto [debugTraceVertices, debugTraceIndices] =
-            debugTraceGeometry(race);
-        if (!debugTraceVertices.empty() && !debugTraceIndices.empty())
-        {
-            debugTraceMesh_ = device.createMesh(
-                debugTraceVertices.data(), debugTraceVertices.size(),
-                debugTraceIndices.data(), debugTraceIndices.size());
-            debugTraceTexture_ = resources.GetWhiteTexture().texture;
-            if (!valid(debugTraceMesh_) || !valid(debugTraceTexture_))
-                throw r3d::resource::ResourceError(
-                    "Unable to upload original AIDebug trace geometry");
-        }
+        debugTraceTexture_ = resources.GetWhiteTexture().texture;
+        if (!valid(debugTraceTexture_))
+            throw r3d::resource::ResourceError(
+                "Unable to load original TraceGfx material texture");
 
         // GraphManager::BuildOctree derives _groundAABB and the world AABB
         // used by SunShaft from all map actors before cars are created.
@@ -2671,8 +2606,6 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
         device.destroy(skyShader_);
     if (valid(postProcessMesh_))
         device.destroy(postProcessMesh_);
-    if (valid(debugTraceMesh_))
-        device.destroy(debugTraceMesh_);
     toneMapShader_ = {};
     copyShader_ = {};
     waterShader_ = {};
@@ -2690,7 +2623,6 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
     skyShader_ = {};
     environmentReflectionTarget_ = {};
     postProcessMesh_ = {};
-    debugTraceMesh_ = {};
     debugTraceTexture_ = {};
     auto release = [&](Asset& asset) {
         if (valid(asset.mesh) && !asset.sharedMesh)
@@ -5567,7 +5499,8 @@ void OriginalRaceRenderer::renderFrame(
         r3d::game::originalrace::ProjectileRuntime>& projectiles,
     float elapsedSeconds,
     const r3d::game::originalrace::QualityConfig& quality,
-    std::int32_t countdownStage, bool debugTraceVisible)
+    std::int32_t countdownStage,
+    const r3d::game::originalrace::source::TraceGfx* debugTrace)
 {
     if (wheelTrailUpdateSeconds_ < 0.0F ||
         elapsedSeconds < wheelTrailUpdateSeconds_)
@@ -6082,25 +6015,83 @@ void OriginalRaceRenderer::renderFrame(
          racerRuntime, effects, mines, projectiles, elapsedSeconds,
          countdownStage,
          false, usesSceneDepthSurface, false, false, &camera);
-    if (debugTraceVisible && valid(debugTraceMesh_) &&
-        valid(debugTraceTexture_))
+    if (debugTrace != nullptr && valid(debugTraceTexture_))
     {
-        // TraceGfx in AIDebug disables Z read/write and lighting. A thin
-        // emissive ribbon provides the same always-visible source route on
-        // Metal, where legacy D3D line primitives are not available.
+        // TraceGfx owns its selections, exact waypoint/path/tile/link
+        // geometry and material policy. Metal only submits transient
+        // triangles because D3D9 DrawPrimitiveUP is the platform boundary.
+        const auto& sourcePolicy = debugTrace->GetMaterialPolicy();
         PipelineState debugPipeline = pipeline;
-        debugPipeline.writeDepth = false;
-        debugPipeline.depthTest = false;
-        debugPipeline.faceCulling = PipelineState::FaceCulling::None;
-        debugPipeline.blendMode = PipelineState::BlendMode::Alpha;
-        MaterialState debugMaterial;
-        debugMaterial.color = {0.15F, 1.0F, 0.1F, 0.9F};
-        debugMaterial.emissive = 1.0F;
-        debugMaterial.ignoreFog = true;
-        debugMaterial.receivesShadow = false;
+        debugPipeline.writeDepth = sourcePolicy.depthWrite;
+        debugPipeline.depthTest = sourcePolicy.depthTest;
+        debugPipeline.faceCulling = sourcePolicy.cull
+                                        ? pipeline.faceCulling
+                                        : PipelineState::FaceCulling::None;
+        debugPipeline.blendMode = sourcePolicy.transparency
+                                      ? PipelineState::BlendMode::Alpha
+                                      : PipelineState::BlendMode::Opaque;
         r3d::physics::Transform identity;
-        device.draw(debugTraceMesh_, sceneShader, debugTraceTexture_,
-                    transform(identity), debugPipeline, {}, debugMaterial);
+        const auto records = debugTrace->BuildDrawList();
+        for (const auto& record : records)
+        {
+            std::vector<r3d::game::originalrace::source::TraceVec3>
+                sourceVertices = record.vertices;
+            std::vector<std::uint32_t> sourceIndices = record.indices;
+            if (record.primitive ==
+                r3d::game::originalrace::source::
+                    TraceGfxPrimitive::PointLink)
+            {
+                const auto direction = normalize({
+                    record.linkStart.x - record.linkEnd.x,
+                    record.linkStart.y - record.linkEnd.y,
+                    record.linkStart.z - record.linkEnd.z});
+                auto side = normalize(cross(direction,
+                                            cameraViewDirection_));
+                if (std::abs(side.x) + std::abs(side.y) +
+                        std::abs(side.z) < 0.001F)
+                    side = normalize(cross(direction, {0.0F, 0.0F, 1.0F}));
+                side = {
+                    side.x * record.linkWidth * 0.5F,
+                    side.y * record.linkWidth * 0.5F,
+                    side.z * record.linkWidth * 0.5F};
+                sourceVertices = {
+                    {record.linkStart.x + side.x,
+                     record.linkStart.y + side.y,
+                     record.linkStart.z + side.z},
+                    {record.linkStart.x - side.x,
+                     record.linkStart.y - side.y,
+                     record.linkStart.z - side.z},
+                    {record.linkEnd.x + side.x,
+                     record.linkEnd.y + side.y,
+                     record.linkEnd.z + side.z},
+                    {record.linkEnd.x - side.x,
+                     record.linkEnd.y - side.y,
+                     record.linkEnd.z - side.z}};
+                sourceIndices = {0U, 1U, 2U, 1U, 3U, 2U};
+            }
+            if (sourceVertices.empty() || sourceIndices.empty())
+                continue;
+            std::vector<StaticMeshVertex> vertices;
+            vertices.reserve(sourceVertices.size());
+            for (const auto& vertex : sourceVertices)
+            {
+                vertices.push_back({
+                    vertex.x, vertex.y, vertex.z,
+                    0.0F, 0.0F, 1.0F, 0.0F, 0.0F});
+            }
+            MaterialState debugMaterial;
+            debugMaterial.color = {
+                record.color.red, record.color.green,
+                record.color.blue,
+                std::min(record.color.alpha, sourcePolicy.alpha)};
+            debugMaterial.emissive = sourcePolicy.lighting ? 0.0F : 1.0F;
+            debugMaterial.ignoreFog = sourcePolicy.ignoreFog;
+            debugMaterial.receivesShadow = false;
+            device.drawTransient(
+                vertices.data(), vertices.size(), sourceIndices.data(),
+                sourceIndices.size(), sceneShader, debugTraceTexture_,
+                transform(identity), debugPipeline, debugMaterial);
+        }
     }
 
     Camera postCamera;

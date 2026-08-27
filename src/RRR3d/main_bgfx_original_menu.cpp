@@ -3926,6 +3926,8 @@ int main(int argc, char** argv)
         *physicsDescription, physicsError);
     r3d::game::originalrace::OriginalRaceSession raceSession(
         *originalRace, options->legacyWindowsDebug);
+    r3d::game::originalrace::source::TraceGfx sourceTraceGfx(
+        &raceSession.sourceMap().GetTrace());
     raceSession.setCampaign(true);
     raceSession.applyPlayerProfile(profileState.player);
     raceSession.applyAchievementProfile(profileState);
@@ -16769,7 +16771,7 @@ int main(int argc, char** argv)
                 raceSession.effects(), raceSession.mines(),
                 raceSession.projectiles(), raceElapsedSeconds,
                 raceQuality, raceSession.countdownStage(),
-                gameDebug.traceVisible());
+                gameDebug.traceVisible() ? &sourceTraceGfx : nullptr);
             raceHud.update(*device, *originalRace, raceSession,
                            raceRenderVehicles, raceCamera,
                            raceRenderSeconds);

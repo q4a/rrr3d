@@ -4330,6 +4330,28 @@ Middle/High/night/isometric graph и rain lifecycle. Прошли arm64 build,
 smoke. Следующая граница P2.185/B7b — `TraceGfx`: source selection/reference
 lifetime и debug draw records при сохранении bgfx submission.
 
+### P2.185 — `TraceGfx` получил исходного владельца — выполнено
+
+Активный AIDebug/F6 path был подтверждён как суррогат: renderer заранее
+строил одну зелёную ribbon фиксированной полуширины 0.08, добавлял высоту
+0.35 и всегда соединял последний point с первым. В Windows `TraceGfx`
+показывает все waypoint boxes, каждый `WayPath::GetTriStripVBuf` с его
+фактической шириной и отдельным серым оттенком, а зелёным выделяет только
+selected point/path/tile/link.
+
+Новый `source::TraceGfx` владеет selection/link state, material policy
+(transparency, alpha 0.5, no lighting/Z-write/Z-test/fog/cull) и точным
+backend-neutral draw list. Он работает непосредственно с уже перенесённым
+`source::Map::Trace`. Renderer больше не строит игровую trace geometry:
+Metal adapter лишь преобразует records в transient triangles, включая
+camera-facing point-link вместо D3D9 `Sprite`.
+
+Regression закрепляет boxes, full-width tile quads, grayscale path range,
+все четыре selection/link ветви и очистку удалённой ссылки. Прошли arm64
+build, 25/25 offline, 2/2 network, physics и 360-frame Metal race smoke с
+`--game-debug`, где F6 включает новый путь. B7 закрыт; следующая граница B8 —
+оставшиеся partial `Race/Player/AI/GameCar/Weapon` owners.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

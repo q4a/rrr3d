@@ -77,6 +77,7 @@ else()
             source/stub/OriginalRaceLifecycle.cpp
             source/stub/OriginalSlot.cpp
             source/stub/OriginalTrace.cpp
+            source/stub/OriginalTraceGfx.cpp
             source/stub/OriginalTournament.cpp
             source/stub/OriginalUserChat.cpp
             source/stub/OriginalWeapon.cpp
@@ -100,6 +101,7 @@ else()
             include/OriginalRaceLifecycle.h
             include/OriginalSlot.h
             include/OriginalTrace.h
+            include/OriginalTraceGfx.h
             include/OriginalTournament.h
             include/OriginalUserChat.h
             include/OriginalWeapon.h
@@ -235,6 +237,18 @@ if(NOT WIN32 AND RRR3D_BUILD_ORIGINAL_MENU)
     add_test(
         NAME rrr3d_original_trace_smoke
         COMMAND rrr3d_original_trace_smoke
+    )
+
+    add_executable(rrr3d_original_trace_gfx_smoke
+        tests/OriginalTraceGfxSmoke.cpp
+    )
+    target_link_libraries(rrr3d_original_trace_gfx_smoke PRIVATE
+        ${PROJECT_NAME}
+    )
+    rrr3d_set_common_target_options(rrr3d_original_trace_gfx_smoke)
+    add_test(
+        NAME rrr3d_original_trace_gfx_smoke
+        COMMAND rrr3d_original_trace_gfx_smoke
     )
 
     add_executable(rrr3d_original_player_smoke

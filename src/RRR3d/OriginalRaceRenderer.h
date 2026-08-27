@@ -6,6 +6,7 @@
 #include "OriginalRace.h"
 #include "OriginalRaceSession.h"
 #include "OriginalResourceManager.h"
+#include "OriginalTraceGfx.h"
 #include "physics/OriginalVehiclePhysics.h"
 #include "renderer/Renderer.h"
 #include "resource/R3DMeshAsset.h"
@@ -148,7 +149,8 @@ public:
         float elapsedSeconds,
         const r3d::game::originalrace::QualityConfig& quality,
         std::int32_t countdownStage = 4,
-        bool debugTraceVisible = false);
+        const r3d::game::originalrace::source::TraceGfx*
+            debugTrace = nullptr);
 
 private:
     bool createFrameTargets(r3d::renderer::GraphicsDevice& device,
@@ -201,7 +203,6 @@ private:
     r3d::renderer::Mesh effectMesh_;
     r3d::renderer::Mesh grassMesh_;
     r3d::renderer::Mesh postProcessMesh_;
-    r3d::renderer::Mesh debugTraceMesh_;
     r3d::renderer::Texture debugTraceTexture_;
     r3d::renderer::Shader shadowShader_;
     r3d::renderer::Shader skyShader_;
