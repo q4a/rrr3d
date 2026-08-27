@@ -516,11 +516,89 @@ void PlayerStateFrame::OnProgress(float deltaTime, float now)
     }
 }
 
+void PlayerStateFrame::ShowCarLife(
+    std::size_t slot, std::size_t racer, float timeMax) noexcept
+{
+    if (slot >= carLifeItems_.size())
+        return;
+    auto& item = carLifeItems_[slot];
+    item.barAlpha = item.barAlpha > 0.99F
+        ? 0.0F : std::min(item.barAlpha, 0.5F);
+    if (item.racer != racer)
+        item.backgroundAlpha = 0.0F;
+    item.racer = racer;
+    item.timer = 0.0F;
+    item.timeMax = timeMax;
+    item.visible = true;
+}
+
+void PlayerStateFrame::ProgressCarLife(
+    std::size_t slot, const HudCarLifeInput& input,
+    float deltaTime) noexcept
+{
+    if (slot >= carLifeItems_.size())
+        return;
+    auto& item = carLifeItems_[slot];
+    if (item.timer < 0.0F ||
+        item.racer == HudCarLife::invalidRacer)
+        return;
+    if (!input.targetAlive)
+    {
+        item = {};
+        item.barAlpha = 1.0F;
+        return;
+    }
+
+    deltaTime = std::max(deltaTime, 0.0F);
+    float targetAlpha = 1.0F;
+    item.timer += deltaTime;
+    if (item.timer > item.timeMax)
+    {
+        targetAlpha = item.backgroundAlpha;
+        if (targetAlpha > 0.0F)
+            targetAlpha = 0.0F;
+        else
+        {
+            item = {};
+            item.barAlpha = 1.0F;
+            return;
+        }
+    }
+    if (input.atEdge)
+        targetAlpha = 0.0F;
+
+    item.life = std::clamp(input.life, 0.0F, 1.0F);
+    const float maximumX =
+        std::max(input.viewportWidth - input.backWidth, 0.0F);
+    const float clampedX = std::clamp(
+        input.projected.x, 0.0F, maximumX);
+    const float clampedY = std::clamp(
+        input.projected.y, input.backHeight,
+        std::max(input.viewportHeight, input.backHeight));
+    item.position = {
+        clampedX + input.backWidth * 0.5F,
+        clampedY - input.backHeight * 0.5F};
+
+    auto stepLerp = [](float value, float target, float step) {
+        return target > value ? std::min(value + step, target)
+                              : std::max(value - step, target);
+    };
+    const float alphaStep = deltaTime / 0.3F;
+    item.backgroundAlpha = stepLerp(
+        item.backgroundAlpha, targetAlpha, alphaStep);
+    item.barAlpha = stepLerp(
+        item.barAlpha, targetAlpha, alphaStep);
+    item.visible = true;
+}
+
 void PlayerStateFrame::Reset() noexcept
 {
     nextId_ = 1U;
     pickItems_.clear();
     achievmentItems_.clear();
+    carLifeItems_ = {};
+    for (auto& item : carLifeItems_)
+        item.barAlpha = 1.0F;
 }
 
 const std::vector<HudPickItem>&
@@ -553,6 +631,21 @@ const HudAchievmentItem* PlayerStateFrame::FindAchievmentItem(
             return item.id == id;
         });
     return found == achievmentItems_.end() ? nullptr : &*found;
+}
+
+const std::array<HudCarLife, 2>&
+PlayerStateFrame::GetCarLifeItems() const noexcept
+{
+    return carLifeItems_;
+}
+
+bool PlayerStateFrame::HasCarLife(std::size_t racer) const noexcept
+{
+    return std::any_of(
+        carLifeItems_.begin(), carLifeItems_.end(),
+        [racer](const HudCarLife& item) {
+            return item.racer == racer;
+        });
 }
 
 void HudMenu::Reset() noexcept

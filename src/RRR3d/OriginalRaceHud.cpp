@@ -467,7 +467,6 @@ void OriginalRaceHud::shutdown(GraphicsDevice& device) noexcept
     miniMapState_.Clear();
     mapMarkers_.clear();
     opponentLabels_.clear();
-    carLifeOverlays_ = {};
     notifications_.clear();
     achievementNotifications_.clear();
     playerStateFrame_.Reset();
@@ -645,7 +644,6 @@ void OriginalRaceHud::update(
     mineVisualIndex_ = player.mineWeapon;
     hyperVisualIndex_ = player.hyperWeapon;
 
-    const float elapsed = session.elapsedSeconds();
     for (const auto& event : session.events())
     {
         if (event.kind == originalrace::RaceEventKind::Achievement &&
@@ -738,7 +736,8 @@ void OriginalRaceHud::update(
         else if (event.kind == originalrace::RaceEventKind::Damage &&
                  event.value > 0.0F)
         {
-            std::size_t overlay = carLifeOverlays_.size();
+            std::size_t overlay =
+                playerStateFrame_.GetCarLifeItems().size();
             std::size_t racer = event.racer;
             float duration = 0.0F;
             if (event.racer == humanRacer)
@@ -751,16 +750,12 @@ void OriginalRaceHud::update(
                 overlay = 1;
                 duration = 4.0F;
             }
-            if (overlay < carLifeOverlays_.size() &&
+            if (overlay < playerStateFrame_.GetCarLifeItems().size() &&
                 racer < session.racers().size() &&
                 racer < vehicles.size())
             {
-                auto& life = carLifeOverlays_[overlay];
-                life.racer = racer;
-                life.duration = duration;
-                life.visibleUntil = elapsed + duration;
-                life.alpha = 0.0F;
-                life.visible = true;
+                playerStateFrame_.ShowCarLife(
+                    overlay, racer, duration);
             }
         }
     }
@@ -889,46 +884,35 @@ void OriginalRaceHud::update(
         return atEdge;
     };
 
-    for (auto& overlay : carLifeOverlays_)
+    for (std::size_t slot = 0U;
+         slot < playerStateFrame_.GetCarLifeItems().size(); ++slot)
     {
-        const bool hasRacer =
+        const auto& overlay =
+            playerStateFrame_.GetCarLifeItems()[slot];
+        if (overlay.racer == source::HudCarLife::invalidRacer)
+            continue;
+        source::HudCarLifeInput input;
+        input.viewportWidth = menu::virtualWidth;
+        input.viewportHeight = menu::virtualHeight;
+        input.backWidth = opponentLifeBack_.width;
+        input.backHeight = opponentLifeBack_.height;
+        input.targetAlive =
             overlay.racer < session.racers().size() &&
             overlay.racer < vehicles.size() &&
             !session.racers()[overlay.racer].IsDestroyed();
-        if (!hasRacer)
+        if (input.targetAlive)
         {
-            overlay.alpha = std::max(
-                overlay.alpha - seconds / 0.3F, 0.0F);
-            overlay.visible = overlay.alpha > 0.0F;
-            continue;
+            input.atEdge = project(
+                vehicles[overlay.racer].body.position, {},
+                input.projected.x, input.projected.y);
+            const auto& runtime = session.racers()[overlay.racer];
+            input.life = std::clamp(
+                runtime.GetLife() /
+                    std::max(runtime.GetMaxLife(), 1.0F),
+                0.0F, 1.0F);
         }
-        const bool atEdge = project(
-            vehicles[overlay.racer].body.position, {},
-            overlay.x, overlay.y);
-        const float targetAlpha =
-            elapsed < overlay.visibleUntil && !atEdge ? 1.0F : 0.0F;
-        const float alphaStep = seconds / 0.3F;
-        if (targetAlpha > overlay.alpha)
-            overlay.alpha =
-                std::min(overlay.alpha + alphaStep, targetAlpha);
-        else
-            overlay.alpha =
-                std::max(overlay.alpha - alphaStep, targetAlpha);
-        overlay.visible =
-            elapsed < overlay.visibleUntil || overlay.alpha > 0.0F;
-        const auto& runtime = session.racers()[overlay.racer];
-        overlay.life = std::clamp(
-            runtime.GetLife() / std::max(runtime.GetMaxLife(), 1.0F),
-            0.0F, 1.0F);
-        overlay.x = std::clamp(
-            overlay.x, opponentLifeBack_.width * 0.5F,
-            menu::virtualWidth - opponentLifeBack_.width * 0.5F);
-        overlay.y = std::clamp(
-            overlay.y, opponentLifeBack_.height * 0.5F,
-            menu::virtualHeight -
-                opponentLifeBack_.height * 0.5F);
+        playerStateFrame_.ProgressCarLife(slot, input, seconds);
     }
-
     for (std::size_t index = 0; index < opponentCount; ++index)
     {
         auto& label = opponentLabels_[index];
@@ -943,18 +927,9 @@ void OriginalRaceHud::update(
             vehicles[racerIndex].body.position,
             {1.0F, -0.5F, 0.0F}, label.x, label.y);
         label.visible = !runtime.IsDestroyed() && !runtime.disconnected;
-        bool hasLifeOverlay = false;
-        if (label.visible)
-        {
-            for (const auto& overlay : carLifeOverlays_)
-            {
-                if (overlay.visible && overlay.racer == racerIndex)
-                {
-                    hasLifeOverlay = true;
-                    break;
-                }
-            }
-        }
+        const bool hasLifeOverlay =
+            label.visible &&
+            playerStateFrame_.HasCarLife(racerIndex);
         label.x = std::clamp(label.x, 40.5F,
                              menu::virtualWidth - 40.5F);
         label.y = std::clamp(label.y, label.name.height,
@@ -1285,23 +1260,25 @@ void OriginalRaceHud::draw(GraphicsDevice& device, Mesh quad,
             opponent.name.width, opponent.name.height, opponent.x,
             opponent.y - 20.0F, 36.0F, pipeline, tint);
     }
-    for (const auto& overlay : carLifeOverlays_)
+    for (const auto& overlay : playerStateFrame_.GetCarLifeItems())
     {
         if (!overlay.visible)
             continue;
-        const std::array<float, 4> tint{
-            1.0F, 1.0F, 1.0F, overlay.alpha};
+        const std::array<float, 4> backgroundTint{
+            1.0F, 1.0F, 1.0F, overlay.backgroundAlpha};
         drawTintedAsset(
             device, quad, shader, opponentLifeBack_.texture,
             opponentLifeBack_.width, opponentLifeBack_.height,
-            overlay.x, overlay.y, 42.0F, pipeline, tint);
+            overlay.position.x, overlay.position.y, 42.0F, pipeline,
+            backgroundTint);
         const float width = opponentLifeBar_.width * overlay.life;
         drawTintedAsset(
             device, quad, shader, opponentLifeBar_.texture, width,
             opponentLifeBar_.height,
-            overlay.x - opponentLifeBar_.width * 0.5F +
+            overlay.position.x - opponentLifeBar_.width * 0.5F +
                 width * 0.5F,
-            overlay.y, 34.0F, pipeline, tint);
+            overlay.position.y, 34.0F, pipeline,
+            {1.0F, 1.0F, 1.0F, overlay.barAlpha});
     }
 
     // PlayerStateFrame::_raceState and MiniMapFrame's lap widgets obey

@@ -79,18 +79,6 @@ private:
         bool visible = false;
     };
 
-    struct CarLifeOverlay
-    {
-        std::size_t racer = std::numeric_limits<std::size_t>::max();
-        float visibleUntil = 0.0F;
-        float duration = 0.0F;
-        float x = 0.0F;
-        float y = 0.0F;
-        float life = 1.0F;
-        float alpha = 0.0F;
-        bool visible = false;
-    };
-
     struct WeaponVisual
     {
         r3d::renderer::Mesh mesh;
@@ -177,7 +165,6 @@ private:
     r3d::game::originalrace::source::MiniMapFrame miniMapState_;
     std::vector<MiniMapMarker> mapMarkers_;
     std::vector<OpponentLabel> opponentLabels_;
-    std::array<CarLifeOverlay, 2> carLifeOverlays_;
     std::vector<WeaponVisual> weaponVisuals_;
     ImageAsset finishLeftFrame_;
     ImageAsset finishRightFrame_;

@@ -4558,6 +4558,27 @@ stack reindex 0.15 и общий fade/remove в 4.7–5.0 s.
 Regression проверяет pick slide/fade/removal, точную achievement trajectory,
 ping/points alpha, двухэлементный reindex, lifetime и Reset.
 
+### P2.195 — `PlayerStateFrame::CarLife` возвращён source owner — выполнено
+
+Car-life overlays оставались последним крупным runtime state внутри bgfx HUD.
+Сверка показала два поведенческих расхождения: порт всегда сбрасывал общий
+alpha при повторной атаке и плавно гасил overlay уничтоженной машины. Windows
+раздельно ведёт alpha background/bar, повторно обнуляет только полностью
+видимый bar и немедленно освобождает target при исчезновении GameObject.
+
+`source::PlayerStateFrame` теперь владеет двумя исходными слотами CarLife,
+target identity, timer/timeMax, progress, background/bar alpha и visibility.
+Восстановлены `ShowCarLifeBar`, `StepLerp` и `ProccessCarLifeBar`: 0.3 s fade,
+1.5/4.0 s durations, edge fade, повторный bar flash и immediate destroyed
+release. Также возвращена точная исходная экранная раскладка: projected point
+clamp в `[0, vp-back]`/`[backHeight, vp]`, затем half-size offset.
+
+Renderer передаёт только результат camera projection, life fraction и размеры
+backend image; draw отдельно применяет source background/bar alpha.
+Opponent suppression теперь использует source `GetCarLife` identity до
+полного release. Regression покрывает first fade-in, placement, repeated hit,
+edge fade, separate alphas и destroyed cleanup.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

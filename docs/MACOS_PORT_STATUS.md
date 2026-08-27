@@ -2336,3 +2336,14 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   0.15 s reindex и 4.7–5.0 s exit.
 - Исправлены две surrogate-ошибки: отсутствующий initial lastIndex и линейный
   fly от сохранённого старта вместо Windows lerp от текущей позиции.
+
+### Source PlayerStateFrame car-life follow-up
+
+- Два `CarLife` slots, target/timer/timeMax/progress и visibility перенесены
+  из renderer в active `source::PlayerStateFrame`.
+- Восстановлены отдельные background/bar alpha, повторный hit flash,
+  `StepLerp(dt/0.3)`, durations 1.5/4.0 и edge fade.
+- Уничтоженный GameObject теперь немедленно скрывает/release overlay, как в
+  Windows, вместо придуманного плавного fade после уничтожения.
+- Projection остаётся camera adapter, но source выполняет точный clamp и
+  half-size placement; opponent label suppression читает source target graph.

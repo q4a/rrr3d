@@ -188,6 +188,49 @@ int main()
         !playerState.GetAchievmentItems().empty())
         return 25;
 
+    playerState.ShowCarLife(0U, 2U, 1.0F);
+    if (!playerState.HasCarLife(2U) ||
+        playerState.GetCarLifeItems()[0].barAlpha != 0.0F ||
+        playerState.GetCarLifeItems()[0].backgroundAlpha != 0.0F)
+        return 26;
+    source::HudCarLifeInput carLifeInput;
+    carLifeInput.projected = {100.0F, 100.0F};
+    carLifeInput.life = 0.6F;
+    carLifeInput.viewportWidth = 200.0F;
+    carLifeInput.viewportHeight = 120.0F;
+    carLifeInput.backWidth = 40.0F;
+    carLifeInput.backHeight = 20.0F;
+    carLifeInput.targetAlive = true;
+    playerState.ProgressCarLife(0U, carLifeInput, 0.15F);
+    const auto& carLifeHalf = playerState.GetCarLifeItems()[0];
+    if (!carLifeHalf.visible ||
+        !point(carLifeHalf.position, 120.0F, 90.0F) ||
+        !near(carLifeHalf.life, 0.6F) ||
+        !near(carLifeHalf.backgroundAlpha, 0.5F) ||
+        !near(carLifeHalf.barAlpha, 0.5F))
+        return 27;
+    playerState.ProgressCarLife(0U, carLifeInput, 0.15F);
+    if (!near(
+            playerState.GetCarLifeItems()[0].backgroundAlpha, 1.0F) ||
+        !near(playerState.GetCarLifeItems()[0].barAlpha, 1.0F))
+        return 28;
+    playerState.ShowCarLife(0U, 2U, 1.0F);
+    if (!near(
+            playerState.GetCarLifeItems()[0].backgroundAlpha, 1.0F) ||
+        !near(playerState.GetCarLifeItems()[0].barAlpha, 0.0F))
+        return 29;
+    carLifeInput.atEdge = true;
+    playerState.ProgressCarLife(0U, carLifeInput, 0.15F);
+    if (!near(
+            playerState.GetCarLifeItems()[0].backgroundAlpha, 0.5F) ||
+        !near(playerState.GetCarLifeItems()[0].barAlpha, 0.0F))
+        return 30;
+    carLifeInput.targetAlive = false;
+    playerState.ProgressCarLife(0U, carLifeInput, 0.01F);
+    if (playerState.GetCarLifeItems()[0].visible ||
+        playerState.HasCarLife(2U))
+        return 31;
+
     std::cout << "Original HudMenu smoke passed\n";
     return 0;
 }

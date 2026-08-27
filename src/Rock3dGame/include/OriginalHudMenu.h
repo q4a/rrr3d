@@ -2,6 +2,7 @@
 
 #include "OriginalRace.h"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <vector>
@@ -108,6 +109,33 @@ struct HudAchievmentItem
     float indexTime = -1.0F;
 };
 
+struct HudCarLifeInput
+{
+    HudPoint projected;
+    float life = 1.0F;
+    float viewportWidth = 0.0F;
+    float viewportHeight = 0.0F;
+    float backWidth = 0.0F;
+    float backHeight = 0.0F;
+    bool targetAlive = false;
+    bool atEdge = false;
+};
+
+struct HudCarLife
+{
+    static constexpr std::size_t invalidRacer =
+        static_cast<std::size_t>(-1);
+
+    std::size_t racer = invalidRacer;
+    HudPoint position;
+    float timer = -1.0F;
+    float timeMax = 4.0F;
+    float life = 1.0F;
+    float backgroundAlpha = 0.0F;
+    float barAlpha = 1.0F;
+    bool visible = false;
+};
+
 // Source PlayerStateFrame notification queues. GPU images/text remain view
 // resources keyed by HudItemId; ordering, lifetime and all motion/fade state
 // are owned here.
@@ -122,6 +150,11 @@ public:
         float viewportWidth, float viewportHeight, float now,
         std::size_t startPosition = randomAchievmentPosition);
     void OnProgress(float deltaTime, float now);
+    void ShowCarLife(
+        std::size_t slot, std::size_t racer, float timeMax) noexcept;
+    void ProgressCarLife(
+        std::size_t slot, const HudCarLifeInput& input,
+        float deltaTime) noexcept;
     void Reset() noexcept;
 
     const std::vector<HudPickItem>& GetPickItems() const noexcept;
@@ -130,11 +163,14 @@ public:
     const HudPickItem* FindPickItem(HudItemId id) const noexcept;
     const HudAchievmentItem* FindAchievmentItem(
         HudItemId id) const noexcept;
+    const std::array<HudCarLife, 2>& GetCarLifeItems() const noexcept;
+    bool HasCarLife(std::size_t racer) const noexcept;
 
 private:
     HudItemId nextId_ = 1U;
     std::vector<HudPickItem> pickItems_;
     std::vector<HudAchievmentItem> achievmentItems_;
+    std::array<HudCarLife, 2> carLifeItems_{};
 };
 
 // Backend-neutral owner transcribed from HudMenu/PlayerStateFrame. Widget
