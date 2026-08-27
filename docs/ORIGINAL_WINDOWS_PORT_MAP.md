@@ -71,7 +71,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `Race` | `OriginalRace`, `OriginalRaceSession`, lifecycle/place/tournament | Source owner, partial | Разложить 7 971-строчный источник по исходным владельцам вместо session |
 | `RaceMenu2` | Ручные garage/workshop/race frames | Distributed | Вернуть source car/weapon frame graph и command transitions |
 | `RecordLib` | Набор XML/R3D import helpers | Distributed | Вернуть typed record library, proxy/source load и fix-up pass |
-| `ResourceManager` | `OriginalResourceManager` + native readers/uploaders | Source owner, graph path | Mesh/image identity и GPU lifetime общие; audio/font/material-library ownership ещё нужно завершить |
+| `ResourceManager` | `OriginalResourceManager` + native readers/uploaders | Source owner, graph/sound path | Mesh/image/sound identity и lifetime общие; font/material-library ownership ещё нужно завершить |
 | `RockCar` | `source::RockCar`, event sink | Source owner, partial | Проверить attachment/listener lifetime вместе с Player/GameCar |
 | `Trace` | `source::{Trace,WayPath,WayNode,WayPoint}` | Source owner, strong | Осталась graph/debug visualization boundary |
 | `TraceGfx` | `OriginalRaceRenderer` debug draw | Backend boundary | Перенести source trace visual state, оставить bgfx submission |
@@ -161,7 +161,7 @@ Jolt/render views, а часть type-specific ray/movement queries всё ещ�
 выходным командам `Proj`, не удаляя массивы представления до появления
 эквивалента PhysX actor ownership.
 
-### B5 — DataBase/RecordLib/ResourceManager (B5a–B5b выполнены)
+### B5 — DataBase/RecordLib/ResourceManager (B5a–B5c выполнены)
 
 Вернуть единый typed record graph, source/proxy load, fix-up names, concrete
 object factory и resource identity. Текущие проверенные XML/R3D parsers
@@ -190,10 +190,24 @@ Metal smoke каталог создал 116 уникальных мешей и 2
 использовал 847 из 1182 запросов; resize и повторная инициализация 3D frames
 прошли без двойного освобождения.
 
-Открытая B5c: перевести source audio clips/voices, fonts и material-library
-descriptors на тот же жизненный цикл. `MusicCat`, commentator и motor/effect
-mixer уже имеют свои корректные runtime-владельцы, но это пока отдельные
-кэши, а не коллекции общего `ResourceManager`.
+Результат B5c: реализована source `SoundLib`-часть того же manager. Как в
+Windows `ResourceManager::LoadSound -> SoundLib::Find`, короткий/зацикленный
+OGG теперь сначала ищется по стабильному canonical path и декодируется SDL
+backend только один раз. Menu SoundSheme, commentator и motor/wheel/contact/
+weapon/effect paths используют заимствованные handles и больше не выгружают
+общий sound из локального владельца. Общий shutdown освобождает SoundLib до
+остановки audio backend. 360-frame Metal smoke получил 76 уникальных sounds
+на 105 запросов (29 повторных), сохранил правильное завершение всех loop
+voices и прошёл без висячего звука в меню.
+
+`MusicCat` намеренно остаётся отдельным потоковым владельцем: он асинхронно
+декодирует только текущий/следующий track и выгружает старый, тогда как
+Windows-каталог `LoadMusic` был декларацией имён. Принудительное помещение
+всех tracks в PCM SoundLib вернуло бы задержки и расход памяти, устранённые в
+Milestone 8.
+
+Открытая B5d: вернуть source identity для font descriptors и material-library
+descriptors/samplers. Их backend payload останется CoreText и bgfx/Metal.
 
 ### B6 — Menu/MenuSystem и исходные frames
 

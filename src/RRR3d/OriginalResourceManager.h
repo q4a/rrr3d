@@ -3,6 +3,7 @@
 #include "renderer/Renderer.h"
 #include "resource/R3DMeshAsset.h"
 #include "resource/ResourceFileSystem.h"
+#include "audio/AudioBackend.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -35,6 +36,14 @@ public:
         std::uint16_t height = 0U;
     };
 
+    struct SoundResource
+    {
+        std::string name;
+        r3d::audio::SoundHandle sound = r3d::audio::invalidSound;
+        r3d::audio::SoundInfo info;
+        float volume = 1.0F;
+    };
+
     OriginalResourceManager(
         r3d::renderer::GraphicsDevice& device,
         const r3d::resource::ResourceFileSystem& resources) noexcept;
@@ -47,12 +56,19 @@ public:
     const MeshResource& GetMesh(std::string_view sourceName);
     const TextureResource& GetTexture(std::string_view sourceName);
     const TextureResource& GetWhiteTexture();
+    void AttachAudio(r3d::audio::AudioBackend& audio) noexcept;
+    const SoundResource& GetSound(
+        std::string_view sourceName, float volume = 1.0F);
     const r3d::resource::ResourceFileSystem& GetFileSystem() const;
 
     std::size_t GetMeshCount() const noexcept;
     std::size_t GetTextureCount() const noexcept;
     std::size_t GetRequestCount() const noexcept;
     std::size_t GetCacheHitCount() const noexcept;
+    std::size_t GetSoundCount() const noexcept;
+    std::size_t GetSoundRequestCount() const noexcept;
+    std::size_t GetSoundCacheHitCount() const noexcept;
+    void ShutdownSounds() noexcept;
     void Shutdown() noexcept;
 
 private:
@@ -60,10 +76,14 @@ private:
 
     r3d::renderer::GraphicsDevice* device_ = nullptr;
     const r3d::resource::ResourceFileSystem* resources_ = nullptr;
+    r3d::audio::AudioBackend* audio_ = nullptr;
     std::unordered_map<std::string, MeshResource> meshes_;
     std::unordered_map<std::string, TextureResource> textures_;
+    std::unordered_map<std::string, SoundResource> sounds_;
     std::size_t requests_ = 0U;
     std::size_t cacheHits_ = 0U;
+    std::size_t soundRequests_ = 0U;
+    std::size_t soundCacheHits_ = 0U;
 };
 
 } // namespace rrr3d::race

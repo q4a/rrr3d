@@ -1,7 +1,5 @@
 #include "OriginalMenuSounds.h"
 
-#include "resource/ResourceFileSystem.h"
-
 #include <algorithm>
 #include <array>
 #include <exception>
@@ -38,7 +36,7 @@ constexpr std::array<SourceSound, 9> sourceSounds{{
 
 OriginalMenuSounds::OriginalMenuSounds(
     r3d::audio::AudioBackend& audio,
-    const r3d::resource::ResourceFileSystem& resources)
+    rrr3d::race::OriginalResourceManager& resources)
     : audio_(audio), resources_(resources)
 {
     sounds_.fill(r3d::audio::invalidSound);
@@ -57,21 +55,8 @@ bool OriginalMenuSounds::initialize(std::string& error)
         for (const auto& source : sourceSounds)
         {
             const std::string path = "Data/" + std::string(source.path);
-            if (!resources_.exists(path))
-            {
-                error = "Missing original Menu SoundSheme file: " + path;
-                shutdown();
-                return false;
-            }
-            r3d::audio::SoundInfo info;
-            const auto loaded = audio_.loadOgg(
-                resources_.resolve(path), info, error);
-            if (loaded == r3d::audio::invalidSound)
-            {
-                shutdown();
-                return false;
-            }
-            sounds_[static_cast<std::size_t>(source.sound)] = loaded;
+            sounds_[static_cast<std::size_t>(source.sound)] =
+                resources_.GetSound(path).sound;
         }
     }
     catch (const std::exception& exception)
@@ -90,12 +75,7 @@ void OriginalMenuSounds::shutdown() noexcept
     if (voice_ != r3d::audio::invalidVoice)
         audio_.stop(voice_);
     voice_ = r3d::audio::invalidVoice;
-    for (auto& sound : sounds_)
-    {
-        if (sound != r3d::audio::invalidSound)
-            audio_.unloadSound(sound);
-        sound = r3d::audio::invalidSound;
-    }
+    sounds_.fill(r3d::audio::invalidSound);
     initialized_ = false;
 }
 

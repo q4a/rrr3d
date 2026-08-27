@@ -34,7 +34,7 @@ float randomUnit()
 
 OriginalRaceCommentator::OriginalRaceCommentator(
     r3d::audio::AudioBackend& audio,
-    const r3d::resource::ResourceFileSystem& resources,
+    rrr3d::race::OriginalResourceManager& resources,
     const r3d::game::originalgamedata::Catalog& gameData)
     : audio_(audio), resources_(resources), gameData_(gameData)
 {
@@ -88,7 +88,8 @@ bool OriginalRaceCommentator::initialize(
                 const std::string file = voiceFile(voice.sound);
                 const std::string path =
                     "Data/Voice/" + selected + "/" + file;
-                if (!file.empty() && resources_.exists(path))
+                if (!file.empty() &&
+                    resources_.GetFileSystem().exists(path))
                 {
                     const auto cached = loadedSounds_.find(path);
                     if (cached != loadedSounds_.end())
@@ -97,14 +98,10 @@ bool OriginalRaceCommentator::initialize(
                     }
                     else
                     {
-                        r3d::audio::SoundInfo info;
-                        const auto sound = audio_.loadOgg(
-                            resources_.resolve(path), info, error);
-                        if (sound != r3d::audio::invalidSound)
-                        {
-                            loadedSounds_.emplace(path, sound);
-                            loadedVoice.sound = sound;
-                        }
+                        const auto sound =
+                            resources_.GetSound(path).sound;
+                        loadedSounds_.emplace(path, sound);
+                        loadedVoice.sound = sound;
                     }
                 }
                 // ResourceManager::LoadCommentator preserves unavailable
@@ -144,11 +141,6 @@ bool OriginalRaceCommentator::initialize(
 void OriginalRaceCommentator::shutdown() noexcept
 {
     stop();
-    for (const auto& [path, sound] : loadedSounds_)
-    {
-        static_cast<void>(path);
-        audio_.unloadSound(sound);
-    }
     comments_.clear();
     loadedSounds_.clear();
     globalDelaySeconds_ = 0.0F;

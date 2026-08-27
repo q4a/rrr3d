@@ -4361,12 +4361,15 @@ int main(int argc, char** argv)
         return EXIT_FAILURE;
     }
 
-    rrr3d::audio::OriginalMenuSounds menuSounds(audio, *resources);
+    originalResourceManager.AttachAudio(audio);
+    rrr3d::audio::OriginalMenuSounds menuSounds(
+        audio, originalResourceManager);
     if (!menuSounds.initialize(audioError))
     {
         std::cerr << "Original Menu SoundSheme loading failed: "
                   << audioError << '\n';
         menuSounds.shutdown();
+        originalResourceManager.ShutdownSounds();
         audio.shutdown();
         releaseResources();
         device.reset();
@@ -4426,6 +4429,7 @@ int main(int argc, char** argv)
                   << audioError << '\n';
         music.shutdown();
         menuSounds.shutdown();
+        originalResourceManager.ShutdownSounds();
         audio.shutdown();
         releaseResources();
         device.reset();
@@ -4452,6 +4456,7 @@ int main(int argc, char** argv)
         finalMusic.shutdown();
         music.shutdown();
         menuSounds.shutdown();
+        originalResourceManager.ShutdownSounds();
         audio.shutdown();
         releaseResources();
         device.reset();
@@ -4483,6 +4488,7 @@ int main(int argc, char** argv)
         finalMusic.shutdown();
         music.shutdown();
         menuSounds.shutdown();
+        originalResourceManager.ShutdownSounds();
         audio.shutdown();
         releaseResources();
         device.reset();
@@ -4633,7 +4639,6 @@ int main(int argc, char** argv)
         r3d::audio::VoiceHandle voice = r3d::audio::invalidVoice;
         bool spatialProxyPlaying = false;
     };
-    std::map<std::string, r3d::audio::SoundHandle> engineSounds;
     std::map<r3d::audio::SoundHandle, float> engineSoundVolumes;
     std::vector<EngineAudio> engineAudio(originalRace->racers.size());
     std::vector<std::vector<WheelSlipAudio>>
@@ -4644,19 +4649,19 @@ int main(int argc, char** argv)
     std::vector<ContactEffectAudio> contactEffectAudio;
     std::vector<TimedEffectAudio> timedEffectAudio;
     auto loadEngineSound = [&](const std::string& path) {
-        const auto found = engineSounds.find(path);
-        if (found != engineSounds.end())
-            return found->second;
-        r3d::audio::SoundInfo info;
-        const auto sound =
-            audio.loadOgg(resources->resolve(path), info, audioError);
-        if (sound != r3d::audio::invalidSound)
+        try
         {
-            engineSounds.emplace(path, sound);
-            engineSoundVolumes.emplace(
-                sound, rrr3d::audio::originalSoundVolume(path));
+            const auto& resource = originalResourceManager.GetSound(
+                path, rrr3d::audio::originalSoundVolume(path));
+            engineSoundVolumes.try_emplace(
+                resource.sound, resource.volume);
+            return resource.sound;
         }
-        return sound;
+        catch (const std::exception& exception)
+        {
+            audioError = exception.what();
+            return r3d::audio::invalidSound;
+        }
     };
     bool engineAudioValid =
         rrr3d::audio::runOriginalSpatialAudioSmokeTest();
@@ -4748,7 +4753,7 @@ int main(int argc, char** argv)
     };
     engineAudioValid = engineAudioValid && preloadEffectAudio();
     rrr3d::audio::OriginalRaceCommentator commentator(
-        audio, *resources, originalGameDataCatalog);
+        audio, originalResourceManager, originalGameDataCatalog);
     const bool commentatorValid = commentator.initialize(
         profileState.config.commentatorStyle, audioError);
     if (commentatorValid)
@@ -4761,7 +4766,16 @@ int main(int argc, char** argv)
     }
     engineAudioValid =
         engineAudioValid &&
-        commentatorValid;
+        commentatorValid &&
+        originalResourceManager.GetSoundCount() >=
+            menuSounds.loadedSoundCount() +
+                commentator.loadedVoiceCount() &&
+        originalResourceManager.GetSoundCacheHitCount() != 0U;
+    std::cout << "Original ResourceManager SoundLib: "
+              << originalResourceManager.GetSoundCount() << " sounds, "
+              << originalResourceManager.GetSoundCacheHitCount() << '/'
+              << originalResourceManager.GetSoundRequestCount()
+              << " shared requests reused\n";
     if (!engineAudioValid)
     {
         std::cerr << "Original race engine audio loading failed: "
@@ -4770,19 +4784,14 @@ int main(int argc, char** argv)
         gameMusic.shutdown();
         finalMusic.shutdown();
         music.shutdown();
-        for (const auto& [path, sound] : engineSounds)
-        {
-            static_cast<void>(path);
-            audio.unloadSound(sound);
-        }
         menuSounds.shutdown();
-        audio.shutdown();
         raceHud.shutdown(*device);
         workshopRenderer.shutdown(*device);
         angarRenderer.shutdown(*device);
         garageRenderer.shutdown(*device);
         raceRenderer.shutdown(*device);
         originalResourceManager.Shutdown();
+        audio.shutdown();
         releaseResources();
         device.reset();
         SDL_DestroyWindow(window);
@@ -22470,15 +22479,11 @@ int main(int argc, char** argv)
     stopRaceAudio();
     commentator.shutdown();
     gameMusic.shutdown();
-    for (const auto& [path, sound] : engineSounds)
-    {
-        static_cast<void>(path);
-        audio.unloadSound(sound);
-    }
 #endif
     finalMusic.shutdown();
     music.shutdown();
     menuSounds.shutdown();
+    originalResourceManager.ShutdownSounds();
     audio.shutdown();
     if (options->audioSmokeTest)
     {

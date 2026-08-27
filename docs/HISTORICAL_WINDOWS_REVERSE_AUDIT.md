@@ -3993,8 +3993,8 @@ placement state. Session заранее регистрирует definitions т�
 декораций, бонусов и машин, после чего активные `Map::AddMapObj` получают
 concrete gameplay object только через каталог. Ручная сборка тех же полей
 удалена. Map regression проверяет, что source life/lifetime загружены
-автоматически и record identity не меняется. Graph/audio cache identity
-остаётся отдельным B5b.
+автоматически и record identity не меняется. Graph и audio cache identity
+остаются отдельными B5b/B5c.
 
 ### P2.171 — graph-ресурсы снова имеют общую source identity — выполнено
 
@@ -4019,8 +4019,33 @@ renderers, workshop и HUD переведены на этот owner; локал�
 Полный 360-frame Metal regression загрузил 116 уникальных meshes и 219
 textures и подтвердил 847 cache hits на 1182 запроса, включая workshop,
 garage/angar resize round-trip и race reload. Офлайн 18/18, network 2/2 и
-physics smoke также прошли. Audio/font/material descriptor collections ещё
-не объединены и сохранены как отдельный B5c, а не объявлены выполненными.
+physics smoke также прошли. Audio/font/material descriptor collections были
+сохранены как следующие части B5, а не объявлены выполненными этим блоком.
+
+### P2.172 — `SoundLib::Find` снова определяет identity OGG — выполнено
+
+В Windows каждый `ResourceManager::LoadSound` сначала вызывает
+`_soundLib->Find(pathRoot + name)` и только при отсутствии создаёт `Sound`.
+Порт нарушал это владение тремя локальными каталогами: Menu SoundSheme,
+commentator и большой `engineSounds` в entry point отдельно декодировали и
+выгружали OGG. Даже когда один локальный map убирал повторы внутри системы,
+identity и lifetime не распространялись между системами, а повторная
+инициализация могла остановить voice через `unloadSound` чужого владельца.
+
+`OriginalResourceManager` теперь содержит SoundLib с canonical physical-path
+ключом, исходными name/volume, decoded `SoundInfo` и одним backend handle.
+Menu, commentator и все engine/wheel/contact/weapon/effect loaders получают
+заимствованный handle; их shutdown останавливает только voices и очищает
+ссылки. Единственный `ShutdownSounds` выгружает каталог до завершения SDL
+audio backend. Старый `engineSounds` и все локальные `unloadSound` удалены.
+
+В полном Metal smoke 105 запросов дали 76 уникальных OGG и 29 cache hits.
+Source Menu SoundSheme сохранил 9 cues, commentator — 38 доступных voice
+files, motor/wheel loop teardown прошёл, а после выхода не осталось звуков
+шин в меню. Офлайн 18/18, network 2/2 и physics smoke также прошли.
+Потоковый `MusicCat` не помещён в PCM SoundLib: его background current/next
+decode и eviction являются необходимой portable backend-границей. Следующим
+B5d остаются font и material descriptor libraries.
 
 ## Итоговое решение
 

@@ -1,15 +1,11 @@
 #pragma once
 
+#include "OriginalResourceManager.h"
 #include "audio/AudioBackend.h"
 
 #include <array>
 #include <cstddef>
 #include <string>
-
-namespace r3d::resource
-{
-class ResourceFileSystem;
-}
 
 namespace rrr3d::audio
 {
@@ -35,7 +31,7 @@ class OriginalMenuSounds
 public:
     OriginalMenuSounds(
         r3d::audio::AudioBackend& audio,
-        const r3d::resource::ResourceFileSystem& resources);
+        rrr3d::race::OriginalResourceManager& resources);
     ~OriginalMenuSounds();
 
     OriginalMenuSounds(const OriginalMenuSounds&) = delete;
@@ -49,7 +45,7 @@ public:
 
 private:
     r3d::audio::AudioBackend& audio_;
-    const r3d::resource::ResourceFileSystem& resources_;
+    rrr3d::race::OriginalResourceManager& resources_;
     std::array<r3d::audio::SoundHandle,
                static_cast<std::size_t>(OriginalMenuSound::Count)>
         sounds_{};

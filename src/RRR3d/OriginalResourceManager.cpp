@@ -177,6 +177,43 @@ OriginalResourceManager::GetWhiteTexture()
     return inserted->second;
 }
 
+void OriginalResourceManager::AttachAudio(
+    r3d::audio::AudioBackend& audio) noexcept
+{
+    audio_ = &audio;
+}
+
+const OriginalResourceManager::SoundResource&
+OriginalResourceManager::GetSound(
+    std::string_view sourceName, float volume)
+{
+    ++soundRequests_;
+    const auto key = ResolveKey(sourceName);
+    if (const auto found = sounds_.find(key); found != sounds_.end())
+    {
+        ++soundCacheHits_;
+        return found->second;
+    }
+    if (audio_ == nullptr)
+        throw r3d::resource::ResourceError(
+            "Original ResourceManager SoundLib is not attached");
+
+    r3d::audio::SoundInfo info;
+    std::string error;
+    const auto sound = audio_->loadOgg(key, info, error);
+    if (sound == r3d::audio::invalidSound)
+    {
+        throw r3d::resource::ResourceError(
+            "Unable to load original sound " + std::string(sourceName) +
+            (error.empty() ? std::string{} : ": " + error));
+    }
+    auto [inserted, created] = sounds_.emplace(
+        key, SoundResource{
+                 std::string(sourceName), sound, info, volume});
+    static_cast<void>(created);
+    return inserted->second;
+}
+
 const r3d::resource::ResourceFileSystem&
 OriginalResourceManager::GetFileSystem() const
 {
@@ -203,8 +240,39 @@ std::size_t OriginalResourceManager::GetCacheHitCount() const noexcept
     return cacheHits_;
 }
 
+std::size_t OriginalResourceManager::GetSoundCount() const noexcept
+{
+    return sounds_.size();
+}
+
+std::size_t OriginalResourceManager::GetSoundRequestCount() const noexcept
+{
+    return soundRequests_;
+}
+
+std::size_t OriginalResourceManager::GetSoundCacheHitCount() const noexcept
+{
+    return soundCacheHits_;
+}
+
+void OriginalResourceManager::ShutdownSounds() noexcept
+{
+    if (audio_ != nullptr)
+    {
+        for (const auto& [key, resource] : sounds_)
+        {
+            static_cast<void>(key);
+            if (resource.sound != r3d::audio::invalidSound)
+                audio_->unloadSound(resource.sound);
+        }
+    }
+    sounds_.clear();
+    audio_ = nullptr;
+}
+
 void OriginalResourceManager::Shutdown() noexcept
 {
+    ShutdownSounds();
     if (device_ == nullptr)
         return;
     for (const auto& [key, resource] : textures_)

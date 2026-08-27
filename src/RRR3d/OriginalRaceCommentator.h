@@ -2,6 +2,7 @@
 
 #include "OriginalGameData.h"
 #include "OriginalRaceSession.h"
+#include "OriginalResourceManager.h"
 #include "audio/AudioBackend.h"
 
 #include <cstddef>
@@ -11,11 +12,6 @@
 #include <string_view>
 #include <vector>
 
-namespace r3d::resource
-{
-class ResourceFileSystem;
-}
-
 namespace rrr3d::audio
 {
 
@@ -24,7 +20,7 @@ class OriginalRaceCommentator
 public:
     OriginalRaceCommentator(
         r3d::audio::AudioBackend& audio,
-        const r3d::resource::ResourceFileSystem& resources,
+        rrr3d::race::OriginalResourceManager& resources,
         const r3d::game::originalgamedata::Catalog& gameData);
     ~OriginalRaceCommentator();
 
@@ -96,7 +92,7 @@ private:
     void playNext(std::string& error);
 
     r3d::audio::AudioBackend& audio_;
-    const r3d::resource::ResourceFileSystem& resources_;
+    rrr3d::race::OriginalResourceManager& resources_;
     const r3d::game::originalgamedata::Catalog& gameData_;
     std::map<std::string, Comment> comments_;
     std::map<std::string, r3d::audio::SoundHandle> loadedSounds_;
