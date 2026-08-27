@@ -4146,6 +4146,29 @@ Apply lifecycle. Сборка arm64, 22/22 offline, 2/2 network, physics и
 360-frame Metal smoke прошли. Следующая граница B6e — concrete
 Planet/Garage/Workshop/Race и Finish/Final owners.
 
+### P2.177 — `RaceMenu2` Main/Gamers state и команды возвращены исходным владельцам — выполнено
+
+Предзаездные экраны уже рисовали исходные ресурсы и данные, но
+`RaceMenu::ApplyState`, seven-button `RaceMainFrame` и весь `GamersFrame`
+navigation graph оставались локальными bool/index/switch в renderer. В
+частности общий `MenuSystem` ошибочно считал Gamers состоянием Main, хотя
+Windows создаёт его дочерним frame `RaceMenu` и показывает в `Menu::msRace`.
+
+Новый backend-neutral `originalracemenu` переносит `RaceMenuState` с exact
+car/spaceship/frame visibility и last-state, `RaceMainFrameState` с семью
+source commands, circular horizontal graph, ready-client lock и layout, а
+также `GamersFrameState`. Последний владеет ordered gamer availability,
+current-id fallback, non-wrapping previous/next, Next/Left/Right graph,
+shoulder virtual keys, select/confirm commands и layout. Active SDL path
+теперь только строит availability snapshot, исполняет команды и рисует
+bgfx/Metal.
+
+Исправлено состояние Gamers → Race. Новый
+`rrr3d_original_race_menu_smoke` проверяет `ApplyState`, client-ready gate,
+все семь команд/layout, gamer availability/navigation/shoulders и layout.
+Сборка arm64, 23/23 offline, 2/2 network, physics и 360-frame Metal smoke
+прошли. Следующий B6e.2 — Garage/Workshop/Angar/Achievment owners.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

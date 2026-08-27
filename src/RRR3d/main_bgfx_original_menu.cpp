@@ -5,6 +5,7 @@
 #include "OriginalMainMenu.h"
 #include "OriginalMenuSystem.h"
 #include "OriginalOptionsMenu.h"
+#include "OriginalRaceMenu.h"
 #ifdef RRR3D_NETWORK
 #include "OriginalNetwork.h"
 #endif
@@ -5188,14 +5189,11 @@ int main(int argc, char** argv)
         !options->finalMenuSmokeTest;
 #endif
 #ifdef RRR3D_PHYSICS
-    enum class GamersFocus
-    {
-        Next,
-        Left,
-        Right,
-    };
-    GamersFocus gamersFocus = GamersFocus::Next;
-    std::size_t gamerPlanetIndex = 0U;
+    r3d::game::originalracemenu::RaceMenuState sourceRaceMenu;
+    r3d::game::originalracemenu::RaceMainFrameState
+        sourceRaceMainFrame;
+    r3d::game::originalracemenu::GamersFrameState
+        sourceGamersFrame;
     float gamersSceneSeconds = 0.0F;
     bool gamersFrameObserved = !options->gamersFrameSmokeTest;
     bool gamersPlanet3DObserved = !options->gamersFrameSmokeTest;
@@ -5397,6 +5395,32 @@ int main(int argc, char** argv)
                        menu::itemSpacing;
         };
     auto pushMenu = [&](MenuScreen screen) {
+#ifdef RRR3D_PHYSICS
+        using RaceMenuState = r3d::game::originalracemenu::State;
+        switch (screen)
+        {
+        case MenuScreen::RaceMenu:
+            sourceRaceMenu.setState(RaceMenuState::Main);
+            break;
+        case MenuScreen::Garage:
+            sourceRaceMenu.setState(RaceMenuState::Garage);
+            break;
+        case MenuScreen::Workshop:
+            sourceRaceMenu.setState(RaceMenuState::Workshop);
+            break;
+        case MenuScreen::Gamers:
+            sourceRaceMenu.setState(RaceMenuState::Gamers);
+            break;
+        case MenuScreen::Planets:
+            sourceRaceMenu.setState(RaceMenuState::Angar);
+            break;
+        case MenuScreen::Achievements:
+            sourceRaceMenu.setState(RaceMenuState::Achievements);
+            break;
+        default:
+            break;
+        }
+#endif
         if (screen == MenuScreen::Profiles)
         {
 #ifdef RRR3D_PHYSICS
@@ -5475,7 +5499,11 @@ int main(int argc, char** argv)
 #endif
 #ifdef RRR3D_PHYSICS
         if (menuStack.back() == MenuScreen::RaceMenu)
+        {
+            sourceRaceMenu.setState(
+                r3d::game::originalracemenu::State::Main);
             refreshRaceMainPages();
+        }
 #endif
         refreshSharedMenuAvailability(menuStack.back());
         menuSelection = firstEnabledMenuItem();
@@ -5938,17 +5966,17 @@ int main(int argc, char** argv)
         const bool clientReady =
             networkMatchStarted && !networkHostRequested &&
             networkLocalReadyPublished;
-        std::fill(
-            raceMenuPage.enabled.begin(), raceMenuPage.enabled.end(), true);
-        if (clientReady && raceMenuPage.enabled.size() > 1U)
+        sourceRaceMainFrame.invalidate(clientReady);
+        raceMenuPage.enabled.assign(
+            sourceRaceMainFrame.enabledItems().begin(),
+            sourceRaceMainFrame.enabledItems().end());
+        if (clientReady)
         {
-            std::fill(
-                raceMenuPage.enabled.begin() + 1,
-                raceMenuPage.enabled.end(), false);
             if (!menuStack.empty() &&
                 menuStack.back() == MenuScreen::RaceMenu)
             {
-                menuSelection = 0U;
+                menuSelection =
+                    sourceRaceMainFrame.firstEnabled();
             }
         }
 
@@ -8034,28 +8062,22 @@ int main(int argc, char** argv)
 #endif
         return true;
     };
-    auto adjacentGamerIndex =
-        [&](std::size_t from, int direction)
-            -> std::optional<std::size_t> {
-            if (direction > 0)
-            {
-                for (std::size_t index = from + 1U;
-                     index < originalGarage->gamers.size(); ++index)
-                {
-                    if (gamerUnlocked(index))
-                        return index;
-                }
-            }
-            else
-            {
-                for (std::size_t index = from; index > 0U; --index)
-                {
-                    if (gamerUnlocked(index - 1U))
-                        return index - 1U;
-                }
-            }
-            return std::nullopt;
-        };
+    auto sourceGamerEntries = [&]() {
+        std::vector<r3d::game::originalracemenu::GamerEntry>
+            entries;
+        entries.reserve(originalGarage->gamers.size());
+        for (std::size_t index = 0U;
+             index < originalGarage->gamers.size(); ++index)
+        {
+            entries.push_back({
+                originalGarage->gamers[index].bossId,
+                gamerUnlocked(index)});
+        }
+        return entries;
+    };
+    auto syncSourceGamers = [&]() {
+        sourceGamersFrame.updateEntries(sourceGamerEntries());
+    };
     auto wrapGamersInfo = [&](std::string_view value) {
         constexpr float maximumWidth = 475.0F;
         constexpr std::size_t maximumLines = 7U;
@@ -8095,8 +8117,9 @@ int main(int argc, char** argv)
     auto refreshGamersFrame = [&]() {
         if (originalGarage->gamers.empty())
             return;
-        gamerPlanetIndex = std::min(
-            gamerPlanetIndex, originalGarage->gamers.size() - 1U);
+        const auto gamerPlanetIndex = std::min(
+            sourceGamersFrame.selection(),
+            originalGarage->gamers.size() - 1U);
         const auto& gamer =
             originalGarage->gamers[gamerPlanetIndex];
         auto nameReplacement = createStyledPage(
@@ -8119,42 +8142,11 @@ int main(int argc, char** argv)
         gamersInfoPage = std::move(infoReplacement);
         gamersBonusPage = std::move(bonusReplacement);
     };
-    auto selectGamerPlanet = [&](std::size_t index) {
-        if (index >= originalGarage->gamers.size() ||
-            !gamerUnlocked(index) || index == gamerPlanetIndex)
-            return;
-        gamerPlanetIndex = index;
-        gamersSelectionChangedObserved = true;
-        refreshGamersFrame();
-    };
     auto showOriginalGamers = [&]() {
-        gamerPlanetIndex = 0U;
-        const auto selected = std::find_if(
-            originalGarage->gamers.begin(),
-            originalGarage->gamers.end(),
-            [&](const auto& gamer) {
-                return gamer.bossId ==
-                           profileState.player.gamerId &&
-                       r3d::game::originalrace::originalGamerUnlocked(
-                           profileState, gamer.bossId);
-            });
-        if (selected != originalGarage->gamers.end())
-        {
-            gamerPlanetIndex = static_cast<std::size_t>(
-                std::distance(
-                    originalGarage->gamers.begin(), selected));
-        }
-        else
-        {
-            for (std::size_t index = 0U;
-                 index < originalGarage->gamers.size(); ++index)
-                if (gamerUnlocked(index))
-                {
-                    gamerPlanetIndex = index;
-                    break;
-                }
-        }
-        gamersFocus = GamersFocus::Next;
+        sourceGamersFrame.show(
+            sourceGamerEntries(), profileState.player.gamerId);
+        sourceRaceMenu.setState(
+            r3d::game::originalracemenu::State::Gamers);
         gamersSceneSeconds = 0.0F;
         refreshGamersFrame();
         menuStack = championshipMode
@@ -8169,10 +8161,14 @@ int main(int argc, char** argv)
                               MenuScreen::Gamers};
         menuSelection = 0U;
         std::cout << "Original RaceMenu2::GamersFrame: gamer "
-                  << originalGarage->gamers[gamerPlanetIndex].record
+                  << originalGarage
+                         ->gamers[sourceGamersFrame.selection()]
+                         .record
                   << '\n';
     };
     auto showOriginalGarageAfterGamers = [&]() {
+        sourceRaceMenu.setState(
+            r3d::game::originalracemenu::State::Garage);
         refreshRaceMainPages();
         rebuildGarageCarOrder();
         refreshGaragePage();
@@ -8196,6 +8192,7 @@ int main(int argc, char** argv)
     originalMovieGamersGarage = showOriginalGarageAfterGamers;
 #endif
     auto confirmOriginalGamer = [&]() {
+        const auto gamerPlanetIndex = sourceGamersFrame.selection();
         if (gamerPlanetIndex >= originalGarage->gamers.size())
             return;
         const auto& gamer =
@@ -9275,6 +9272,9 @@ int main(int argc, char** argv)
             return;
         }
 #endif
+        sourceRaceMenu.setState(
+            r3d::game::originalracemenu::State::Main);
+        sourceRaceMainFrame.show(false);
         refreshRaceMainPages();
         menuStack.push_back(MenuScreen::RaceMenu);
         menuSelection = 0;
@@ -10250,6 +10250,8 @@ int main(int argc, char** argv)
                              MenuScreen::RaceMenu};
         };
         menuStack = raceMenuPath();
+        sourceRaceMenu.setState(
+            r3d::game::originalracemenu::State::Main);
         menuSelection = 0U;
         const auto transition =
             r3d::game::originalrace::originalFinishTransition(
@@ -11105,6 +11107,7 @@ int main(int argc, char** argv)
             sourceMenuState = originalmenu::MenuState::Finish;
         }
         else if (sourceScreen == MenuScreen::RaceMenu ||
+                 sourceScreen == MenuScreen::Gamers ||
                  sourceScreen == MenuScreen::Garage ||
                  sourceScreen == MenuScreen::Workshop ||
                  sourceScreen == MenuScreen::Planets ||
@@ -11783,47 +11786,47 @@ int main(int argc, char** argv)
                     const float virtualY =
                         pointerY * menu::virtualHeight /
                         static_cast<float>(windowHeight);
-                    const float planetRadius =
-                        (menu::virtualHeight - 254.0F) * 0.5F;
-                    const float planetX =
-                        menu::virtualWidth * 0.5F - 25.0F;
-                    const float leftX =
-                        planetX - planetRadius - 40.0F + 3.0F -
-                        static_cast<float>(
-                            garageArrowSelectedImage.width) *
-                            0.5F;
-                    const float rightX =
-                        planetX + planetRadius + 40.0F + 3.0F +
-                        static_cast<float>(
-                            garageArrowSelectedImage.width) *
-                            0.5F;
-                    const float nextX =
-                        menu::virtualWidth * 0.5F + 400.0F +
-                        static_cast<float>(
-                            gamersNextArrowSelectedImage.width) *
-                            0.5F;
-                    const float nextY =
-                        menu::virtualHeight - 100.0F;
-                    if (adjacentGamerIndex(gamerPlanetIndex, -1) &&
-                        std::abs(virtualX - leftX) <= 62.0F &&
-                        std::abs(virtualY - planetRadius) <= 82.0F)
+                    syncSourceGamers();
+                    const auto gamersLayout =
+                        sourceGamersFrame.layout(
+                            menu::virtualWidth, menu::virtualHeight,
+                            254.0F,
+                            static_cast<float>(
+                                garageArrowSelectedImage.width),
+                            static_cast<float>(
+                                gamersNextArrowSelectedImage.width));
+                    if (sourceGamersFrame.previous() &&
+                        std::abs(
+                            virtualX - gamersLayout.leftX) <= 62.0F &&
+                        std::abs(
+                            virtualY - gamersLayout.planetY) <= 82.0F)
                     {
-                        gamersFocus = GamersFocus::Left;
+                        sourceGamersFrame.setFocus(
+                            r3d::game::originalracemenu::
+                                GamerFocus::Left);
                         hoveredGamerControl = true;
                     }
                     else if (
-                        adjacentGamerIndex(gamerPlanetIndex, 1) &&
-                        std::abs(virtualX - rightX) <= 62.0F &&
-                        std::abs(virtualY - planetRadius) <= 82.0F)
+                        sourceGamersFrame.next() &&
+                        std::abs(
+                            virtualX - gamersLayout.rightX) <= 62.0F &&
+                        std::abs(
+                            virtualY - gamersLayout.planetY) <= 82.0F)
                     {
-                        gamersFocus = GamersFocus::Right;
+                        sourceGamersFrame.setFocus(
+                            r3d::game::originalracemenu::
+                                GamerFocus::Right);
                         hoveredGamerControl = true;
                     }
                     else if (
-                        std::abs(virtualX - nextX) <= 85.0F &&
-                        std::abs(virtualY - nextY) <= 75.0F)
+                        std::abs(
+                            virtualX - gamersLayout.nextX) <= 85.0F &&
+                        std::abs(
+                            virtualY - gamersLayout.nextY) <= 75.0F)
                     {
-                        gamersFocus = GamersFocus::Next;
+                        sourceGamersFrame.setFocus(
+                            r3d::game::originalracemenu::
+                                GamerFocus::Next);
                         hoveredGamerControl = true;
                     }
                 }
@@ -12623,28 +12626,18 @@ int main(int argc, char** argv)
                         }
                     }
 #endif
-                    constexpr float itemWidth = 110.0F;
-                    constexpr float itemSpacing = 50.0F;
-                    const float firstX =
-                        menu::virtualWidth * 0.5F -
-                        (7.0F * itemWidth +
-                         6.0F * itemSpacing) *
-                            0.5F +
-                        itemWidth * 0.5F;
-                    const float itemY =
-                        menu::virtualHeight -
-                        static_cast<float>(
-                            raceBottomPanelImage.height) *
-                            0.5F -
-                        72.0F;
                     for (std::size_t index = 0U;
                          !pointerHandledNetworkKick &&
                          index < raceMenuIcons.size(); ++index)
                     {
                         const float itemX =
-                            firstX +
-                            static_cast<float>(index) *
-                                (itemWidth + itemSpacing);
+                            sourceRaceMainFrame.itemX(
+                                menu::virtualWidth, index);
+                        const float itemY =
+                            sourceRaceMainFrame.itemY(
+                                menu::virtualHeight,
+                                static_cast<float>(
+                                    raceBottomPanelImage.height));
                         if (std::abs(virtualX - itemX) <= 68.0F &&
                             std::abs(virtualY - itemY) <= 62.0F)
                         {
@@ -13340,64 +13333,25 @@ int main(int argc, char** argv)
 #ifdef RRR3D_PHYSICS
                 if (menuStack.back() == MenuScreen::Gamers)
                 {
-                    const auto previous =
-                        adjacentGamerIndex(gamerPlanetIndex, -1);
-                    const auto next =
-                        adjacentGamerIndex(gamerPlanetIndex, 1);
-                    if (inputEvent.action ==
-                            rrr3d::input::Action::MenuUp ||
-                        inputEvent.action ==
-                            rrr3d::input::Action::MenuDown)
-                    {
-                        if (gamersFocus == GamersFocus::Next)
-                            gamersFocus = next ? GamersFocus::Right
-                                               : GamersFocus::Left;
-                        else
-                            gamersFocus = GamersFocus::Next;
-                    }
-                    else if (
-                        inputEvent.action ==
-                            rrr3d::input::Action::TurnLeft ||
-                        inputEvent.action ==
-                            rrr3d::input::Action::TurnRight)
-                    {
-                        if (gamersFocus == GamersFocus::Left && next)
-                            gamersFocus = GamersFocus::Right;
-                        else if (
-                            gamersFocus == GamersFocus::Right &&
-                            previous)
-                            gamersFocus = GamersFocus::Left;
-                    }
-                    else if (
-                        !inputEvent.repeated &&
-                        inputEvent.action ==
-                            rrr3d::input::Action::PreviousWeapon &&
-                        previous)
-                    {
-                        selectGamerPlanet(*previous);
-                    }
-                    else if (
-                        !inputEvent.repeated &&
-                        inputEvent.action ==
-                            rrr3d::input::Action::NextWeapon && next)
-                    {
-                        selectGamerPlanet(*next);
-                    }
-                    else if (
-                        !inputEvent.repeated &&
-                        inputEvent.action ==
-                            rrr3d::input::Action::MenuConfirm)
+                    syncSourceGamers();
+                    const auto gamerCommand =
+                        sourceGamersFrame.handle(inputEvent);
+                    if (gamerCommand)
                     {
 #ifdef RRR3D_AUDIO
                         playMainButtonClick();
 #endif
-                        if (gamersFocus == GamersFocus::Left && previous)
-                            selectGamerPlanet(*previous);
-                        else if (
-                            gamersFocus == GamersFocus::Right && next)
-                            selectGamerPlanet(*next);
-                        else if (gamersFocus == GamersFocus::Next)
+                        if (gamerCommand->type ==
+                            r3d::game::originalracemenu::
+                                GamerCommandType::SelectionChanged)
+                        {
+                            gamersSelectionChangedObserved = true;
+                            refreshGamersFrame();
+                        }
+                        else
+                        {
                             confirmOriginalGamer();
+                        }
                     }
                     continue;
                 }
@@ -14494,25 +14448,9 @@ int main(int argc, char** argv)
                                     rrr3d::input::Action::TurnLeft
                                 ? -1
                                 : 1;
-                        for (std::size_t attempts = 0U;
-                             attempts < raceMenuIcons.size(); ++attempts)
-                        {
-                            if (direction < 0)
-                            {
-                                menuSelection = menuSelection == 0U
-                                    ? raceMenuIcons.size() - 1U
-                                    : menuSelection - 1U;
-                            }
-                            else
-                            {
-                                menuSelection =
-                                    (menuSelection + 1U) %
-                                    raceMenuIcons.size();
-                            }
-                            if (menuSelection < page.enabled.size() &&
-                                page.enabled[menuSelection])
-                                break;
-                        }
+                        menuSelection =
+                            sourceRaceMainFrame.moveSelection(
+                                menuSelection, direction);
                     }
                     continue;
                 }
@@ -15043,26 +14981,40 @@ int main(int argc, char** argv)
                     // before shared list-page dispatch.
                     break;
                 case MenuScreen::RaceMenu:
-                    if (menuSelection == 0U)
+                {
+                    const auto raceMenuCommand =
+                        sourceRaceMainFrame.command(menuSelection);
+                    if (!raceMenuCommand)
+                        break;
+                    using RaceMainCommand =
+                        r3d::game::originalracemenu::RaceMainCommand;
+                    if (*raceMenuCommand == RaceMainCommand::StartRace)
                     {
                         activateRaceMenuStart();
                     }
-                    else if (menuSelection == 1U)
+                    else if (*raceMenuCommand ==
+                             RaceMainCommand::Workshop)
                     {
+                        sourceRaceMenu.setState(
+                            r3d::game::originalracemenu::State::Workshop);
                         workshopDrag = {};
                         workshopGoodScroll = 0U;
                         hideWorkshopWeaponDialog();
                         pushMenu(MenuScreen::Workshop);
                         refreshWorkshopPage();
                     }
-                    else if (menuSelection == 2U)
+                    else if (*raceMenuCommand == RaceMainCommand::Garage)
                     {
+                        sourceRaceMenu.setState(
+                            r3d::game::originalracemenu::State::Garage);
                         rebuildGarageCarOrder();
                         refreshGaragePage();
                         pushMenu(MenuScreen::Garage);
                     }
-                    else if (menuSelection == 3U)
+                    else if (*raceMenuCommand == RaceMainCommand::Angar)
                     {
+                        sourceRaceMenu.setState(
+                            r3d::game::originalracemenu::State::Angar);
                         pushMenu(MenuScreen::Planets);
                         const auto planetCount = std::min(
                             originalGarage->planets.size(),
@@ -15087,15 +15039,18 @@ int main(int argc, char** argv)
                         angarTravelDialogVisible = false;
                         refreshPlanetsPage();
                     }
-                    else if (menuSelection == 4U)
+                    else if (*raceMenuCommand ==
+                             RaceMainCommand::Achievements)
                     {
+                        sourceRaceMenu.setState(
+                            r3d::game::originalracemenu::State::Achievements);
                         achievementPurchaseDialogVisible = false;
                         achievementPendingPurchase =
                             originalAchievementNoTarget;
                         refreshAchievementsPage();
                         pushMenu(MenuScreen::Achievements);
                     }
-                    else if (menuSelection == 5U)
+                    else if (*raceMenuCommand == RaceMainCommand::Options)
                     {
                         beginOriginalOptions();
                     }
@@ -15119,6 +15074,7 @@ int main(int argc, char** argv)
                         menuSelection = 0;
                     }
                     break;
+                }
                 case MenuScreen::Garage:
                     if (menuSelection == 0U)
                     {
@@ -17656,18 +17612,26 @@ int main(int argc, char** argv)
             sourceStartOptionsActive;
         const bool drawingOriginalOptions =
             isOriginalOptionsScreen(menuStack.back());
+        const auto& raceMenuVisibility =
+            sourceRaceMenu.visibility();
         const bool drawingOriginalGamers =
-            menuStack.back() == MenuScreen::Gamers;
+            menuStack.back() == MenuScreen::Gamers &&
+            raceMenuVisibility.gamers;
         const bool drawingOriginalRaceMenu =
-            menuStack.back() == MenuScreen::RaceMenu;
+            menuStack.back() == MenuScreen::RaceMenu &&
+            raceMenuVisibility.main;
         const bool drawingOriginalGarage =
-            menuStack.back() == MenuScreen::Garage;
+            menuStack.back() == MenuScreen::Garage &&
+            raceMenuVisibility.garage;
         const bool drawingOriginalWorkshop =
-            menuStack.back() == MenuScreen::Workshop;
+            menuStack.back() == MenuScreen::Workshop &&
+            raceMenuVisibility.workshop;
         const bool drawingOriginalAngar =
-            menuStack.back() == MenuScreen::Planets;
+            menuStack.back() == MenuScreen::Planets &&
+            raceMenuVisibility.angar;
         const bool drawingOriginalAchievements =
-            menuStack.back() == MenuScreen::Achievements;
+            menuStack.back() == MenuScreen::Achievements &&
+            raceMenuVisibility.achievements;
         const bool drawingOriginalFinish =
             menuStack.back() == MenuScreen::Finish;
         const r3d::game::originalrace::OriginalGarageCar*
@@ -18649,13 +18613,14 @@ int main(int argc, char** argv)
                 menu::virtualWidth * 0.5F,
                 menu::virtualHeight * 0.5F, 65.0F, opaque);
 
-            const float planetRadius =
-                (menu::virtualHeight - 254.0F) * 0.5F;
-            const float planetX =
-                menu::virtualWidth * 0.5F - 25.0F;
-            const float viewportSize =
-                (planetRadius < 300.0F ? planetRadius : 300.0F) *
-                3.1F;
+            syncSourceGamers();
+            const auto gamersLayout = sourceGamersFrame.layout(
+                menu::virtualWidth, menu::virtualHeight, 254.0F,
+                static_cast<float>(garageArrowSelectedImage.width),
+                static_cast<float>(
+                    gamersNextArrowSelectedImage.width));
+            const auto gamerPlanetIndex =
+                sourceGamersFrame.selection();
             if (gamerPlanetIndex < originalGarage->gamers.size())
             {
                 const auto& telemetry = device->renderTelemetry();
@@ -18665,7 +18630,9 @@ int main(int argc, char** argv)
                 workshopRenderer.drawPlanet(
                     *device, raceShader,
                     originalGarage->gamers[gamerPlanetIndex],
-                    planetX, planetRadius, viewportSize, viewportSize,
+                    gamersLayout.planetX, gamersLayout.planetY,
+                    gamersLayout.viewportSize,
+                    gamersLayout.viewportSize,
                     gamersSceneSeconds * bx::kPi / 24.0F,
                     racePipeline);
                 const auto after = std::accumulate(
@@ -18759,14 +18726,13 @@ int main(int argc, char** argv)
                     15.0F, transparent);
             }
 
-            const auto previous =
-                adjacentGamerIndex(gamerPlanetIndex, -1);
-            const auto next =
-                adjacentGamerIndex(gamerPlanetIndex, 1);
+            const auto previous = sourceGamersFrame.previous();
+            const auto next = sourceGamersFrame.next();
             if (previous)
             {
                 const bool focused =
-                    gamersFocus == GamersFocus::Left;
+                    sourceGamersFrame.focus() ==
+                    r3d::game::originalracemenu::GamerFocus::Left;
                 const auto& image =
                     focused ? garageArrowSelectedImage
                             : garageArrowImage;
@@ -18775,14 +18741,14 @@ int main(int argc, char** argv)
                     focused ? garageArrowSelected : garageArrow,
                     static_cast<float>(image.width),
                     static_cast<float>(image.height),
-                    planetX - planetRadius - 40.0F + 3.0F -
-                        static_cast<float>(image.width) * 0.5F,
-                    planetRadius, 12.0F, 0.0F, transparent);
+                    gamersLayout.leftX, gamersLayout.planetY,
+                    12.0F, 0.0F, transparent);
             }
             if (next)
             {
                 const bool focused =
-                    gamersFocus == GamersFocus::Right;
+                    sourceGamersFrame.focus() ==
+                    r3d::game::originalracemenu::GamerFocus::Right;
                 const auto& image =
                     focused ? garageArrowSelectedImage
                             : garageArrowImage;
@@ -18791,12 +18757,12 @@ int main(int argc, char** argv)
                     focused ? garageArrowSelected : garageArrow,
                     static_cast<float>(image.width),
                     static_cast<float>(image.height),
-                    planetX + planetRadius + 40.0F + 3.0F +
-                        static_cast<float>(image.width) * 0.5F,
-                    planetRadius, 12.0F, bx::kPi, transparent);
+                    gamersLayout.rightX, gamersLayout.planetY,
+                    12.0F, bx::kPi, transparent);
             }
             const bool nextFocused =
-                gamersFocus == GamersFocus::Next;
+                sourceGamersFrame.focus() ==
+                r3d::game::originalracemenu::GamerFocus::Next;
             const auto& nextImage =
                 nextFocused ? gamersNextArrowSelectedImage
                             : gamersNextArrowImage;
@@ -18806,9 +18772,7 @@ int main(int argc, char** argv)
                             : gamersNextArrow,
                 static_cast<float>(nextImage.width),
                 static_cast<float>(nextImage.height),
-                menu::virtualWidth * 0.5F + 400.0F +
-                    static_cast<float>(nextImage.width) * 0.5F,
-                menu::virtualHeight - 100.0F, 12.0F,
+                gamersLayout.nextX, gamersLayout.nextY, 12.0F,
                 transparent);
         }
         else if (drawingOriginalRaceMenu)
@@ -19246,25 +19210,18 @@ int main(int argc, char** argv)
                 (sourcePortraitsDrawn && sourceBossCarDrawn &&
                  sourceLoadoutDrawn);
 
-            constexpr float itemWidth = 110.0F;
-            constexpr float itemSpacing = 50.0F;
-            const float firstX =
-                centerX -
-                (7.0F * itemWidth + 6.0F * itemSpacing) *
-                    0.5F +
-                itemWidth * 0.5F;
-            const float itemY = bottomCenterY - 72.0F;
+            const float itemY = sourceRaceMainFrame.itemY(
+                menu::virtualHeight,
+                static_cast<float>(raceBottomPanelImage.height));
             for (std::size_t index = 0U;
                  index < raceMenuIcons.size(); ++index)
             {
                 const bool selectedItem = index == menuSelection;
                 const bool enabled =
-                    index < raceMenuPage.enabled.size() &&
-                    raceMenuPage.enabled[index];
+                    sourceRaceMainFrame.enabled(index);
                 const float itemX =
-                    firstX +
-                    static_cast<float>(index) *
-                        (itemWidth + itemSpacing);
+                    sourceRaceMainFrame.itemX(
+                        menu::virtualWidth, index);
                 drawQuad(
                     *device, quad, shader,
                     selectedItem ? raceMenuButtonSelected

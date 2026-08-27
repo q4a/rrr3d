@@ -64,12 +64,12 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `MainMenu2` | `mainmenu2::{Controller,FrameController,ProfileFrameState}` + `originalmenu::ScreenStack` | Source owner, active Main/Profile path | Остались concrete network callbacks, credits progress и backend draw submission |
 | `Map` | `source::Map` | Source owner, partial | Завершить load/fix-up ownership и backend create/destroy commands |
 | `MapObj` | `source::MapObj*` record/list hierarchy | Source owner, partial | Убрать importer/runtime mirrors и проверить все concrete object types |
-| `Menu` | `originalmenu::MenuSystem` + source Main/Profile/Dialog/Options owners | Source owner, frame core | Перенести Planet/Garage/Workshop/Race и Finish/Final frame owners |
+| `Menu` | `originalmenu::MenuSystem` + source Main/Profile/Dialog/Options/Race owners | Source owner, frame core | Перенести Planet/Garage/Workshop и Finish/Final frame owners |
 | `MenuSystem` | `originalmenu::{MenuSystem,ScreenStack,FrameState}` | Source owner, active menu path | Подключить concrete navigation graphs; bgfx остаётся draw executor |
 | `OptionsMenu` | `originaloptions::{OptionsMenuState,StartOptionsMenuState}` + backend visuals | Source owner, active options path | Legacy Widget events заменены SDL input, CoreText и bgfx draw submission |
 | `Player` | `source::Player`, `CarState`, behavior classes | Source owner, partial | Убрать оставшиеся session mirrors, проверить full event/listener order |
 | `Race` | `OriginalRace`, `OriginalRaceSession`, lifecycle/place/tournament | Source owner, partial | Разложить 7 971-строчный источник по исходным владельцам вместо session |
-| `RaceMenu2` | Ручные garage/workshop/race frames | Distributed | Вернуть source car/weapon frame graph и command transitions |
+| `RaceMenu2` | `originalracemenu::{RaceMenuState,RaceMainFrameState,GamersFrameState}` + existing garage/workshop views | Source owner, Main/Gamers path | Перенести Garage/Workshop/Angar/Achievment concrete focus/command owners |
 | `RecordLib` | Набор XML/R3D import helpers | Distributed | Вернуть typed record library, proxy/source load и fix-up pass |
 | `ResourceManager` | `OriginalResourceManager` + native readers/uploaders | Source owner, graph/sound path | Mesh/image/sound identity и lifetime общие; font/material-library ownership ещё нужно завершить |
 | `RockCar` | `source::RockCar`, event sink | Source owner, partial | Проверить attachment/listener lifetime вместе с Player/GameCar |
@@ -209,7 +209,7 @@ Milestone 8.
 Открытая B5d: вернуть source identity для font descriptors и material-library
 descriptors/samplers. Их backend payload останется CoreText и bgfx/Metal.
 
-### B6 — Menu/MenuSystem и исходные frames (B6a–B6d выполнены)
+### B6 — Menu/MenuSystem и исходные frames (B6a–B6e.1 выполнены)
 
 Перенести widget tree крупными экранами: common dialog/frame primitives,
 MainMenu/Profile, Options, Planet/Garage/Workshop/Race и Finish/Final. Metal
@@ -275,9 +275,22 @@ audio reload, persistence и bgfx/CoreText submission. Regression закрепл
 12/8/5/18 rows, network/difficulty gates, layout/scroll, wrap, draft
 commit/cancel, bindings и весь first-run camera gate.
 
-Открытая B6e: перенести Planet/Garage/Workshop/Race и Finish/Final concrete
-frame owners. Их draw data пока частично формируется функциями большого host
-entry point.
+Результат B6e.1: `originalracemenu::RaceMenuState` перенёс точный
+`RaceMenu::SetState/ApplyState`: last state, CarFrame для Main/Garage/
+Workshop, SpaceshipFrame для Angar и взаимно исключающую видимость шести
+concrete frames. `RaceMainFrameState` владеет семью командами, source
+horizontal ring, client-ready gate и нижней раскладкой. Host больше не
+интерпретирует индексы иконок как игровые команды.
+
+`GamersFrameState` владеет achievement/network availability, выбором
+текущего gamer id, previous/next без wrap, Next/Left/Right navigation graph,
+shoulder bindings, confirm/select commands и исходной геометрией planet,
+arrows и next. Исправлен отдельный state bug: Gamers теперь переводит общий
+`MenuSystem` в Race, как дочерний frame `RaceMenu`, а не остаётся Main.
+
+Открытая B6e.2: перенести Garage/Workshop/Angar/Achievment concrete
+focus/command owners, затем Finish/Final. Их backend draw data пока частично
+формируется функциями большого host entry point.
 
 ### B7 — Environment/TraceGfx/render policy
 
