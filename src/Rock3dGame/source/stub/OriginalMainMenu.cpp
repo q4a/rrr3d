@@ -653,6 +653,133 @@ float ProfileFrameState::backY(float viewportHeight) const noexcept
     return viewportHeight * 0.5F + backOffsetY;
 }
 
+void FinalMenuFrameState::invalidate(std::string credits)
+{
+    const auto trimBlock = [](std::string value) {
+        const auto first = value.find_first_not_of(" \t\r\n");
+        if (first == std::string::npos)
+            return std::string{};
+        const auto last = value.find_last_not_of(" \t\r\n");
+        return value.substr(first, last - first + 1U);
+    };
+    credits_.clear();
+    std::size_t begin = 0U;
+    while (begin < credits.size())
+    {
+        const auto separator = credits.find("\n\n", begin);
+        const auto end = separator == std::string::npos
+                             ? credits.size()
+                             : separator;
+        const std::string block =
+            trimBlock(credits.substr(begin, end - begin));
+        if (!block.empty())
+        {
+            const auto captionEnd = block.find('\n');
+            credits_.push_back(
+                {block.substr(0U, captionEnd),
+                 captionEnd == std::string::npos
+                     ? std::string{}
+                     : block.substr(captionEnd + 1U)});
+        }
+        if (separator == std::string::npos)
+            break;
+        begin = separator + 2U;
+    }
+}
+
+void FinalMenuFrameState::show() noexcept
+{
+    time_ = 0.0F;
+    shown_ = true;
+}
+
+void FinalMenuFrameState::hide() noexcept
+{
+    time_ = 0.0F;
+    shown_ = false;
+}
+
+bool FinalMenuFrameState::shown() const noexcept
+{
+    return shown_;
+}
+
+bool FinalMenuFrameState::handle(
+    const rrr3d::input::ActionEvent& event,
+    bool pointerOnBack) const noexcept
+{
+    if (!event.active || event.repeated)
+        return false;
+    using rrr3d::input::Action;
+    if (event.action == Action::MenuBack ||
+        event.action == Action::Pause)
+        return true;
+    if (event.action != Action::MenuConfirm)
+        return false;
+    return event.source != rrr3d::input::Source::Mouse || pointerOnBack;
+}
+
+bool FinalMenuFrameState::progress(float deltaTime) noexcept
+{
+    if (!shown_)
+        return false;
+    time_ += deltaTime;
+    return progressValue() == 1.0F;
+}
+
+const std::vector<FinalCreditSection>&
+FinalMenuFrameState::credits() const noexcept
+{
+    return credits_;
+}
+
+float FinalMenuFrameState::time() const noexcept
+{
+    return time_;
+}
+
+float FinalMenuFrameState::progressValue() const noexcept
+{
+    return std::clamp(time_ / duration, 0.0F, 1.0F);
+}
+
+float FinalMenuFrameState::slideAlpha(std::size_t index) const noexcept
+{
+    if (index >= slideCount)
+        return 0.0F;
+    const float alpha1 =
+        static_cast<float>(index) / static_cast<float>(slideCount);
+    const float alpha2 =
+        static_cast<float>(index + 1U) /
+        static_cast<float>(slideCount);
+    const float slideDuration = (alpha2 - alpha1) * duration;
+    const float slideTime = std::clamp(
+        (progressValue() - alpha1) * duration,
+        0.0F, slideDuration);
+    return std::clamp(slideTime / 1.0F, 0.0F, 1.0F) -
+           std::clamp(
+               (slideTime - slideDuration) / 1.0F,
+               0.0F, 1.0F);
+}
+
+FinalMenuLayout FinalMenuFrameState::layout(
+    float viewportWidth, float viewportHeight, float linesHeight,
+    float backWidth) const noexcept
+{
+    FinalMenuLayout result;
+    result.backX = backWidth * 0.5F;
+    result.backY = viewportHeight - 60.0F;
+    result.slideX = (viewportWidth - 400.0F) * 0.5F;
+    result.slideY = viewportHeight * 0.5F;
+    result.slideMaximumWidth = viewportWidth - 500.0F;
+    result.slideMaximumHeight = viewportHeight - 300.0F;
+    result.creditsX = viewportWidth - 250.0F;
+    result.creditsY =
+        viewportHeight -
+        progressValue() * (linesHeight + viewportHeight);
+    return result;
+}
+
 bool runOriginalMainMenuInputSmoke(std::string& error)
 {
     Controller controller(itemCommands.size());

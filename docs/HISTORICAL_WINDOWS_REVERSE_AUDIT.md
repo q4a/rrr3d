@@ -4283,6 +4283,30 @@ player/racer, проверяя порядок событий, направлен
 отдельный 360-frame FinishMenu и 360-frame bgfx/Metal race smoke прошли.
 Следующая граница B6e.5b — `FinalMenu`.
 
+### P2.183 — `FinalMenu` получил исходного владельца — выполнено
+
+Видимый финальный экран уже использовал исходные изображения и музыку, но
+большой renderer entry point сам разбирал `svCredits`, вёл 107-секундный
+clock, вычислял slide alpha, обрабатывал Back и задавал layout. Кроме того,
+все девять слайдов масштабировались по aspect первого DDS, поэтому изображения
+с иными пропорциями искажались.
+
+Новый `mainmenu2::FinalMenuFrameState` буквально переносит
+`eff9338:FinalMenu.cpp`: разделяет credits по `\n\n` и первой строке,
+сбрасывает clock в `OnShow`, выдаёт source scroll/layout, девять временных
+интервалов/alpha, Back command и автоматическое закрытие при 107 секундах.
+CoreText создаёт только caption/body line textures, bgfx рисует payload и
+использует собственный aspect каждого slide, SDL music adapter запускает
+`TrackFinal.ogg` с нулевого кадра и возвращает menu MusicCat после закрытия.
+
+Regression закрепляет section parsing, pointer/keyboard input, первый fade,
+переход ко второму slide, половину scroll/layout и точный auto-close. Metal
+fixture дополнительно ждёт реального фонового Ogg decode, после чего наблюдает
+все девять slides, credits, Back, музыку и возврат в MainMenu2. Автономная
+arm64 сборка и 360-frame FinalMenu smoke прошли; полный набор offline/network,
+physics и race renderer также прошёл. Следующая граница B7 —
+`Environment/TraceGfx` и renderer policy.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

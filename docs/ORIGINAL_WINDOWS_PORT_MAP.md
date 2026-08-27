@@ -52,7 +52,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `DataBase` | `OriginalRace`, `OriginalGarage`, `OriginalGameData` loaders | Distributed | Вернуть record libraries/fix-up ownership и единый object factory |
 | `DialogMenu2` | `originalmenu::DialogSystem` + GPU text caches | Source owner, active dialogs | Остался уже перенесённый отдельно UserChat и backend draw submission |
 | `Environment` | `Race::environment` + `OriginalRaceRenderer` | Distributed | Перенести environment owner, weather/lamp progress и graph commands |
-| `FinalMenu` | Ручной `MenuScreen::Credits` | Distributed | Вернуть source frame lifecycle и command routing |
+| `FinalMenu` | `mainmenu2::FinalMenuFrameState` + bgfx/CoreText view | Source owner, active frame | Legacy Widget API заменён backend draw/input/audio; credits, 107 s clock, slide alpha, Back и layout принадлежат source owner |
 | `FinishMenu` | `originalracemenu::FinishMenuFrameState` + bgfx/CoreText view | Source owner, active frame | Legacy Widget API заменён backend draw/input; result order, timing, events и layout принадлежат source owner |
 | `GameBase` | `OriginalGameObject`, behaviors, effects, motor sound state | Source owner, partial | Закрыть отсутствующие behavior subclasses и единый progress dispatch |
 | `GameCar` | `source::GameCar` + Jolt vehicle adapter | Source owner, partial | Сравнить каждый PhysX callback/order и убрать session-owned car branches |
@@ -61,10 +61,10 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `HudMenu` | `OriginalRaceHud` | Distributed | Данные в отдельном владельце, но source Widget/Menu graph отсутствует |
 | `HumanPlayer` | `source::HumanPlayer` | Source owner, partial | Подключить полный source input message path и event order |
 | `Logic` | `source::Logic` + `WorldEventPump` progress registration | Source owner, active object/contact core | Убрать оставшиеся network authority и projectile backend-view loops из session |
-| `MainMenu2` | `mainmenu2::{Controller,FrameController,ProfileFrameState}` + `originalmenu::ScreenStack` | Source owner, active Main/Profile path | Остались concrete network callbacks, credits progress и backend draw submission |
+| `MainMenu2` | `mainmenu2::{Controller,FrameController,ProfileFrameState,FinalMenuFrameState}` + `originalmenu::ScreenStack` | Source owner, active Main/Profile/Final path | Остались concrete network callbacks и backend draw submission |
 | `Map` | `source::Map` | Source owner, partial | Завершить load/fix-up ownership и backend create/destroy commands |
 | `MapObj` | `source::MapObj*` record/list hierarchy | Source owner, partial | Убрать importer/runtime mirrors и проверить все concrete object types |
-| `Menu` | `originalmenu::MenuSystem` + source Main/Profile/Dialog/Options/Race/Finish owners | Source owner, frame core | Перенести Final frame owner |
+| `Menu` | `originalmenu::MenuSystem` + source Main/Profile/Dialog/Options/Race/Finish/Final owners | Source owner, frame core | Завершить concrete network callbacks; bgfx/CoreText/SDL остаются backend boundary |
 | `MenuSystem` | `originalmenu::{MenuSystem,ScreenStack,FrameState}` | Source owner, active menu path | Подключить concrete navigation graphs; bgfx остаётся draw executor |
 | `OptionsMenu` | `originaloptions::{OptionsMenuState,StartOptionsMenuState}` + backend visuals | Source owner, active options path | Legacy Widget events заменены SDL input, CoreText и bgfx draw submission |
 | `Player` | `source::Player`, `CarState`, behavior classes | Source owner, partial | Убрать оставшиеся session mirrors, проверить full event/listener order |
@@ -209,7 +209,7 @@ Milestone 8.
 Открытая B5d: вернуть source identity для font descriptors и material-library
 descriptors/samplers. Их backend payload останется CoreText и bgfx/Metal.
 
-### B6 — Menu/MenuSystem и исходные frames (B6a–B6e.4 выполнены)
+### B6 — Menu/MenuSystem и исходные frames (B6a–B6e.5 выполнены)
 
 Перенести widget tree крупными экранами: common dialog/frame primitives,
 MainMenu/Profile, Options, Planet/Garage/Workshop/Race и Finish/Final. Metal
@@ -339,8 +339,17 @@ layout. Удалены renderer-owned clocks/voice indices и эвристика
 последнего по максимальному `place`; подписи/значения Money/Points снова
 являются исходными двухстрочными labels на `y=154`.
 
-Открытая B6e.5b: перенести `FinalMenu` concrete owner и убрать credits/slide
-timing/input из большого host entry point.
+Результат B6e.5b: `mainmenu2::FinalMenuFrameState` владеет разбором
+`svCredits` на caption/body sections, точным 107-секундным clock, девятью
+source slide intervals/alpha, Back input и исходной геометрией slides,
+credits root и кнопки. Host больше не хранит собственный final clock и не
+разбирает смысловые credit blocks: он создаёт CoreText line payload, запускает
+неперсистентный `TrackFinal.ogg` с нуля и исполняет bgfx draw commands.
+Исправлено отдельное visual-расхождение: aspect каждого slide вычисляется по
+его собственному DDS, а не по первому изображению. Ускоренный renderer smoke
+теперь ждёт фактического завершения фонового Ogg decode перед запуском
+source timeline и проверяет все девять slides, scroll, Back, музыку и
+автоматический возврат.
 
 ### B7 — Environment/TraceGfx/render policy
 

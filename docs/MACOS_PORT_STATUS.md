@@ -173,6 +173,12 @@ ViewPort3d, photo/car info и Stay/Fly transitions.
 последнего игрока по максимальному месту; Money/Points снова рисуются
 двухстрочными source labels.
 
+Следом `FinalMenuFrameState` вернул concrete owner финального экрана: разбор
+секций `svCredits`, 107-секундный clock, девять slide alpha intervals, Back
+input и layout больше не живут в renderer. CoreText/bgfx остаются payload
+backend, `TrackFinal.ogg` запускается с нулевого кадра после фонового decode,
+а каждый DDS масштабируется по собственному aspect вместо пропорций slide1.
+
 Финальная проверка M9.5: arm64 Debug build и новые Metal shaders прошли без
 новых warnings. World1/World2/World5/World4 Cocoa smokes прошли по 240 кадров;
 каждый подтвердил оба 2048 shadow split, шесть cube faces, `glRefl` и FxTrail,
@@ -1009,7 +1015,8 @@ SDL_AUDIO_DRIVER=dummy \
   `FinishMenu`, но per-comment delay/repeat state сохраняется. Раньше порт
   ставил голос на pause и сразу возобновлял его поверх результатов; на
   network client остановка дополнительно ошибочно зависела от записи профиля.
-- Generic Authors/Credits заменён исходным `FinalMenu.cpp`: чёрный фон,
+- Generic Authors/Credits заменён исходным `FinalMenu.cpp` и concrete owner
+  `FinalMenuFrameState`: чёрный фон,
   девять `GUI/Slides/slide1..9.dds`, секции `svCredits` с красными captions
   и светлыми body-lines, source root `vp.x - 250`, 107-second scroll и
   per-slide alpha.
@@ -1019,9 +1026,9 @@ SDL_AUDIO_DRIVER=dummy \
 - `TrackFinal.ogg` декодируется отдельным фоновым `OriginalMenuMusic` без
   сохранения состояния. При входе menu MusicCat приостанавливается, final
   track запускается с нуля, при выходе menu MusicCat возобновляется.
-- Новый `--final-menu-smoke-test` проверяет девять slides, секционную
-  прокрутку, Back, реальный background decode/playback и auto-return. M9/M10,
-  resource, physics и последовательный 300-frame race-render прошли.
+- Новый `--final-menu-smoke-test` ждёт реального background decode/playback,
+  затем проверяет девять slides, секционную прокрутку, Back и auto-return.
+  M9/M10, resource, physics и последовательный 360-frame race-render прошли.
   Ручная arm64 Debug проверка подтвердила два последовательных source slide,
   читаемые credits и Return → MainMenu2 без визуальных артефактов.
 - Перенесён вызываемый `DialogMenu2::MusicDialog`: `dlgFrame2.png`, Verdana

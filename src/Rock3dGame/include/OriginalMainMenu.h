@@ -175,6 +175,56 @@ private:
     std::size_t focusIndex_ = 0U;
 };
 
+struct FinalCreditSection
+{
+    std::string caption;
+    std::string text;
+};
+
+struct FinalMenuLayout
+{
+    float backX = 0.0F;
+    float backY = 0.0F;
+    float slideX = 0.0F;
+    float slideY = 0.0F;
+    float slideMaximumWidth = 0.0F;
+    float slideMaximumHeight = 0.0F;
+    float creditsX = 0.0F;
+    float creditsY = 0.0F;
+    float creditsWidth = 480.0F;
+};
+
+// Backend-neutral transcription of FinalMenu.  The host implements music,
+// image upload and text drawing; this owner keeps the source credit sections,
+// 107-second clock, slide alphas, Back command and layout.
+class FinalMenuFrameState
+{
+public:
+    static constexpr std::size_t slideCount = 9U;
+    static constexpr float duration = 107.0F;
+
+    void invalidate(std::string credits);
+    void show() noexcept;
+    void hide() noexcept;
+    bool shown() const noexcept;
+    bool handle(const rrr3d::input::ActionEvent& event,
+                bool pointerOnBack = true) const noexcept;
+    bool progress(float deltaTime) noexcept;
+
+    const std::vector<FinalCreditSection>& credits() const noexcept;
+    float time() const noexcept;
+    float progressValue() const noexcept;
+    float slideAlpha(std::size_t index) const noexcept;
+    FinalMenuLayout layout(float viewportWidth, float viewportHeight,
+                           float linesHeight,
+                           float backWidth) const noexcept;
+
+private:
+    std::vector<FinalCreditSection> credits_;
+    float time_ = 0.0F;
+    bool shown_ = false;
+};
+
 bool runOriginalMainMenuInputSmoke(std::string& error);
 
 Image loadOriginalImage(const resource::ResourceFileSystem& resources,

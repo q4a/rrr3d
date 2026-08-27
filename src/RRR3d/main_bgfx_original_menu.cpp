@@ -3440,6 +3440,8 @@ int main(int argc, char** argv)
     const TextVisual finalBackText = createText(
         *device, localized("svBack"), menu::headerFontHeight, false,
         menu::Rgba8{214U, 214U, 214U, 255U}, resolvedFont);
+    r3d::game::mainmenu2::FinalMenuFrameState sourceFinalFrame;
+    sourceFinalFrame.invalidate(localized("svCredits"));
     struct FinalCreditSection
     {
         TextVisual caption;
@@ -3448,67 +3450,46 @@ int main(int argc, char** argv)
     };
     std::vector<FinalCreditSection> finalCredits;
     float finalCreditsHeight = 0.0F;
-    auto trimCreditText = [](std::string_view source) {
-        const auto first = source.find_first_not_of(" \t\r\n");
-        if (first == std::string_view::npos)
-            return std::string{};
-        const auto last = source.find_last_not_of(" \t\r\n");
-        return std::string(source.substr(first, last - first + 1U));
-    };
-    const std::string finalCreditSource = localized("svCredits");
-    std::size_t finalSectionBegin = 0U;
-    while (finalSectionBegin < finalCreditSource.size())
+    finalCredits.reserve(sourceFinalFrame.credits().size());
+    for (const auto& sourceSection : sourceFinalFrame.credits())
     {
-        const auto separator =
-            finalCreditSource.find("\n\n", finalSectionBegin);
-        const auto block = trimCreditText(std::string_view(
-            finalCreditSource.data() + finalSectionBegin,
-            (separator == std::string::npos
-                 ? finalCreditSource.size()
-                 : separator) -
-                finalSectionBegin));
-        if (!block.empty())
+        FinalCreditSection section;
+        section.caption = createText(
+            *device, sourceSection.caption,
+            menu::smallFontHeight, false,
+            menu::Rgba8{220U, 0U, 0U, 255U}, resolvedFont);
+        if (!sourceSection.text.empty())
         {
-            const auto captionEnd = block.find('\n');
-            FinalCreditSection section;
-            section.caption = createText(
-                *device, block.substr(0U, captionEnd),
-                menu::smallFontHeight, false,
-                menu::Rgba8{220U, 0U, 0U, 255U}, resolvedFont);
-            section.height = section.caption.height + 10.0F;
-            if (captionEnd != std::string::npos)
+            std::size_t lineBegin = 0U;
+            while (lineBegin <= sourceSection.text.size())
             {
-                std::size_t lineBegin = captionEnd + 1U;
-                while (lineBegin <= block.size())
+                const auto lineEnd =
+                    sourceSection.text.find('\n', lineBegin);
+                std::string line = sourceSection.text.substr(
+                    lineBegin,
+                    (lineEnd == std::string::npos
+                         ? sourceSection.text.size()
+                         : lineEnd) -
+                        lineBegin);
+                if (!line.empty() && line.back() == '\r')
+                    line.pop_back();
+                if (!line.empty())
                 {
-                    const auto lineEnd = block.find('\n', lineBegin);
-                    const auto line = trimCreditText(std::string_view(
-                        block.data() + lineBegin,
-                        (lineEnd == std::string::npos
-                             ? block.size()
-                             : lineEnd) -
-                            lineBegin));
-                    if (!line.empty())
-                    {
-                        section.lines.push_back(createText(
-                            *device, line, menu::smallFontHeight, false,
-                            menu::Rgba8{255U, 214U, 205U, 255U},
-                            resolvedFont));
-                        section.height +=
-                            section.lines.back().height;
-                    }
-                    if (lineEnd == std::string::npos)
-                        break;
-                    lineBegin = lineEnd + 1U;
+                    section.lines.push_back(createText(
+                        *device, line, menu::smallFontHeight, false,
+                        menu::Rgba8{255U, 214U, 205U, 255U},
+                        resolvedFont));
                 }
+                if (lineEnd == std::string::npos)
+                    break;
+                lineBegin = lineEnd + 1U;
             }
-            section.height += 40.0F;
-            finalCreditsHeight += section.height;
-            finalCredits.push_back(std::move(section));
         }
-        if (separator == std::string::npos)
-            break;
-        finalSectionBegin = separator + 2U;
+        section.height = section.caption.height + 50.0F;
+        for (const auto& line : section.lines)
+            section.height += line.height;
+        finalCreditsHeight += section.height;
+        finalCredits.push_back(std::move(section));
     }
 #ifdef RRR3D_PHYSICS
     const TextVisual finishRewardTitle = createText(
@@ -5118,7 +5099,6 @@ int main(int argc, char** argv)
     std::array<float, 15> sourceFrameDeltas{};
     std::size_t sourceFrameDeltaCount = 0U;
     std::size_t sourceFrameDeltaCursor = 0U;
-    float finalMenuSeconds = 0.0F;
     std::array<bool, 9> finalSlidesObserved{};
     bool finalCreditsMotionObserved =
         !options->finalMenuSmokeTest;
@@ -5426,7 +5406,7 @@ int main(int argc, char** argv)
         menuSelection = firstEnabledMenuItem();
     };
     auto showOriginalFinalMenu = [&]() {
-        finalMenuSeconds = 0.0F;
+        sourceFinalFrame.show();
         finalSlidesObserved.fill(false);
         finalCreditsMotionObserved =
             !options->finalMenuSmokeTest;
@@ -5480,7 +5460,7 @@ int main(int argc, char** argv)
 #endif
         menuStack = {MenuScreen::Main};
         menuSelection = 0U;
-        finalMenuSeconds = 0.0F;
+        sourceFinalFrame.hide();
         std::cout << "Original FinalMenu -> MainMenu2\n";
     };
 #ifdef RRR3D_VIDEO
@@ -12691,14 +12671,14 @@ int main(int argc, char** argv)
                     const float virtualY =
                         pointerY * menu::virtualHeight /
                         static_cast<float>(windowHeight);
-                    const float backX =
-                        static_cast<float>(finalBackImage.width) * 0.5F;
-                    const float backY =
-                        menu::virtualHeight - 60.0F;
+                    const auto finalLayout = sourceFinalFrame.layout(
+                        menu::virtualWidth, menu::virtualHeight,
+                        finalCreditsHeight,
+                        static_cast<float>(finalBackImage.width));
                     hoveredBack =
-                        std::abs(virtualX - backX) <=
+                        std::abs(virtualX - finalLayout.backX) <=
                             static_cast<float>(finalBackImage.width) * 0.5F &&
-                        std::abs(virtualY - backY) <=
+                        std::abs(virtualY - finalLayout.backY) <=
                             static_cast<float>(finalBackImage.height) * 0.5F;
                 }
                 menuSelection = 0U;
@@ -13819,18 +13799,8 @@ int main(int argc, char** argv)
 #endif
                 if (menuStack.back() == MenuScreen::Credits)
                 {
-                    const bool closeRequested =
-                        !inputEvent.repeated &&
-                        (inputEvent.action ==
-                             rrr3d::input::Action::MenuBack ||
-                         inputEvent.action ==
-                             rrr3d::input::Action::Pause ||
-                         (inputEvent.action ==
-                              rrr3d::input::Action::MenuConfirm &&
-                          (inputEvent.source !=
-                               rrr3d::input::Source::Mouse ||
-                           pointerTargetsItem)));
-                    if (closeRequested)
+                    if (sourceFinalFrame.handle(
+                            inputEvent, pointerTargetsItem))
                         closeOriginalFinalMenu();
                     continue;
                 }
@@ -14685,11 +14655,18 @@ int main(int argc, char** argv)
         else if (options->finalMenuSmokeTest)
         {
 #ifdef RRR3D_AUDIO
-            frameSeconds =
+            const bool waitingForFinalMusic =
                 menuStack.back() == MenuScreen::Credits &&
-                        !finalMusic.currentVoiceActive()
-                    ? 0.0F
-                    : 0.4F;
+                !finalMusic.currentVoiceActive();
+            frameSeconds = waitingForFinalMusic ? 0.0F : 0.4F;
+            if (waitingForFinalMusic)
+            {
+                // The accelerated renderer fixture can otherwise exhaust its
+                // frame budget before the asynchronous Ogg worker is given a
+                // scheduling opportunity.  FinalMenu::OnProgress starts only
+                // after the source TrackFinal voice has really started.
+                SDL_Delay(1U);
+            }
 #else
             frameSeconds = 0.4F;
 #endif
@@ -14725,8 +14702,7 @@ int main(int argc, char** argv)
         }
         if (menuStack.back() == MenuScreen::Credits)
         {
-            finalMenuSeconds += frameSeconds;
-            if (finalMenuSeconds >= 107.0F)
+            if (sourceFinalFrame.progress(frameSeconds))
             {
                 finalAutoCloseObserved = true;
                 closeOriginalFinalMenu();
@@ -17307,95 +17283,81 @@ int main(int argc, char** argv)
         auto& activePage = activeMenuPage();
         if (drawingOriginalFinal)
         {
-            constexpr float duration = 107.0F;
-            const float progress =
-                std::clamp(finalMenuSeconds / duration, 0.0F, 1.0F);
-            const float slideMaximumWidth =
-                menu::virtualWidth - 500.0F;
-            const float slideMaximumHeight =
-                menu::virtualHeight - 300.0F;
-            const float slideAspect =
-                static_cast<float>(finalSlideImages.front().width) /
-                static_cast<float>(finalSlideImages.front().height);
-            const float slideWidth = std::min(
-                slideMaximumWidth, slideMaximumHeight * slideAspect);
-            const float slideHeight = slideWidth / slideAspect;
-            const float slideX =
-                (menu::virtualWidth - 400.0F) * 0.5F;
-            const float slideY = menu::virtualHeight * 0.5F;
+            const auto finalLayout = sourceFinalFrame.layout(
+                menu::virtualWidth, menu::virtualHeight,
+                finalCreditsHeight,
+                static_cast<float>(finalBackSelectedImage.width));
             for (std::size_t index = 0U;
                  index < finalSlides.size(); ++index)
             {
-                const float alpha1 =
-                    static_cast<float>(index) /
-                    static_cast<float>(finalSlides.size());
-                const float alpha2 =
-                    static_cast<float>(index + 1U) /
-                    static_cast<float>(finalSlides.size());
-                const float slideDuration =
-                    (alpha2 - alpha1) * duration;
-                const float slideTime = std::clamp(
-                    (progress - alpha1) * duration,
-                    0.0F, slideDuration);
                 const float alpha =
-                    std::clamp(slideTime, 0.0F, 1.0F) -
-                    std::clamp(
-                        slideTime - slideDuration, 0.0F, 1.0F);
+                    sourceFinalFrame.slideAlpha(index);
                 if (alpha <= 0.0F)
                     continue;
+                const float slideAspect =
+                    static_cast<float>(finalSlideImages[index].width) /
+                    std::max(
+                        static_cast<float>(
+                            finalSlideImages[index].height),
+                        1.0F);
+                const float slideWidth = std::min(
+                    finalLayout.slideMaximumWidth,
+                    finalLayout.slideMaximumHeight * slideAspect);
+                const float slideHeight = slideWidth / slideAspect;
                 finalSlidesObserved[index] =
                     finalSlidesObserved[index] || alpha >= 0.5F;
                 drawQuadTinted(
                     *device, quad, shader, finalSlides[index],
-                    slideWidth, slideHeight, slideX, slideY,
+                    slideWidth, slideHeight,
+                    finalLayout.slideX, finalLayout.slideY,
                     60.0F, transparent,
                     {1.0F, 1.0F, 1.0F, alpha});
             }
 
-            constexpr float creditWidth = 480.0F;
-            const float creditX = menu::virtualWidth - 250.0F;
-            const float creditRootY =
-                menu::virtualHeight -
-                progress *
-                    (finalCreditsHeight + menu::virtualHeight);
             finalCreditsMotionObserved =
                 finalCreditsMotionObserved ||
-                creditRootY < menu::virtualHeight - 1.0F;
-            float sectionTop = creditRootY;
+                finalLayout.creditsY < menu::virtualHeight - 1.0F;
+            float sectionTop = finalLayout.creditsY;
             for (const auto& section : finalCredits)
             {
                 drawQuad(
                     *device, quad, shader, section.caption.texture,
-                    std::min(section.caption.width, creditWidth),
-                    section.caption.height, creditX,
+                    std::min(
+                        section.caption.width,
+                        finalLayout.creditsWidth),
+                    section.caption.height, finalLayout.creditsX,
                     sectionTop + section.caption.height * 0.5F,
                     35.0F, transparent);
-                float lineTop =
+                const float textTop =
                     sectionTop + section.caption.height + 10.0F;
+                float lineTop = textTop;
                 for (const auto& line : section.lines)
                 {
                     drawQuad(
                         *device, quad, shader, line.texture,
-                        std::min(line.width, creditWidth), line.height,
-                        creditX, lineTop + line.height * 0.5F,
+                        std::min(
+                            line.width,
+                            finalLayout.creditsWidth),
+                        line.height,
+                        finalLayout.creditsX,
+                        lineTop + line.height * 0.5F,
                         35.0F, transparent);
                     lineTop += line.height;
                 }
                 sectionTop += section.height;
             }
 
-            const float backX =
-                static_cast<float>(finalBackSelectedImage.width) * 0.5F;
-            const float backY = menu::virtualHeight - 60.0F;
             drawQuad(
                 *device, quad, shader, finalBackSelected,
                 static_cast<float>(finalBackSelectedImage.width),
                 static_cast<float>(finalBackSelectedImage.height),
-                backX, backY, 20.0F, transparent);
+                finalLayout.backX, finalLayout.backY,
+                20.0F, transparent);
             drawQuad(
                 *device, quad, shader, finalBackText.texture,
                 finalBackText.width, finalBackText.height,
-                backX, backY, 10.0F, transparent);
+                finalLayout.backX, finalLayout.backY,
+                10.0F, transparent);
             finalBackFrameObserved = true;
         }
 #ifdef RRR3D_PHYSICS
@@ -20501,6 +20463,8 @@ int main(int argc, char** argv)
         ++renderedFrames;
         if (options->smokeFrames != 0 &&
             renderedFrames >= options->smokeFrames
+            && (!options->finalMenuSmokeTest ||
+                finalAutoCloseObserved)
 #ifdef RRR3D_AUDIO
             && (!options->audioSmokeTest ||
                 musicSmokePhase == MusicSmokePhase::Complete)
@@ -20700,6 +20664,16 @@ int main(int argc, char** argv)
                         << ", back=" << finalBackFrameObserved
                         << ", autoClose=" << finalAutoCloseObserved
                         << ", music=" << finalMusicObserved
+#ifdef RRR3D_AUDIO
+                        << " (loaded=" << finalMusic.loadedTrackCount()
+                        << ", decoding="
+                        << finalMusic.backgroundDecodeActive()
+                        << ", paused=" << finalMusic.paused()
+                        << ", voice="
+                        << finalMusic.currentVoiceActive()
+                        << ", position="
+                        << finalMusic.currentPositionFrames() << ')'
+#endif
                         << ", main="
                         << (menuStack.back() == MenuScreen::Main)
                         << '\n';

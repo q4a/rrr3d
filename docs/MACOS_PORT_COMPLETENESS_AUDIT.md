@@ -76,11 +76,11 @@ Windows target не компилируется.
 | Spatial race audio | X3DAudio game integration | source-derived `m3dFlat` voices поверх SDL | Частично | Перенесены fixed master 0.1, category/source/resource multiplication, 30/45 м, отсутствие pan/Doppler, motor/wheel/ShotEffect, pair-owned `PairPxContactEffect` и lifetime/target-child `LifeEffect` Source3d; общий legacy emitter/priority object graph ещё не компилируется |
 | Commentator | `GameMode::Commentator`, serialized `game.xml/commentator/comments` | единый `OriginalGameData` descriptor + source state machine поверх SDL Voice bus | Перенесено | Все 37 comments и voices читаются общим `GameMode::LoadGameData`-совместимым loader; доступные файлы выбранного style связываются с descriptors, а chance/delay/busy/repeatPlayer, weighted choice, prefix/suffix, настоящий битовый `playerId` и все offline race events повторяют source semantics |
 | Главное меню, внешний вид | `MainMenu2.cpp` | source-owned `FrameController` поверх bgfx | Частично | Фон/панели/selection и source layout Main/GameMode/Tournament/Difficulty/Profile активны; полный network/credits widget object graph ещё не завершён |
-| Навигация меню | `Menu`, `MenuSystem`, `MainMenu2`, `OptionsMenu`, `RaceMenu2`, `FinishMenu`, `GameMode` | source-owned stack, frame policy, Profile/Options/RaceMenu/Finish graphs | Частично | Main/GameMode/Tournament/Difficulty/Profile, Options/StartOptions, RaceMain/Gamers/Garage/Workshop/Angar/Achievment и Finish имеют source availability, navigation, lifecycle, layout и команды; Final concrete owner ещё переносится |
+| Навигация меню | `Menu`, `MenuSystem`, `MainMenu2`, `OptionsMenu`, `RaceMenu2`, `FinishMenu`, `FinalMenu`, `GameMode` | source-owned stack, frame policy, Profile/Options/RaceMenu/Finish/Final graphs | Частично | Main/GameMode/Tournament/Difficulty/Profile, Options/StartOptions, RaceMain/Gamers/Garage/Workshop/Angar/Achievment, Finish и Final имеют source availability, navigation, lifecycle, layout и команды; остаются concrete network callbacks и legacy Widget backend graph |
 | Dialog/Profile UI | `DialogMenu2.cpp`, `MainMenu2.cpp`, `RaceMenu2.cpp` | source-owned `DialogSystem` + `ProfileFrameState` и backend visuals | Частично | ProfileFrame владеет четырьмя rows, scroll/item-close focus и select/delete; common dialogs source-owned. RaceMenu-specific dialog/widget graph ещё не завершён |
 | Race menu | `RaceMenu2.cpp` | source-owned `RaceMenuState` и восемь concrete frame owners | Перенесено с backend-адаптацией | Все шесть RaceMenu states имеют source availability/navigation/lifecycle/layout/commands. Angar включает doors/travel/Spaceship lamp, Achievment — exact definitions, initial no-focus, recursive disabled traversal и Buy modal; bgfx/CoreText и profile transaction остаются backend/application boundaries |
 | Options UI | `OptionsMenu.cpp`, `GameMode::LoadGameData` | `originaloptions::OptionsMenuState`/`StartOptionsMenuState` + modal bgfx view | Перенесено с backend-адаптацией | Source owner содержит четыре вкладки, 12/8/5/18 строк, availability, scroll/layout, cyclic steppers, volume bars, control columns/bindings и Apply/Cancel draft. Все шесть languages и оба commentator styles читаются из `game.xml`; first-run owner содержит `Select` sentinel, camera-only Apply gate и persistence command. SDL/CoreText/bgfx заменяют legacy Widget/input/render API |
-| Finish/final UI | `FinishMenu.cpp`, `FinalMenu.cpp`, `Menu::OnFinishClose` | source-owned Finish frame, finish transition и source-derived Final view | Частично | Finish владеет точным `Race::Results` order, индивидуальными `voiceNameDur`, reveal/events/last-result/close/layout; pass fail/complete, planet unlock и final movie branches сопоставлены. Final assets/107 s timing видимы, но concrete owner ещё переносится |
+| Finish/final UI | `FinishMenu.cpp`, `FinalMenu.cpp`, `Menu::OnFinishClose` | source-owned Finish/Final frames и finish transition | Перенесено с backend-адаптацией | Finish владеет точным `Race::Results` order, индивидуальными `voiceNameDur`, reveal/events/last-result/close/layout; Final владеет credit sections, 107 s clock, slide alpha, Back и layout. Profile/video transitions сопоставлены; CoreText/bgfx/SDL audio заменяют legacy Widget/D3D9/XAudio payload |
 | Profile serialization | `GameMode::SaveGameOpt`, `Race::SaveGame`, `SnProfile/SkProfile` | `OriginalProfile.cpp`, source-compatible XML | Перенесено | Все поля `user.xml`, `race.xml`, `Profile/*.xml` и `achievment.xml` проходят disk round-trip; сохранены misspelled `dfficulty`, absent-camera first-run gate, offline/network cursors, temporary `skirmish`, ten slots/charges и `CompletePlanet` expansion скрытых планет |
 | Tournament/progression | `GameMode.cpp`, `Race.cpp`, menus | parser `tournamet.xml` + source-derived entry flow, advance и finish transitions | Частично | Continue/New/Load/Difficulty, отдельный SkProfile, `GamersFrame`, gamerId selection, pass/planet completion и final branch перенесены; legacy object/event graph ещё не компилируется |
 | Race loading transition | `GameMode::StartRace/DoStartRace`, `Menu::msInfo`, `InfoMenu` | deferred bgfx loading state | Перенесено | Оригинальный `loadingFrame.dds` показывается не менее двух кадров до синхронной загрузки world/Jolt/render/audio state; modal input, aspect fit и последующий переход в HUD покрыты integrated race smoke |
@@ -763,11 +763,11 @@ Network, video и Steam явно выключены.
 4. Цвета подписей совпадают с source (`0xffe9a73f`, `0xffe1e1e1`,
    `0xff84bc43`). Picked money показывается как `money + pickMoney`, а points
    отдельной строкой, как `Race::Result`.
-5. `OnProgress` повторён с delay 0.15 s, reveal 0.5 s и
-   `voiceNameDur = 1.5 s`: чётные строки въезжают слева, нечётная справа.
+5. `OnProgress` повторён с delay 0.15 s, reveal 0.5 s и индивидуальным
+   `Race::Result::voiceNameDur`: чётные строки въезжают слева, нечётная справа.
    После закрытия восстанавливается соответствующий campaign/skirmish
    `RaceMenu2`, без прежней суррогатной ветки выхода в Main.
-6. Отдельный 300-frame Metal fixture проверяет три source rows и не вызывает
+6. Отдельный 360-frame Metal fixture проверяет три source rows и не вызывает
    profile save/tournament advance. Ручная arm64 Debug проверка выявила и
    устранила склейку multiline CoreText label; итоговый кадр и
    Return → `RaceMenu2` проверены визуально.
@@ -775,14 +775,17 @@ Network, video и Steam явно выключены.
 ### FinalMenu
 
 1. Generic Credits page и единый многострочный CoreText bitmap удалены.
-   `FinalMenu.cpp::OnInvalidate` перенесён как девять оригинальных
+   `mainmenu2::FinalMenuFrameState` переносит `FinalMenu.cpp::OnInvalidate`
+   как девять оригинальных
    `GUI/Slides/slide1..9.dds` и секции `svCredits`, разделённые сначала по
    `\n\n`, затем на красный caption и светлые body-lines.
-2. Экран очищается исходным чёрным цветом. Слайды сохраняют aspect в bounds
+2. Экран очищается исходным чёрным цветом. Source owner выдаёт clock, alpha
+   и layout. Слайды сохраняют собственный aspect каждого DDS в bounds
    `vp - (500, 300)`, находятся в `(vp.x - 400) / 2, vp.y / 2` и получают
    source segment alpha на общей шкале 107 секунд. Титры движутся из
    `vp.y` к `-linesSizeY` при корне `vp.x - 250`.
-3. Back использует `buttonBg2/buttonBgSel2`, Header font, цвет
+3. Back command и pointer gate принадлежат source owner; view использует
+   `buttonBg2/buttonBgSel2`, Header font, цвет
    `214/255` и позицию `(width/2, vp.y - 60)`. Action/Escape/left click
    внутри кнопки возвращают непосредственно в `MainMenu2`; по истечении
    107 секунд выполняется тот же переход автоматически.
@@ -791,9 +794,10 @@ Network, video и Steam явно выключены.
    начинается с нуля и при выходе menu MusicCat возобновляется.
 5. Для material alpha общий static UI shader теперь умножает texture/vertex
    color на `u_materialColor`; белый default сохраняет прежнюю отрисовку.
-6. `--final-menu-smoke-test` проверяет все девять слайдов, движение секций,
+6. `--final-menu-smoke-test` ждёт фактического запуска асинхронно
+   декодированного Ogg и затем проверяет все девять слайдов, движение секций,
    Back, фоновый TrackFinal и автоматический возврат. M9/M10 Debug, resource,
-   physics и 300-frame race-render regressions прошли. Ручная arm64 Debug
+   physics и 360-frame race-render regressions прошли. Ручная arm64 Debug
    проверка подтвердила первый и второй слайды, читаемые credits и
    Return → MainMenu2 без артефактов.
 
