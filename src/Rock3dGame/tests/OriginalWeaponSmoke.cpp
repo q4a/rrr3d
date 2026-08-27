@@ -1693,13 +1693,27 @@ int main()
             &frostNonCarTarget,
             &contactBonusPlayer).take)
         return 139;
+    source::WorldEventPump logicWorld;
     source::Logic logic;
+    logic.AttachWorld(&logicWorld);
+    auto* worldProgressObject = new source::GameObject();
+    worldProgressObject->ResetGameObject(1.0F);
+    worldProgressObject->SetMaxTimeLife(10.0F);
+    logic.RegGameObj(worldProgressObject);
+    logicWorld.Progress(0.01F);
+    if (worldProgressObject->GetTimeLife() != 0.01F ||
+        logic.GetLastProgressResult().transient.progressed != 1U)
+        return 177;
     logic.SetTouchBorderDamage({10.0F, 20.0F});
     logic.SetTouchBorderDamageForce({30.0F, 40.0F});
     logic.SetTouchCarDamage({50.0F, 60.0F});
     logic.SetTouchCarDamageForce({70.0F, 80.0F});
     logic.ResetContactBehavior(3U);
     auto& contacts = logic.GetPairPxContactEffect();
+    const auto progressContacts = [&](float seconds) {
+        logicWorld.Progress(seconds);
+        return contacts.TakeReleases();
+    };
     if (logic.GetTouchBorderDamage() !=
             source::Logic::ContactRange{10.0F, 20.0F} ||
         logic.GetTouchBorderDamageForce() !=
@@ -1732,7 +1746,7 @@ int main()
         contacts.GetPairCount() != 1U ||
         contacts.GetContactCount(contactKey) != 2U)
         return 34;
-    if (!contacts.OnProgress(0.1F).empty())
+    if (!progressContacts(0.1F).empty())
         return 35;
     const std::array<source::PairPxContactEffect::Point, 1U>
         onePoint{{{10.0F, 11.0F, 12.0F}}};
@@ -1742,25 +1756,44 @@ int main()
         refreshed.points.front().createdEffect ||
         refreshed.sound != 2U)
         return 36;
-    if (!contacts.OnProgress(0.001F).empty() ||
+    if (!progressContacts(0.001F).empty() ||
         contacts.GetContactCount(contactKey) != 2U)
         return 37;
-    const auto tailReleased = contacts.OnProgress(0.1F);
+    const auto tailReleased = progressContacts(0.1F);
     if (tailReleased.size() != 1U ||
         tailReleased.front().slot != 1U ||
         contacts.GetContactCount(contactKey) != 1U)
         return 38;
     contacts.OnContact(
         contactKey, 10001.0F, false, false, onePoint, 0.0F);
-    if (!contacts.OnProgress(0.1F).empty())
+    if (!progressContacts(0.1F).empty())
         return 39;
-    if (!contacts.OnProgress(0.1F).empty())
+    if (!progressContacts(0.1F).empty())
         return 40;
-    const auto finalReleased = contacts.OnProgress(0.001F);
+    const auto finalReleased = progressContacts(0.001F);
     if (finalReleased.size() != 1U ||
         finalReleased.front().slot != 0U ||
         contacts.GetPairCount() != 0U)
         return 41;
+
+    source::Proj contactDispatchProjectile;
+    r3d::game::originalrace::ProjectileDefinition
+        contactDispatchDefinition;
+    contactDispatchDefinition.type = static_cast<std::uint32_t>(
+        source::Proj::ProjectileType::Rocket);
+    source::Proj::ShotContext contactDispatchContext;
+    contactDispatchContext.maximumLife = 1.0F;
+    contactDispatchProjectile.PrepareSource(
+        contactDispatchDefinition, nullptr, contactDispatchContext);
+    contactDispatchProjectile.GetBehaviors().Add<source::TouchDeath>(
+        source::BehaviorType::TouchDeath);
+    source::GameObject contactDispatchTarget;
+    contactDispatchTarget.ResetGameObject(10.0F);
+    const auto suppressedContact =
+        contactDispatchProjectile.BeginContact(&contactDispatchTarget);
+    if (!contactDispatchTarget.destroyed ||
+        suppressedContact.handler != source::Proj::ContactHandler::None)
+        return 178;
 
     auto* hyperMapObject = hyperWeapon.GetMapObj();
     auto* mineMapObject = mineWeapon.GetMapObj();

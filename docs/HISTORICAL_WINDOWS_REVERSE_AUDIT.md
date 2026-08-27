@@ -3954,6 +3954,29 @@ commands, exit/save sequence и finish-close music transition. Race clocks
 startup/movie/config/audio-command executor и регистрация всех race-local
 объектов в world lists остаются следующими B3b/B4 границами.
 
+### P2.169 — `Logic` progress и базовый `Proj::OnContact` возвращены в source graph — выполнено
+
+`Logic::OnProgress` вызывался непосредственно из `OriginalRaceSession`, а
+`PairPxContactEffect::OnProgress` — вручную значительно позже внутри
+`updateGameplay`. Это не воспроизводило `LogicBehavior::RegProgressEvent`:
+в Windows PhysX сначала отправляет contact callbacks, затем `World` вызывает
+`Logic`, затем ordered progress users. Кроме того, projectile/mine/bonus
+ветви порта переходили прямо к конкретным `Contact*`, пропуская начальный
+`GameObject::OnContact` из `Proj::OnContact`.
+
+`Logic` теперь является host-ом собственного race `WorldEventPump`, а
+`PairPxContactEffect` зарегистрирован настоящим `ProgressEvent`. Jolt
+manifolds импортируются до source progress; release-команды исполняются
+после него. Это устранило повторное использование уже освобождённого contact
+effect и вернуло исходный двухточечный/0.1-секундный lifetime order.
+
+Новый `Proj::BeginContact` сначала рассылает базовый listener callback и лишь
+затем выбирает concrete route с учётом изменившегося live-state. Активные
+car/decor projectile contacts, mines, hazards и bonuses используют этот
+путь. Regression дополнительно ставит `TouchDeath` на projectile и проверяет,
+что target погибает до switch, поэтому rocket handler подавляется. Полное
+сворачивание Jolt movement/raycast views из session остаётся B4b.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

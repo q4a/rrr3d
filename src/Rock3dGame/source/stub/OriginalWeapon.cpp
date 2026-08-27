@@ -1253,6 +1253,15 @@ Proj::ContactRoute Proj::RouteContact(
         description_.type, destroyed, targetDestroyed);
 }
 
+Proj::ContactRoute Proj::BeginContact(GameObject* target) noexcept
+{
+    // Weapon.cpp calls GameObject::OnContact before checking either live
+    // state. A listener such as TouchDeath may therefore kill the target and
+    // suppress the concrete projectile handler selected below.
+    GameObject::OnContact(target);
+    return RouteContact(target != nullptr && target->destroyed);
+}
+
 Proj::ProgressRoute Proj::RouteProgress() const noexcept
 {
     return ProgressRouteFor(description_.type);

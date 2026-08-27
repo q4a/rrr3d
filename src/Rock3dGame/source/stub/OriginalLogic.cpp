@@ -18,6 +18,7 @@ bool PairPxContactEffect::Key::operator<(
 void PairPxContactEffect::Reset(std::size_t soundCount) noexcept
 {
     contacts_.clear();
+    pendingReleases_.clear();
     soundCount_ = soundCount;
 }
 
@@ -71,10 +72,8 @@ PairPxContactEffect::ContactResult PairPxContactEffect::OnContact(
     return result;
 }
 
-std::vector<PairPxContactEffect::Release>
-PairPxContactEffect::OnProgress(float deltaTime)
+void PairPxContactEffect::OnProgress(float deltaTime)
 {
-    std::vector<Release> released;
     for (auto nodeIterator = contacts_.begin();
          nodeIterator != contacts_.end();)
     {
@@ -89,7 +88,7 @@ PairPxContactEffect::OnProgress(float deltaTime)
             {
                 if (contact.effect)
                 {
-                    released.push_back(
+                    pendingReleases_.push_back(
                         {nodeIterator->first,
                          static_cast<std::uint8_t>(index), true});
                 }
@@ -110,7 +109,14 @@ PairPxContactEffect::OnProgress(float deltaTime)
         else
             ++nodeIterator;
     }
-    return released;
+}
+
+std::vector<PairPxContactEffect::Release>
+PairPxContactEffect::TakeReleases()
+{
+    std::vector<Release> result;
+    result.swap(pendingReleases_);
+    return result;
 }
 
 std::size_t PairPxContactEffect::GetPairCount() const noexcept
@@ -205,6 +211,7 @@ Logic::TakeBonusResult Logic::TakeBonus(
 
 Logic::~Logic()
 {
+    DetachWorld();
     CleanGameObjs();
 }
 
@@ -308,6 +315,40 @@ std::size_t Logic::GetGameObjCount() const noexcept
 void Logic::SetMap(Map* value) noexcept { map_ = value; }
 Map* Logic::GetMap() noexcept { return map_; }
 const Map* Logic::GetMap() const noexcept { return map_; }
+
+void Logic::AttachWorld(WorldEventPump* world) noexcept
+{
+    if (world_ == world)
+        return;
+    DetachWorld();
+    world_ = world;
+    if (world_ == nullptr)
+        return;
+    world_->SetHost(this);
+    world_->RegProgressEvent(&pairPxContactEffect_);
+}
+
+void Logic::DetachWorld() noexcept
+{
+    if (world_ == nullptr)
+        return;
+    world_->UnregProgressEvent(&pairPxContactEffect_);
+    world_->SetHost(nullptr);
+    world_ = nullptr;
+}
+
+WorldEventPump* Logic::GetWorld() noexcept { return world_; }
+const WorldEventPump* Logic::GetWorld() const noexcept { return world_; }
+
+void Logic::OnLogicProgress(float deltaTime)
+{
+    lastProgressResult_ = OnProgress(deltaTime);
+}
+
+const Logic::ProgressResult& Logic::GetLastProgressResult() const noexcept
+{
+    return lastProgressResult_;
+}
 
 void Logic::ResetContactBehavior(std::size_t soundCount) noexcept
 {

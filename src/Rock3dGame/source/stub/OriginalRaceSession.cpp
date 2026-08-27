@@ -1137,6 +1137,7 @@ OriginalRaceSession::OriginalRaceSession(
     if (race_.tracePath.size() < 2 || race_.tracePoints.empty() ||
         race_.racers.empty())
         throw std::invalid_argument("Original race session data is incomplete");
+    logic_.AttachWorld(&gameplayWorld_);
     buildSourceTrace();
     reset();
 }
@@ -2107,11 +2108,19 @@ bool OriginalRaceSession::findDecorationWithBox(
 
 bool OriginalRaceSession::damageDecorationWithBox(
     Transform transform, ProjectileCollisionBox collision,
-    float damage, std::size_t attacker, Vec3* contactPoint)
+    float damage, std::size_t attacker, source::Proj* projectile,
+    Vec3* contactPoint)
 {
     std::size_t hit = 0U;
     if (!findDecorationWithBox(
             transform, collision, hit, contactPoint))
+        return false;
+    auto* mapObject = decorationObjects().Get(hit);
+    auto* target = mapObject != nullptr
+        ? mapObject->GetDestrObj()
+        : nullptr;
+    if (projectile != nullptr &&
+        !projectile->BeginContact(target).appliesDamage)
         return false;
     return damageDecoration(hit, damage, attacker);
 }
@@ -3237,6 +3246,169 @@ void OriginalRaceSession::synchronizeRacerGameCars(
     }
 }
 
+void OriginalRaceSession::ingestPairContacts(
+    const std::vector<r3d::physics::VehicleState>& vehicles)
+{
+    // PhysX invokes LogicBehaviors::OnContact during the physical step,
+    // before World::Progress calls PairPxContactEffect::OnProgress. Import
+    // Jolt's completed manifolds at that same boundary.
+    constexpr float sourceContactParticleLife = 0.7F;
+    const auto pairContactKey = [](
+        std::size_t racer,
+        r3d::physics::CollisionSurface surface,
+        std::uint32_t actor) {
+        return source::PairPxContactEffect::Key{
+            static_cast<std::uint64_t>(racer),
+            (static_cast<std::uint64_t>(surface) << 32U) |
+                static_cast<std::uint64_t>(actor)};
+    };
+    for (std::size_t racer = 0;
+         !legacyWindowsDebug_ && racer < vehicles.size() &&
+         racer < racers_.size(); ++racer)
+    {
+        if (racers_[racer].IsDestroyed())
+            continue;
+        for (const auto& contact : vehicles[racer].bodyContacts)
+        {
+            if (contact.surface ==
+                     r3d::physics::CollisionSurface::Vehicle &&
+                contact.otherVehicle < racer)
+            {
+                continue;
+            }
+            std::array<source::PairPxContactEffect::Point, 2> points{};
+            std::size_t pointCount = std::min<std::size_t>(
+                contact.points.size(), points.size());
+            for (std::size_t index = 0; index < pointCount; ++index)
+            {
+                points[index] = {
+                    contact.points[index].x,
+                    contact.points[index].y,
+                    contact.points[index].z};
+            }
+            if (pointCount == 0U)
+            {
+                const Vec3 point = contact.hasPoint
+                    ? contact.point
+                    : vehicles[racer].body.position;
+                points[0] = {point.x, point.y, point.z};
+                pointCount = 1U;
+            }
+            const auto contactResult =
+                logic_.GetPairPxContactEffect().OnContact(
+                    pairContactKey(
+                        racer, contact.surface, contact.otherActor),
+                    contact.frictionForce, false, false,
+                    std::span<const source::PairPxContactEffect::Point>{
+                        points.data(), pointCount},
+                    sourceRandomUnit());
+            if (!contactResult.accepted)
+                continue;
+            if (contactResult.pairCreated &&
+                contactResult.playSound &&
+                contactResult.sound < race_.contactSoundPaths.size())
+            {
+                RaceEvent sound;
+                sound.kind = RaceEventKind::EffectSound;
+                sound.racer = racer;
+                sound.position = {
+                    contactResult.points.front().point.x,
+                    contactResult.points.front().point.y,
+                    contactResult.points.front().point.z};
+                sound.soundPath = race_.contactSoundPaths[
+                    contactResult.sound];
+                sound.soundContactActor = contact.otherActor;
+                sound.soundContactSurface = contact.surface;
+                events_.push_back(std::move(sound));
+            }
+            for (const auto& point : contactResult.points)
+            {
+                auto effect = std::find_if(
+                    effects_.begin(), effects_.end(),
+                    [&](const RaceEffect& value) {
+                        return value.kind ==
+                                   RaceEventKind::ContactImpact &&
+                               value.waitingEnd != nullptr &&
+                               !value.waitingEnd->IsResurrect() &&
+                               !value.effectOwner->destroyed &&
+                               value.racer == racer &&
+                               value.contactSurface == contact.surface &&
+                               value.contactActor == contact.otherActor &&
+                               value.contactIndex == point.slot;
+                    });
+                if (effect == effects_.end())
+                {
+                    RaceEffect created;
+                    created.kind = RaceEventKind::ContactImpact;
+                    created.racer = racer;
+                    created.contactSurface = contact.surface;
+                    created.contactActor = contact.otherActor;
+                    created.contactIndex = point.slot;
+                    created.totalSeconds =
+                        source::PairPxContactEffect::
+                            contactReleaseSeconds +
+                        sourceContactParticleLife;
+                    created.seconds = created.totalSeconds;
+                    created.ageSeconds = 0.0F;
+                    created.emissionEndSeconds =
+                        source::PairPxContactEffect::
+                            contactReleaseSeconds;
+                    created.waitForParticleEnd = true;
+                    configureSourceEffectOwner(
+                        created, true, -1.0F);
+                    effects_.push_back(std::move(created));
+                    effect = std::prev(effects_.end());
+                }
+                effect->origin = {
+                    point.point.x, point.point.y, point.point.z};
+                effect->target = add(effect->origin, contact.normal);
+                effect->seconds =
+                    source::PairPxContactEffect::
+                        contactReleaseSeconds +
+                    sourceContactParticleLife;
+                effect->emissionEndSeconds =
+                    effect->ageSeconds +
+                    source::PairPxContactEffect::
+                        contactReleaseSeconds;
+            }
+        }
+    }
+}
+
+void OriginalRaceSession::releasePairContacts()
+{
+    const auto pairContactKey = [](
+        std::size_t racer,
+        r3d::physics::CollisionSurface surface,
+        std::uint32_t actor) {
+        return source::PairPxContactEffect::Key{
+            static_cast<std::uint64_t>(racer),
+            (static_cast<std::uint64_t>(surface) << 32U) |
+                static_cast<std::uint64_t>(actor)};
+    };
+    for (const auto& released :
+         logic_.GetPairPxContactEffect().TakeReleases())
+    {
+        const auto effect = std::find_if(
+            effects_.begin(), effects_.end(),
+            [&](const RaceEffect& value) {
+                if (value.kind != RaceEventKind::ContactImpact ||
+                    value.contactIndex != released.slot ||
+                    value.waitingEnd == nullptr ||
+                    value.waitingEnd->IsResurrect() ||
+                    value.effectOwner->destroyed)
+                    return false;
+                return pairContactKey(
+                           value.racer, value.contactSurface,
+                           value.contactActor) == released.key;
+            });
+        if (effect == effects_.end())
+            continue;
+        effect->emissionEndSeconds = effect->ageSeconds;
+        effect->effectOwner->Death();
+    }
+}
+
 void OriginalRaceSession::updateGameplay(
     float seconds,
     const std::vector<r3d::physics::VehicleState>& vehicles,
@@ -3511,158 +3683,6 @@ void OriginalRaceSession::updateGameplay(
             target, attacker, position, damage,
             DamageType::Touch);
     };
-
-    // DataBase::Init installs PairPxContactEffect globally. PhysX reports
-    // every non-wheel manifold, the effect keeps at most two points per
-    // actor pair, and OnProgress releases a missing point after 0.1 seconds.
-    // spark2 then waits for its already emitted particles (maximum life 0.7)
-    // before disappearing.
-    constexpr float sourceContactParticleLife = 0.7F;
-    const auto pairContactKey = [](
-        std::size_t racer,
-        r3d::physics::CollisionSurface surface,
-        std::uint32_t actor) {
-        return source::PairPxContactEffect::Key{
-            static_cast<std::uint64_t>(racer),
-            (static_cast<std::uint64_t>(surface) << 32U) |
-                static_cast<std::uint64_t>(actor)};
-    };
-    for (std::size_t racer = 0;
-         !legacyWindowsDebug_ && racer < vehicles.size() &&
-         racer < racers_.size(); ++racer)
-    {
-        if (racers_[racer].IsDestroyed())
-            continue;
-        for (const auto& contact : vehicles[racer].bodyContacts)
-        {
-            if (contact.surface ==
-                     r3d::physics::CollisionSurface::Vehicle &&
-                contact.otherVehicle < racer)
-            {
-                continue;
-            }
-            std::array<source::PairPxContactEffect::Point, 2> points{};
-            std::size_t pointCount = std::min<std::size_t>(
-                contact.points.size(), points.size());
-            for (std::size_t index = 0; index < pointCount; ++index)
-            {
-                points[index] = {
-                    contact.points[index].x,
-                    contact.points[index].y,
-                    contact.points[index].z};
-            }
-            if (pointCount == 0U)
-            {
-                const Vec3 point = contact.hasPoint
-                    ? contact.point
-                    : vehicles[racer].body.position;
-                points[0] = {point.x, point.y, point.z};
-                pointCount = 1U;
-            }
-            const auto contactResult =
-                logic_.GetPairPxContactEffect().OnContact(
-                    pairContactKey(
-                        racer, contact.surface, contact.otherActor),
-                    contact.frictionForce, false, false,
-                    std::span<const source::PairPxContactEffect::Point>{
-                        points.data(), pointCount},
-                    sourceRandomUnit());
-            if (!contactResult.accepted)
-                continue;
-            if (contactResult.pairCreated &&
-                contactResult.playSound &&
-                contactResult.sound < race_.contactSoundPaths.size())
-            {
-                // PairPxContactEffect::GetOrCreateContact selects one Sound
-                // with floor(size * Random()) and keeps that Source3d until
-                // the actor-pair node is released. This differs subtly from
-                // the RAND_MAX+1 RandomRange used by EventEffect sound lists.
-                RaceEvent sound;
-                sound.kind = RaceEventKind::EffectSound;
-                sound.racer = racer;
-                sound.position = {
-                    contactResult.points.front().point.x,
-                    contactResult.points.front().point.y,
-                    contactResult.points.front().point.z};
-                sound.soundPath = race_.contactSoundPaths[
-                    contactResult.sound];
-                sound.soundContactActor = contact.otherActor;
-                sound.soundContactSurface = contact.surface;
-                events_.push_back(std::move(sound));
-            }
-            for (const auto& point : contactResult.points)
-            {
-                auto effect = std::find_if(
-                    effects_.begin(), effects_.end(),
-                    [&](const RaceEffect& value) {
-                        return value.kind ==
-                                   RaceEventKind::ContactImpact &&
-                               value.waitingEnd != nullptr &&
-                               !value.waitingEnd->IsResurrect() &&
-                               !value.effectOwner->destroyed &&
-                               value.racer == racer &&
-                               value.contactSurface == contact.surface &&
-                               value.contactActor == contact.otherActor &&
-                               value.contactIndex == point.slot;
-                    });
-                if (effect == effects_.end())
-                {
-                    RaceEffect created;
-                    created.kind = RaceEventKind::ContactImpact;
-                    created.racer = racer;
-                    created.contactSurface = contact.surface;
-                    created.contactActor = contact.otherActor;
-                    created.contactIndex = point.slot;
-                    created.totalSeconds =
-                        source::PairPxContactEffect::
-                            contactReleaseSeconds +
-                        sourceContactParticleLife;
-                    created.seconds = created.totalSeconds;
-                    created.ageSeconds = 0.0F;
-                    created.emissionEndSeconds =
-                        source::PairPxContactEffect::
-                            contactReleaseSeconds;
-                    created.waitForParticleEnd = true;
-                    configureSourceEffectOwner(
-                        created, true, -1.0F);
-                    effects_.push_back(std::move(created));
-                    effect = std::prev(effects_.end());
-                }
-                effect->origin = {
-                    point.point.x, point.point.y, point.point.z};
-                effect->target = add(effect->origin, contact.normal);
-                effect->seconds =
-                    source::PairPxContactEffect::
-                        contactReleaseSeconds +
-                    sourceContactParticleLife;
-                effect->emissionEndSeconds =
-                    effect->ageSeconds +
-                    source::PairPxContactEffect::
-                        contactReleaseSeconds;
-            }
-        }
-    }
-    for (const auto& released :
-         logic_.GetPairPxContactEffect().OnProgress(seconds))
-    {
-        const auto effect = std::find_if(
-            effects_.begin(), effects_.end(),
-            [&](const RaceEffect& value) {
-                if (value.kind != RaceEventKind::ContactImpact ||
-                    value.contactIndex != released.slot ||
-                    value.waitingEnd == nullptr ||
-                    value.waitingEnd->IsResurrect() ||
-                    value.effectOwner->destroyed)
-                    return false;
-                return pairContactKey(
-                           value.racer, value.contactSurface,
-                           value.contactActor) == released.key;
-            });
-        if (effect == effects_.end())
-            continue;
-        effect->emissionEndSeconds = effect->ageSeconds;
-        effect->effectOwner->Death();
-    }
 
     for (std::size_t racer = 0;
          racer < vehicles.size() && racer < racers_.size(); ++racer)
@@ -4083,6 +4103,12 @@ void OriginalRaceSession::updateGameplay(
                         continue;
                     const Vec3 contactPoint =
                         closestPoint(targetBox, projectileBox.center);
+                    const auto actualContactRoute =
+                        projectile.sourceObject->BeginContact(
+                            &racers_[target].gameCar);
+                    if (actualContactRoute.handler !=
+                            sourceContactRoute.handler)
+                        continue;
                     const auto contact =
                         sourceContactRoute.handler ==
                                 source::Proj::ContactHandler::Drobilka
@@ -4111,6 +4137,11 @@ void OriginalRaceSession::updateGameplay(
                     auto* target = mapObject != nullptr
                         ? mapObject->GetDestrObj()
                         : nullptr;
+                    const auto actualContactRoute =
+                        projectile.sourceObject->BeginContact(target);
+                    if (actualContactRoute.handler !=
+                            source::Proj::ContactHandler::Drobilka)
+                        continue;
                     const auto contact =
                         projectile.sourceObject->ContactDrobilka(
                             target, seconds,
@@ -4139,6 +4170,11 @@ void OriginalRaceSession::updateGameplay(
                     auto* target = mapObject != nullptr
                         ? mapObject->GetDestrObj()
                         : nullptr;
+                    const auto actualContactRoute =
+                        projectile.sourceObject->BeginContact(target);
+                    if (actualContactRoute.handler !=
+                            source::Proj::ContactHandler::Fire)
+                        continue;
                     const auto contact =
                         projectile.sourceObject->ContactFire(
                             target, seconds);
@@ -4327,24 +4363,27 @@ void OriginalRaceSession::updateGameplay(
                 continue;
             const Vec3 contactPoint =
                 closestPoint(targetBox, projectileBox.center);
-            if (!projectileContactRoute.appliesDamage)
+            const auto actualContactRoute =
+                projectile.sourceObject->BeginContact(
+                    &racers_[target].gameCar);
+            if (!actualContactRoute.appliesDamage)
                 continue;
             const bool sonarContact =
-                projectileContactRoute.handler ==
+                actualContactRoute.handler ==
                 source::Proj::ContactHandler::Sonar;
             const bool targetedImpulse =
-                projectileContactRoute.handler ==
+                actualContactRoute.handler ==
                     source::Proj::ContactHandler::Impulse &&
                 projectile.target < racers_.size();
             const auto impulseContact =
-                projectileContactRoute.handler ==
+                actualContactRoute.handler ==
                         source::Proj::ContactHandler::Impulse
                     ? projectile.sourceObject->ContactImpulse(
                           true, targetedImpulse,
                           !targetedImpulse ||
                               target == projectile.target)
                     : source::Proj::ImpulseContactResult{};
-            if (projectileContactRoute.handler ==
+            if (actualContactRoute.handler ==
                     source::Proj::ContactHandler::Impulse &&
                 !impulseContact.applyDamage)
             {
@@ -4356,7 +4395,7 @@ void OriginalRaceSession::updateGameplay(
                       sourceVec(projectile.velocity), seconds)
                 : source::Proj::ContinuousContactResult{};
             const float sourceDamage =
-                projectileContactRoute.handler ==
+                actualContactRoute.handler ==
                         source::Proj::ContactHandler::Impulse
                     ? impulseContact.damage
                     : (sonarContact
@@ -4365,7 +4404,7 @@ void OriginalRaceSession::updateGameplay(
             applyProjectileDamage(
                 *projectile.sourceObject, target, contactPoint,
                 std::max(sourceDamage, 0.0F),
-                projectileContactRoute.damageType);
+                actualContactRoute.damageType);
             if (sonarContact)
             {
                 const float targetMass =
@@ -4408,7 +4447,7 @@ void OriginalRaceSession::updateGameplay(
                          vehicles[target].body.rotation,
                          localAngularDelta)});
             }
-            if (projectileContactRoute.rocketResponse)
+            if (actualContactRoute.rocketResponse)
             {
                 const auto torque =
                     projectile.sourceObject->ContactRocket(
@@ -4430,7 +4469,7 @@ void OriginalRaceSession::updateGameplay(
             {
                 continue;
             }
-            if (projectileContactRoute.handler ==
+            if (actualContactRoute.handler ==
                 source::Proj::ContactHandler::Impulse)
             {
                 if (impulseContact.destroy)
@@ -4494,6 +4533,11 @@ void OriginalRaceSession::updateGameplay(
                 auto* target = mapObject != nullptr
                     ? mapObject->GetDestrObj()
                     : nullptr;
+                const auto actualContactRoute =
+                    projectile.sourceObject->BeginContact(target);
+                if (actualContactRoute.handler !=
+                        source::Proj::ContactHandler::Sonar)
+                    continue;
                 const auto contact =
                     projectile.sourceObject->ContactSonar(
                         target, sourceVec(projectile.velocity),
@@ -4514,7 +4558,8 @@ void OriginalRaceSession::updateGameplay(
                      liveProjectileTransform,
                      projectileDefinition.collision,
                      projectileDefinition.damage,
-                     sourcePlayerId))
+                     sourcePlayerId,
+                     projectile.sourceObject))
         {
             spawnProjectileImpact(
                 projectile, projectile.position,
@@ -5169,8 +5214,8 @@ void OriginalRaceSession::updateGameplay(
             mine.sourceObject->GetDesc();
         const auto& vehicleDefinition = vehicleForRacer(racer);
         const auto sourceContactRoute =
-            mine.sourceObject->RouteContact(
-                racers_[racer].IsDestroyed());
+            mine.sourceObject->BeginContact(
+                &racers_[racer].gameCar);
         if (sourceContactRoute.handler ==
             source::Proj::ContactHandler::Maslo)
         {
@@ -5517,6 +5562,8 @@ void OriginalRaceSession::updateGameplay(
             : nullptr;
         if (bonus.kind != BonusKind::MineHazard ||
             bonusProjectile == nullptr ||
+            !bonusProjectile->BeginContact(
+                &racers_[racer].gameCar).appliesDamage ||
             !bonusProjectile->ContactMine(
                 &racers_[racer].gameCar, enableMineBug_))
             return false;
@@ -5588,6 +5635,7 @@ void OriginalRaceSession::updateGameplay(
         auto* bonusProjectile = bonusObject->GetAutoProj();
         if (bonusProjectile == nullptr)
             return false;
+        bonusProjectile->BeginContact(&runtime.gameCar);
         const auto sourceBonus = bonusProjectile->ContactBonus(
             &runtime.gameCar, &runtime);
         if (!sourceBonus.take)
@@ -5701,7 +5749,8 @@ void OriginalRaceSession::updateGameplay(
                         ? bonusObject->GetAutoProj()
                         : nullptr;
                 const auto sourceResult = bonusProjectile != nullptr
-                    ? bonusProjectile->ContactSpeedArrow(&runtime.gameCar)
+                    ? (bonusProjectile->BeginContact(&runtime.gameCar),
+                       bonusProjectile->ContactSpeedArrow(&runtime.gameCar))
                     : source::Proj::ContactResult{};
                 if (!sourceResult.setLinearVelocity)
                     continue;
@@ -5730,9 +5779,10 @@ void OriginalRaceSession::updateGameplay(
                 const auto& velocity =
                     vehicles[racer].linearVelocity;
                 const auto sourceResult = bonusProjectile != nullptr
-                    ? bonusProjectile->ContactLusha(
+                    ? (bonusProjectile->BeginContact(&runtime.gameCar),
+                       bonusProjectile->ContactLusha(
                           &runtime.gameCar,
-                          {velocity.x, velocity.y, velocity.z})
+                          {velocity.x, velocity.y, velocity.z}))
                     : source::Proj::ContactResult{};
                 if (sourceResult.setLinearVelocity)
                 {
@@ -5750,6 +5800,9 @@ void OriginalRaceSession::updateGameplay(
             if (bonus.kind == BonusKind::OilHazard)
             {
                 auto* mapBonus = bonusObjects().Get(bonusIndex);
+                if (mapBonus != nullptr && mapBonus->GetAutoProj() != nullptr)
+                    mapBonus->GetAutoProj()->BeginContact(
+                        &runtime.gameCar);
                 applyMasloContact(
                     mapBonus != nullptr
                         ? mapBonus->GetAutoProj()
@@ -6711,7 +6764,9 @@ void OriginalRaceSession::update(
     // grows from scale zero during the original 0.25-second arming window.
     // Logic.cpp progresses exactly Decoration::_specialList, then Effects,
     // Car, Bonus and finally its separately registered transient objects.
-    logic_.OnProgress(seconds);
+    ingestPairContacts(vehicles);
+    gameplayWorld_.Progress(seconds);
+    releasePairContacts();
     for (std::size_t index = 0U;
          index < bonusObjects().GetSlotCount(); ++index)
     {
@@ -9041,7 +9096,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             if (fadingContactCount != 2U || liveContactCount != 1U)
             {
                 throw std::runtime_error(
-                    "source PairPxContactEffect reused a released effect");
+                    "source PairPxContactEffect reused a released effect "
+                    "(fading=" + std::to_string(fadingContactCount) +
+                    ", live=" + std::to_string(liveContactCount) + ")");
             }
             contactVehicles[0].bodyContacts.clear();
             for (int step = 0; step < 5; ++step)

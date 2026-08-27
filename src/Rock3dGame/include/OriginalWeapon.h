@@ -501,6 +501,9 @@ public:
     DamageCommand DamageTarget(
         GameObject* target, float damage,
         DamageType damageType = DamageType::Simple) noexcept;
+    // Exact first half of Proj::OnContact: GameObject listeners run before
+    // the projectile/target live-state guard and the type switch.
+    ContactRoute BeginContact(GameObject* target) noexcept;
     ContactRoute RouteContact(bool targetDestroyed) const noexcept;
     ProgressRoute RouteProgress() const noexcept;
     PreparationRoute RoutePreparation() const noexcept;

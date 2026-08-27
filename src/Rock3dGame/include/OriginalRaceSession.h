@@ -513,6 +513,9 @@ private:
         const std::vector<r3d::physics::VehicleState>& vehicles);
     void synchronizeRacerGameCars(
         const std::vector<r3d::physics::VehicleState>& vehicles);
+    void ingestPairContacts(
+        const std::vector<r3d::physics::VehicleState>& vehicles);
+    void releasePairContacts();
     void updateGameplay(
         float seconds,
         const std::vector<r3d::physics::VehicleState>& vehicles,
@@ -549,6 +552,7 @@ private:
     bool damageDecorationWithBox(
         Transform transform, ProjectileCollisionBox collision,
         float damage, std::size_t attacker,
+        source::Proj* projectile,
         Vec3* contactPoint = nullptr);
     bool damageDecoration(std::size_t instance, float damage,
                           std::size_t attacker);
@@ -564,6 +568,9 @@ private:
     void applyCampaignRewards() noexcept;
 
     const Race& race_;
+    // Declared before Logic so Logic can unregister its ProgressEvent while
+    // the World owner is still alive during destruction.
+    source::WorldEventPump gameplayWorld_;
     source::Logic logic_;
     RacePhase phase_ = RacePhase::Countdown;
     RacePhase phaseBeforePause_ = RacePhase::Countdown;

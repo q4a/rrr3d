@@ -57,10 +57,10 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `GameBase` | `OriginalGameObject`, behaviors, effects, motor sound state | Source owner, partial | Закрыть отсутствующие behavior subclasses и единый progress dispatch |
 | `GameCar` | `source::GameCar` + Jolt vehicle adapter | Source owner, partial | Сравнить каждый PhysX callback/order и убрать session-owned car branches |
 | `GameMode` | `source::GameModeState` + `GameModeRaceState` | Source owner, active race path | Startup/movie/config и часть menu/audio backend-команд ещё находятся в host |
-| `GameObject` | `source::GameObject`, frame sync, listener graph | Source owner, partial | Перенести virtual progress/fixed/frame dispatch без session обходов |
+| `GameObject` | `source::GameObject`, frame sync, listener/contact graph | Source owner, active core | Подключить оставшиеся fixed/frame callbacks и убрать backend-view ветви session |
 | `HudMenu` | `OriginalRaceHud` | Distributed | Данные в отдельном владельце, но source Widget/Menu graph отсутствует |
 | `HumanPlayer` | `source::HumanPlayer` | Source owner, partial | Подключить полный source input message path и event order |
-| `Logic` | `source::Logic` | Source owner, partial | Перенести central object/contact/network dispatch, убрать parallel loops |
+| `Logic` | `source::Logic` + `WorldEventPump` progress registration | Source owner, active object/contact core | Убрать оставшиеся network authority и projectile backend-view loops из session |
 | `MainMenu2` | `OriginalMainMenu::Controller` + main screen stack | Distributed | Вернуть source frame tree, profile/network callbacks и invalidation |
 | `Map` | `source::Map` | Source owner, partial | Завершить load/fix-up ownership и backend create/destroy commands |
 | `MapObj` | `source::MapObj*` record/list hierarchy | Source owner, partial | Убрать importer/runtime mirrors и проверить все concrete object types |
@@ -76,7 +76,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `Trace` | `source::{Trace,WayPath,WayNode,WayPoint}` | Source owner, strong | Осталась graph/debug visualization boundary |
 | `TraceGfx` | `OriginalRaceRenderer` debug draw | Backend boundary | Перенести source trace visual state, оставить bgfx submission |
 | `View` | SDL window/input + bgfx device | Backend boundary | Перенести source view policy: reset/display/input coordinate lifecycle |
-| `Weapon` | `source::{Weapon,Proj,AutoProj,WeaponItem...}` | Source owner, partial | Вернуть центральные virtual contact/progress callbacks; убрать session dispatch |
+| `Weapon` | `source::{Weapon,Proj,AutoProj,WeaponItem...}` | Source owner, active contact core | Полностью свернуть type-specific progress backend-view loops в Proj adapter |
 | `World` | `source::WorldEventPump` + native `WorldHost` | Source owner, event core | Подключить к спискам все race objects/environment/network adapters вместо оставшихся session loops |
 
 ## Очередь крупных блоков
@@ -135,12 +135,31 @@ GameMode config, а также исполнение всех music/commentator �
 в platform host. Кроме того, в world lists ещё не зарегистрированы все
 race-local concrete objects — это пересекается с центральным dispatch B4.
 
-### B4 — central GameObject/Logic/Proj dispatch
+### B4 — central GameObject/Logic/Proj dispatch (B4a выполнено)
 
 Убрать оставшиеся параллельные projectile/mine/contact loops из
 `OriginalRaceSession`. Concrete `GameObject`/`Proj` должны сами исполнять
 исходный virtual progress/contact graph, возвращая Jolt/audio/render
 commands только на backend boundary.
+
+Результат B4a: `Logic` снова подключён к `WorldEventPump` как исходный
+`WorldHost`, а `PairPxContactEffect` — как ordered `ProgressEvent` после
+`Logic::OnProgress`. Jolt contact manifolds теперь импортируются до этого
+progress-прохода, как PhysX callbacks в Windows; команды освобождения
+эффектов забираются после него. Ручной вызов contact timer из середины
+`OriginalRaceSession::updateGameplay` удалён.
+
+В `Proj` возвращён первый этап исходного `OnContact`: базовый
+`GameObject::OnContact` выполняется до live-state guard и type switch. Этот
+путь подключён для car/decor projectile contacts, mines и map bonuses; если
+listener (например `TouchDeath`) уничтожил target, конкретный обработчик и
+damage подавляются исходным владельцем.
+
+Открытая B4b: `projectiles_`/`mines_` пока остаются необходимыми
+Jolt/render views, а часть type-specific ray/movement queries всё ещё
+находится в session adapter. Их нужно свести к входным physics snapshots и
+выходным командам `Proj`, не удаляя массивы представления до появления
+эквивалента PhysX actor ownership.
 
 ### B5 — DataBase/RecordLib/ResourceManager
 

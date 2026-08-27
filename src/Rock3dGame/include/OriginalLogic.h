@@ -3,6 +3,7 @@
 #include "OriginalGameObject.h"
 #include "OriginalPlayer.h"
 #include "OriginalWeapon.h"
+#include "OriginalWorld.h"
 
 #include <array>
 #include <cstddef>
@@ -21,7 +22,7 @@ class Map;
 // Portable owner for Logic.cpp::PairPxContactEffect.  Jolt supplies actor
 // identities, friction magnitude and manifold points; this class preserves
 // the original two-effects-per-pair cursor and strict 0.1-second release.
-class PairPxContactEffect
+class PairPxContactEffect final : public ProgressEvent
 {
 public:
     using ActorId = std::uint64_t;
@@ -76,7 +77,10 @@ public:
         Key key, float frictionForce, bool firstShapeIsWheel,
         bool secondShapeIsWheel, std::span<const Point> points,
         float randomUnit);
-    std::vector<Release> OnProgress(float deltaTime);
+    // Logic.cpp registers this behavior in World's progress list. Native
+    // effect destruction is consumed separately after the source callback.
+    void OnProgress(float deltaTime) override;
+    std::vector<Release> TakeReleases();
 
     std::size_t GetPairCount() const noexcept;
     std::size_t GetContactCount(Key key) const noexcept;
@@ -97,13 +101,14 @@ private:
     };
 
     std::map<Key, ContactNode> contacts_;
+    std::vector<Release> pendingReleases_;
     std::size_t soundCount_ = 0U;
 };
 
 // Backend-neutral gameplay portion of Logic. Network transport remains at
 // the session boundary; selection, reflector policy and GameObject dispatch
 // follow Logic.cpp.
-class Logic
+class Logic final : public WorldHost
 {
 public:
     using ContactRange = std::array<float, 2U>;
@@ -188,6 +193,16 @@ public:
     Map* GetMap() noexcept;
     const Map* GetMap() const noexcept;
 
+    // Exact LogicBehavior::RegProgressEvent ownership. World invokes Logic
+    // first through WorldHost, then PairPxContactEffect through its ordered
+    // progress list.
+    void AttachWorld(WorldEventPump* world) noexcept;
+    void DetachWorld() noexcept;
+    WorldEventPump* GetWorld() noexcept;
+    const WorldEventPump* GetWorld() const noexcept;
+    void OnLogicProgress(float deltaTime) override;
+    const ProgressResult& GetLastProgressResult() const noexcept;
+
     // Logic.cpp owns the global contact behavior and the four serialized
     // GameCar contact ranges. Physics/audio remain backend adapters.
     void ResetContactBehavior(std::size_t soundCount = 0U) noexcept;
@@ -204,9 +219,11 @@ public:
     void SetTouchCarDamageForce(ContactRange value) noexcept;
 
 private:
+    WorldEventPump* world_ = nullptr;
     Map* map_ = nullptr;
     std::vector<std::unique_ptr<GameObject>> gameObjects_;
     PairPxContactEffect pairPxContactEffect_;
+    ProgressResult lastProgressResult_;
     ContactRange touchBorderDamage_{};
     ContactRange touchBorderDamageForce_{};
     ContactRange touchCarDamage_{};
