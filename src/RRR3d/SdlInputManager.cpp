@@ -197,6 +197,11 @@ void SdlInputManager::shutdown() noexcept
 	initialized_ = false;
 }
 
+void SdlInputManager::resetInput() noexcept
+{
+	control_.ResetInput();
+}
+
 void SdlInputManager::applyKeyboardBindings(
     const std::map<std::string, std::string> &bindings)
 {

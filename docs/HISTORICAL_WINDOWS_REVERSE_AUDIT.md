@@ -4047,6 +4047,32 @@ files, motor/wheel loop teardown прошёл, а после выхода не �
 decode и eviction являются необходимой portable backend-границей. Следующим
 B5d остаются font и material descriptor libraries.
 
+### P2.173 — `Menu` снова владеет root frame state и modal routing — выполнено
+
+В Windows `Menu::SetState` сбрасывает ввод и передаёт состояние в
+`ApplyState`, который одновременно управляет GUI mode, cursor/invert-Y и
+видимостью Main/Race/Hud/Finish/Info/Final/Options frames. Каждый
+`MenuFrame` отдельно владеет visible/modal/topmost, делает invalidate до
+layout и ограничивает позицию 15-пиксельным отступом от viewport. В порте
+эти обязанности были рассыпаны по локальному `std::vector<MenuScreen>`,
+`menuSelection`, domain-specific bool dialogs и pointer gates в 22k-line
+entry point.
+
+Добавлен `originalmenu::MenuSystem`: source state machine, `ScreenStack`,
+frame registry и modal ordering теперь не зависят от D3D9 или legacy Widget.
+Живой SDL/bgfx path использует их для экранных переходов, сбрасывает
+`originalcontrol::ControlManager`, синхронизирует Accept/Message/Loading/
+UserChat/Options frames и выбирает верхний modal owner перед обработкой
+мыши/клавиатуры. `Show`, `ShowModal`, hidden layout gate, invalidate/layout
+order и `SetPos` clamp закреплены отдельным regression. Сборка arm64, 19/19
+офлайн tests, 2/2 network tests, physics smoke и 360-frame Metal race smoke
+прошли.
+
+Этот блок не объявляет concrete GUI завершённым. `DialogMenu2`, Main/Profile,
+Options, Planet/Garage/Workshop/Race и Finish/Final всё ещё формируют часть
+widgets/draw data в host и составляют B6b+; CoreText/bgfx являются допустимой
+backend-границей.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

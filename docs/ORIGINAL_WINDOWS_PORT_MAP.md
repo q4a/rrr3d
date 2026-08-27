@@ -64,8 +64,8 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `MainMenu2` | `OriginalMainMenu::Controller` + main screen stack | Distributed | Вернуть source frame tree, profile/network callbacks и invalidation |
 | `Map` | `source::Map` | Source owner, partial | Завершить load/fix-up ownership и backend create/destroy commands |
 | `MapObj` | `source::MapObj*` record/list hierarchy | Source owner, partial | Убрать importer/runtime mirrors и проверить все concrete object types |
-| `Menu` | Ручной screen stack/render code | Distributed | Самый крупный GUI block: source widgets, layouts, focus, animation |
-| `MenuSystem` | Ручные input/layout helpers | Distributed | Вернуть root event routing и frame ownership |
+| `Menu` | `originalmenu::MenuSystem` + ручные frame renderers | Source owner, frame core | Перенести concrete source widgets/layout/focus/animation по экранам |
+| `MenuSystem` | `originalmenu::{MenuSystem,ScreenStack,FrameState}` | Source owner, active menu path | Подключить concrete navigation graphs; bgfx остаётся draw executor |
 | `OptionsMenu` | Ручные option pages + `OriginalProfile` | Distributed | Вернуть source controls, apply/reset/autodetect transitions |
 | `Player` | `source::Player`, `CarState`, behavior classes | Source owner, partial | Убрать оставшиеся session mirrors, проверить full event/listener order |
 | `Race` | `OriginalRace`, `OriginalRaceSession`, lifecycle/place/tournament | Source owner, partial | Разложить 7 971-строчный источник по исходным владельцам вместо session |
@@ -209,11 +209,32 @@ Milestone 8.
 Открытая B5d: вернуть source identity для font descriptors и material-library
 descriptors/samplers. Их backend payload останется CoreText и bgfx/Metal.
 
-### B6 — Menu/MenuSystem и исходные frames
+### B6 — Menu/MenuSystem и исходные frames (B6a выполнен)
 
 Перенести widget tree крупными экранами: common dialog/frame primitives,
 MainMenu/Profile, Options, Planet/Garage/Workshop/Race и Finish/Final. Metal
 renderer получает готовый source draw list и не решает focus/layout/state.
+
+Результат B6a: добавлен backend-neutral `originalmenu::MenuSystem`, который
+воспроизводит `Menu::SetState/ApplyState` и общую часть
+`MenuFrame::Show/ShowModal/AdjustLayout/Invalidate/SetPos`. Он владеет
+исходными уровнями topmost, modal ordering, 15-пиксельным ограничением frame
+в viewport, visibility снимком `Main/Race/Hud/Finish/Info/Final`, флагами
+loading/options/start-options и ревизиями сброса ввода.
+
+Активный macOS path больше не владеет локальным `std::vector<MenuScreen>` и
+отдельным selection: они находятся в source `ScreenStack`. Состояние frame
+выводится из живого main/race/hud/finish/final пути, переходы вызывают
+`ControlManager::ResetInput`, а Message/Accept/Loading/UserChat/Options
+вход направляется через верхний modal frame. CoreText и bgfx сохраняются
+только как backend текста и draw-команд. Отдельный smoke закрепляет исходный
+visibility/reset порядок, modal precedence, hidden-layout gate, invalidate
+и viewport clamp.
+
+Открытая B6b: перенести concrete `DialogMenu2` navigation graphs и затем
+экраны крупными группами — Main/Profile, Options, Planet/Garage/Workshop/
+Race, Finish/Final. Их draw data пока формируется функциями большого host
+entry point, хотя lifecycle/root ownership уже source-owned.
 
 ### B7 — Environment/TraceGfx/render policy
 

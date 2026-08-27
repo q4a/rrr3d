@@ -43,6 +43,7 @@ class SdlInputManager
 
 	bool initialize(std::string &error);
 	void shutdown() noexcept;
+	void resetInput() noexcept;
 	void applyKeyboardBindings(
 	    const std::map<std::string, std::string> &bindings);
 	void applyGamepadBindings(

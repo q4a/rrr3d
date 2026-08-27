@@ -2,6 +2,7 @@
 #include "OriginalAudioSpec.h"
 #include "OriginalGameData.h"
 #include "OriginalMainMenu.h"
+#include "OriginalMenuSystem.h"
 #ifdef RRR3D_NETWORK
 #include "OriginalNetwork.h"
 #endif
@@ -81,6 +82,7 @@ using namespace r3d::renderer;
 namespace menu = r3d::game::mainmenu2;
 namespace originalaudio = r3d::game::originalaudio;
 namespace originalgamedata = r3d::game::originalgamedata;
+namespace originalmenu = r3d::game::originalmenu;
 
 constexpr int initialWidth = 1280;
 constexpr int initialHeight = 733;
@@ -5189,38 +5191,12 @@ int main(int argc, char** argv)
         return true;
     };
 #endif
-    enum class MenuScreen
-    {
-        Main,
-        GameMode,
-        Tournament,
-        Difficulty,
-        Profiles,
-        Network,
-#ifdef RRR3D_NETWORK
-        NetworkServerType,
-        NetworkClientType,
-        NetworkBrowser,
-        NetworkIpAddress,
-#endif
-        Options,
-        Credits,
-#ifdef RRR3D_PHYSICS
-        Gamers,
-        RaceMenu,
-        Garage,
-        Workshop,
-        Planets,
-        Achievements,
-        GameOptions,
-        GraphicsOptions,
-        SoundOptions,
-        ControlsOptions,
-        Finish,
-#endif
-    };
-    std::vector<MenuScreen> menuStack{MenuScreen::Main};
-    std::size_t menuSelection = 0;
+    using MenuScreen = originalmenu::MenuScreen;
+    originalmenu::MenuSystem sourceMenuSystem;
+    sourceMenuSystem.AdjustLayout(
+        {menu::virtualWidth, menu::virtualHeight});
+    auto& menuStack = sourceMenuSystem.Screens();
+    auto& menuSelection = sourceMenuSystem.Selection();
     bool championshipMode = true;
     bool newTournamentProfile = false;
     std::uint64_t previousFrameTicks = SDL_GetTicksNS();
@@ -6401,6 +6377,8 @@ int main(int argc, char** argv)
             acceptDialog.no = createText(
                 *device, noText, 32.0F, false,
                 menu::Rgba8{175, 175, 175, 255}, resolvedFont);
+            sourceMenuSystem.ShowModal(
+                originalmenu::FrameId::Accept, true);
 #ifdef RRR3D_AUDIO
             playOriginalMenuSound(
                 rrr3d::audio::OriginalMenuSound::Acceptance);
@@ -7623,6 +7601,8 @@ int main(int argc, char** argv)
     };
     auto hideInfoDialog = [&]() {
         infoDialog.visible = false;
+        sourceMenuSystem.ShowModal(
+            originalmenu::FrameId::Message, false);
     };
     auto showInfoDialog =
         [&](std::string_view title, std::string_view message,
@@ -7656,6 +7636,8 @@ int main(int argc, char** argv)
             infoDialog.centerY = centerY;
             infoDialog.visible = true;
             infoDialog.dismissable = true;
+            sourceMenuSystem.ShowModal(
+                originalmenu::FrameId::Message, true);
             hideWorkshopWeaponDialog();
 #ifdef RRR3D_AUDIO
             playOriginalMenuSound(
@@ -10018,13 +10000,13 @@ int main(int argc, char** argv)
         }
     };
     auto setOptionsState = [&](std::size_t state) {
-        menuStack.back() =
+        menuStack.set_back(
             std::array{
                 MenuScreen::GameOptions,
                 MenuScreen::GraphicsOptions,
                 MenuScreen::SoundOptions,
                 MenuScreen::ControlsOptions}
-                [std::min<std::size_t>(state, 3U)];
+                [std::min<std::size_t>(state, 3U)]);
         menuSelection = 0U;
         bindingCaptureAction.reset();
         refreshCurrentOptionsPage();
@@ -11527,10 +11509,89 @@ int main(int argc, char** argv)
         }
 #endif
 #endif
+        originalmenu::MenuState sourceMenuState =
+            originalmenu::MenuState::Main;
+        const MenuScreen sourceScreen = menuStack.back();
+        if (sourceScreen == MenuScreen::Credits)
+            sourceMenuState = originalmenu::MenuState::Final;
+#ifdef RRR3D_PHYSICS
+        if (inRace)
+        {
+            sourceMenuState = originalmenu::MenuState::Hud;
+        }
+        else if (sourceScreen == MenuScreen::Finish)
+        {
+            sourceMenuState = originalmenu::MenuState::Finish;
+        }
+        else if (sourceScreen == MenuScreen::RaceMenu ||
+                 sourceScreen == MenuScreen::Garage ||
+                 sourceScreen == MenuScreen::Workshop ||
+                 sourceScreen == MenuScreen::Planets ||
+                 sourceScreen == MenuScreen::Achievements ||
+                 sourceScreen == MenuScreen::GameOptions ||
+                 sourceScreen == MenuScreen::GraphicsOptions ||
+                 sourceScreen == MenuScreen::SoundOptions ||
+                 sourceScreen == MenuScreen::ControlsOptions)
+        {
+            sourceMenuState = originalmenu::MenuState::Race;
+        }
+#endif
+        sourceMenuSystem.SetState(sourceMenuState);
+        const bool sourceOptionsVisible =
+            sourceScreen == MenuScreen::Options
+#ifdef RRR3D_PHYSICS
+            || sourceScreen == MenuScreen::GameOptions ||
+            sourceScreen == MenuScreen::GraphicsOptions ||
+            sourceScreen == MenuScreen::SoundOptions ||
+            sourceScreen == MenuScreen::ControlsOptions
+#endif
+            ;
+        sourceMenuSystem.SetOptionsVisible(sourceOptionsVisible);
+#ifdef RRR3D_PHYSICS
+        sourceMenuSystem.ShowModal(
+            originalmenu::FrameId::Accept, acceptDialogVisible());
+        sourceMenuSystem.ShowModal(
+            originalmenu::FrameId::Message, infoDialog.visible);
+        sourceMenuSystem.ShowModal(
+            originalmenu::FrameId::Loading,
+            infoDialog.visible && !infoDialog.dismissable,
+            originalmenu::MenuSystem::topmostLoading);
+        if (userChat.inputVisible())
+        {
+            sourceMenuSystem.ShowModal(
+                originalmenu::FrameId::UserChat, true);
+        }
+        else
+        {
+            sourceMenuSystem.ShowModal(
+                originalmenu::FrameId::UserChat, false);
+            sourceMenuSystem.Show(
+                originalmenu::FrameId::UserChat, userChat.visible());
+        }
+#endif
+#ifdef RRR3D_GAMEPAD_INPUT
+        if (sourceMenuSystem.ConsumeInputReset())
+            input.resetInput();
+#else
+        static_cast<void>(sourceMenuSystem.ConsumeInputReset());
+#endif
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {
 #ifdef RRR3D_PHYSICS
+            // Domain callbacks may close a dialog while more SDL events are
+            // already queued. Keep the source modal root authoritative for
+            // every event, not merely at the beginning of the frame.
+            sourceMenuSystem.ShowModal(
+                originalmenu::FrameId::Accept,
+                acceptDialogVisible());
+            sourceMenuSystem.ShowModal(
+                originalmenu::FrameId::Message,
+                infoDialog.visible);
+            sourceMenuSystem.ShowModal(
+                originalmenu::FrameId::Loading,
+                infoDialog.visible && !infoDialog.dismissable,
+                originalmenu::MenuSystem::topmostLoading);
             if (options->legacyWindowsDebug && inRace &&
                 event.type == SDL_EVENT_MOUSE_MOTION &&
                 (raceCameraStyle ==
@@ -11993,8 +12054,13 @@ int main(int argc, char** argv)
             bool pointerHandledOriginalOptions = false;
             bool workshopPointerSlotPlane = false;
 #ifdef RRR3D_PHYSICS
-            if (!inRace && !infoDialog.visible &&
-                !acceptDialogVisible())
+            const auto sourceTopModal = sourceMenuSystem.TopModal();
+            const bool sourceInfoModal =
+                sourceTopModal == originalmenu::FrameId::Message ||
+                sourceTopModal == originalmenu::FrameId::Loading;
+            const bool sourceAcceptModal =
+                sourceTopModal == originalmenu::FrameId::Accept;
+            if (!inRace && !sourceMenuSystem.HasModal())
             {
                 if (menuStack.back() == MenuScreen::Garage)
                     handleSourceAutoObserverPointer(
@@ -12004,7 +12070,7 @@ int main(int argc, char** argv)
                         angarObserver, event);
             }
             std::optional<bool> pointerAcceptChoice;
-            if (infoDialog.visible && infoDialog.dismissable &&
+            if (sourceInfoModal && infoDialog.dismissable &&
                 (event.type == SDL_EVENT_MOUSE_MOTION ||
                  event.type == SDL_EVENT_MOUSE_BUTTON_DOWN))
             {
@@ -12047,7 +12113,7 @@ int main(int argc, char** argv)
                     event.type == SDL_EVENT_MOUSE_MOTION ||
                     event.button.button != SDL_BUTTON_LEFT;
             }
-            else if (acceptDialogVisible() &&
+            else if (sourceAcceptModal &&
                 (event.type == SDL_EVENT_MOUSE_MOTION ||
                  event.type == SDL_EVENT_MOUSE_BUTTON_DOWN))
             {
@@ -13333,7 +13399,7 @@ int main(int argc, char** argv)
                     refreshCurrentOptionsPage();
                     continue;
                 }
-                if (infoDialog.visible)
+                if (sourceInfoModal)
                 {
                     if (!inputEvent.active || inputEvent.repeated)
                         continue;
