@@ -575,40 +575,6 @@ r3d::physics::Quat axesRotation(
     return normalizeQuaternion(result);
 }
 
-r3d::physics::Quat sourceSphericalMix(
-    r3d::physics::Quat first, r3d::physics::Quat second,
-    float amount) noexcept
-{
-    first = normalizeQuaternion(first);
-    second = normalizeQuaternion(second);
-    float cosine = first.x * second.x + first.y * second.y +
-                   first.z * second.z + first.w * second.w;
-    if (cosine < 0.0F)
-    {
-        cosine = -cosine;
-        second = {-second.x, -second.y, -second.z, -second.w};
-    }
-    cosine = std::clamp(cosine, -1.0F, 1.0F);
-    if (cosine > 0.9995F)
-    {
-        return normalizeQuaternion({
-            first.x + (second.x - first.x) * amount,
-            first.y + (second.y - first.y) * amount,
-            first.z + (second.z - first.z) * amount,
-            first.w + (second.w - first.w) * amount});
-    }
-    const float angle = std::acos(cosine);
-    const float sine = std::sin(angle);
-    const float firstWeight =
-        std::sin((1.0F - amount) * angle) / sine;
-    const float secondWeight = std::sin(amount * angle) / sine;
-    return normalizeQuaternion({
-        first.x * firstWeight + second.x * secondWeight,
-        first.y * firstWeight + second.y * secondWeight,
-        first.z * firstWeight + second.z * secondWeight,
-        first.w * firstWeight + second.w * secondWeight});
-}
-
 r3d::physics::Vec3 rotate(const r3d::physics::Quat& q,
                           r3d::physics::Vec3 value)
 {
@@ -2934,334 +2900,58 @@ Camera OriginalRaceRenderer::makeCamera(
     std::uint32_t height, RaceCameraStyle style,
     float cameraDistance, float seconds) noexcept
 {
-    const float aspect =
+    const float sourceAspect =
         static_cast<float>(std::max(width, 1U)) /
         static_cast<float>(std::max(height, 1U));
-    const auto carForward = normalize(rotateX(vehicle.body.rotation));
-    auto isometricForward = carForward;
-    isometricForward.z = 0.0F;
-    isometricForward = normalize(isometricForward);
+    r3d::game::originalrace::source::CameraTarget target;
+    target.position = vehicle.body.position;
+    target.rotation = vehicle.body.rotation;
+    target.linearVelocity = vehicle.linearVelocity;
+    target.drivenWheelSpeed = sourceFreeWheelSpeed;
+    const auto frame = sourceCamera_.OnFrame(
+        target, style, sourceAspect, cameraDistance,
+        perspectiveFarDistance_, seconds);
 
-    // CameraManager first removes backwards body motion while the first
-    // non-lead wheel is stopped/reversing, then adds the complete 3D
-    // velocity to the car direction. The old portable camera discarded Z
-    // and therefore reacted to suspension motion with a different pose.
-    auto targetVelocity = vehicle.linearVelocity;
-    if (sourceFreeWheelSpeed < 0.1F)
-    {
-        const auto bodyRotation =
-            normalizeQuaternion(vehicle.body.rotation);
-        const r3d::physics::Quat inverseBody{
-            -bodyRotation.x, -bodyRotation.y, -bodyRotation.z,
-            bodyRotation.w};
-        auto localVelocity = rotate(inverseBody, targetVelocity);
-        localVelocity.x = std::max(localVelocity.x, 0.0F);
-        targetVelocity = rotate(bodyRotation, localVelocity);
-    }
-    auto velocityForward = normalize({
-        carForward.x + targetVelocity.x * 0.1F,
-        carForward.y + targetVelocity.y * 0.1F,
-        carForward.z + targetVelocity.z * 0.1F});
-    if (velocityForward.x == 0.0F && velocityForward.y == 0.0F &&
-        velocityForward.z == 0.0F)
-        velocityForward = carForward;
-    const float velocityLength = std::sqrt(
-        targetVelocity.x * targetVelocity.x +
-        targetVelocity.y * targetVelocity.y +
-        targetVelocity.z * targetVelocity.z);
-    const auto& position = vehicle.body.position;
+    cameraPosition_ = frame.position;
+    cameraViewDirection_ = frame.direction;
+    cameraRotation_ = frame.rotation;
+    cameraStyle_ = style;
+    activeCameraFarDistance_ = frame.farDistance;
+    pointSpriteScale_ = frame.pointSpriteScale;
 
-    if (!cameraStyleInitialized_)
-    {
-        cameraStyle_ = style;
-        cameraStyleInitialized_ = true;
-    }
-    else if (cameraStyle_ != style)
-    {
-        if (style == RaceCameraStyle::Isometric)
-        {
-            cameraLead_ = {};
-            previousCameraTarget_ = position;
-            cameraJumpDirection_ = {};
-            cameraJumpDistance_ = 0.0F;
-            cameraJumpSpeed_ = 0.0F;
-        }
-        else
-        {
-            // ChangeStyle leaves the current graph::Camera rotation intact;
-            // the first csThirdPerson frame slerps from the isometric pose.
-            thirdPersonRotation_ = cameraRotation_;
-            thirdPersonPullback_ = 0.0F;
-        }
-        cameraStyle_ = style;
-    }
-    if (style == RaceCameraStyle::Isometric)
-    {
-        pointSpriteScale_ = 0.75F;
-        // CameraManager::csIsometric: Y=15.5 degrees, Z=45 degrees,
-        // target distance 20 and an orthographic width of
-        // 28 * GameMode::cameraDistance.
-        constexpr float radians = 3.14159265358979323846F / 180.0F;
-        const float elevation = 15.5F * radians;
-        const float azimuth = 45.0F * radians;
-        const r3d::physics::Quat rotationY{
-            0.0F, std::sin(elevation * 0.5F), 0.0F,
-            std::cos(elevation * 0.5F)};
-        const r3d::physics::Quat rotationZ{
-            0.0F, 0.0F, std::sin(azimuth * 0.5F),
-            std::cos(azimuth * 0.5F)};
-        const auto isoRotation = multiply(rotationZ, rotationY);
-        const r3d::physics::Quat inverseIso{
-            -isoRotation.x, -isoRotation.y, -isoRotation.z,
-            isoRotation.w};
-        const auto isoDirection =
-            rotate(isoRotation, {1.0F, 0.0F, 0.0F});
-        cameraViewDirection_ = isoDirection;
-
-        // This follows CameraManager::csIsometric's projection into camera
-        // space, border clipping and transform back into world space.
-        auto localDirection = rotate(inverseIso, isometricForward);
-        r3d::physics::Vec3 projected{
-            localDirection.y, localDirection.z, 0.0F};
-        const float projectedLength = std::sqrt(
-            projected.x * projected.x + projected.y * projected.y);
-        if (projectedLength > 0.0001F)
-        {
-            projected.x /= projectedLength;
-            projected.y /= projectedLength;
-        }
-        const float yTargetDot = projected.y;
-        const float cameraWidth = 28.0F * cameraDistance;
-        const float halfWidth = cameraWidth * 0.5F;
-        const float halfHeight = halfWidth / aspect;
-        const float cameraSize =
-            std::sqrt(halfWidth * halfWidth + halfHeight * halfHeight);
-        projected.x *= cameraSize;
-        projected.y *= cameraSize;
-        constexpr float border = 5.0F;
-        if (std::abs(projected.y) > 0.1F &&
-            std::abs(projected.x / projected.y) < aspect &&
-            std::abs(yTargetDot) > 0.0001F)
-        {
-            const float y = std::clamp(
-                projected.y, -border / aspect, border / aspect);
-            const float radius = std::abs(y / yTargetDot);
-            float x = std::sqrt(
-                std::max(radius * radius - y * y, 0.0F));
-            if (projected.x < 0.0F)
-                x = -x;
-            projected.x = x;
-            projected.y = y;
-        }
-        else
-        {
-            const float x =
-                std::clamp(projected.x, -border, border);
-            const float denominator =
-                std::sqrt(std::max(1.0F - yTargetDot * yTargetDot,
-                                   0.0001F));
-            const float radius = std::abs(x) / denominator;
-            float y = std::sqrt(
-                std::max(radius * radius - x * x, 0.0F));
-            if (projected.y < 0.0F)
-                y = -y;
-            projected.x = x;
-            projected.y = y;
-        }
-        const auto desiredLead =
-            rotate(isoRotation,
-                   {0.0F, projected.x, projected.y});
-        const float blend = std::clamp(seconds, 0.0F, 1.0F);
-        cameraLead_.x += (desiredLead.x - cameraLead_.x) * blend;
-        cameraLead_.y += (desiredLead.y - cameraLead_.y) * blend;
-        cameraLead_.z += (desiredLead.z - cameraLead_.z) * blend;
-
-        // Preserve CameraManager's teleport compensation so respawning does
-        // not create a one-frame camera jump across the map.
-        r3d::physics::Vec3 target = position;
-        if (!cameraInitialized_)
-        {
-            previousCameraTarget_ = target;
-            cameraInitialized_ = true;
-        }
-        const auto jump = r3d::physics::Vec3{
-            target.x - previousCameraTarget_.x,
-            target.y - previousCameraTarget_.y,
-            target.z - previousCameraTarget_.z};
-        const float jumpLength = std::sqrt(
-            jump.x * jump.x + jump.y * jump.y + jump.z * jump.z);
-        if (jumpLength > 6.0F)
-        {
-            if (cameraJumpDistance_ == 0.0F)
-                cameraJumpSpeed_ = jumpLength / 0.5F;
-            cameraJumpDistance_ = jumpLength;
-            cameraJumpDirection_ = {
-                jump.x / jumpLength, jump.y / jumpLength,
-                jump.z / jumpLength};
-        }
-        previousCameraTarget_ = target;
-
-        cameraJumpDistance_ = std::max(
-            cameraJumpDistance_ - cameraJumpSpeed_ * seconds, 0.0F);
-        const bx::Vec3 at{
-            target.x + cameraLead_.x -
-                cameraJumpDirection_.x * cameraJumpDistance_,
-            target.y + cameraLead_.y -
-                cameraJumpDirection_.y * cameraJumpDistance_,
-            target.z + cameraLead_.z -
-                cameraJumpDirection_.z * cameraJumpDistance_};
-        const bx::Vec3 eye{
-            at.x - isoDirection.x * 20.0F,
-            at.y - isoDirection.y * 20.0F,
-            at.z - isoDirection.z * 20.0F};
-        cameraPosition_ = {eye.x, eye.y, eye.z};
-        cameraRotation_ = isoRotation;
-        activeCameraFarDistance_ = 150.0F;
-        Camera camera;
-        bx::mtxLookAt(camera.view.data(), eye, at,
-                      {0.0F, 0.0F, 1.0F},
-                      bx::Handedness::Right);
-        const float cameraHeight = cameraWidth / aspect;
-        bx::mtxOrtho(camera.projection.data(), -cameraWidth * 0.5F,
-                     cameraWidth * 0.5F, -cameraHeight * 0.5F,
-                     cameraHeight * 0.5F, 1.0F, 150.0F, 0.0F,
-                     device.usesHomogeneousDepth(),
-                     bx::Handedness::Right);
-        return camera;
-    }
-
-    if (style != RaceCameraStyle::ThirdPerson)
-    {
-        // csLights uses the selected light transform when an editor light is
-        // present. A running race has no selected editor light, so it shares
-        // csFreeView's retained perspective transform. csIsoView retains the
-        // same position but applies the source fixed 15.5/45-degree ortho
-        // rotation and clamps its height to at least ten units.
-        constexpr float radians = 3.14159265358979323846F / 180.0F;
-        const float elevation = 15.5F * radians;
-        const float azimuth = 45.0F * radians;
-        const r3d::physics::Quat rotationY{
-            0.0F, std::sin(elevation * 0.5F), 0.0F,
-            std::cos(elevation * 0.5F)};
-        const r3d::physics::Quat rotationZ{
-            0.0F, 0.0F, std::sin(azimuth * 0.5F),
-            std::cos(azimuth * 0.5F)};
-        const auto isoRotation = multiply(rotationZ, rotationY);
-        if (!cameraInitialized_)
-        {
-            const auto direction =
-                normalize(rotate(isoRotation, {1.0F, 0.0F, 0.0F}));
-            cameraPosition_ = {
-                position.x - direction.x * 20.0F,
-                position.y - direction.y * 20.0F,
-                position.z - direction.z * 20.0F};
-            cameraViewDirection_ = direction;
-            cameraRotation_ = isoRotation;
-            cameraInitialized_ = true;
-        }
-        if (style == RaceCameraStyle::IsometricView)
-        {
-            cameraRotation_ = isoRotation;
-            cameraViewDirection_ =
-                normalize(rotate(isoRotation, {1.0F, 0.0F, 0.0F}));
-            cameraPosition_.z = std::max(cameraPosition_.z, 10.0F);
-        }
-        const auto cameraUp = normalize(rotate(
-            cameraRotation_, {0.0F, 0.0F, 1.0F}));
-        const bx::Vec3 eye{
-            cameraPosition_.x, cameraPosition_.y, cameraPosition_.z};
-        const bx::Vec3 at{
-            eye.x + cameraViewDirection_.x,
-            eye.y + cameraViewDirection_.y,
-            eye.z + cameraViewDirection_.z};
-        pointSpriteScale_ = style == RaceCameraStyle::IsometricView
-                                ? 0.75F
-                                : 0.25F;
-        activeCameraFarDistance_ =
-            style == RaceCameraStyle::IsometricView
-                ? 150.0F
-                : perspectiveFarDistance_;
-        Camera camera;
-        bx::mtxLookAt(
-            camera.view.data(), eye, at,
-            {cameraUp.x, cameraUp.y, cameraUp.z},
-            bx::Handedness::Right);
-        if (style == RaceCameraStyle::IsometricView)
-        {
-            const float cameraWidth = 28.0F * cameraDistance;
-            const float cameraHeight = cameraWidth / aspect;
-            bx::mtxOrtho(
-                camera.projection.data(), -cameraWidth * 0.5F,
-                cameraWidth * 0.5F, -cameraHeight * 0.5F,
-                cameraHeight * 0.5F, 1.0F, 150.0F, 0.0F,
-                device.usesHomogeneousDepth(),
-                bx::Handedness::Right);
-        }
-        else
-        {
-            bx::mtxProj(
-                camera.projection.data(), 90.0F, aspect, 1.0F,
-                activeCameraFarDistance_, device.usesHomogeneousDepth(),
-                bx::Handedness::Right);
-        }
-        return camera;
-    }
-
-    const float speedFactor =
-        std::clamp(velocityLength / (150.0F / 3.6F), 0.0F, 1.0F);
-    pointSpriteScale_ = 0.25F;
-    // MatrixRotationFromAxis in CameraManager keeps the horizon upright:
-    // local X follows direction+velocity, local Y is cross(world Z, X), and
-    // local Z completes the basis. Preserve the quaternion slerp rather than
-    // interpolating a flattened heading.
-    auto yAxis = normalize(cross(
-        {0.0F, 0.0F, 1.0F}, velocityForward));
-    if (yAxis.x == 0.0F && yAxis.y == 0.0F && yAxis.z == 0.0F)
-        yAxis = normalize(rotate(
-            vehicle.body.rotation, {0.0F, 1.0F, 0.0F}));
-    const auto zAxis = normalize(cross(velocityForward, yAxis));
-    const auto desiredRotation =
-        axesRotation(velocityForward, yAxis, zAxis);
-    if (!cameraInitialized_)
-        thirdPersonRotation_ = desiredRotation;
-    thirdPersonRotation_ = sourceSphericalMix(
-        thirdPersonRotation_, desiredRotation, 6.0F * seconds);
-    const float pullbackTarget = speedFactor * speedFactor * 1.5F;
-    thirdPersonPullback_ +=
-        (pullbackTarget - thirdPersonPullback_) *
-        std::clamp(seconds * 5.0F, 0.0F, 1.0F);
-    const auto cameraDirection = normalize(rotate(
-        thirdPersonRotation_, {1.0F, 0.0F, 0.0F}));
-    const auto cameraUp = normalize(rotate(
-        thirdPersonRotation_, {0.0F, 0.0F, 1.0F}));
-    const auto cameraOffset = rotate(
-        thirdPersonRotation_, {-5.6F, 0.0F, 2.4F});
     const bx::Vec3 eye{
-        position.x + cameraOffset.x -
-            cameraDirection.x * thirdPersonPullback_,
-        position.y + cameraOffset.y -
-            cameraDirection.y * thirdPersonPullback_,
-        position.z + cameraOffset.z -
-            cameraDirection.z * thirdPersonPullback_};
-    const bx::Vec3 at{eye.x + cameraDirection.x,
-                      eye.y + cameraDirection.y,
-                      eye.z + cameraDirection.z};
-    cameraPosition_ = {eye.x, eye.y, eye.z};
-    cameraViewDirection_ = cameraDirection;
-    cameraRotation_ = thirdPersonRotation_;
-    previousCameraTarget_ = position;
-    cameraInitialized_ = true;
-    activeCameraFarDistance_ = perspectiveFarDistance_;
+        frame.position.x, frame.position.y, frame.position.z};
+    const bx::Vec3 at{
+        eye.x + frame.direction.x,
+        eye.y + frame.direction.y,
+        eye.z + frame.direction.z};
     Camera camera;
-    bx::mtxLookAt(camera.view.data(), eye, at,
-                  {cameraUp.x, cameraUp.y, cameraUp.z},
-                  bx::Handedness::Right);
-    bx::mtxProj(camera.projection.data(), 75.0F,
-                aspect,
-                1.0F, activeCameraFarDistance_,
-                device.usesHomogeneousDepth(),
-                bx::Handedness::Right);
+    bx::mtxLookAt(
+        camera.view.data(), eye, at,
+        {frame.up.x, frame.up.y, frame.up.z},
+        bx::Handedness::Right);
+    if (frame.projection ==
+        r3d::game::originalrace::source::CameraProjection::Orthographic)
+    {
+        const float cameraHeight =
+            frame.orthographicWidth / sourceAspect;
+        bx::mtxOrtho(
+            camera.projection.data(),
+            -frame.orthographicWidth * 0.5F,
+            frame.orthographicWidth * 0.5F,
+            -cameraHeight * 0.5F, cameraHeight * 0.5F,
+            frame.nearDistance, frame.farDistance, 0.0F,
+            device.usesHomogeneousDepth(), bx::Handedness::Right);
+    }
+    else
+    {
+        bx::mtxProj(
+            camera.projection.data(), frame.verticalFovDegrees,
+            sourceAspect, frame.nearDistance, frame.farDistance,
+            device.usesHomogeneousDepth(), bx::Handedness::Right);
+    }
     return camera;
+
 }
 
 Camera OriginalRaceRenderer::makePresentationCamera(
@@ -3297,10 +2987,8 @@ Camera OriginalRaceRenderer::makePresentationCamera(
     cameraPosition_ = source.position;
     cameraViewDirection_ = direction;
     cameraStyle_ = RaceCameraStyle::ThirdPerson;
-    cameraStyleInitialized_ = true;
     activeCameraFarDistance_ = std::max(source.farDistance, 1.0F);
-    previousCameraTarget_ = {};
-    cameraInitialized_ = true;
+    sourceCamera_.Reset();
     return camera;
 }
 
@@ -3308,65 +2996,22 @@ void OriginalRaceRenderer::moveDebugCamera(
     RaceCameraStyle style, float forwardAmount, float rightAmount,
     float seconds) noexcept
 {
-    if (!cameraInitialized_)
-        return;
-    const float step = 20.0F * std::clamp(seconds, 0.0F, 0.25F);
-    const auto direction =
-        style == RaceCameraStyle::IsometricView
-            ? normalize(r3d::physics::Vec3{1.0F, 1.0F, 0.0F})
-            : cameraViewDirection_;
-    const auto right =
-        style == RaceCameraStyle::IsometricView
-            ? normalize(r3d::physics::Vec3{-1.0F, 1.0F, 0.0F})
-            : normalize(rotate(
-                  cameraRotation_, {0.0F, 1.0F, 0.0F}));
-    cameraPosition_.x +=
-        direction.x * forwardAmount * step +
-        right.x * rightAmount * step;
-    cameraPosition_.y +=
-        direction.y * forwardAmount * step +
-        right.y * rightAmount * step;
-    cameraPosition_.z +=
-        direction.z * forwardAmount * step +
-        right.z * rightAmount * step;
+    sourceCamera_.MoveDebugCamera(
+        style, forwardAmount, rightAmount, seconds);
 }
 
 void OriginalRaceRenderer::rotateDebugCamera(
     float deltaX, float deltaY) noexcept
 {
-    if (!cameraInitialized_)
-        return;
-    const auto right = normalize(rotate(
-        cameraRotation_, {0.0F, 1.0F, 0.0F}));
-    const float yawAngle = -0.005F * deltaX;
-    const float pitchAngle = 0.005F * deltaY;
-    const r3d::physics::Quat yaw{
-        0.0F, 0.0F, std::sin(yawAngle * 0.5F),
-        std::cos(yawAngle * 0.5F)};
-    const float pitchSin = std::sin(pitchAngle * 0.5F);
-    const r3d::physics::Quat pitch{
-        right.x * pitchSin, right.y * pitchSin,
-        right.z * pitchSin, std::cos(pitchAngle * 0.5F)};
-    cameraRotation_ = normalizeQuaternion(
-        multiply(multiply(yaw, pitch), cameraRotation_));
-    cameraViewDirection_ = normalize(rotate(
-        cameraRotation_, {1.0F, 0.0F, 0.0F}));
+    sourceCamera_.RotateDebugCamera(deltaX, deltaY);
 }
 
 void OriginalRaceRenderer::resetCamera() noexcept
 {
-    cameraLead_ = {};
-    previousCameraTarget_ = {};
+    sourceCamera_.Reset();
     cameraPosition_ = {};
     cameraViewDirection_ = {1.0F, 0.0F, 0.0F};
-    cameraJumpDirection_ = {};
     cameraRotation_ = {};
-    thirdPersonRotation_ = {};
-    cameraJumpDistance_ = 0.0F;
-    cameraJumpSpeed_ = 0.0F;
-    thirdPersonPullback_ = 0.0F;
-    cameraInitialized_ = false;
-    cameraStyleInitialized_ = false;
 }
 
 void OriginalRaceRenderer::draw(

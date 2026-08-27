@@ -47,7 +47,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `AICar` | `source::AICar::{PathState,ControlState,AttackState}` | Source owner, partial | Свести session adapter к входному physics snapshot и выходной команде |
 | `AIPlayer` | `source::AIPlayer`, `source::AISystem` | Source owner, partial | Проверить полный порядок `OnProgress`, сетевые ветви и debug ownership |
 | `AchievmentModel` | `source::AchievmentModel` | Source owner, partial | Закрыть все event/condition subclasses и persistence order |
-| `CameraManager` | Формулы внутри `OriginalRaceRenderer` | Distributed | Вернуть отдельный `CameraManager`; renderer должен только строить matrices |
+| `CameraManager` | `source::CameraManager` | Source owner, race path | Ещё не перенесены FlyTo, AutoObserver и screen/ray utility; bgfx строит matrices |
 | `ControlManager` | `OriginalControlBindings` + `SdlInputManager` + main event switch | Backend boundary | Вернуть source action dispatcher/event list поверх SDL device state |
 | `DataBase` | `OriginalRace`, `OriginalGarage`, `OriginalGameData` loaders | Distributed | Вернуть record libraries/fix-up ownership и единый object factory |
 | `DialogMenu2` | Ручные frames в `main_bgfx_original_menu` | Distributed | Перенести widget state, focus/invalidate и dialog transitions |
@@ -81,16 +81,18 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 
 ## Очередь крупных блоков
 
-### B1 — CameraManager ownership (в работе)
+### B1 — CameraManager ownership (выполнено)
 
 Перенести backend-neutral состояние и race-ветви
 `CameraManager::Control::OnInputFrame`: ThirdPerson, Isometric, debug styles,
 velocity filtering, style transitions, lead smoothing и respawn/teleport
 compensation. `OriginalRaceRenderer` оставляет только bgfx view/projection.
 
-Критерий закрытия: отдельный `source::CameraManager` входит в
-`Rock3dGame`, имеет deterministic regression и используется активным Metal
-race path.
+Результат: отдельный `source::CameraManager` входит в `Rock3dGame`, имеет
+deterministic regression и используется активным Metal race path. Из
+renderer удалена inline race-camera state machine. Оставшаяся часть
+исходного файла (FlyTo, AutoObserver и screen/ray utility) сохранена в строке
+карты как отдельный следующий camera block, а не объявлена готовой.
 
 ### B2 — ControlManager action dispatcher
 

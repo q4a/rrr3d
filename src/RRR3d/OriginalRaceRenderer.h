@@ -1,5 +1,6 @@
 #pragma once
 
+#include "OriginalCameraManager.h"
 #include "OriginalProfile.h"
 #include "OriginalRace.h"
 #include "OriginalRaceSession.h"
@@ -14,16 +15,8 @@
 namespace rrr3d::race
 {
 
-// CameraManager::Style values reachable through gaViewSwitch in Windows
-// _DEBUG. The normal profile still serializes only the first two styles.
-enum class RaceCameraStyle
-{
-    ThirdPerson,
-    Isometric,
-    Lights,
-    IsometricView,
-    FreeView,
-};
+using RaceCameraStyle =
+    r3d::game::originalrace::source::CameraStyle;
 
 class OriginalRaceRenderer
 {
@@ -245,13 +238,10 @@ private:
     r3d::physics::Vec3 environmentSurfaceSize_;
     r3d::physics::Vec3 sceneWorldCenter_;
     std::vector<r3d::physics::Vec3> grassFieldOffsets_;
-    r3d::physics::Vec3 cameraLead_;
-    r3d::physics::Vec3 previousCameraTarget_;
+    r3d::game::originalrace::source::CameraManager sourceCamera_;
     r3d::physics::Vec3 cameraPosition_;
     r3d::physics::Vec3 cameraViewDirection_{1.0F, 0.0F, 0.0F};
-    r3d::physics::Vec3 cameraJumpDirection_;
     r3d::physics::Quat cameraRotation_;
-    r3d::physics::Quat thirdPersonRotation_;
     RaceCameraStyle cameraStyle_ = RaceCameraStyle::Isometric;
     std::vector<std::vector<std::vector<r3d::physics::Vec3>>>
         wheelTrailPaths_;
@@ -262,9 +252,6 @@ private:
     // ActorManager::RayUser fade timers for original gpCullOpacity actors.
     std::vector<float> trackCullOpacityTimes_;
     std::vector<float> decorationCullOpacityTimes_;
-    float cameraJumpDistance_ = 0.0F;
-    float cameraJumpSpeed_ = 0.0F;
-    float thirdPersonPullback_ = 0.0F;
     float previousRenderSeconds_ = 0.0F;
     float perspectiveFarDistance_ = 120.0F;
     float activeCameraFarDistance_ = 120.0F;
@@ -277,8 +264,6 @@ private:
     bool adaptedLuminanceAIsCurrent_ = false;
     bool luminanceAdaptationInitialized_ = false;
     bool sunShaftResourcesEnabled_ = false;
-    bool cameraInitialized_ = false;
-    bool cameraStyleInitialized_ = false;
 };
 
 } // namespace rrr3d::race

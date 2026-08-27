@@ -3881,6 +3881,28 @@ world transform и source lifetime, затем инициирует подгот
 `AutoProj` identity и сохраняют прежние arming, split, lifetime и death-effect
 пороги.
 
+### P2.166 — `CameraManager` возвращён как source owner — выполнено
+
+Race-ветви оригинального `CameraManager::Control::OnInputFrame` были
+переписаны прямо внутри `OriginalRaceRenderer::makeCamera`. Renderer владел
+состоянием ThirdPerson/Isometric, фильтрацией обратной скорости по driven
+wheel, quaternion interpolation, orthographic lead, компенсацией teleport/
+respawn, debug-перемещением и переключением стилей. Хотя формулы уже были
+source-derived, это оставляло игровую camera policy частью bgfx backend и не
+давало сопоставлять `CameraManager.cpp` как самостоятельный исходный класс.
+
+Добавлен backend-neutral `source::CameraManager` с собственными
+`CameraTarget`, `CameraFrame`, style/projection enums и состоянием всех пяти
+race/debug camera modes. Активный Metal renderer теперь передаёт только
+vehicle snapshot/aspect/profile distance и переводит готовый source frame в
+bgfx view/projection matrices. Из renderer удалена inline state machine и её
+параллельные поля; debug move/rotate/reset также направлены к source owner.
+Отдельный smoke закрепляет stopped/reverse velocity filtering, точные
+ThirdPerson offset/FOV, Isometric width/near/far, respawn compensation и
+debug retained pose. `FlyTo`, `AutoObserver`, screen-to-ray и editor light
+ветви остаются явно открытой частью CameraManager, а не считаются
+перенесёнными данным блоком.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
