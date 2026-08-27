@@ -166,6 +166,13 @@ ViewPort3d, photo/car info и Stay/Fly transitions.
 `asOpened`. Интеграционный Metal smoke обязан посетить этот frame до гонки;
 ручная проверка arm64 Debug подтвердила геометрию, диалог и warning.
 
+Следующий крупный блок вернул владельца `FinishMenu`: порядок `Race::Results`,
+индивидуальные длительности именных реплик, три поочерёдно въезжающие строки,
+отдельное событие последнего участника, close input и layout теперь находятся
+в `FinishMenuFrameState`. Удалены константная длительность 1.5 s и поиск
+последнего игрока по максимальному месту; Money/Points снова рисуются
+двухстрочными source labels.
+
 Финальная проверка M9.5: arm64 Debug build и новые Metal shaders прошли без
 новых warnings. World1/World2/World5/World4 Cocoa smokes прошли по 240 кадров;
 каждый подтвердил оба 2048 shadow split, шесть cube faces, `glRefl` и FxTrail,

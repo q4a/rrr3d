@@ -628,4 +628,79 @@ private:
     AchievementConfirmationState confirmation_{};
 };
 
+enum class FinishEventType : std::uint8_t
+{
+    First,
+    Second,
+    Third,
+    Last,
+};
+
+struct FinishEntry
+{
+    std::size_t racer = 0U;
+    std::size_t playerId = 0U;
+    float voiceNameDuration = 0.0F;
+};
+
+struct FinishEvent
+{
+    FinishEventType type = FinishEventType::First;
+    std::size_t racer = 0U;
+    std::size_t playerId = 0U;
+};
+
+struct FinishRowState
+{
+    float alpha = 0.0F;
+    float offsetX = 0.0F;
+    bool visible = false;
+};
+
+struct FinishLayout
+{
+    float top = 0.0F;
+    float leftLabelX = 0.0F;
+    float rightLabelX = 0.0F;
+    float lineWidth = 0.0F;
+    float leftWidth = 0.0F;
+    float leftHeight = 0.0F;
+
+    float rowTop(std::size_t index) const noexcept;
+    float rowCenterY(std::size_t index) const noexcept;
+};
+
+// Backend-neutral transcription of FinishMenu.  Race::Results order and
+// voiceNameDur remain authoritative; the renderer only consumes row poses and
+// dispatches the returned source event ids to the audio backend.
+class FinishMenuFrameState
+{
+public:
+    static constexpr std::size_t boxCount = 3U;
+
+    void show(std::vector<FinishEntry> results) noexcept;
+    void hide() noexcept;
+    bool shown() const noexcept;
+    bool handle(const rrr3d::input::ActionEvent& event) const noexcept;
+
+    std::vector<FinishEvent> progress(
+        float deltaTime, float viewportWidth) noexcept;
+    const std::vector<FinishEntry>& results() const noexcept;
+    std::size_t playerCount() const noexcept;
+    const FinishRowState& row(std::size_t index) const noexcept;
+    bool animationComplete() const noexcept;
+    bool lastEventDispatched() const noexcept;
+
+    FinishLayout layout(float viewportWidth, float viewportHeight,
+                        float leftWidth,
+                        float leftHeight) const noexcept;
+
+private:
+    std::vector<FinishEntry> results_;
+    std::array<FinishRowState, boxCount> rows_{};
+    float time_ = -1.0F;
+    bool shown_ = false;
+    bool lastEventDispatched_ = false;
+};
+
 } // namespace r3d::game::originalracemenu

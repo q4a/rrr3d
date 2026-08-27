@@ -4260,6 +4260,29 @@ Yes/No, opened disable, locked pointer и координаты. Автономн
 23/23 offline, 2/2 network, physics и 360-frame bgfx/Metal race smoke прошли.
 Следующая граница B6e.5 — Finish/Final owners.
 
+### P2.182 — `FinishMenu` получил исходного владельца — выполнено
+
+Прямая сверка с `eff9338:FinishMenu.cpp` подтвердила два функциональных
+расхождения. Renderer заменял сериализованный `Race::Result::voiceNameDur`
+константой 1.5 секунды и обрезал список результатов до трёх строк до поиска
+последнего участника. Последняя реплика поэтому выбиралась эвристикой по
+максимальному `Player::place`, а не исходным `results.back().playerId`.
+
+Новый `originalracemenu::FinishMenuFrameState` владеет полным порядком
+результатов, тремя box states, индивидуальными voice durations, исходными
+0.15 s delay/0.5 s reveal и alternating slide offsets. Он выдаёт события
+First/Second/Third при первом появлении строки и ровно одно Last для последней
+записи, независимо от portable place heuristic. Host лишь ставит возвращённые
+commentator events в очередь и рисует pose. Close action/escape/mouse command
+и layout также перенесены; Money/Points labels и значения восстановлены как
+двухстрочные блоки на исходной координате 154 вместо разнесённых 136/172.
+
+Regression использует разные 0.4/0.8/1.2 s durations и отдельного последнего
+player/racer, проверяя порядок событий, направления offsets, lifecycle и
+геометрию. Автономная arm64 сборка, 23/23 offline, 2/2 network, physics,
+отдельный 360-frame FinishMenu и 360-frame bgfx/Metal race smoke прошли.
+Следующая граница B6e.5b — `FinalMenu`.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

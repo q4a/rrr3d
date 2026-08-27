@@ -1555,4 +1555,146 @@ AchievementLayout AchievementFrameState::layout(
     return result;
 }
 
+float FinishLayout::rowTop(std::size_t index) const noexcept
+{
+    return top + static_cast<float>(index) * leftHeight;
+}
+
+float FinishLayout::rowCenterY(std::size_t index) const noexcept
+{
+    return rowTop(index) + leftHeight * 0.5F;
+}
+
+void FinishMenuFrameState::show(
+    std::vector<FinishEntry> results) noexcept
+{
+    results_ = std::move(results);
+    rows_ = {};
+    time_ = 0.0F;
+    shown_ = true;
+    lastEventDispatched_ = false;
+}
+
+void FinishMenuFrameState::hide() noexcept
+{
+    results_.clear();
+    rows_ = {};
+    time_ = -1.0F;
+    shown_ = false;
+    lastEventDispatched_ = false;
+}
+
+bool FinishMenuFrameState::shown() const noexcept
+{
+    return shown_;
+}
+
+bool FinishMenuFrameState::handle(
+    const rrr3d::input::ActionEvent& event) const noexcept
+{
+    if (!event.active || event.repeated)
+        return false;
+    using rrr3d::input::Action;
+    return event.action == Action::MenuConfirm ||
+           event.action == Action::MenuBack ||
+           event.action == Action::Pause;
+}
+
+std::vector<FinishEvent> FinishMenuFrameState::progress(
+    float deltaTime, float viewportWidth) noexcept
+{
+    std::vector<FinishEvent> events;
+    if (time_ < 0.0F)
+        return events;
+
+    constexpr float delay = 0.15F;
+    constexpr float revealDuration = 0.5F;
+    constexpr std::array<FinishEventType, boxCount> eventTypes{
+        FinishEventType::First,
+        FinishEventType::Second,
+        FinishEventType::Third};
+    float totalDuration = 0.0F;
+    const auto count = playerCount();
+    for (std::size_t index = 0U; index < count; ++index)
+    {
+        auto& rowState = rows_[index];
+        const float alpha = std::clamp(
+            (time_ - totalDuration - delay) / revealDuration,
+            0.0F, 1.0F);
+        totalDuration += results_[index].voiceNameDuration;
+        const bool visible = alpha > 0.0F;
+        if (!rowState.visible && visible)
+        {
+            events.push_back(
+                {eventTypes[index], results_[index].racer,
+                 results_[index].playerId});
+        }
+        rowState.alpha = alpha;
+        rowState.offsetX =
+            (1.0F - alpha) * (viewportWidth + 25.0F) *
+            (index % 2U == 1U ? 1.0F : -1.0F);
+        rowState.visible = visible;
+    }
+
+    if (time_ >= totalDuration + delay)
+    {
+        time_ = -1.0F;
+        if (results_.size() >= boxCount + 1U)
+        {
+            const auto& last = results_.back();
+            events.push_back(
+                {FinishEventType::Last, last.racer, last.playerId});
+            lastEventDispatched_ = true;
+        }
+    }
+    else
+        time_ += deltaTime;
+    return events;
+}
+
+const std::vector<FinishEntry>&
+FinishMenuFrameState::results() const noexcept
+{
+    return results_;
+}
+
+std::size_t FinishMenuFrameState::playerCount() const noexcept
+{
+    return std::min(results_.size(), boxCount);
+}
+
+const FinishRowState& FinishMenuFrameState::row(
+    std::size_t index) const noexcept
+{
+    static const FinishRowState empty;
+    return index < rows_.size() ? rows_[index] : empty;
+}
+
+bool FinishMenuFrameState::animationComplete() const noexcept
+{
+    return time_ < 0.0F;
+}
+
+bool FinishMenuFrameState::lastEventDispatched() const noexcept
+{
+    return lastEventDispatched_;
+}
+
+FinishLayout FinishMenuFrameState::layout(
+    float viewportWidth, float viewportHeight, float leftWidth,
+    float leftHeight) const noexcept
+{
+    FinishLayout result;
+    result.top =
+        (viewportHeight - static_cast<float>(boxCount) * leftHeight) *
+        0.5F;
+    result.leftLabelX = (leftWidth + viewportWidth * 0.5F) * 0.5F;
+    result.rightLabelX =
+        (viewportWidth * 0.5F + viewportWidth - leftWidth) * 0.5F;
+    result.lineWidth = viewportWidth - 2.0F * leftWidth;
+    result.leftWidth = leftWidth;
+    result.leftHeight = leftHeight;
+    return result;
+}
+
 } // namespace r3d::game::originalracemenu

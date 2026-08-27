@@ -415,6 +415,54 @@ int main()
         !close(achievementLayout.backY, 1042.0F))
         return fail("AchievmentFrame source layout differs");
 
+    FinishMenuFrameState finish;
+    finish.show(
+        {{0U, 10U, 0.4F}, {1U, 11U, 0.8F},
+         {2U, 12U, 1.2F}, {9U, 42U, 7.0F}});
+    if (!finish.shown() || finish.playerCount() != 3U ||
+        finish.animationComplete() ||
+        !finish.handle(event(Action::MenuConfirm)) ||
+        finish.handle(event(Action::MenuConfirm, true)))
+        return fail("FinishMenu OnShow/input ownership differs");
+    if (!finish.progress(0.16F, 1920.0F).empty())
+        return fail("FinishMenu initial reveal delay differs");
+    auto finishEvents = finish.progress(0.0F, 1920.0F);
+    if (finishEvents.size() != 1U ||
+        finishEvents[0U].type != FinishEventType::First ||
+        finishEvents[0U].racer != 0U ||
+        !finish.row(0U).visible || finish.row(0U).offsetX >= 0.0F)
+        return fail("FinishMenu first result reveal differs");
+    finish.progress(0.4F, 1920.0F);
+    finishEvents = finish.progress(0.0F, 1920.0F);
+    if (finishEvents.size() != 1U ||
+        finishEvents[0U].type != FinishEventType::Second ||
+        finish.row(1U).offsetX <= 0.0F)
+        return fail("FinishMenu variable second voice duration differs");
+    finish.progress(0.8F, 1920.0F);
+    finishEvents = finish.progress(0.0F, 1920.0F);
+    if (finishEvents.size() != 1U ||
+        finishEvents[0U].type != FinishEventType::Third)
+        return fail("FinishMenu variable third voice duration differs");
+    finish.progress(1.2F, 1920.0F);
+    finishEvents = finish.progress(0.0F, 1920.0F);
+    if (finishEvents.size() != 1U ||
+        finishEvents[0U].type != FinishEventType::Last ||
+        finishEvents[0U].racer != 9U ||
+        finishEvents[0U].playerId != 42U ||
+        !finish.lastEventDispatched() || !finish.animationComplete())
+        return fail("FinishMenu exact last Race::Result event differs");
+    const auto finishLayout = finish.layout(
+        1920.0F, 1080.0F, 300.0F, 200.0F);
+    if (!close(finishLayout.top, 240.0F) ||
+        !close(finishLayout.leftLabelX, 630.0F) ||
+        !close(finishLayout.rightLabelX, 1290.0F) ||
+        !close(finishLayout.lineWidth, 1320.0F) ||
+        !close(finishLayout.rowCenterY(2U), 740.0F))
+        return fail("FinishMenu source layout differs");
+    finish.hide();
+    if (finish.shown() || finish.playerCount() != 0U)
+        return fail("FinishMenu OnHide lifetime differs");
+
     std::cout << "original RaceMenu2 frames smoke passed\n";
     return 0;
 }

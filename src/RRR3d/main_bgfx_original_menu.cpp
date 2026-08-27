@@ -3514,12 +3514,8 @@ int main(int argc, char** argv)
     const TextVisual finishRewardTitle = createText(
         *device, localized("svPrice"), menu::headerFontHeight, false,
         menu::Rgba8{233U, 167U, 63U, 255U}, resolvedFont);
-    const TextVisual finishMoneyTitle = createText(
-        *device, localized("svMoney"),
-        menu::headerFontHeight, false,
-        menu::Rgba8{225U, 225U, 225U, 255U}, resolvedFont);
-    const TextVisual finishPointsTitle = createText(
-        *device, localized("svPoints"),
+    const TextVisual finishPriceInfo = createText(
+        *device, localized("svMoney") + "\n" + localized("svPoints"),
         menu::headerFontHeight, false,
         menu::Rgba8{225U, 225U, 225U, 255U}, resolvedFont);
     struct FinishRowVisual
@@ -3529,15 +3525,13 @@ int main(int argc, char** argv)
         float photoWidth = 0.0F;
         float photoHeight = 0.0F;
         TextVisual name;
-        TextVisual rewardMoney;
-        TextVisual rewardPoints;
+        TextVisual rewardValue;
     };
     std::vector<FinishRowVisual> finishRows;
     auto clearFinishRows = [&]() {
         for (const auto& row : finishRows)
         {
-            device->destroy(row.rewardPoints.texture);
-            device->destroy(row.rewardMoney.texture);
+            device->destroy(row.rewardValue.texture);
             device->destroy(row.name.texture);
             device->destroy(row.photo);
         }
@@ -3678,8 +3672,7 @@ int main(int argc, char** argv)
             finishCups.begin(), finishCups.end(),
             [](Texture texture) { return valid(texture); }) &&
         valid(finishRewardTitle.texture) &&
-        valid(finishMoneyTitle.texture) &&
-        valid(finishPointsTitle.texture) && valid(acceptFrame) &&
+        valid(finishPriceInfo.texture) && valid(acceptFrame) &&
         valid(acceptButton) && valid(acceptButtonSelected) &&
         valid(infoDialogFrame) && valid(infoDialogButton) &&
         valid(infoDialogButtonSelected) &&
@@ -3815,8 +3808,7 @@ int main(int argc, char** argv)
         destroyPage(startOptionsValuePage);
         destroyPage(startOptionsLabelPage);
         destroyPage(raceMainStatsPage);
-        device->destroy(finishPointsTitle.texture);
-        device->destroy(finishMoneyTitle.texture);
+        device->destroy(finishPriceInfo.texture);
         device->destroy(finishRewardTitle.texture);
         device->destroy(achievementPoints.texture);
         device->destroy(achievementRewards.texture);
@@ -5154,6 +5146,8 @@ int main(int argc, char** argv)
         sourceAngarFrame;
     r3d::game::originalracemenu::AchievementFrameState
         sourceAchievementFrame;
+    r3d::game::originalracemenu::FinishMenuFrameState
+        sourceFinishFrame;
     float gamersSceneSeconds = 0.0F;
     bool gamersFrameObserved = !options->gamersFrameSmokeTest;
     bool gamersPlanet3DObserved = !options->gamersFrameSmokeTest;
@@ -5713,12 +5707,10 @@ int main(int argc, char** argv)
     std::array<bool, 5> legacyDebugCameraStylesObserved{};
     bool raceProgressSaved = false;
     bool raceExitLifecycleApplied = false;
-    bool finishMenuShown = false;
     bool finishMenuFrameObserved =
         !options->finishMenuSmokeTest;
-    float finishAnimationSeconds = 0.0F;
-    std::size_t finishVoiceIndex = 0U;
-    bool finishLastVoiceDispatched = false;
+    bool finishLastEventObserved =
+        !options->finishMenuSmokeTest;
     std::uint32_t raceSmokeMenuStep = 0;
     std::uint32_t raceSmokeNextMenuFrame = 0;
     bool raceSmokeAccelerateQueued = false;
@@ -7004,9 +6996,7 @@ int main(int argc, char** argv)
         raceElapsedSeconds = 0.0F;
         raceProgressSaved = false;
         raceExitLifecycleApplied = false;
-        finishMenuShown = false;
-        finishVoiceIndex = 0U;
-        finishLastVoiceDispatched = false;
+        sourceFinishFrame.hide();
         raceVehicles.resize(physicsWorld->vehicleCount());
         maximumRaceAiSpeeds.assign(raceVehicles.size(), 0.0F);
         maximumRaceAiProgress.assign(raceVehicles.size(), 0.0F);
@@ -9925,7 +9915,7 @@ int main(int argc, char** argv)
         refreshCurrentOptionsPage();
     };
     showFinishMenu = [&](bool persistProgress) {
-        if (finishMenuShown || raceSession.racers().empty())
+        if (sourceFinishFrame.shown() || raceSession.racers().empty())
             return;
         if (!options->finishMenuSmokeTest)
         {
@@ -9941,10 +9931,6 @@ int main(int argc, char** argv)
         // Race::ExitRace state transition even when only the host persists.
         if (!options->finishMenuSmokeTest)
             applyOriginalRaceExitLifecycle();
-        finishMenuShown = true;
-        finishAnimationSeconds = 0.0F;
-        finishVoiceIndex = 0U;
-        finishLastVoiceDispatched = false;
         if (persistProgress)
             saveRaceProfile();
         else if (!options->finishMenuSmokeTest)
@@ -9966,33 +9952,31 @@ int main(int argc, char** argv)
             (music.paused() && !music.currentVoiceActive() &&
              !gameMusic.currentVoiceActive());
 #endif
-        std::vector<std::size_t> order(
-            raceSession.racers().size(), 0U);
-        std::iota(order.begin(), order.end(), 0U);
-        order.erase(
-            std::remove_if(
-                order.begin(), order.end(),
-                [&](std::size_t racer) {
-                    return !raceSession.racers()[racer].GetFinished();
-                }),
-            order.end());
-        std::stable_sort(
-            order.begin(), order.end(),
-            [&](std::size_t first, std::size_t second) {
-                return raceSession.racers()[first].GetPlace() <
-                       raceSession.racers()[second].GetPlace();
-            });
-        if (order.size() > 3U)
-            order.resize(3U);
+        std::vector<r3d::game::originalracemenu::FinishEntry>
+            finishEntries;
+        finishEntries.reserve(raceSession.results().size());
+        for (const auto& result : raceSession.results())
+        {
+            finishEntries.push_back(
+                {result.playerId, result.playerId,
+                 result.voiceNameDuration});
+        }
+        sourceFinishFrame.show(std::move(finishEntries));
+        finishLastEventObserved = false;
         clearFinishRows();
         try
         {
-            finishRows.reserve(order.size());
-            for (const auto racer : order)
+            finishRows.reserve(sourceFinishFrame.playerCount());
+            for (std::size_t index = 0U;
+                 index < sourceFinishFrame.playerCount(); ++index)
             {
+                const auto racer =
+                    sourceFinishFrame.results()[index].racer;
+                if (racer >= raceSession.racers().size() ||
+                    racer >= originalRace->racers.size())
+                    continue;
                 const auto& result = raceSession.racers()[racer];
-                const auto* sourceResult =
-                    raceSession.resultForRacer(racer);
+                const auto& sourceResult = raceSession.results()[index];
                 const auto& definition = originalRace->racers[racer];
                 finishRows.emplace_back();
                 auto& row = finishRows.back();
@@ -10012,27 +9996,17 @@ int main(int argc, char** argv)
                     menu::Rgba8{233U, 167U, 63U, 255U},
                     resolvedFont);
                 std::string rewardMoney =
-                    std::to_string(
-                        sourceResult != nullptr ? sourceResult->money
-                                                : result.rewardMoney);
-                const auto pickedMoney =
-                    sourceResult != nullptr ? sourceResult->pickedMoney
-                                            : result.GetPickMoney();
+                    std::to_string(sourceResult.money);
+                const auto pickedMoney = sourceResult.pickedMoney;
                 if (pickedMoney > 0U)
                 {
                     rewardMoney +=
                         " + " + std::to_string(pickedMoney);
                 }
-                row.rewardMoney = createText(
-                    *device, rewardMoney,
-                    menu::headerFontHeight, false,
-                    menu::Rgba8{132U, 188U, 67U, 255U},
-                    resolvedFont);
-                row.rewardPoints = createText(
+                row.rewardValue = createText(
                     *device,
-                    std::to_string(
-                        sourceResult != nullptr ? sourceResult->points
-                                                : result.rewardPoints),
+                    rewardMoney + "\n" +
+                        std::to_string(sourceResult.points),
                     menu::headerFontHeight, false,
                     menu::Rgba8{132U, 188U, 67U, 255U},
                     resolvedFont);
@@ -10091,13 +10065,11 @@ int main(int argc, char** argv)
                   << ", points +" << player.rewardPoints << '\n';
     };
     auto closeFinishMenu = [&]() {
-        if (!finishMenuShown)
+        if (!sourceFinishFrame.shown())
             return;
         gameModeState.OnFinishFrameClose();
         static_cast<void>(gameModeState.TakeCommands());
-        finishMenuShown = false;
-        finishAnimationSeconds = 0.0F;
-        finishVoiceIndex = 0U;
+        sourceFinishFrame.hide();
 #ifdef RRR3D_AUDIO
         // GameMode::OnFinishFrameClose: discard any remaining place call,
         // start menu music from the MusicCat's stored position at zero source
@@ -13835,13 +13807,7 @@ int main(int argc, char** argv)
                 }
                 if (menuStack.back() == MenuScreen::Finish)
                 {
-                    if (!inputEvent.repeated &&
-                        (inputEvent.action ==
-                             rrr3d::input::Action::MenuConfirm ||
-                         inputEvent.action ==
-                             rrr3d::input::Action::MenuBack ||
-                         inputEvent.action ==
-                             rrr3d::input::Action::Pause))
+                    if (sourceFinishFrame.handle(inputEvent))
                     {
                         // FinishMenu::OnHandleInput maps both gaAction and
                         // gaEscape to Menu::OnFinishClose.  Mouse left is
@@ -16495,7 +16461,8 @@ int main(int argc, char** argv)
 
 #ifdef RRR3D_PHYSICS
         if (options->finishMenuSmokeTest &&
-            finishMenuShown && finishLastVoiceDispatched &&
+            sourceFinishFrame.shown() &&
+            finishLastEventObserved &&
             renderedFrames >= 240U)
         {
             closeFinishMenu();
@@ -20003,52 +19970,44 @@ int main(int argc, char** argv)
         }
         else if (drawingOriginalFinish)
         {
-            constexpr float boxDelay = 0.15F;
-            constexpr float voiceDuration = 1.5F;
             const float leftWidth =
                 static_cast<float>(finishLeftFrameImage.width);
             const float leftHeight =
                 static_cast<float>(finishLeftFrameImage.height);
-            const float top =
-                (menu::virtualHeight - 3.0F * leftHeight) * 0.5F;
-            const float leftLabelX =
-                (leftWidth + menu::virtualWidth * 0.5F) * 0.5F;
-            const float rightLabelX =
-                (menu::virtualWidth * 0.5F +
-                 menu::virtualWidth - leftWidth) *
-                0.5F;
-            float accumulatedDuration = 0.0F;
-            for (std::size_t index = 0U;
-                 index < finishRows.size() && index < 3U; ++index)
+            const auto finishEvents = sourceFinishFrame.progress(
+                frameSeconds, menu::virtualWidth);
+            for (const auto& event : finishEvents)
             {
-                const float alpha = std::clamp(
-                    (finishAnimationSeconds -
-                     accumulatedDuration - boxDelay) /
-                        0.5F,
-                    0.0F, 1.0F);
-                accumulatedDuration += voiceDuration;
-                if (alpha <= 0.0F)
-                    continue;
+                using FinishEventType =
+                    r3d::game::originalracemenu::FinishEventType;
+                if (event.type == FinishEventType::Last)
+                    finishLastEventObserved = true;
 #ifdef RRR3D_AUDIO
-                if (index == finishVoiceIndex)
-                {
-                    const auto& result =
-                        raceSession.racers()[finishRows[index].racer];
-                    commentator.finishPlace(
-                        *originalRace, finishRows[index].racer,
-                        result.GetPlace(), audioError);
-                    ++finishVoiceIndex;
-                }
+                std::uint32_t sourcePlace = 4U;
+                if (event.type == FinishEventType::First)
+                    sourcePlace = 1U;
+                else if (event.type == FinishEventType::Second)
+                    sourcePlace = 2U;
+                else if (event.type == FinishEventType::Third)
+                    sourcePlace = 3U;
+                commentator.finishPlace(
+                    *originalRace, event.racer, sourcePlace, audioError);
 #endif
-                const float offsetX =
-                    (1.0F - alpha) *
-                    (menu::virtualWidth + 25.0F) *
-                    (index % 2U == 1U ? 1.0F : -1.0F);
-                const float rowTop =
-                    top + static_cast<float>(index) * leftHeight;
-                const float rowCenterY = rowTop + leftHeight * 0.5F;
-                const float lineWidth =
-                    menu::virtualWidth - 2.0F * leftWidth;
+            }
+            const auto finishLayout = sourceFinishFrame.layout(
+                menu::virtualWidth, menu::virtualHeight,
+                leftWidth, leftHeight);
+            for (std::size_t index = 0U;
+                 index < finishRows.size() &&
+                 index < sourceFinishFrame.playerCount(); ++index)
+            {
+                const auto& rowState = sourceFinishFrame.row(index);
+                if (!rowState.visible)
+                    continue;
+                const float offsetX = rowState.offsetX;
+                const float rowTop = finishLayout.rowTop(index);
+                const float rowCenterY =
+                    finishLayout.rowCenterY(index);
 
                 drawQuad(
                     *device, quad, shader, finishLeftFrame,
@@ -20057,7 +20016,7 @@ int main(int argc, char** argv)
                     rowCenterY, 55.0F, transparent);
                 drawQuad(
                     *device, quad, shader, finishLineFrame,
-                    lineWidth, leftHeight,
+                    finishLayout.lineWidth, leftHeight,
                     offsetX + menu::virtualWidth * 0.5F,
                     rowCenterY, 55.0F, transparent);
                 drawQuad(
@@ -20096,86 +20055,32 @@ int main(int argc, char** argv)
                 drawQuad(
                     *device, quad, shader, row.name.texture,
                     row.name.width, row.name.height,
-                    offsetX + leftLabelX, rowTop + 63.0F,
+                    offsetX + finishLayout.leftLabelX,
+                    rowTop + 63.0F,
                     20.0F, transparent);
                 drawQuad(
                     *device, quad, shader, finishRewardTitle.texture,
                     finishRewardTitle.width,
                     finishRewardTitle.height,
-                    offsetX + rightLabelX, rowTop + 63.0F,
+                    offsetX + finishLayout.rightLabelX,
+                    rowTop + 63.0F,
                     20.0F, transparent);
                 drawQuad(
-                    *device, quad, shader, finishMoneyTitle.texture,
-                    finishMoneyTitle.width,
-                    finishMoneyTitle.height,
-                    offsetX + leftLabelX, rowTop + 136.0F,
+                    *device, quad, shader, finishPriceInfo.texture,
+                    finishPriceInfo.width,
+                    finishPriceInfo.height,
+                    offsetX + finishLayout.leftLabelX,
+                    rowTop + 154.0F,
                     20.0F, transparent);
                 drawQuad(
-                    *device, quad, shader, finishPointsTitle.texture,
-                    finishPointsTitle.width,
-                    finishPointsTitle.height,
-                    offsetX + leftLabelX, rowTop + 172.0F,
-                    20.0F, transparent);
-                drawQuad(
-                    *device, quad, shader, row.rewardMoney.texture,
-                    row.rewardMoney.width, row.rewardMoney.height,
-                    offsetX + rightLabelX, rowTop + 136.0F,
-                    20.0F, transparent);
-                drawQuad(
-                    *device, quad, shader, row.rewardPoints.texture,
-                    row.rewardPoints.width,
-                    row.rewardPoints.height,
-                    offsetX + rightLabelX, rowTop + 172.0F,
+                    *device, quad, shader, row.rewardValue.texture,
+                    row.rewardValue.width, row.rewardValue.height,
+                    offsetX + finishLayout.rightLabelX,
+                    rowTop + 154.0F,
                     20.0F, transparent);
             }
-            const float totalDuration =
-                static_cast<float>(finishRows.size()) *
-                    voiceDuration +
-                boxDelay;
-            if (finishAnimationSeconds >= totalDuration)
+            if (sourceFinishFrame.animationComplete())
             {
-#ifdef RRR3D_AUDIO
-                // FinishMenu.cpp emits the first three place events as their
-                // boxes appear, then emits cPlayerFinishLast for the final
-                // Race::Result after the reveal if at least four racers took
-                // part.  The fourth event is deliberately not tied to a row.
-                if (!finishLastVoiceDispatched)
-                {
-                    const auto finishedCount = std::count_if(
-                        raceSession.racers().begin(),
-                        raceSession.racers().end(),
-                        [](const auto& racer) {
-                            return racer.GetFinished();
-                    });
-                    if (finishedCount >= 4)
-                    {
-                        std::size_t lastRacer =
-                            raceSession.racers().size();
-                        for (std::size_t racer = 0U;
-                             racer < raceSession.racers().size(); ++racer)
-                        {
-                            const auto& candidate =
-                                raceSession.racers()[racer];
-                            if (!candidate.GetFinished())
-                                continue;
-                            if (lastRacer == raceSession.racers().size() ||
-                                candidate.GetPlace() >
-                                    raceSession.racers()[lastRacer]
-                                        .GetPlace())
-                                lastRacer = racer;
-                        }
-                        if (lastRacer < raceSession.racers().size())
-                        {
-                            commentator.finishPlace(
-                                *originalRace, lastRacer,
-                                raceSession.racers()[lastRacer].GetPlace(),
-                                audioError);
-                        }
-                    }
-                    finishLastVoiceDispatched = true;
-                }
-#endif
-                finishAnimationSeconds = totalDuration;
                 finishMenuFrameObserved =
                     !finishRows.empty() &&
                     finishRows.size() <= 3U &&
@@ -20183,13 +20088,10 @@ int main(int argc, char** argv)
                         finishRows.begin(), finishRows.end(),
                         [](const FinishRowVisual& row) {
                             return valid(row.name.texture) &&
-                                   valid(row.rewardMoney.texture) &&
-                                   valid(row.rewardPoints.texture) &&
+                                   valid(row.rewardValue.texture) &&
                                    valid(row.photo);
                         });
             }
-            else
-                finishAnimationSeconds += frameSeconds;
         }
         else if (drawingOriginalAchievements)
         {
@@ -21305,7 +21207,7 @@ int main(int argc, char** argv)
                 if (!finishMenuFrameObserved ||
                     finishRows.size() != 3U
 #ifdef RRR3D_AUDIO
-                    || !finishLastVoiceDispatched ||
+                    || !finishLastEventObserved ||
                     !finishMenuAudioHeldObserved ||
                     !finishMenuAudioCloseObserved ||
                     !finishMenuMusicFadeObserved
@@ -21318,7 +21220,7 @@ int main(int argc, char** argv)
                         << ", rows=" << finishRows.size()
 #ifdef RRR3D_AUDIO
                         << ", lastVoice="
-                        << finishLastVoiceDispatched
+                        << finishLastEventObserved
                         << ", audio="
                         << finishMenuAudioHeldObserved << '/'
                         << finishMenuAudioCloseObserved << '/'

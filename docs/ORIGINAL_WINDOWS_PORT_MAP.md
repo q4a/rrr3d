@@ -53,7 +53,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `DialogMenu2` | `originalmenu::DialogSystem` + GPU text caches | Source owner, active dialogs | Остался уже перенесённый отдельно UserChat и backend draw submission |
 | `Environment` | `Race::environment` + `OriginalRaceRenderer` | Distributed | Перенести environment owner, weather/lamp progress и graph commands |
 | `FinalMenu` | Ручной `MenuScreen::Credits` | Distributed | Вернуть source frame lifecycle и command routing |
-| `FinishMenu` | `OriginalRaceHud` + ручной Finish screen | Distributed | Вернуть последовательность result/final frames и закрытие |
+| `FinishMenu` | `originalracemenu::FinishMenuFrameState` + bgfx/CoreText view | Source owner, active frame | Legacy Widget API заменён backend draw/input; result order, timing, events и layout принадлежат source owner |
 | `GameBase` | `OriginalGameObject`, behaviors, effects, motor sound state | Source owner, partial | Закрыть отсутствующие behavior subclasses и единый progress dispatch |
 | `GameCar` | `source::GameCar` + Jolt vehicle adapter | Source owner, partial | Сравнить каждый PhysX callback/order и убрать session-owned car branches |
 | `GameMode` | `source::GameModeState` + `GameModeRaceState` | Source owner, active race path | Startup/movie/config и часть menu/audio backend-команд ещё находятся в host |
@@ -64,7 +64,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `MainMenu2` | `mainmenu2::{Controller,FrameController,ProfileFrameState}` + `originalmenu::ScreenStack` | Source owner, active Main/Profile path | Остались concrete network callbacks, credits progress и backend draw submission |
 | `Map` | `source::Map` | Source owner, partial | Завершить load/fix-up ownership и backend create/destroy commands |
 | `MapObj` | `source::MapObj*` record/list hierarchy | Source owner, partial | Убрать importer/runtime mirrors и проверить все concrete object types |
-| `Menu` | `originalmenu::MenuSystem` + source Main/Profile/Dialog/Options/Race owners | Source owner, frame core | Перенести Finish/Final frame owners |
+| `Menu` | `originalmenu::MenuSystem` + source Main/Profile/Dialog/Options/Race/Finish owners | Source owner, frame core | Перенести Final frame owner |
 | `MenuSystem` | `originalmenu::{MenuSystem,ScreenStack,FrameState}` | Source owner, active menu path | Подключить concrete navigation graphs; bgfx остаётся draw executor |
 | `OptionsMenu` | `originaloptions::{OptionsMenuState,StartOptionsMenuState}` + backend visuals | Source owner, active options path | Legacy Widget events заменены SDL input, CoreText и bgfx draw submission |
 | `Player` | `source::Player`, `CarState`, behavior classes | Source owner, partial | Убрать оставшиеся session mirrors, проверить full event/listener order |
@@ -331,8 +331,16 @@ pending index и упрощённый same-direction traversal удалены. H
 только points/profile transaction и special armor4 presentation, а bgfx
 рисует source entries/layout.
 
-Открытая B6e.5: перенести Finish/Final concrete owners и убрать оставшийся
-frame timing/input из большого host entry point.
+Результат B6e.5a: `FinishMenuFrameState` владеет полным упорядоченным
+`Race::Results`, первыми тремя boxes, индивидуальными `voiceNameDur`,
+0.15/0.5-секундной reveal-анимацией, alternating offsets, событиями
+First/Second/Third и отдельным Last строго для `results.back()`, close input и
+layout. Удалены renderer-owned clocks/voice indices и эвристика поиска
+последнего по максимальному `place`; подписи/значения Money/Points снова
+являются исходными двухстрочными labels на `y=154`.
+
+Открытая B6e.5b: перенести `FinalMenu` concrete owner и убрать credits/slide
+timing/input из большого host entry point.
 
 ### B7 — Environment/TraceGfx/render policy
 
