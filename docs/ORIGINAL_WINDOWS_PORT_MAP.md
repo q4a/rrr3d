@@ -51,7 +51,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `ControlManager` | `originalcontrol::ControlManager` + `SdlInputManager` | Source owner, active input path | Mouse screen/ray messages и menu/widget listeners остаются в блоках View/Menu |
 | `DataBase` | `OriginalRace`, `OriginalGarage`, `OriginalGameData` loaders | Distributed | Вернуть record libraries/fix-up ownership и единый object factory |
 | `DialogMenu2` | `originalmenu::DialogSystem` + GPU text caches | Source owner, active dialogs | Остался уже перенесённый отдельно UserChat и backend draw submission |
-| `Environment` | `Race::environment` + `OriginalRaceRenderer` | Distributed | Перенести environment owner, weather/lamp progress и graph commands |
+| `Environment` | `source::Environment` + `OriginalRaceRenderer` | Source owner, active race/presentation path | Weather/world/quality/rain lifetime принадлежат source owner; bgfx/Metal исполняет pass/material commands и lamp shadow submission |
 | `FinalMenu` | `mainmenu2::FinalMenuFrameState` + bgfx/CoreText view | Source owner, active frame | Legacy Widget API заменён backend draw/input/audio; credits, 107 s clock, slide alpha, Back и layout принадлежат source owner |
 | `FinishMenu` | `originalracemenu::FinishMenuFrameState` + bgfx/CoreText view | Source owner, active frame | Legacy Widget API заменён backend draw/input; result order, timing, events и layout принадлежат source owner |
 | `GameBase` | `OriginalGameObject`, behaviors, effects, motor sound state | Source owner, partial | Закрыть отсутствующие behavior subclasses и единый progress dispatch |
@@ -356,6 +356,26 @@ source timeline и проверяет все девять slides, scroll, Back, 
 Вынести из 6.9k-line renderer исходные environment progress, lamp/weather,
 trace visibility, material/pass selection и effect lifetimes. bgfx остаётся
 исполнителем draw/pass commands.
+
+Результат B7a: добавлен самостоятельный `source::Environment`, напрямую
+сопоставленный с `Environment::{ApplyWheater,ApplyWorldType,ApplyQuality,
+GetPerspectiveCameraFar,StartScene,ProcessScene,ReleaseScene}`. Он владеет
+семью weather-ветвями, шестью world surface/HDR profiles, точными Garage и
+Angar profiles, quality graph для shadow/light/post/environment, isometric
+исключениями и rain lifecycle/follow-camera. Загрузчик гонки, CLI weather,
+Garage/Angar presentation и Metal renderer используют один owner; четыре
+разрозненные копии таблиц удалены.
+
+`OriginalRaceRenderer` теперь получает готовый `EnvironmentRenderPolicy` и
+оставляет у себя только bgfx pass/material submission. Regression закрепляет
+weather tokens, World4 magma, World5 planar reflection, Garage lamps,
+Middle/High/night/isometric quality graph и пересоздание rain при смене типа
+камеры. Автономная arm64 сборка, 24/24 offline, 2/2 network, physics,
+360-frame race, Finish и Final Metal smoke прошли.
+
+Открытая B7b: перенести состояние `TraceGfx` (selection/reference lifetime,
+waypoint/path/tile/link draw records) в отдельного source owner, оставив
+линии/triangles/sprite submission границей bgfx.
 
 ### B8 — завершение Race/Player/AI/GameCar/Weapon parity
 

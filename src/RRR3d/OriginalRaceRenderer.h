@@ -1,6 +1,7 @@
 #pragma once
 
 #include "OriginalCameraManager.h"
+#include "OriginalEnvironment.h"
 #include "OriginalProfile.h"
 #include "OriginalRace.h"
 #include "OriginalRaceSession.h"
@@ -242,6 +243,9 @@ private:
     r3d::physics::Vec3 sceneWorldCenter_;
     std::vector<r3d::physics::Vec3> grassFieldOffsets_;
     r3d::game::originalrace::source::CameraManager sourceCamera_;
+    r3d::game::originalrace::source::Environment sourceEnvironment_;
+    r3d::game::originalrace::source::EnvironmentRenderPolicy
+        activeEnvironmentPolicy_;
     r3d::physics::Vec3 cameraPosition_;
     r3d::physics::Vec3 cameraViewDirection_{1.0F, 0.0F, 0.0F};
     r3d::physics::Quat cameraRotation_;

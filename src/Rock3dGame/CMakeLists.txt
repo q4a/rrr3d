@@ -107,11 +107,13 @@ else()
     endif()
     if(RRR3D_ENABLE_PHYSICS AND RRR3D_BUILD_ORIGINAL_MENU)
         list(APPEND _rrr3d_portable_game_sources
+            source/stub/OriginalEnvironment.cpp
             source/stub/OriginalRace.cpp
             source/stub/OriginalRaceSession.cpp
             source/stub/OriginalProfile.cpp
             source/stub/OriginalGarage.cpp
             include/OriginalRace.h
+            include/OriginalEnvironment.h
             include/OriginalRaceSession.h
             include/OriginalProfile.h
             include/OriginalGarage.h
@@ -422,6 +424,21 @@ if(NOT WIN32 AND RRR3D_BUILD_ORIGINAL_MENU)
     add_test(
         NAME rrr3d_original_race_menu_smoke
         COMMAND rrr3d_original_race_menu_smoke
+    )
+endif()
+
+if(NOT WIN32 AND RRR3D_ENABLE_PHYSICS AND RRR3D_BUILD_ORIGINAL_MENU)
+    add_executable(rrr3d_original_environment_smoke
+        tests/OriginalEnvironmentSmoke.cpp
+    )
+    target_link_libraries(rrr3d_original_environment_smoke PRIVATE
+        ${PROJECT_NAME}
+    )
+    rrr3d_set_common_target_options(
+        rrr3d_original_environment_smoke)
+    add_test(
+        NAME rrr3d_original_environment_smoke
+        COMMAND rrr3d_original_environment_smoke
     )
 endif()
 

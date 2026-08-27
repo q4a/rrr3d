@@ -4307,6 +4307,29 @@ arm64 сборка и 360-frame FinalMenu smoke прошли; полный на�
 physics и race renderer также прошёл. Следующая граница B7 —
 `Environment/TraceGfx` и renderer policy.
 
+### P2.184 — `Environment` получил исходного владельца — выполнено
+
+Прямая сверка `eff9338:prog/Rock3dGame/source/game/Environment.cpp` показала,
+что значения погоды и world profiles уже присутствовали в порте, но были
+скопированы четырежды: в race loader, CLI weather helper, presentation
+loaders и smoke expectation. Quality graph и rain lifetime дополнительно
+оставались частью большого Metal renderer, поэтому фактического владельца
+исходного класса не существовало.
+
+Новый `source::Environment` переносит `ApplyWheater`, `ApplyWorldType`,
+`ApplyQuality`, `GetPerspectiveCameraFar`, `StartScene`, `ProcessScene` и
+`ReleaseScene`. Он задаёт weather/fog/ambient/sky/far, World1–World6
+surface/HDR, Garage/Angar lamps, shadow/light/post/environment quality gates,
+isometric fog/sun-shaft/rain exclusions и следование rain за камерой.
+`OriginalRace` использует owner при загрузке мира и presentation scenes,
+host — для CLI и smoke policy, renderer — для активного pass graph и rain.
+
+Отдельный regression покрывает token mapping, magma/snow/Garage profiles,
+Middle/High/night/isometric graph и rain lifecycle. Прошли arm64 build,
+24/24 offline, 2/2 network, physics, 360-frame race, Finish и Final Metal
+smoke. Следующая граница P2.185/B7b — `TraceGfx`: source selection/reference
+lifetime и debug draw records при сохранении bgfx submission.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

@@ -10,6 +10,7 @@
 #include "OriginalNetwork.h"
 #endif
 #ifdef RRR3D_PHYSICS
+#include "OriginalEnvironment.h"
 #include "OriginalGameDebug.h"
 #include "OriginalGameMode.h"
 #include "OriginalGarage.h"
@@ -1369,121 +1370,15 @@ void applyWeather(
     r3d::game::originalrace::EnvironmentDescription& environment,
     std::string_view weather, std::string_view levelPath)
 {
-    using r3d::game::originalrace::Weather;
-    environment.rain = false;
-    environment.directionalLightEnabled = weather != "night";
-    environment.directionalShadowMinimumQuality =
-        weather == "snow" ? 2U : 1U;
-    if (weather == "night")
-    {
-        environment.weather = Weather::Night;
-        environment.skyTexturePath = "Data/Misc/nightSky.dds";
-        environment.fogColor = {15.0F / 255.0F, 25.0F / 255.0F,
-                                31.0F / 255.0F, 1.0F};
-        environment.ambientColor =
-            {138.0F / 255.0F, 144.0F / 255.0F,
-             174.0F / 255.0F, 1.0F};
-        environment.fogIntensity = 1.0F;
-        environment.perspectiveFarDistance = 120.0F;
-    }
-    else if (weather == "cloudy" || weather == "rainy")
-    {
-        environment.weather =
-            weather == "rainy" ? Weather::Rainy : Weather::Cloudy;
-        environment.skyTexturePath =
-            "Data/World2/texture/skyTex1.dds";
-        environment.fogColor =
-            {192.0F / 255.0F, 189.0F / 255.0F,
-             184.0F / 255.0F, 0.0F};
-        environment.ambientColor = {0.0F, 0.0F, 0.0F, 1.0F};
-        environment.fogIntensity = 1.0F;
-        environment.rain = weather == "rainy";
-        environment.perspectiveFarDistance =
-            weather == "rainy" ? 100.0F : 120.0F;
-    }
-    else if (weather == "sahara")
-    {
-        environment.weather = Weather::Sahara;
-        environment.skyTexturePath =
-            "Data/World3/Texture/skyTex1.dds";
-        environment.fogColor =
-            {87.0F / 255.0F, 81.0F / 255.0F,
-             115.0F / 255.0F, 1.0F};
-        environment.ambientColor = {0.0F, 0.0F, 0.0F, 1.0F};
-        environment.fogIntensity = 0.5F;
-        environment.perspectiveFarDistance = 100.0F;
-    }
-    else if (weather == "hell")
-    {
-        environment.weather = Weather::Hell;
-        environment.skyTexturePath =
-            "Data/World4/Texture/skyTex1.dds";
-        environment.fogColor =
-            {82.0F / 255.0F, 12.0F / 255.0F,
-             8.0F / 255.0F, 1.0F};
-        environment.ambientColor = {0.0F, 0.0F, 0.0F, 1.0F};
-        environment.fogIntensity = 0.5F;
-        environment.perspectiveFarDistance = 100.0F;
-    }
-    else if (weather == "snow")
-    {
-        environment.weather = Weather::Snow;
-        environment.skyTexturePath =
-            "Data/World5/Texture/sky_text.dds";
-        environment.fogColor =
-            {156.0F / 255.0F, 166.0F / 255.0F,
-             181.0F / 255.0F, 1.0F};
-        environment.ambientColor = {0.0F, 0.0F, 0.0F, 1.0F};
-        environment.fogIntensity = 0.5F;
-        environment.perspectiveFarDistance = 100.0F;
-    }
-    else
-    {
-        environment.weather = Weather::Fair;
-        environment.skyTexturePath =
-            "Data/World1/Texture/skyTex1.dds";
-        environment.fogColor =
-            {148.0F / 255.0F, 193.0F / 255.0F,
-             235.0F / 255.0F, 1.0F};
-        environment.ambientColor = {0.0F, 0.0F, 0.0F, 1.0F};
-        environment.fogIntensity = 0.5F;
-        environment.perspectiveFarDistance = 120.0F;
-    }
-    environment.surfaceCloudColor = environment.fogColor;
-    if (levelPath.find("World3") != std::string_view::npos)
-    {
-        environment.surfaceCloudColor = {
-            87.0F / 255.0F, 81.0F / 255.0F,
-            115.0F / 255.0F, 1.0F};
-    }
-    else if (levelPath.find("World4") != std::string_view::npos)
-    {
-        environment.surfaceCloudColor = {1.0F, 1.0F, 1.0F, 1.0F};
-    }
+    r3d::game::originalrace::source::Environment::ApplyWeatherToken(
+        environment, weather, levelPath);
 }
 
 std::string_view weatherToken(
     r3d::game::originalrace::Weather weather) noexcept
 {
-    using r3d::game::originalrace::Weather;
-    switch (weather)
-    {
-    case Weather::Night:
-        return "night";
-    case Weather::Cloudy:
-        return "cloudy";
-    case Weather::Rainy:
-        return "rainy";
-    case Weather::Sahara:
-        return "sahara";
-    case Weather::Hell:
-        return "hell";
-    case Weather::Snow:
-        return "snow";
-    case Weather::Fair:
-        return "fair";
-    }
-    return "fair";
+    return r3d::game::originalrace::source::Environment::WeatherToken(
+        weather);
 }
 #endif
 
@@ -20733,29 +20628,23 @@ int main(int argc, char** argv)
                                 maximumRacePassDraws[index] > 0U);
                     };
                 const auto& smokeQuality = profileState.config.quality;
+                const auto smokeEnvironmentPolicy =
+                    r3d::game::originalrace::source::Environment::
+                        ApplyQuality(
+                            originalRace->environment, smokeQuality,
+                            false);
                 const bool expectsTrueReflections =
-                    smokeQuality.light >= 2U &&
-                    originalRace->environment.dynamicReflectionsEnabled;
+                    smokeEnvironmentPolicy.trueReflections;
                 const bool expectsShadows =
-                    smokeQuality.shadow >=
-                        originalRace->environment
-                            .directionalShadowMinimumQuality &&
-                    originalRace->environment.directionalLightEnabled;
-                const bool weatherAllowsPostEffects =
-                    originalRace->environment.weather !=
-                    r3d::game::originalrace::Weather::Night;
+                    smokeEnvironmentPolicy.shadows;
                 const bool expectsBloom =
-                    smokeQuality.postEffect >= 1U &&
-                    weatherAllowsPostEffects;
+                    smokeEnvironmentPolicy.bloom;
                 const bool expectsRefraction =
-                    smokeQuality.postEffect >= 1U;
+                    smokeEnvironmentPolicy.refraction;
                 const bool expectsHdr =
-                    smokeQuality.postEffect >= 2U &&
-                    weatherAllowsPostEffects;
+                    smokeEnvironmentPolicy.hdr;
                 const bool expectsSunShaft =
-                    smokeQuality.postEffect >= 2U &&
-                    weatherAllowsPostEffects &&
-                    originalRace->environment.directionalLightEnabled;
+                    smokeEnvironmentPolicy.sunShaft;
                 bool renderGraphComplete =
                     passObserved(r3d::renderer::RenderPass::Scene) &&
                     passObserved(
@@ -20866,25 +20755,13 @@ int main(int argc, char** argv)
                         maximumRacePassBegins[blurPass] == 0U;
                 }
                 const bool expectsReflection =
-                    originalRace->environment.planarReflection ||
-                    (smokeQuality.environment >= 1U &&
-                     originalRace->environment.surface ==
-                        r3d::game::originalrace::
-                            EnvironmentSurface::Water);
+                    smokeEnvironmentPolicy.environmentReflection;
                 const bool expectsWater =
-                    smokeQuality.environment >= 1U &&
-                    originalRace->environment.surface ==
-                    r3d::game::originalrace::
-                        EnvironmentSurface::Water;
+                    smokeEnvironmentPolicy.highQualityWater;
                 const bool expectsVolumeSurface =
-                    smokeQuality.environment >= 1U &&
-                    (originalRace->environment.surface ==
-                         r3d::game::originalrace::
-                             EnvironmentSurface::GroundFog ||
-                     originalRace->environment.surface ==
-                         r3d::game::originalrace::
-                             EnvironmentSurface::Magma);
+                    smokeEnvironmentPolicy.volumeFog;
                 const bool expectsBumpMapping =
+                    smokeEnvironmentPolicy.bumpMapping &&
                     std::any_of(
                         originalRace->trackDefinitions.begin(),
                         originalRace->trackDefinitions.end(),

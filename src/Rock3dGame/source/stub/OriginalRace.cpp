@@ -1,5 +1,6 @@
 #include "OriginalRace.h"
 
+#include "OriginalEnvironment.h"
 #include "OriginalPlayer.h"
 #include "OriginalProfile.h"
 #include "OriginalSlot.h"
@@ -3550,198 +3551,33 @@ void applyWeatherDescription(
     const resource::ResourceFileSystem& resources, Race& race,
     Weather weather)
 {
-    auto set = [&](Weather weather, std::string_view sky,
-                   std::array<float, 4> fog, float intensity,
-                   std::array<float, 4> ambient) {
-        race.environment.weather = weather;
-        race.environment.skyTexturePath =
-            canonicalDataPath(resources, sky);
-        race.environment.fogColor = fog;
-        race.environment.fogIntensity = intensity;
-        race.environment.ambientColor = ambient;
-        race.environment.rain = weather == Weather::Rainy;
-        race.environment.skyEnabled = true;
-        race.environment.fogEnabled = true;
-        // Environment::ApplyWheater disables the sun only for ewNight.
-        race.environment.directionalLightEnabled =
-            weather != Weather::Night;
-        race.environment.directionalShadowMinimumQuality =
-            weather == Weather::Snow ? 2U : 1U;
-        switch (weather)
-        {
-        case Weather::Rainy:
-            race.environment.perspectiveFarDistance = 100.0F;
-            break;
-        case Weather::Sahara:
-        case Weather::Hell:
-        case Weather::Snow:
-            race.environment.perspectiveFarDistance = 100.0F;
-            break;
-        case Weather::Fair:
-        case Weather::Night:
-        case Weather::Cloudy:
-            race.environment.perspectiveFarDistance = 120.0F;
-            break;
-        }
-        // Environment::ApplyCloudColor runs after ApplyWheater. World3 and
-        // World4 override the weather fog colour; all other worlds use it.
-        race.environment.surfaceCloudColor = fog;
-        if (race.levelPath.find("World3") != std::string::npos)
-        {
-            race.environment.surfaceCloudColor = {
-                87.0F / 255.0F, 81.0F / 255.0F,
-                115.0F / 255.0F, 1.0F};
-        }
-        else if (race.levelPath.find("World4") != std::string::npos)
-        {
-            race.environment.surfaceCloudColor =
-                {1.0F, 1.0F, 1.0F, 1.0F};
-        }
-    };
-    switch (weather)
-    {
-    case Weather::Night:
-        set(Weather::Night, "Data/Misc/nightSky.dds",
-            {15.0F / 255.0F, 25.0F / 255.0F, 31.0F / 255.0F, 1.0F},
-            1.0F,
-            {138.0F / 255.0F, 144.0F / 255.0F,
-             174.0F / 255.0F, 1.0F});
-        break;
-    case Weather::Cloudy:
-        set(Weather::Cloudy, "Data/World2/texture/skyTex1.dds",
-            {192.0F / 255.0F, 189.0F / 255.0F, 184.0F / 255.0F,
-             0.0F},
-            1.0F, {0.0F, 0.0F, 0.0F, 1.0F});
-        break;
-    case Weather::Rainy:
-        set(Weather::Rainy, "Data/World2/texture/skyTex1.dds",
-            {192.0F / 255.0F, 189.0F / 255.0F, 184.0F / 255.0F,
-             0.0F},
-            1.0F, {0.0F, 0.0F, 0.0F, 1.0F});
-        break;
-    case Weather::Sahara:
-        set(Weather::Sahara, "Data/World3/Texture/skyTex1.dds",
-            {87.0F / 255.0F, 81.0F / 255.0F, 115.0F / 255.0F,
-             1.0F},
-            0.5F, {0.0F, 0.0F, 0.0F, 1.0F});
-        break;
-    case Weather::Hell:
-        set(Weather::Hell, "Data/World4/Texture/skyTex1.dds",
-            {82.0F / 255.0F, 12.0F / 255.0F, 8.0F / 255.0F, 1.0F},
-            0.5F, {0.0F, 0.0F, 0.0F, 1.0F});
-        break;
-    case Weather::Snow:
-        set(Weather::Snow, "Data/World5/Texture/sky_text.dds",
-            {156.0F / 255.0F, 166.0F / 255.0F, 181.0F / 255.0F,
-             1.0F},
-            0.5F, {0.0F, 0.0F, 0.0F, 1.0F});
-        break;
-    case Weather::Fair:
-        set(Weather::Fair, "Data/World1/Texture/skyTex1.dds",
-            {148.0F / 255.0F, 193.0F / 255.0F, 235.0F / 255.0F,
-             1.0F},
-            0.5F, {0.0F, 0.0F, 0.0F, 1.0F});
-        break;
-    }
+    source::Environment::ApplyWeather(
+        race.environment, weather,
+        source::Environment::WorldTypeFromLevelPath(race.levelPath));
+    race.environment.skyTexturePath = canonicalDataPath(
+        resources, race.environment.skyTexturePath);
 }
 
 Weather weatherFromToken(std::string_view token)
 {
-    if (token == "ewNight")
-        return Weather::Night;
-    if (token == "ewClody")
-        return Weather::Cloudy;
-    if (token == "ewRainy")
-        return Weather::Rainy;
-    if (token == "ewSahara")
-        return Weather::Sahara;
-    if (token == "ewHell")
-        return Weather::Hell;
-    if (token == "ewSnow")
-        return Weather::Snow;
-    return Weather::Fair;
+    return source::Environment::WeatherFromToken(token);
 }
 
 void applyOriginalEnvironment(
     const resource::ResourceFileSystem& resources, Race& race)
 {
-    race.environment.surface = EnvironmentSurface::None;
-    race.environment.planarReflection = false;
-    race.environment.surfaceHeight = 0.0F;
-    race.environment.surfaceScroll = 0.0F;
-    race.environment.surfaceTileScale = 1.0F;
-    race.environment.surfaceCloudIntensity = 0.0F;
-    if (race.levelPath.find("World1") != std::string::npos)
-    {
-        race.environment.surface = EnvironmentSurface::Grass;
-        race.environment.hdrLuminanceKey = 1.1F;
-        race.environment.hdrBrightThreshold = 1.5F;
-        race.environment.hdrGaussianScalar = 30.0F;
-        race.environment.hdrExposure = 15.0F;
-    }
-    else if (race.levelPath.find("World2") != std::string::npos)
-    {
-        race.environment.surface = EnvironmentSurface::Water;
-        race.environment.surfaceTileScale = 4.0F;
-        race.environment.surfaceCloudIntensity = 0.1F;
-        race.environment.hdrLuminanceKey = 1.7F;
-        race.environment.hdrBrightThreshold = 1.9F;
-        race.environment.hdrGaussianScalar = 30.0F;
-        race.environment.hdrExposure = 8.0F;
-    }
-    else if (race.levelPath.find("World3") != std::string::npos)
-    {
-        race.environment.surface = EnvironmentSurface::GroundFog;
-        race.environment.surfaceHeight = 3.0F;
-        race.environment.surfaceScroll = 0.02F;
-        race.environment.surfaceTileScale = 50.0F;
-        race.environment.surfaceCloudIntensity = 0.1F;
-        race.environment.hdrLuminanceKey = 4.0F;
-        race.environment.hdrBrightThreshold = 4.5F;
-        race.environment.hdrGaussianScalar = 20.0F;
-        race.environment.hdrExposure = 3.0F;
-    }
-    else if (race.levelPath.find("World4") != std::string::npos)
-    {
-        race.environment.surface = EnvironmentSurface::Magma;
-        race.environment.surfaceHeight = 0.5F;
-        race.environment.surfaceScroll = 0.01F;
-        race.environment.surfaceTileScale = 25.0F;
-        race.environment.surfaceCloudIntensity = 1.0F;
-        race.environment.hdrLuminanceKey = 1.9F;
-        race.environment.hdrBrightThreshold = 1.9F;
-        race.environment.hdrGaussianScalar = 30.0F;
-        race.environment.hdrExposure = 8.0F;
-    }
-    else if (race.levelPath.find("World5") != std::string::npos)
-    {
-        race.environment.planarReflection = true;
-        race.environment.hdrLuminanceKey = 1.1F;
-        race.environment.hdrBrightThreshold = 1.3F;
-        race.environment.hdrGaussianScalar = 30.0F;
-        race.environment.hdrExposure = 15.0F;
-    }
-    else if (race.levelPath.find("World6") != std::string::npos)
-    {
-        race.environment.surface = EnvironmentSurface::GroundFog;
-        race.environment.surfaceHeight = 3.0F;
-        race.environment.surfaceScroll = 0.02F;
-        race.environment.surfaceTileScale = 50.0F;
-        race.environment.surfaceCloudIntensity = 0.1F;
-        race.environment.hdrLuminanceKey = 1.7F;
-        race.environment.hdrBrightThreshold = 1.9F;
-        race.environment.hdrGaussianScalar = 30.0F;
-        race.environment.hdrExposure = 8.0F;
-    }
+    const auto worldType =
+        source::Environment::WorldTypeFromLevelPath(race.levelPath);
+    source::Environment::ApplyWorldType(race.environment, worldType);
     Weather weather = Weather::Fair;
-    if (race.levelPath.find("World2") != std::string::npos ||
-        race.levelPath.find("World6") != std::string::npos)
+    if (worldType == source::EnvironmentWorldType::World2 ||
+        worldType == source::EnvironmentWorldType::World6)
         weather = Weather::Cloudy;
-    else if (race.levelPath.find("World3") != std::string::npos)
+    else if (worldType == source::EnvironmentWorldType::World3)
         weather = Weather::Sahara;
-    else if (race.levelPath.find("World4") != std::string::npos)
+    else if (worldType == source::EnvironmentWorldType::World4)
         weather = Weather::Hell;
-    else if (race.levelPath.find("World5") != std::string::npos)
+    else if (worldType == source::EnvironmentWorldType::World5)
         weather = Weather::Snow;
     applyWeatherDescription(resources, race, weather);
 }
@@ -4553,26 +4389,10 @@ Race loadOriginalGarageScene(
         result.vehicle = result.vehicles.front();
 
     // Environment::ewGarage + Environment::wtGarage.
-    result.environment.weather = Weather::Fair;
+    source::Environment::ApplyPresentation(
+        result.environment, source::EnvironmentWorldType::Garage);
     result.environment.skyTexturePath = canonicalDataPath(
-        resources, "Data\\World1\\Texture\\skyTex1.dds");
-    result.environment.fogColor = {
-        148.0F / 255.0F, 193.0F / 255.0F,
-        235.0F / 255.0F, 1.0F};
-    result.environment.ambientColor = {0.6F, 0.6F, 0.6F, 1.0F};
-    result.environment.fogIntensity = 1.0F;
-    result.environment.perspectiveFarDistance = 20.0F;
-    result.environment.surfaceCloudColor = result.environment.fogColor;
-    result.environment.skyEnabled = false;
-    result.environment.fogEnabled = false;
-    result.environment.directionalLightEnabled = false;
-    result.environment.dynamicReflectionsEnabled = false;
-    result.environment.surface = EnvironmentSurface::None;
-    result.environment.planarReflection = false;
-    result.environment.hdrLuminanceKey = 2.0F;
-    result.environment.hdrBrightThreshold = 4.0F;
-    result.environment.hdrGaussianScalar = 25.0F;
-    result.environment.hdrExposure = 2.0F;
+        resources, result.environment.skyTexturePath);
 
     // RaceMenu2.cpp CarFrame::OnShow.  glm::quat takes (w, x, y, z);
     // portable Quat stores (x, y, z, w).
@@ -4648,26 +4468,10 @@ Race loadOriginalAngarScene(
         {1U, {}, 0U, {}, -1.0F, -1.0F, 0.0F, false});
 
     // Environment::ewAngar + Environment::wtAngar.
-    result.environment.weather = Weather::Fair;
+    source::Environment::ApplyPresentation(
+        result.environment, source::EnvironmentWorldType::Angar);
     result.environment.skyTexturePath = canonicalDataPath(
-        resources, "Data\\World1\\Texture\\skyTex1.dds");
-    result.environment.fogColor = {
-        148.0F / 255.0F, 193.0F / 255.0F,
-        235.0F / 255.0F, 1.0F};
-    result.environment.ambientColor = {0.6F, 0.6F, 0.6F, 1.0F};
-    result.environment.fogIntensity = 1.0F;
-    result.environment.perspectiveFarDistance = 130.0F;
-    result.environment.surfaceCloudColor = result.environment.fogColor;
-    result.environment.skyEnabled = false;
-    result.environment.fogEnabled = false;
-    result.environment.directionalLightEnabled = false;
-    result.environment.dynamicReflectionsEnabled = false;
-    result.environment.surface = EnvironmentSurface::None;
-    result.environment.planarReflection = false;
-    result.environment.hdrLuminanceKey = 3.0F;
-    result.environment.hdrBrightThreshold = 3.5F;
-    result.environment.hdrGaussianScalar = 20.0F;
-    result.environment.hdrExposure = 5.0F;
+        resources, result.environment.skyTexturePath);
 
     result.environment.lamps[0] = {
         {22.169474F, -5.9075522F, 35.802311F},

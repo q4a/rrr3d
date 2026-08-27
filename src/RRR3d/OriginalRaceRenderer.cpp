@@ -2635,6 +2635,7 @@ bool OriginalRaceRenderer::initialize(
 
 void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
 {
+    sourceEnvironment_.ReleaseScene();
     destroyFrameTargets(device);
     if (valid(environmentReflectionTarget_))
         device.destroy(environmentReflectionTarget_);
@@ -2807,6 +2808,7 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
     perspectiveFarDistance_ = 120.0F;
     activeEnvironmentQuality_ = 2U;
     activeLightQuality_ = 2U;
+    activeEnvironmentPolicy_ = {};
     sunShaftResourcesEnabled_ = false;
 }
 
@@ -2995,8 +2997,7 @@ void OriginalRaceRenderer::draw(
     sceneLighting.ambient = race.environment.ambientColor;
     sceneLighting.fogColor = race.environment.fogColor;
     sceneLighting.fogColor[3] =
-        race.environment.fogEnabled &&
-                cameraStyle_ != RaceCameraStyle::Isometric
+        activeEnvironmentPolicy_.fog
             ? race.environment.fogIntensity
             : 0.0F;
     std::size_t lampIndex = 0U;
@@ -3085,8 +3086,7 @@ void OriginalRaceRenderer::draw(
          activeCameraFarDistance_};
     if (!refractionPass && !vehicles.empty())
     {
-        if (race.environment.skyEnabled &&
-            activeEnvironmentQuality_ >= 1U)
+        if (activeEnvironmentPolicy_.sky)
         {
             SceneLighting skyLighting = sceneLighting;
             skyLighting.lightDirection = {0.0F, 0.0F, 1.0F, 0.0F};
@@ -3183,9 +3183,7 @@ void OriginalRaceRenderer::draw(
     }
 
     if (!refractionPass && !reflectionPass &&
-        activeEnvironmentQuality_ >= 1U &&
-        race.environment.surface ==
-            r3d::game::originalrace::EnvironmentSurface::Grass &&
+        activeEnvironmentPolicy_.grassField &&
         valid(grassMesh_) && valid(grassTexture_))
     {
         auto grassPipeline = pipeline;
@@ -5271,11 +5269,10 @@ void OriginalRaceRenderer::draw(
             runtime.immortalEffect.GetEffectSeconds());
     }
 
-    if (race.environment.rain && !vehicles.empty() &&
-        cameraStyle_ != RaceCameraStyle::Isometric)
+    if (sourceEnvironment_.RainVisible() && !vehicles.empty())
     {
         r3d::physics::Transform rainParent;
-        rainParent.position = cameraPosition_;
+        rainParent.position = sourceEnvironment_.RainPosition();
         drawDefinition(rainEffect_, race.rainEffect, rainParent,
                        elapsedSeconds, r3d::physics::Vec3{});
     }
@@ -5731,6 +5728,16 @@ void OriginalRaceRenderer::renderFrame(
             : 0.0F;
     const bool isometricCamera =
         std::abs(camera.projection[15]) > 0.5F;
+    if (!sourceEnvironment_.SceneStarted())
+    {
+        sourceEnvironment_.StartScene(
+            race.environment, isometricCamera, cameraPosition_);
+    }
+    sourceEnvironment_.ProcessScene(
+        race.environment, isometricCamera, cameraPosition_);
+    activeEnvironmentPolicy_ =
+        r3d::game::originalrace::source::Environment::ApplyQuality(
+            race.environment, quality, isometricCamera);
     const auto humanPosition = std::find_if(
         racerRuntime.begin(), racerRuntime.end(),
         [](const auto& player) { return player.IsHuman(); });
@@ -5850,15 +5857,13 @@ void OriginalRaceRenderer::renderFrame(
     }
 
     device.resetRenderTelemetry();
-    activeEnvironmentQuality_ = std::min(quality.environment, 2U);
-    activeLightQuality_ = std::min(quality.light, 2U);
-    // Environment.cpp maps the three original quality levels to graph
-    // options.  Keep those thresholds here instead of silently rendering the
-    // high-quality graph for every profile.
+    activeEnvironmentQuality_ =
+        activeEnvironmentPolicy_.environmentQuality;
+    activeLightQuality_ = activeEnvironmentPolicy_.lightQuality;
+    // source::Environment owns the Environment.cpp graph-option thresholds;
+    // this renderer only maps the returned policy to bgfx passes.
     const bool directionalShadowsEnabled =
-        quality.shadow >=
-            race.environment.directionalShadowMinimumQuality &&
-        race.environment.directionalLightEnabled;
+        activeEnvironmentPolicy_.directionalShadows;
     std::array<
         const r3d::game::originalrace::EnvironmentLamp*, 3>
         shadowLamps{};
@@ -5870,42 +5875,20 @@ void OriginalRaceRenderer::renderFrame(
         shadowLamps[shadowLampCount++] = &lamp;
     }
     const bool spotShadowsEnabled =
-        quality.shadow >= 1U &&
-        !race.environment.directionalLightEnabled &&
-        shadowLampCount > 0U;
-    const bool shadowsEnabled =
-        directionalShadowsEnabled || spotShadowsEnabled;
+        activeEnvironmentPolicy_.spotShadows;
+    const bool shadowsEnabled = activeEnvironmentPolicy_.shadows;
     const bool trueReflectionsEnabled =
-        quality.light >= 2U &&
-        race.environment.dynamicReflectionsEnabled;
-    const bool planarReflectionsEnabled = quality.light >= 2U;
-    const bool weatherAllowsPostEffects =
-        race.environment.weather !=
-        r3d::game::originalrace::Weather::Night;
-    const bool bloomEnabled =
-        quality.postEffect >= 1U && weatherAllowsPostEffects;
-    const bool refractionEnabled = quality.postEffect >= 1U;
-    const bool hdrEnabled =
-        quality.postEffect >= 2U && weatherAllowsPostEffects;
-    const bool sunShaftEnabled =
-        quality.postEffect >= 2U && weatherAllowsPostEffects &&
-        race.environment.directionalLightEnabled && !isometricCamera;
-    const bool hasWater =
-        race.environment.surface ==
-        r3d::game::originalrace::EnvironmentSurface::Water;
+        activeEnvironmentPolicy_.trueReflections;
+    const bool bloomEnabled = activeEnvironmentPolicy_.bloom;
+    const bool refractionEnabled = activeEnvironmentPolicy_.refraction;
+    const bool hdrEnabled = activeEnvironmentPolicy_.hdr;
+    const bool sunShaftEnabled = activeEnvironmentPolicy_.sunShaft;
     const bool hasHighQualityWater =
-        hasWater && activeEnvironmentQuality_ >= 1U;
-    const bool hasVolumeFog =
-        activeEnvironmentQuality_ >= 1U &&
-        (race.environment.surface ==
-             r3d::game::originalrace::EnvironmentSurface::GroundFog ||
-         race.environment.surface ==
-             r3d::game::originalrace::EnvironmentSurface::Magma);
+        activeEnvironmentPolicy_.highQualityWater;
     const bool usesSceneDepthSurface =
-        hasHighQualityWater || hasVolumeFog;
+        activeEnvironmentPolicy_.sceneDepthSurface;
     const bool hasReflection =
-        planarReflectionsEnabled &&
-        (race.environment.planarReflection || hasHighQualityWater);
+        activeEnvironmentPolicy_.environmentReflection;
     const auto reflectionCamera =
         reflectedCamera(camera, race.environment.surfaceHeight);
 

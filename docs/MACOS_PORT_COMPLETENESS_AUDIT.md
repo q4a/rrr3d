@@ -885,6 +885,13 @@ Network, video и Steam явно выключены.
    sampling и MIRROR addressing чистой сцены. `death2/refr1` сохраняет
    собственные `glRefr`, `goDefault`, `amOnce`, lifetime 0.5 s и scale
    velocity 100, поэтому sprite больше не растёт все 10 s жизни родителя.
+8. Эти правила больше не распределены между loader, 22k-line host и
+   6.9k-line renderer. `source::Environment` является активным владельцем
+   `ApplyWheater`, world profiles, Garage/Angar presentation, quality graph,
+   camera far и `StartScene/ProcessScene/ReleaseScene`; renderer получает
+   готовую policy и исполняет только bgfx/Metal passes. Отдельный regression
+   проверяет weather/world/quality/rain state machine, а race smoke — её
+   фактическое использование всеми Metal passes.
 
 ### Source Player::ApplyMobility armor-role follow-up
 
