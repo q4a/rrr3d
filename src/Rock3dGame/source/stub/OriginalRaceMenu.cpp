@@ -1,6 +1,7 @@
 #include "OriginalRaceMenu.h"
 
 #include <algorithm>
+#include <cmath>
 
 namespace r3d::game::originalracemenu
 {
@@ -942,6 +943,306 @@ WorkshopLayout WorkshopFrameState::layout(
     result.downArrowY =
         panelCenterY + leftPanelHeight * 0.5F - 42.0F;
     result.backY = viewportHeight - bottomPanelHeight + 40.0F;
+    return result;
+}
+
+SpaceshipLampState SpaceshipFrameState::progress(
+    float deltaTime) noexcept
+{
+    redLampTime_ = std::fmod(redLampTime_, 3.0F);
+    const float intensity = 0.7F * (
+        std::clamp((redLampTime_ - 1.5F) / 0.15F, 0.0F, 1.0F) -
+        std::clamp((redLampTime_ - 2.85F) / 0.15F, 0.0F, 1.0F));
+    redLampTime_ += std::max(deltaTime, 0.0F);
+    sceneSeconds_ += std::max(deltaTime, 0.0F);
+    return {redLampTime_ >= 1.5F, intensity};
+}
+
+float SpaceshipFrameState::sceneSeconds() const noexcept
+{
+    return sceneSeconds_;
+}
+
+float AngarLayout::planetX(std::size_t index) const noexcept
+{
+    return firstPlanetX + static_cast<float>(index) * 224.0F;
+}
+
+void AngarFrameState::show(
+    std::vector<AngarPlanetEntry> planets, bool planetChampion,
+    bool campaign, bool networkClient, std::size_t currentPlanet)
+{
+    planets_ = std::move(planets);
+    planetChampion_ = planetChampion;
+    campaign_ = campaign;
+    networkClient_ = networkClient;
+    currentPlanet_ = currentPlanet;
+    selection_ = -1;
+    if (planetChampion_ && currentPlanet_ + 1U < planets_.size() &&
+        planets_[currentPlanet_ + 1U].next)
+    {
+        selection_ = static_cast<int>(currentPlanet_ + 1U);
+    }
+    previousSelection_ = -1;
+    doorTime_ = -1.0F;
+    focus_ = selection_ >= 0
+                 ? static_cast<std::size_t>(selection_)
+                 : planets_.size();
+    travelDialog_ = {};
+}
+
+void AngarFrameState::hide() noexcept
+{
+    planets_.clear();
+    selection_ = -1;
+    previousSelection_ = -1;
+    doorTime_ = -1.0F;
+    focus_ = 0U;
+    travelDialog_ = {};
+}
+
+const std::vector<AngarPlanetEntry>&
+AngarFrameState::planets() const noexcept
+{
+    return planets_;
+}
+
+std::size_t AngarFrameState::planetCount() const noexcept
+{
+    return planets_.size();
+}
+
+int AngarFrameState::selection() const noexcept
+{
+    return selection_;
+}
+
+int AngarFrameState::previousSelection() const noexcept
+{
+    return previousSelection_;
+}
+
+std::size_t AngarFrameState::focus() const noexcept
+{
+    return focus_;
+}
+
+bool AngarFrameState::selectPlanet(int index) noexcept
+{
+    if (index < -1 ||
+        (index >= 0 && static_cast<std::size_t>(index) >= planets_.size()) ||
+        index == selection_)
+    {
+        return false;
+    }
+    previousSelection_ = selection_;
+    selection_ = index;
+    doorTime_ = 0.0F;
+    return true;
+}
+
+bool AngarFrameState::setPointerFocus(std::size_t focus) noexcept
+{
+    if (focus > planets_.size())
+        return false;
+    focus_ = focus;
+    selectPlanet(
+        focus < planets_.size() ? static_cast<int>(focus) : -1);
+    return true;
+}
+
+void AngarFrameState::closeInfo() noexcept
+{
+    focus_ = planets_.size();
+    selectPlanet(-1);
+}
+
+void AngarFrameState::progress(float deltaTime) noexcept
+{
+    if (doorTime_ < 0.0F)
+        return;
+    const float alpha = std::clamp(doorTime_ / 0.25F, 0.0F, 1.0F);
+    doorTime_ += std::max(deltaTime, 0.0F);
+    if (alpha >= 1.0F)
+        doorTime_ = -1.0F;
+}
+
+float AngarFrameState::doorAlpha(std::size_t index) const noexcept
+{
+    if (networkClient_)
+        return 0.0F;
+    float alpha = static_cast<int>(index) == selection_ ? 1.0F : 0.0F;
+    if (doorTime_ >= 0.0F)
+    {
+        const float progress =
+            std::clamp(doorTime_ / 0.25F, 0.0F, 1.0F);
+        if (static_cast<int>(index) == selection_)
+            alpha = progress;
+        else if (static_cast<int>(index) == previousSelection_)
+            alpha = 1.0F - progress;
+    }
+    return alpha;
+}
+
+const AngarTravelDialogState&
+AngarFrameState::travelDialog() const noexcept
+{
+    return travelDialog_;
+}
+
+void AngarFrameState::cancelTravel() noexcept
+{
+    travelDialog_ = {};
+}
+
+void AngarFrameState::setTravelYesFocused(bool value) noexcept
+{
+    travelDialog_.yesFocused = value;
+}
+
+std::optional<AngarCommand> AngarFrameState::requestTravel(
+    std::size_t index, bool fromPlanetSlot) noexcept
+{
+    if (networkClient_ || index >= planets_.size())
+        return std::nullopt;
+    travelDialog_ = {true, index, true, fromPlanetSlot};
+    return AngarCommand{
+        AngarCommandType::RequestTravel, index, fromPlanetSlot};
+}
+
+std::optional<AngarCommand> AngarFrameState::activateFocus() noexcept
+{
+    if (focus_ >= planets_.size())
+    {
+        if (planetChampion_ && currentPlanet_ < planets_.size())
+            return requestTravel(currentPlanet_, false);
+        return AngarCommand{AngarCommandType::Back, 0U, false};
+    }
+    if (networkClient_)
+        return std::nullopt;
+    const std::size_t index = focus_;
+    const auto& planet = planets_[index];
+    if (planetChampion_ && (planet.current || planet.next))
+        return requestTravel(index, true);
+    if (!campaign_ && planet.state == AngarPlanetState::Open)
+        return AngarCommand{
+            AngarCommandType::ChangePlanet, index, true};
+    if (planet.current)
+        return AngarCommand{AngarCommandType::Back, index, true};
+    return AngarCommand{
+        AngarCommandType::CannotTravel, index, true};
+}
+
+std::optional<AngarCommand> AngarFrameState::handle(
+    const rrr3d::input::ActionEvent& event) noexcept
+{
+    if (!event.active)
+        return std::nullopt;
+    using rrr3d::input::Action;
+    if (travelDialog_.visible)
+    {
+        if (event.action == Action::TurnLeft ||
+            event.action == Action::MenuUp)
+        {
+            travelDialog_.yesFocused = true;
+        }
+        else if (event.action == Action::TurnRight ||
+                 event.action == Action::MenuDown)
+        {
+            travelDialog_.yesFocused = false;
+        }
+        else if (!event.repeated &&
+                 (event.action == Action::MenuBack ||
+                  event.action == Action::Pause))
+        {
+            cancelTravel();
+        }
+        else if (!event.repeated &&
+                 event.action == Action::MenuConfirm)
+        {
+            const auto dialog = travelDialog_;
+            cancelTravel();
+            if (dialog.yesFocused)
+            {
+                return AngarCommand{
+                    AngarCommandType::ChangePlanet, dialog.target,
+                    dialog.fromPlanetSlot};
+            }
+        }
+        return std::nullopt;
+    }
+    if (event.action == Action::TurnLeft ||
+        event.action == Action::TurnRight)
+    {
+        if (event.repeated || planets_.empty() ||
+            focus_ >= planets_.size())
+        {
+            return std::nullopt;
+        }
+        if (event.action == Action::TurnLeft)
+            focus_ = focus_ == 0U ? planets_.size() - 1U : focus_ - 1U;
+        else
+            focus_ = (focus_ + 1U) % planets_.size();
+        selectPlanet(static_cast<int>(focus_));
+        return std::nullopt;
+    }
+    if (event.action == Action::MenuUp ||
+        event.action == Action::MenuDown)
+    {
+        if (planets_.empty())
+            return std::nullopt;
+        if (focus_ < planets_.size())
+        {
+            focus_ = planets_.size();
+            selectPlanet(-1);
+        }
+        else
+        {
+            focus_ = 0U;
+            selectPlanet(0);
+        }
+        return std::nullopt;
+    }
+    if (event.repeated)
+        return std::nullopt;
+    if (event.action == Action::MenuBack || event.action == Action::Pause)
+    {
+        if (planetChampion_ && currentPlanet_ < planets_.size())
+            return requestTravel(currentPlanet_, false);
+        return AngarCommand{AngarCommandType::Back, 0U, false};
+    }
+    if (event.action == Action::MenuConfirm)
+        return activateFocus();
+    return std::nullopt;
+}
+
+AngarLayout AngarFrameState::layout(
+    float viewportWidth, float viewportHeight, float bottomPanelWidth,
+    float bottomPanelHeight, float infoWidth, float infoHeight,
+    float backWidth) const noexcept
+{
+    AngarLayout result;
+    result.bottomPanelX = viewportWidth * 0.5F;
+    result.bottomPanelY =
+        viewportHeight - bottomPanelHeight * 0.5F - 20.0F;
+    result.firstPlanetX =
+        result.bottomPanelX - bottomPanelWidth * 0.5F + 125.0F;
+    result.planetY =
+        result.bottomPanelY - bottomPanelHeight * 0.5F + 90.0F;
+    result.slotY = result.bottomPanelY + 67.0F;
+    result.backX = backWidth * 0.5F;
+    result.backY = 40.0F;
+    if (selection_ >= 0)
+    {
+        result.infoX = std::clamp(
+            result.planetX(static_cast<std::size_t>(selection_)),
+            infoWidth * 0.5F, viewportWidth - infoWidth * 0.5F);
+        result.infoY = result.bottomPanelY - 260.0F;
+        result.infoLeft = result.infoX - infoWidth * 0.5F;
+        result.infoTop = result.infoY - infoHeight * 0.5F;
+        result.closeX = result.infoX + 180.0F;
+        result.closeY = result.infoTop + 15.0F;
+    }
     return result;
 }
 

@@ -266,6 +266,89 @@ int main()
         !close(workshopLayout.backY, 870.0F))
         return fail("WorkshopFrame source layout differs");
 
+    SpaceshipFrameState spaceship;
+    auto lamp = spaceship.progress(1.6F);
+    if (!lamp.enabled || !close(lamp.intensity, 0.0F) ||
+        !close(spaceship.sceneSeconds(), 1.6F))
+        return fail("SpaceshipFrame first red-lamp phase differs");
+    lamp = spaceship.progress(0.0F);
+    if (!lamp.enabled || lamp.intensity <= 0.4F ||
+        lamp.intensity >= 0.5F)
+        return fail("SpaceshipFrame red-lamp ramp differs");
+
+    AngarFrameState angar;
+    angar.show(
+        {{AngarPlanetState::Open, true, false},
+         {AngarPlanetState::Unavailable, false, true},
+         {AngarPlanetState::Closed, false, false}},
+        true, true, false, 0U);
+    if (angar.selection() != 1 || angar.focus() != 1U ||
+        !close(angar.doorAlpha(1U), 1.0F))
+        return fail("AngarFrame champion OnShow selection differs");
+    angar.handle(event(Action::MenuUp));
+    if (angar.focus() != 3U || angar.selection() != -1)
+        return fail("AngarFrame planet-to-Back navigation differs");
+    angar.handle(event(Action::TurnLeft));
+    if (angar.focus() != 3U)
+        return fail("AngarFrame Back horizontal null edge differs");
+    angar.handle(event(Action::MenuDown));
+    if (angar.focus() != 0U || angar.selection() != 0)
+        return fail("AngarFrame Back-to-first-planet navigation differs");
+    const auto stay = angar.handle(event(Action::MenuConfirm));
+    if (!stay || stay->type != AngarCommandType::RequestTravel ||
+        stay->planet != 0U || !stay->fromPlanetSlot ||
+        !angar.travelDialog().visible)
+        return fail("AngarFrame stay-planet request differs");
+    angar.setTravelYesFocused(false);
+    if (angar.handle(event(Action::MenuConfirm)).has_value() ||
+        angar.travelDialog().visible)
+        return fail("AngarFrame travel No result differs");
+    angar.handle(event(Action::TurnRight));
+    const auto fly = angar.handle(event(Action::MenuConfirm));
+    if (!fly || fly->planet != 1U ||
+        fly->type != AngarCommandType::RequestTravel)
+        return fail("AngarFrame next-planet request differs");
+    const auto change = angar.handle(event(Action::MenuConfirm));
+    if (!change || change->type != AngarCommandType::ChangePlanet ||
+        change->planet != 1U || angar.travelDialog().visible)
+        return fail("AngarFrame accepted travel result differs");
+
+    angar.selectPlanet(0);
+    if (!close(angar.doorAlpha(0U), 0.0F) ||
+        !close(angar.doorAlpha(1U), 1.0F))
+        return fail("AngarFrame door animation start differs");
+    angar.progress(0.125F);
+    if (!close(angar.doorAlpha(0U), 0.5F) ||
+        !close(angar.doorAlpha(1U), 0.5F))
+        return fail("AngarFrame door animation midpoint differs");
+
+    const auto angarLayout = angar.layout(
+        1920.0F, 1080.0F, 900.0F, 250.0F, 400.0F, 300.0F,
+        100.0F);
+    if (!close(angarLayout.bottomPanelX, 960.0F) ||
+        !close(angarLayout.bottomPanelY, 935.0F) ||
+        !close(angarLayout.firstPlanetX, 635.0F) ||
+        !close(angarLayout.planetX(1U), 859.0F) ||
+        !close(angarLayout.planetY, 900.0F) ||
+        !close(angarLayout.slotY, 1002.0F) ||
+        !close(angarLayout.backX, 50.0F) ||
+        !close(angarLayout.infoX, 635.0F) ||
+        !close(angarLayout.closeY, 540.0F))
+        return fail("AngarFrame source layout differs");
+
+    AngarFrameState skirmishAngar;
+    skirmishAngar.show(
+        {{AngarPlanetState::Open, true, false},
+         {AngarPlanetState::Open, false, false}},
+        false, false, false, 0U);
+    skirmishAngar.setPointerFocus(1U);
+    const auto directChange =
+        skirmishAngar.handle(event(Action::MenuConfirm));
+    if (!directChange ||
+        directChange->type != AngarCommandType::ChangePlanet ||
+        directChange->planet != 1U)
+        return fail("AngarFrame skirmish direct travel differs");
+
     std::cout << "original RaceMenu2 frames smoke passed\n";
     return 0;
 }

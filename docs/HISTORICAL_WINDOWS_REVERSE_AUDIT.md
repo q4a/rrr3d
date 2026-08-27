@@ -4221,6 +4221,25 @@ drag, confirmation и layout. Следующая граница B6e.4 — Angar/
 Сборка автономного arm64 app, 23/23 offline, 2/2 network, physics smoke и
 360-frame bgfx/Metal race smoke прошли.
 
+### P2.180 — `RaceMenu2::AngarFrame` и `SpaceshipFrame` получили исходных владельцев — выполнено
+
+Видимый Angar уже использовал оригинальные панели, планеты, boss cars и 3D
+сцену, но renderer продолжал владеть восемью отдельными переменными selection,
+previous selection, door timer, scene/red-lamp clocks и travel dialog. Ручная
+навигация также расходилась с `RaceMenu2.cpp`: Left/Right на Back переходили к
+планете, хотя source graph оставляет обе связи пустыми.
+
+Новые `originalracemenu::AngarFrameState` и `SpaceshipFrameState` переносят
+`OnShow/OnInvalidate/OnFocusChanged/OnClick/OnProgress`: champion selection,
+кольцо planet viewports/slots, Back edges, campaign/skirmish/network gates,
+Stay/Fly modal, 0.25-секундные двери, geometry anchors и непрерывный
+трёхсекундный red-lamp clock. Host теперь только применяет ChangePlanet/Back,
+показывает source dialog и передаёт готовые координаты и alpha в bgfx.
+Regression покрывает champion/skirmish commands, modal Yes/No, точный Back
+graph, midpoint дверей, lamp phases и layout. Автономная arm64 сборка, 23/23
+offline, 2/2 network, physics и 360-frame bgfx/Metal race smoke прошли.
+Следующая граница B6e.4b — `AchievmentFrame`.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

@@ -399,4 +399,126 @@ private:
     WorkshopConfirmationState confirmation_;
 };
 
+enum class AngarPlanetState : std::uint8_t
+{
+    Open,
+    Closed,
+    Unavailable,
+    Completed,
+};
+
+struct AngarPlanetEntry
+{
+    AngarPlanetState state = AngarPlanetState::Unavailable;
+    bool current = false;
+    bool next = false;
+};
+
+struct SpaceshipLampState
+{
+    bool enabled = false;
+    float intensity = 0.0F;
+};
+
+class SpaceshipFrameState
+{
+public:
+    SpaceshipLampState progress(float deltaTime) noexcept;
+    float sceneSeconds() const noexcept;
+
+private:
+    float redLampTime_ = 0.0F;
+    float sceneSeconds_ = 0.0F;
+};
+
+enum class AngarCommandType : std::uint8_t
+{
+    Back,
+    RequestTravel,
+    ChangePlanet,
+    CannotTravel,
+};
+
+struct AngarCommand
+{
+    AngarCommandType type = AngarCommandType::Back;
+    std::size_t planet = 0U;
+    bool fromPlanetSlot = false;
+};
+
+struct AngarTravelDialogState
+{
+    bool visible = false;
+    std::size_t target = 0U;
+    bool yesFocused = true;
+    bool fromPlanetSlot = false;
+};
+
+struct AngarLayout
+{
+    float bottomPanelX = 0.0F;
+    float bottomPanelY = 0.0F;
+    float firstPlanetX = 0.0F;
+    float planetY = 0.0F;
+    float slotY = 0.0F;
+    float backX = 0.0F;
+    float backY = 0.0F;
+    float infoX = 0.0F;
+    float infoY = 0.0F;
+    float infoLeft = 0.0F;
+    float infoTop = 0.0F;
+    float closeX = 0.0F;
+    float closeY = 0.0F;
+
+    float planetX(std::size_t index) const noexcept;
+};
+
+class AngarFrameState
+{
+public:
+    void show(std::vector<AngarPlanetEntry> planets,
+              bool planetChampion, bool campaign,
+              bool networkClient, std::size_t currentPlanet);
+    void hide() noexcept;
+
+    const std::vector<AngarPlanetEntry>& planets() const noexcept;
+    std::size_t planetCount() const noexcept;
+    int selection() const noexcept;
+    int previousSelection() const noexcept;
+    std::size_t focus() const noexcept;
+    bool selectPlanet(int index) noexcept;
+    bool setPointerFocus(std::size_t focus) noexcept;
+    void closeInfo() noexcept;
+
+    void progress(float deltaTime) noexcept;
+    float doorAlpha(std::size_t index) const noexcept;
+
+    const AngarTravelDialogState& travelDialog() const noexcept;
+    void cancelTravel() noexcept;
+    void setTravelYesFocused(bool value) noexcept;
+    std::optional<AngarCommand> handle(
+        const rrr3d::input::ActionEvent& event) noexcept;
+
+    AngarLayout layout(float viewportWidth, float viewportHeight,
+                       float bottomPanelWidth, float bottomPanelHeight,
+                       float infoWidth, float infoHeight,
+                       float backWidth) const noexcept;
+
+private:
+    std::optional<AngarCommand> activateFocus() noexcept;
+    std::optional<AngarCommand> requestTravel(
+        std::size_t index, bool fromPlanetSlot) noexcept;
+
+    std::vector<AngarPlanetEntry> planets_;
+    bool planetChampion_ = false;
+    bool campaign_ = true;
+    bool networkClient_ = false;
+    std::size_t currentPlanet_ = 0U;
+    int selection_ = -1;
+    int previousSelection_ = -1;
+    float doorTime_ = -1.0F;
+    std::size_t focus_ = 0U;
+    AngarTravelDialogState travelDialog_;
+};
+
 } // namespace r3d::game::originalracemenu
