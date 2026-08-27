@@ -4,11 +4,13 @@
 #include "OriginalProfile.h"
 #include "OriginalRace.h"
 #include "OriginalRaceSession.h"
+#include "OriginalResourceManager.h"
 #include "physics/OriginalVehiclePhysics.h"
 #include "renderer/Renderer.h"
 #include "resource/R3DMeshAsset.h"
 
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -23,12 +25,13 @@ class OriginalRaceRenderer
 public:
     struct Asset
     {
-        r3d::resource::R3DMeshAsset source;
+        std::shared_ptr<const r3d::resource::R3DMeshAsset> source;
         r3d::renderer::Mesh mesh;
         std::vector<r3d::renderer::Texture> textures;
         std::vector<r3d::renderer::Texture> normalTextures;
         std::vector<r3d::game::originalrace::MaterialDefinition> materials;
         int subMesh = -1;
+        bool sharedMesh = false;
     };
 
     struct ObjectAsset
@@ -58,7 +61,7 @@ public:
     };
 
     bool initialize(r3d::renderer::GraphicsDevice& device,
-                    const r3d::resource::ResourceFileSystem& resources,
+                    OriginalResourceManager& resources,
                     const r3d::game::originalrace::Race& race,
                     std::uint32_t width, std::uint32_t height,
                     std::string& error);

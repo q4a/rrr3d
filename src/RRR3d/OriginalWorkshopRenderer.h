@@ -2,17 +2,14 @@
 
 #include "OriginalGarage.h"
 #include "OriginalRace.h"
+#include "OriginalResourceManager.h"
 #include "renderer/Renderer.h"
 #include "resource/R3DMeshAsset.h"
 
 #include <array>
+#include <memory>
 #include <string>
 #include <vector>
-
-namespace r3d::resource
-{
-class ResourceFileSystem;
-}
 
 namespace rrr3d::race
 {
@@ -25,7 +22,7 @@ class OriginalWorkshopRenderer
 public:
     bool initialize(
         r3d::renderer::GraphicsDevice& device,
-        const r3d::resource::ResourceFileSystem& resources,
+        OriginalResourceManager& resources,
         const r3d::game::originalrace::OriginalGarageCatalog& catalog,
         const r3d::game::originalrace::Race& race,
         std::string& error);
@@ -56,7 +53,7 @@ public:
 private:
     struct NodeAsset
     {
-        r3d::resource::R3DMeshAsset source;
+        std::shared_ptr<const r3d::resource::R3DMeshAsset> source;
         r3d::renderer::Mesh mesh;
         std::vector<r3d::renderer::Texture> textures;
         r3d::game::originalrace::Transform local;

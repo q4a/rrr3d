@@ -99,28 +99,18 @@ Transform identityTransform()
 
 bool OriginalRaceHud::loadImage(
     GraphicsDevice& device,
-    const r3d::resource::ResourceFileSystem& resources, std::string path,
+    OriginalResourceManager& resources, std::string path,
     ImageAsset& output, std::string& error)
 {
     try
     {
-        const auto image = menu::loadOriginalImage(resources, std::move(path));
+        const auto& image = resources.GetTexture(path);
         output.width = static_cast<float>(image.width);
         output.height = static_cast<float>(image.height);
-        if (image.storage == menu::ImageStorage::EncodedContainer)
-        {
-            output.texture = device.createTextureContainer(
-                image.bytes.data(), image.bytes.size(), image.virtualPath);
-        }
-        else
-        {
-            output.texture = device.createTextureRgba8(
-                image.width, image.height, image.bytes.data(),
-                image.bytes.size());
-        }
+        output.texture = image.texture;
         if (!valid(output.texture))
             throw std::runtime_error("unable to upload " +
-                                     image.virtualPath);
+                                     image.name);
         return true;
     }
     catch (const std::exception& exception)
@@ -132,7 +122,7 @@ bool OriginalRaceHud::loadImage(
 
 bool OriginalRaceHud::initialize(
     GraphicsDevice& device,
-    const r3d::resource::ResourceFileSystem& resources,
+    OriginalResourceManager& resources,
     const r3d::game::originalgamedata::Catalog& gameData,
     const originalrace::Race& race, std::string_view language,
     std::string_view difficulty, bool campaign, std::string& error)
@@ -287,8 +277,8 @@ bool OriginalRaceHud::initialize(
         {
             const auto& source = race.weapons[index].visual;
             auto& visual = weaponVisuals_[index];
-            const auto mesh = r3d::resource::loadR3DMeshAsset(
-                resources, source.meshPath);
+            const auto& shared = resources.GetMesh(source.meshPath);
+            const auto& mesh = *shared.source;
             const std::array<float, 3> center{
                 (mesh.minimum[0] + mesh.maximum[0]) * 0.5F,
                 (mesh.minimum[1] + mesh.maximum[1]) * 0.5F,
@@ -316,12 +306,9 @@ bool OriginalRaceHud::initialize(
             visual.materials = source.materials;
             for (const auto& material : source.materials)
             {
-                const auto bytes =
-                    resources.readBinary(material.texturePath);
                 visual.textures.push_back(
-                    device.createTextureContainer(
-                        bytes.data(), bytes.size(),
-                        material.texturePath));
+                    resources.GetTexture(
+                        material.texturePath).texture);
             }
             for (const auto& group : mesh.materialGroups)
             {
@@ -358,7 +345,7 @@ bool OriginalRaceHud::initialize(
         }
         const auto localization =
             r3d::game::originalgamedata::loadOriginalStringLibrary(
-                resources, *selectedLanguage);
+                resources.GetFileSystem(), *selectedLanguage);
         lapName_ = localization.get("svLap");
         namePlaceFormat_ = localization.get("svNamePlaceMarker");
         priceName_ = localization.get("svPrice");
@@ -398,8 +385,6 @@ bool OriginalRaceHud::initialize(
 void OriginalRaceHud::shutdown(GraphicsDevice& device) noexcept
 {
     auto releaseImage = [&](ImageAsset& asset) {
-        if (valid(asset.texture))
-            device.destroy(asset.texture);
         asset = {};
     };
     auto releaseText = [&](TextAsset& asset) {
@@ -409,9 +394,6 @@ void OriginalRaceHud::shutdown(GraphicsDevice& device) noexcept
     };
     for (auto& visual : weaponVisuals_)
     {
-        for (const auto texture : visual.textures)
-            if (valid(texture))
-                device.destroy(texture);
         if (valid(visual.mesh))
             device.destroy(visual.mesh);
         visual = {};

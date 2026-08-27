@@ -3,6 +3,7 @@
 #include "OriginalGameData.h"
 #include "OriginalMainMenu.h"
 #include "OriginalRaceSession.h"
+#include "OriginalResourceManager.h"
 #include "renderer/Renderer.h"
 
 #include <array>
@@ -13,11 +14,6 @@
 #include <string_view>
 #include <vector>
 
-namespace r3d::resource
-{
-class ResourceFileSystem;
-}
-
 namespace rrr3d::race
 {
 
@@ -26,7 +22,7 @@ class OriginalRaceHud
 public:
     bool initialize(
         r3d::renderer::GraphicsDevice& device,
-        const r3d::resource::ResourceFileSystem& resources,
+        OriginalResourceManager& resources,
         const r3d::game::originalgamedata::Catalog& gameData,
         const r3d::game::originalrace::Race& race,
         std::string_view language, std::string_view difficulty,
@@ -141,7 +137,7 @@ private:
     };
 
     bool loadImage(r3d::renderer::GraphicsDevice& device,
-                   const r3d::resource::ResourceFileSystem& resources,
+                   OriginalResourceManager& resources,
                    std::string path, ImageAsset& output,
                    std::string& error);
     void setText(r3d::renderer::GraphicsDevice& device,

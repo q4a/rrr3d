@@ -1,8 +1,5 @@
 #include "OriginalWorkshopRenderer.h"
 
-#include "OriginalMainMenu.h"
-#include "resource/ResourceFileSystem.h"
-
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -26,23 +23,6 @@ bool valid(Mesh value) noexcept
 bool valid(Texture value) noexcept
 {
     return value.value != invalid_resource;
-}
-
-std::vector<StaticMeshVertex> vertices(
-    const r3d::resource::R3DMeshAsset& mesh)
-{
-    std::vector<StaticMeshVertex> result;
-    result.reserve(mesh.vertices.size());
-    for (const auto& vertex : mesh.vertices)
-    {
-        result.push_back(
-            {vertex.position[0], vertex.position[1], vertex.position[2],
-             vertex.normal[0], vertex.normal[1], vertex.normal[2],
-             vertex.texcoord[0], vertex.texcoord[1], vertex.tangent[0],
-             vertex.tangent[1], vertex.tangent[2], vertex.bitangent[0],
-             vertex.bitangent[1], vertex.bitangent[2]});
-    }
-    return result;
 }
 
 using Quat = r3d::game::originalrace::Quat;
@@ -263,28 +243,11 @@ Transform compose(const Transform& parent,
     return result;
 }
 
-Texture uploadTexture(
-    GraphicsDevice& device,
-    const r3d::resource::ResourceFileSystem& resources,
-    const std::string& path)
-{
-    const auto image =
-        r3d::game::mainmenu2::loadOriginalImage(resources, path);
-    return image.storage ==
-                   r3d::game::mainmenu2::ImageStorage::EncodedContainer
-               ? device.createTextureContainer(
-                     image.bytes.data(), image.bytes.size(),
-                     image.virtualPath)
-               : device.createTextureRgba8(
-                     image.width, image.height, image.bytes.data(),
-                     image.bytes.size());
-}
-
 } // namespace
 
 bool OriginalWorkshopRenderer::initialize(
     GraphicsDevice& device,
-    const r3d::resource::ResourceFileSystem& resources,
+    OriginalResourceManager& resources,
     const r3d::game::originalrace::OriginalGarageCatalog& catalog,
     const r3d::game::originalrace::Race& race,
     std::string& error)
@@ -304,16 +267,12 @@ bool OriginalWorkshopRenderer::initialize(
                         ": original viewport node has no mesh/material");
                 }
                 NodeAsset node;
-                node.source = r3d::resource::loadR3DMeshAsset(
-                    resources, meshPath);
-                const auto gpuVertices = vertices(node.source);
-                node.mesh = device.createMesh(
-                    gpuVertices.data(), gpuVertices.size(),
-                    node.source.indices.data(),
-                    node.source.indices.size());
+                const auto& shared = resources.GetMesh(meshPath);
+                node.source = shared.source;
+                node.mesh = shared.mesh;
                 for (const auto& texture : textures)
                     node.textures.push_back(
-                        uploadTexture(device, resources, texture));
+                        resources.GetTexture(texture).texture);
                 node.local = local;
                 if (!valid(node.mesh) || node.textures.empty() ||
                     std::any_of(
@@ -336,14 +295,14 @@ bool OriginalWorkshopRenderer::initialize(
                     const auto point = transformPoint(
                         node.local,
                         {(corner & 1U) != 0U
-                             ? node.source.maximum[0]
-                             : node.source.minimum[0],
+                             ? node.source->maximum[0]
+                             : node.source->minimum[0],
                          (corner & 2U) != 0U
-                             ? node.source.maximum[1]
-                             : node.source.minimum[1],
+                             ? node.source->maximum[1]
+                             : node.source->minimum[1],
                          (corner & 4U) != 0U
-                             ? node.source.maximum[2]
-                             : node.source.minimum[2]});
+                             ? node.source->maximum[2]
+                             : node.source->minimum[2]});
                     const std::array<float, 3> value{
                         point.x, point.y, point.z};
                     for (std::size_t axis = 0; axis < 3U; ++axis)
@@ -450,15 +409,7 @@ void OriginalWorkshopRenderer::shutdown(
         for (auto& model : models)
         {
             for (auto& node : model.nodes)
-            {
-                if (valid(node.mesh))
-                    device.destroy(node.mesh);
-                for (const auto texture : node.textures)
-                {
-                    if (valid(texture))
-                        device.destroy(texture);
-                }
-            }
+                node = {};
         }
         models.clear();
     };
@@ -505,7 +456,7 @@ void drawModel(
             nodeMaterial.color = *firstNodeColor;
         const auto transform =
             compose(viewTransform, localTransform(node.local));
-        if (node.source.materialGroups.empty())
+        if (node.source->materialGroups.empty())
         {
             device.draw(
                 node.mesh, shader, node.textures.front(), transform,
@@ -513,9 +464,9 @@ void drawModel(
             continue;
         }
         for (std::size_t index = 0;
-             index < node.source.materialGroups.size(); ++index)
+             index < node.source->materialGroups.size(); ++index)
         {
-            const auto& group = node.source.materialGroups[index];
+            const auto& group = node.source->materialGroups[index];
             device.draw(
                 node.mesh, shader,
                 node.textures[std::min(

@@ -3996,6 +3996,32 @@ concrete gameplay object только через каталог. Ручная с
 автоматически и record identity не меняется. Graph/audio cache identity
 остаётся отдельным B5b.
 
+### P2.171 — graph-ресурсы снова имеют общую source identity — выполнено
+
+Активные race, garage и angar renderers, а затем workshop и HUD независимо
+читали одни и те же `.r3d`/image-файлы и каждый создавал собственные bgfx
+buffers/textures. Это расходилось с Windows `ComplexMeshLib` и
+`ComplexImageLib`: `GetOrCreateMesh/GetOrCreateIVBMesh` и
+`GetOrCreateTex2d/GetOrCreateCubeTex` возвращали ресурс из единой коллекции,
+а `ReleaseAll` завершал его общий lifetime. Повторная инициализация frame или
+renderer поэтому могла раздувать Metal resources и оставляла риск разных
+identity/lifetime для одного исходного имени.
+
+Добавлен `OriginalResourceManager`: канонический физический путь является
+ключом, decoded `R3DMeshAsset`, GPU mesh и texture создаются один раз, а
+пользователи держат ссылки/handles без локального destroy. Все 3D race/menu
+renderers, workshop и HUD переведены на этот owner; локальными остались только
+реально производные meshes (HUD-scaled weapon и procedural planes/debug).
+Различие исходных `Tex2D`/`TexCube` сохранено: cube DDS передаётся в bgfx как
+контейнер, а не отвергается 2D image decoder. Общий shutdown выполняется после
+отключения всех потребителей.
+
+Полный 360-frame Metal regression загрузил 116 уникальных meshes и 219
+textures и подтвердил 847 cache hits на 1182 запроса, включая workshop,
+garage/angar resize round-trip и race reload. Офлайн 18/18, network 2/2 и
+physics smoke также прошли. Audio/font/material descriptor collections ещё
+не объединены и сохранены как отдельный B5c, а не объявлены выполненными.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

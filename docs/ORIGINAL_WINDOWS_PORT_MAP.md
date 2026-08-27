@@ -71,7 +71,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `Race` | `OriginalRace`, `OriginalRaceSession`, lifecycle/place/tournament | Source owner, partial | Разложить 7 971-строчный источник по исходным владельцам вместо session |
 | `RaceMenu2` | Ручные garage/workshop/race frames | Distributed | Вернуть source car/weapon frame graph и command transitions |
 | `RecordLib` | Набор XML/R3D import helpers | Distributed | Вернуть typed record library, proxy/source load и fix-up pass |
-| `ResourceManager` | `ResourceFileSystem`, `R3DMeshAsset`, per-system caches | Backend boundary | Вернуть source resource identity/cache/factory поверх native loaders |
+| `ResourceManager` | `OriginalResourceManager` + native readers/uploaders | Source owner, graph path | Mesh/image identity и GPU lifetime общие; audio/font/material-library ownership ещё нужно завершить |
 | `RockCar` | `source::RockCar`, event sink | Source owner, partial | Проверить attachment/listener lifetime вместе с Player/GameCar |
 | `Trace` | `source::{Trace,WayPath,WayNode,WayPoint}` | Source owner, strong | Осталась graph/debug visualization boundary |
 | `TraceGfx` | `OriginalRaceRenderer` debug draw | Backend boundary | Перенести source trace visual state, оставить bgfx submission |
@@ -161,7 +161,7 @@ Jolt/render views, а часть type-specific ray/movement queries всё ещ�
 выходным командам `Proj`, не удаляя массивы представления до появления
 эквивалента PhysX actor ownership.
 
-### B5 — DataBase/RecordLib/ResourceManager
+### B5 — DataBase/RecordLib/ResourceManager (B5a–B5b выполнены)
 
 Вернуть единый typed record graph, source/proxy load, fix-up names, concrete
 object factory и resource identity. Текущие проверенные XML/R3D parsers
@@ -178,10 +178,22 @@ Windows `MapObjRec`, хранит source-loader; `MapObj::SetRecordProxy`
 остаётся reader, `DataBase`-каталог снова является фабрикой concrete
 gameplay object.
 
-Открытая B5b: graph/audio ресурсы ещё кэшируются несколькими backend-
-владельцами. Нужно вернуть единый `ResourceManager` identity catalog и
-перевести mesh/image/material/sound readers на ссылки этого каталога, не
-перенося D3D9/XAudio реализации.
+Результат B5b: добавлен единый `OriginalResourceManager`, который возвращает
+стабильную identity по каноническому физическому пути и владеет decoded
+`R3DMeshAsset`, bgfx mesh и texture до общего shutdown. Это source-аналог
+`ComplexMesh::GetOrCreateMesh/GetOrCreateIVBMesh` и
+`ComplexImage::GetOrCreateTex2d/GetOrCreateCubeTex`; D3D9 не переносился,
+upload остаётся границей bgfx/Metal. Гонка, гараж, ангар, мастерская и HUD
+больше не создают отдельные копии одинаковых mesh/image. DDS cube сохраняет
+container identity и не подменяется 2D-декодированием. В полном 360-frame
+Metal smoke каталог создал 116 уникальных мешей и 219 текстур и повторно
+использовал 847 из 1182 запросов; resize и повторная инициализация 3D frames
+прошли без двойного освобождения.
+
+Открытая B5c: перевести source audio clips/voices, fonts и material-library
+descriptors на тот же жизненный цикл. `MusicCat`, commentator и motor/effect
+mixer уже имеют свои корректные runtime-владельцы, но это пока отдельные
+кэши, а не коллекции общего `ResourceManager`.
 
 ### B6 — Menu/MenuSystem и исходные frames
 

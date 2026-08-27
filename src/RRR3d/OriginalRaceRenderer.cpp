@@ -109,22 +109,11 @@ runtimeProjectileDefinition(
                : nullptr;
 }
 
-std::vector<StaticMeshVertex> vertices(
-    const r3d::resource::R3DMeshAsset& mesh)
+const r3d::resource::R3DMeshAsset& sourceAsset(
+    const OriginalRaceRenderer::Asset& asset) noexcept
 {
-    std::vector<StaticMeshVertex> result;
-    result.reserve(mesh.vertices.size());
-    for (const auto& vertex : mesh.vertices)
-    {
-        result.push_back({vertex.position[0], vertex.position[1],
-                          vertex.position[2], vertex.normal[0],
-                          vertex.normal[1], vertex.normal[2],
-                          vertex.texcoord[0], vertex.texcoord[1],
-                          vertex.tangent[0], vertex.tangent[1],
-                          vertex.tangent[2], vertex.bitangent[0],
-                          vertex.bitangent[1], vertex.bitangent[2]});
-    }
-    return result;
+    static const r3d::resource::R3DMeshAsset empty;
+    return asset.source != nullptr ? *asset.source : empty;
 }
 
 std::vector<StaticMeshVertex> skyVertices()
@@ -911,8 +900,9 @@ WorldBounds objectBounds(
     for (std::size_t index = 0; index < count; ++index)
     {
         const auto model = transform(compose(parent, nodes[index].transform));
-        const auto& minimum = asset.nodes[index].source.minimum;
-        const auto& maximum = asset.nodes[index].source.maximum;
+        const auto& source = sourceAsset(asset.nodes[index]);
+        const auto& minimum = source.minimum;
+        const auto& maximum = source.maximum;
         for (unsigned corner = 0; corner < 8U; ++corner)
         {
             include(
@@ -1614,7 +1604,8 @@ void drawGroups(GraphicsDevice& device,
                (layer == DrawLayer::Transparency && transparent) ||
                (layer == DrawLayer::Opaque && !transparent);
     };
-    if (asset.source.materialGroups.empty())
+    const auto& source = sourceAsset(asset);
+    if (source.materialGroups.empty())
     {
         if (!includeMaterial(0U))
             return;
@@ -1628,12 +1619,12 @@ void drawGroups(GraphicsDevice& device,
     }
     if (asset.subMesh >= 0 &&
         static_cast<std::size_t>(asset.subMesh) <
-            asset.source.materialGroups.size())
+            source.materialGroups.size())
     {
         if (!includeMaterial(0U))
             return;
         const auto& group =
-            asset.source.materialGroups[static_cast<std::size_t>(
+            source.materialGroups[static_cast<std::size_t>(
                 asset.subMesh)];
         const auto material =
             asset.materials.empty()
@@ -1645,10 +1636,10 @@ void drawGroups(GraphicsDevice& device,
                     material);
         return;
     }
-    for (std::size_t index = 0; index < asset.source.materialGroups.size();
+    for (std::size_t index = 0; index < source.materialGroups.size();
          ++index)
     {
-        const auto& group = asset.source.materialGroups[index];
+        const auto& group = source.materialGroups[index];
         const std::size_t materialIndex =
             std::min(index, asset.materials.size() - 1U);
         if (!includeMaterial(materialIndex))
@@ -1668,15 +1659,16 @@ void drawGroups(GraphicsDevice& device,
 r3d::physics::Vec3 meshGroupCenter(
     const OriginalRaceRenderer::Asset& asset) noexcept
 {
+    const auto& source = sourceAsset(asset);
     if (asset.subMesh < 0 ||
         static_cast<std::size_t>(asset.subMesh) >=
-            asset.source.materialGroups.size())
+            source.materialGroups.size())
     {
-        return {(asset.source.minimum[0] + asset.source.maximum[0]) * 0.5F,
-                (asset.source.minimum[1] + asset.source.maximum[1]) * 0.5F,
-                (asset.source.minimum[2] + asset.source.maximum[2]) * 0.5F};
+        return {(source.minimum[0] + source.maximum[0]) * 0.5F,
+                (source.minimum[1] + source.maximum[1]) * 0.5F,
+                (source.minimum[2] + source.maximum[2]) * 0.5F};
     }
-    const auto& group = asset.source.materialGroups[
+    const auto& group = source.materialGroups[
         static_cast<std::size_t>(asset.subMesh)];
     r3d::physics::Vec3 minimum{
         std::numeric_limits<float>::max(),
@@ -1689,14 +1681,14 @@ r3d::physics::Vec3 meshGroupCenter(
     bool found = false;
     const std::size_t end = std::min<std::size_t>(
         static_cast<std::size_t>(group.firstIndex) + group.indexCount,
-        asset.source.indices.size());
+        source.indices.size());
     for (std::size_t index = group.firstIndex; index < end; ++index)
     {
-        const auto vertexIndex = asset.source.indices[index];
-        if (vertexIndex >= asset.source.vertices.size())
+        const auto vertexIndex = source.indices[index];
+        if (vertexIndex >= source.vertices.size())
             continue;
         const auto& position =
-            asset.source.vertices[vertexIndex].position;
+            source.vertices[vertexIndex].position;
         minimum.x = std::min(minimum.x, position[0]);
         minimum.y = std::min(minimum.y, position[1]);
         minimum.z = std::min(minimum.z, position[2]);
@@ -1733,7 +1725,8 @@ void drawShadowGroups(GraphicsDevice& device,
         state.receivesShadow = false;
         return state;
     };
-    if (asset.source.materialGroups.empty())
+    const auto& source = sourceAsset(asset);
+    if (source.materialGroups.empty())
     {
         const auto state =
             asset.materials.empty()
@@ -1745,9 +1738,9 @@ void drawShadowGroups(GraphicsDevice& device,
     }
     if (asset.subMesh >= 0 &&
         static_cast<std::size_t>(asset.subMesh) <
-            asset.source.materialGroups.size())
+            source.materialGroups.size())
     {
-        const auto& group = asset.source.materialGroups[
+        const auto& group = source.materialGroups[
             static_cast<std::size_t>(asset.subMesh)];
         const auto state =
             asset.materials.empty()
@@ -1759,9 +1752,9 @@ void drawShadowGroups(GraphicsDevice& device,
         return;
     }
     for (std::size_t index = 0;
-         index < asset.source.materialGroups.size(); ++index)
+         index < source.materialGroups.size(); ++index)
     {
-        const auto& group = asset.source.materialGroups[index];
+        const auto& group = source.materialGroups[index];
         const auto materialIndex =
             asset.materials.empty()
                 ? 0U
@@ -1946,7 +1939,7 @@ bool OriginalRaceRenderer::resize(
 
 bool OriginalRaceRenderer::initialize(
     GraphicsDevice& device,
-    const r3d::resource::ResourceFileSystem& resources,
+    OriginalResourceManager& resources,
     const r3d::game::originalrace::Race& race,
     std::uint32_t width, std::uint32_t height, std::string& error)
 {
@@ -2093,20 +2086,8 @@ bool OriginalRaceRenderer::initialize(
         if (!createFrameTargets(device, width, height, error))
             throw r3d::resource::ResourceError(error);
         auto uploadOriginalTexture =
-            [&](std::string path) {
-                const auto image =
-                    r3d::game::mainmenu2::loadOriginalImage(
-                        resources, std::move(path));
-                if (image.storage ==
-                    r3d::game::mainmenu2::ImageStorage::EncodedContainer)
-                {
-                    return device.createTextureContainer(
-                        image.bytes.data(), image.bytes.size(),
-                        image.virtualPath);
-                }
-                return device.createTextureRgba8(
-                    image.width, image.height, image.bytes.data(),
-                    image.bytes.size());
+            [&](std::string_view path) {
+                return resources.GetTexture(path).texture;
             };
         auto load = [&](Asset& asset,
                         const r3d::game::originalrace::VisualNode& node) {
@@ -2118,13 +2099,10 @@ bool OriginalRaceRenderer::initialize(
             }
             else
             {
-                asset.source = r3d::resource::loadR3DMeshAsset(
-                    resources, node.meshPath);
-                const auto gpuVertices = vertices(asset.source);
-                asset.mesh = device.createMesh(
-                    gpuVertices.data(), gpuVertices.size(),
-                    asset.source.indices.data(),
-                    asset.source.indices.size());
+                const auto& shared = resources.GetMesh(node.meshPath);
+                asset.source = shared.source;
+                asset.mesh = shared.mesh;
+                asset.sharedMesh = true;
             }
             asset.materials = node.materials;
             asset.subMesh = node.subMesh;
@@ -2132,11 +2110,8 @@ bool OriginalRaceRenderer::initialize(
             {
                 if (material.texturePath.empty())
                 {
-                    constexpr std::array<std::uint8_t, 4> white{
-                        255, 255, 255, 255};
                     asset.textures.push_back(
-                        device.createTextureRgba8(
-                            1, 1, white.data(), white.size()));
+                        resources.GetWhiteTexture().texture);
                 }
                 else
                 {
@@ -2224,12 +2199,8 @@ bool OriginalRaceRenderer::initialize(
                     {
                         if (material.texturePath.empty())
                         {
-                            constexpr std::array<std::uint8_t, 4>
-                                white{{255, 255, 255, 255}};
                             output.push_back(
-                                device.createTextureRgba8(
-                                    1, 1, white.data(),
-                                    white.size()));
+                                resources.GetWhiteTexture().texture);
                         }
                         else
                         {
@@ -2494,11 +2465,8 @@ bool OriginalRaceRenderer::initialize(
         skyMesh_ = device.createMesh(
             skyCpuVertices.data(), skyCpuVertices.size(),
             skyCpuIndices.data(), skyCpuIndices.size());
-        const auto skyBytes =
-            resources.readBinary(race.environment.skyTexturePath);
-        skyTexture_ = device.createTextureContainer(
-            skyBytes.data(), skyBytes.size(),
-            race.environment.skyTexturePath);
+        skyTexture_ = resources.GetTexture(
+            race.environment.skyTexturePath).texture;
         if (!valid(skyMesh_) || !valid(skyTexture_))
             throw r3d::resource::ResourceError(
                 "Unable to upload original sky " +
@@ -2513,10 +2481,7 @@ bool OriginalRaceRenderer::initialize(
             debugTraceMesh_ = device.createMesh(
                 debugTraceVertices.data(), debugTraceVertices.size(),
                 debugTraceIndices.data(), debugTraceIndices.size());
-            constexpr std::array<std::uint8_t, 4> white{
-                255U, 255U, 255U, 255U};
-            debugTraceTexture_ = device.createTextureRgba8(
-                1U, 1U, white.data(), white.size());
+            debugTraceTexture_ = resources.GetWhiteTexture().texture;
             if (!valid(debugTraceMesh_) || !valid(debugTraceTexture_))
                 throw r3d::resource::ResourceError(
                     "Unable to upload original AIDebug trace geometry");
@@ -2600,23 +2565,15 @@ bool OriginalRaceRenderer::initialize(
             case r3d::game::originalrace::EnvironmentSurface::None:
                 break;
             }
-            const auto surfaceBytes = resources.readBinary(surfacePath);
             environmentSurfaceTexture_ =
-                device.createTextureContainer(
-                    surfaceBytes.data(), surfaceBytes.size(), surfacePath);
+                resources.GetTexture(surfacePath).texture;
             if (race.environment.surface ==
                 r3d::game::originalrace::EnvironmentSurface::Water)
             {
                 constexpr std::string_view normalPath =
                     "Data/Misc/water00.png";
-                const auto normalImage =
-                    r3d::game::mainmenu2::loadOriginalImage(
-                        resources, std::string(normalPath));
                 waterNormalTexture_ =
-                    device.createTextureRgba8(
-                        normalImage.width, normalImage.height,
-                        normalImage.bytes.data(),
-                        normalImage.bytes.size());
+                    resources.GetTexture(normalPath).texture;
             }
 
             environmentSurfaceCenter_ = {
@@ -2635,11 +2592,8 @@ bool OriginalRaceRenderer::initialize(
                 r3d::game::originalrace::EnvironmentSurface::Grass)
             {
                 environmentSurfaceCenter_.x = 0.0F;
-                const auto grassBytes =
-                    resources.readBinary("Data/Misc/flower2.dds");
-                grassTexture_ = device.createTextureContainer(
-                    grassBytes.data(), grassBytes.size(),
-                    "Data/Misc/flower2.dds");
+                grassTexture_ = resources.GetTexture(
+                    "Data/Misc/flower2.dds").texture;
                 auto grass = sourceGrassField(
                     environmentSurfaceSize_.x,
                     environmentSurfaceSize_.y);
@@ -2650,9 +2604,7 @@ bool OriginalRaceRenderer::initialize(
             }
         }
         auto loadEffectTexture = [&](std::string_view path) {
-            const auto bytes = resources.readBinary(path);
-            return device.createTextureContainer(
-                bytes.data(), bytes.size(), path);
+            return resources.GetTexture(path).texture;
         };
         vehicleLightTexture_ =
             loadEffectTexture("Data/Effect/flare2b.dds");
@@ -2720,8 +2672,6 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
         device.destroy(postProcessMesh_);
     if (valid(debugTraceMesh_))
         device.destroy(debugTraceMesh_);
-    if (valid(debugTraceTexture_))
-        device.destroy(debugTraceTexture_);
     toneMapShader_ = {};
     copyShader_ = {};
     waterShader_ = {};
@@ -2742,13 +2692,7 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
     debugTraceMesh_ = {};
     debugTraceTexture_ = {};
     auto release = [&](Asset& asset) {
-        for (const auto texture : asset.normalTextures)
-            if (valid(texture))
-                device.destroy(texture);
-        for (const auto texture : asset.textures)
-            if (valid(texture))
-                device.destroy(texture);
-        if (valid(asset.mesh))
+        if (valid(asset.mesh) && !asset.sharedMesh)
             device.destroy(asset.mesh);
         asset = {};
     };
@@ -2758,9 +2702,6 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
         object.nodes.clear();
         for (auto& emitter : object.particleTextures)
         {
-            for (const auto texture : emitter)
-                if (valid(texture))
-                    device.destroy(texture);
             emitter.clear();
         }
         object.particleTextures.clear();
@@ -2838,18 +2779,8 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
     decorations_.clear();
     decorationPieces_.clear();
     tracks_.clear();
-    if (valid(skyTexture_))
-        device.destroy(skyTexture_);
     if (valid(skyMesh_))
         device.destroy(skyMesh_);
-    if (valid(vehicleLightTexture_))
-        device.destroy(vehicleLightTexture_);
-    if (valid(environmentSurfaceTexture_))
-        device.destroy(environmentSurfaceTexture_);
-    if (valid(waterNormalTexture_))
-        device.destroy(waterNormalTexture_);
-    if (valid(grassTexture_))
-        device.destroy(grassTexture_);
     if (valid(effectMesh_))
         device.destroy(effectMesh_);
     if (valid(grassMesh_))

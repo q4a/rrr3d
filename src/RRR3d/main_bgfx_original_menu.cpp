@@ -4169,6 +4169,8 @@ int main(int argc, char** argv)
             ? rrr3d::race::RaceCameraStyle::ThirdPerson
             : rrr3d::race::RaceCameraStyle::Isometric;
     std::vector<TextVisual> gameDebugVisual;
+    rrr3d::race::OriginalResourceManager originalResourceManager(
+        *device, *resources);
     rrr3d::race::OriginalRaceRenderer raceRenderer;
     rrr3d::race::OriginalRaceRenderer garageRenderer;
     rrr3d::race::OriginalRaceRenderer angarRenderer;
@@ -4177,22 +4179,24 @@ int main(int argc, char** argv)
     r3d::game::originalui::OriginalUserChat userChat;
     UserChatVisual userChatVisual;
     if (!physicsWorld ||
-        !raceRenderer.initialize(*device, *resources, *originalRace,
+        !raceRenderer.initialize(*device, originalResourceManager,
+                                 *originalRace,
                                  static_cast<std::uint32_t>(pixelWidth),
                                  static_cast<std::uint32_t>(pixelHeight),
                                  physicsError) ||
         !garageRenderer.initialize(
-            *device, *resources, *originalGarageScene,
+            *device, originalResourceManager, *originalGarageScene,
             static_cast<std::uint32_t>(pixelWidth),
             static_cast<std::uint32_t>(pixelHeight), physicsError) ||
         !angarRenderer.initialize(
-            *device, *resources, *originalAngarScene,
+            *device, originalResourceManager, *originalAngarScene,
             static_cast<std::uint32_t>(pixelWidth),
             static_cast<std::uint32_t>(pixelHeight), physicsError) ||
         !workshopRenderer.initialize(
-            *device, *resources, *originalGarage, *originalRace,
+            *device, originalResourceManager, *originalGarage,
+            *originalRace,
             physicsError) ||
-        !raceHud.initialize(*device, *resources,
+        !raceHud.initialize(*device, originalResourceManager,
                             originalGameDataCatalog, *originalRace,
                             activeLanguage,
                             profileState.player.difficulty,
@@ -4206,6 +4210,7 @@ int main(int argc, char** argv)
         garageRenderer.shutdown(*device);
         raceRenderer.shutdown(*device);
         raceHud.shutdown(*device);
+        originalResourceManager.Shutdown();
         releaseResources();
         device.reset();
         SDL_DestroyWindow(window);
@@ -4215,6 +4220,13 @@ int main(int argc, char** argv)
         SDL_Quit();
         return EXIT_FAILURE;
     }
+    std::cout << "Original ResourceManager: "
+              << originalResourceManager.GetMeshCount() << " meshes, "
+              << originalResourceManager.GetTextureCount()
+              << " textures, "
+              << originalResourceManager.GetCacheHitCount() << '/'
+              << originalResourceManager.GetRequestCount()
+              << " shared requests reused\n";
     if (options->raceRenderSmokeTest)
     {
         std::string resizeError;
@@ -4240,6 +4252,7 @@ int main(int argc, char** argv)
             garageRenderer.shutdown(*device);
             raceRenderer.shutdown(*device);
             raceHud.shutdown(*device);
+            originalResourceManager.Shutdown();
             releaseResources();
             device.reset();
             SDL_DestroyWindow(window);
@@ -4769,6 +4782,7 @@ int main(int argc, char** argv)
         angarRenderer.shutdown(*device);
         garageRenderer.shutdown(*device);
         raceRenderer.shutdown(*device);
+        originalResourceManager.Shutdown();
         releaseResources();
         device.reset();
         SDL_DestroyWindow(window);
@@ -6793,12 +6807,13 @@ int main(int argc, char** argv)
             vehicleDeathFragments.clear();
             if (!physicsWorld ||
                 !raceRenderer.initialize(
-                    *device, *resources, *originalRace,
+                    *device, originalResourceManager, *originalRace,
                     static_cast<std::uint32_t>(pixelWidth),
                     static_cast<std::uint32_t>(pixelHeight),
                     reloadError) ||
                 !raceHud.initialize(
-                    *device, *resources, originalGameDataCatalog,
+                    *device, originalResourceManager,
+                    originalGameDataCatalog,
                     *originalRace,
                     activeLanguage, profileState.player.difficulty,
                     championshipMode,
@@ -14524,7 +14539,8 @@ int main(int argc, char** argv)
                                         workshopRenderer.shutdown(*device);
                                         if (!substituted ||
                                             !workshopRenderer.initialize(
-                                                *device, *resources,
+                                                *device,
+                                                originalResourceManager,
                                                 *originalGarage,
                                                 *originalRace,
                                                 armorError))
@@ -22203,6 +22219,7 @@ int main(int argc, char** argv)
                     minimumRacePlayerLife <= 0.0F ||
                     maximumRaceSmokeContacts == 0 ||
                     maximumRaceSmokeSpeed < 0.2F ||
+                    originalResourceManager.GetCacheHitCount() == 0U ||
                     competitiveAiCount < expectedCompetitiveAi ||
                     progressingAiCount < expectedCompetitiveAi ||
                     aheadAiCount < expectedAheadAi ||
@@ -22275,6 +22292,9 @@ int main(int argc, char** argv)
                         << minimumRacePlayerLife << ", contacts="
                         << maximumRaceSmokeContacts << ", maxSpeed="
                         << maximumRaceSmokeSpeed
+                        << ", resourceCache="
+                        << originalResourceManager.GetCacheHitCount() << '/'
+                        << originalResourceManager.GetRequestCount()
                         << ", competitive/progressing AI="
                         << competitiveAiCount << '/'
                         << progressingAiCount << '/'
@@ -22483,6 +22503,7 @@ int main(int argc, char** argv)
     angarRenderer.shutdown(*device);
     garageRenderer.shutdown(*device);
     raceRenderer.shutdown(*device);
+    originalResourceManager.Shutdown();
     if (!sourceNormalInteractiveLaunch)
     {
         std::error_code cleanupError;

@@ -456,6 +456,8 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
                 OriginalGameDebug.h
                 OriginalRaceHud.cpp
                 OriginalRaceHud.h
+                OriginalResourceManager.cpp
+                OriginalResourceManager.h
                 OriginalRaceRenderer.cpp
                 OriginalWorkshopRenderer.cpp
                 OriginalRaceRenderer.h
