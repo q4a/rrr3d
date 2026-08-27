@@ -47,7 +47,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `AICar` | `source::AICar::{PathState,AttackState,ControlState,ProgressResult}` | Source owner, active frame | Jolt/weapon snapshot и исполнение готовых move/shot команд остаются backend adapter |
 | `AIPlayer` | `source::AIPlayer`, `source::AISystem` | Source owner, active frame | Сетевой authority filter и AIDebug Metal/text submission остаются host boundary |
 | `AchievmentModel` | `source::AchievmentModel` | Source owner, partial | Закрыть все event/condition subclasses и persistence order |
-| `CameraManager` | `source::CameraManager` | Source owner, race path | Ещё не перенесены FlyTo, AutoObserver и screen/ray utility; bgfx строит matrices |
+| `CameraManager` | `source::{CameraManager,AutoObserver}` | Source owner, active race/presentation path | FlyTo, AutoObserver и screen/ray policy source-owned; bgfx строит только matrices, SDL переводит pointer events |
 | `ControlManager` | `originalcontrol::ControlManager` + `SdlInputManager` | Source owner, active input path | Mouse screen/ray messages и menu/widget listeners остаются в блоках View/Menu |
 | `DataBase` | `OriginalRace`, `OriginalGarage`, `OriginalGameData` loaders | Distributed | Вернуть record libraries/fix-up ownership и единый object factory |
 | `DialogMenu2` | `originalmenu::DialogSystem` + GPU text caches | Source owner, active dialogs | Остался уже перенесённый отдельно UserChat и backend draw submission |
@@ -91,8 +91,10 @@ compensation. `OriginalRaceRenderer` оставляет только bgfx view/p
 Результат: отдельный `source::CameraManager` входит в `Rock3dGame`, имеет
 deterministic regression и используется активным Metal race path. Из
 renderer удалена inline race-camera state machine. Оставшаяся часть
-исходного файла (FlyTo, AutoObserver и screen/ray utility) сохранена в строке
-карты как отдельный следующий camera block, а не объявлена готовой.
+исходного файла закрыта follow-up-блоком B8d/P2.189: `FlyTo/StopFly/InFly`,
+`AutoObserver` для Garage/Angar и `ScreenToWorld/WorldToScreen/ScreenToRay/`
+`ScreenPixelRayCastWithPlaneXY` теперь принадлежат source owner. SDL оставляет
+только перевод pointer events, bgfx — построение view/projection matrices.
 
 ### B2 — ControlManager action dispatcher (выполнено)
 

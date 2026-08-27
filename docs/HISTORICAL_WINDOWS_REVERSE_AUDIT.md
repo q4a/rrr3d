@@ -4429,6 +4429,32 @@ white/red flare records, release/re-attach, reflection и material color.
 race smoke.
 Следующий блок B8d — `Race/Weapon` method audit.
 
+### P2.189 — завершён исходный `CameraManager`: AutoObserver, FlyTo и screen/ray — выполнено
+
+Аудит B8d сначала исключил ложные пробелы. `Proj::EnableFilter/DisableFilter`
+уже имеют Jolt-эквивалент: луч Laser/FrostRay исключает машину-владельца,
+не меняя фильтр остальных тел. `Race::ResetCarPos` также перенесён буквально:
+четыре машины в ряду, интервал 7, visual-AABB width, `Vec2NormCW`, высота +2
+и обнуление всего физического состояния через `resetVehicle`.
+
+Реальный разрыв найден в `CameraManager`. Активные Garage/Angar
+`csAutoObserver` формулы находились локальной state machine в SDL entry point,
+а `FlyTo/StopFly/InFly` и `ScreenToWorld/WorldToScreen/ScreenToRay/`
+`ScreenPixelRayCastWithPlaneXY` в source owner отсутствовали. Добавлен
+backend-neutral `source::AutoObserver`: порог drag 15 px, mouse angular
+scale `pi*0.001`, трёхсекундное auto-restore/rotation, asymmetric yaw clamps,
+pitch bounds, direction reversal и quaternion interpolation теперь живут в
+`Rock3dGame`. SDL-функция только переводит pointer down/up/move, а Garage и
+Angar продолжают использовать собственные независимые observer instances.
+
+`source::CameraManager` получил исходную сглаженную FlyTo transaction и
+чистые camera-space projection/ray операции. bgfx по-прежнему отвечает лишь
+за построение и отправку matrices. Regression закрепляет fly completion,
+perspective screen/world round trip, center ray, пересечение плоскости XY,
+observer idle turn/clamp/reversal и drag threshold. Arm64 build и отдельный
+CameraManager smoke прошли; также прошли 25/25 offline, 2/2 network, Jolt
+physics и 360-frame SDL/bgfx/Metal race regression.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

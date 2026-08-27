@@ -162,7 +162,134 @@ float length(Vec3 value) noexcept
         value.x * value.x + value.y * value.y + value.z * value.z);
 }
 
+float dot(Vec3 first, Vec3 second) noexcept
+{
+    return first.x * second.x + first.y * second.y + first.z * second.z;
+}
+
+Quat angleAxis(float angle, Vec3 axis) noexcept
+{
+    axis = normalized(axis);
+    if (length(axis) <= 0.0001F)
+        return {};
+    const float sine = std::sin(angle * 0.5F);
+    return normalized({axis.x * sine, axis.y * sine, axis.z * sine,
+                       std::cos(angle * 0.5F)});
+}
+
 } // namespace
+
+void AutoObserver::PointerDown(float x, float y) noexcept
+{
+    leftDown_ = true;
+    dragging_ = false;
+    anchorX_ = lastX_ = x;
+    anchorY_ = lastY_ = y;
+}
+
+void AutoObserver::PointerUp(float x, float y) noexcept
+{
+    leftDown_ = false;
+    dragging_ = false;
+    lastX_ = x;
+    lastY_ = y;
+}
+
+void AutoObserver::PointerMove(float x, float y) noexcept
+{
+    if (!leftDown_)
+    {
+        anchorX_ = lastX_ = x;
+        anchorY_ = lastY_ = y;
+        return;
+    }
+    if (!dragging_ && std::hypot(x - anchorX_, y - anchorY_) > 15.0F)
+        dragging_ = true;
+    if (dragging_)
+    {
+        yaw_ += std::clamp(
+            (x - lastX_) * pi * 0.001F, -pi * 0.5F, pi * 0.5F);
+        pitch_ += std::clamp(
+            -(y - lastY_) * pi * 0.001F, -pi * 0.5F, pi * 0.5F);
+        idleSeconds_ = 0.0F;
+    }
+    lastX_ = x;
+    lastY_ = y;
+}
+
+ObserverPose AutoObserver::OnFrame(
+    const ObserverPose& source, float deltaTime,
+    const ObserverConfig& config) noexcept
+{
+    deltaTime = std::max(deltaTime, 0.0F);
+    if (!initialized_)
+    {
+        source_ = source;
+        targetRotation_ = normalized(source.rotation);
+        cameraRotation_ = targetRotation_;
+        idleSeconds_ = 3.0F;
+        direction_ = 1.0F;
+        initialized_ = true;
+    }
+    if (!dragging_)
+        idleSeconds_ += deltaTime;
+    if (idleSeconds_ >= 3.0F)
+    {
+        yaw_ += config.angularSpeed * direction_ * deltaTime;
+        pitch_ = 0.0F;
+    }
+    if (config.positiveYawClamp > 0.0F ||
+        config.negativeYawClamp > 0.0F)
+    {
+        if (yaw_ >= config.positiveYawClamp)
+        {
+            yaw_ = config.positiveYawClamp;
+            direction_ = -1.0F;
+        }
+        else if (yaw_ <= -config.negativeYawClamp)
+        {
+            yaw_ = -config.negativeYawClamp;
+            direction_ = 1.0F;
+        }
+    }
+    pitch_ = std::clamp(
+        pitch_, config.minimumPitch - config.stablePitch,
+        config.maximumPitch - config.stablePitch);
+    const auto yawRotation = angleAxis(yaw_, {0.0F, 0.0F, 1.0F});
+    const auto yawedSource = multiply(yawRotation, source_.rotation);
+    const auto localY = rotate(yawedSource, {0.0F, 1.0F, 0.0F});
+    targetRotation_ = multiply(
+        angleAxis(pitch_, localY), yawedSource);
+    cameraRotation_ = sourceSphericalMix(
+        cameraRotation_, targetRotation_,
+        std::clamp(6.0F * deltaTime, 0.0F, 1.0F));
+
+    const float distance = length(source.position);
+    const auto direction = rotate(
+        cameraRotation_, {1.0F, 0.0F, 0.0F});
+    return {{-direction.x * distance, -direction.y * distance,
+             -direction.z * distance},
+            cameraRotation_};
+}
+
+void AutoObserver::Reset() noexcept
+{
+    source_ = {};
+    targetRotation_ = {};
+    cameraRotation_ = {};
+    yaw_ = 0.0F;
+    pitch_ = 0.0F;
+    direction_ = 1.0F;
+    idleSeconds_ = 3.0F;
+    anchorX_ = anchorY_ = lastX_ = lastY_ = 0.0F;
+    initialized_ = false;
+    leftDown_ = false;
+    dragging_ = false;
+}
+
+bool AutoObserver::IsInitialized() const noexcept { return initialized_; }
+bool AutoObserver::IsDragging() const noexcept { return dragging_; }
+float AutoObserver::GetDirection() const noexcept { return direction_; }
 
 CameraFrame CameraManager::OnFrame(
     const CameraTarget& target, CameraStyle style, float aspect,
@@ -172,6 +299,8 @@ CameraFrame CameraManager::OnFrame(
     aspect = std::max(aspect, 0.0001F);
     deltaTime = std::max(deltaTime, 0.0F);
     perspectiveFarDistance = std::max(perspectiveFarDistance, 1.0F);
+    if (InFly() && initialized_)
+        return progressFly(deltaTime);
     const auto bodyRotation = normalized(target.rotation);
     const auto carForward = normalized(
         rotate(bodyRotation, {1.0F, 0.0F, 0.0F}));
@@ -333,6 +462,7 @@ CameraFrame CameraManager::OnFrame(
         frame.orthographicWidth = cameraWidth;
         frame.farDistance = 150.0F;
         frame.pointSpriteScale = 0.75F;
+        lastFrame_ = frame;
         return frame;
     }
 
@@ -380,6 +510,7 @@ CameraFrame CameraManager::OnFrame(
             frame.orthographicWidth = 28.0F * cameraDistance;
             frame.pointSpriteScale = 0.75F;
         }
+        lastFrame_ = frame;
         return frame;
     }
 
@@ -420,6 +551,7 @@ CameraFrame CameraManager::OnFrame(
         rotate(rotation_, {0.0F, 0.0F, 1.0F}));
     frame.rotation = rotation_;
     frame.farDistance = perspectiveFarDistance;
+    lastFrame_ = frame;
     return frame;
 }
 
@@ -466,6 +598,146 @@ void CameraManager::RotateDebugCamera(
         rotation_, {1.0F, 0.0F, 0.0F}));
 }
 
+void CameraManager::FlyTo(
+    Vec3 position, Quat rotation, float time) noexcept
+{
+    flyStartPosition_ = position_;
+    flyStartRotation_ = rotation_;
+    flyPosition_ = position;
+    flyRotation_ = normalized(rotation);
+    flyTime_ = std::max(time, 0.0001F);
+    flyCurrentTime_ = 0.0F;
+    flyAlpha_ = 0.0F;
+}
+
+void CameraManager::StopFly() noexcept { flyCurrentTime_ = -1.0F; }
+bool CameraManager::InFly() const noexcept { return flyCurrentTime_ >= 0.0F; }
+
+CameraFrame CameraManager::progressFly(float deltaTime) noexcept
+{
+    deltaTime = std::max(deltaTime, 0.0F);
+    flyCurrentTime_ += deltaTime;
+    const float elapsed = std::clamp(
+        flyCurrentTime_, 0.0F, flyTime_);
+    flyAlpha_ += std::max(
+        (elapsed - flyAlpha_) * deltaTime * 4.0F, 0.001F);
+    const float alpha = std::clamp(flyAlpha_ / flyTime_, 0.0F, 1.0F);
+    position_ = {
+        flyStartPosition_.x + (flyPosition_.x - flyStartPosition_.x) * alpha,
+        flyStartPosition_.y + (flyPosition_.y - flyStartPosition_.y) * alpha,
+        flyStartPosition_.z + (flyPosition_.z - flyStartPosition_.z) * alpha};
+    rotation_ = sourceSphericalMix(
+        flyStartRotation_, flyRotation_, alpha);
+    direction_ = normalized(rotate(
+        rotation_, {1.0F, 0.0F, 0.0F}));
+    lastFrame_.position = position_;
+    lastFrame_.rotation = rotation_;
+    lastFrame_.direction = direction_;
+    lastFrame_.up = normalized(rotate(
+        rotation_, {0.0F, 0.0F, 1.0F}));
+    if (alpha >= 1.0F)
+        StopFly();
+    return lastFrame_;
+}
+
+Vec3 CameraManager::ScreenToWorld(
+    const CameraFrame& frame, float viewportWidth,
+    float viewportHeight, CameraScreenPoint point, float z) noexcept
+{
+    viewportWidth = std::max(viewportWidth, 1.0F);
+    viewportHeight = std::max(viewportHeight, 1.0F);
+    z = std::clamp(z, 0.0F, 1.0F);
+    const float aspect = viewportWidth / viewportHeight;
+    const float ndcX = point.x * 2.0F / viewportWidth - 1.0F;
+    const float ndcY = 1.0F - point.y * 2.0F / viewportHeight;
+    const auto direction = normalized(frame.direction);
+    const auto right = normalized(rotate(
+        frame.rotation, {0.0F, 1.0F, 0.0F}));
+    const auto up = normalized(frame.up);
+    const float depth = frame.nearDistance +
+                        (frame.farDistance - frame.nearDistance) * z;
+    float halfWidth = frame.orthographicWidth * 0.5F;
+    float halfHeight = halfWidth / aspect;
+    if (frame.projection == CameraProjection::Perspective)
+    {
+        halfHeight = std::tan(
+            frame.verticalFovDegrees * pi / 360.0F) * depth;
+        halfWidth = halfHeight * aspect;
+    }
+    return {
+        frame.position.x + direction.x * depth +
+            right.x * ndcX * halfWidth + up.x * ndcY * halfHeight,
+        frame.position.y + direction.y * depth +
+            right.y * ndcX * halfWidth + up.y * ndcY * halfHeight,
+        frame.position.z + direction.z * depth +
+            right.z * ndcX * halfWidth + up.z * ndcY * halfHeight};
+}
+
+CameraScreenPoint CameraManager::WorldToScreen(
+    const CameraFrame& frame, float viewportWidth,
+    float viewportHeight, Vec3 point) noexcept
+{
+    viewportWidth = std::max(viewportWidth, 1.0F);
+    viewportHeight = std::max(viewportHeight, 1.0F);
+    const float aspect = viewportWidth / viewportHeight;
+    const auto direction = normalized(frame.direction);
+    const auto right = normalized(rotate(
+        frame.rotation, {0.0F, 1.0F, 0.0F}));
+    const auto up = normalized(frame.up);
+    const Vec3 relative{point.x - frame.position.x,
+                        point.y - frame.position.y,
+                        point.z - frame.position.z};
+    const float depth = dot(relative, direction);
+    float halfWidth = frame.orthographicWidth * 0.5F;
+    float halfHeight = halfWidth / aspect;
+    if (frame.projection == CameraProjection::Perspective)
+    {
+        halfHeight = std::tan(
+            frame.verticalFovDegrees * pi / 360.0F) *
+                     std::max(depth, 0.0001F);
+        halfWidth = halfHeight * aspect;
+    }
+    const float ndcX = halfWidth > 0.0001F
+                           ? dot(relative, right) / halfWidth
+                           : 0.0F;
+    const float ndcY = halfHeight > 0.0001F
+                           ? dot(relative, up) / halfHeight
+                           : 0.0F;
+    return {(ndcX + 1.0F) * viewportWidth * 0.5F,
+            (1.0F - ndcY) * viewportHeight * 0.5F};
+}
+
+CameraRay CameraManager::ScreenToRay(
+    const CameraFrame& frame, float viewportWidth,
+    float viewportHeight, CameraScreenPoint point) noexcept
+{
+    const auto origin = ScreenToWorld(
+        frame, viewportWidth, viewportHeight, point, 0.0F);
+    const auto end = ScreenToWorld(
+        frame, viewportWidth, viewportHeight, point, 1.0F);
+    const Vec3 direction{end.x - origin.x, end.y - origin.y,
+                         end.z - origin.z};
+    return {origin, normalized(direction)};
+}
+
+bool CameraManager::ScreenPixelRayCastWithPlaneXY(
+    const CameraFrame& frame, float viewportWidth,
+    float viewportHeight, CameraScreenPoint point,
+    Vec3& intersection) noexcept
+{
+    const auto ray = ScreenToRay(
+        frame, viewportWidth, viewportHeight, point);
+    if (std::abs(ray.direction.z) <= 0.0001F)
+        return false;
+    const float distance = -ray.origin.z / ray.direction.z;
+    if (distance < 0.0F)
+        return false;
+    intersection = {
+        ray.origin.x + ray.direction.x * distance,
+        ray.origin.y + ray.direction.y * distance, 0.0F};
+    return true;
+}
+
 void CameraManager::Reset() noexcept
 {
     cameraLead_ = {};
@@ -479,6 +751,14 @@ void CameraManager::Reset() noexcept
     jumpDistance_ = 0.0F;
     jumpSpeed_ = 0.0F;
     thirdPersonPullback_ = 0.0F;
+    lastFrame_ = {};
+    flyStartPosition_ = {};
+    flyStartRotation_ = {};
+    flyPosition_ = {};
+    flyRotation_ = {};
+    flyCurrentTime_ = -1.0F;
+    flyTime_ = 0.0F;
+    flyAlpha_ = 0.0F;
     initialized_ = false;
     styleInitialized_ = false;
 }

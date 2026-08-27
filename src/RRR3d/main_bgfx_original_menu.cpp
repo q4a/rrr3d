@@ -941,115 +941,8 @@ makeWorkshopPresentationCamera(
     return result;
 }
 
-struct SourceAutoObserverState
-{
-    r3d::game::originalrace::PresentationCamera source;
-    r3d::physics::Quat targetRotation{};
-    r3d::physics::Quat cameraRotation{};
-    float yaw = 0.0F;
-    float pitch = 0.0F;
-    float direction = 1.0F;
-    float idleSeconds = 3.0F;
-    float anchorX = 0.0F;
-    float anchorY = 0.0F;
-    float lastX = 0.0F;
-    float lastY = 0.0F;
-    bool initialized = false;
-    bool leftDown = false;
-    bool dragging = false;
-};
-
-r3d::physics::Quat normalizeObserverQuat(
-    const r3d::physics::Quat& value) noexcept
-{
-    const float length = std::sqrt(
-        value.x * value.x + value.y * value.y +
-        value.z * value.z + value.w * value.w);
-    if (length <= 0.000001F)
-        return {0.0F, 0.0F, 0.0F, 1.0F};
-    return {
-        value.x / length, value.y / length,
-        value.z / length, value.w / length};
-}
-
-r3d::physics::Quat multiplyObserverQuat(
-    const r3d::physics::Quat& left,
-    const r3d::physics::Quat& right) noexcept
-{
-    return normalizeObserverQuat({
-        left.w * right.x + left.x * right.w +
-            left.y * right.z - left.z * right.y,
-        left.w * right.y - left.x * right.z +
-            left.y * right.w + left.z * right.x,
-        left.w * right.z + left.x * right.y -
-            left.y * right.x + left.z * right.w,
-        left.w * right.w - left.x * right.x -
-            left.y * right.y - left.z * right.z});
-}
-
-r3d::physics::Quat observerAngleAxis(
-    float angle, const r3d::physics::Vec3& axis) noexcept
-{
-    const float length = std::sqrt(
-        axis.x * axis.x + axis.y * axis.y + axis.z * axis.z);
-    if (length <= 0.000001F)
-        return {0.0F, 0.0F, 0.0F, 1.0F};
-    const float sine = std::sin(angle * 0.5F) / length;
-    return normalizeObserverQuat({
-        axis.x * sine, axis.y * sine, axis.z * sine,
-        std::cos(angle * 0.5F)});
-}
-
-r3d::physics::Vec3 rotateObserverVector(
-    const r3d::physics::Vec3& value,
-    const r3d::physics::Quat& rotation) noexcept
-{
-    const r3d::physics::Vec3 q{rotation.x, rotation.y, rotation.z};
-    const r3d::physics::Vec3 twiceCross{
-        2.0F * (q.y * value.z - q.z * value.y),
-        2.0F * (q.z * value.x - q.x * value.z),
-        2.0F * (q.x * value.y - q.y * value.x)};
-    return {
-        value.x + rotation.w * twiceCross.x +
-            (q.y * twiceCross.z - q.z * twiceCross.y),
-        value.y + rotation.w * twiceCross.y +
-            (q.z * twiceCross.x - q.x * twiceCross.z),
-        value.z + rotation.w * twiceCross.z +
-            (q.x * twiceCross.y - q.y * twiceCross.x)};
-}
-
-r3d::physics::Quat slerpObserverQuat(
-    r3d::physics::Quat from, r3d::physics::Quat to,
-    float alpha) noexcept
-{
-    from = normalizeObserverQuat(from);
-    to = normalizeObserverQuat(to);
-    float dot = from.x * to.x + from.y * to.y +
-                from.z * to.z + from.w * to.w;
-    if (dot < 0.0F)
-    {
-        dot = -dot;
-        to = {-to.x, -to.y, -to.z, -to.w};
-    }
-    alpha = std::clamp(alpha, 0.0F, 1.0F);
-    if (dot > 0.9995F)
-    {
-        return normalizeObserverQuat({
-            from.x + (to.x - from.x) * alpha,
-            from.y + (to.y - from.y) * alpha,
-            from.z + (to.z - from.z) * alpha,
-            from.w + (to.w - from.w) * alpha});
-    }
-    const float angle = std::acos(std::clamp(dot, -1.0F, 1.0F));
-    const float sine = std::sin(angle);
-    const float fromWeight = std::sin((1.0F - alpha) * angle) / sine;
-    const float toWeight = std::sin(alpha * angle) / sine;
-    return normalizeObserverQuat({
-        from.x * fromWeight + to.x * toWeight,
-        from.y * fromWeight + to.y * toWeight,
-        from.z * fromWeight + to.z * toWeight,
-        from.w * fromWeight + to.w * toWeight});
-}
+using SourceAutoObserverState =
+    r3d::game::originalrace::source::AutoObserver;
 
 void handleSourceAutoObserverPointer(
     SourceAutoObserverState& state, const SDL_Event& event) noexcept
@@ -1057,50 +950,18 @@ void handleSourceAutoObserverPointer(
     if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
         event.button.button == SDL_BUTTON_LEFT)
     {
-        state.leftDown = true;
-        state.dragging = false;
-        state.anchorX = state.lastX = event.button.x;
-        state.anchorY = state.lastY = event.button.y;
+        state.PointerDown(event.button.x, event.button.y);
         return;
     }
     if (event.type == SDL_EVENT_MOUSE_BUTTON_UP &&
         event.button.button == SDL_BUTTON_LEFT)
     {
-        state.leftDown = false;
-        state.dragging = false;
-        state.lastX = event.button.x;
-        state.lastY = event.button.y;
+        state.PointerUp(event.button.x, event.button.y);
         return;
     }
     if (event.type != SDL_EVENT_MOUSE_MOTION)
         return;
-    if (!state.leftDown)
-    {
-        state.anchorX = state.lastX = event.motion.x;
-        state.anchorY = state.lastY = event.motion.y;
-        return;
-    }
-    const float fromAnchorX = event.motion.x - state.anchorX;
-    const float fromAnchorY = event.motion.y - state.anchorY;
-    if (!state.dragging &&
-        std::hypot(fromAnchorX, fromAnchorY) > 15.0F)
-    {
-        state.dragging = true;
-    }
-    if (state.dragging)
-    {
-        const float deltaX = event.motion.x - state.lastX;
-        const float deltaY = event.motion.y - state.lastY;
-        state.yaw += std::clamp(
-            deltaX * bx::kPi * 0.001F,
-            -bx::kPiHalf, bx::kPiHalf);
-        state.pitch += std::clamp(
-            -deltaY * bx::kPi * 0.001F,
-            -bx::kPiHalf, bx::kPiHalf);
-        state.idleSeconds = 0.0F;
-    }
-    state.lastX = event.motion.x;
-    state.lastY = event.motion.y;
+    state.PointerMove(event.motion.x, event.motion.y);
 }
 
 r3d::game::originalrace::PresentationCamera
@@ -1112,63 +973,13 @@ updateSourceAutoObserver(
     float positiveYawClamp = 0.0F,
     float negativeYawClamp = 0.0F) noexcept
 {
-    if (!state.initialized)
-    {
-        state.source = source;
-        state.targetRotation = source.rotation;
-        state.cameraRotation = source.rotation;
-        state.idleSeconds = 3.0F;
-        state.direction = 1.0F;
-        state.initialized = true;
-    }
-    if (!state.dragging)
-        state.idleSeconds += deltaTime;
-    if (state.idleSeconds >= 3.0F)
-    {
-        state.yaw += angularSpeed * state.direction * deltaTime;
-        state.pitch = 0.0F;
-    }
-    if (positiveYawClamp > 0.0F || negativeYawClamp > 0.0F)
-    {
-        if (state.yaw >= positiveYawClamp)
-        {
-            state.yaw = positiveYawClamp;
-            state.direction = -1.0F;
-        }
-        else if (state.yaw <= -negativeYawClamp)
-        {
-            state.yaw = -negativeYawClamp;
-            state.direction = 1.0F;
-        }
-    }
-    state.pitch = std::clamp(
-        state.pitch,
-        minimumPitch - stablePitch,
-        maximumPitch - stablePitch);
-    const auto yawRotation = observerAngleAxis(
-        state.yaw, {0.0F, 0.0F, 1.0F});
-    const auto yawedSource = multiplyObserverQuat(
-        yawRotation, state.source.rotation);
-    const auto localY = rotateObserverVector(
-        {0.0F, 1.0F, 0.0F}, yawedSource);
-    state.targetRotation = multiplyObserverQuat(
-        observerAngleAxis(state.pitch, localY), yawedSource);
-    state.cameraRotation = slerpObserverQuat(
-        state.cameraRotation, state.targetRotation,
-        6.0F * deltaTime);
-
-    const float distance = std::sqrt(
-        source.position.x * source.position.x +
-        source.position.y * source.position.y +
-        source.position.z * source.position.z);
-    const auto direction = rotateObserverVector(
-        {1.0F, 0.0F, 0.0F}, state.cameraRotation);
     auto result = source;
-    result.rotation = state.cameraRotation;
-    result.position = {
-        -direction.x * distance,
-        -direction.y * distance,
-        -direction.z * distance};
+    const auto pose = state.OnFrame(
+        {source.position, source.rotation}, deltaTime,
+        {angularSpeed, stablePitch, minimumPitch, maximumPitch,
+         positiveYawClamp, negativeYawClamp});
+    result.position = pose.position;
+    result.rotation = pose.rotation;
     return result;
 }
 #endif
