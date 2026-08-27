@@ -171,6 +171,101 @@ int main()
         !close(garageLayout.arrowY, 540.0F))
         return fail("GarageFrame source layout differs");
 
+    std::array<WorkshopSlotState, WorkshopFrameState::slotCount>
+        workshopSlots{};
+    for (auto& slot : workshopSlots)
+    {
+        slot.active = true;
+        slot.installed = true;
+        slot.levelControlVisible = true;
+        slot.controlEnabled = true;
+    }
+    for (std::size_t slot = 6U; slot < workshopSlots.size(); ++slot)
+    {
+        workshopSlots[slot].levelControlVisible = false;
+        workshopSlots[slot].chargeControlVisible = true;
+    }
+    std::vector<WorkshopGoodCandidate> workshopCandidates;
+    for (std::size_t index = 0U; index < 16U; ++index)
+    {
+        workshopCandidates.push_back(
+            {index, static_cast<std::uint32_t>(160U - index),
+             index == 1U, index != 2U});
+    }
+    WorkshopFrameState workshop;
+    workshop.show(std::move(workshopCandidates), workshopSlots);
+    if (workshop.goods().size() != 14U ||
+        workshop.goods().front().catalogIndex != 15U ||
+        workshop.maximumScroll() != 1U || !workshop.scrollGoods(1) ||
+        workshop.visibleGood(0U)->catalogIndex != 12U ||
+        workshop.scrollGoods(1))
+        return fail("WorkshopFrame goods/filter/sort/scroll differs");
+
+    if (!workshop.setPointerFocus(1U))
+        return fail("WorkshopFrame pointer good focus differs");
+    const auto goodCommand =
+        workshop.handle(event(Action::MenuConfirm, false));
+    if (!goodCommand ||
+        goodCommand->type != WorkshopCommandType::ActivateGood ||
+        goodCommand->index != 12U)
+        return fail("WorkshopFrame visible-good command differs");
+    workshop.handle(event(Action::MenuUp));
+    if (workshop.focus() != WorkshopFrameState::firstSlotFocus + 2U)
+        return fail("WorkshopFrame goods-to-armor navigation differs");
+    workshop.handle(event(Action::TurnRight));
+    if (workshop.focus() != WorkshopFrameState::firstSlotFocus + 3U)
+        return fail("WorkshopFrame armor-to-motor graph differs");
+
+    workshopSlots[5U].controlEnabled = false;
+    workshop.updateSlots(workshopSlots);
+    workshop.handle(event(Action::MenuUp));
+    if (workshop.focus() != WorkshopFrameState::firstSlotFocus + 4U)
+        return fail("WorkshopFrame disabled mine traversal differs");
+    if (!workshop.setPointerFocus(
+            WorkshopFrameState::firstSlotFocus + 5U))
+        return fail("WorkshopFrame active slot pointer focus differs");
+    const auto disabledControl =
+        workshop.handle(event(Action::MenuConfirm));
+    if (disabledControl)
+        return fail("WorkshopFrame disabled slot control activated");
+    const auto slotPlane = workshop.handle(
+        event(Action::MenuConfirm), true);
+    if (!slotPlane ||
+        slotPlane->type != WorkshopCommandType::ActivateSlot ||
+        slotPlane->index != 5U || !slotPlane->pointerSlotPlane)
+        return fail("WorkshopFrame slot-plane command differs");
+
+    workshop.startDrag({"weapon", 7U, true},
+                       r3d::game::originalrace::GarageSlotType::Weapon1);
+    if (!workshop.drag().active() || !workshop.drag().origin)
+        return fail("WorkshopFrame source drag ownership differs");
+    workshop.beginConfirmation(WorkshopConfirmationType::Sell, 8U);
+    workshop.setConfirmationYesFocused(false);
+    if (workshop.confirmation().type !=
+            WorkshopConfirmationType::Sell ||
+        workshop.confirmation().pendingCatalogIndex != 8U ||
+        workshop.confirmation().yesFocused)
+        return fail("WorkshopFrame confirmation ownership differs");
+    workshop.clearDrag();
+    workshop.cancelConfirmation();
+    if (workshop.drag().active() ||
+        workshop.confirmation().type != WorkshopConfirmationType::None)
+        return fail("WorkshopFrame drag/confirmation reset differs");
+
+    const auto workshopLayout = workshop.layout(
+        1920.0F, 1080.0F, 100.0F, 250.0F, 300.0F, 500.0F,
+        100.0F, 100.0F);
+    if (!close(workshopLayout.goods[0][0], 91.0F) ||
+        !close(workshopLayout.goods[1][0], 191.0F) ||
+        !close(workshopLayout.goods[3][1], 349.0F) ||
+        !close(workshopLayout.slots[0][0], 714.6F) ||
+        !close(workshopLayout.slots[4][0], 1704.6F) ||
+        !close(workshopLayout.arrowX, 180.0F) ||
+        !close(workshopLayout.upArrowY, 265.0F) ||
+        !close(workshopLayout.downArrowY, 658.0F) ||
+        !close(workshopLayout.backY, 870.0F))
+        return fail("WorkshopFrame source layout differs");
+
     std::cout << "original RaceMenu2 frames smoke passed\n";
     return 0;
 }

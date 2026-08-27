@@ -1,6 +1,7 @@
 #pragma once
 
 #include "InputActions.h"
+#include "OriginalGarage.h"
 
 #include <array>
 #include <cstddef>
@@ -255,6 +256,147 @@ private:
     std::size_t visibleCount_ = 0U;
     std::size_t lastVisibleSelection_ =
         static_cast<std::size_t>(-1);
+};
+
+struct WorkshopGoodCandidate
+{
+    std::size_t catalogIndex = 0U;
+    std::uint32_t cost = 0U;
+    bool mobilityFamily = false;
+    bool unlocked = false;
+};
+
+struct WorkshopGoodEntry
+{
+    std::size_t catalogIndex = 0U;
+    std::uint32_t cost = 0U;
+};
+
+struct WorkshopSlotState
+{
+    bool active = false;
+    bool locked = false;
+    bool installed = false;
+    bool chargeControlVisible = false;
+    bool levelControlVisible = false;
+    bool controlEnabled = false;
+};
+
+struct WorkshopDragState
+{
+    originalrace::ProfileSlot item;
+    std::optional<originalrace::GarageSlotType> origin;
+
+    bool active() const noexcept
+    {
+        return !item.record.empty();
+    }
+};
+
+enum class WorkshopConfirmationType : std::uint8_t
+{
+    None,
+    Buy,
+    Sell,
+};
+
+struct WorkshopConfirmationState
+{
+    WorkshopConfirmationType type = WorkshopConfirmationType::None;
+    std::size_t pendingCatalogIndex = static_cast<std::size_t>(-1);
+    bool yesFocused = true;
+};
+
+enum class WorkshopCommandType : std::uint8_t
+{
+    Back,
+    ActivateGood,
+    ActivateSlot,
+};
+
+struct WorkshopCommand
+{
+    WorkshopCommandType type = WorkshopCommandType::Back;
+    std::size_t index = 0U;
+    bool pointerSlotPlane = false;
+};
+
+struct WorkshopLayout
+{
+    std::array<std::array<float, 2>, 12U> goods{};
+    std::array<
+        std::array<float, 2>,
+        static_cast<std::size_t>(originalrace::GarageSlotType::Count)>
+        slots{};
+    float arrowX = 0.0F;
+    float upArrowY = 0.0F;
+    float downArrowY = 0.0F;
+    float backY = 0.0F;
+};
+
+class WorkshopFrameState
+{
+public:
+    static constexpr std::size_t visibleGoodCount = 12U;
+    static constexpr std::size_t goodColumns = 3U;
+    static constexpr std::size_t firstGoodFocus = 1U;
+    static constexpr std::size_t firstSlotFocus =
+        firstGoodFocus + visibleGoodCount;
+    static constexpr std::size_t slotCount =
+        static_cast<std::size_t>(originalrace::GarageSlotType::Count);
+
+    void show(std::vector<WorkshopGoodCandidate> candidates,
+              const std::array<WorkshopSlotState, slotCount>& slots);
+    void hide() noexcept;
+    void updateGoods(std::vector<WorkshopGoodCandidate> candidates);
+    void updateSlots(
+        const std::array<WorkshopSlotState, slotCount>& slots) noexcept;
+
+    const std::vector<WorkshopGoodEntry>& goods() const noexcept;
+    std::size_t scroll() const noexcept;
+    std::size_t maximumScroll() const noexcept;
+    bool scrollGoods(int step) noexcept;
+    const WorkshopGoodEntry* visibleGood(
+        std::size_t visibleIndex) const noexcept;
+
+    std::size_t focus() const noexcept;
+    bool setPointerFocus(std::size_t focus) noexcept;
+    std::optional<WorkshopCommand> handle(
+        const rrr3d::input::ActionEvent& event,
+        bool pointerSlotPlane = false) noexcept;
+
+    WorkshopDragState& drag() noexcept;
+    const WorkshopDragState& drag() const noexcept;
+    void startDrag(originalrace::ProfileSlot item,
+                   std::optional<originalrace::GarageSlotType> origin);
+    void clearDrag() noexcept;
+
+    const WorkshopConfirmationState& confirmation() const noexcept;
+    void beginConfirmation(WorkshopConfirmationType type,
+                           std::size_t pendingCatalogIndex) noexcept;
+    void cancelConfirmation() noexcept;
+    void setConfirmationYesFocused(bool value) noexcept;
+
+    WorkshopLayout layout(float viewportWidth, float viewportHeight,
+                          float topPanelHeight,
+                          float bottomPanelHeight,
+                          float leftPanelWidth, float leftPanelHeight,
+                          float slotWidth, float slotHeight) const noexcept;
+
+private:
+    static std::vector<WorkshopGoodEntry> buildGoods(
+        std::vector<WorkshopGoodCandidate> candidates);
+    bool pointerFocusAvailable(std::size_t focus) const noexcept;
+    bool keyboardFocusAvailable(std::size_t focus) const noexcept;
+    std::size_t neighbor(std::size_t focus,
+                         rrr3d::input::Action action) const noexcept;
+
+    std::vector<WorkshopGoodEntry> goods_;
+    std::array<WorkshopSlotState, slotCount> slots_{};
+    std::size_t scroll_ = 0U;
+    std::size_t focus_ = 0U;
+    WorkshopDragState drag_;
+    WorkshopConfirmationState confirmation_;
 };
 
 } // namespace r3d::game::originalracemenu

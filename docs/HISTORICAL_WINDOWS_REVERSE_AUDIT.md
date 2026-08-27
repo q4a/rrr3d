@@ -4194,6 +4194,33 @@ shoulders, car-grid window и layout. Следующая граница B6e.3 �
 Workshop/Angar/Achievment owners. Сборка автономного arm64 app, 23/23
 offline, 2/2 network, physics smoke и 360-frame bgfx/Metal race smoke прошли.
 
+### P2.179 — `RaceMenu2::WorkshopFrame` получил исходного владельца — выполнено
+
+Workshop уже выполнял исходные профильные транзакции, но renderer всё ещё
+владел отдельными `WorkshopDrag`, `WorkshopConfirmation`, goods vector,
+scroll и вручную повторял Back+10-slot graph и всю раскладку. Это оставляло
+несколько параллельных состояний между mouse hover, keyboard focus, modal и
+отрисовкой.
+
+Новый `originalracemenu::WorkshopFrameState` переносит
+`UpdateGoods/AdjustGood/ScrollGood`, `OnShow/OnInvalidate`, nav elements,
+drag origin/payload и confirmation lifetime из `eff9338:RaceMenu2.cpp`.
+Owner фильтрует rewards, выполняет stable cost sort, формирует 12 visible
+cells, владеет scroll, различает mouse-only goods и keyboard slot controls,
+пропускает hidden/disabled widgets и возвращает Back/Good/Slot commands.
+Source layout теперь выдаёт координаты goods, десяти slots, scroll arrows и
+Back; `OriginalGarage` остаётся владельцем денежных и install/sell/recharge/
+upgrade транзакций.
+
+Удалены все четыре host mirrors. Интеграционная проверка обнаружила отдельный
+дефект: Pause/Escape с hovered good исполнял путь Good вместо Back и показывал
+`svHintWeaponNotSupport`. Back command теперь исполняется по типу команды, а
+не по сохранённому hover index. Regression покрывает sort/filter/scroll,
+mouse-only goods, точный slot graph, disabled traversal, slot-plane click,
+drag, confirmation и layout. Следующая граница B6e.4 — Angar/Achievment.
+Сборка автономного arm64 app, 23/23 offline, 2/2 network, physics smoke и
+360-frame bgfx/Metal race smoke прошли.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

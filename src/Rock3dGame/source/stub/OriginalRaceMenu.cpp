@@ -611,4 +611,338 @@ GarageLayout GarageFrameState::layout(
     return result;
 }
 
+std::vector<WorkshopGoodEntry> WorkshopFrameState::buildGoods(
+    std::vector<WorkshopGoodCandidate> candidates)
+{
+    std::vector<WorkshopGoodEntry> result;
+    result.reserve(candidates.size());
+    for (const auto& candidate : candidates)
+    {
+        if (candidate.mobilityFamily || !candidate.unlocked)
+            continue;
+        result.push_back({candidate.catalogIndex, candidate.cost});
+    }
+    std::stable_sort(
+        result.begin(), result.end(),
+        [](const WorkshopGoodEntry& left,
+           const WorkshopGoodEntry& right) {
+            return left.cost < right.cost;
+        });
+    return result;
+}
+
+void WorkshopFrameState::show(
+    std::vector<WorkshopGoodCandidate> candidates,
+    const std::array<WorkshopSlotState, slotCount>& slots)
+{
+    goods_ = buildGoods(std::move(candidates));
+    slots_ = slots;
+    scroll_ = 0U;
+    focus_ = 0U;
+    drag_ = {};
+    confirmation_ = {};
+}
+
+void WorkshopFrameState::hide() noexcept
+{
+    goods_.clear();
+    scroll_ = 0U;
+    focus_ = 0U;
+    drag_ = {};
+    confirmation_ = {};
+}
+
+void WorkshopFrameState::updateGoods(
+    std::vector<WorkshopGoodCandidate> candidates)
+{
+    goods_ = buildGoods(std::move(candidates));
+    scroll_ = std::min(scroll_, maximumScroll());
+    if (!pointerFocusAvailable(focus_))
+        focus_ = 0U;
+}
+
+void WorkshopFrameState::updateSlots(
+    const std::array<WorkshopSlotState, slotCount>& slots) noexcept
+{
+    slots_ = slots;
+    if (focus_ >= firstSlotFocus && !pointerFocusAvailable(focus_))
+        focus_ = 0U;
+}
+
+const std::vector<WorkshopGoodEntry>&
+WorkshopFrameState::goods() const noexcept
+{
+    return goods_;
+}
+
+std::size_t WorkshopFrameState::scroll() const noexcept
+{
+    return scroll_;
+}
+
+std::size_t WorkshopFrameState::maximumScroll() const noexcept
+{
+    const std::size_t rows =
+        (goods_.size() + goodColumns - 1U) / goodColumns;
+    return rows > 4U ? rows - 4U : 0U;
+}
+
+bool WorkshopFrameState::scrollGoods(int step) noexcept
+{
+    const std::size_t previous = scroll_;
+    if (step < 0)
+        scroll_ = scroll_ == 0U ? 0U : scroll_ - 1U;
+    else if (step > 0)
+        scroll_ = std::min(scroll_ + 1U, maximumScroll());
+    return scroll_ != previous;
+}
+
+const WorkshopGoodEntry* WorkshopFrameState::visibleGood(
+    std::size_t visibleIndex) const noexcept
+{
+    if (visibleIndex >= visibleGoodCount)
+        return nullptr;
+    const std::size_t index =
+        scroll_ * goodColumns + visibleIndex;
+    return index < goods_.size() ? &goods_[index] : nullptr;
+}
+
+std::size_t WorkshopFrameState::focus() const noexcept
+{
+    return focus_;
+}
+
+bool WorkshopFrameState::pointerFocusAvailable(
+    std::size_t focus) const noexcept
+{
+    if (focus == 0U)
+        return true;
+    if (focus >= firstGoodFocus && focus < firstSlotFocus)
+        return visibleGood(focus - firstGoodFocus) != nullptr;
+    if (focus >= firstSlotFocus && focus < firstSlotFocus + slotCount)
+        return slots_[focus - firstSlotFocus].active;
+    return false;
+}
+
+bool WorkshopFrameState::keyboardFocusAvailable(
+    std::size_t focus) const noexcept
+{
+    if (focus == 0U)
+        return true;
+    if (focus < firstSlotFocus || focus >= firstSlotFocus + slotCount)
+        return false;
+    const auto& slot = slots_[focus - firstSlotFocus];
+    return slot.active && slot.installed && slot.controlEnabled &&
+           (slot.chargeControlVisible || slot.levelControlVisible);
+}
+
+bool WorkshopFrameState::setPointerFocus(std::size_t focus) noexcept
+{
+    if (!pointerFocusAvailable(focus))
+        return false;
+    focus_ = focus;
+    return true;
+}
+
+std::size_t WorkshopFrameState::neighbor(
+    std::size_t focus, rrr3d::input::Action action) const noexcept
+{
+    using rrr3d::input::Action;
+    if (focus > 0U && focus < firstSlotFocus)
+        focus = 0U;
+    if (focus == 0U)
+        return firstSlotFocus + 2U;
+    const std::size_t slot = focus - firstSlotFocus;
+    std::size_t lastWeapon = 6U;
+    for (std::size_t index = 6U; index <= 9U; ++index)
+        if (slots_[index].chargeControlVisible)
+            lastWeapon = index;
+    const bool left = action == Action::TurnLeft;
+    const bool right = action == Action::TurnRight;
+    const bool up = action == Action::MenuUp;
+    std::size_t next = slot;
+    if (slot == 2U)
+        next = left || up ? 0U : right ? 3U : slotCount;
+    else if (slot == 3U)
+        next = left ? 2U : right || up ? 5U : slotCount;
+    else if (slot == 5U)
+        next = left || (!up && !right) ? 3U : 4U;
+    else if (slot == 4U)
+        next = right || (!up && !left) ? 5U : lastWeapon;
+    else if (slot == 9U)
+        next = left || up ? 8U : 4U;
+    else if (slot >= 7U && slot <= 8U)
+        next = left || up ? slot - 1U : slot + 1U;
+    else if (slot == 6U)
+        next = right ? 7U : 1U;
+    else if (slot == 1U)
+        next = left || (!up && !right) ? 0U : 6U;
+    else if (slot == 0U)
+        next = left || up ? 1U : 2U;
+    return next == slotCount ? 0U : firstSlotFocus + next;
+}
+
+std::optional<WorkshopCommand> WorkshopFrameState::handle(
+    const rrr3d::input::ActionEvent& event,
+    bool pointerSlotPlane) noexcept
+{
+    if (!event.active)
+        return std::nullopt;
+    using rrr3d::input::Action;
+    if (event.action == Action::MenuUp ||
+        event.action == Action::MenuDown ||
+        event.action == Action::TurnLeft ||
+        event.action == Action::TurnRight)
+    {
+        // Goods are mouse-only in the original navigation registry.  A raw
+        // direction after hovering one starts from the registered Back key,
+        // not from the unregistered good widget.
+        if (focus_ > 0U && focus_ < firstSlotFocus)
+            focus_ = 0U;
+        std::size_t candidate = focus_;
+        for (std::size_t attempts = 0U; attempts < slotCount + 1U;
+             ++attempts)
+        {
+            candidate = neighbor(candidate, event.action);
+            if (keyboardFocusAvailable(candidate))
+            {
+                focus_ = candidate;
+                break;
+            }
+        }
+        return std::nullopt;
+    }
+    if (event.repeated)
+        return std::nullopt;
+    if (event.action == Action::MenuBack || event.action == Action::Pause)
+        return WorkshopCommand{WorkshopCommandType::Back, 0U, false};
+    if (event.action != Action::MenuConfirm)
+        return std::nullopt;
+    if (focus_ == 0U)
+        return WorkshopCommand{WorkshopCommandType::Back, 0U, false};
+    if (focus_ >= firstGoodFocus && focus_ < firstSlotFocus)
+    {
+        const auto* good = visibleGood(focus_ - firstGoodFocus);
+        if (good != nullptr)
+        {
+            return WorkshopCommand{
+                WorkshopCommandType::ActivateGood,
+                good->catalogIndex, false};
+        }
+        return std::nullopt;
+    }
+    if (focus_ >= firstSlotFocus &&
+        focus_ < firstSlotFocus + slotCount)
+    {
+        const std::size_t slot = focus_ - firstSlotFocus;
+        if (!pointerSlotPlane && !keyboardFocusAvailable(focus_))
+            return std::nullopt;
+        return WorkshopCommand{
+            WorkshopCommandType::ActivateSlot, slot,
+            pointerSlotPlane};
+    }
+    return std::nullopt;
+}
+
+WorkshopDragState& WorkshopFrameState::drag() noexcept
+{
+    return drag_;
+}
+
+const WorkshopDragState& WorkshopFrameState::drag() const noexcept
+{
+    return drag_;
+}
+
+void WorkshopFrameState::startDrag(
+    originalrace::ProfileSlot item,
+    std::optional<originalrace::GarageSlotType> origin)
+{
+    drag_.item = std::move(item);
+    drag_.origin = origin;
+}
+
+void WorkshopFrameState::clearDrag() noexcept
+{
+    drag_ = {};
+}
+
+const WorkshopConfirmationState&
+WorkshopFrameState::confirmation() const noexcept
+{
+    return confirmation_;
+}
+
+void WorkshopFrameState::beginConfirmation(
+    WorkshopConfirmationType type,
+    std::size_t pendingCatalogIndex) noexcept
+{
+    confirmation_.type = type;
+    confirmation_.pendingCatalogIndex = pendingCatalogIndex;
+    confirmation_.yesFocused = true;
+}
+
+void WorkshopFrameState::cancelConfirmation() noexcept
+{
+    confirmation_ = {};
+}
+
+void WorkshopFrameState::setConfirmationYesFocused(bool value) noexcept
+{
+    confirmation_.yesFocused = value;
+}
+
+WorkshopLayout WorkshopFrameState::layout(
+    float viewportWidth, float viewportHeight, float topPanelHeight,
+    float bottomPanelHeight, float leftPanelWidth, float leftPanelHeight,
+    float slotWidth, float slotHeight) const noexcept
+{
+    WorkshopLayout result;
+    const float panelCenterY =
+        (topPanelHeight - 30.0F + viewportHeight - bottomPanelHeight) *
+        0.5F;
+    const float panelTop = panelCenterY - leftPanelHeight * 0.5F;
+    constexpr float cell = 100.0F;
+    const float firstX = 30.0F + 22.0F + 39.0F;
+    const float firstY = panelTop + 11.0F + 38.0F;
+    for (std::size_t index = 0U; index < result.goods.size(); ++index)
+    {
+        result.goods[index] = {
+            firstX + static_cast<float>(index % 3U) * cell,
+            firstY + static_cast<float>(index / 3U) * cell};
+    }
+    const float scale = viewportHeight / 720.0F;
+    const float centerX = viewportWidth * 0.63F;
+    const float centerY = viewportHeight * 0.451F;
+    const float leftOffset = std::max(
+        centerX - 330.0F * scale,
+        30.0F + leftPanelWidth + 80.0F);
+    const float rightOffset = std::min(
+        centerX + 330.0F * scale, viewportWidth - 120.0F);
+    const float topOffset = std::max(
+        centerY - 180.0F * scale, topPanelHeight + 65.0F);
+    const float bottomOffset = std::min(
+        centerY + 180.0F * scale,
+        viewportHeight - bottomPanelHeight - 65.0F);
+    constexpr float slotSpace = 15.0F;
+    result.slots = {{
+        {leftOffset, centerY + slotHeight * 0.5F + slotSpace},
+        {leftOffset, centerY - slotHeight * 0.5F - slotSpace},
+        {centerX - slotWidth * 0.5F - 6.0F * slotSpace, bottomOffset},
+        {centerX + slotWidth * 0.5F + 6.0F * slotSpace, bottomOffset},
+        {rightOffset, centerY - slotHeight * 0.5F - slotSpace},
+        {rightOffset, centerY + slotHeight * 0.5F + slotSpace},
+        {centerX - (slotWidth + 4.5F * slotSpace) * 1.5F, topOffset},
+        {centerX - (slotWidth + 4.5F * slotSpace) * 0.5F, topOffset},
+        {centerX + (slotWidth + 4.5F * slotSpace) * 0.5F, topOffset},
+        {centerX + (slotWidth + 4.5F * slotSpace) * 1.5F, topOffset},
+    }};
+    result.arrowX = 30.0F + leftPanelWidth * 0.5F;
+    result.upArrowY = panelCenterY - leftPanelHeight * 0.5F + 65.0F;
+    result.downArrowY =
+        panelCenterY + leftPanelHeight * 0.5F - 42.0F;
+    result.backY = viewportHeight - bottomPanelHeight + 40.0F;
+    return result;
+}
+
 } // namespace r3d::game::originalracemenu
