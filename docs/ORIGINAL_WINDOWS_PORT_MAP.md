@@ -50,7 +50,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `CameraManager` | `source::CameraManager` | Source owner, race path | Ещё не перенесены FlyTo, AutoObserver и screen/ray utility; bgfx строит matrices |
 | `ControlManager` | `originalcontrol::ControlManager` + `SdlInputManager` | Source owner, active input path | Mouse screen/ray messages и menu/widget listeners остаются в блоках View/Menu |
 | `DataBase` | `OriginalRace`, `OriginalGarage`, `OriginalGameData` loaders | Distributed | Вернуть record libraries/fix-up ownership и единый object factory |
-| `DialogMenu2` | Ручные frames в `main_bgfx_original_menu` | Distributed | Перенести widget state, focus/invalidate и dialog transitions |
+| `DialogMenu2` | `originalmenu::DialogSystem` + GPU text caches | Source owner, active dialogs | Остался уже перенесённый отдельно UserChat и backend draw submission |
 | `Environment` | `Race::environment` + `OriginalRaceRenderer` | Distributed | Перенести environment owner, weather/lamp progress и graph commands |
 | `FinalMenu` | Ручной `MenuScreen::Credits` | Distributed | Вернуть source frame lifecycle и command routing |
 | `FinishMenu` | `OriginalRaceHud` + ручной Finish screen | Distributed | Вернуть последовательность result/final frames и закрытие |
@@ -209,7 +209,7 @@ Milestone 8.
 Открытая B5d: вернуть source identity для font descriptors и material-library
 descriptors/samplers. Их backend payload останется CoreText и bgfx/Metal.
 
-### B6 — Menu/MenuSystem и исходные frames (B6a выполнен)
+### B6 — Menu/MenuSystem и исходные frames (B6a–B6b выполнены)
 
 Перенести widget tree крупными экранами: common dialog/frame primitives,
 MainMenu/Profile, Options, Planet/Garage/Workshop/Race и Finish/Final. Metal
@@ -231,10 +231,24 @@ loading/options/start-options и ревизиями сброса ввода.
 visibility/reset порядок, modal precedence, hidden-layout gate, invalidate
 и viewport clamp.
 
-Открытая B6b: перенести concrete `DialogMenu2` navigation graphs и затем
-экраны крупными группами — Main/Profile, Options, Planet/Garage/Workshop/
-Race, Finish/Final. Их draw data пока формируется функциями большого host
-entry point, хотя lifecycle/root ownership уже source-owned.
+Результат B6b: перенесены common frames из `DialogMenu2.cpp` и управляющая
+ими часть `Menu::OnProgress`: Accept, Weapon, Info/Message и Music. Новый
+`originalmenu::DialogSystem` владеет исходными строками/state, yes/no result
+и focus/hover, normal/max layout, button/frame scaling, modal lifetime,
+message/weapon delay и пятисекундной Music popup-анимацией. `SetPos` идёт
+через B6a `MenuSystem`; music использует исходную допускающую выход за край
+экрана позицию без ошибочного clamp.
+
+Активные Profile/garage/workshop/controls/exit dialogs, loading message и
+menu/race music popup используют этот owner. Старые `*DialogVisual` теперь
+содержат только CoreText/bgfx handles и не принимают игровых решений.
+Отдельный regression проверяет обе раскладки Accept, result/hide, loading
+Info, delayed Weapon и точные фазы Music popup.
+
+Открытая B6c: перенести concrete screen frames крупными группами —
+Main/Profile, Options, Planet/Garage/Workshop/Race, Finish/Final. Их draw data
+пока формируется функциями большого host entry point, хотя root/dialog
+lifecycle уже source-owned.
 
 ### B7 — Environment/TraceGfx/render policy
 

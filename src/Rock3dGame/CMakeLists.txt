@@ -31,7 +31,8 @@ else()
         source/stub/MusicCat.cpp
         source/stub/OriginalAudioSpec.cpp
         source/stub/OriginalControlBindings.cpp
-        source/stub/OriginalControlManager.cpp
+            source/stub/OriginalControlManager.cpp
+            source/stub/OriginalDialogMenu.cpp
         source/stub/OriginalGameData.cpp
         source/stub/PortableGame.cpp
         include/InputActions.h
@@ -40,7 +41,8 @@ else()
         include/PortableInput.h
         include/OriginalAudioSpec.h
         include/OriginalControlBindings.h
-        include/OriginalControlManager.h
+            include/OriginalControlManager.h
+            include/OriginalDialogMenu.h
         include/OriginalGameData.h
         include/MainMenu2Spec.h
         include/Rock3dGame.h
@@ -364,6 +366,19 @@ if(NOT WIN32 AND RRR3D_BUILD_ORIGINAL_MENU)
     add_test(
         NAME rrr3d_original_menu_system_smoke
         COMMAND rrr3d_original_menu_system_smoke
+    )
+
+    add_executable(rrr3d_original_dialog_menu_smoke
+        tests/OriginalDialogMenuSmoke.cpp
+    )
+    target_link_libraries(rrr3d_original_dialog_menu_smoke PRIVATE
+        ${PROJECT_NAME}
+    )
+    rrr3d_set_common_target_options(
+        rrr3d_original_dialog_menu_smoke)
+    add_test(
+        NAME rrr3d_original_dialog_menu_smoke
+        COMMAND rrr3d_original_dialog_menu_smoke
     )
 endif()
 

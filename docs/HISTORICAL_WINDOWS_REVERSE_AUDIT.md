@@ -4068,10 +4068,35 @@ order и `SetPos` clamp закреплены отдельным regression. Сб
 офлайн tests, 2/2 network tests, physics smoke и 360-frame Metal race smoke
 прошли.
 
-Этот блок не объявляет concrete GUI завершённым. `DialogMenu2`, Main/Profile,
-Options, Planet/Garage/Workshop/Race и Finish/Final всё ещё формируют часть
-widgets/draw data в host и составляют B6b+; CoreText/bgfx являются допустимой
+Этот блок сам по себе не объявлял concrete GUI завершённым. Common
+`DialogMenu2` закрыты следующим P2.174, а Main/Profile, Options,
+Planet/Garage/Workshop/Race и Finish/Final всё ещё формируют часть
+widgets/draw data в host и составляют B6c+; CoreText/bgfx являются допустимой
 backend-границей.
+
+### P2.174 — common `DialogMenu2` больше не являются host-заглушками — выполнено
+
+Accept/Info/Weapon/Music внешне рисовались исходными изображениями, но их
+state и геометрией владели четыре локальные visual-структуры и отдельные
+`musicDialogTime/Offset/Visible`. Это оставляло формальную копию source
+значений в renderer и расходилось с `Menu::ShowWeaponDialog`,
+`ShowMessage`, `ShowMusicInfo` и `OnProgress`: delayed visibility,
+`_weaponTime == -2`, modal result/lifetime и повторный Music popup не имели
+общего владельца с `MenuFrame`.
+
+`originalmenu::DialogSystem` теперь содержит backend-neutral перенос
+`DialogMenu2.cpp`: normal/max Accept scaling и focus/result, фиксированные
+Info/Weapon label layouts, source delay sentinels и точную 1+3+1-секундную
+Music animation/placement. Активные dialogs и оба menu/race music catalogs
+используют этот state; renderer хранит только производные текстовые texture
+handles. Новый regression закрепляет layout, clamp, modal/result, delays и
+popup expiry. Сборка arm64, 20/20 offline, 2/2 network, physics и повторный
+360-frame Metal smoke прошли; последний также подтвердил race music popup.
+UserChat не дублировался — он уже имеет отдельного source owner
+`OriginalUserChat`.
+
+Следующая граница B6c — concrete Main/Profile/Options/Race frames. Этот блок
+не объявляет весь Widget tree перенесённым.
 
 ## Итоговое решение
 

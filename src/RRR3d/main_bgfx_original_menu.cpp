@@ -1,5 +1,6 @@
 #include "CoreTextRasterizer.h"
 #include "OriginalAudioSpec.h"
+#include "OriginalDialogMenu.h"
 #include "OriginalGameData.h"
 #include "OriginalMainMenu.h"
 #include "OriginalMenuSystem.h"
@@ -567,9 +568,6 @@ struct WorkshopWeaponDialogVisual
     TextVisual damage;
     std::string itemRecord;
     std::uint32_t cost = 0U;
-    float centerX = 0.0F;
-    float centerY = 0.0F;
-    bool visible = false;
 };
 
 struct InfoDialogVisual
@@ -577,10 +575,6 @@ struct InfoDialogVisual
     TextVisual title;
     std::vector<TextVisual> info;
     TextVisual ok;
-    float centerX = 0.0F;
-    float centerY = 0.0F;
-    bool visible = false;
-    bool dismissable = true;
 };
 
 struct AcceptDialogVisual
@@ -588,20 +582,6 @@ struct AcceptDialogVisual
     std::vector<TextVisual> info;
     TextVisual yes;
     TextVisual no;
-    float centerX = 0.0F;
-    float centerY = 0.0F;
-    float frameWidth = 0.0F;
-    float frameHeight = 0.0F;
-    float infoWidth = 0.0F;
-    float infoHeight = 0.0F;
-    float buttonWidth = 0.0F;
-    float buttonHeight = 0.0F;
-    float yesOffsetX = 0.0F;
-    float noOffsetX = 0.0F;
-    float buttonOffsetY = 0.0F;
-    bool maxMode = false;
-    bool disableFocus = false;
-    std::optional<bool> hoveredChoice;
 };
 #endif
 
@@ -4517,6 +4497,11 @@ int main(int argc, char** argv)
         !options->finishMenuSmokeTest;
 #endif
 
+    originalmenu::MenuSystem sourceMenuSystem;
+    sourceMenuSystem.AdjustLayout(
+        {menu::virtualWidth, menu::virtualHeight});
+    originalmenu::DialogSystem sourceDialogs(sourceMenuSystem);
+
     enum class OriginalMusicDialogSource
     {
         Menu,
@@ -4527,9 +4512,6 @@ int main(int argc, char** argv)
     OriginalMusicDialogSource musicDialogSource =
         OriginalMusicDialogSource::Menu;
     std::size_t musicDialogTrack = 0U;
-    float musicDialogTime = -1.0F;
-    float musicDialogOffset = 0.0F;
-    bool musicDialogVisible = false;
     bool menuMusicDialogObserved = false;
 #ifdef RRR3D_PHYSICS
     bool raceMusicDialogObserved =
@@ -4553,11 +4535,19 @@ int main(int argc, char** argv)
                 return;
             musicDialogSource = source;
             musicDialogTrack = *track;
-            // Menu::ShowMusicInfo updates the two labels immediately but
-            // restarts the five-second animation only after the previous
-            // popup has completely hidden.
-            if (musicDialogTime == -1.0F)
-                musicDialogTime = -0.999F;
+            const auto& tracks =
+                source == OriginalMusicDialogSource::Menu
+                    ? originalMusicCatalog.menu
+#ifdef RRR3D_PHYSICS
+                    : originalMusicCatalog.game
+#else
+                    : originalMusicCatalog.menu
+#endif
+                    ;
+            sourceDialogs.ShowMusicInfo(
+                tracks[*track].band, tracks[*track].name,
+                {static_cast<float>(musicDialogFrameImage.width),
+                 static_cast<float>(musicDialogFrameImage.height)});
         };
     // GameMode::StartGame shows the current track only after FreeIntro.
     if (!sourceStartupRequested)
@@ -5192,9 +5182,6 @@ int main(int argc, char** argv)
     };
 #endif
     using MenuScreen = originalmenu::MenuScreen;
-    originalmenu::MenuSystem sourceMenuSystem;
-    sourceMenuSystem.AdjustLayout(
-        {menu::virtualWidth, menu::virtualHeight});
     auto& menuStack = sourceMenuSystem.Screens();
     auto& menuSelection = sourceMenuSystem.Selection();
     bool championshipMode = true;
@@ -5899,7 +5886,8 @@ int main(int argc, char** argv)
         return false;
     };
     auto setAcceptDialogFocus = [&](bool yes) {
-        acceptDialog.hoveredChoice = yes;
+        sourceDialogs.SetAcceptHover(yes);
+        sourceDialogs.SetAcceptFocus(yes);
         if (exitRaceDialogVisible)
             exitRaceYesFocused = yes;
 #ifdef RRR3D_NETWORK
@@ -6310,60 +6298,23 @@ int main(int argc, char** argv)
             std::string_view noText, float centerX, float centerY,
             bool maxButtonsSize = false,
             bool maxMode = false, bool disableFocus = false) {
-            const float sourceFrameWidth =
-                static_cast<float>(acceptFrameImage.width);
-            const float sourceFrameHeight =
-                static_cast<float>(acceptFrameImage.height);
-            const float sourceButtonWidth =
-                static_cast<float>(acceptButtonImage.width);
-            const float sourceButtonHeight =
-                static_cast<float>(acceptButtonImage.height);
-            const float frameScale = maxMode ? 1.7F : 1.0F;
-            const float infoScale = maxMode ? 1.7F : 1.0F;
-            float buttonScaleX = maxMode ? 1.5F : 1.0F;
-            float yesOffsetX = maxMode ? -100.0F : -70.0F;
-            float noOffsetX = maxMode ? 100.0F : 70.0F;
-            if (maxButtonsSize)
-            {
-                buttonScaleX *= 1.5F;
-                yesOffsetX -= 10.0F;
-                noOffsetX += 10.0F;
-            }
+            const auto& sourceDialog = sourceDialogs.ShowAccept(
+                std::string(message), std::string(yesText),
+                std::string(noText), {centerX, centerY},
+                originalmenu::Anchor::Center,
+                {static_cast<float>(acceptFrameImage.width),
+                 static_cast<float>(acceptFrameImage.height)},
+                {static_cast<float>(acceptButtonImage.width),
+                 static_cast<float>(acceptButtonImage.height)},
+                maxButtonsSize, maxMode, disableFocus);
             destroyAcceptDialog(*device, acceptDialog);
-            acceptDialog.frameWidth =
-                sourceFrameWidth * frameScale;
-            acceptDialog.frameHeight =
-                sourceFrameHeight * frameScale;
-            acceptDialog.infoWidth = 325.0F * infoScale;
-            acceptDialog.infoHeight = 65.0F * infoScale;
-            acceptDialog.buttonWidth =
-                sourceButtonWidth * buttonScaleX;
-            acceptDialog.buttonHeight = sourceButtonHeight;
-            acceptDialog.yesOffsetX = yesOffsetX;
-            acceptDialog.noOffsetX = noOffsetX;
-            acceptDialog.buttonOffsetY =
-                maxMode ? 72.0F : 32.0F;
-            acceptDialog.maxMode = maxMode;
-            acceptDialog.disableFocus = disableFocus;
-            acceptDialog.hoveredChoice.reset();
-            centerX = std::clamp(
-                centerX,
-                acceptDialog.frameWidth * 0.5F + 15.0F,
-                menu::virtualWidth -
-                    acceptDialog.frameWidth * 0.5F - 15.0F);
-            centerY = std::clamp(
-                centerY,
-                acceptDialog.frameHeight * 0.5F + 15.0F,
-                menu::virtualHeight -
-                    acceptDialog.frameHeight * 0.5F - 15.0F);
-            acceptDialog.centerX = centerX;
-            acceptDialog.centerY = centerY;
             const float fontHeight =
-                maxMode ? 24.0F : 32.0F;
+                sourceDialog.maxMode ? 24.0F : 32.0F;
             const std::size_t maximumLines =
-                maxMode ? 3U : 2U;
+                sourceDialog.maxMode ? 3U : 2U;
             for (const auto& line : wrapAcceptDialogMessage(
-                     message, acceptDialog.infoWidth,
+                     sourceDialog.message,
+                     sourceDialog.layout.infoSize.x,
                      fontHeight, maximumLines))
             {
                 acceptDialog.info.push_back(createText(
@@ -6372,13 +6323,11 @@ int main(int argc, char** argv)
                     resolvedFont));
             }
             acceptDialog.yes = createText(
-                *device, yesText, 32.0F, false,
+                *device, sourceDialog.yesText, 32.0F, false,
                 menu::Rgba8{175, 175, 175, 255}, resolvedFont);
             acceptDialog.no = createText(
-                *device, noText, 32.0F, false,
+                *device, sourceDialog.noText, 32.0F, false,
                 menu::Rgba8{175, 175, 175, 255}, resolvedFont);
-            sourceMenuSystem.ShowModal(
-                originalmenu::FrameId::Accept, true);
 #ifdef RRR3D_AUDIO
             playOriginalMenuSound(
                 rrr3d::audio::OriginalMenuSound::Acceptance);
@@ -6390,16 +6339,20 @@ int main(int argc, char** argv)
         {
             return;
         }
+        sourceDialogs.SetAcceptVisible(acceptDialogVisible());
+        sourceDialogs.SetAcceptFocus(acceptDialogYesFocused());
+        const auto& sourceDialog = sourceDialogs.Accept();
+        const auto& layout = sourceDialog.layout;
         drawQuad(
             *device, quad, shader, acceptFrame,
-            acceptDialog.frameWidth, acceptDialog.frameHeight,
-            acceptDialog.centerX, acceptDialog.centerY, 8.0F,
+            layout.frameSize.x, layout.frameSize.y,
+            sourceDialog.center.x, sourceDialog.center.y, 8.0F,
             transparent);
         const float fontHeight =
-            acceptDialog.maxMode ? 24.0F : 32.0F;
+            sourceDialog.maxMode ? 24.0F : 32.0F;
         const float lineStep = fontHeight * 1.15F;
         const float firstLineY =
-            acceptDialog.centerY - 25.0F -
+            sourceDialog.center.y + layout.infoOffset.y -
             static_cast<float>(acceptDialog.info.size() - 1U) *
                 lineStep * 0.5F;
         for (std::size_t line = 0U;
@@ -6408,29 +6361,28 @@ int main(int argc, char** argv)
             const auto& text = acceptDialog.info[line];
             drawQuad(
                 *device, quad, shader, text.texture,
-                text.width, text.height, acceptDialog.centerX,
+                text.width, text.height, sourceDialog.center.x,
                 firstLineY +
                     static_cast<float>(line) * lineStep,
                 6.0F, transparent);
         }
         auto drawChoice = [&](bool yes) {
             const bool selected =
-                acceptDialog.disableFocus
-                    ? acceptDialog.hoveredChoice &&
-                          *acceptDialog.hoveredChoice == yes
-                    : acceptDialogYesFocused() == yes;
+                sourceDialog.disableFocus
+                    ? sourceDialog.hoveredChoice &&
+                          *sourceDialog.hoveredChoice == yes
+                    : sourceDialog.yesFocused == yes;
             const float x =
-                acceptDialog.centerX +
-                (yes ? acceptDialog.yesOffsetX
-                     : acceptDialog.noOffsetX);
+                sourceDialog.center.x +
+                (yes ? layout.yesOffset.x : layout.noOffset.x);
             const float y =
-                acceptDialog.centerY +
-                acceptDialog.buttonOffsetY;
+                sourceDialog.center.y +
+                (yes ? layout.yesOffset.y : layout.noOffset.y);
             drawQuad(
                 *device, quad, shader,
                 selected ? acceptButtonSelected : acceptButton,
-                acceptDialog.buttonWidth,
-                acceptDialog.buttonHeight, x, y, 5.0F,
+                layout.buttonSize.x,
+                layout.buttonSize.y, x, y, 5.0F,
                 transparent);
             const auto& label =
                 yes ? acceptDialog.yes : acceptDialog.no;
@@ -6444,25 +6396,25 @@ int main(int argc, char** argv)
         if (profileDeleteDialogVisible)
         {
             profileDeleteDialogObserved =
-                acceptDialog.frameWidth ==
+                layout.frameSize.x ==
                     static_cast<float>(
                         acceptFrameImage.width) &&
-                acceptDialog.frameHeight ==
+                layout.frameSize.y ==
                     static_cast<float>(
                         acceptFrameImage.height) &&
-                acceptDialog.infoWidth == 325.0F &&
-                acceptDialog.infoHeight == 65.0F &&
-                acceptDialog.buttonWidth ==
+                layout.infoSize.x == 325.0F &&
+                layout.infoSize.y == 65.0F &&
+                layout.buttonSize.x ==
                     static_cast<float>(
                         acceptButtonImage.width) &&
-                acceptDialog.buttonHeight ==
+                layout.buttonSize.y ==
                     static_cast<float>(
                         acceptButtonImage.height) &&
-                acceptDialog.yesOffsetX == -70.0F &&
-                acceptDialog.noOffsetX == 70.0F &&
-                acceptDialog.buttonOffsetY == 32.0F &&
-                !acceptDialog.maxMode &&
-                !acceptDialog.disableFocus &&
+                layout.yesOffset.x == -70.0F &&
+                layout.noOffset.x == 70.0F &&
+                layout.yesOffset.y == 32.0F &&
+                !sourceDialog.maxMode &&
+                !sourceDialog.disableFocus &&
                 valid(acceptDialog.yes.texture) &&
                 valid(acceptDialog.no.texture) &&
                 std::all_of(
@@ -7251,8 +7203,7 @@ int main(int argc, char** argv)
             return;
         }
 #ifdef RRR3D_AUDIO
-        musicDialogTime = -1.0F;
-        musicDialogVisible = false;
+        sourceDialogs.HideMusicInfo();
 #endif
         previousFrameTicks = SDL_GetTicksNS();
         std::cout
@@ -7469,7 +7420,7 @@ int main(int argc, char** argv)
         return result;
     };
     auto hideWorkshopWeaponDialog = [&]() {
-        workshopWeaponDialog.visible = false;
+        sourceDialogs.HideWeapon();
     };
     auto wrapWorkshopWeaponInfo = [&](std::string_view value) {
         constexpr float maximumWidth = 280.0F;
@@ -7524,13 +7475,18 @@ int main(int argc, char** argv)
                 menu::virtualHeight - frameHeight * 0.5F - 15.0F);
             if (workshopWeaponDialog.itemRecord == item.record &&
                 workshopWeaponDialog.cost == cost &&
-                std::abs(workshopWeaponDialog.centerX - centerX) <
+                std::abs(sourceDialogs.Weapon().center.x - centerX) <
                     0.01F &&
-                std::abs(workshopWeaponDialog.centerY - centerY) <
+                std::abs(sourceDialogs.Weapon().center.y - centerY) <
                     0.01F &&
                 valid(workshopWeaponDialog.name.texture))
             {
-                workshopWeaponDialog.visible = true;
+                const auto& weapon = sourceDialogs.Weapon();
+                sourceDialogs.ShowWeapon(
+                    weapon.title, weapon.message,
+                    weapon.moneyText, weapon.damageText,
+                    {centerX, centerY}, originalmenu::Anchor::Center,
+                    {frameWidth, frameHeight}, 0.0F);
                 return;
             }
 
@@ -7560,9 +7516,11 @@ int main(int argc, char** argv)
                 menu::Rgba8{255, 255, 255, 255}, resolvedFont);
             workshopWeaponDialog.itemRecord = item.record;
             workshopWeaponDialog.cost = cost;
-            workshopWeaponDialog.centerX = centerX;
-            workshopWeaponDialog.centerY = centerY;
-            workshopWeaponDialog.visible = true;
+            sourceDialogs.ShowWeapon(
+                localized(item.name), localized(item.info),
+                originalCurrency(cost), damage,
+                {centerX, centerY}, originalmenu::Anchor::Center,
+                {frameWidth, frameHeight}, 0.0F);
         };
     auto wrapInfoDialogMessage = [&](std::string_view value) {
         constexpr float maximumWidth = 245.0F;
@@ -7600,9 +7558,7 @@ int main(int argc, char** argv)
         return lines;
     };
     auto hideInfoDialog = [&]() {
-        infoDialog.visible = false;
-        sourceMenuSystem.ShowModal(
-            originalmenu::FrameId::Message, false);
+        sourceDialogs.HideInfo();
     };
     auto showInfoDialog =
         [&](std::string_view title, std::string_view message,
@@ -7611,18 +7567,17 @@ int main(int argc, char** argv)
                 static_cast<float>(infoDialogFrameImage.width);
             const float frameHeight =
                 static_cast<float>(infoDialogFrameImage.height);
-            centerX = std::clamp(
-                centerX, frameWidth * 0.5F + 15.0F,
-                menu::virtualWidth - frameWidth * 0.5F - 15.0F);
-            centerY = std::clamp(
-                centerY, frameHeight * 0.5F + 15.0F,
-                menu::virtualHeight - frameHeight * 0.5F - 15.0F);
+            const auto& sourceDialog = sourceDialogs.ShowInfo(
+                std::string(title), std::string(message),
+                std::string(ok), {centerX, centerY},
+                originalmenu::Anchor::Center,
+                {frameWidth, frameHeight});
             destroyInfoDialog(*device, infoDialog);
             infoDialog.title = createText(
-                *device, title, 44.0F, false,
+                *device, sourceDialog.title, 44.0F, false,
                 menu::Rgba8{175, 175, 175, 255}, resolvedFont);
             for (const auto& line :
-                 wrapInfoDialogMessage(message))
+                 wrapInfoDialogMessage(sourceDialog.message))
             {
                 infoDialog.info.push_back(createText(
                     *device, line, 24.0F, false,
@@ -7630,14 +7585,8 @@ int main(int argc, char** argv)
                     resolvedFont));
             }
             infoDialog.ok = createText(
-                *device, ok, 32.0F, false,
+                *device, sourceDialog.okText, 32.0F, false,
                 menu::Rgba8{255, 255, 255, 255}, resolvedFont);
-            infoDialog.centerX = centerX;
-            infoDialog.centerY = centerY;
-            infoDialog.visible = true;
-            infoDialog.dismissable = true;
-            sourceMenuSystem.ShowModal(
-                originalmenu::FrameId::Message, true);
             hideWorkshopWeaponDialog();
 #ifdef RRR3D_AUDIO
             playOriginalMenuSound(
@@ -7652,7 +7601,7 @@ int main(int argc, char** argv)
         if (valid(infoDialog.ok.texture))
             device->destroy(infoDialog.ok.texture);
         infoDialog.ok = {};
-        infoDialog.dismissable = false;
+        sourceDialogs.SetInfoDismissable(false);
     };
 #ifdef RRR3D_NETWORK
     auto exitNetworkMatch = [&](bool publishExitRpc) {
@@ -7802,7 +7751,8 @@ int main(int argc, char** argv)
             menu::virtualWidth * 0.5F,
             menu::virtualHeight * 0.5F);
         networkFailureDialogObserved =
-            infoDialog.visible && infoDialog.dismissable;
+            sourceDialogs.Info().visible &&
+            sourceDialogs.Info().dismissable;
         std::cout << "Original network failure callback: failure="
                   << static_cast<int>(networkSnapshot.failure)
                   << ", exitMatch="
@@ -10823,7 +10773,8 @@ int main(int argc, char** argv)
     std::uint64_t smokePhaseTicks = SDL_GetTicks();
     const std::uint64_t musicSmokeDeadline = SDL_GetTicks() + 30000;
     auto drawOriginalMusicDialog = [&]() {
-        if (!musicDialogVisible)
+        const auto& sourceDialog = sourceDialogs.Music();
+        if (!sourceDialog.visible)
             return;
         const MusicDialogVisual* visual = nullptr;
         if (musicDialogSource == OriginalMusicDialogSource::Menu)
@@ -10841,18 +10792,10 @@ int main(int argc, char** argv)
         if (visual == nullptr)
             return;
 
-        const float width =
-            static_cast<float>(musicDialogFrameImage.width);
-        const float height =
-            static_cast<float>(musicDialogFrameImage.height);
-        // Literal Menu::OnProgress placement.  Widget positions are their
-        // centres, hence subtracting half the dlgFrame2 size leaves the
-        // fully shown frame 35 px from the left and 30 px from the bottom.
-        const float centerX =
-            -5.0F + (40.0F + width) * musicDialogOffset -
-            width * 0.5F;
-        const float centerY =
-            menu::virtualHeight - 30.0F - height * 0.5F;
+        const float width = sourceDialog.frameSize.x;
+        const float height = sourceDialog.frameSize.y;
+        const float centerX = sourceDialog.center.x;
+        const float centerY = sourceDialog.center.y;
         // DialogMenu2's z values express widget order, not camera-space
         // depth.  Map that order into the established overlay depth band;
         // literal z=3/2 is clipped by the Metal orthographic projection.
@@ -10862,14 +10805,16 @@ int main(int argc, char** argv)
         drawQuad(
             *device, quad, shader, visual->title.texture,
             visual->title.width, visual->title.height,
-            centerX - 130.0F + visual->title.width * 0.5F,
-            centerY - 21.0F, 59.0F, transparent);
+            centerX + sourceDialog.titleOffset.x +
+                visual->title.width * 0.5F,
+            centerY + sourceDialog.titleOffset.y, 59.0F, transparent);
         drawQuad(
             *device, quad, shader, visual->info.texture,
             visual->info.width, visual->info.height,
-            centerX - 130.0F + visual->info.width * 0.5F,
-            centerY + 17.0F, 59.0F, transparent);
-        if (musicDialogOffset > 0.01F)
+            centerX + sourceDialog.infoOffset.x +
+                visual->info.width * 0.5F,
+            centerY + sourceDialog.infoOffset.y, 59.0F, transparent);
+        if (sourceDialog.offset > 0.01F)
         {
             if (musicDialogSource ==
                 OriginalMusicDialogSource::Menu)
@@ -11041,7 +10986,7 @@ int main(int argc, char** argv)
             case 7U:
 #ifdef RRR3D_PHYSICS
                 networkHostReadyGateObserved =
-                    infoDialog.visible && networkMatchStarted &&
+                    sourceDialogs.Info().visible && networkMatchStarted &&
                     networkRacePlayerVisuals.empty();
                 hideInfoDialog();
                 exitNetworkMatch(true);
@@ -11078,7 +11023,8 @@ int main(int argc, char** argv)
                     networkSnapshot.failure ==
                         r3d::game::originalnetwork::
                             SessionFailure::ConnectionFailed &&
-                    infoDialog.visible && infoDialog.dismissable;
+                    sourceDialogs.Info().visible &&
+                    sourceDialogs.Info().dismissable;
                 hideInfoDialog();
                 networkFailureDialogAction =
                     NetworkFailureDialogAction::None;
@@ -11192,7 +11138,8 @@ int main(int argc, char** argv)
                         0.5F);
             raceInfoDialogSmokeShown = true;
         }
-        if (options->raceRenderSmokeTest && infoDialog.visible &&
+        if (options->raceRenderSmokeTest &&
+            sourceDialogs.Info().visible &&
             raceInfoDialogObserved && !raceInfoDialogCloseQueued)
         {
             SDL_Event press{};
@@ -11216,7 +11163,7 @@ int main(int argc, char** argv)
             options->raceRenderSmokeTest && !inRace &&
             menuStack.back() == MenuScreen::Workshop &&
             (!raceWorkshopWeaponDialogObserved ||
-             !raceInfoDialogObserved || infoDialog.visible);
+             !raceInfoDialogObserved || sourceDialogs.Info().visible);
         if (options->raceRenderSmokeTest && !inRace &&
             !waitingForWorkshopDialogs &&
             raceSmokeMenuStep < 33U &&
@@ -11548,13 +11495,14 @@ int main(int argc, char** argv)
             ;
         sourceMenuSystem.SetOptionsVisible(sourceOptionsVisible);
 #ifdef RRR3D_PHYSICS
+        sourceDialogs.SetAcceptVisible(acceptDialogVisible());
         sourceMenuSystem.ShowModal(
-            originalmenu::FrameId::Accept, acceptDialogVisible());
-        sourceMenuSystem.ShowModal(
-            originalmenu::FrameId::Message, infoDialog.visible);
+            originalmenu::FrameId::Message,
+            sourceDialogs.Info().visible);
         sourceMenuSystem.ShowModal(
             originalmenu::FrameId::Loading,
-            infoDialog.visible && !infoDialog.dismissable,
+            sourceDialogs.Info().visible &&
+                !sourceDialogs.Info().dismissable,
             originalmenu::MenuSystem::topmostLoading);
         if (userChat.inputVisible())
         {
@@ -11582,15 +11530,14 @@ int main(int argc, char** argv)
             // Domain callbacks may close a dialog while more SDL events are
             // already queued. Keep the source modal root authoritative for
             // every event, not merely at the beginning of the frame.
-            sourceMenuSystem.ShowModal(
-                originalmenu::FrameId::Accept,
-                acceptDialogVisible());
+            sourceDialogs.SetAcceptVisible(acceptDialogVisible());
             sourceMenuSystem.ShowModal(
                 originalmenu::FrameId::Message,
-                infoDialog.visible);
+                sourceDialogs.Info().visible);
             sourceMenuSystem.ShowModal(
                 originalmenu::FrameId::Loading,
-                infoDialog.visible && !infoDialog.dismissable,
+                sourceDialogs.Info().visible &&
+                    !sourceDialogs.Info().dismissable,
                 originalmenu::MenuSystem::topmostLoading);
             if (options->legacyWindowsDebug && inRace &&
                 event.type == SDL_EVENT_MOUSE_MOTION &&
@@ -11856,7 +11803,7 @@ int main(int argc, char** argv)
                 event.type != SDL_EVENT_WINDOW_METAL_VIEW_RESIZED)
             {
                 if (startOptionsReloadDialogPending &&
-                    infoDialog.visible)
+                    sourceDialogs.Info().visible)
                 {
                     const auto dialogEvents = input.processEvent(event);
                     const bool acknowledged = std::any_of(
@@ -12070,7 +12017,8 @@ int main(int argc, char** argv)
                         angarObserver, event);
             }
             std::optional<bool> pointerAcceptChoice;
-            if (sourceInfoModal && infoDialog.dismissable &&
+            if (sourceInfoModal &&
+                sourceDialogs.Info().dismissable &&
                 (event.type == SDL_EVENT_MOUSE_MOTION ||
                  event.type == SDL_EVENT_MOUSE_BUTTON_DOWN))
             {
@@ -12097,13 +12045,14 @@ int main(int argc, char** argv)
                         static_cast<float>(windowHeight);
                     hoveredOk =
                         std::abs(
-                            virtualX - infoDialog.centerX) <=
+                            virtualX - sourceDialogs.Info().center.x) <=
                             static_cast<float>(
                                 infoDialogButtonSelectedImage.width) *
                                 0.5F &&
                         std::abs(
                             virtualY -
-                            (infoDialog.centerY + 105.0F)) <=
+                            (sourceDialogs.Info().center.y +
+                             sourceDialogs.Info().okOffset.y)) <=
                             static_cast<float>(
                                 infoDialogButtonSelectedImage.height) *
                                 0.5F;
@@ -12137,32 +12086,36 @@ int main(int argc, char** argv)
                     const float virtualY =
                         pointerY * menu::virtualHeight /
                         static_cast<float>(windowHeight);
+                    const auto& sourceAccept =
+                        sourceDialogs.Accept();
+                    const auto& acceptLayout =
+                        sourceAccept.layout;
                     const float buttonY =
-                        acceptDialog.centerY +
-                        acceptDialog.buttonOffsetY;
+                        sourceAccept.center.y +
+                        acceptLayout.yesOffset.y;
                     const float yesX =
-                        acceptDialog.centerX +
-                        acceptDialog.yesOffsetX;
+                        sourceAccept.center.x +
+                        acceptLayout.yesOffset.x;
                     const float noX =
-                        acceptDialog.centerX +
-                        acceptDialog.noOffsetX;
+                        sourceAccept.center.x +
+                        acceptLayout.noOffset.x;
                     if (std::abs(virtualY - buttonY) <=
-                            acceptDialog.buttonHeight * 0.5F &&
+                            acceptLayout.buttonSize.y * 0.5F &&
                         std::abs(virtualX - yesX) <=
-                            acceptDialog.buttonWidth * 0.5F)
+                            acceptLayout.buttonSize.x * 0.5F)
                     {
                         pointerAcceptChoice = true;
                     }
                     else if (
                         std::abs(virtualY - buttonY) <=
-                            acceptDialog.buttonHeight * 0.5F &&
+                            acceptLayout.buttonSize.y * 0.5F &&
                         std::abs(virtualX - noX) <=
-                            acceptDialog.buttonWidth * 0.5F)
+                            acceptLayout.buttonSize.x * 0.5F)
                     {
                         pointerAcceptChoice = false;
                     }
                 }
-                acceptDialog.hoveredChoice = pointerAcceptChoice;
+                sourceDialogs.SetAcceptHover(pointerAcceptChoice);
                 if (pointerAcceptChoice)
                     setAcceptDialogFocus(*pointerAcceptChoice);
                 pointerTargetsItem =
@@ -13372,7 +13325,7 @@ int main(int argc, char** argv)
             {
 #ifdef RRR3D_PHYSICS
                 if (bindingCaptureAction &&
-                    acceptDialog.disableFocus &&
+                    sourceDialogs.Accept().disableFocus &&
                     inputEvent.active &&
                     !inputEvent.repeated &&
                     inputEvent.source ==
@@ -13399,11 +13352,23 @@ int main(int argc, char** argv)
                     refreshCurrentOptionsPage();
                     continue;
                 }
+                if (sourceAcceptModal && inputEvent.active &&
+                    !inputEvent.repeated &&
+                    inputEvent.action ==
+                        rrr3d::input::Action::MenuConfirm &&
+                    (inputEvent.source !=
+                         rrr3d::input::Source::Mouse ||
+                     pointerTargetsItem))
+                {
+                    sourceDialogs.ChooseAccept(
+                        pointerAcceptChoice.value_or(
+                            acceptDialogYesFocused()));
+                }
                 if (sourceInfoModal)
                 {
                     if (!inputEvent.active || inputEvent.repeated)
                         continue;
-                    if (!infoDialog.dismissable)
+                    if (!sourceDialogs.Info().dismissable)
                         continue;
                     if (inputEvent.action ==
                         rrr3d::input::Action::MenuConfirm)
@@ -17780,31 +17745,9 @@ int main(int argc, char** argv)
             }
         }
 #endif
-        musicDialogVisible = false;
-        musicDialogOffset = 0.0F;
-        if (musicDialogTime != -1.0F)
-        {
-            constexpr float musicDelay = 1.0F;
-            constexpr float musicLife = 3.0F;
-            musicDialogOffset =
-                std::clamp(
-                    musicDialogTime / musicDelay, 0.0F, 1.0F) -
-                std::clamp(
-                    (musicDialogTime - musicDelay - musicLife) /
-                        musicDelay,
-                    0.0F, 1.0F);
-            if (musicDialogTime >=
-                musicLife + 2.0F * musicDelay)
-            {
-                musicDialogTime = -1.0F;
-            }
-            else
-            {
-                musicDialogTime += frameSeconds;
-                musicDialogVisible = true;
-            }
-        }
 #endif
+        sourceDialogs.Progress(
+            frameSeconds, {menu::virtualWidth, menu::virtualHeight});
 
         if (sourceStartupActive)
         {
@@ -20826,15 +20769,16 @@ int main(int argc, char** argv)
                     15.0F, transparent);
             }
 
-            if (workshopWeaponDialog.visible &&
+            const auto& sourceWeaponDialog = sourceDialogs.Weapon();
+            if (sourceWeaponDialog.visible &&
                 !workshopDrag.active() &&
                 workshopConfirmation ==
                     WorkshopConfirmation::None)
             {
                 const float anchorX =
-                    workshopWeaponDialog.centerX;
+                    sourceWeaponDialog.center.x;
                 const float anchorY =
-                    workshopWeaponDialog.centerY;
+                    sourceWeaponDialog.center.y;
                 drawQuad(
                     *device, quad, shader,
                     workshopInfoFrame,
@@ -20850,11 +20794,12 @@ int main(int argc, char** argv)
                 drawQuad(
                     *device, quad, shader, name.texture,
                     name.width, name.height, anchorX,
-                    anchorY - 58.0F, 59.0F,
+                    anchorY + sourceWeaponDialog.titleOffset.y,
+                    59.0F,
                     transparent);
                 constexpr float infoLineStep = 18.0F;
                 const float infoFirstY =
-                    anchorY - 3.0F -
+                    anchorY + sourceWeaponDialog.infoOffset.y -
                     static_cast<float>(
                         workshopWeaponDialog.info.size() - 1U) *
                         infoLineStep * 0.5F;
@@ -20867,7 +20812,8 @@ int main(int argc, char** argv)
                     drawQuad(
                         *device, quad, shader,
                         info.texture, info.width, info.height,
-                        anchorX - 137.0F +
+                        anchorX + sourceWeaponDialog.infoOffset.x -
+                            sourceWeaponDialog.infoSize.x * 0.5F +
                             info.width * 0.5F,
                         infoFirstY +
                             static_cast<float>(line) *
@@ -20879,14 +20825,16 @@ int main(int argc, char** argv)
                 drawQuad(
                     *device, quad, shader,
                     money.texture, money.width, money.height,
-                    anchorX - 60.0F, anchorY + 54.0F,
+                    anchorX + sourceWeaponDialog.moneyOffset.x,
+                    anchorY + sourceWeaponDialog.moneyOffset.y,
                     59.0F, transparent);
                 const auto& damage =
                     workshopWeaponDialog.damage;
                 drawQuad(
                     *device, quad, shader,
                     damage.texture, damage.width, damage.height,
-                    anchorX + 80.0F, anchorY + 54.0F,
+                    anchorX + sourceWeaponDialog.damageOffset.x,
+                    anchorY + sourceWeaponDialog.damageOffset.y,
                     59.0F, transparent);
                 raceWorkshopWeaponDialogObserved = true;
             }
@@ -21679,23 +21627,28 @@ int main(int argc, char** argv)
 #ifdef RRR3D_PHYSICS
         drawUserChat();
         drawAcceptDialog();
-        if (infoDialog.visible)
+        if (sourceDialogs.Info().visible)
         {
             drawQuad(
                 *device, quad, shader, infoDialogFrame,
                 static_cast<float>(infoDialogFrameImage.width),
                 static_cast<float>(infoDialogFrameImage.height),
-                infoDialog.centerX, infoDialog.centerY, 6.0F,
+                sourceDialogs.Info().center.x,
+                sourceDialogs.Info().center.y, 6.0F,
                 transparent);
             drawQuad(
                 *device, quad, shader, infoDialog.title.texture,
                 infoDialog.title.width, infoDialog.title.height,
-                infoDialog.centerX - 27.0F,
-                infoDialog.centerY - 105.0F, 4.0F,
+                sourceDialogs.Info().center.x +
+                    sourceDialogs.Info().titleOffset.x,
+                sourceDialogs.Info().center.y +
+                    sourceDialogs.Info().titleOffset.y,
+                4.0F,
                 transparent);
             constexpr float infoLineStep = 27.0F;
             const float firstLineY =
-                infoDialog.centerY + 5.0F -
+                sourceDialogs.Info().center.y +
+                sourceDialogs.Info().infoOffset.y -
                 static_cast<float>(infoDialog.info.size() - 1U) *
                     infoLineStep * 0.5F;
             for (std::size_t line = 0U;
@@ -21705,14 +21658,15 @@ int main(int argc, char** argv)
                 drawQuad(
                     *device, quad, shader, text.texture,
                     text.width, text.height,
-                    infoDialog.centerX - 122.5F +
+                    sourceDialogs.Info().center.x -
+                        sourceDialogs.Info().infoSize.x * 0.5F +
                         text.width * 0.5F,
                     firstLineY +
                         static_cast<float>(line) *
                             infoLineStep,
                     4.0F, transparent);
             }
-            if (infoDialog.dismissable)
+            if (sourceDialogs.Info().dismissable)
             {
                 drawQuad(
                     *device, quad, shader,
@@ -21721,14 +21675,18 @@ int main(int argc, char** argv)
                         infoDialogButtonSelectedImage.width),
                     static_cast<float>(
                         infoDialogButtonSelectedImage.height),
-                    infoDialog.centerX,
-                    infoDialog.centerY + 105.0F, 3.0F,
+                    sourceDialogs.Info().center.x,
+                    sourceDialogs.Info().center.y +
+                        sourceDialogs.Info().okOffset.y,
+                    3.0F,
                     transparent);
                 drawQuad(
                     *device, quad, shader, infoDialog.ok.texture,
                     infoDialog.ok.width, infoDialog.ok.height,
-                    infoDialog.centerX,
-                    infoDialog.centerY + 105.0F, 2.0F,
+                    sourceDialogs.Info().center.x,
+                    sourceDialogs.Info().center.y +
+                        sourceDialogs.Info().okOffset.y,
+                    2.0F,
                     transparent);
             }
             raceInfoDialogObserved =
@@ -21747,7 +21705,7 @@ int main(int argc, char** argv)
         drawOriginalMusicDialog();
 #endif
 #ifdef RRR3D_PHYSICS
-        drawOriginalCursor(!infoDialog.visible);
+        drawOriginalCursor(!sourceDialogs.Info().visible);
 #else
         drawOriginalCursor(true);
 #endif
