@@ -63,6 +63,7 @@ else()
             source/stub/OriginalWorld.cpp
             source/stub/OriginalAchievmentModel.cpp
             source/stub/OriginalDataBase.cpp
+            source/stub/OriginalHudMenu.cpp
             source/stub/OriginalGameCar.cpp
             source/stub/OriginalLogic.cpp
             source/stub/OriginalMainMenu.cpp
@@ -88,6 +89,7 @@ else()
             include/OriginalWorld.h
             include/OriginalAchievmentModel.h
             include/OriginalDataBase.h
+            include/OriginalHudMenu.h
             include/OriginalGameCar.h
             include/OriginalLogic.h
             include/OriginalMainMenu.h
@@ -165,6 +167,18 @@ if(NOT WIN32 AND RRR3D_BUILD_ORIGINAL_MENU)
     add_test(
         NAME rrr3d_original_achievment_smoke
         COMMAND rrr3d_original_achievment_smoke
+    )
+
+    add_executable(rrr3d_original_hud_menu_smoke
+        tests/OriginalHudMenuSmoke.cpp
+    )
+    target_link_libraries(rrr3d_original_hud_menu_smoke PRIVATE
+        ${PROJECT_NAME}
+    )
+    rrr3d_set_common_target_options(rrr3d_original_hud_menu_smoke)
+    add_test(
+        NAME rrr3d_original_hud_menu_smoke
+        COMMAND rrr3d_original_hud_menu_smoke
     )
 
     add_executable(rrr3d_original_race_lifecycle_smoke

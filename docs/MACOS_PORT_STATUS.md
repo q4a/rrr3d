@@ -2298,3 +2298,17 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - `Map` хранит только live categories/global IDs и получает стабильные
   records от DataBase. Regression проверяет source-before-proxy загрузку,
   destructible includes, car life, lookup и безопасную смену карты.
+
+### Source HudMenu policy follow-up
+
+- Добавлен отдельный `source::HudMenu`, повторяющий единственное исходное
+  состояние `msMain`, видимость MiniMap/PlayerState и Escape down/non-repeat
+  transaction с показом либо закрытием подтверждения выхода.
+- Все исходные HUD layout constants (minimap 320x320, weapons, place/life,
+  lap, pick/achievement и car-life offsets) удалены из активной bgfx
+  раскладки и читаются из source owner.
+- Countdown снова event-driven: `tablo0..tablo3` сменяются только исходными
+  race events, а `tablo4` выполняет точное 1.5-секундное fade/grow поведение
+  `PlayerStateFrame::OnProgress`.
+- SDL исполняет source Escape-команду через существующие pause/dialog/cursor
+  adapters; bgfx только отрисовывает вычисленное source-состояние.

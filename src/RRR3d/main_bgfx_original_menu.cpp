@@ -6840,6 +6840,23 @@ int main(int argc, char** argv)
                 physicsWorld->vehicle(humanRacer).body.position;
         racePauseDialogObserved = true;
     };
+    auto handleRaceEscape = [&]() {
+        using HudCommand =
+            r3d::game::originalrace::source::HudMenuCommand;
+        switch (raceHud.handleEscape(
+            true, false, exitRaceDialogVisible))
+        {
+        case HudCommand::ShowExitConfirmation:
+            openExitRaceDialog();
+            break;
+        case HudCommand::HideExitConfirmation:
+            closeExitRaceDialog();
+            racePauseResumeObserved = true;
+            break;
+        case HudCommand::None:
+            break;
+        }
+    };
     std::function<void(bool)> showFinishMenu;
     auto applyOriginalRaceExitLifecycle = [&]() {
         if (raceExitLifecycleApplied)
@@ -10884,7 +10901,7 @@ int main(int argc, char** argv)
                                        rrr3d::input::Action::Pause;
                         });
                     if (pauseRequested)
-                        openExitRaceDialog();
+                        handleRaceEscape();
 #endif
                     // HumanPlayer::OnHandleInput returns before every race
                     // action while Menu::IsChatInputVisible is true.
@@ -12569,8 +12586,7 @@ int main(int argc, char** argv)
                              inputEvent.action ==
                                  rrr3d::input::Action::Pause)
                     {
-                        closeExitRaceDialog();
-                        racePauseResumeObserved = true;
+                        handleRaceEscape();
                     }
                     else if (inputEvent.action ==
                              rrr3d::input::Action::MenuConfirm)
@@ -12796,7 +12812,7 @@ int main(int argc, char** argv)
                         break;
                     case rrr3d::input::Action::Pause:
                         if (inputEvent.active && !inputEvent.repeated)
-                            openExitRaceDialog();
+                            handleRaceEscape();
                         break;
                     case rrr3d::input::Action::MenuBack:
                         // GUI Back is deliberately ignored during gameplay.

@@ -23,6 +23,7 @@ namespace
 using namespace r3d::renderer;
 namespace menu = r3d::game::mainmenu2;
 namespace originalrace = r3d::game::originalrace;
+namespace source = r3d::game::originalrace::source;
 
 bool valid(Texture value) noexcept
 {
@@ -128,6 +129,7 @@ bool OriginalRaceHud::initialize(
     std::string_view difficulty, bool campaign, std::string& error)
 {
     campaign_ = campaign;
+    hudMenuState_.Reset();
     // These are the same assets created by PlayerStateFrame and
     // MiniMapFrame in the Windows HUD.
     if (!loadImage(device, resources, "Data/GUI/placeMineHyper.png",
@@ -474,6 +476,7 @@ void OriginalRaceHud::shutdown(GraphicsDevice& device) noexcept
     uiSeconds_ = 0.0F;
     finishStarted_ = -1.0F;
     finishVisible_ = false;
+    hudMenuState_.Reset();
 }
 
 std::string_view OriginalRaceHud::localizedLapName() const noexcept
@@ -484,6 +487,12 @@ std::string_view OriginalRaceHud::localizedLapName() const noexcept
 std::string_view OriginalRaceHud::localizedPriceName() const noexcept
 {
     return priceName_;
+}
+
+source::HudMenuCommand OriginalRaceHud::handleEscape(
+    bool active, bool repeated, bool paused) const noexcept
+{
+    return hudMenuState_.OnHandleInput(active, repeated, paused);
 }
 
 void OriginalRaceHud::setText(GraphicsDevice& device, TextAsset& output,
@@ -817,7 +826,7 @@ void OriginalRaceHud::buildMiniMap(GraphicsDevice& device,
         }
     }
 
-    constexpr float mapSize = 320.0F;
+    const float mapSize = source::HudMenu::GetMiniMapRect().size.x;
     const float worldWidth =
         std::max(maximumX - mapMinimumX_, 0.001F);
     const float worldHeight =
@@ -1080,8 +1089,9 @@ void OriginalRaceHud::update(
             }
             if (image != nullptr)
             {
+                const auto origin = source::HudMenu::GetPickItemsPos();
                 notification.x = image->width * 0.5F;
-                notification.y = 255.0F;
+                notification.y = origin.y;
                 notification.targetX = notification.x + 30.0F;
                 notifications_.insert(notifications_.begin(),
                                       notification);
@@ -1097,8 +1107,9 @@ void OriginalRaceHud::update(
             notification.targetGamerId =
                 session.racers()[event.target].GetGamerId();
             notification.started = uiSeconds_;
+            const auto origin = source::HudMenu::GetPickItemsPos();
             notification.x = playerKill_.width * 0.5F;
-            notification.y = 255.0F;
+            notification.y = origin.y;
             notification.targetX = notification.x + 30.0F;
             const auto name = racerName(race, session, event.target);
             setText(device, notification.label, name, 24.0F, false,
@@ -1107,10 +1118,9 @@ void OriginalRaceHud::update(
                                   std::move(notification));
         }
         else if (event.kind ==
-                     originalrace::RaceEventKind::CountdownChanged &&
-                 event.value <= 0.0F)
+                     originalrace::RaceEventKind::CountdownChanged)
         {
-            countdownFinishUntil_ = elapsed + 1.5F;
+            hudMenuState_.OnCountdownEvent(session.countdownStage());
         }
         else if (event.kind == originalrace::RaceEventKind::Damage &&
                  event.value > 0.0F)
@@ -1167,7 +1177,8 @@ void OriginalRaceHud::update(
                                         0.0F, 1.0F)
                        : 1.0F);
         const float targetY =
-            255.0F + static_cast<float>(index) * 85.0F +
+            source::HudMenu::GetPickItemsPos().y +
+            static_cast<float>(index) * 85.0F +
             (fadingOut ? 30.0F : 0.0F);
         notification.x =
             std::min(notification.x + 90.0F * seconds,
@@ -1208,8 +1219,9 @@ void OriginalRaceHud::update(
             achievementPointsImages_[notification.achievement];
         const float slotHeight =
             image.height + points.height + 15.0F;
-        const float targetX =
-            (100.0F + menu::virtualWidth) * 0.5F;
+        const auto achievementOrigin =
+            source::HudMenu::GetAchievmentItemsPos(menu::virtualWidth);
+        const float targetX = achievementOrigin.x;
         float stackIndex = static_cast<float>(index);
         if (notification.indexTime < 0.0F &&
             stackIndex != notification.lastIndex)
@@ -1231,7 +1243,7 @@ void OriginalRaceHud::update(
             }
         }
         const float targetY =
-            15.0F + image.height * 0.5F +
+            achievementOrigin.y + image.height * 0.5F +
             stackIndex * slotHeight;
         notification.x =
             notification.startX +
@@ -1241,28 +1253,7 @@ void OriginalRaceHud::update(
             (targetY - notification.startY) * fly;
     }
 
-    countdownAlpha_ = 1.0F;
-    countdownGrowthSeconds_ = 0.0F;
-    if (session.phase() == originalrace::RacePhase::Countdown)
-    {
-        // PlayerStateFrame selects tablo0 for cRaceStartWait and then
-        // tablo1..tablo3 for the three timed stages. countdownSeconds alone
-        // cannot represent the distinct wait and first-red-light states.
-        countdownImage_ = std::clamp(session.countdownStage(), 0, 3);
-    }
-    else if (session.phase() == originalrace::RacePhase::Racing &&
-             elapsed < countdownFinishUntil_)
-    {
-        countdownImage_ = 4;
-        countdownGrowthSeconds_ =
-            std::clamp(1.5F - (countdownFinishUntil_ - elapsed),
-                       0.0F, 1.5F);
-        countdownAlpha_ =
-            std::clamp((countdownFinishUntil_ - elapsed) / 1.5F,
-                       0.0F, 1.0F);
-    }
-    else
-        countdownImage_ = -1;
+    hudMenuState_.OnProgress(seconds);
 
     lifeFraction_ =
         std::clamp(
@@ -1782,23 +1773,38 @@ void OriginalRaceHud::draw(GraphicsDevice& device, Mesh quad,
     // countdown) deliberately remain visible in the Windows implementation.
     if (enableRaceState)
     {
+        const auto placePos = source::HudMenu::GetPlacePos();
+        const auto lifePos = source::HudMenu::GetLifeBarPos();
+        const auto weaponPos = source::HudMenu::GetWeaponPos();
+        const auto weaponBoxPos = source::HudMenu::GetWeaponBoxPos();
+        const auto weaponLabelPos =
+            source::HudMenu::GetWeaponLabelPos();
+        const auto minePos = source::HudMenu::GetWeaponPosMine();
+        const auto mineLabelPos =
+            source::HudMenu::GetWeaponPosMineLabel();
+        const auto hyperPos = source::HudMenu::GetWeaponPosHyper();
+        const auto hyperLabelPos =
+            source::HudMenu::GetWeaponPosHyperLabel();
+        const auto lapPos = source::HudMenu::GetLapPos();
         drawAsset(device, quad, shader, placeFrame_.texture,
                   placeFrame_.width, placeFrame_.height,
                   placeFrame_.width * 0.5F,
                   placeFrame_.height * 0.5F,
                   38.0F, pipeline);
         drawAsset(device, quad, shader, place_.texture, place_.width,
-                  place_.height, 105.0F, 88.0F, 28.0F, pipeline);
+                  place_.height, placePos.x, placePos.y, 28.0F,
+                  pipeline);
         drawAsset(device, quad, shader, lifeBack_.texture,
                   lifeBack_.width, lifeBack_.height,
-                  165.0F + lifeBack_.width * 0.5F,
-                  lifeBack_.height * 0.5F, 28.0F, pipeline);
+                  lifePos.x + lifeBack_.width * 0.5F,
+                  lifePos.y + lifeBack_.height * 0.5F, 28.0F,
+                  pipeline);
         const float lifeWidth = lifeBar_.width * lifeFraction_;
         drawAsset(device, quad, shader, lifeBar_.texture, lifeWidth,
                   lifeBar_.height,
-                  165.0F + lifeBack_.width * 0.5F -
+                  lifePos.x + lifeBack_.width * 0.5F -
                       lifeBar_.width * 0.5F + lifeWidth * 0.5F,
-                  lifeBack_.height * 0.5F,
+                  lifePos.y + lifeBack_.height * 0.5F,
                   18.0F, pipeline);
 
         for (std::size_t slot = 0; slot < weaponAmmo_.size(); ++slot)
@@ -1809,41 +1815,51 @@ void OriginalRaceHud::draw(GraphicsDevice& device, Mesh quad,
             const auto& image =
                 selected ? weaponSlotSelected_ : weaponSlot_;
             const float centerX =
-                155.0F + image.width * 0.5F +
+                weaponPos.x + image.width * 0.5F +
                 static_cast<float>(slot) * (image.width - 25.0F);
-            const float centerY = 50.0F + image.height * 0.5F;
+            const float centerY =
+                weaponPos.y + image.height * 0.5F;
             drawAsset(device, quad, shader, image.texture, image.width,
                       image.height, centerX, centerY, 34.0F, pipeline);
             drawWeaponVisual(weaponVisualIndices_[slot],
-                             centerX + 5.0F, centerY - 15.0F,
+                             centerX + weaponBoxPos.x,
+                             centerY + weaponBoxPos.y,
                              28.0F);
             drawAsset(device, quad, shader, weaponAmmo_[slot].texture,
                       weaponAmmo_[slot].width,
                       weaponAmmo_[slot].height,
-                      centerX - 10.0F, centerY + 26.0F, 22.0F,
+                      centerX + weaponLabelPos.x,
+                      centerY + weaponLabelPos.y, 22.0F,
                       pipeline);
         }
         drawAsset(device, quad, shader, mineSlot_.texture,
-                  mineSlot_.width, mineSlot_.height, 30.0F, 140.0F,
+                  mineSlot_.width, mineSlot_.height, minePos.x,
+                  minePos.y,
                   34.0F, pipeline);
-        drawWeaponVisual(mineVisualIndex_, 30.0F, 140.0F, 28.0F);
+        drawWeaponVisual(mineVisualIndex_, minePos.x, minePos.y, 28.0F);
         drawAsset(device, quad, shader, mineAmmo_.texture,
-                  mineAmmo_.width, mineAmmo_.height, 105.0F, 159.0F,
+                  mineAmmo_.width, mineAmmo_.height, mineLabelPos.x,
+                  mineLabelPos.y,
                   22.0F, pipeline);
         drawAsset(device, quad, shader, hyperSlot_.texture,
-                  hyperSlot_.width, hyperSlot_.height, 30.0F, 32.0F,
+                  hyperSlot_.width, hyperSlot_.height, hyperPos.x,
+                  hyperPos.y,
                   34.0F, pipeline);
-        drawWeaponVisual(hyperVisualIndex_, 30.0F, 32.0F, 28.0F);
+        drawWeaponVisual(hyperVisualIndex_, hyperPos.x, hyperPos.y,
+                         28.0F);
         drawAsset(device, quad, shader, hyperAmmo_.texture,
-                  hyperAmmo_.width, hyperAmmo_.height, 105.0F, 15.0F,
+                  hyperAmmo_.width, hyperAmmo_.height,
+                  hyperLabelPos.x, hyperLabelPos.y,
                   22.0F, pipeline);
 
         drawAsset(device, quad, shader, lapBack_.texture,
                   lapBack_.width, lapBack_.height,
-                  lapBack_.width * 0.5F, 200.0F, 34.0F, pipeline);
+                  lapPos.x + lapBack_.width * 0.5F, lapPos.y,
+                  34.0F, pipeline);
         drawAsset(device, quad, shader, lap_.texture, lap_.width,
-                  lap_.height, lapBack_.width * 0.5F - 10.0F,
-                  201.0F, 22.0F, pipeline);
+                  lap_.height,
+                  lapPos.x + lapBack_.width * 0.5F - 10.0F,
+                  lapPos.y + 1.0F, 22.0F, pipeline);
     }
 
     for (const auto& item : notifications_)
@@ -1939,20 +1955,21 @@ void OriginalRaceHud::draw(GraphicsDevice& device, Mesh quad,
         }
     }
 
-    if (countdownImage_ >= 0 &&
-        static_cast<std::size_t>(countdownImage_) <
+    const auto& countdown = hudMenuState_.GetCountdownVisual();
+    if (countdown.image >= 0 &&
+        static_cast<std::size_t>(countdown.image) <
             countdownImages_.size())
     {
         const auto& image =
-            countdownImages_[static_cast<std::size_t>(countdownImage_)];
-        const float growth = 200.0F * countdownGrowthSeconds_;
+            countdownImages_[static_cast<std::size_t>(countdown.image)];
+        const float growth = 200.0F * countdown.growthSeconds;
         drawTintedAsset(
             device, quad, shader, image.texture,
             image.width * 0.5F + growth,
             image.height * 0.5F + growth,
             menu::virtualWidth * 0.5F,
             menu::virtualHeight * 0.5F, 4.0F, pipeline,
-            {1.0F, 1.0F, 1.0F, countdownAlpha_});
+            {1.0F, 1.0F, 1.0F, countdown.alpha});
     }
 }
 

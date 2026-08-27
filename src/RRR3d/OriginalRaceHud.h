@@ -1,6 +1,7 @@
 #pragma once
 
 #include "OriginalGameData.h"
+#include "OriginalHudMenu.h"
 #include "OriginalMainMenu.h"
 #include "OriginalRaceSession.h"
 #include "OriginalResourceManager.h"
@@ -41,6 +42,8 @@ public:
               bool enableRaceState = true) const;
     [[nodiscard]] std::string_view localizedLapName() const noexcept;
     [[nodiscard]] std::string_view localizedPriceName() const noexcept;
+    [[nodiscard]] r3d::game::originalrace::source::HudMenuCommand
+    handleEscape(bool active, bool repeated, bool paused) const noexcept;
 
 private:
     struct ImageAsset
@@ -213,10 +216,7 @@ private:
     float startHeight_ = 0.0F;
     std::vector<PickNotification> notifications_;
     std::vector<AchievementNotification> achievementNotifications_;
-    int countdownImage_ = -1;
-    float countdownAlpha_ = 1.0F;
-    float countdownGrowthSeconds_ = 0.0F;
-    float countdownFinishUntil_ = 0.0F;
+    r3d::game::originalrace::source::HudMenu hudMenuState_;
     float lifeFraction_ = 1.0F;
     std::array<bool,
                r3d::game::originalrace::PlayerProfile::weaponSlotCount>

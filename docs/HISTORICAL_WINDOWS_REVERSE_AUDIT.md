@@ -4495,6 +4495,27 @@ Map regression проверяет external owner identity, четыре кате
 destructible child source transform, car life, точный record lookup и
 безопасный reload/fix-up после уничтожения live MapObj.
 
+### P2.192 — восстановлен исходный владелец `HudMenu` — выполнено
+
+Сверка `HudMenu.h/.cpp` подтвердила, что активный `OriginalRaceHud` уже
+рисовал большинство правильных ресурсов и повторял анимации уведомлений, но
+самого source-владельца не существовало. Позиции `PlayerStateFrame` и
+`MiniMapFrame`, одно состояние `msMain`, Escape/pause transaction и
+`tablo0..tablo4` оставались числами и условиями внутри bgfx/SDL слоя.
+
+Добавлен backend-neutral `source::HudMenu`. Он владеет исходной видимостью
+Main, всеми layout-точками и minimap 320x320, фильтром Escape down/non-repeat,
+а также event-driven countdown: изображения 0..3 сохраняются до следующего
+события, `tablo4` за 1.5 секунды теряет alpha и увеличивается на 200 единиц в
+секунду. Активный HUD больше не выводит countdown из phase/elapsed повторно,
+а SDL применяет source-команду к существующим cursor/dialog/pause adapters.
+bgfx оставлен только загрузчиком ресурсов и исполнителем draw calls.
+
+Regression фиксирует все координаты, state visibility, обе Escape-ветви,
+каждую countdown-стадию, середину/завершение анимации и Reset. Следующий
+HUD-блок — перенос runtime collections `PlayerStateFrame`/`MiniMapFrame`,
+которые пока ещё хранятся в renderer adapter.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
