@@ -4516,6 +4516,25 @@ Regression фиксирует все координаты, state visibility, о�
 HUD-блок — перенос runtime collections `PlayerStateFrame`/`MiniMapFrame`,
 которые пока ещё хранятся в renderer adapter.
 
+### P2.193 — `MiniMapFrame::BuildPath/UpdateMap` возвращены в source — выполнено
+
+Продолжение HUD-аудита нашло крупный алгоритмический surrogate: 371 строка
+`MiniMapFrame` была встроена прямо в `OriginalRaceHud.cpp`. Хотя формулы уже
+были близки к Windows, владельцем road graph, align/smoothing и world-to-map
+преобразования ошибочно являлся bgfx renderer.
+
+Добавлен `source::MiniMapFrame`. Он повторяет `ComputeNode`, `AlignNode`,
+`AlignMidNodes` и `BuildPath`: допуск 20 градусов, size error 2, smoothing
+radius 10 с двумя slices, исходные half-width/radius формулы и alternating UV.
+Там же теперь находятся 320x320 fit по диагонали bounds, right-top anchor,
+start direction/size и стабильное преобразование `CarState::GetMapPos` в HUD.
+
+Из `OriginalRaceHud` удалены локальные bounds/scale/origin/start поля и весь
+повторный алгоритм. Adapter конвертирует только backend-neutral вершины в
+bgfx `Vertex`, загружает mesh и передаёт color/draw calls. Regression строит
+замкнутую карту с поворотами, проверяет topology, UV-compatible pairs,
+start orientation/size, оси world-to-map и Clear/rebuild lifetime.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

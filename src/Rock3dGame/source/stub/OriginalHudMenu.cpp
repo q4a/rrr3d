@@ -1,9 +1,372 @@
 #include "OriginalHudMenu.h"
 
 #include <algorithm>
+#include <array>
+#include <cmath>
+#include <limits>
+#include <list>
 
 namespace r3d::game::originalrace::source
 {
+
+bool MiniMapFrame::Build(const Race& race, float viewportWidth)
+{
+    Clear();
+    if (race.tracePath.size() < 2U || race.tracePoints.empty())
+        return false;
+
+    auto tracePoint =
+        [&](std::uint32_t id) -> const TracePoint* {
+        const auto found = std::find_if(
+            race.tracePoints.begin(), race.tracePoints.end(),
+            [id](const TracePoint& candidate) {
+                return candidate.id == id;
+            });
+        return found == race.tracePoints.end() ? nullptr : &*found;
+    };
+
+    using Vec2 = std::array<float, 2>;
+    auto add = [](Vec2 first, Vec2 second) {
+        return Vec2{first[0] + second[0], first[1] + second[1]};
+    };
+    auto subtract = [](Vec2 first, Vec2 second) {
+        return Vec2{first[0] - second[0], first[1] - second[1]};
+    };
+    auto multiply = [](Vec2 value, float amount) {
+        return Vec2{value[0] * amount, value[1] * amount};
+    };
+    auto dot = [](Vec2 first, Vec2 second) {
+        return first[0] * second[0] + first[1] * second[1];
+    };
+    auto normalize = [](Vec2 value) {
+        const float length = std::hypot(value[0], value[1]);
+        return length > 0.00001F
+                   ? Vec2{value[0] / length, value[1] / length}
+                   : Vec2{1.0F, 0.0F};
+    };
+    auto normalCcw = [](Vec2 value) {
+        return Vec2{-value[1], value[0]};
+    };
+    auto normalCw = [](Vec2 value) {
+        return Vec2{value[1], -value[0]};
+    };
+
+    struct Node
+    {
+        Vec2 position{};
+        float size = 0.0F;
+        Vec2 direction{};
+        Vec2 previousDirection{};
+        Vec2 middleDirection{};
+        Vec2 middleNormal{};
+        Vec2 edgeNormal{};
+        float cosineDelta = 1.0F;
+        float sineHalfAngle = 1.0F;
+        float radius = 0.0F;
+        bool counterClockwise = false;
+    };
+    using Nodes = std::list<Node>;
+
+    auto computeNode = [&](Nodes& nodes, Nodes::iterator iterator) {
+        const auto next = std::next(iterator);
+        auto previous = iterator;
+        if (iterator != nodes.begin())
+            --previous;
+        else
+            previous = nodes.end();
+        iterator->direction =
+            next != nodes.end()
+                ? normalize(subtract(next->position,
+                                     iterator->position))
+                : normalize(subtract(iterator->position,
+                                     previous->position));
+        iterator->previousDirection =
+            previous != nodes.end()
+                ? normalize(subtract(iterator->position,
+                                     previous->position))
+                : iterator->direction;
+        iterator->middleDirection = normalize(
+            add(iterator->previousDirection, iterator->direction));
+        iterator->middleNormal = normalCcw(iterator->middleDirection);
+        iterator->cosineDelta = std::abs(
+            dot(iterator->direction, iterator->previousDirection));
+        iterator->sineHalfAngle = std::sqrt(
+            (1.0F + iterator->cosineDelta) * 0.5F);
+        iterator->radius = 0.5F * iterator->size /
+            std::max(iterator->sineHalfAngle, 0.00001F);
+        iterator->counterClockwise =
+            iterator->previousDirection[0] * iterator->direction[1] -
+                iterator->previousDirection[1] *
+                    iterator->direction[0] >
+            0.0F;
+        iterator->edgeNormal =
+            iterator->counterClockwise
+                ? normalCcw(iterator->middleDirection)
+                : normalCw(iterator->middleDirection);
+    };
+    auto alignNode = [&](const Node& source, Node& destination,
+                         float cosineError, float sizeError) {
+        const auto direction = normalize(
+            subtract(destination.position, source.position));
+        if (std::abs(direction[0]) > cosineError)
+            destination.position[1] = source.position[1];
+        if (std::abs(direction[1]) > cosineError)
+            destination.position[0] = source.position[0];
+        if (std::abs(destination.size - source.size) < sizeError)
+            destination.size = source.size;
+    };
+    auto alignMiddleNodes =
+        [&](Node& first, Node& second, float cosineError,
+            float sizeError) {
+        const auto direction = normalize(
+            subtract(second.position, first.position));
+        if (std::abs(direction[0]) > cosineError)
+        {
+            first.position[1] =
+                (first.position[1] + second.position[1]) * 0.5F;
+            second.position[1] = first.position[1];
+        }
+        if (std::abs(direction[1]) > cosineError)
+        {
+            first.position[0] =
+                (first.position[0] + second.position[0]) * 0.5F;
+            second.position[0] = first.position[0];
+        }
+        if (std::abs(second.size - first.size) < sizeError)
+        {
+            first.size = (first.size + second.size) * 0.5F;
+            second.size = first.size;
+        }
+    };
+    auto makeNodes =
+        [&](const std::vector<std::uint32_t>& ids) {
+        Nodes nodes;
+        for (const auto id : ids)
+        {
+            if (const auto* point = tracePoint(id))
+            {
+                nodes.push_back(
+                    {{point->position.x, point->position.y},
+                     point->width});
+            }
+        }
+        if (nodes.size() < 2U)
+            return nodes;
+
+        constexpr float radians20 =
+            20.0F * 3.14159265358979323846F / 180.0F;
+        const float cosineError = std::cos(radians20);
+        constexpr float sizeError = 2.0F;
+        constexpr float smoothingRadius = 10.0F;
+        constexpr int smoothingSlices = 2;
+        for (auto iterator = nodes.begin(); iterator != nodes.end();)
+        {
+            const auto next = std::next(iterator);
+            if (next == nodes.end())
+                break;
+            const auto last = std::prev(nodes.end());
+            if (next != last)
+                alignNode(*iterator, *next, cosineError, sizeError);
+            else
+            {
+                alignMiddleNodes(*next, nodes.front(), cosineError,
+                                 sizeError);
+                alignNode(*next, *iterator, cosineError, sizeError);
+                alignNode(nodes.front(), *std::next(nodes.begin()),
+                          cosineError, sizeError);
+            }
+
+            computeNode(nodes, iterator);
+            if (smoothingSlices > 0 &&
+                iterator->cosineDelta < cosineError)
+            {
+                const float cosineHalfAngle = std::sqrt(std::max(
+                    0.0F, 1.0F - iterator->sineHalfAngle *
+                                      iterator->sineHalfAngle));
+                if (cosineHalfAngle <= 0.00001F)
+                {
+                    iterator = next;
+                    continue;
+                }
+                const float size = iterator->size;
+                const auto smoothingCenter = add(
+                    iterator->position,
+                    multiply(iterator->edgeNormal,
+                             smoothingRadius / cosineHalfAngle));
+                const auto smoothingVector =
+                    multiply(iterator->edgeNormal, -1.0F);
+                const float halfAngle = std::asin(std::clamp(
+                    iterator->sineHalfAngle, 0.0F, 1.0F));
+                const bool counterClockwise =
+                    iterator->counterClockwise;
+                iterator = nodes.erase(iterator);
+                for (int slice = -smoothingSlices;
+                     slice <= smoothingSlices; ++slice)
+                {
+                    float angle =
+                        static_cast<float>(slice) /
+                        static_cast<float>(smoothingSlices) * halfAngle;
+                    if (!counterClockwise)
+                        angle = -angle;
+                    const float sine = std::sin(angle);
+                    const float cosine = std::cos(angle);
+                    const Vec2 rotated{
+                        smoothingVector[0] * cosine -
+                            smoothingVector[1] * sine,
+                        smoothingVector[0] * sine +
+                            smoothingVector[1] * cosine};
+                    iterator = nodes.insert(
+                        iterator,
+                        {add(smoothingCenter,
+                             multiply(rotated, smoothingRadius)),
+                         size});
+                    ++iterator;
+                }
+            }
+            else
+                iterator = next;
+        }
+        for (auto iterator = nodes.begin(); iterator != nodes.end();
+             ++iterator)
+            computeNode(nodes, iterator);
+        return nodes;
+    };
+
+    auto pathIds = race.tracePaths;
+    if (pathIds.empty())
+        pathIds.push_back(race.tracePath);
+    std::vector<Nodes> paths;
+    paths.reserve(pathIds.size());
+    for (const auto& ids : pathIds)
+    {
+        auto nodes = makeNodes(ids);
+        if (nodes.size() > 1U)
+            paths.push_back(std::move(nodes));
+    }
+    if (paths.empty())
+        return false;
+
+    float maximumX = -std::numeric_limits<float>::max();
+    float maximumY = -std::numeric_limits<float>::max();
+    minimumX_ = std::numeric_limits<float>::max();
+    minimumY_ = std::numeric_limits<float>::max();
+    for (const auto& nodes : paths)
+    {
+        for (const auto& node : nodes)
+        {
+            const auto first = add(
+                node.position,
+                multiply(node.middleNormal, node.radius));
+            const auto second = subtract(
+                node.position,
+                multiply(node.middleNormal, node.radius));
+            minimumX_ = std::min(
+                {minimumX_, first[0], second[0]});
+            minimumY_ = std::min(
+                {minimumY_, first[1], second[1]});
+            maximumX = std::max({maximumX, first[0], second[0]});
+            maximumY = std::max({maximumY, first[1], second[1]});
+        }
+    }
+
+    const float mapSize = HudMenu::GetMiniMapRect().size.x;
+    const float worldWidth =
+        std::max(maximumX - minimumX_, 0.001F);
+    const float worldHeight =
+        std::max(maximumY - minimumY_, 0.001F);
+    const float maximumScale = std::max(
+        std::hypot(worldWidth, worldHeight), 0.001F);
+    maximumY_ = maximumY;
+    scale_ = mapSize / maximumScale;
+    originX_ = viewportWidth - mapSize * 0.5F -
+        worldWidth * scale_ * 0.5F;
+    originY_ = mapSize * 0.5F - worldHeight * scale_ * 0.5F;
+
+    auto mapPosition = [&](Vec2 position) {
+        return HudPoint{
+            originX_ + (position[0] - minimumX_) * scale_,
+            originY_ + (maximumY_ - position[1]) * scale_};
+    };
+    for (const auto& nodes : paths)
+    {
+        const std::size_t firstVertex = geometry_.vertices.size();
+        std::size_t index = 0U;
+        for (const auto& node : nodes)
+        {
+            const auto first = mapPosition(add(
+                node.position,
+                multiply(node.middleNormal, node.radius)));
+            const auto second = mapPosition(subtract(
+                node.position,
+                multiply(node.middleNormal, node.radius)));
+            const float u = static_cast<float>(index % 2U);
+            geometry_.vertices.push_back(
+                {first.x, first.y, u, 0.0F});
+            geometry_.vertices.push_back(
+                {second.x, second.y, u, 1.0F});
+            ++index;
+        }
+        for (std::size_t node = 0U; node + 1U < nodes.size(); ++node)
+        {
+            const auto first = static_cast<std::uint16_t>(
+                firstVertex + node * 2U);
+            const auto second =
+                static_cast<std::uint16_t>(first + 2U);
+            const auto firstNext =
+                static_cast<std::uint16_t>(first + 1U);
+            const auto secondNext =
+                static_cast<std::uint16_t>(second + 1U);
+            geometry_.indices.insert(
+                geometry_.indices.end(),
+                {first, firstNext, second,
+                 firstNext, secondNext, second});
+        }
+    }
+
+    const auto* first = tracePoint(race.tracePath.front());
+    const auto* next = tracePoint(race.tracePath[1]);
+    if (first != nullptr && next != nullptr)
+    {
+        geometry_.start = MapPosition(first->position);
+        const auto nextPosition = MapPosition(next->position);
+        geometry_.startAngle = std::atan2(
+            nextPosition.y - geometry_.start.y,
+            nextPosition.x - geometry_.start.x);
+        geometry_.startWidth = first->width * scale_ * 0.5F;
+        geometry_.startHeight = first->width * scale_;
+    }
+    valid_ = geometry_.vertices.size() >= 4U &&
+        !geometry_.indices.empty();
+    return valid_;
+}
+
+void MiniMapFrame::Clear() noexcept
+{
+    geometry_ = {};
+    minimumX_ = 0.0F;
+    minimumY_ = 0.0F;
+    maximumY_ = 0.0F;
+    scale_ = 1.0F;
+    originX_ = 0.0F;
+    originY_ = 0.0F;
+    valid_ = false;
+}
+
+HudPoint MiniMapFrame::MapPosition(Vec3 position) const noexcept
+{
+    return {originX_ + (position.x - minimumX_) * scale_,
+            originY_ + (maximumY_ - position.y) * scale_};
+}
+
+const HudMiniMapGeometry& MiniMapFrame::GetGeometry() const noexcept
+{
+    return geometry_;
+}
+
+bool MiniMapFrame::IsValid() const noexcept
+{
+    return valid_;
+}
 
 void HudMenu::Reset() noexcept
 {

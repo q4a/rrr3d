@@ -10,7 +10,6 @@
 #include <cmath>
 #include <cstdlib>
 #include <exception>
-#include <list>
 #include <limits>
 #include <numeric>
 #include <sstream>
@@ -465,6 +464,7 @@ void OriginalRaceHud::shutdown(GraphicsDevice& device) noexcept
     if (valid(mapMesh_))
         device.destroy(mapMesh_);
     mapMesh_ = {};
+    miniMapState_.Clear();
     mapMarkers_.clear();
     opponentLabels_.clear();
     carLifeOverlays_ = {};
@@ -560,359 +560,22 @@ void OriginalRaceHud::buildMiniMap(GraphicsDevice& device,
     if (valid(mapMesh_))
         device.destroy(mapMesh_);
     mapMesh_ = {};
-    if (race.tracePath.size() < 2 || race.tracePoints.empty())
+    if (!miniMapState_.Build(race, menu::virtualWidth))
         return;
 
-    auto tracePoint =
-        [&](std::uint32_t id) -> const originalrace::TracePoint* {
-        const auto found = std::find_if(
-            race.tracePoints.begin(), race.tracePoints.end(),
-            [id](const auto& candidate) { return candidate.id == id; });
-        return found == race.tracePoints.end() ? nullptr : &*found;
-    };
-
-    using Vec2 = std::array<float, 2>;
-    auto add = [](Vec2 first, Vec2 second) {
-        return Vec2{first[0] + second[0], first[1] + second[1]};
-    };
-    auto subtract = [](Vec2 first, Vec2 second) {
-        return Vec2{first[0] - second[0], first[1] - second[1]};
-    };
-    auto multiply = [](Vec2 value, float scale) {
-        return Vec2{value[0] * scale, value[1] * scale};
-    };
-    auto dot = [](Vec2 first, Vec2 second) {
-        return first[0] * second[0] + first[1] * second[1];
-    };
-    auto normalize = [](Vec2 value) {
-        const float length =
-            std::sqrt(value[0] * value[0] + value[1] * value[1]);
-        return length > 0.00001F
-                   ? Vec2{value[0] / length, value[1] / length}
-                   : Vec2{1.0F, 0.0F};
-    };
-    auto normalCcw = [](Vec2 value) {
-        return Vec2{-value[1], value[0]};
-    };
-    auto normalCw = [](Vec2 value) {
-        return Vec2{value[1], -value[0]};
-    };
-
-    struct Node
-    {
-        Vec2 position{};
-        float size = 0.0F;
-        Vec2 direction{};
-        Vec2 previousDirection{};
-        Vec2 middleDirection{};
-        Vec2 middleNormal{};
-        Vec2 edgeNormal{};
-        float cosineDelta = 1.0F;
-        float sineHalfAngle = 1.0F;
-        float radius = 0.0F;
-        bool counterClockwise = false;
-    };
-    using Nodes = std::list<Node>;
-
-    auto computeNode = [&](Nodes& nodes, Nodes::iterator iterator) {
-        auto next = std::next(iterator);
-        auto previous = iterator;
-        if (iterator != nodes.begin())
-            --previous;
-        else
-            previous = nodes.end();
-
-        iterator->direction =
-            next != nodes.end()
-                ? normalize(subtract(next->position,
-                                     iterator->position))
-                : normalize(subtract(iterator->position,
-                                     previous->position));
-        iterator->previousDirection =
-            previous != nodes.end()
-                ? normalize(subtract(iterator->position,
-                                     previous->position))
-                : iterator->direction;
-        iterator->middleDirection = normalize(
-            add(iterator->previousDirection, iterator->direction));
-        iterator->middleNormal =
-            normalCcw(iterator->middleDirection);
-        iterator->cosineDelta =
-            std::abs(dot(iterator->direction,
-                         iterator->previousDirection));
-        iterator->sineHalfAngle = std::sqrt(
-            (1.0F + iterator->cosineDelta) * 0.5F);
-        iterator->radius =
-            0.5F * iterator->size /
-            std::max(iterator->sineHalfAngle, 0.00001F);
-        iterator->counterClockwise =
-            iterator->previousDirection[0] *
-                    iterator->direction[1] -
-                iterator->previousDirection[1] *
-                    iterator->direction[0] >
-            0.0F;
-        iterator->edgeNormal =
-            iterator->counterClockwise
-                ? normalCcw(iterator->middleDirection)
-                : normalCw(iterator->middleDirection);
-    };
-    auto alignNode = [&](const Node& source, Node& destination,
-                         float cosineError, float sizeError) {
-        const auto direction = normalize(
-            subtract(destination.position, source.position));
-        if (std::abs(direction[0]) > cosineError)
-            destination.position[1] = source.position[1];
-        if (std::abs(direction[1]) > cosineError)
-            destination.position[0] = source.position[0];
-        if (std::abs(destination.size - source.size) < sizeError)
-            destination.size = source.size;
-    };
-    auto alignMiddleNodes =
-        [&](Node& first, Node& second, float cosineError,
-            float sizeError) {
-        const auto direction =
-            normalize(subtract(second.position, first.position));
-        if (std::abs(direction[0]) > cosineError)
-        {
-            first.position[1] =
-                (first.position[1] + second.position[1]) * 0.5F;
-            second.position[1] = first.position[1];
-        }
-        if (std::abs(direction[1]) > cosineError)
-        {
-            first.position[0] =
-                (first.position[0] + second.position[0]) * 0.5F;
-            second.position[0] = first.position[0];
-        }
-        if (std::abs(second.size - first.size) < sizeError)
-        {
-            first.size = (first.size + second.size) * 0.5F;
-            second.size = first.size;
-        }
-    };
-
-    auto makeNodes =
-        [&](const std::vector<std::uint32_t>& ids) {
-        Nodes nodes;
-        for (const auto id : ids)
-        {
-            if (const auto* point = tracePoint(id))
-                nodes.push_back(
-                    {{point->position.x, point->position.y},
-                     point->width});
-        }
-        if (nodes.size() < 2U)
-            return nodes;
-
-        constexpr float radians20 =
-            20.0F * 3.14159265358979323846F / 180.0F;
-        const float cosineError = std::cos(radians20);
-        constexpr float sizeError = 2.0F;
-        constexpr float smoothingRadius = 10.0F;
-        constexpr int smoothingSlices = 2;
-        for (auto iterator = nodes.begin(); iterator != nodes.end();)
-        {
-            auto next = std::next(iterator);
-            if (next == nodes.end())
-                break;
-            auto last = std::prev(nodes.end());
-            if (next != last)
-            {
-                alignNode(*iterator, *next, cosineError, sizeError);
-            }
-            else
-            {
-                alignMiddleNodes(*next, nodes.front(), cosineError,
-                                 sizeError);
-                alignNode(*next, *iterator, cosineError, sizeError);
-                alignNode(nodes.front(), *std::next(nodes.begin()),
-                          cosineError, sizeError);
-            }
-
-            computeNode(nodes, iterator);
-            if (smoothingSlices > 0 &&
-                iterator->cosineDelta < cosineError)
-            {
-                const float cosineHalfAngle = std::sqrt(std::max(
-                    0.0F, 1.0F - iterator->sineHalfAngle *
-                                      iterator->sineHalfAngle));
-                if (cosineHalfAngle <= 0.00001F)
-                {
-                    iterator = next;
-                    continue;
-                }
-                const float size = iterator->size;
-                const auto smoothingCenter = add(
-                    iterator->position,
-                    multiply(iterator->edgeNormal,
-                             smoothingRadius / cosineHalfAngle));
-                const auto smoothingVector =
-                    multiply(iterator->edgeNormal, -1.0F);
-                const float halfAngle = std::asin(std::clamp(
-                    iterator->sineHalfAngle, 0.0F, 1.0F));
-                const bool counterClockwise =
-                    iterator->counterClockwise;
-                iterator = nodes.erase(iterator);
-                for (int slice = -smoothingSlices;
-                     slice <= smoothingSlices; ++slice)
-                {
-                    float angle =
-                        static_cast<float>(slice) /
-                        static_cast<float>(smoothingSlices) *
-                        halfAngle;
-                    if (!counterClockwise)
-                        angle = -angle;
-                    const float sine = std::sin(angle);
-                    const float cosine = std::cos(angle);
-                    const Vec2 rotated{
-                        smoothingVector[0] * cosine -
-                            smoothingVector[1] * sine,
-                        smoothingVector[0] * sine +
-                            smoothingVector[1] * cosine};
-                    iterator = nodes.insert(
-                        iterator,
-                        {add(smoothingCenter,
-                             multiply(rotated, smoothingRadius)),
-                         size});
-                    ++iterator;
-                }
-            }
-            else
-            {
-                iterator = next;
-            }
-        }
-        for (auto iterator = nodes.begin(); iterator != nodes.end();
-             ++iterator)
-            computeNode(nodes, iterator);
-        return nodes;
-    };
-
-    std::vector<std::vector<std::uint32_t>> pathIds =
-        race.tracePaths;
-    if (pathIds.empty())
-        pathIds.push_back(race.tracePath);
-    std::vector<Nodes> paths;
-    paths.reserve(pathIds.size());
-    for (const auto& ids : pathIds)
-    {
-        auto nodes = makeNodes(ids);
-        if (nodes.size() > 1U)
-            paths.push_back(std::move(nodes));
-    }
-    if (paths.empty())
-        return;
-
-    float maximumX = -std::numeric_limits<float>::max();
-    float maximumY = -std::numeric_limits<float>::max();
-    mapMinimumX_ = std::numeric_limits<float>::max();
-    mapMinimumY_ = std::numeric_limits<float>::max();
-    for (const auto& nodes : paths)
-    {
-        for (const auto& node : nodes)
-        {
-            const auto first = add(
-                node.position,
-                multiply(node.middleNormal, node.radius));
-            const auto second = subtract(
-                node.position,
-                multiply(node.middleNormal, node.radius));
-            mapMinimumX_ =
-                std::min({mapMinimumX_, first[0], second[0]});
-            mapMinimumY_ =
-                std::min({mapMinimumY_, first[1], second[1]});
-            maximumX = std::max({maximumX, first[0], second[0]});
-            maximumY = std::max({maximumY, first[1], second[1]});
-        }
-    }
-
-    const float mapSize = source::HudMenu::GetMiniMapRect().size.x;
-    const float worldWidth =
-        std::max(maximumX - mapMinimumX_, 0.001F);
-    const float worldHeight =
-        std::max(maximumY - mapMinimumY_, 0.001F);
-    const float maximumScale =
-        std::max(std::sqrt(worldWidth * worldWidth +
-                           worldHeight * worldHeight),
-                 0.001F);
-    mapMaximumY_ = maximumY;
-    mapScale_ = mapSize / maximumScale;
-    mapOriginX_ =
-        menu::virtualWidth - mapSize * 0.5F -
-        worldWidth * mapScale_ * 0.5F;
-    mapOriginY_ =
-        mapSize * 0.5F - worldHeight * mapScale_ * 0.5F;
-
-    auto mapPosition = [&](Vec2 position) {
-        return Vec2{
-            mapOriginX_ +
-                (position[0] - mapMinimumX_) * mapScale_,
-            mapOriginY_ +
-                (mapMaximumY_ - position[1]) * mapScale_};
-    };
+    const auto& geometry = miniMapState_.GetGeometry();
     std::vector<Vertex> vertices;
-    std::vector<std::uint16_t> indices;
-    for (const auto& nodes : paths)
+    vertices.reserve(geometry.vertices.size());
+    for (const auto& vertex : geometry.vertices)
     {
-        const std::size_t firstVertex = vertices.size();
-        std::size_t index = 0;
-        for (const auto& node : nodes)
-        {
-            const auto first = mapPosition(add(
-                node.position,
-                multiply(node.middleNormal, node.radius)));
-            const auto second = mapPosition(subtract(
-                node.position,
-                multiply(node.middleNormal, node.radius)));
-            const float u = static_cast<float>(index % 2U);
-            vertices.push_back(
-                {first[0], first[1], 72.0F, 0xffffffffU, u, 0.0F});
-            vertices.push_back(
-                {second[0], second[1], 72.0F, 0xffffffffU, u, 1.0F});
-            ++index;
-        }
-        for (std::size_t node = 0; node + 1U < nodes.size(); ++node)
-        {
-            const std::uint16_t first =
-                static_cast<std::uint16_t>(
-                    firstVertex + node * 2U);
-            const std::uint16_t second =
-                static_cast<std::uint16_t>(first + 2U);
-            const std::uint16_t firstNext =
-                static_cast<std::uint16_t>(first + 1U);
-            const std::uint16_t secondNext =
-                static_cast<std::uint16_t>(second + 1U);
-            indices.insert(indices.end(),
-                           {first, firstNext, second,
-                            firstNext, secondNext, second});
-        }
+        vertices.push_back(
+            {vertex.x, vertex.y, 72.0F, 0xffffffffU,
+             vertex.u, vertex.v});
     }
-    if (vertices.size() >= 4U && !indices.empty())
-    {
-        mapMesh_ = device.createMesh(
-            vertices.data(), vertices.size(), indices.data(),
-            indices.size());
-    }
-
-    const auto* first = tracePoint(race.tracePath.front());
-    const auto* next = tracePoint(race.tracePath[1]);
-    if (first != nullptr && next != nullptr)
-    {
-        const auto position =
-            mapPosition({first->position.x, first->position.y});
-        const auto nextPosition =
-            mapPosition({next->position.x, next->position.y});
-        startX_ = position[0];
-        startY_ = position[1];
-        startAngle_ = std::atan2(nextPosition[1] - position[1],
-                                 nextPosition[0] - position[0]);
-        // Plane3d::SetSize stores half-extents: the legacy renderer emits
-        // vertices at +/-size. Preserve the source start marker dimensions.
-        startWidth_ = first->width * mapScale_ * 0.5F;
-        startHeight_ = first->width * mapScale_;
-    }
+    mapMesh_ = device.createMesh(
+        vertices.data(), vertices.size(), geometry.indices.data(),
+        geometry.indices.size());
 }
-
 void OriginalRaceHud::update(
     GraphicsDevice& device, const originalrace::Race& race,
     const originalrace::OriginalRaceSession& session,
@@ -1275,9 +938,9 @@ void OriginalRaceHud::update(
         // a car is off-road. A raw body coordinate makes an AI reset look
         // like a marker teleport across the map.
         const auto position = session.mapPosition(index);
+        const auto mapPosition = miniMapState_.MapPosition(position);
         mapMarkers_.push_back(
-            {mapOriginX_ + (position.x - mapMinimumX_) * mapScale_,
-             mapOriginY_ + (mapMaximumY_ - position.y) * mapScale_,
+            {mapPosition.x, mapPosition.y,
              0.0F,
              index < session.racers().size()
                  ? session.racers()[index].GetColor()
@@ -1724,9 +1387,12 @@ void OriginalRaceHud::draw(GraphicsDevice& device, Mesh quad,
         device.draw(mapMesh_, shader, mapStrip_.texture,
                     identityTransform(), pipeline, {}, material);
     }
-    drawAsset(device, quad, shader, mapStart_.texture, startWidth_,
-              startHeight_, startX_, startY_, 66.0F, pipeline,
-              startAngle_);
+    const auto& miniMapGeometry = miniMapState_.GetGeometry();
+    drawAsset(device, quad, shader, mapStart_.texture,
+              miniMapGeometry.startWidth,
+              miniMapGeometry.startHeight,
+              miniMapGeometry.start.x, miniMapGeometry.start.y,
+              66.0F, pipeline, miniMapGeometry.startAngle);
     for (const auto& marker : mapMarkers_)
     {
         // Legacy Plane3d renders from -size to +size, so SetSize(10, 10)

@@ -85,6 +85,35 @@ int main()
         !hud.IsMiniMapVisible() || !hud.IsPlayerStateVisible())
         return 8;
 
+    source::MiniMapFrame miniMap;
+    r3d::game::originalrace::Race race;
+    race.tracePoints = {
+        {1U, {0.0F, 0.0F, 0.0F}, 10.0F},
+        {2U, {100.0F, 0.0F, 0.0F}, 10.0F},
+        {3U, {100.0F, 100.0F, 0.0F}, 12.0F},
+        {4U, {0.0F, 100.0F, 0.0F}, 12.0F}};
+    race.tracePath = {1U, 2U, 3U, 4U};
+    race.tracePaths = {race.tracePath};
+    if (!miniMap.Build(race, 1920.0F) || !miniMap.IsValid())
+        return 9;
+    const auto& geometry = miniMap.GetGeometry();
+    if (geometry.vertices.size() < 8U ||
+        geometry.vertices.size() % 2U != 0U ||
+        geometry.indices.empty() || geometry.indices.size() % 6U != 0U ||
+        !near(geometry.startHeight, geometry.startWidth * 2.0F) ||
+        !near(geometry.startAngle, 0.0F))
+        return 10;
+    const auto first = miniMap.MapPosition({0.0F, 0.0F, 0.0F});
+    const auto second = miniMap.MapPosition({100.0F, 0.0F, 0.0F});
+    const auto fourth = miniMap.MapPosition({0.0F, 100.0F, 0.0F});
+    if (!point(first, geometry.start.x, geometry.start.y) ||
+        second.x <= first.x || fourth.y >= first.y)
+        return 11;
+    miniMap.Clear();
+    if (miniMap.IsValid() || !miniMap.GetGeometry().vertices.empty() ||
+        !miniMap.GetGeometry().indices.empty())
+        return 12;
+
     std::cout << "Original HudMenu smoke passed\n";
     return 0;
 }

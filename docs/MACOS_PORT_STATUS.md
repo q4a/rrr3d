@@ -2312,3 +2312,15 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   `PlayerStateFrame::OnProgress`.
 - SDL исполняет source Escape-команду через существующие pause/dialog/cursor
   adapters; bgfx только отрисовывает вычисленное source-состояние.
+
+### Source MiniMapFrame ownership follow-up
+
+- `MiniMapFrame::ComputeNode`, `AlignNode`, `AlignMidNodes`, `BuildPath` и
+  `UpdateMap` перенесены из `OriginalRaceHud` в backend-neutral source owner.
+- Сохранены точные исходные параметры 20°/2/10/2, node radius и alternating
+  strip UV; source строит geometry для всех trace paths и стартовый маркер.
+- Source owner хранит map bounds/scale/origin и переводит стабильный
+  `CarState::GetMapPos` в HUD coordinates. Renderer больше не владеет этой
+  логикой и только создаёт bgfx mesh/marker draw calls.
+- Regression закрепляет topology, направление/размер start marker,
+  world-to-map orientation и безопасный Clear/rebuild.

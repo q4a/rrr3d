@@ -187,6 +187,7 @@ private:
     TextAsset mineAmmo_;
     TextAsset hyperAmmo_;
     r3d::renderer::Mesh mapMesh_;
+    r3d::game::originalrace::source::MiniMapFrame miniMapState_;
     std::vector<MiniMapMarker> mapMarkers_;
     std::vector<OpponentLabel> opponentLabels_;
     std::array<CarLifeOverlay, 2> carLifeOverlays_;
@@ -203,17 +204,6 @@ private:
     TextAsset finishPrice_;
     TextAsset finishMoneyPoints_;
     std::array<FinishRow, 3> finishRows_;
-    float mapMinimumX_ = 0.0F;
-    float mapMinimumY_ = 0.0F;
-    float mapMaximumY_ = 0.0F;
-    float mapScale_ = 1.0F;
-    float mapOriginX_ = 0.0F;
-    float mapOriginY_ = 0.0F;
-    float startX_ = 0.0F;
-    float startY_ = 0.0F;
-    float startAngle_ = 0.0F;
-    float startWidth_ = 0.0F;
-    float startHeight_ = 0.0F;
     std::vector<PickNotification> notifications_;
     std::vector<AchievementNotification> achievementNotifications_;
     r3d::game::originalrace::source::HudMenu hudMenuState_;

@@ -1,6 +1,9 @@
 #pragma once
 
+#include "OriginalRace.h"
+
 #include <cstdint>
+#include <vector>
 
 namespace r3d::game::originalrace::source
 {
@@ -35,6 +38,47 @@ struct HudCountdownVisual
     int image = -1;
     float alpha = 1.0F;
     float growthSeconds = 0.0F;
+};
+
+struct HudMiniMapVertex
+{
+    float x = 0.0F;
+    float y = 0.0F;
+    float u = 0.0F;
+    float v = 0.0F;
+};
+
+struct HudMiniMapGeometry
+{
+    std::vector<HudMiniMapVertex> vertices;
+    std::vector<std::uint16_t> indices;
+    HudPoint start;
+    float startAngle = 0.0F;
+    float startWidth = 0.0F;
+    float startHeight = 0.0F;
+};
+
+// Source MiniMapFrame::BuildPath/UpdateMap owner. It retains the aligned and
+// smoothed road strip, world-to-map transform and original start marker;
+// bgfx only converts these vertices to its upload format.
+class MiniMapFrame
+{
+public:
+    bool Build(const Race& race, float viewportWidth);
+    void Clear() noexcept;
+    HudPoint MapPosition(Vec3 position) const noexcept;
+    const HudMiniMapGeometry& GetGeometry() const noexcept;
+    bool IsValid() const noexcept;
+
+private:
+    HudMiniMapGeometry geometry_;
+    float minimumX_ = 0.0F;
+    float minimumY_ = 0.0F;
+    float maximumY_ = 0.0F;
+    float scale_ = 1.0F;
+    float originX_ = 0.0F;
+    float originY_ = 0.0F;
+    bool valid_ = false;
 };
 
 // Backend-neutral owner transcribed from HudMenu/PlayerStateFrame. Widget
