@@ -1,5 +1,7 @@
 #pragma once
 
+#include "OriginalGameMode.h"
+
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -31,54 +33,6 @@ public:
 private:
     bool startRace_ = false;
     bool goRace_ = false;
-};
-
-// Backend-neutral owner of the race clocks from GameMode. GameMode::OnFrame
-// advances the offline start sequence only after Menu::GoRaceTimer, pauses
-// all clocks with World, and emits cRaceFinishTimeEnd strictly after three
-// seconds. Network clients receive the same GoRace stages externally.
-struct GameModeRaceAdvance
-{
-    std::optional<std::int32_t> countdownStage;
-    bool raceStarted = false;
-    bool finishTimeEnded = false;
-};
-
-class GameModeRaceState
-{
-public:
-    static constexpr std::int32_t goRaceWait = 0;
-    static constexpr std::int32_t goRace1 = 1;
-    static constexpr std::int32_t goRace2 = 2;
-    static constexpr std::int32_t goRace3 = 3;
-    static constexpr std::int32_t goRace = 4;
-
-    void Reset(bool immediateRaceStart = false) noexcept;
-    void Pause(bool paused) noexcept;
-    GameModeRaceAdvance OnFrame(float seconds) noexcept;
-    std::optional<GameModeRaceAdvance> SynchronizeCountdown(
-        std::int32_t stage) noexcept;
-
-    void RunFinishTimer() noexcept;
-    void CancelFinishTimer() noexcept;
-    void FinishImmediately() noexcept;
-
-    bool IsPaused() const noexcept;
-    bool IsRaceGo() const noexcept;
-    std::int32_t CountdownStage() const noexcept;
-    float CountdownSeconds() const noexcept;
-    bool IsFinishTimerRunning() const noexcept;
-    bool IsFinishPresentationReady() const noexcept;
-    float FinishSecondsRemaining() const noexcept;
-
-private:
-    std::int32_t countdownStage_ = goRaceWait;
-    float goRaceTime_ = 0.0F;
-    float countdownSeconds_ = 4.0F;
-    float finishTime_ = -1.0F;
-    bool externalCountdown_ = false;
-    bool paused_ = false;
-    bool finishTimeEnded_ = false;
 };
 
 // Backend-neutral transcription of Race::Result.  The source Race owns this

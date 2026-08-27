@@ -3929,6 +3929,31 @@ SDL virtual-gamepad regression продолжает проверять живо�
 Mouse screen/ray events и регистрация исходных menu widgets относятся к
 последующим View/Menu ownership blocks и здесь не объявлены готовыми.
 
+### P2.168 — ядро `World`/`GameMode` возвращено исходным владельцам — выполнено
+
+Главный SDL/bgfx цикл вручную владел двухкадровой задержкой запуска гонки,
+паузой и частью start/exit/finish переходов, а fixed/progress/late/frame
+списки оригинального `World` вообще отсутствовали как исполняемый объект.
+Countdown и finish clocks при этом были временно размещены в общем
+`OriginalRaceLifecycle`, хотя в Windows ими владеет `GameMode`.
+
+Добавлены backend-neutral `source::WorldEventPump` и
+`source::GameModeState`. Первый воспроизводит точный порядок исходного
+`World::Progress`, `FixedStep`, `LateProgress` и `FrameStep`, включая
+отложенное снятие progress users, pause gates, reset control при паузе и
+порядок environment/network/control/GameMode. Второй владеет admission
+match/race, исходным loading-frame gate, ordered GameMode users, pause effect
+commands, exit/save sequence и finish-close music transition. Race clocks
+перемещены к GameMode owner без параллельной реализации в lifecycle.
+
+Активный Metal path теперь запускает гонку только после команды
+`DoStartRace`, полученной через `WorldEventPump`, а loading frame отмечает
+сам `GameModeState`. Отдельный regression закрепляет порядок событий,
+удаление во время progress, поведение паузы, два представленных loading
+кадра, порядок pause/exit/finish команд и GameMode user dispatch. Полный
+startup/movie/config/audio-command executor и регистрация всех race-local
+объектов в world lists остаются следующими B3b/B4 границами.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

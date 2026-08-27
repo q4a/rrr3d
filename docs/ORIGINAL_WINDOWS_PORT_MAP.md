@@ -56,7 +56,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `FinishMenu` | `OriginalRaceHud` + ручной Finish screen | Distributed | Вернуть последовательность result/final frames и закрытие |
 | `GameBase` | `OriginalGameObject`, behaviors, effects, motor sound state | Source owner, partial | Закрыть отсутствующие behavior subclasses и единый progress dispatch |
 | `GameCar` | `source::GameCar` + Jolt vehicle adapter | Source owner, partial | Сравнить каждый PhysX callback/order и убрать session-owned car branches |
-| `GameMode` | main loop + MusicCat/commentator + session states | Distributed | Вернуть source game-mode event pump, timers и transition ownership |
+| `GameMode` | `source::GameModeState` + `GameModeRaceState` | Source owner, active race path | Startup/movie/config и часть menu/audio backend-команд ещё находятся в host |
 | `GameObject` | `source::GameObject`, frame sync, listener graph | Source owner, partial | Перенести virtual progress/fixed/frame dispatch без session обходов |
 | `HudMenu` | `OriginalRaceHud` | Distributed | Данные в отдельном владельце, но source Widget/Menu graph отсутствует |
 | `HumanPlayer` | `source::HumanPlayer` | Source owner, partial | Подключить полный source input message path и event order |
@@ -77,7 +77,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `TraceGfx` | `OriginalRaceRenderer` debug draw | Backend boundary | Перенести source trace visual state, оставить bgfx submission |
 | `View` | SDL window/input + bgfx device | Backend boundary | Перенести source view policy: reset/display/input coordinate lifecycle |
 | `Weapon` | `source::{Weapon,Proj,AutoProj,WeaponItem...}` | Source owner, partial | Вернуть центральные virtual contact/progress callbacks; убрать session dispatch |
-| `World` | `main_bgfx_original_menu` + `PortableGame::CreateWorld` exception | Absent/Distributed | Вернуть публичный world/game event graph поверх native backends |
+| `World` | `source::WorldEventPump` + native `WorldHost` | Source owner, event core | Подключить к спискам все race objects/environment/network adapters вместо оставшихся session loops |
 
 ## Очередь крупных блоков
 
@@ -113,12 +113,27 @@ dead-zone/trigger normalization, polled raw/action state, ordered
 widget listeners остаются явно открыты в блоках View/Menu, а не считаются
 частью выполненного device/action блока.
 
-### B3 — World/GameMode event pump
+### B3 — World/GameMode event pump (ядро выполнено)
 
 Вернуть владельцев fixed/progress/late/frame lists, pause/input reset,
 start/exit match, start/exit race, loading/countdown/finish timers и movie/
 music transitions. SDL loop остаётся platform host, но перестаёт владеть
 правилами игры.
+
+Результат B3a: добавлены самостоятельные `source::WorldEventPump` и
+`source::GameModeState`. `WorldEventPump` владеет исходными ordered
+fixed/progress/late/frame lists, удалением отложенно снятых progress users,
+pause gate и точным порядком environment/network/control/GameMode.
+`GameModeState` владеет start/exit match, двухкадровым loading gate,
+start/exit race, паузой эффектов, ordered user events и finish-close
+командами. Исходные countdown/finish clocks перенесены из общего
+`OriginalRaceLifecycle` к этому же владельцу. Активный SDL/bgfx цикл теперь
+получает `DoStartRace` через `World → GameMode`, а не через локальные счётчики.
+
+Открытая B3b: startup/shutdown и movie sequence, загрузка/сохранение общего
+GameMode config, а также исполнение всех music/commentator команд пока остаются
+в platform host. Кроме того, в world lists ещё не зарегистрированы все
+race-local concrete objects — это пересекается с центральным dispatch B4.
 
 ### B4 — central GameObject/Logic/Proj dispatch
 

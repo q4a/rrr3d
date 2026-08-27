@@ -57,6 +57,8 @@ else()
         list(APPEND _rrr3d_portable_game_sources
             source/stub/OriginalGameObject.cpp
             source/stub/OriginalCameraManager.cpp
+            source/stub/OriginalGameMode.cpp
+            source/stub/OriginalWorld.cpp
             source/stub/OriginalAchievmentModel.cpp
             source/stub/OriginalGameCar.cpp
             source/stub/OriginalLogic.cpp
@@ -75,6 +77,8 @@ else()
             source/stub/OriginalWeapon.cpp
             include/OriginalGameObject.h
             include/OriginalCameraManager.h
+            include/OriginalGameMode.h
+            include/OriginalWorld.h
             include/OriginalAchievmentModel.h
             include/OriginalGameCar.h
             include/OriginalLogic.h
@@ -160,6 +164,19 @@ if(NOT WIN32 AND RRR3D_BUILD_ORIGINAL_MENU)
     add_test(
         NAME rrr3d_original_race_lifecycle_smoke
         COMMAND rrr3d_original_race_lifecycle_smoke
+    )
+
+    add_executable(rrr3d_original_world_game_mode_smoke
+        tests/OriginalWorldGameModeSmoke.cpp
+    )
+    target_link_libraries(rrr3d_original_world_game_mode_smoke PRIVATE
+        ${PROJECT_NAME}
+    )
+    rrr3d_set_common_target_options(
+        rrr3d_original_world_game_mode_smoke)
+    add_test(
+        NAME rrr3d_original_world_game_mode_smoke
+        COMMAND rrr3d_original_world_game_mode_smoke
     )
 
     add_executable(rrr3d_original_user_chat_smoke

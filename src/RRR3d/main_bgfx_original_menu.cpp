@@ -7,6 +7,7 @@
 #endif
 #ifdef RRR3D_PHYSICS
 #include "OriginalGameDebug.h"
+#include "OriginalGameMode.h"
 #include "OriginalGarage.h"
 #include "OriginalProfile.h"
 #include "OriginalRace.h"
@@ -15,6 +16,7 @@
 #include "OriginalRaceSession.h"
 #include "OriginalUserChat.h"
 #include "OriginalWorkshopRenderer.h"
+#include "OriginalWorld.h"
 #include "physics/OriginalVehiclePhysics.h"
 #endif
 #include "renderer/BgfxGraphicsDevice.h"
@@ -5744,8 +5746,9 @@ int main(int argc, char** argv)
 #endif
 #ifdef RRR3D_PHYSICS
     bool inRace = false;
-    bool raceLoadingActive = false;
-    std::uint32_t raceLoadingPresentedFrames = 0U;
+    r3d::game::originalrace::source::GameModeState gameModeState;
+    r3d::game::originalrace::source::WorldEventPump worldEventPump;
+    worldEventPump.SetGameMode(&gameModeState);
     bool exitRaceDialogVisible = false;
     bool exitRaceYesFocused = true;
     r3d::physics::VehicleInput raceInput;
@@ -7052,8 +7055,7 @@ int main(int argc, char** argv)
     auto doStartCurrentRace = [&]() {
         raceLoadingDeferredObserved =
             raceLoadingDeferredObserved ||
-            raceLoadingPresentedFrames >= 2U;
-        raceLoadingActive = false;
+            gameModeState.LoadingPresentedFrames() >= 2U;
         // An explicit command-line track is a diagnostic/runtime override.
         // ProfileFrame selection in the integrated menu fixture reloads the
         // profile's campaign cursor, but must not silently discard that
@@ -7197,7 +7199,7 @@ int main(int argc, char** argv)
                   << originalRace->levelPath << '\n';
     };
     auto startCurrentRace = [&]() {
-        if (inRace || raceLoadingActive)
+        if (inRace || gameModeState.IsRaceLoading())
             return;
 #ifdef RRR3D_NETWORK
         if (networkHostRequested && !networkRaceStarted)
@@ -7232,8 +7234,20 @@ int main(int argc, char** argv)
         // GameMode::StartRace sets _startRace=0 and Menu::msInfo.
         // OnFrame invokes DoStartRace only when (++_startRace)>1, ensuring
         // loadingFrame.dds reaches the display before synchronous world load.
-        raceLoadingActive = true;
-        raceLoadingPresentedFrames = 0U;
+        if (!gameModeState.IsMatchStarted())
+            gameModeState.StartMatch();
+        if (!gameModeState.StartRace())
+            return;
+        const auto startCommands = gameModeState.TakeCommands();
+        if (startCommands !=
+            std::vector<r3d::game::originalrace::source::GameModeCommand>{
+                r3d::game::originalrace::source::GameModeCommand::
+                    ShowRaceInfo})
+        {
+            runtimeSmokeFailed = true;
+            running = false;
+            return;
+        }
 #ifdef RRR3D_AUDIO
         musicDialogTime = -1.0F;
         musicDialogVisible = false;
@@ -7257,7 +7271,10 @@ int main(int argc, char** argv)
         // Exact GameMode::Pause boundary: the world clock is stopped while
         // Logic::scEffects is volume-muted. Music and Voice are deliberately
         // untouched by the Windows source.
-        raceSession.setPaused(paused);
+        worldEventPump.Pause(paused);
+        gameModeState.Pause(paused);
+        static_cast<void>(gameModeState.TakeCommands());
+        raceSession.setPaused(worldEventPump.IsPaused());
 #ifdef RRR3D_AUDIO
         audio.setBusVolume(
             r3d::audio::Bus::Effects,
@@ -7640,7 +7657,7 @@ int main(int argc, char** argv)
         else
         {
             setRacePaused(false);
-            raceLoadingActive = false;
+            gameModeState.CancelRaceStart();
             clearRaceControls();
             saveRaceProfile();
         }
@@ -7654,7 +7671,7 @@ int main(int argc, char** argv)
                           << error << '\n';
             }
         }
-        raceLoadingActive = false;
+        gameModeState.CancelRaceStart();
         clearNetworkRacePlayerVisuals();
         networkSession.close();
         networkSession.finalize();
@@ -7730,6 +7747,7 @@ int main(int argc, char** argv)
         menuStack = {MenuScreen::Main};
         menuSelection = 0U;
         refreshSharedMenuAvailability(MenuScreen::Main);
+        gameModeState.ExitMatch();
         std::cout << (publishExitRpc
                           ? "Original Menu::ExitMatch -> NetRace::ExitMatch\n"
                           : "Original Menu::MyDisconnectEvent/OnExitMatch -> "
@@ -7748,7 +7766,7 @@ int main(int argc, char** argv)
         handledNetworkFailureRevision = networkSnapshot.revision;
         const bool matchActive =
             networkMatchStarted || networkClientMatchEntered ||
-            inRace || raceLoadingActive;
+            inRace || gameModeState.IsRaceLoading();
         const bool critical =
             networkSnapshot.failure == SessionFailure::Critical;
         const bool lostActiveHost =
@@ -9646,7 +9664,8 @@ int main(int argc, char** argv)
             match.planet != networkAppliedPlanet ||
             match.track != networkAppliedTrack ||
             match.weather != networkAppliedWeather;
-        if (selectionChanged && !inRace && !raceLoadingActive)
+        if (selectionChanged && !inRace &&
+            !gameModeState.IsRaceLoading())
         {
             const auto requestedPlanet = static_cast<std::uint32_t>(
                 std::max(match.planet, 0));
@@ -10440,6 +10459,11 @@ int main(int argc, char** argv)
     showFinishMenu = [&](bool persistProgress) {
         if (finishMenuShown || raceSession.racers().empty())
             return;
+        if (!options->finishMenuSmokeTest)
+        {
+            static_cast<void>(gameModeState.ExitRace(persistProgress));
+            static_cast<void>(gameModeState.TakeCommands());
+        }
         // Menu::OnProcessEvent(cRaceFinishTimeEnd) calls ExitRace before
         // ExitRaceGoFinish. This also executes on the network result path;
         // CompleteRace/ExitRace are deliberately idempotent there.
@@ -10591,6 +10615,8 @@ int main(int argc, char** argv)
         raceResetRequested = false;
         menuStack = {MenuScreen::Main, MenuScreen::Finish};
         menuSelection = 0;
+        gameModeState.ExitRaceGoFinish();
+        static_cast<void>(gameModeState.TakeCommands());
         std::cout << "Original FinishMenu: place "
                   << player.GetPlace() << ", money +"
                   << player.rewardMoney + player.GetPickMoney()
@@ -10599,6 +10625,8 @@ int main(int argc, char** argv)
     auto closeFinishMenu = [&]() {
         if (!finishMenuShown)
             return;
+        gameModeState.OnFinishFrameClose();
+        static_cast<void>(gameModeState.TakeCommands());
         finishMenuShown = false;
         finishAnimationSeconds = 0.0F;
         finishVoiceIndex = 0U;
@@ -10920,7 +10948,7 @@ int main(int argc, char** argv)
                 if (networkClientMatchEntered &&
                     networkSnapshot.models.raceActive &&
                     !networkRaceStarted && !inRace &&
-                    !raceLoadingActive)
+                    !gameModeState.IsRaceLoading())
                 {
                     networkRaceStarted = true;
                     networkLocalReadyPublished = false;
@@ -11395,7 +11423,7 @@ int main(int argc, char** argv)
 #ifdef RRR3D_PHYSICS
         const bool sourceChatVisible =
             inRace ||
-            (!raceLoadingActive && !menuStack.empty() &&
+            (!gameModeState.IsRaceLoading() && !menuStack.empty() &&
              menuStack.back() == MenuScreen::RaceMenu);
         if (sourceChatVisible != userChat.visible())
         {
@@ -11725,7 +11753,7 @@ int main(int argc, char** argv)
 #endif
 #ifdef RRR3D_GAMEPAD_INPUT
 #ifdef RRR3D_PHYSICS
-            if (raceLoadingActive &&
+            if (gameModeState.IsRaceLoading() &&
                 event.type != SDL_EVENT_QUIT &&
                 event.type != SDL_EVENT_WINDOW_CLOSE_REQUESTED &&
                 event.type != SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED &&
@@ -17820,12 +17848,14 @@ int main(int argc, char** argv)
 #endif
 
 #ifdef RRR3D_PHYSICS
-        if (raceLoadingActive &&
-            raceLoadingPresentedFrames >= 2U)
-        {
+        worldEventPump.FrameStep(frameSeconds, 0.0F);
+        const auto gameModeCommands = gameModeState.TakeCommands();
+        if (std::find(
+                gameModeCommands.begin(), gameModeCommands.end(),
+                r3d::game::originalrace::source::GameModeCommand::
+                    DoStartRace) != gameModeCommands.end())
             doStartCurrentRace();
-        }
-        if (raceLoadingActive)
+        if (gameModeState.IsRaceLoading())
         {
             const float aspect =
                 static_cast<float>(loadingFrameImage.width) /
@@ -17846,7 +17876,7 @@ int main(int argc, char** argv)
                  loadingFrameImage.height == 900U &&
                  width <= menu::virtualWidth &&
                  height <= menu::virtualHeight);
-            ++raceLoadingPresentedFrames;
+            gameModeState.OnLoadingFramePresented();
             ++renderedFrames;
             continue;
         }
