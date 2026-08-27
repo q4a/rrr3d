@@ -2952,65 +2952,47 @@ void OriginalRaceRenderer::draw(
         ++lampIndex;
     }
 
-    // Race::StartRace calls Player::SetHeadlight(hlmTwo) for the local
-    // human and hlmOne for every other Player in ewNight. Recreate the
-    // child-light transforms here so the spots follow the physics bodies
-    // rather than leaving only the decorative flare sprites visible.
-    if (race.environment.weather ==
-        r3d::game::originalrace::Weather::Night)
+    // Player::InitLight/SetLightParent own creation, local transforms and
+    // attachment. Metal only realizes each enabled source light against the
+    // current Jolt body transform.
+    const std::size_t headlightRacerCount =
+        std::min(vehicles.size(), racerRuntime.size());
+    for (std::size_t racerIndex = 0;
+         racerIndex < headlightRacerCount &&
+         lampIndex < SceneLighting::maximumSpotLights;
+         ++racerIndex)
     {
-        constexpr r3d::physics::Quat headlightRotation{
-            0.0009F, 0.344F, -0.029F, 0.939F};
-        const std::size_t racerCount =
-            std::min(vehicles.size(), race.racers.size());
-        for (std::size_t racerIndex = 0;
-             racerIndex < racerCount &&
-             lampIndex < SceneLighting::maximumSpotLights;
-             ++racerIndex)
+        const auto& presentation =
+            racerRuntime[racerIndex].GetPresentationState();
+        for (const auto& headlight : presentation.headLights)
         {
-            if (racerIndex >= racerRuntime.size() ||
-                !racerRuntime[racerIndex].HasAttachedLights())
+            if (!headlight.created || !headlight.enabled ||
+                lampIndex >= SceneLighting::maximumSpotLights)
                 continue;
-            const auto headLight =
-                racerRuntime[racerIndex].GetHeadLight();
-            const std::size_t headlightCount =
-                headLight == r3d::game::originalrace::source::Player::
-                                 HeadLightMode::Two
-                    ? 2U
-                    : headLight ==
-                              r3d::game::originalrace::source::Player::
-                                  HeadLightMode::One
-                          ? 1U
-                          : 0U;
-            for (std::size_t headlight = 0;
-                 headlight < headlightCount &&
-                 lampIndex < SceneLighting::maximumSpotLights;
-                 ++headlight)
-            {
-                r3d::physics::Transform local;
-                local.position = {
-                    0.3F,
-                    headlightCount == 1U
-                        ? 0.0F
-                        : (headlight == 0U ? 1.0F : -1.0F),
-                    3.190F};
-                local.rotation = headlightRotation;
-                const auto world =
-                    compose(vehicles[racerIndex].body, local);
-                const auto direction = normalize(rotate(
-                    world.rotation, {1.0F, 0.0F, 0.0F}));
-                sceneLighting.lampPositions[lampIndex] = {
-                    world.position.x, world.position.y, world.position.z,
-                    50.0F};
-                sceneLighting.lampDirections[lampIndex] = {
-                    direction.x, direction.y, direction.z, 1.0F};
-                sceneLighting.lampColors[lampIndex] =
-                    {1.0F, 1.0F, 1.0F, 1.0F};
-                // Player::InitLight: phi=pi/3 and theta=pi/6.
-                sceneLighting.lampCones[lampIndex] = {
-                    0.8660254038F, 0.9659258263F, 0.0F, 0.0F};
-                ++lampIndex;
-            }
+            r3d::physics::Transform local;
+            local.position = {
+                headlight.position.x,
+                headlight.position.y,
+                headlight.position.z};
+            local.rotation = {
+                headlight.rotation.x,
+                headlight.rotation.y,
+                headlight.rotation.z,
+                headlight.rotation.w};
+            const auto world = compose(
+                vehicles[racerIndex].body, local);
+            const auto direction = normalize(rotate(
+                world.rotation, {1.0F, 0.0F, 0.0F}));
+            sceneLighting.lampPositions[lampIndex] = {
+                world.position.x, world.position.y, world.position.z,
+                headlight.farDistance};
+            sceneLighting.lampDirections[lampIndex] = {
+                direction.x, direction.y, direction.z, 1.0F};
+            sceneLighting.lampColors[lampIndex] = headlight.diffuse;
+            sceneLighting.lampCones[lampIndex] = {
+                std::cos(headlight.phi * 0.5F),
+                std::cos(headlight.theta * 0.5F), 0.0F, 0.0F};
+            ++lampIndex;
         }
     }
     sceneLighting.cameraPosition =
@@ -4445,7 +4427,8 @@ void OriginalRaceRenderer::draw(
         // HumanPlayer disables gpReflScene on the source car. AI cars remain
         // in the cube map, and every car remains eligible for gpReflWater.
         if (environmentReflectionPass && racer < racerRuntime.size() &&
-            !racerRuntime[racer].GetReflScene())
+            !racerRuntime[racer]
+                 .GetPresentationState().reflectionScene)
             continue;
         const auto vehicleIndex = race.racers[racer].vehicle;
         if (vehicleIndex >= race.vehicles.size() ||
@@ -4454,16 +4437,19 @@ void OriginalRaceRenderer::draw(
         const auto& definition =
             activeVehicleDefinition(race, racerRuntime, racer);
         const auto& state = vehicles[racer];
-        const auto& sourceColor =
-            racer < racerRuntime.size()
-                ? racerRuntime[racer].GetColor()
-                : race.racers[racer].color;
+        const auto& sourceColor = racer < racerRuntime.size()
+            ? racerRuntime[racer].GetPresentationState().color
+            : race.racers[racer].color;
         std::array<std::array<float, 4>, 4> sourceNodeColors{};
         for (auto& color : sourceNodeColors)
             color = {1.0F, 1.0F, 1.0F, 1.0F};
         sourceNodeColors.front() = sourceColor;
         const auto* sourceNodeColorOverride =
-            definition.disableColor ? nullptr : &sourceNodeColors;
+            racer < racerRuntime.size() &&
+                    racerRuntime[racer]
+                        .GetPresentationState().colorMaterialAttached
+                ? &sourceNodeColors
+                : nullptr;
         // Player::ApplyColorMat clones and colors only the first IVBMeshNode
         // material of the root car actor. Included track/cushion actors and
         // any later body node retain their source material unchanged.
@@ -4674,15 +4660,21 @@ void OriginalRaceRenderer::draw(
         // and CreateNightLights clears/detaches it in ReleaseCar. Its
         // GraphDesc has neither gpReflScene nor gpReflWater, so it must not
         // be submitted into cube/water reflection or refraction passes.
-        const bool showNightLights =
-            racer < racerRuntime.size() &&
-            racerRuntime[racer].HasAttachedLights();
+        const auto* presentation = racer < racerRuntime.size()
+            ? &racerRuntime[racer].GetPresentationState()
+            : nullptr;
+        const bool showNightLights = presentation != nullptr &&
+            presentation->nightFlareCreated &&
+            presentation->nightFlareAttached;
         if (!reflectionPass && !refractionPass && showNightLights)
         {
-            for (const auto& source : definition.nightLights)
+            for (const auto& source : presentation->nightLights)
             {
                 r3d::physics::Transform local;
-                local.position = source.position;
+                local.position = {
+                    source.position.x,
+                    source.position.y,
+                    source.position.z};
                 local.scale = {
                     std::max(source.size[0] * 0.32F, 0.1F),
                     std::max(source.size[1] * 0.32F, 0.1F), 1.0F};

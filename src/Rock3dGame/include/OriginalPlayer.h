@@ -158,6 +158,60 @@ public:
         Two,
     };
 
+    struct PresentationVector
+    {
+        float x = 0.0F;
+        float y = 0.0F;
+        float z = 0.0F;
+    };
+
+    struct PresentationQuaternion
+    {
+        float x = 0.0F;
+        float y = 0.0F;
+        float z = 0.0F;
+        float w = 1.0F;
+    };
+
+    struct HeadLightState
+    {
+        bool created = false;
+        bool enabled = false;
+        // Player::InitLight requests a shadow only for hlFirst; the
+        // renderer combines this with Environment::eqHigh.
+        bool highQualityShadow = false;
+        PresentationVector position{};
+        PresentationQuaternion rotation{};
+        float nearDistance = 1.0F;
+        float farDistance = 50.0F;
+        float phi = 3.14159265358979323846F / 3.0F;
+        float theta = 3.14159265358979323846F / 6.0F;
+        std::array<float, 4U> ambient{0.0F, 0.0F, 0.0F, 1.0F};
+        std::array<float, 4U> diffuse{1.0F, 1.0F, 1.0F, 1.0F};
+    };
+
+    struct NightLightState
+    {
+        bool head = true;
+        PresentationVector position{};
+        std::array<float, 2U> size{1.0F, 1.0F};
+    };
+
+    // Backend-neutral graph state owned by the original Player methods.
+    // bgfx/Metal consumes these records but must not reconstruct their
+    // creation, attachment, material or reflection rules.
+    struct PresentationState
+    {
+        std::array<HeadLightState, 2U> headLights{};
+        bool nightFlareCreated = false;
+        bool nightFlareAttached = false;
+        std::vector<NightLightState> nightLights;
+        bool reflectionScene = true;
+        bool colorMaterialCreated = false;
+        bool colorMaterialAttached = false;
+        std::array<float, 4U> color{1.0F, 1.0F, 1.0F, 1.0F};
+    };
+
     struct CheatPlayerView
     {
         std::size_t playerId = 0U;
@@ -311,6 +365,7 @@ public:
     void SetHeadlight(HeadLightMode value) noexcept;
     bool HasCar() const noexcept;
     bool HasAttachedLights() const noexcept;
+    const PresentationState& GetPresentationState() const noexcept;
     bool GetReflScene() const noexcept;
     void SetReflScene(bool value) noexcept;
     const Vehicle* GetCarRecord() const noexcept;
@@ -491,6 +546,16 @@ private:
     void ClearSlowBehavior() noexcept;
     void AttachWeaponMapObjects() noexcept;
     void DetachWeaponMapObjects() noexcept;
+    void InitLight(
+        std::size_t light, PresentationVector position,
+        PresentationQuaternion rotation) noexcept;
+    void FreeLight(std::size_t light) noexcept;
+    void CreateNightLights(bool attach) noexcept;
+    void SetLightsParent(bool attach) noexcept;
+    void ApplyReflScene() noexcept;
+    void FreeColorMaterial() noexcept;
+    void ApplyColorMaterial() noexcept;
+    void ApplyColor() noexcept;
 
     int id_ = undefinedId;
     int gamerId_ = -1;
@@ -511,6 +576,7 @@ private:
     bool carPresent_ = false;
     const Vehicle* carRecord_ = nullptr;
     bool reflScene_ = true;
+    PresentationState presentation_;
     bool energyDamageEffectCreated_ = false;
     bool lowLifeActivated_ = false;
     bool lowLifeReleased_ = false;

@@ -67,7 +67,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `Menu` | `originalmenu::MenuSystem` + source Main/Profile/Dialog/Options/Race/Finish/Final owners | Source owner, frame core | Завершить concrete network callbacks; bgfx/CoreText/SDL остаются backend boundary |
 | `MenuSystem` | `originalmenu::{MenuSystem,ScreenStack,FrameState}` | Source owner, active menu path | Подключить concrete navigation graphs; bgfx остаётся draw executor |
 | `OptionsMenu` | `originaloptions::{OptionsMenuState,StartOptionsMenuState}` + backend visuals | Source owner, active options path | Legacy Widget events заменены SDL input, CoreText и bgfx draw submission |
-| `Player` | `source::Player`, `CarState`, behavior classes | Source owner, partial | Убрать оставшиеся session mirrors, проверить full event/listener order |
+| `Player` | `source::Player`, `CarState`, behaviors, `PresentationState` | Source owner, active gameplay/presentation state | bgfx/Jolt исполняют graph/actor commands; продолжить аудит remaining event/listener and profile bridges |
 | `Race` | `OriginalRace`, `OriginalRaceSession`, lifecycle/place/tournament | Source owner, partial | Разложить 7 971-строчный источник по исходным владельцам вместо session |
 | `RaceMenu2` | `originalracemenu::{RaceMenuState,RaceMainFrameState,GamersFrameState,GarageFrameState,WorkshopFrameState,SpaceshipFrameState,AngarFrameState,AchievementFrameState}` | Source owner, all six offline frame paths | Проверить оставшиеся network callbacks и оставить bgfx/CoreText backend boundary |
 | `RecordLib` | Набор XML/R3D import helpers | Distributed | Вернуть typed record library, proxy/source load и fix-up pass |
@@ -432,6 +432,28 @@ spring redirect, обе ветви car energy и decoration touch.
 Следующий B8c — продолжение метода-к-методу аудита оставшихся partial
 `Player/Race/Weapon` владельцев и удаление следующей подтверждённой
 session-owned gameplay ветви.
+
+Результат B8c: аудит `Player::InitLight`, `FreeLight`, `SetLightParent`,
+`CreateNightLights`, `SetLightsParent`, `ApplyReflScene`, `ApplyColorMat` и
+`ApplyColor` подтвердил renderer-owned суррогат. Portable `Player` хранил
+только `HeadLightMode`, `reflScene` и цвет; renderer самостоятельно создавал
+локальные позиции фар, выбирал их число, повторно читал `Vehicle::nightLights`
+и решал, применять ли цветовой материал.
+
+В `source::Player::PresentationState` возвращены точные created/enabled
+lifetimes двух spot lights, исходные transforms/cones/range, first-light
+high-quality shadow request, night-flare create/attach/node list,
+`gpReflScene` и clone/attach state первого IVBMesh material. `CreateCar`,
+`FreeCar`, `SetHeadlight`, `SetReflScene` и `SetColor` теперь обновляют этот
+source owner в исходном порядке. Metal больше не реконструирует правила:
+он только преобразует готовые source records в world lights/sprites,
+reflection-pass gate и node color command.
+
+Прошли arm64 build, 25/25 offline, 2/2 network, physics и 360-frame
+bgfx/Metal race smoke с шестью машинами.
+
+Следующий B8d — продолжить прямую сверку `Race/Weapon` и выбрать следующий
+активный session-owned branch, а не отсутствующий editor-only API.
 
 ## Правило обновления карты
 

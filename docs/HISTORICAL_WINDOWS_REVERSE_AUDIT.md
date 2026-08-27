@@ -4402,6 +4402,33 @@ normal/friction force, velocity, forward и kinetic-energy snapshot, затем
 border damage, spring redirect, обе energy-ветви и decoration touch.
 Следующий B8c — аудит оставшихся partial `Player/Race/Weapon` методов.
 
+### P2.188 — presentation graph `Player` возвращён исходному владельцу — выполнено
+
+Прямая сверка блока `Player.cpp:InitLight` — `ApplyColor` подтвердила, что
+порт сохранил видимый результат, но не владельца. `Player` содержал лишь
+mode/boolean/color, тогда как `OriginalRaceRenderer` заново определял число
+фар, их `0.3/±1/3.190` transforms, quaternion, range/cones, список flare из
+garage record, reflection exclusion и color-material gate. Поэтому это была
+вторая реализация исходных Player-методов внутри Metal backend.
+
+Добавлен `source::Player::PresentationState`. `SetHeadlight` теперь точно
+выполняет `InitLight/FreeLight`, создаёт/удаляет night-flare actor state и
+сохраняет локальные spot-light параметры. `CreateCar` вызывает
+`SetLightsParent`, `ApplyReflScene`, slot creation и `ApplyColorMaterial`;
+`FreeCar` сначала разрушает slot actors, затем отсоединяет lights/flare и
+color material от удаляемого actor, сохраняя созданный clone до следующего
+`ApplyColorMat`, как Windows `ReleaseCar`. `SetColor` и `SetReflScene`
+немедленно меняют активный presentation owner.
+
+Renderer теперь только composes source local transforms с Jolt body,
+передаёт готовые light/material records в bgfx, исключает car из cube pass
+по source `reflectionScene` и рисует только source night-flare nodes.
+Regression проверяет detached/attached lifetime, One/Two transforms,
+white/red flare records, release/re-attach, reflection и material color.
+Прошли arm64 build, 25/25 offline, 2/2 network, physics и 360-frame Metal
+race smoke.
+Следующий блок B8d — `Race/Weapon` method audit.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

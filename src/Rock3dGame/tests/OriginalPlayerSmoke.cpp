@@ -117,6 +117,86 @@ int main()
     player.CreateCar(false);
     if (!player.HasAttachedLights())
         return 49;
+
+    r3d::game::originalrace::Vehicle visualVehicle;
+    visualVehicle.bodyVisuals.push_back({});
+    visualVehicle.bodyVisuals.front().meshPath = "car.r3dMesh";
+    visualVehicle.nightLights = {
+        {true, {1.7F, 0.4F, 0.02F}, {1.5F, 1.5F}},
+        {false, {-1.57F, 0.45F, 0.28F}, {1.0F, 1.0F}}};
+    source::Player visualPlayer;
+    visualPlayer.Reset(100.0F, 1U);
+    visualPlayer.ConfigureIdentity(
+        source::Player::humanId, 0, 0U, "visual", {},
+        {0.2F, 0.4F, 0.6F, 1.0F});
+    visualPlayer.SetCar(&visualVehicle);
+    visualPlayer.SetHeadlight(source::Player::HeadLightMode::Two);
+    const auto& detachedPresentation =
+        visualPlayer.GetPresentationState();
+    if (!detachedPresentation.headLights[0].created ||
+        !detachedPresentation.headLights[1].created ||
+        detachedPresentation.headLights[0].enabled ||
+        detachedPresentation.headLights[1].enabled ||
+        !detachedPresentation.headLights[0].highQualityShadow ||
+        detachedPresentation.headLights[1].highQualityShadow ||
+        !detachedPresentation.nightFlareCreated ||
+        detachedPresentation.nightFlareAttached ||
+        !detachedPresentation.nightLights.empty())
+        return 80;
+    visualPlayer.CreateCar(true);
+    const auto& attachedPresentation =
+        visualPlayer.GetPresentationState();
+    if (!attachedPresentation.headLights[0].enabled ||
+        !attachedPresentation.headLights[1].enabled ||
+        attachedPresentation.headLights[0].position.y != 1.0F ||
+        attachedPresentation.headLights[1].position.y != -1.0F ||
+        attachedPresentation.headLights[0].farDistance != 50.0F ||
+        !attachedPresentation.nightFlareAttached ||
+        attachedPresentation.nightLights.size() != 2U ||
+        !attachedPresentation.nightLights[0].head ||
+        attachedPresentation.nightLights[1].head ||
+        !attachedPresentation.colorMaterialCreated ||
+        !attachedPresentation.colorMaterialAttached ||
+        attachedPresentation.color !=
+            std::array<float, 4U>{0.2F, 0.4F, 0.6F, 1.0F})
+        return 81;
+    visualPlayer.SetColor({0.7F, 0.6F, 0.5F, 1.0F});
+    visualPlayer.SetReflScene(false);
+    visualPlayer.SetHeadlight(source::Player::HeadLightMode::One);
+    const auto& oneLightPresentation =
+        visualPlayer.GetPresentationState();
+    if (oneLightPresentation.reflectionScene ||
+        oneLightPresentation.color !=
+            std::array<float, 4U>{0.7F, 0.6F, 0.5F, 1.0F} ||
+        oneLightPresentation.headLights[0].position.y != 0.0F ||
+        oneLightPresentation.headLights[1].created ||
+        !oneLightPresentation.nightFlareAttached ||
+        oneLightPresentation.nightLights.size() != 2U)
+        return 82;
+    visualPlayer.FreeCar(false);
+    const auto& releasedPresentation =
+        visualPlayer.GetPresentationState();
+    if (releasedPresentation.headLights[0].enabled ||
+        releasedPresentation.nightFlareAttached ||
+        !releasedPresentation.nightLights.empty() ||
+        !releasedPresentation.colorMaterialCreated ||
+        releasedPresentation.colorMaterialAttached ||
+        visualPlayer.GetHeadLight() !=
+            source::Player::HeadLightMode::One)
+        return 83;
+    visualPlayer.CreateCar(false);
+    if (!visualPlayer.GetPresentationState().headLights[0].enabled ||
+        !visualPlayer.GetPresentationState().nightFlareAttached ||
+        visualPlayer.GetPresentationState().nightLights.size() != 2U ||
+        !visualPlayer.GetPresentationState().colorMaterialAttached)
+        return 84;
+    visualPlayer.SetHeadlight(source::Player::HeadLightMode::None);
+    if (visualPlayer.GetPresentationState().headLights[0].created ||
+        visualPlayer.GetPresentationState().headLights[1].created ||
+        visualPlayer.GetPresentationState().nightFlareCreated ||
+        visualPlayer.GetPresentationState().nightFlareAttached)
+        return 85;
+    visualPlayer.FreeCar(true);
     player.SetNetName({});
     if (player.GetName() != "Tyler")
         return 42;

@@ -1469,6 +1469,24 @@ force; проверка скорости снова использует мод�
 ветви callback. Следующий B8c — следующий подтверждённый разрыв в
 `Player/Race/Weapon` после прямой сверки методов.
 
+### B8c: source-owned Player presentation graph
+
+Восстановлены backend-neutral владельцы исходных `Player::InitLight`,
+`FreeLight`, `SetLightParent`, `CreateNightLights`, `SetLightsParent`,
+`ApplyReflScene`, `ApplyColorMat` и `ApplyColor`. Новый
+`Player::PresentationState` хранит lifetime/attachment двух spot lights,
+night flare и его garage nodes, reflection flag и первый клонированный
+car-material с живым цветом.
+
+Metal renderer больше не вычисляет число/позиции фар из enum, не читает
+night-light catalog вместо Player и не решает material/reflection gameplay
+gates. Он только применяет готовое source presentation state к Jolt world
+pose и bgfx pass. Regression покрывает состояние до создания машины,
+CreateCar, переключение Two→One, FreeCar/CreateCar, SetHeadlight(None),
+цвет и `gpReflScene`. Следующая ревизия B8d — оставшиеся `Race/Weapon`
+branches. Прошли arm64 build, 25/25 offline, 2/2 network, physics и
+360-frame Metal race smoke.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

@@ -201,6 +201,89 @@ void Player::DetachWeaponMapObjects() noexcept
     gameCar.GetWeapons().Clear();
 }
 
+void Player::InitLight(
+    std::size_t light, PresentationVector position,
+    PresentationQuaternion rotation) noexcept
+{
+    if (light >= presentation_.headLights.size())
+        return;
+    auto& state = presentation_.headLights[light];
+    if (!state.created)
+    {
+        state = {};
+        state.created = true;
+        state.highQualityShadow = light == 0U;
+    }
+    state.position = position;
+    state.rotation = rotation;
+    state.enabled = carPresent_;
+}
+
+void Player::FreeLight(std::size_t light) noexcept
+{
+    if (light < presentation_.headLights.size())
+        presentation_.headLights[light] = {};
+}
+
+void Player::CreateNightLights(bool attach) noexcept
+{
+    if (!presentation_.nightFlareCreated)
+        return;
+    presentation_.nightLights.clear();
+    presentation_.nightFlareAttached = attach && carPresent_;
+    if (!presentation_.nightFlareAttached || carRecord_ == nullptr)
+        return;
+    presentation_.nightLights.reserve(carRecord_->nightLights.size());
+    for (const auto& light : carRecord_->nightLights)
+    {
+        presentation_.nightLights.push_back(
+            {light.head,
+             {light.position.x, light.position.y, light.position.z},
+             light.size});
+    }
+}
+
+void Player::SetLightsParent(bool attach) noexcept
+{
+    for (auto& light : presentation_.headLights)
+    {
+        if (light.created)
+            light.enabled = attach && carPresent_;
+    }
+    CreateNightLights(attach);
+}
+
+void Player::ApplyReflScene() noexcept
+{
+    presentation_.reflectionScene = reflScene_;
+}
+
+void Player::FreeColorMaterial() noexcept
+{
+    presentation_.colorMaterialCreated = false;
+    presentation_.colorMaterialAttached = false;
+}
+
+void Player::ApplyColorMaterial() noexcept
+{
+    FreeColorMaterial();
+    if (carPresent_ && carRecord_ != nullptr &&
+        !carRecord_->bodyVisuals.empty() &&
+        !carRecord_->bodyVisuals.front().meshPath.empty() &&
+        !carRecord_->disableColor)
+    {
+        presentation_.colorMaterialCreated = true;
+        presentation_.colorMaterialAttached = true;
+    }
+    ApplyColor();
+}
+
+void Player::ApplyColor() noexcept
+{
+    if (presentation_.colorMaterialCreated)
+        presentation_.color = color_;
+}
+
 const std::array<float, 3> Player::humanEasingMinimumDistance{
     20.0F, 20.0F, 20.0F};
 const std::array<float, 3> Player::humanEasingMaximumDistance{
@@ -648,6 +731,7 @@ void Player::ConfigureIdentity(
     name_ = std::move(sourceName);
     netName_ = std::move(sourceNetName);
     color_ = sourceColor;
+    ApplyColor();
 }
 
 int Player::GetId() const noexcept { return id_; }
@@ -684,6 +768,7 @@ void Player::SetName(std::string value) { name_ = std::move(value); }
 void Player::SetColor(const std::array<float, 4>& value) noexcept
 {
     color_ = value;
+    ApplyColor();
 }
 
 bool Player::IsHuman() const noexcept { return id_ == humanId; }
@@ -720,7 +805,39 @@ Player::HeadLightMode Player::GetHeadLight() const noexcept
 
 void Player::SetHeadlight(HeadLightMode value) noexcept
 {
+    if (headLight_ == value)
+        return;
     headLight_ = value;
+    constexpr PresentationQuaternion rotation{
+        0.0009F, 0.344F, -0.029F, 0.939F};
+    switch (headLight_)
+    {
+    case HeadLightMode::None:
+        FreeLight(0U);
+        FreeLight(1U);
+        break;
+    case HeadLightMode::One:
+        InitLight(0U, {0.3F, 0.0F, 3.190F}, rotation);
+        FreeLight(1U);
+        break;
+    case HeadLightMode::Two:
+        InitLight(0U, {0.3F, 1.0F, 3.190F}, rotation);
+        InitLight(1U, {0.3F, -1.0F, 3.190F}, rotation);
+        break;
+    }
+    if (!presentation_.nightFlareCreated &&
+        headLight_ != HeadLightMode::None)
+    {
+        presentation_.nightFlareCreated = true;
+        CreateNightLights(carPresent_);
+    }
+    else if (presentation_.nightFlareCreated &&
+             headLight_ == HeadLightMode::None)
+    {
+        presentation_.nightLights.clear();
+        presentation_.nightFlareAttached = false;
+        presentation_.nightFlareCreated = false;
+    }
 }
 
 bool Player::HasCar() const noexcept
@@ -730,7 +847,16 @@ bool Player::HasCar() const noexcept
 
 bool Player::HasAttachedLights() const noexcept
 {
-    return carPresent_ && headLight_ != HeadLightMode::None;
+    return std::any_of(
+        presentation_.headLights.begin(),
+        presentation_.headLights.end(),
+        [](const HeadLightState& light) { return light.enabled; });
+}
+
+const Player::PresentationState&
+Player::GetPresentationState() const noexcept
+{
+    return presentation_;
 }
 
 bool Player::GetReflScene() const noexcept
@@ -740,7 +866,10 @@ bool Player::GetReflScene() const noexcept
 
 void Player::SetReflScene(bool value) noexcept
 {
+    if (reflScene_ == value)
+        return;
     reflScene_ = value;
+    ApplyReflScene();
 }
 
 const Vehicle* Player::GetCarRecord() const noexcept
@@ -834,6 +963,9 @@ void Player::CreateCar(bool newRace) noexcept
             if (item.IsWeaponItem() == nullptr)
                 item.OnCreateCar();
         }
+        SetLightsParent(true);
+        ApplyReflScene();
+        ApplyColorMaterial();
     }
     if (!newRace)
         return;
@@ -855,6 +987,8 @@ void Player::FreeCar(bool freeState) noexcept
                 item.OnDestroyCar();
         }
         DetachWeaponMapObjects();
+        SetLightsParent(false);
+        presentation_.colorMaterialAttached = false;
     }
     carPresent_ = false;
     gameCar.RemoveListener(this);
