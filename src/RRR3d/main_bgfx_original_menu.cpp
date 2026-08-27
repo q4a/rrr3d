@@ -5194,6 +5194,8 @@ int main(int argc, char** argv)
         sourceRaceMainFrame;
     r3d::game::originalracemenu::GamersFrameState
         sourceGamersFrame;
+    r3d::game::originalracemenu::GarageFrameState
+        sourceGarageFrame;
     float gamersSceneSeconds = 0.0F;
     bool gamersFrameObserved = !options->gamersFrameSmokeTest;
     bool gamersPlanet3DObserved = !options->gamersFrameSmokeTest;
@@ -5209,26 +5211,8 @@ int main(int argc, char** argv)
     bool profileDeleteYesFocused = true;
     std::size_t profileDeleteIndex =
         std::numeric_limits<std::size_t>::max();
-    struct GarageCarView
-    {
-        std::size_t catalogIndex = 0U;
-        bool locked = false;
-    };
-    std::vector<GarageCarView> garageCarOrder;
-    std::size_t garageCarIndex = 0;
-    std::size_t garageViewIndex = 0;
     bool garagePurchaseDialogVisible = false;
     bool garagePurchaseYesFocused = true;
-    for (std::size_t index = 0;
-         index < originalGarage->cars.size(); ++index)
-    {
-        if (originalGarage->cars[index].record ==
-            profileState.player.currentCar)
-        {
-            garageCarIndex = index;
-            break;
-        }
-    }
     struct WorkshopDrag
     {
         r3d::game::originalrace::ProfileSlot item;
@@ -5436,8 +5420,8 @@ int main(int argc, char** argv)
         menuSelection = firstEnabledMenuItem();
     };
     auto backMenu = [&]() {
-#ifdef RRR3D_NETWORK
         const auto leavingScreen = menuStack.back();
+#ifdef RRR3D_NETWORK
         if (leavingScreen == MenuScreen::NetworkBrowser)
         {
             networkSession.cancelLanSearch();
@@ -5498,6 +5482,8 @@ int main(int argc, char** argv)
         }
 #endif
 #ifdef RRR3D_PHYSICS
+        if (leavingScreen == MenuScreen::Garage)
+            sourceGarageFrame.hide();
         if (menuStack.back() == MenuScreen::RaceMenu)
         {
             sourceRaceMenu.setState(
@@ -7890,15 +7876,56 @@ int main(int argc, char** argv)
             lines.resize(4U);
         return lines;
     };
+    auto garageColorAvailable = [&](std::size_t colorIndex) {
+        if (colorIndex >= garageColorPixels.size())
+            return false;
+#ifdef RRR3D_NETWORK
+        if (networkMatchStarted)
+        {
+            for (const auto& player : networkSnapshot.models.players)
+            {
+                if (player.owner || player.playerId != 0U)
+                    continue;
+                bool same = true;
+                for (std::size_t component = 0U;
+                     component < player.color.size(); ++component)
+                {
+                    const float color = static_cast<float>(
+                                            garageColorPixels[colorIndex]
+                                                              [component]) /
+                                        255.0F;
+                    same = same &&
+                           std::abs(player.color[component] - color) <
+                               0.001F;
+                }
+                if (same)
+                    return false;
+            }
+        }
+#endif
+        return true;
+    };
+    auto sourceGarageColors = [&]() {
+        std::array<
+            bool,
+            r3d::game::originalracemenu::GarageFrameState::colorCount>
+            available{};
+        for (std::size_t index = 0U; index < available.size(); ++index)
+            available[index] = garageColorAvailable(index);
+        return available;
+    };
     auto rebuildGarageCarOrder = [&]() {
-        garageCarOrder.clear();
-        std::vector<GarageCarView> available;
-        std::vector<GarageCarView> secret;
-        std::vector<GarageCarView> locked;
+        using GarageCarCandidate =
+            r3d::game::originalracemenu::GarageCarCandidate;
+        std::vector<GarageCarCandidate> candidates;
+        candidates.reserve(originalGarage->cars.size());
+        std::size_t currentCatalogIndex = 0U;
         for (std::size_t index = 0U;
              index < originalGarage->cars.size(); ++index)
         {
             const auto& car = originalGarage->cars[index];
+            if (car.record == profileState.player.currentCar)
+                currentCatalogIndex = index;
             const bool isSecret = std::none_of(
                 originalGarage->carUnlocks.begin(),
                 originalGarage->carUnlocks.end(),
@@ -7915,57 +7942,25 @@ int main(int argc, char** argv)
                 r3d::game::originalrace::originalCarUnlocked(
                     *originalGarage, profileState, car,
                     championshipMode);
-            const GarageCarView view{index, !unlocked};
-            if (isSecret && achievement)
-                secret.push_back(view);
-            else if (unlocked && achievement)
-                available.push_back(view);
-            else
-                locked.push_back(view);
+            candidates.push_back(
+                {index, isSecret, unlocked, achievement});
         }
-        garageCarOrder.insert(
-            garageCarOrder.end(), available.begin(), available.end());
-        garageCarOrder.insert(
-            garageCarOrder.end(), secret.begin(), secret.end());
-        garageCarOrder.insert(
-            garageCarOrder.end(), locked.begin(), locked.end());
-        if (garageCarOrder.empty())
-            return;
-        const auto selected = std::find_if(
-            garageCarOrder.begin(), garageCarOrder.end(),
-            [&](const auto& view) {
-                return originalGarage->cars[view.catalogIndex].record ==
-                       profileState.player.currentCar;
-            });
-        garageViewIndex =
-            selected == garageCarOrder.end()
-                ? std::min(
-                      garageViewIndex,
-                      garageCarOrder.size() - 1U)
-                : static_cast<std::size_t>(
-                      std::distance(
-                          garageCarOrder.begin(), selected));
-        garageCarIndex =
-            garageCarOrder[garageViewIndex].catalogIndex;
+        sourceGarageFrame.show(
+            std::move(candidates), currentCatalogIndex,
+            championshipMode, sourceGarageColors());
     };
     auto refreshGaragePage = [&]() {
         if (originalGarage->cars.empty())
             return;
-        if (garageCarOrder.empty())
+        if (sourceGarageFrame.empty())
             rebuildGarageCarOrder();
-        if (garageCarOrder.empty())
+        const auto* selectedEntry = sourceGarageFrame.selectedCar();
+        if (selectedEntry == nullptr ||
+            selectedEntry->catalogIndex >= originalGarage->cars.size())
             return;
-        garageViewIndex =
-            std::min(garageViewIndex,
-                     garageCarOrder.size() - 1U);
-        garageCarIndex =
-            garageCarOrder[garageViewIndex].catalogIndex;
-        garageCarIndex =
-            std::min(garageCarIndex,
-                     originalGarage->cars.size() - 1U);
-        const auto& car = originalGarage->cars[garageCarIndex];
-        const bool locked =
-            garageCarOrder[garageViewIndex].locked;
+        const auto& car =
+            originalGarage->cars[selectedEntry->catalogIndex];
+        const bool locked = selectedEntry->locked;
         auto replacement = createPage(
             {localized(
                  locked ? "svLockedCarName" : car.name),
@@ -8007,36 +8002,6 @@ int main(int argc, char** argv)
             menu::selectedTextColor);
         destroyPage(garageStatsPage);
         garageStatsPage = std::move(statsReplacement);
-
-    };
-    auto garageColorAvailable = [&](std::size_t colorIndex) {
-        if (colorIndex >= garageColorPixels.size())
-            return false;
-#ifdef RRR3D_NETWORK
-        if (networkMatchStarted)
-        {
-            for (const auto& player : networkSnapshot.models.players)
-            {
-                if (player.owner || player.playerId != 0U)
-                    continue;
-                bool same = true;
-                for (std::size_t component = 0U;
-                     component < player.color.size(); ++component)
-                {
-                    const float color = static_cast<float>(
-                                            garageColorPixels[colorIndex]
-                                                              [component]) /
-                                        255.0F;
-                    same = same &&
-                           std::abs(player.color[component] - color) <
-                               0.001F;
-                }
-                if (same)
-                    return false;
-            }
-        }
-#endif
-        return true;
     };
     auto gamerUnlocked = [&](std::size_t index) {
         if (index >= originalGarage->gamers.size() ||
@@ -11940,6 +11905,7 @@ int main(int argc, char** argv)
                 (event.type == SDL_EVENT_MOUSE_MOTION ||
                  event.type == SDL_EVENT_MOUSE_BUTTON_DOWN))
             {
+                sourceGarageFrame.updateColors(sourceGarageColors());
                 int windowWidth = 0;
                 int windowHeight = 0;
                 const float pointerX =
@@ -12035,7 +12001,7 @@ int main(int argc, char** argv)
                                 if (hoveredGarageItem)
                                 {
                                     if (*hoveredGarageItem >= 4U &&
-                                        !garageColorAvailable(
+                                        !sourceGarageFrame.colorAvailable(
                                             *hoveredGarageItem - 4U))
                                     {
                                         hoveredGarageItem.reset();
@@ -12047,7 +12013,9 @@ int main(int argc, char** argv)
                 }
                 if (hoveredGarageItem)
                 {
-                    menuSelection = *hoveredGarageItem;
+                    if (sourceGarageFrame.setFocus(
+                            *hoveredGarageItem))
+                        menuSelection = sourceGarageFrame.focus();
                 }
                 pointerTargetsItem =
                     hoveredGarageItem.has_value() ||
@@ -13561,9 +13529,17 @@ int main(int argc, char** argv)
                             }
                             else
                             {
-                                const auto& car =
-                                    originalGarage
-                                        ->cars[garageCarIndex];
+                                const auto* selectedEntry =
+                                    sourceGarageFrame.selectedCar();
+                                if (selectedEntry == nullptr ||
+                                    selectedEntry->catalogIndex >=
+                                        originalGarage->cars.size())
+                                {
+                                    garagePurchaseDialogVisible = false;
+                                    continue;
+                                }
+                                const auto& car = originalGarage->cars[
+                                    selectedEntry->catalogIndex];
                                 std::string garageError;
                                 if (r3d::game::originalrace::
                                         selectOriginalGarageCar(
@@ -13597,111 +13573,41 @@ int main(int argc, char** argv)
                         }
                         continue;
                     }
-
-                    constexpr std::size_t garageFocusCount = 18U;
-                    const auto garageNeighbor =
-                        [&](std::size_t focus,
-                            rrr3d::input::Action action) -> std::size_t {
-                            const bool left = action ==
-                                rrr3d::input::Action::TurnLeft;
-                            const bool right = action ==
-                                rrr3d::input::Action::TurnRight;
-                            const bool up = action ==
-                                rrr3d::input::Action::MenuUp;
-                            if (focus == 0U)
-                                return std::size_t{1U};
-                            if (focus == 1U)
-                                return left ? 10U : right ? 17U
-                                     : up ? 2U : 0U;
-                            if (focus == 2U)
-                                return left ? 4U : right ? 3U : 1U;
-                            if (focus == 3U)
-                                return left ? 2U : right ? 11U : 1U;
-                            const bool leftGrid = focus < 11U;
-                            const std::size_t first = leftGrid ? 4U : 11U;
-                            const std::size_t last = first + 6U;
-                            if (left)
-                                return leftGrid ? 11U : 3U;
-                            if (right)
-                                return leftGrid ? 2U : 4U;
-                            if (up)
-                                return focus == first ? 1U : focus - 1U;
-                            return focus == last ? 1U : focus + 1U;
-                        };
-                    if (inputEvent.action ==
-                            rrr3d::input::Action::MenuUp ||
-                        inputEvent.action ==
-                            rrr3d::input::Action::MenuDown ||
-                        inputEvent.action ==
-                            rrr3d::input::Action::TurnLeft ||
-                        inputEvent.action ==
-                            rrr3d::input::Action::TurnRight)
-                    {
-                        for (std::size_t attempts = 0U;
-                             attempts < garageFocusCount; ++attempts)
-                        {
-                            menuSelection = garageNeighbor(
-                                menuSelection, inputEvent.action);
-                            if (menuSelection < 4U ||
-                                garageColorAvailable(menuSelection - 4U))
-                                break;
-                        }
+                    sourceGarageFrame.updateColors(
+                        sourceGarageColors());
+                    const auto garageCommand =
+                        sourceGarageFrame.handle(inputEvent);
+                    menuSelection = sourceGarageFrame.focus();
+                    if (!garageCommand)
                         continue;
-                    }
-                    if (!inputEvent.repeated &&
-                        (inputEvent.action ==
-                             rrr3d::input::Action::PreviousWeapon ||
-                         inputEvent.action ==
-                             rrr3d::input::Action::NextWeapon))
+                    using GarageCommandType =
+                        r3d::game::originalracemenu::GarageCommandType;
+                    if (garageCommand->type ==
+                        GarageCommandType::SelectionChanged)
                     {
-                        if (inputEvent.action ==
-                                rrr3d::input::Action::PreviousWeapon &&
-                            garageViewIndex > 0U)
-                            --garageViewIndex;
-                        else if (inputEvent.action ==
-                                     rrr3d::input::Action::NextWeapon &&
-                                 garageViewIndex + 1U <
-                                     garageCarOrder.size())
-                            ++garageViewIndex;
                         refreshGaragePage();
-                        continue;
-                    }
-                    if (inputEvent.repeated)
-                        continue;
-                    if (inputEvent.action ==
-                            rrr3d::input::Action::MenuBack ||
-                        inputEvent.action ==
-                            rrr3d::input::Action::Pause)
-                    {
-#ifdef RRR3D_AUDIO
-                        playMainButtonClick();
-#endif
-                        backMenu();
-                        continue;
-                    }
-                    if (inputEvent.action !=
-                        rrr3d::input::Action::MenuConfirm)
-                    {
                         continue;
                     }
 #ifdef RRR3D_AUDIO
                     playOriginalMenuSound(
-                        menuSelection >= 4U
+                        garageCommand->type ==
+                                GarageCommandType::SelectColor
                             ? rrr3d::audio::OriginalMenuSound::Repaint
                             : rrr3d::audio::OriginalMenuSound::ButtonClick);
 #endif
-                    if (menuSelection == 0U)
+                    if (garageCommand->type == GarageCommandType::Back)
                     {
                         backMenu();
                     }
-                    else if (
-                        menuSelection == 1U &&
-                        !garageCarOrder[garageViewIndex].locked)
+                    else if (garageCommand->type ==
+                             GarageCommandType::BuyOrSelect)
                     {
-                        const auto& car =
-                            originalGarage->cars[garageCarIndex];
-                        if (car.record ==
-                            profileState.player.currentCar)
+                        if (garageCommand->catalogIndex >=
+                            originalGarage->cars.size())
+                            continue;
+                        const auto& car = originalGarage->cars[
+                            garageCommand->catalogIndex];
+                        if (car.record == profileState.player.currentCar)
                         {
                             backMenu();
                         }
@@ -13709,10 +13615,8 @@ int main(int argc, char** argv)
                         {
                             garagePurchaseYesFocused = true;
                             garagePurchaseDialogVisible = true;
-                            std::string purchase =
-                                localized("svBuyCar");
-                            if (const auto marker =
-                                    purchase.find("%s");
+                            std::string purchase = localized("svBuyCar");
+                            if (const auto marker = purchase.find("%s");
                                 marker != std::string::npos)
                             {
                                 purchase.replace(
@@ -13730,42 +13634,25 @@ int main(int argc, char** argv)
                             std::string garageError;
                             if (r3d::game::originalrace::
                                     selectOriginalGarageCar(
-                                        *originalGarage,
-                                        profileState, car, false,
-                                        garageError))
+                                        *originalGarage, profileState,
+                                        car, false, garageError))
                             {
                                 saveRaceProfile();
                                 backMenu();
                             }
                             else
                             {
-                                std::cerr
-                                    << "Original GarageFrame: "
-                                    << garageError << '\n';
+                                std::cerr << "Original GarageFrame: "
+                                          << garageError << '\n';
                             }
                         }
                     }
-                    else if (menuSelection == 2U &&
-                             garageViewIndex > 0U)
-                    {
-                        --garageViewIndex;
-                        refreshGaragePage();
-                    }
-                    else if (
-                        menuSelection == 3U &&
-                        garageViewIndex + 1U <
-                            garageCarOrder.size())
-                    {
-                        ++garageViewIndex;
-                        refreshGaragePage();
-                    }
-                    else if (
-                        menuSelection >= 4U &&
-                        menuSelection < garageFocusCount)
+                    else if (garageCommand->type ==
+                             GarageCommandType::SelectColor)
                     {
                         const std::size_t colorIndex =
-                            menuSelection - 4U;
-                        if (!garageColorAvailable(colorIndex))
+                            garageCommand->colorIndex;
+                        if (colorIndex >= garageColorPixels.size())
                             continue;
                         for (std::size_t component = 0U;
                              component < 4U; ++component)
@@ -14454,33 +14341,6 @@ int main(int argc, char** argv)
                     }
                     continue;
                 }
-                if (menuStack.back() == MenuScreen::Garage &&
-                    (inputEvent.action ==
-                         rrr3d::input::Action::TurnLeft ||
-                     inputEvent.action ==
-                         rrr3d::input::Action::TurnRight))
-                {
-                    if (!inputEvent.repeated &&
-                        !originalGarage->cars.empty())
-                    {
-                        if (inputEvent.action ==
-                            rrr3d::input::Action::TurnLeft)
-                        {
-                            garageCarIndex =
-                                garageCarIndex == 0U
-                                    ? originalGarage->cars.size() - 1U
-                                    : garageCarIndex - 1U;
-                        }
-                        else
-                        {
-                            garageCarIndex =
-                                (garageCarIndex + 1U) %
-                                originalGarage->cars.size();
-                        }
-                        refreshGaragePage();
-                    }
-                    continue;
-                }
                 const bool adjustableOptions =
                     menuStack.back() == MenuScreen::GameOptions ||
                     menuStack.back() ==
@@ -15076,43 +14936,8 @@ int main(int argc, char** argv)
                     break;
                 }
                 case MenuScreen::Garage:
-                    if (menuSelection == 0U)
-                    {
-                        garageCarIndex =
-                            (garageCarIndex + 1U) %
-                            originalGarage->cars.size();
-                        refreshGaragePage();
-                    }
-                    else if (menuSelection == 3U)
-                    {
-                        const auto& car =
-                            originalGarage->cars[garageCarIndex];
-                        std::string garageError;
-                        if (!r3d::game::originalrace::
-                                selectOriginalGarageCar(
-                                    *originalGarage, profileState,
-                                    car, championshipMode,
-                                    garageError))
-                        {
-                            std::cerr
-                                << "Original GarageFrame: "
-                                << garageError << '\n';
-                        }
-                        else
-                        {
-#ifdef RRR3D_NETWORK
-                            if (networkClientMatchEntered)
-                                networkLocalCarSelected = true;
-#endif
-                            saveRaceProfile();
-                        }
-                        refreshGaragePage();
-                    }
-                    else if (menuSelection + 1U >=
-                             page.labels.size())
-                    {
-                        backMenu();
-                    }
+                    // GarageFrame input is dispatched by its source owner
+                    // before the shared list-page command switch.
                     break;
                 case MenuScreen::Workshop:
                     break;
@@ -17637,10 +17462,11 @@ int main(int argc, char** argv)
         const r3d::game::originalrace::OriginalGarageCar*
             presentationCar = nullptr;
         bool presentationCarLocked = false;
-        if (drawingOriginalGarage && !garageCarOrder.empty())
+        if (drawingOriginalGarage &&
+            sourceGarageFrame.selectedCar() != nullptr)
         {
             const auto& selectedView =
-                garageCarOrder[garageViewIndex];
+                *sourceGarageFrame.selectedCar();
             presentationCar =
                 &originalGarage->cars[selectedView.catalogIndex];
             presentationCarLocked = selectedView.locked;
@@ -19258,8 +19084,10 @@ int main(int argc, char** argv)
                 }
             }
         }
-        else if (drawingOriginalGarage)
+        else if (drawingOriginalGarage &&
+                 sourceGarageFrame.selectedCar() != nullptr)
         {
+            sourceGarageFrame.updateColors(sourceGarageColors());
             raceGarageFrameObserved = true;
             if (options->gamersFrameSmokeTest)
                 gamersGarageObserved = true;
@@ -19333,10 +19161,11 @@ int main(int argc, char** argv)
                         0.5F,
                 42.0F, transparent);
 
-            const auto& selectedCar =
-                originalGarage->cars[garageCarIndex];
-            const bool selectedLocked =
-                garageCarOrder[garageViewIndex].locked;
+            const auto& selectedEntry =
+                *sourceGarageFrame.selectedCar();
+            const auto& selectedCar = originalGarage->cars[
+                selectedEntry.catalogIndex];
+            const bool selectedLocked = selectedEntry.locked;
             const auto selectedStats =
                 r3d::game::originalrace::originalGarageStats(
                     *originalGarage, selectedCar);
@@ -19384,45 +19213,22 @@ int main(int argc, char** argv)
                     15.0F, transparent);
             }
 
-            const std::size_t visibleCars = std::max<std::size_t>(
-                1U,
-                static_cast<std::size_t>(
-                    (menu::virtualWidth - 10.0F) /
-                    static_cast<float>(
-                        garageCarBoxImage.width)));
-            std::size_t firstVisible = 0U;
-            if (garageCarOrder.size() > visibleCars)
-            {
-                const std::size_t right = std::min(
-                    garageViewIndex + visibleCars / 2U,
-                    garageCarOrder.size() - 1U);
-                firstVisible =
-                    right + 1U > visibleCars
-                        ? right + 1U - visibleCars
-                        : 0U;
-                firstVisible = std::min(
-                    firstVisible,
-                    garageCarOrder.size() - visibleCars);
-            }
+            const auto visibleRange = sourceGarageFrame.visibleRange(
+                menu::virtualWidth,
+                static_cast<float>(garageCarBoxImage.width));
+            const auto& garageCars = sourceGarageFrame.cars();
             const std::size_t visibleEnd = std::min(
-                firstVisible + visibleCars,
-                garageCarOrder.size());
-            const float visibleWidth =
-                static_cast<float>(
-                    visibleEnd - firstVisible) *
-                static_cast<float>(garageCarBoxImage.width);
-            const float firstCarX =
-                (menu::virtualWidth - visibleWidth) * 0.5F +
-                static_cast<float>(garageCarBoxImage.width) *
-                    0.5F;
-            for (std::size_t view = firstVisible;
+                visibleRange.first + visibleRange.count,
+                garageCars.size());
+            for (std::size_t view = visibleRange.first;
                  view < visibleEnd; ++view)
             {
-                const auto& carView = garageCarOrder[view];
-                const bool selected = view == garageViewIndex;
+                const auto& carView = garageCars[view];
+                const bool selected =
+                    view == sourceGarageFrame.selection();
                 const float x =
-                    firstCarX +
-                    static_cast<float>(view - firstVisible) *
+                    visibleRange.firstCenterX +
+                    static_cast<float>(view - visibleRange.first) *
                         static_cast<float>(
                             garageCarBoxImage.width);
                 drawQuad(
@@ -19461,9 +19267,10 @@ int main(int argc, char** argv)
                 }
             }
 
-            const bool leftArrowVisible = garageViewIndex > 0U;
+            const bool leftArrowVisible =
+                sourceGarageFrame.canPrevious();
             const bool rightArrowVisible =
-                garageViewIndex + 1U < garageCarOrder.size();
+                sourceGarageFrame.canNext();
             if (leftArrowVisible)
             {
                 const bool selected = menuSelection == 2U;
@@ -19519,7 +19326,7 @@ int main(int argc, char** argv)
                         side * 7U + index;
                     const std::size_t focusIndex =
                         4U + colorIndex;
-                    if (!garageColorAvailable(colorIndex))
+                    if (!sourceGarageFrame.colorAvailable(colorIndex))
                         continue;
                     const bool focused =
                         menuSelection == focusIndex;

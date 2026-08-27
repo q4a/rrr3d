@@ -328,4 +328,287 @@ GamerLayout GamersFrameState::layout(
     return result;
 }
 
+void GarageFrameState::show(
+    std::vector<GarageCarCandidate> candidates,
+    std::size_t currentCatalogIndex, bool campaign,
+    const std::array<bool, colorCount>& colorsAvailable)
+{
+    std::vector<GarageCarEntry> available;
+    std::vector<GarageCarEntry> secret;
+    std::vector<GarageCarEntry> locked;
+    available.reserve(candidates.size());
+    secret.reserve(candidates.size());
+    locked.reserve(candidates.size());
+    for (const auto& candidate : candidates)
+    {
+        if (campaign && candidate.secret)
+            continue;
+        const GarageCarEntry entry{
+            candidate.catalogIndex,
+            !(candidate.owned && candidate.achievementUnlocked)};
+        if (candidate.secret && candidate.achievementUnlocked)
+            secret.push_back({candidate.catalogIndex, false});
+        else if (candidate.owned && candidate.achievementUnlocked)
+            available.push_back(entry);
+        else
+            locked.push_back(entry);
+    }
+    cars_.clear();
+    cars_.reserve(available.size() + secret.size() + locked.size());
+    cars_.insert(cars_.end(), available.begin(), available.end());
+    cars_.insert(cars_.end(), secret.begin(), secret.end());
+    cars_.insert(cars_.end(), locked.begin(), locked.end());
+
+    selection_ = 0U;
+    const auto current = std::find_if(
+        cars_.begin(), cars_.end(),
+        [currentCatalogIndex](const GarageCarEntry& entry) {
+            return entry.catalogIndex == currentCatalogIndex;
+        });
+    if (current != cars_.end())
+        selection_ = static_cast<std::size_t>(current - cars_.begin());
+    colorsAvailable_ = colorsAvailable;
+    focus_ = 0U;
+    visibleFirst_ = 0U;
+    visibleCount_ = 0U;
+    lastVisibleSelection_ = static_cast<std::size_t>(-1);
+}
+
+void GarageFrameState::hide() noexcept
+{
+    cars_.clear();
+    selection_ = 0U;
+    focus_ = 0U;
+    visibleFirst_ = 0U;
+    visibleCount_ = 0U;
+    lastVisibleSelection_ = static_cast<std::size_t>(-1);
+}
+
+void GarageFrameState::updateColors(
+    const std::array<bool, colorCount>& colorsAvailable) noexcept
+{
+    colorsAvailable_ = colorsAvailable;
+    if (!focusAvailable(focus_))
+        focus_ = 0U;
+}
+
+const std::vector<GarageCarEntry>& GarageFrameState::cars() const noexcept
+{
+    return cars_;
+}
+
+bool GarageFrameState::empty() const noexcept
+{
+    return cars_.empty();
+}
+
+std::size_t GarageFrameState::selection() const noexcept
+{
+    return selection_;
+}
+
+const GarageCarEntry* GarageFrameState::selectedCar() const noexcept
+{
+    return selection_ < cars_.size() ? &cars_[selection_] : nullptr;
+}
+
+bool GarageFrameState::canPrevious() const noexcept
+{
+    return selection_ > 0U && selection_ < cars_.size();
+}
+
+bool GarageFrameState::canNext() const noexcept
+{
+    return selection_ + 1U < cars_.size();
+}
+
+bool GarageFrameState::colorAvailable(std::size_t colorIndex) const noexcept
+{
+    return colorIndex < colorsAvailable_.size() &&
+           colorsAvailable_[colorIndex];
+}
+
+std::size_t GarageFrameState::focus() const noexcept
+{
+    return focus_;
+}
+
+bool GarageFrameState::focusAvailable(std::size_t focus) const noexcept
+{
+    if (focus >= focusCount)
+        return false;
+    if (focus == 0U)
+        return !cars_.empty();
+    if (focus == 1U)
+    {
+        const auto* car = selectedCar();
+        return car != nullptr && !car->locked;
+    }
+    if (focus == 2U)
+        return canPrevious();
+    if (focus == 3U)
+        return canNext();
+    return colorAvailable(focus - 4U);
+}
+
+bool GarageFrameState::setFocus(std::size_t focus) noexcept
+{
+    if (!focusAvailable(focus))
+        return false;
+    focus_ = focus;
+    return true;
+}
+
+std::size_t GarageFrameState::neighbor(
+    std::size_t focus, rrr3d::input::Action action) const noexcept
+{
+    using rrr3d::input::Action;
+    const bool left = action == Action::TurnLeft;
+    const bool right = action == Action::TurnRight;
+    const bool up = action == Action::MenuUp;
+    if (focus == 0U)
+        return 1U;
+    if (focus == 1U)
+        return left ? 10U : right ? 17U : up ? 2U : 0U;
+    if (focus == 2U)
+        return left ? 4U : right ? 3U : 1U;
+    if (focus == 3U)
+        return left ? 2U : right ? 11U : 1U;
+    const bool leftGrid = focus < 11U;
+    const std::size_t first = leftGrid ? 4U : 11U;
+    const std::size_t last = first + 6U;
+    if (left)
+        return leftGrid ? 11U : 3U;
+    if (right)
+        return leftGrid ? 2U : 4U;
+    if (up)
+        return focus == first ? 1U : focus - 1U;
+    return focus == last ? 1U : focus + 1U;
+}
+
+std::optional<GarageCommand> GarageFrameState::select(
+    std::size_t selection) noexcept
+{
+    if (selection >= cars_.size() || selection == selection_)
+        return std::nullopt;
+    selection_ = selection;
+    return GarageCommand{
+        GarageCommandType::SelectionChanged,
+        cars_[selection_].catalogIndex, 0U};
+}
+
+std::optional<GarageCommand> GarageFrameState::handle(
+    const rrr3d::input::ActionEvent& event) noexcept
+{
+    if (!event.active)
+        return std::nullopt;
+    using rrr3d::input::Action;
+    if (event.action == Action::MenuUp ||
+        event.action == Action::MenuDown ||
+        event.action == Action::TurnLeft ||
+        event.action == Action::TurnRight)
+    {
+        std::size_t candidate = focus_;
+        for (std::size_t attempts = 0U; attempts < focusCount; ++attempts)
+        {
+            candidate = neighbor(candidate, event.action);
+            if (focusAvailable(candidate))
+            {
+                focus_ = candidate;
+                break;
+            }
+        }
+        return std::nullopt;
+    }
+    if (!event.repeated && event.action == Action::PreviousWeapon &&
+        canPrevious())
+        return select(selection_ - 1U);
+    if (!event.repeated && event.action == Action::NextWeapon && canNext())
+        return select(selection_ + 1U);
+    if (event.repeated)
+        return std::nullopt;
+    if (event.action == Action::MenuBack || event.action == Action::Pause)
+        return GarageCommand{GarageCommandType::Back, 0U, 0U};
+    if (event.action != Action::MenuConfirm)
+        return std::nullopt;
+    if (focus_ == 0U)
+        return GarageCommand{GarageCommandType::Back, 0U, 0U};
+    if (focus_ == 1U && focusAvailable(focus_))
+    {
+        return GarageCommand{
+            GarageCommandType::BuyOrSelect,
+            cars_[selection_].catalogIndex, 0U};
+    }
+    if (focus_ == 2U && canPrevious())
+        return select(selection_ - 1U);
+    if (focus_ == 3U && canNext())
+        return select(selection_ + 1U);
+    if (focus_ >= 4U && focusAvailable(focus_))
+    {
+        return GarageCommand{
+            GarageCommandType::SelectColor,
+            cars_[selection_].catalogIndex, focus_ - 4U};
+    }
+    return std::nullopt;
+}
+
+GarageVisibleRange GarageFrameState::visibleRange(
+    float viewportWidth, float carCellWidth) noexcept
+{
+    GarageVisibleRange result;
+    if (cars_.empty() || carCellWidth <= 0.0F)
+        return result;
+    const std::size_t count = std::min(
+        cars_.size(), std::max<std::size_t>(
+                          1U, static_cast<std::size_t>(
+                                  std::max(0.0F, viewportWidth - 10.0F) /
+                                  carCellWidth)));
+    const bool layoutChanged = visibleCount_ != count;
+    const bool selectedVisible =
+        selection_ >= visibleFirst_ &&
+        selection_ < visibleFirst_ + visibleCount_;
+    if (lastVisibleSelection_ == static_cast<std::size_t>(-1) ||
+        layoutChanged)
+    {
+        const std::size_t right = std::clamp(
+            selection_ + count / 2U, count - 1U, cars_.size() - 1U);
+        visibleFirst_ = right + 1U - count;
+    }
+    else if (selection_ != lastVisibleSelection_ && !selectedVisible)
+    {
+        if (selection_ > lastVisibleSelection_)
+            visibleFirst_ = selection_ + 1U - count;
+        else
+            visibleFirst_ = std::min(selection_, cars_.size() - count);
+    }
+    visibleCount_ = count;
+    lastVisibleSelection_ = selection_;
+    result.first = visibleFirst_;
+    result.count = visibleCount_;
+    const float space =
+        (viewportWidth - static_cast<float>(count) * carCellWidth) * 0.5F;
+    result.firstCenterX = space + carCellWidth * 0.5F;
+    return result;
+}
+
+GarageLayout GarageFrameState::layout(
+    float viewportWidth, float viewportHeight, float topPanelHeight,
+    float bottomPanelHeight, float leftPanelWidth,
+    float rightPanelWidth) const noexcept
+{
+    GarageLayout result;
+    result.topPanelX = viewportWidth * 0.5F;
+    result.rightPanelX = viewportWidth + 1.0F;
+    result.sidePanelY =
+        (topPanelHeight + viewportHeight - bottomPanelHeight) * 0.5F;
+    result.leftArrowX = leftPanelWidth + 45.0F;
+    result.rightArrowX = viewportWidth - rightPanelWidth - 45.0F;
+    result.arrowY = viewportHeight * 0.5F;
+    result.backX = -viewportWidth * 0.5F;
+    result.backY = -bottomPanelHeight - 8.0F;
+    result.buyX = 15.0F;
+    result.buyY = -bottomPanelHeight;
+    return result;
+}
+
 } // namespace r3d::game::originalracemenu

@@ -4169,6 +4169,31 @@ bgfx/Metal.
 Сборка arm64, 23/23 offline, 2/2 network, physics и 360-frame Metal smoke
 прошли. Следующий B6e.2 — Garage/Workshop/Angar/Achievment owners.
 
+### P2.178 — `RaceMenu2::GarageFrame` получил исходного владельца — выполнено
+
+Garage уже использовал оригинальные панели, каталог, 3D CarFrame и
+транзакции, но порядок машин, выбранный индекс, прокрутка верхнего car grid и
+полный Back/Buy/arrows/colors graph оставались ручной реализацией внутри
+renderer entry point. Там же сохранялись два более старых обработчика Garage,
+которые были недостижимы после раннего `continue` и описывали другое
+циклическое поведение.
+
+Добавлен backend-neutral `originalracemenu::GarageFrameState`, прямо
+сопоставленный с `GarageFrame::UpdateCarList`, `AdjustCarList`, `OnShow`,
+`OnInvalidate` и `OnClick` из `eff9338:RaceMenu2.cpp`. Он владеет
+available → secret → locked order, campaign secret filter, current-car
+selection, non-wrapping Prev/Next, сохраняющим окно алгоритмом car grid,
+14 color availability, 18-node graph, shoulder commands и clear-on-hide
+lifetime. Сетевые цвета поступают как snapshot; purchase/profile/network и
+bgfx/CoreText остаются внешними исполняемыми командами.
+
+Из host удалены `GarageCarView`, `garageCarOrder`, два индекса, ручной
+`garageNeighbor` и оба мёртвых fallback-пути. Regression проверяет порядок,
+campaign filter, locked state, границы, скрытый сетевой цвет, repaint,
+shoulders, car-grid window и layout. Следующая граница B6e.3 —
+Workshop/Angar/Achievment owners. Сборка автономного arm64 app, 23/23
+offline, 2/2 network, physics smoke и 360-frame bgfx/Metal race smoke прошли.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

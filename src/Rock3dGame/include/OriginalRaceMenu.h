@@ -158,4 +158,103 @@ private:
     GamerFocus focus_ = GamerFocus::Next;
 };
 
+struct GarageCarCandidate
+{
+    std::size_t catalogIndex = 0U;
+    bool secret = false;
+    bool owned = false;
+    bool achievementUnlocked = false;
+};
+
+struct GarageCarEntry
+{
+    std::size_t catalogIndex = 0U;
+    bool locked = false;
+};
+
+enum class GarageCommandType : std::uint8_t
+{
+    SelectionChanged,
+    Back,
+    BuyOrSelect,
+    SelectColor,
+};
+
+struct GarageCommand
+{
+    GarageCommandType type = GarageCommandType::SelectionChanged;
+    std::size_t catalogIndex = 0U;
+    std::size_t colorIndex = 0U;
+};
+
+struct GarageVisibleRange
+{
+    std::size_t first = 0U;
+    std::size_t count = 0U;
+    float firstCenterX = 0.0F;
+};
+
+struct GarageLayout
+{
+    float topPanelX = 0.0F;
+    float rightPanelX = 0.0F;
+    float sidePanelY = 0.0F;
+    float leftArrowX = 0.0F;
+    float rightArrowX = 0.0F;
+    float arrowY = 0.0F;
+    float backX = 0.0F;
+    float backY = 0.0F;
+    float buyX = 0.0F;
+    float buyY = 0.0F;
+};
+
+class GarageFrameState
+{
+public:
+    static constexpr std::size_t colorCount = 14U;
+    static constexpr std::size_t focusCount = 4U + colorCount;
+
+    void show(std::vector<GarageCarCandidate> candidates,
+              std::size_t currentCatalogIndex, bool campaign,
+              const std::array<bool, colorCount>& colorsAvailable);
+    void hide() noexcept;
+    void updateColors(
+        const std::array<bool, colorCount>& colorsAvailable) noexcept;
+
+    const std::vector<GarageCarEntry>& cars() const noexcept;
+    bool empty() const noexcept;
+    std::size_t selection() const noexcept;
+    const GarageCarEntry* selectedCar() const noexcept;
+    bool canPrevious() const noexcept;
+    bool canNext() const noexcept;
+    bool colorAvailable(std::size_t colorIndex) const noexcept;
+
+    std::size_t focus() const noexcept;
+    bool setFocus(std::size_t focus) noexcept;
+    std::optional<GarageCommand> select(std::size_t selection) noexcept;
+    std::optional<GarageCommand> handle(
+        const rrr3d::input::ActionEvent& event) noexcept;
+
+    GarageVisibleRange visibleRange(float viewportWidth,
+                                    float carCellWidth) noexcept;
+    GarageLayout layout(float viewportWidth, float viewportHeight,
+                         float topPanelHeight, float bottomPanelHeight,
+                         float leftPanelWidth,
+                         float rightPanelWidth) const noexcept;
+
+private:
+    bool focusAvailable(std::size_t focus) const noexcept;
+    std::size_t neighbor(std::size_t focus,
+                         rrr3d::input::Action action) const noexcept;
+
+    std::vector<GarageCarEntry> cars_;
+    std::array<bool, colorCount> colorsAvailable_{};
+    std::size_t selection_ = 0U;
+    std::size_t focus_ = 0U;
+    std::size_t visibleFirst_ = 0U;
+    std::size_t visibleCount_ = 0U;
+    std::size_t lastVisibleSelection_ =
+        static_cast<std::size_t>(-1);
+};
+
 } // namespace r3d::game::originalracemenu

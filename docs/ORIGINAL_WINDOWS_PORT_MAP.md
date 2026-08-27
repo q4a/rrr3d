@@ -64,12 +64,12 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `MainMenu2` | `mainmenu2::{Controller,FrameController,ProfileFrameState}` + `originalmenu::ScreenStack` | Source owner, active Main/Profile path | Остались concrete network callbacks, credits progress и backend draw submission |
 | `Map` | `source::Map` | Source owner, partial | Завершить load/fix-up ownership и backend create/destroy commands |
 | `MapObj` | `source::MapObj*` record/list hierarchy | Source owner, partial | Убрать importer/runtime mirrors и проверить все concrete object types |
-| `Menu` | `originalmenu::MenuSystem` + source Main/Profile/Dialog/Options/Race owners | Source owner, frame core | Перенести Planet/Garage/Workshop и Finish/Final frame owners |
+| `Menu` | `originalmenu::MenuSystem` + source Main/Profile/Dialog/Options/Race owners | Source owner, frame core | Перенести Planet/Workshop/Achievment и Finish/Final frame owners |
 | `MenuSystem` | `originalmenu::{MenuSystem,ScreenStack,FrameState}` | Source owner, active menu path | Подключить concrete navigation graphs; bgfx остаётся draw executor |
 | `OptionsMenu` | `originaloptions::{OptionsMenuState,StartOptionsMenuState}` + backend visuals | Source owner, active options path | Legacy Widget events заменены SDL input, CoreText и bgfx draw submission |
 | `Player` | `source::Player`, `CarState`, behavior classes | Source owner, partial | Убрать оставшиеся session mirrors, проверить full event/listener order |
 | `Race` | `OriginalRace`, `OriginalRaceSession`, lifecycle/place/tournament | Source owner, partial | Разложить 7 971-строчный источник по исходным владельцам вместо session |
-| `RaceMenu2` | `originalracemenu::{RaceMenuState,RaceMainFrameState,GamersFrameState}` + existing garage/workshop views | Source owner, Main/Gamers path | Перенести Garage/Workshop/Angar/Achievment concrete focus/command owners |
+| `RaceMenu2` | `originalracemenu::{RaceMenuState,RaceMainFrameState,GamersFrameState,GarageFrameState}` + remaining workshop views | Source owner, Main/Gamers/Garage path | Перенести Workshop/Angar/Achievment concrete focus/command owners |
 | `RecordLib` | Набор XML/R3D import helpers | Distributed | Вернуть typed record library, proxy/source load и fix-up pass |
 | `ResourceManager` | `OriginalResourceManager` + native readers/uploaders | Source owner, graph/sound path | Mesh/image/sound identity и lifetime общие; font/material-library ownership ещё нужно завершить |
 | `RockCar` | `source::RockCar`, event sink | Source owner, partial | Проверить attachment/listener lifetime вместе с Player/GameCar |
@@ -209,7 +209,7 @@ Milestone 8.
 Открытая B5d: вернуть source identity для font descriptors и material-library
 descriptors/samplers. Их backend payload останется CoreText и bgfx/Metal.
 
-### B6 — Menu/MenuSystem и исходные frames (B6a–B6e.1 выполнены)
+### B6 — Menu/MenuSystem и исходные frames (B6a–B6e.2 выполнены)
 
 Перенести widget tree крупными экранами: common dialog/frame primitives,
 MainMenu/Profile, Options, Planet/Garage/Workshop/Race и Finish/Final. Metal
@@ -288,9 +288,20 @@ shoulder bindings, confirm/select commands и исходной геометри�
 arrows и next. Исправлен отдельный state bug: Gamers теперь переводит общий
 `MenuSystem` в Race, как дочерний frame `RaceMenu`, а не остаётся Main.
 
-Открытая B6e.2: перенести Garage/Workshop/Angar/Achievment concrete
-focus/command owners, затем Finish/Final. Их backend draw data пока частично
-формируется функциями большого host entry point.
+Результат B6e.2: `originalracemenu::GarageFrameState` теперь владеет точной
+трёхчастной последовательностью available/secret/locked из
+`GarageFrame::UpdateCarList`, campaign-фильтром secret cars, текущей машиной,
+границами Prev/Next, source car-grid window и `OnShow(false)` lifetime.
+Перенесён полный граф Back/Buy/arrows/14 colors, пропуск hidden/disabled
+стрелок и занятых network colors, shoulder bindings и команды
+selection/buy/back/repaint. Host оставляет за собой только профильную
+транзакцию, сетевой запрос, CoreText и bgfx draw submission; прежние локальные
+списки/индексы, ручной граф и два недостижимых альтернативных обработчика
+удалены.
+
+Открытая B6e.3: перенести Workshop/Angar/Achievment concrete owners, затем
+Finish/Final. Их backend draw data пока частично формируется функциями
+большого host entry point.
 
 ### B7 — Environment/TraceGfx/render policy
 
