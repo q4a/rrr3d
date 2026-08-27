@@ -109,11 +109,7 @@ private:
         std::size_t target = std::numeric_limits<std::size_t>::max();
         int targetGamerId = -1;
         TextAsset label;
-        float started = 0.0F;
-        float x = 0.0F;
-        float y = 0.0F;
-        float targetX = 0.0F;
-        float alpha = 0.0F;
+        r3d::game::originalrace::source::HudItemId id = 0U;
     };
 
     struct FinishRow
@@ -127,16 +123,7 @@ private:
     struct AchievementNotification
     {
         std::size_t achievement = 0;
-        float started = 0.0F;
-        float startX = 0.0F;
-        float startY = 0.0F;
-        float x = 0.0F;
-        float y = 0.0F;
-        float alpha = 1.0F;
-        float pointsAlpha = 0.0F;
-        float scale = 1.0F;
-        float lastIndex = 0.0F;
-        float indexTime = -1.0F;
+        r3d::game::originalrace::source::HudItemId id = 0U;
     };
 
     bool loadImage(r3d::renderer::GraphicsDevice& device,
@@ -206,6 +193,7 @@ private:
     std::array<FinishRow, 3> finishRows_;
     std::vector<PickNotification> notifications_;
     std::vector<AchievementNotification> achievementNotifications_;
+    r3d::game::originalrace::source::PlayerStateFrame playerStateFrame_;
     r3d::game::originalrace::source::HudMenu hudMenuState_;
     float lifeFraction_ = 1.0F;
     std::array<bool,

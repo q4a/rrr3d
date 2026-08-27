@@ -4535,6 +4535,29 @@ bgfx `Vertex`, загружает mesh и передаёт color/draw calls. Reg
 замкнутую карту с поворотами, проверяет topology, UV-compatible pairs,
 start orientation/size, оси world-to-map и Clear/rebuild lifetime.
 
+### P2.194 — очереди `PlayerStateFrame` возвращены source owner — выполнено
+
+После переноса внешнего HudMenu и MiniMap оставались renderer-owned
+`PickItems` и `AchievmentItems`. Это было не только неверное ownership:
+achievement popup не получал исходный `lastIndex = current size`, а fly
+считался линейно от сохранённой стартовой точки. Windows каждый кадр делает
+lerp от текущей widget position, поэтому траектория и перестроение stack
+различались.
+
+Добавлен active `source::PlayerStateFrame` с устойчивыми `HudItemId`.
+`NewPickItem/ProccessPickItems` теперь владеют insert-front order, 5 s
+lifetime, fade 0.3/4.7, шагами 90/120 и spacing 85. Source
+`NewAchievment/ProccessAchievments` выбирает одну из восьми исходных стартовых
+позиций, сохраняет slot/image dimensions, правильный initial lastIndex,
+current-position fly 0.3 s, double-size ping 0.2–0.4, points fade после 0.8,
+stack reindex 0.15 и общий fade/remove в 4.7–5.0 s.
+
+`OriginalRaceHud` хранит только GPU images, kill labels и payload по id;
+позиция, alpha, scale, ordering и lifetime читаются из source owner. При
+удалении source item adapter освобождает соответствующий CoreText texture.
+Regression проверяет pick slide/fade/removal, точную achievement trajectory,
+ping/points alpha, двухэлементный reindex, lifetime и Reset.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

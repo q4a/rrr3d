@@ -2324,3 +2324,15 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   логикой и только создаёт bgfx mesh/marker draw calls.
 - Regression закрепляет topology, направление/размер start marker,
   world-to-map orientation и безопасный Clear/rebuild.
+
+### Source PlayerStateFrame notification follow-up
+
+- Pick/kill и achievement collections перенесены из bgfx HUD в active
+  `source::PlayerStateFrame`; renderer хранит только GPU payload по stable id.
+- Pick notifications повторяют insert-front, 5 s lifetime, 0.3 s fade,
+  90/120 px/s slide и 85 px stack spacing.
+- Achievement notifications снова используют восемь source RNG origins,
+  initial lastIndex, current-position fly, 0.2–0.4 s size ping, points fade,
+  0.15 s reindex и 4.7–5.0 s exit.
+- Исправлены две surrogate-ошибки: отсутствующий initial lastIndex и линейный
+  fly от сохранённого старта вместо Windows lerp от текущей позиции.

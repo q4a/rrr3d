@@ -114,6 +114,80 @@ int main()
         !miniMap.GetGeometry().indices.empty())
         return 12;
 
+    source::PlayerStateFrame playerState;
+    const auto pick = playerState.NewPickItem(100.0F, 0.0F);
+    playerState.OnProgress(0.1F, 0.0F);
+    const auto* pickState = playerState.FindPickItem(pick);
+    if (pickState == nullptr || !near(pickState->position.x, 59.0F) ||
+        !near(pickState->position.y, 255.0F) ||
+        !near(pickState->alpha, 0.0F))
+        return 13;
+    playerState.OnProgress(0.15F, 0.15F);
+    pickState = playerState.FindPickItem(pick);
+    if (pickState == nullptr || !near(pickState->position.x, 72.5F) ||
+        !near(pickState->alpha, 0.5F))
+        return 14;
+    playerState.OnProgress(0.1F, 4.8F);
+    pickState = playerState.FindPickItem(pick);
+    if (pickState == nullptr || !near(pickState->alpha, 2.0F / 3.0F) ||
+        pickState->position.y <= 255.0F)
+        return 15;
+    playerState.OnProgress(0.2F, 5.0F);
+    if (playerState.FindPickItem(pick) != nullptr ||
+        !playerState.GetPickItems().empty())
+        return 16;
+
+    const auto firstAchievment = playerState.NewAchievment(
+        100.0F, 60.0F, 40.0F, 1920.0F, 1080.0F, 0.0F, 0U);
+    auto* achievmentState =
+        playerState.FindAchievmentItem(firstAchievment);
+    if (achievmentState == nullptr ||
+        !point(achievmentState->position, -200.0F, 270.0F))
+        return 17;
+    playerState.OnProgress(0.15F, 0.15F);
+    achievmentState =
+        playerState.FindAchievmentItem(firstAchievment);
+    if (achievmentState == nullptr ||
+        !point(achievmentState->position, 405.0F, 152.5F) ||
+        !near(achievmentState->pointsAlpha, 0.0F))
+        return 18;
+    playerState.OnProgress(0.15F, 0.3F);
+    achievmentState =
+        playerState.FindAchievmentItem(firstAchievment);
+    if (achievmentState == nullptr ||
+        !point(achievmentState->position, 1010.0F, 35.0F) ||
+        !near(achievmentState->scale, 2.0F))
+        return 19;
+    playerState.OnProgress(0.1F, 0.4F);
+    if (!near(playerState.FindAchievmentItem(firstAchievment)->scale,
+              1.0F))
+        return 20;
+    playerState.OnProgress(0.475F, 0.875F);
+    if (!near(
+            playerState.FindAchievmentItem(firstAchievment)->pointsAlpha,
+            0.5F))
+        return 21;
+    const auto secondAchievment = playerState.NewAchievment(
+        100.0F, 60.0F, 40.0F, 1920.0F, 1080.0F, 1.0F, 7U);
+    playerState.OnProgress(0.075F, 1.075F);
+    if (playerState.GetAchievmentItems().size() != 2U ||
+        playerState.GetAchievmentItems().front().id != secondAchievment ||
+        playerState.FindAchievmentItem(secondAchievment)->indexTime < 0.0F ||
+        playerState.FindAchievmentItem(firstAchievment)->indexTime < 0.0F)
+        return 22;
+    playerState.OnProgress(0.075F, 1.15F);
+    if (playerState.FindAchievmentItem(secondAchievment)->indexTime >= 0.0F ||
+        playerState.FindAchievmentItem(firstAchievment)->indexTime >= 0.0F)
+        return 23;
+    playerState.OnProgress(0.1F, 5.0F);
+    if (playerState.FindAchievmentItem(firstAchievment) != nullptr ||
+        playerState.FindAchievmentItem(secondAchievment) == nullptr)
+        return 24;
+    playerState.Reset();
+    if (!playerState.GetPickItems().empty() ||
+        !playerState.GetAchievmentItems().empty())
+        return 25;
+
     std::cout << "Original HudMenu smoke passed\n";
     return 0;
 }

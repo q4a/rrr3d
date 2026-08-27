@@ -8,7 +8,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstdlib>
 #include <exception>
 #include <limits>
 #include <numeric>
@@ -129,6 +128,7 @@ bool OriginalRaceHud::initialize(
 {
     campaign_ = campaign;
     hudMenuState_.Reset();
+    playerStateFrame_.Reset();
     // These are the same assets created by PlayerStateFrame and
     // MiniMapFrame in the Windows HUD.
     if (!loadImage(device, resources, "Data/GUI/placeMineHyper.png",
@@ -470,6 +470,7 @@ void OriginalRaceHud::shutdown(GraphicsDevice& device) noexcept
     carLifeOverlays_ = {};
     notifications_.clear();
     achievementNotifications_.clear();
+    playerStateFrame_.Reset();
     localizedRacerNames_.clear();
     localizedGamerNames_.clear();
     finishRows_ = {};
@@ -653,7 +654,6 @@ void OriginalRaceHud::update(
         {
             AchievementNotification notification;
             notification.achievement = event.target;
-            notification.started = uiSeconds_;
             const auto& image = achievementImages_[event.target];
             const auto& points =
                 achievementPointsImages_[event.target];
@@ -661,56 +661,12 @@ void OriginalRaceHud::update(
                 std::max(image.width, points.width);
             const float slotHeight =
                 image.height + points.height + 15.0F;
-            const float quarter =
-                menu::virtualHeight * 0.25F;
             // PlayerStateFrame::NewAchievment chooses a fresh source RNG
             // position for every popup; repeated/skipped positions are
             // therefore intentional.
-            const auto startPosition = static_cast<std::size_t>(
-                static_cast<double>(std::rand()) /
-                (static_cast<double>(RAND_MAX) + 1.0) * 8.0);
-            switch (startPosition)
-            {
-            case 0U:
-                notification.startX = -slotWidth * 2.0F;
-                notification.startY = quarter;
-                break;
-            case 1U:
-                notification.startX = -slotWidth;
-                notification.startY = quarter * 2.0F;
-                break;
-            case 2U:
-                notification.startX = -slotWidth;
-                notification.startY = quarter * 3.0F;
-                break;
-            case 3U:
-                notification.startX = 0.0F;
-                notification.startY =
-                    menu::virtualHeight + slotHeight;
-                break;
-            case 4U:
-                notification.startX =
-                    menu::virtualWidth + slotHeight * 2.0F;
-                notification.startY = quarter;
-                break;
-            case 5U:
-                notification.startX =
-                    menu::virtualWidth + slotHeight;
-                notification.startY = quarter * 2.0F;
-                break;
-            case 6U:
-                notification.startX =
-                    menu::virtualWidth + slotHeight;
-                notification.startY = quarter * 3.0F;
-                break;
-            default:
-                notification.startX = menu::virtualWidth;
-                notification.startY =
-                    menu::virtualHeight + slotHeight;
-                break;
-            }
-            notification.x = notification.startX;
-            notification.y = notification.startY;
+            notification.id = playerStateFrame_.NewAchievment(
+                slotWidth, slotHeight, image.height,
+                menu::virtualWidth, menu::virtualHeight, uiSeconds_);
             achievementNotifications_.insert(
                 achievementNotifications_.begin(), notification);
         }
@@ -721,7 +677,6 @@ void OriginalRaceHud::update(
             PickNotification notification;
             notification.kind = race.bonuses[event.target].kind;
             notification.slot = event.pickSlot;
-            notification.started = uiSeconds_;
             const ImageAsset* image = nullptr;
             switch (notification.kind)
             {
@@ -752,10 +707,8 @@ void OriginalRaceHud::update(
             }
             if (image != nullptr)
             {
-                const auto origin = source::HudMenu::GetPickItemsPos();
-                notification.x = image->width * 0.5F;
-                notification.y = origin.y;
-                notification.targetX = notification.x + 30.0F;
+                notification.id = playerStateFrame_.NewPickItem(
+                    image->width, uiSeconds_);
                 notifications_.insert(notifications_.begin(),
                                       notification);
             }
@@ -769,11 +722,8 @@ void OriginalRaceHud::update(
             notification.target = event.target;
             notification.targetGamerId =
                 session.racers()[event.target].GetGamerId();
-            notification.started = uiSeconds_;
-            const auto origin = source::HudMenu::GetPickItemsPos();
-            notification.x = playerKill_.width * 0.5F;
-            notification.y = origin.y;
-            notification.targetX = notification.x + 30.0F;
+            notification.id = playerStateFrame_.NewPickItem(
+                playerKill_.width, uiSeconds_);
             const auto name = racerName(race, session, event.target);
             setText(device, notification.label, name, 24.0F, false,
                     {214, 214, 214, 255});
@@ -814,10 +764,11 @@ void OriginalRaceHud::update(
             }
         }
     }
+    playerStateFrame_.OnProgress(seconds, uiSeconds_);
     for (auto iterator = notifications_.begin();
          iterator != notifications_.end();)
     {
-        if (uiSeconds_ - iterator->started < 5.0F)
+        if (playerStateFrame_.FindPickItem(iterator->id) != nullptr)
         {
             ++iterator;
             continue;
@@ -826,96 +777,15 @@ void OriginalRaceHud::update(
             device.destroy(iterator->label.texture);
         iterator = notifications_.erase(iterator);
     }
-    for (std::size_t index = 0; index < notifications_.size(); ++index)
-    {
-        auto& notification = notifications_[index];
-        const float age = uiSeconds_ - notification.started;
-        const bool fadingOut = age > 4.7F;
-        notification.alpha =
-            age < 0.3F
-                ? std::clamp(age / 0.3F, 0.0F, 1.0F)
-                : (fadingOut
-                       ? 1.0F -
-                             std::clamp((age - 4.7F) / 0.3F,
-                                        0.0F, 1.0F)
-                       : 1.0F);
-        const float targetY =
-            source::HudMenu::GetPickItemsPos().y +
-            static_cast<float>(index) * 85.0F +
-            (fadingOut ? 30.0F : 0.0F);
-        notification.x =
-            std::min(notification.x + 90.0F * seconds,
-                     notification.targetX);
-        notification.y =
-            std::min(notification.y + 120.0F * seconds, targetY);
-    }
     achievementNotifications_.erase(
         std::remove_if(
             achievementNotifications_.begin(),
             achievementNotifications_.end(),
             [&](const AchievementNotification& notification) {
-                return uiSeconds_ - notification.started >= 5.0F;
+                return playerStateFrame_.FindAchievmentItem(
+                           notification.id) == nullptr;
             }),
         achievementNotifications_.end());
-    for (std::size_t index = 0;
-         index < achievementNotifications_.size(); ++index)
-    {
-        auto& notification = achievementNotifications_[index];
-        if (notification.achievement >= achievementImages_.size() ||
-            notification.achievement >=
-                achievementPointsImages_.size())
-            continue;
-        const float age = uiSeconds_ - notification.started;
-        const float fly = std::clamp(age / 0.3F, 0.0F, 1.0F);
-        const float out =
-            std::clamp((age - 4.7F) / 0.3F, 0.0F, 1.0F);
-        notification.alpha = 1.0F - out;
-        notification.pointsAlpha =
-            std::clamp((age - 0.8F) / 0.15F, 0.0F, 1.0F) - out;
-        const float ping =
-            std::clamp((age - 0.2F) / 0.1F, 0.0F, 1.0F) -
-            std::clamp((age - 0.3F) / 0.1F, 0.0F, 1.0F);
-        notification.scale = 1.0F + ping;
-        const auto& image =
-            achievementImages_[notification.achievement];
-        const auto& points =
-            achievementPointsImages_[notification.achievement];
-        const float slotHeight =
-            image.height + points.height + 15.0F;
-        const auto achievementOrigin =
-            source::HudMenu::GetAchievmentItemsPos(menu::virtualWidth);
-        const float targetX = achievementOrigin.x;
-        float stackIndex = static_cast<float>(index);
-        if (notification.indexTime < 0.0F &&
-            stackIndex != notification.lastIndex)
-        {
-            notification.indexTime = 0.0F;
-        }
-        if (notification.indexTime >= 0.0F)
-        {
-            notification.indexTime += seconds;
-            const float reindex = std::clamp(
-                notification.indexTime / 0.15F, 0.0F, 1.0F);
-            stackIndex = notification.lastIndex +
-                (stackIndex - notification.lastIndex) * reindex;
-            if (reindex >= 1.0F)
-            {
-                notification.lastIndex =
-                    static_cast<float>(index);
-                notification.indexTime = -1.0F;
-            }
-        }
-        const float targetY =
-            achievementOrigin.y + image.height * 0.5F +
-            stackIndex * slotHeight;
-        notification.x =
-            notification.startX +
-            (targetX - notification.startX) * fly;
-        notification.y =
-            notification.startY +
-            (targetY - notification.startY) * fly;
-    }
-
     hudMenuState_.OnProgress(seconds);
 
     lifeFraction_ =
@@ -1530,6 +1400,9 @@ void OriginalRaceHud::draw(GraphicsDevice& device, Mesh quad,
 
     for (const auto& item : notifications_)
     {
+        const auto* state = playerStateFrame_.FindPickItem(item.id);
+        if (state == nullptr)
+            continue;
         const ImageAsset* notification = nullptr;
         if (item.target != std::numeric_limits<std::size_t>::max())
             notification = &playerKill_;
@@ -1564,28 +1437,34 @@ void OriginalRaceHud::draw(GraphicsDevice& device, Mesh quad,
             drawTintedAsset(
                 device, quad, shader, notification->texture,
                 notification->width, notification->height,
-                item.x, item.y, 20.0F, pipeline,
-                {1.0F, 1.0F, 1.0F, item.alpha});
+                state->position.x, state->position.y, 20.0F, pipeline,
+                {1.0F, 1.0F, 1.0F, state->alpha});
             if (const auto* photo =
                     racerPhoto(item.targetGamerId, item.target))
             {
                 drawTintedAsset(
                     device, quad, shader,
                     photo->texture, 50.0F, 50.0F,
-                    item.x - 40.0F, item.y, 18.0F, pipeline,
-                    {1.0F, 1.0F, 1.0F, item.alpha});
+                    state->position.x - 40.0F, state->position.y,
+                    18.0F, pipeline,
+                    {1.0F, 1.0F, 1.0F, state->alpha});
                 drawTintedAsset(
                     device, quad, shader, item.label.texture,
                     item.label.width, item.label.height,
-                    item.x - 15.0F + item.label.width * 0.5F,
-                    item.y, 16.0F, pipeline,
-                    {1.0F, 1.0F, 1.0F, item.alpha});
+                    state->position.x - 15.0F +
+                        item.label.width * 0.5F,
+                    state->position.y, 16.0F, pipeline,
+                    {1.0F, 1.0F, 1.0F, state->alpha});
             }
         }
     }
 
     for (const auto& item : achievementNotifications_)
     {
+        const auto* state =
+            playerStateFrame_.FindAchievmentItem(item.id);
+        if (state == nullptr)
+            continue;
         if (item.achievement >= achievementImages_.size() ||
             item.achievement >= achievementPointsImages_.size())
             continue;
@@ -1594,19 +1473,19 @@ void OriginalRaceHud::draw(GraphicsDevice& device, Mesh quad,
             achievementPointsImages_[item.achievement];
         drawTintedAsset(
             device, quad, shader, image.texture,
-            image.width * item.scale, image.height * item.scale,
-            item.x, item.y, 12.0F, pipeline,
-            {1.0F, 1.0F, 1.0F, item.alpha});
+            image.width * state->scale, image.height * state->scale,
+            state->position.x, state->position.y, 12.0F, pipeline,
+            {1.0F, 1.0F, 1.0F, state->alpha});
         if (campaign_)
         {
             const float pointsY =
-                item.y + image.height * 0.5F + 15.0F +
+                state->position.y + image.height * 0.5F + 15.0F +
                 points.height * 0.5F;
             drawTintedAsset(
                 device, quad, shader, points.texture,
-                points.width, points.height, item.x, pointsY,
+                points.width, points.height, state->position.x, pointsY,
                 10.0F, pipeline,
-                {1.0F, 1.0F, 1.0F, item.pointsAlpha});
+                {1.0F, 1.0F, 1.0F, state->pointsAlpha});
             if (valid(achievementMultiplierImage_.texture))
             {
                 drawTintedAsset(
@@ -1614,9 +1493,9 @@ void OriginalRaceHud::draw(GraphicsDevice& device, Mesh quad,
                     achievementMultiplierImage_.texture,
                     achievementMultiplierImage_.width,
                     achievementMultiplierImage_.height,
-                    item.x + 95.0F, pointsY - 3.0F,
+                    state->position.x + 95.0F, pointsY - 3.0F,
                     8.0F, pipeline,
-                    {1.0F, 1.0F, 1.0F, item.pointsAlpha});
+                    {1.0F, 1.0F, 1.0F, state->pointsAlpha});
             }
         }
     }

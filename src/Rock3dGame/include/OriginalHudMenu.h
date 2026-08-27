@@ -2,6 +2,7 @@
 
 #include "OriginalRace.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 
@@ -79,6 +80,61 @@ private:
     float originX_ = 0.0F;
     float originY_ = 0.0F;
     bool valid_ = false;
+};
+
+using HudItemId = std::uint64_t;
+
+struct HudPickItem
+{
+    HudItemId id = 0U;
+    float started = 0.0F;
+    HudPoint position;
+    float targetX = 0.0F;
+    float alpha = 0.0F;
+};
+
+struct HudAchievmentItem
+{
+    HudItemId id = 0U;
+    float started = 0.0F;
+    HudPoint position;
+    float targetX = 0.0F;
+    float slotHeight = 0.0F;
+    float imageHeight = 0.0F;
+    float alpha = 1.0F;
+    float pointsAlpha = 0.0F;
+    float scale = 1.0F;
+    float lastIndex = 0.0F;
+    float indexTime = -1.0F;
+};
+
+// Source PlayerStateFrame notification queues. GPU images/text remain view
+// resources keyed by HudItemId; ordering, lifetime and all motion/fade state
+// are owned here.
+class PlayerStateFrame
+{
+public:
+    static constexpr std::size_t randomAchievmentPosition = 8U;
+
+    HudItemId NewPickItem(float imageWidth, float now);
+    HudItemId NewAchievment(
+        float slotWidth, float slotHeight, float imageHeight,
+        float viewportWidth, float viewportHeight, float now,
+        std::size_t startPosition = randomAchievmentPosition);
+    void OnProgress(float deltaTime, float now);
+    void Reset() noexcept;
+
+    const std::vector<HudPickItem>& GetPickItems() const noexcept;
+    const std::vector<HudAchievmentItem>&
+    GetAchievmentItems() const noexcept;
+    const HudPickItem* FindPickItem(HudItemId id) const noexcept;
+    const HudAchievmentItem* FindAchievmentItem(
+        HudItemId id) const noexcept;
+
+private:
+    HudItemId nextId_ = 1U;
+    std::vector<HudPickItem> pickItems_;
+    std::vector<HudAchievmentItem> achievmentItems_;
 };
 
 // Backend-neutral owner transcribed from HudMenu/PlayerStateFrame. Widget

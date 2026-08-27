@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdlib>
 #include <limits>
 #include <list>
 
@@ -366,6 +367,192 @@ const HudMiniMapGeometry& MiniMapFrame::GetGeometry() const noexcept
 bool MiniMapFrame::IsValid() const noexcept
 {
     return valid_;
+}
+
+HudItemId PlayerStateFrame::NewPickItem(float imageWidth, float now)
+{
+    HudPickItem item;
+    item.id = nextId_++;
+    item.started = now;
+    item.position = {
+        imageWidth * 0.5F, HudMenu::GetPickItemsPos().y};
+    item.targetX = item.position.x + 30.0F;
+    pickItems_.insert(pickItems_.begin(), item);
+    return item.id;
+}
+
+HudItemId PlayerStateFrame::NewAchievment(
+    float slotWidth, float slotHeight, float imageHeight,
+    float viewportWidth, float viewportHeight, float now,
+    std::size_t startPosition)
+{
+    HudAchievmentItem item;
+    item.id = nextId_++;
+    item.started = now;
+    item.slotHeight = slotHeight;
+    item.imageHeight = imageHeight;
+    item.targetX =
+        HudMenu::GetAchievmentItemsPos(viewportWidth).x;
+    item.lastIndex = static_cast<float>(achievmentItems_.size());
+    if (startPosition >= randomAchievmentPosition)
+    {
+        startPosition = static_cast<std::size_t>(
+            static_cast<double>(std::rand()) /
+            (static_cast<double>(RAND_MAX) + 1.0) *
+            static_cast<double>(randomAchievmentPosition));
+    }
+    const float quarter = viewportHeight * 0.25F;
+    switch (startPosition)
+    {
+    case 0U:
+        item.position = {-slotWidth * 2.0F, quarter};
+        break;
+    case 1U:
+        item.position = {-slotWidth, quarter * 2.0F};
+        break;
+    case 2U:
+        item.position = {-slotWidth, quarter * 3.0F};
+        break;
+    case 3U:
+        item.position = {0.0F, viewportHeight + slotHeight};
+        break;
+    case 4U:
+        item.position = {
+            viewportWidth + slotHeight * 2.0F, quarter};
+        break;
+    case 5U:
+        item.position = {
+            viewportWidth + slotHeight, quarter * 2.0F};
+        break;
+    case 6U:
+        item.position = {
+            viewportWidth + slotHeight, quarter * 3.0F};
+        break;
+    default:
+        item.position = {
+            viewportWidth, viewportHeight + slotHeight};
+        break;
+    }
+    achievmentItems_.insert(achievmentItems_.begin(), item);
+    return item.id;
+}
+
+void PlayerStateFrame::OnProgress(float deltaTime, float now)
+{
+    deltaTime = std::max(deltaTime, 0.0F);
+    pickItems_.erase(
+        std::remove_if(
+            pickItems_.begin(), pickItems_.end(),
+            [now](const HudPickItem& item) {
+                return now - item.started >= 5.0F;
+            }),
+        pickItems_.end());
+    for (std::size_t index = 0U; index < pickItems_.size(); ++index)
+    {
+        auto& item = pickItems_[index];
+        const float age = std::max(now - item.started, 0.0F);
+        const bool fadingOut = age > 4.7F;
+        item.alpha =
+            age < 0.3F
+                ? std::clamp(age / 0.3F, 0.0F, 1.0F)
+                : fadingOut
+                ? 1.0F - std::clamp(
+                      (age - 4.7F) / 0.3F, 0.0F, 1.0F)
+                : 1.0F;
+        const float targetY = HudMenu::GetPickItemsPos().y +
+            static_cast<float>(index) * 85.0F +
+            (fadingOut ? 30.0F : 0.0F);
+        item.position.x = std::min(
+            item.position.x + 90.0F * deltaTime, item.targetX);
+        item.position.y = std::min(
+            item.position.y + 120.0F * deltaTime, targetY);
+    }
+
+    achievmentItems_.erase(
+        std::remove_if(
+            achievmentItems_.begin(), achievmentItems_.end(),
+            [now](const HudAchievmentItem& item) {
+                return now - item.started >= 5.0F;
+            }),
+        achievmentItems_.end());
+    const float originY = HudMenu::GetAchievmentItemsPos(0.0F).y;
+    for (std::size_t index = 0U;
+         index < achievmentItems_.size(); ++index)
+    {
+        auto& item = achievmentItems_[index];
+        const float age = std::max(now - item.started, 0.0F);
+        float stackIndex = static_cast<float>(index);
+        if (item.indexTime < 0.0F && stackIndex != item.lastIndex)
+            item.indexTime = 0.0F;
+        if (item.indexTime >= 0.0F)
+        {
+            item.indexTime += deltaTime;
+            const float amount = std::clamp(
+                item.indexTime / 0.15F, 0.0F, 1.0F);
+            stackIndex = item.lastIndex +
+                (stackIndex - item.lastIndex) * amount;
+            if (amount >= 1.0F)
+            {
+                item.lastIndex = static_cast<float>(index);
+                item.indexTime = -1.0F;
+            }
+        }
+        const HudPoint target{
+            item.targetX,
+            originY + item.imageHeight * 0.5F +
+                stackIndex * item.slotHeight};
+        const float fly = std::clamp(age / 0.3F, 0.0F, 1.0F);
+        item.position.x += (target.x - item.position.x) * fly;
+        item.position.y += (target.y - item.position.y) * fly;
+        const float out = std::clamp(
+            (age - 4.7F) / 0.3F, 0.0F, 1.0F);
+        item.alpha = 1.0F - out;
+        item.pointsAlpha = std::clamp(
+            (age - 0.8F) / 0.15F, 0.0F, 1.0F) - out;
+        const float ping = std::clamp(
+            (age - 0.2F) / 0.1F, 0.0F, 1.0F) -
+            std::clamp((age - 0.3F) / 0.1F, 0.0F, 1.0F);
+        item.scale = 1.0F + ping;
+    }
+}
+
+void PlayerStateFrame::Reset() noexcept
+{
+    nextId_ = 1U;
+    pickItems_.clear();
+    achievmentItems_.clear();
+}
+
+const std::vector<HudPickItem>&
+PlayerStateFrame::GetPickItems() const noexcept
+{
+    return pickItems_;
+}
+
+const std::vector<HudAchievmentItem>&
+PlayerStateFrame::GetAchievmentItems() const noexcept
+{
+    return achievmentItems_;
+}
+
+const HudPickItem* PlayerStateFrame::FindPickItem(
+    HudItemId id) const noexcept
+{
+    const auto found = std::find_if(
+        pickItems_.begin(), pickItems_.end(),
+        [id](const HudPickItem& item) { return item.id == id; });
+    return found == pickItems_.end() ? nullptr : &*found;
+}
+
+const HudAchievmentItem* PlayerStateFrame::FindAchievmentItem(
+    HudItemId id) const noexcept
+{
+    const auto found = std::find_if(
+        achievmentItems_.begin(), achievmentItems_.end(),
+        [id](const HudAchievmentItem& item) {
+            return item.id == id;
+        });
+    return found == achievmentItems_.end() ? nullptr : &*found;
 }
 
 void HudMenu::Reset() noexcept
