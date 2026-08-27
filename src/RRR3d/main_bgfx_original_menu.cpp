@@ -5184,6 +5184,7 @@ int main(int argc, char** argv)
     using MenuScreen = originalmenu::MenuScreen;
     auto& menuStack = sourceMenuSystem.Screens();
     auto& menuSelection = sourceMenuSystem.Selection();
+    r3d::game::mainmenu2::FrameController sourceMainMenuFrame;
     bool championshipMode = true;
     bool newTournamentProfile = false;
     std::uint64_t previousFrameTicks = SDL_GetTicksNS();
@@ -5221,17 +5222,7 @@ int main(int argc, char** argv)
     std::uint32_t gamersSmokeNextFrame = 0U;
     std::optional<r3d::game::originalrace::PlayerProfile>
         championshipPlayerBeforeSkirmish;
-    enum class ProfileFocus
-    {
-        Item,
-        Close,
-        Up,
-        Down,
-        Back
-    };
-    ProfileFocus profileFocus = ProfileFocus::Back;
-    std::size_t profileFocusIndex = 0U;
-    std::size_t profileGridScroll = 0U;
+    r3d::game::mainmenu2::ProfileFrameState sourceProfileFrame;
     bool profileDeleteDialogVisible = false;
     bool profileDeleteYesFocused = true;
     std::size_t profileDeleteIndex =
@@ -5359,19 +5350,7 @@ int main(int argc, char** argv)
     auto refreshProfilePage = [&]() {
 #ifdef RRR3D_PHYSICS
         auto profileLabels = activeProfileNames();
-        const auto maximumScroll =
-            profileLabels.size() > 4U
-                ? profileLabels.size() - 4U
-                : 0U;
-        profileGridScroll =
-            std::min(profileGridScroll, maximumScroll);
-        if ((profileFocus == ProfileFocus::Item ||
-             profileFocus == ProfileFocus::Close) &&
-            profileFocusIndex >= profileLabels.size())
-        {
-            profileFocus = ProfileFocus::Back;
-            profileFocusIndex = 0U;
-        }
+        sourceProfileFrame.setProfileCount(profileLabels.size());
 #else
         std::vector<std::string> profileLabels{"profile1"};
 #endif
@@ -5395,68 +5374,38 @@ int main(int argc, char** argv)
     };
 #endif
     auto refreshSharedMenuAvailability = [&](MenuScreen screen) {
-        auto enableAll = [](MenuPageVisual& page) {
-            std::fill(
-                page.enabled.begin(), page.enabled.end(), true);
-        };
-        switch (screen)
-        {
-        case MenuScreen::GameMode:
-            enableAll(gameModePage);
+        r3d::game::mainmenu2::FrameContext context;
 #ifdef RRR3D_PHYSICS
-            gameModePage.enabled[1] =
-                profileState.tutorialStage >= 1U;
+        const auto& profileNames = activeProfileNames();
+        context.tutorialFirstStageComplete =
+            profileState.tutorialStage >= 1U;
+        context.hasProfiles = !profileNames.empty();
+        const std::string& lastProfile =
+#ifdef RRR3D_NETWORK
+            networkHostRequested
+                ? profileState.lastNetworkProfile
+                :
 #endif
-            break;
-        case MenuScreen::Tournament:
-            enableAll(tournamentPage);
-#ifdef RRR3D_PHYSICS
-            tournamentPage.enabled[0] =
-                !activeProfileNames().empty();
-            tournamentPage.enabled[2] =
-                !activeProfileNames().empty();
+                  profileState.lastProfile;
+        context.hasLastProfile =
+            std::find(profileNames.begin(), profileNames.end(),
+                      lastProfile) != profileNames.end();
 #endif
-            break;
-        default:
-            break;
-        }
+        auto& page = activeMenuPage();
+        sourceMainMenuFrame.show(screen, page.enabled.size(), context);
+        page.enabled = sourceMainMenuFrame.enabledItems();
     };
     auto firstEnabledMenuItem = [&]() {
-        const auto& page = activeMenuPage();
-        const auto first = std::find(
-            page.enabled.begin(), page.enabled.end(), true);
-        return first == page.enabled.end()
-                   ? std::size_t{0}
-                   : static_cast<std::size_t>(
-                         std::distance(page.enabled.begin(), first));
-    };
-    auto usesSharedBackPosition = [](MenuScreen screen) {
-        switch (screen)
-        {
-        case MenuScreen::GameMode:
-        case MenuScreen::Tournament:
-        case MenuScreen::Difficulty:
-        case MenuScreen::Profiles:
-        case MenuScreen::Network:
-#ifdef RRR3D_NETWORK
-        case MenuScreen::NetworkServerType:
-        case MenuScreen::NetworkClientType:
-        case MenuScreen::NetworkBrowser:
-        case MenuScreen::NetworkIpAddress:
-#endif
-        case MenuScreen::Credits:
-            return true;
-        default:
-            return false;
-        }
+        return sourceMainMenuFrame.firstEnabled();
     };
     auto sharedMenuItemY =
         [&](MenuScreen screen, std::size_t index,
             std::size_t count) {
-            if (usesSharedBackPosition(screen) &&
-                index + 1U == count)
+            if (sourceMainMenuFrame.screen() == screen &&
+                sourceMainMenuFrame.enabledItems().size() == count)
             {
-                return menu::virtualHeight * 0.5F + 150.0F;
+                return sourceMainMenuFrame.itemY(
+                    menu::virtualHeight, index);
             }
             return menu::virtualHeight * 0.5F +
                    menu::firstItemOffsetY +
@@ -5467,9 +5416,7 @@ int main(int argc, char** argv)
         if (screen == MenuScreen::Profiles)
         {
 #ifdef RRR3D_PHYSICS
-            profileGridScroll = 0U;
-            profileFocus = ProfileFocus::Back;
-            profileFocusIndex = 0U;
+            sourceProfileFrame.show(activeProfileNames().size());
             profileDeleteDialogVisible = false;
             profileDeleteIndex =
                 std::numeric_limits<std::size_t>::max();
@@ -12226,77 +12173,72 @@ int main(int argc, char** argv)
                         static_cast<float>(windowHeight);
                     const float centerX =
                         menu::virtualWidth * 0.5F;
-                    const float centerY =
-                        menu::virtualHeight * 0.5F;
-                        const auto visibleEnd = std::min(
-                            profileGridScroll + 4U,
-                            activeProfileNames().size());
-                        for (std::size_t index = profileGridScroll;
-                             index < visibleEnd; ++index)
+                    const auto visibleEnd =
+                        sourceProfileFrame.visibleEnd();
+                    for (std::size_t index =
+                             sourceProfileFrame.visibleBegin();
+                         index < visibleEnd; ++index)
+                    {
+                        const float rowY = sourceProfileFrame.rowY(
+                            menu::virtualHeight, index);
+                        const float closeX =
+                            centerX +
+                            static_cast<float>(
+                                model->selectionImage.width) *
+                                0.5F -
+                            40.0F;
+                        if (std::abs(virtualX - closeX) <= 22.0F &&
+                            std::abs(virtualY - rowY) <= 22.0F)
                         {
-                            const float rowY =
-                                centerY - 90.0F +
-                                static_cast<float>(
-                                    index - profileGridScroll) *
-                                    menu::itemSpacing;
-                            const float closeX =
-                                centerX +
-                                static_cast<float>(
-                                    model->selectionImage.width) *
-                                    0.5F -
-                                40.0F;
-                            if (std::abs(virtualX - closeX) <= 22.0F &&
-                                std::abs(virtualY - rowY) <= 22.0F)
-                            {
-                                profileFocus = ProfileFocus::Close;
-                                profileFocusIndex = index;
-                                hoveredProfileControl = true;
-                                break;
-                            }
-                            if (std::abs(virtualX - centerX) <=
-                                    static_cast<float>(
-                                        model->selectionImage.width) *
-                                        0.5F &&
-                                std::abs(virtualY - rowY) <= 24.0F)
-                            {
-                                profileFocus = ProfileFocus::Item;
-                                profileFocusIndex = index;
-                                hoveredProfileControl = true;
-                                break;
-                            }
+                            sourceProfileFrame.focusClose(index);
+                            hoveredProfileControl = true;
+                            break;
                         }
-                        const float backY = centerY + 150.0F;
-                        if (!hoveredProfileControl &&
-                            std::abs(virtualX - centerX) <=
+                        if (std::abs(virtualX - centerX) <=
                                 static_cast<float>(
                                     model->selectionImage.width) *
                                     0.5F &&
-                            std::abs(virtualY - backY) <= 24.0F)
+                            std::abs(virtualY - rowY) <= 24.0F)
                         {
-                            profileFocus = ProfileFocus::Back;
+                            sourceProfileFrame.focusItem(index);
                             hoveredProfileControl = true;
+                            break;
                         }
-                        if (!hoveredProfileControl &&
-                            std::abs(virtualX - centerX) <= 26.0F &&
-                            std::abs(
-                                virtualY -
-                                (centerY - 108.0F)) <= 22.0F &&
-                            profileGridScroll > 0U)
-                        {
-                            profileFocus = ProfileFocus::Up;
-                            hoveredProfileControl = true;
-                        }
-                        if (!hoveredProfileControl &&
-                            std::abs(virtualX - centerX) <= 26.0F &&
-                            std::abs(
-                                virtualY -
-                                (centerY + 120.0F)) <= 22.0F &&
-                            profileGridScroll + 4U <
-                                activeProfileNames().size())
-                        {
-                            profileFocus = ProfileFocus::Down;
-                            hoveredProfileControl = true;
-                        }
+                    }
+                    const float backY = sourceProfileFrame.backY(
+                        menu::virtualHeight);
+                    if (!hoveredProfileControl &&
+                        std::abs(virtualX - centerX) <=
+                            static_cast<float>(
+                                model->selectionImage.width) *
+                                0.5F &&
+                        std::abs(virtualY - backY) <= 24.0F)
+                    {
+                        sourceProfileFrame.focusBack();
+                        hoveredProfileControl = true;
+                    }
+                    if (!hoveredProfileControl &&
+                        std::abs(virtualX - centerX) <= 26.0F &&
+                        std::abs(
+                            virtualY -
+                            sourceProfileFrame.upArrowY(
+                                menu::virtualHeight)) <= 22.0F &&
+                        sourceProfileFrame.canScrollUp())
+                    {
+                        sourceProfileFrame.focusUp();
+                        hoveredProfileControl = true;
+                    }
+                    if (!hoveredProfileControl &&
+                        std::abs(virtualX - centerX) <= 26.0F &&
+                        std::abs(
+                            virtualY -
+                            sourceProfileFrame.downArrowY(
+                                menu::virtualHeight)) <= 22.0F &&
+                        sourceProfileFrame.canScrollDown())
+                    {
+                        sourceProfileFrame.focusDown();
+                        hoveredProfileControl = true;
+                    }
                 }
                 pointerTargetsItem =
                     hoveredProfileControl ||
@@ -13296,7 +13238,8 @@ int main(int argc, char** argv)
                     hoverPage.labels.size(),
                     static_cast<float>(model->selectionImage.width),
                     static_cast<float>(model->selectionImage.height),
-                    usesSharedBackPosition(menuStack.back()));
+                    sourceMainMenuFrame.owns(menuStack.back()) &&
+                        menuStack.back() != MenuScreen::Main);
                 if (hovered && hoverPage.enabled[*hovered])
                     menuSelection = *hovered;
             }
@@ -13312,7 +13255,8 @@ int main(int argc, char** argv)
                     hoverPage.labels.size(),
                     static_cast<float>(model->selectionImage.width),
                     static_cast<float>(model->selectionImage.height),
-                    usesSharedBackPosition(menuStack.back()));
+                    sourceMainMenuFrame.owns(menuStack.back()) &&
+                        menuStack.back() != MenuScreen::Main);
                 const bool enabledHover =
                     hovered && hoverPage.enabled[*hovered];
                 pointerTargetsItem = enabledHover ||
@@ -13796,34 +13740,7 @@ int main(int argc, char** argv)
                 {
                     const auto profileCount =
                         activeProfileNames().size();
-                    const auto visibleEnd = std::min(
-                        profileGridScroll + 4U, profileCount);
-                    const bool canScrollUp =
-                        profileGridScroll > 0U;
-                    const bool canScrollDown =
-                        profileGridScroll + 4U < profileCount;
-                    auto focusFirstVisible = [&]() {
-                        if (profileGridScroll < visibleEnd)
-                        {
-                            profileFocus = ProfileFocus::Item;
-                            profileFocusIndex = profileGridScroll;
-                        }
-                        else
-                        {
-                            profileFocus = ProfileFocus::Back;
-                        }
-                    };
-                    auto focusLastVisible = [&]() {
-                        if (profileGridScroll < visibleEnd)
-                        {
-                            profileFocus = ProfileFocus::Item;
-                            profileFocusIndex = visibleEnd - 1U;
-                        }
-                        else
-                        {
-                            profileFocus = ProfileFocus::Back;
-                        }
-                    };
+                    sourceProfileFrame.setProfileCount(profileCount);
 
                     if (profileDeleteDialogVisible)
                     {
@@ -13901,117 +13818,27 @@ int main(int argc, char** argv)
                             profileDeleteIndex =
                                 std::numeric_limits<
                                     std::size_t>::max();
-                            profileFocus = ProfileFocus::Back;
-                            profileFocusIndex = 0U;
+                            sourceProfileFrame.focusBack();
                         }
                         continue;
                     }
 
-                    if (!inputEvent.repeated &&
-                        (inputEvent.action ==
-                             rrr3d::input::Action::MenuBack ||
-                         inputEvent.action ==
-                             rrr3d::input::Action::Pause))
-                    {
-                        backMenu();
+                    const auto profileCommand =
+                        sourceProfileFrame.handle(inputEvent);
+                    if (!profileCommand)
                         continue;
-                    }
-                    if (inputEvent.action ==
-                            rrr3d::input::Action::TurnLeft ||
-                        inputEvent.action ==
-                            rrr3d::input::Action::TurnRight)
+                    switch (profileCommand->type)
                     {
-                        if (profileFocus == ProfileFocus::Item)
-                            profileFocus = ProfileFocus::Close;
-                        else if (
-                            profileFocus == ProfileFocus::Close)
-                            profileFocus = ProfileFocus::Item;
-                        continue;
-                    }
-                    if (inputEvent.action ==
-                        rrr3d::input::Action::MenuUp)
-                    {
-                        switch (profileFocus)
-                        {
-                        case ProfileFocus::Item:
-                        case ProfileFocus::Close:
-                            if (profileFocusIndex >
-                                profileGridScroll)
-                                --profileFocusIndex;
-                            else if (canScrollUp)
-                                profileFocus = ProfileFocus::Up;
-                            else
-                                profileFocus = ProfileFocus::Back;
-                            break;
-                        case ProfileFocus::Up:
-                            profileFocus = ProfileFocus::Back;
-                            break;
-                        case ProfileFocus::Down:
-                            focusLastVisible();
-                            break;
-                        case ProfileFocus::Back:
-                            if (canScrollDown)
-                                profileFocus = ProfileFocus::Down;
-                            else
-                                focusLastVisible();
-                            break;
-                        }
-                        continue;
-                    }
-                    if (inputEvent.action ==
-                        rrr3d::input::Action::MenuDown)
-                    {
-                        switch (profileFocus)
-                        {
-                        case ProfileFocus::Item:
-                        case ProfileFocus::Close:
-                            if (profileFocusIndex + 1U <
-                                visibleEnd)
-                                ++profileFocusIndex;
-                            else if (canScrollDown)
-                                profileFocus = ProfileFocus::Down;
-                            else
-                                profileFocus = ProfileFocus::Back;
-                            break;
-                        case ProfileFocus::Up:
-                            focusFirstVisible();
-                            break;
-                        case ProfileFocus::Down:
-                            profileFocus = ProfileFocus::Back;
-                            break;
-                        case ProfileFocus::Back:
-                            if (canScrollUp)
-                                profileFocus = ProfileFocus::Up;
-                            else
-                                focusFirstVisible();
-                            break;
-                        }
-                        continue;
-                    }
-                    if (inputEvent.action !=
-                            rrr3d::input::Action::MenuConfirm ||
-                        inputEvent.repeated)
-                    {
-                        continue;
-                    }
-                    switch (profileFocus)
-                    {
-                    case ProfileFocus::Back:
+                    case r3d::game::mainmenu2::ProfileCommandType::Back:
                         backMenu();
                         break;
-                    case ProfileFocus::Up:
-                        if (canScrollUp)
-                            --profileGridScroll;
+                    case r3d::game::mainmenu2::ProfileCommandType::Scrolled:
                         break;
-                    case ProfileFocus::Down:
-                        if (canScrollDown)
-                            ++profileGridScroll;
-                        break;
-                    case ProfileFocus::Close:
-                        if (profileFocusIndex < profileCount)
+                    case r3d::game::mainmenu2::ProfileCommandType::Delete:
+                        if (profileCommand->index < profileCount)
                         {
                             profileDeleteIndex =
-                                profileFocusIndex;
+                                profileCommand->index;
                             profileDeleteYesFocused = true;
                             profileDeleteDialogVisible = true;
                             showAcceptDialog(
@@ -14028,15 +13855,15 @@ int main(int argc, char** argv)
                                 << '\n';
                         }
                         break;
-                    case ProfileFocus::Item:
-                        if (profileFocusIndex < profileCount)
+                    case r3d::game::mainmenu2::ProfileCommandType::Select:
+                        if (profileCommand->index < profileCount)
                         {
                             saveRaceProfile();
                             std::string profileError;
                             if (!profileStore.selectProfile(
                                     profileState,
                                     activeProfileNames()[
-                                        profileFocusIndex],
+                                        profileCommand->index],
                                     profileError,
                                     networkHostRequested))
                             {
@@ -14916,29 +14743,45 @@ int main(int argc, char** argv)
                 if (inputEvent.action ==
                     rrr3d::input::Action::MenuUp)
                 {
-                    for (std::size_t attempts = 0U;
-                         attempts < page.labels.size(); ++attempts)
+                    if (sourceMainMenuFrame.owns(menuStack.back()))
                     {
-                        menuSelection =
-                            menuSelection == 0U
-                                ? page.labels.size() - 1U
-                                : menuSelection - 1U;
-                        if (page.enabled[menuSelection])
-                            break;
+                        menuSelection = sourceMainMenuFrame.moveSelection(
+                            menuSelection, -1);
+                    }
+                    else
+                    {
+                        for (std::size_t attempts = 0U;
+                             attempts < page.labels.size(); ++attempts)
+                        {
+                            menuSelection =
+                                menuSelection == 0U
+                                    ? page.labels.size() - 1U
+                                    : menuSelection - 1U;
+                            if (page.enabled[menuSelection])
+                                break;
+                        }
                     }
                     continue;
                 }
                 if (inputEvent.action ==
                     rrr3d::input::Action::MenuDown)
                 {
-                    for (std::size_t attempts = 0U;
-                         attempts < page.labels.size(); ++attempts)
+                    if (sourceMainMenuFrame.owns(menuStack.back()))
                     {
-                        menuSelection =
-                            (menuSelection + 1U) %
-                            page.labels.size();
-                        if (page.enabled[menuSelection])
-                            break;
+                        menuSelection = sourceMainMenuFrame.moveSelection(
+                            menuSelection, 1);
+                    }
+                    else
+                    {
+                        for (std::size_t attempts = 0U;
+                             attempts < page.labels.size(); ++attempts)
+                        {
+                            menuSelection =
+                                (menuSelection + 1U) %
+                                page.labels.size();
+                            if (page.enabled[menuSelection])
+                                break;
+                        }
                     }
                     continue;
                 }
@@ -18609,28 +18452,23 @@ int main(int argc, char** argv)
             profileFrameObserved =
                 profilePage.labels.size() ==
                     profileNames.size() + 1U &&
-                profileGridScroll <=
+                sourceProfileFrame.scroll() <=
                     (profileNames.size() > 4U
                          ? profileNames.size() - 4U
                          : 0U);
             const float centerX =
                 menu::virtualWidth * 0.5F;
-            const float centerY =
-                menu::virtualHeight * 0.5F;
-            const auto visibleEnd = std::min(
-                profileGridScroll + 4U,
-                profileNames.size());
-            for (std::size_t index = profileGridScroll;
+            const auto visibleEnd = sourceProfileFrame.visibleEnd();
+            for (std::size_t index =
+                     sourceProfileFrame.visibleBegin();
                  index < visibleEnd; ++index)
             {
-                const float rowY =
-                    centerY - 90.0F +
-                    static_cast<float>(
-                        index - profileGridScroll) *
-                        menu::itemSpacing;
+                const float rowY = sourceProfileFrame.rowY(
+                    menu::virtualHeight, index);
                 const bool itemFocused =
-                    profileFocus == ProfileFocus::Item &&
-                    profileFocusIndex == index &&
+                    sourceProfileFrame.focus() ==
+                        r3d::game::mainmenu2::ProfileFocus::Item &&
+                    sourceProfileFrame.focusIndex() == index &&
                     !profileDeleteDialogVisible;
                 if (itemFocused)
                 {
@@ -18653,8 +18491,9 @@ int main(int argc, char** argv)
                     25.0F, transparent);
 
                 const bool closeFocused =
-                    profileFocus == ProfileFocus::Close &&
-                    profileFocusIndex == index &&
+                    sourceProfileFrame.focus() ==
+                        r3d::game::mainmenu2::ProfileFocus::Close &&
+                    sourceProfileFrame.focusIndex() == index &&
                     !profileDeleteDialogVisible;
                 const float closeX =
                     centerX +
@@ -18680,17 +18519,17 @@ int main(int argc, char** argv)
             }
 
             const bool canScrollUp =
-                profileGridScroll > 0U;
+                sourceProfileFrame.canScrollUp();
             const bool canScrollDown =
-                profileGridScroll + 4U <
-                profileNames.size();
+                sourceProfileFrame.canScrollDown();
             auto drawProfileArrow =
                 [&](bool up, float y, bool enabled) {
                     const bool focused =
                         enabled && !profileDeleteDialogVisible &&
-                        profileFocus ==
-                            (up ? ProfileFocus::Up
-                                : ProfileFocus::Down);
+                        sourceProfileFrame.focus() ==
+                            (up
+                                 ? r3d::game::mainmenu2::ProfileFocus::Up
+                                 : r3d::game::mainmenu2::ProfileFocus::Down);
                     const auto texture =
                         !enabled
                             ? profileArrowDisabled
@@ -18717,15 +18556,21 @@ int main(int argc, char** argv)
                         transparent);
                 };
             drawProfileArrow(
-                true, centerY - 108.0F, canScrollUp);
+                true,
+                sourceProfileFrame.upArrowY(menu::virtualHeight),
+                canScrollUp);
             drawProfileArrow(
-                false, centerY + 120.0F, canScrollDown);
+                false,
+                sourceProfileFrame.downArrowY(menu::virtualHeight),
+                canScrollDown);
 
             const auto backIndex =
                 profilePage.labels.size() - 1U;
-            const float backY = centerY + 150.0F;
+            const float backY =
+                sourceProfileFrame.backY(menu::virtualHeight);
             const bool backFocused =
-                profileFocus == ProfileFocus::Back &&
+                sourceProfileFrame.focus() ==
+                    r3d::game::mainmenu2::ProfileFocus::Back &&
                 !profileDeleteDialogVisible;
             if (backFocused)
             {

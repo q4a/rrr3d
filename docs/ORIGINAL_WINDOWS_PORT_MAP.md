@@ -61,10 +61,10 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `HudMenu` | `OriginalRaceHud` | Distributed | Данные в отдельном владельце, но source Widget/Menu graph отсутствует |
 | `HumanPlayer` | `source::HumanPlayer` | Source owner, partial | Подключить полный source input message path и event order |
 | `Logic` | `source::Logic` + `WorldEventPump` progress registration | Source owner, active object/contact core | Убрать оставшиеся network authority и projectile backend-view loops из session |
-| `MainMenu2` | `OriginalMainMenu::Controller` + main screen stack | Distributed | Вернуть source frame tree, profile/network callbacks и invalidation |
+| `MainMenu2` | `mainmenu2::{Controller,FrameController,ProfileFrameState}` + `originalmenu::ScreenStack` | Source owner, active Main/Profile path | Остались concrete network callbacks, credits progress и backend draw submission |
 | `Map` | `source::Map` | Source owner, partial | Завершить load/fix-up ownership и backend create/destroy commands |
 | `MapObj` | `source::MapObj*` record/list hierarchy | Source owner, partial | Убрать importer/runtime mirrors и проверить все concrete object types |
-| `Menu` | `originalmenu::MenuSystem` + ручные frame renderers | Source owner, frame core | Перенести concrete source widgets/layout/focus/animation по экранам |
+| `Menu` | `originalmenu::MenuSystem` + source Main/Profile/Dialog owners | Source owner, frame core | Перенести Options, Planet/Garage/Workshop/Race и Finish/Final frame owners |
 | `MenuSystem` | `originalmenu::{MenuSystem,ScreenStack,FrameState}` | Source owner, active menu path | Подключить concrete navigation graphs; bgfx остаётся draw executor |
 | `OptionsMenu` | Ручные option pages + `OriginalProfile` | Distributed | Вернуть source controls, apply/reset/autodetect transitions |
 | `Player` | `source::Player`, `CarState`, behavior classes | Source owner, partial | Убрать оставшиеся session mirrors, проверить full event/listener order |
@@ -209,7 +209,7 @@ Milestone 8.
 Открытая B5d: вернуть source identity для font descriptors и material-library
 descriptors/samplers. Их backend payload останется CoreText и bgfx/Metal.
 
-### B6 — Menu/MenuSystem и исходные frames (B6a–B6b выполнены)
+### B6 — Menu/MenuSystem и исходные frames (B6a–B6c выполнены)
 
 Перенести widget tree крупными экранами: common dialog/frame primitives,
 MainMenu/Profile, Options, Planet/Garage/Workshop/Race и Finish/Final. Metal
@@ -245,10 +245,24 @@ menu/race music popup используют этот owner. Старые `*Dialog
 Отдельный regression проверяет обе раскладки Accept, result/hide, loading
 Info, delayed Weapon и точные фазы Music popup.
 
-Открытая B6c: перенести concrete screen frames крупными группами —
-Main/Profile, Options, Planet/Garage/Workshop/Race, Finish/Final. Их draw data
-пока формируется функциями большого host entry point, хотя root/dialog
-lifecycle уже source-owned.
+Результат B6c: `mainmenu2::FrameController` перенёс общую часть
+`MainMenu2::SetItems/AdjustMenuItems` и правила `MainFrame`, `GameModeFrame`,
+`TournamentFrame`, `DifficultyFrame`: source item availability, круговой
+Up/Down с пропуском disabled, первая доступная позиция, отдельный Back и
+фиксированная раскладка. Исправлено расхождение Continue: оно включается
+только при существующем сериализованном `lastProfile/lastNetProfile`, а не
+при любом профиле.
+
+`mainmenu2::ProfileFrameState` теперь владеет четырьмя видимыми строками,
+scroll clamp, item/close/up/down/back focus graph, pointer focus, командами
+select/delete/scroll/back и исходными координатами grid/arrows/back. Большой
+host entry point только выполняет команды профиля и рисует полученное
+состояние CoreText/bgfx. Отдельный regression закрепляет доступность,
+wrap/disabled navigation, всю сетку ProfileFrame и layout.
+
+Открытая B6d: перенести Options frames, затем
+Planet/Garage/Workshop/Race и Finish/Final. Их draw data пока частично
+формируется функциями большого host entry point.
 
 ### B7 — Environment/TraceGfx/render policy
 

@@ -4098,6 +4098,29 @@ UserChat не дублировался — он уже имеет отдельн
 Следующая граница B6c — concrete Main/Profile/Options/Race frames. Этот блок
 не объявляет весь Widget tree перенесённым.
 
+### P2.175 — `MainMenu2` и `ProfileFrame` снова владеют navigation/layout — выполнено
+
+Ручной host-код хранил `ProfileFocus`, `profileFocusIndex` и
+`profileGridScroll`, сам воспроизводил весь граф Up/Down/Left/Right и
+самостоятельно определял доступность `GameMode/Tournament`. При этом
+Tournament Continue ошибочно включался при любом профиле, хотя оригинальный
+`TournamentFrame::OnShow` проверяет отдельный `GetLastProfile(netGame)`.
+
+Добавлены backend-neutral `mainmenu2::FrameController` и
+`ProfileFrameState`, прямо сопоставленные с `MainMenu2.cpp` из
+`eff9338`: `SetItems/AdjustMenuItems`, tutorial gate, раздельные
+last-profile/has-profile gates, circular disabled-skip navigation,
+четырёхстрочный grid, scroll arrows, item/close пары, Back и фиксированные
+координаты. Активный SDL path направляет keyboard/gamepad/pointer в эти
+owners и исполняет только возвращённые select/delete/back команды; bgfx
+оставлен draw executor.
+
+Новый `rrr3d_original_main_menu_frames_smoke` проверяет source availability,
+layout, disabled wrap, полный Profile focus graph, scroll/select/delete и
+clamp после удаления. Сборка arm64, 21/21 offline, 2/2 network, physics и
+360-frame Metal smoke прошли. Следующая граница B6d — `OptionsMenu` frames;
+полный concrete Widget tree этим блоком ещё не объявлен завершённым.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

@@ -380,6 +380,19 @@ if(NOT WIN32 AND RRR3D_BUILD_ORIGINAL_MENU)
         NAME rrr3d_original_dialog_menu_smoke
         COMMAND rrr3d_original_dialog_menu_smoke
     )
+
+    add_executable(rrr3d_original_main_menu_frames_smoke
+        tests/OriginalMainMenuFramesSmoke.cpp
+    )
+    target_link_libraries(rrr3d_original_main_menu_frames_smoke PRIVATE
+        ${PROJECT_NAME}
+    )
+    rrr3d_set_common_target_options(
+        rrr3d_original_main_menu_frames_smoke)
+    add_test(
+        NAME rrr3d_original_main_menu_frames_smoke
+        COMMAND rrr3d_original_main_menu_frames_smoke
+    )
 endif()
 
 target_include_directories(${PROJECT_NAME}

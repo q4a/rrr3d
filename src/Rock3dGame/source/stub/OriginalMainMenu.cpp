@@ -313,6 +313,346 @@ std::optional<Command> Controller::handle(
     return std::nullopt;
 }
 
+void FrameController::show(originalmenu::MenuScreen screen,
+                           std::size_t itemCount, FrameContext context)
+{
+    screen_ = screen;
+    enabled_.assign(itemCount, true);
+    if (screen_ == originalmenu::MenuScreen::GameMode && itemCount > 1U)
+        enabled_[1] = context.tutorialFirstStageComplete;
+    else if (screen_ == originalmenu::MenuScreen::Tournament)
+    {
+        if (!enabled_.empty())
+            enabled_[0] = context.hasLastProfile;
+        if (enabled_.size() > 2U)
+            enabled_[2] = context.hasProfiles;
+    }
+}
+
+originalmenu::MenuScreen FrameController::screen() const noexcept
+{
+    return screen_;
+}
+
+const std::vector<bool>& FrameController::enabledItems() const noexcept
+{
+    return enabled_;
+}
+
+bool FrameController::enabled(std::size_t item) const noexcept
+{
+    return item < enabled_.size() && enabled_[item];
+}
+
+std::size_t FrameController::firstEnabled() const noexcept
+{
+    const auto item = std::find(enabled_.begin(), enabled_.end(), true);
+    return item == enabled_.end()
+               ? 0U
+               : static_cast<std::size_t>(item - enabled_.begin());
+}
+
+std::size_t FrameController::moveSelection(std::size_t current,
+                                           int direction) const noexcept
+{
+    if (enabled_.empty())
+        return 0U;
+    current = std::min(current, enabled_.size() - 1U);
+    for (std::size_t attempts = 0U; attempts < enabled_.size(); ++attempts)
+    {
+        if (direction < 0)
+            current = current == 0U ? enabled_.size() - 1U : current - 1U;
+        else
+            current = (current + 1U) % enabled_.size();
+        if (enabled_[current])
+            break;
+    }
+    return current;
+}
+
+bool FrameController::owns(originalmenu::MenuScreen screen) const noexcept
+{
+    using originalmenu::MenuScreen;
+    switch (screen)
+    {
+    case MenuScreen::Main:
+    case MenuScreen::GameMode:
+    case MenuScreen::Tournament:
+    case MenuScreen::Difficulty:
+    case MenuScreen::Profiles:
+    case MenuScreen::Network:
+    case MenuScreen::NetworkServerType:
+    case MenuScreen::NetworkClientType:
+    case MenuScreen::NetworkBrowser:
+    case MenuScreen::NetworkIpAddress:
+    case MenuScreen::Credits:
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool FrameController::detachedBackItem() const noexcept
+{
+    return owns(screen_) && screen_ != originalmenu::MenuScreen::Main;
+}
+
+float FrameController::itemX(float viewportWidth) const noexcept
+{
+    return viewportWidth * 0.5F + itemCenterOffsetX;
+}
+
+float FrameController::itemY(float viewportHeight, std::size_t item,
+                             float itemHeight) const noexcept
+{
+    if (detachedBackItem() && item + 1U == enabled_.size())
+        return viewportHeight * 0.5F + 150.0F;
+    return viewportHeight * 0.5F + firstItemOffsetY +
+           static_cast<float>(item) * (itemHeight + 5.0F);
+}
+
+void ProfileFrameState::show(std::size_t profileCount) noexcept
+{
+    profileCount_ = profileCount;
+    scroll_ = 0U;
+    focusBack();
+}
+
+void ProfileFrameState::setProfileCount(std::size_t profileCount) noexcept
+{
+    profileCount_ = profileCount;
+    const auto maximumScroll =
+        profileCount_ > visibleRows ? profileCount_ - visibleRows : 0U;
+    scroll_ = std::min(scroll_, maximumScroll);
+    if ((focus_ == ProfileFocus::Item || focus_ == ProfileFocus::Close) &&
+        focusIndex_ >= profileCount_)
+    {
+        focusBack();
+    }
+    else if ((focus_ == ProfileFocus::Up && !canScrollUp()) ||
+             (focus_ == ProfileFocus::Down && !canScrollDown()))
+    {
+        focusBack();
+    }
+}
+
+std::size_t ProfileFrameState::profileCount() const noexcept
+{
+    return profileCount_;
+}
+
+std::size_t ProfileFrameState::scroll() const noexcept
+{
+    return scroll_;
+}
+
+std::size_t ProfileFrameState::visibleBegin() const noexcept
+{
+    return scroll_;
+}
+
+std::size_t ProfileFrameState::visibleEnd() const noexcept
+{
+    return std::min(scroll_ + visibleRows, profileCount_);
+}
+
+bool ProfileFrameState::canScrollUp() const noexcept
+{
+    return scroll_ > 0U;
+}
+
+bool ProfileFrameState::canScrollDown() const noexcept
+{
+    return scroll_ + visibleRows < profileCount_;
+}
+
+ProfileFocus ProfileFrameState::focus() const noexcept
+{
+    return focus_;
+}
+
+std::size_t ProfileFrameState::focusIndex() const noexcept
+{
+    return focusIndex_;
+}
+
+bool ProfileFrameState::focusItem(std::size_t index) noexcept
+{
+    if (index < visibleBegin() || index >= visibleEnd())
+        return false;
+    focus_ = ProfileFocus::Item;
+    focusIndex_ = index;
+    return true;
+}
+
+bool ProfileFrameState::focusClose(std::size_t index) noexcept
+{
+    if (!focusItem(index))
+        return false;
+    focus_ = ProfileFocus::Close;
+    return true;
+}
+
+bool ProfileFrameState::focusUp() noexcept
+{
+    if (!canScrollUp())
+        return false;
+    focus_ = ProfileFocus::Up;
+    return true;
+}
+
+bool ProfileFrameState::focusDown() noexcept
+{
+    if (!canScrollDown())
+        return false;
+    focus_ = ProfileFocus::Down;
+    return true;
+}
+
+void ProfileFrameState::focusBack() noexcept
+{
+    focus_ = ProfileFocus::Back;
+    focusIndex_ = 0U;
+}
+
+void ProfileFrameState::focusFirstVisible() noexcept
+{
+    if (!focusItem(visibleBegin()))
+        focusBack();
+}
+
+void ProfileFrameState::focusLastVisible() noexcept
+{
+    const auto end = visibleEnd();
+    if (end == visibleBegin() || !focusItem(end - 1U))
+        focusBack();
+}
+
+std::optional<ProfileCommand> ProfileFrameState::handle(
+    const rrr3d::input::ActionEvent& event) noexcept
+{
+    using rrr3d::input::Action;
+    if (!event.active)
+        return std::nullopt;
+
+    if (!event.repeated &&
+        (event.action == Action::MenuBack || event.action == Action::Pause))
+    {
+        return ProfileCommand{ProfileCommandType::Back, 0U};
+    }
+    if (event.action == Action::TurnLeft ||
+        event.action == Action::TurnRight)
+    {
+        if (focus_ == ProfileFocus::Item)
+            focus_ = ProfileFocus::Close;
+        else if (focus_ == ProfileFocus::Close)
+            focus_ = ProfileFocus::Item;
+        return std::nullopt;
+    }
+    if (event.action == Action::MenuUp)
+    {
+        switch (focus_)
+        {
+        case ProfileFocus::Item:
+        case ProfileFocus::Close:
+            if (focusIndex_ > visibleBegin())
+                --focusIndex_;
+            else if (!focusUp())
+                focusBack();
+            break;
+        case ProfileFocus::Up:
+            focusBack();
+            break;
+        case ProfileFocus::Down:
+            focusLastVisible();
+            break;
+        case ProfileFocus::Back:
+            if (!focusDown())
+                focusLastVisible();
+            break;
+        }
+        return std::nullopt;
+    }
+    if (event.action == Action::MenuDown)
+    {
+        switch (focus_)
+        {
+        case ProfileFocus::Item:
+        case ProfileFocus::Close:
+            if (focusIndex_ + 1U < visibleEnd())
+                ++focusIndex_;
+            else if (!focusDown())
+                focusBack();
+            break;
+        case ProfileFocus::Up:
+            focusFirstVisible();
+            break;
+        case ProfileFocus::Down:
+            focusBack();
+            break;
+        case ProfileFocus::Back:
+            if (!focusUp())
+                focusFirstVisible();
+            break;
+        }
+        return std::nullopt;
+    }
+    if (event.action != Action::MenuConfirm || event.repeated)
+        return std::nullopt;
+
+    switch (focus_)
+    {
+    case ProfileFocus::Back:
+        return ProfileCommand{ProfileCommandType::Back, 0U};
+    case ProfileFocus::Up:
+        if (canScrollUp())
+        {
+            --scroll_;
+            return ProfileCommand{ProfileCommandType::Scrolled, scroll_};
+        }
+        break;
+    case ProfileFocus::Down:
+        if (canScrollDown())
+        {
+            ++scroll_;
+            return ProfileCommand{ProfileCommandType::Scrolled, scroll_};
+        }
+        break;
+    case ProfileFocus::Close:
+        if (focusIndex_ < profileCount_)
+            return ProfileCommand{ProfileCommandType::Delete, focusIndex_};
+        break;
+    case ProfileFocus::Item:
+        if (focusIndex_ < profileCount_)
+            return ProfileCommand{ProfileCommandType::Select, focusIndex_};
+        break;
+    }
+    return std::nullopt;
+}
+
+float ProfileFrameState::rowY(float viewportHeight, std::size_t index,
+                              float itemHeight) const noexcept
+{
+    return viewportHeight * 0.5F + gridOffsetY +
+           static_cast<float>(index - visibleBegin()) *
+               (itemHeight + 5.0F);
+}
+
+float ProfileFrameState::upArrowY(float viewportHeight) const noexcept
+{
+    return viewportHeight * 0.5F + upArrowOffsetY;
+}
+
+float ProfileFrameState::downArrowY(float viewportHeight) const noexcept
+{
+    return viewportHeight * 0.5F + downArrowOffsetY;
+}
+
+float ProfileFrameState::backY(float viewportHeight) const noexcept
+{
+    return viewportHeight * 0.5F + backOffsetY;
+}
+
 bool runOriginalMainMenuInputSmoke(std::string& error)
 {
     Controller controller(itemCommands.size());
