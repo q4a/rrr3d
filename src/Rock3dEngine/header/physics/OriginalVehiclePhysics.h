@@ -307,6 +307,45 @@ struct VehicleLinearVelocityCommand
     Vec3 delta;
 };
 
+inline constexpr std::uint64_t invalidProjectileBodyId =
+    std::numeric_limits<std::uint64_t>::max();
+
+struct ProjectileBodyDescription
+{
+    std::uint64_t id = invalidProjectileBodyId;
+    Transform transform;
+    Vec3 shapePosition;
+    Quat shapeRotation;
+    Vec3 halfExtents{0.05F, 0.05F, 0.05F};
+    Vec3 linearVelocity;
+    float mass = 1.0F;
+    float gravityFactor = 0.0F;
+    // RocketPrepare disables PhysX response but keeps contact reports. Jolt
+    // sensors provide the same actor boundary without pushing the cars.
+    bool sensor = true;
+};
+
+enum class ProjectileBodyCommandKind : std::uint8_t
+{
+    Create,
+    Synchronize,
+    Destroy,
+};
+
+struct ProjectileBodyCommand
+{
+    ProjectileBodyCommandKind kind = ProjectileBodyCommandKind::Create;
+    ProjectileBodyDescription body;
+};
+
+struct ProjectileBodyState
+{
+    std::uint64_t id = invalidProjectileBodyId;
+    Transform body;
+    Vec3 linearVelocity;
+    bool active = false;
+};
+
 // Race::OnFixedStep is a world event: Windows calls it exactly once before
 // each PhysX Compute, then dispatches the registered GameCar fixed events.
 // Keep that boundary separate from VehicleFixedStepController, which is
@@ -316,7 +355,9 @@ struct VehicleLinearVelocityCommand
 using WorldFixedStepController = std::function<void(
     float, const std::vector<VehicleState>&,
     std::vector<VehicleInput>&, std::vector<VehicleResetCommand>&,
-    std::vector<VehicleLinearVelocityCommand>&)>;
+    std::vector<VehicleLinearVelocityCommand>&,
+    const std::vector<ProjectileBodyState>&,
+    std::vector<ProjectileBodyCommand>&)>;
 
 struct DebrisDescription
 {
@@ -372,6 +413,8 @@ public:
         VehicleFixedStepController controller) = 0;
     virtual void setWorldFixedStepController(
         WorldFixedStepController controller) = 0;
+    virtual void applyProjectileBodyCommands(
+        const std::vector<ProjectileBodyCommand>& commands) noexcept = 0;
     virtual void step(float seconds, const VehicleInput& input) noexcept = 0;
     virtual void step(float seconds,
                       const std::vector<VehicleInput>& inputs) noexcept = 0;
@@ -387,6 +430,9 @@ public:
         const DebrisDescription& description) noexcept = 0;
     virtual const DebrisState& debris(std::size_t index) const noexcept = 0;
     virtual std::size_t debrisCount() const noexcept = 0;
+    virtual const ProjectileBodyState& projectileBody(
+        std::size_t index) const noexcept = 0;
+    virtual std::size_t projectileBodyCount() const noexcept = 0;
 };
 
 std::unique_ptr<OriginalVehicleWorld> createOriginalVehicleWorld(

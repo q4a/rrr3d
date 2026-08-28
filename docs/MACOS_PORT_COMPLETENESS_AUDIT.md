@@ -1614,6 +1614,27 @@ adapter и существующей 3D target-plane проверкой. След
 PhysX/Jolt fixed simulation: сейчас их backend-neutral интеграция всё ещё
 выполняется render `updateGameplay`.
 
+### B8t: Jolt lifecycle for free projectiles
+
+Свободные persistent `Proj` больше не перемещаются умножением скорости на
+render delta в активной macOS гонке. Session выдаёт Create/Synchronize/
+Destroy команды со стабильным id, исходным collision box, mass, gravity и
+velocity. Jolt создаёт dynamic sensor actor с linear CCD, применяет команды
+из world fixed callback до solve и публикует завершённые pose/velocity для
+обратной синхронизации runtime и renderer.
+
+`Proj::OnProgress` и `ProgressFree` по-прежнему выполняют source lifetime,
+homing и специальные Thunder/rocket rules; их изменения становятся
+Synchronize-командой следующего physics interval. Headless session явно не
+включает external projectile physics и сохраняет прежний source-only путь.
+
+Regression проверяет single Create, body-id continuity, Jolt pose round-trip
+и отсутствие duplicate actor. Physics regression требует same-step movement
+тела, созданного непосредственно world fixed callback. Следующая B8u граница
+— перенести contact ownership: sensor contacts с vehicle/decoration/world и
+ray-only оружие должны приходить из Jolt query, а не из snapshot overlap в
+session.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

@@ -3743,6 +3743,7 @@ int main(int argc, char** argv)
         if (!physicsWorld)
             return;
         raceSession.setExternalRaceFixedStep(true);
+        raceSession.setExternalProjectilePhysics(true);
         raceSession.setExternalVehicleFixedStep(true);
         raceSession.setExternalRaceLateProgress(true);
         physicsWorld->setWorldFixedStepController(
@@ -3752,7 +3753,12 @@ int main(int argc, char** argv)
                 std::vector<r3d::physics::VehicleInput>& inputs,
                 std::vector<r3d::physics::VehicleResetCommand>& resets,
                 std::vector<r3d::physics::VehicleLinearVelocityCommand>&
-                    velocities) {
+                    velocities,
+                const std::vector<r3d::physics::ProjectileBodyState>&
+                    projectiles,
+                std::vector<r3d::physics::ProjectileBodyCommand>&
+                    projectileCommands) {
+                raceSession.synchronizeProjectilePhysics(projectiles);
                 raceSession.raceFixedStep(
                     deltaTime, vehicles, inputs, resets);
                 for (const auto& request :
@@ -3761,6 +3767,11 @@ int main(int argc, char** argv)
                     velocities.push_back(
                         {request.racer, request.delta});
                 }
+                auto commands = raceSession.takeProjectileBodyCommands();
+                projectileCommands.insert(
+                    projectileCommands.end(),
+                    std::make_move_iterator(commands.begin()),
+                    std::make_move_iterator(commands.end()));
             });
         physicsWorld->setVehicleFixedStepController(
             [&raceSession](
@@ -15679,6 +15690,8 @@ int main(int argc, char** argv)
                     }
                 }
                 auto vehicleInputs = raceSession.vehicleInputs();
+                physicsWorld->applyProjectileBodyCommands(
+                    raceSession.takeProjectileBodyCommands());
                 if (options->raceRenderSmokeTest)
                 {
                     for (std::size_t index = 0U;
@@ -15794,6 +15807,18 @@ int main(int argc, char** argv)
                                         originalRace->tracePath.size(), 1U)));
                     }
                 }
+                std::vector<r3d::physics::ProjectileBodyState>
+                    projectileStates;
+                projectileStates.reserve(
+                    physicsWorld->projectileBodyCount());
+                for (std::size_t index = 0U;
+                     index < physicsWorld->projectileBodyCount(); ++index)
+                {
+                    projectileStates.push_back(
+                        physicsWorld->projectileBody(index));
+                }
+                raceSession.synchronizeProjectilePhysics(
+                    projectileStates);
                 raceSession.lateProgress(frameSeconds, raceVehicles);
 #ifdef RRR3D_NETWORK
                 if (networkMatchStarted &&

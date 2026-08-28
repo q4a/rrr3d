@@ -1134,6 +1134,8 @@ void OriginalRaceSession::reset()
     logic_.CleanGameObjs();
     mines_.clear();
     projectiles_.clear();
+    projectileBodyCommands_.clear();
+    nextProjectileBodyId_ = 1U;
     // Car MapObjs bind the live Player::gameCar. Release the map side while
     // Player storage is still valid, then rebuild both collections.
     map_.Clear();
@@ -1728,6 +1730,7 @@ void OriginalRaceSession::releaseRacerProjectileReferences(
         {
             projectile.attached = false;
             projectile.detachedFromWeapon = true;
+            queueProjectileBodyCreate(projectile);
         }
     }
     for (auto& mine : mines_)
@@ -2651,6 +2654,40 @@ OriginalRaceSession::takeAngularMomentumRequests()
     return result;
 }
 
+std::vector<r3d::physics::ProjectileBodyCommand>
+OriginalRaceSession::takeProjectileBodyCommands()
+{
+    auto result = std::move(projectileBodyCommands_);
+    projectileBodyCommands_.clear();
+    return result;
+}
+
+void OriginalRaceSession::synchronizeProjectilePhysics(
+    const std::vector<r3d::physics::ProjectileBodyState>& states)
+{
+    for (const auto& state : states)
+    {
+        if (state.id == r3d::physics::invalidProjectileBodyId)
+            continue;
+        const auto projectile = std::find_if(
+            projectiles_.begin(), projectiles_.end(),
+            [&](const ProjectileRuntime& value) {
+                return value.physicsBodyId == state.id;
+            });
+        if (projectile == projectiles_.end())
+            continue;
+        projectile->physicsPreviousPosition = projectile->position;
+        projectile->position = state.body.position;
+        projectile->rotation = state.body.rotation;
+        projectile->velocity = state.linearVelocity;
+        projectile->speed = length3(projectile->velocity);
+        if (projectile->speed > 0.0001F)
+            projectile->direction = normalized3(projectile->velocity);
+        if (!state.active)
+            projectile->active = false;
+    }
+}
+
 const std::vector<std::uint32_t>& OriginalRaceSession::tracePathAt(
     std::size_t path) const
 {
@@ -3307,6 +3344,64 @@ ProjectileRuntime OriginalRaceSession::buildWeaponProjectileRuntime(
     return runtime;
 }
 
+void OriginalRaceSession::queueProjectileBodyCreate(
+    ProjectileRuntime& projectile)
+{
+    if (!externalProjectilePhysics_ ||
+        projectile.sourceObject == nullptr || projectile.attached ||
+        projectile.sourceObject->RoutePreparation().ray ||
+        projectile.physicsBacked)
+        return;
+    const auto& source = projectile.sourceObject->GetDesc();
+    projectile.physicsBacked = true;
+    projectile.physicsBodyId = nextProjectileBodyId_++;
+    projectile.physicsPreviousPosition = projectile.position;
+
+    r3d::physics::ProjectileBodyCommand command;
+    command.kind = r3d::physics::ProjectileBodyCommandKind::Create;
+    command.body.id = projectile.physicsBodyId;
+    command.body.transform.position = projectile.position;
+    command.body.transform.rotation = projectile.rotation;
+    command.body.shapePosition = source.collision.center;
+    command.body.halfExtents = source.collision.halfExtents;
+    command.body.linearVelocity = projectile.velocity;
+    command.body.mass = std::max(source.mass, 0.001F);
+    command.body.gravityFactor =
+        projectile.ballistic || projectile.detachedFromWeapon
+            ? 1.0F : 0.0F;
+    command.body.sensor = true;
+    projectileBodyCommands_.push_back(command);
+}
+
+void OriginalRaceSession::queueProjectileBodySynchronize(
+    const ProjectileRuntime& projectile)
+{
+    if (!projectile.physicsBacked ||
+        projectile.physicsBodyId ==
+            r3d::physics::invalidProjectileBodyId)
+        return;
+    r3d::physics::ProjectileBodyCommand command;
+    command.kind = r3d::physics::ProjectileBodyCommandKind::Synchronize;
+    command.body.id = projectile.physicsBodyId;
+    command.body.transform.position = projectile.position;
+    command.body.transform.rotation = projectile.rotation;
+    command.body.linearVelocity = projectile.velocity;
+    projectileBodyCommands_.push_back(command);
+}
+
+void OriginalRaceSession::queueProjectileBodyDestroy(
+    const ProjectileRuntime& projectile)
+{
+    if (!projectile.physicsBacked ||
+        projectile.physicsBodyId ==
+            r3d::physics::invalidProjectileBodyId)
+        return;
+    r3d::physics::ProjectileBodyCommand command;
+    command.kind = r3d::physics::ProjectileBodyCommandKind::Destroy;
+    command.body.id = projectile.physicsBodyId;
+    projectileBodyCommands_.push_back(command);
+}
+
 bool OriginalRaceSession::prepareAiWeaponAttack(
     PendingAiAttack& attack,
     const std::vector<r3d::physics::VehicleState>& vehicles)
@@ -3405,6 +3500,7 @@ bool OriginalRaceSession::prepareAiWeaponAttack(
             vehicles, racer, weaponIndex, slot, ordinal,
             *sourceObject, homingTarget);
         backendRuntime.deferProgressOnce = !externalRaceFixedStep_;
+        queueProjectileBodyCreate(backendRuntime);
         projectiles_.push_back(std::move(backendRuntime));
         ++attack.sourceRuntimeCount;
     }
@@ -3665,6 +3761,17 @@ void OriginalRaceSession::discardPendingAiAttack(
     }
     if (attack.sourceRuntimeCount > 0U)
     {
+        for (const auto& runtime : projectiles_)
+        {
+            if (std::find(
+                    attack.sourceProjectiles.begin(),
+                    attack.sourceProjectiles.end(),
+                    runtime.sourceObject) !=
+                attack.sourceProjectiles.end())
+            {
+                queueProjectileBodyDestroy(runtime);
+            }
+        }
         std::erase_if(projectiles_, [&](const ProjectileRuntime& runtime) {
             return std::find(
                        attack.sourceProjectiles.begin(),
@@ -3840,6 +3947,12 @@ void OriginalRaceSession::setExternalRaceFixedStep(
     bool enabled) noexcept
 {
     externalRaceFixedStep_ = enabled;
+}
+
+void OriginalRaceSession::setExternalProjectilePhysics(
+    bool enabled) noexcept
+{
+    externalProjectilePhysics_ = enabled;
 }
 
 void OriginalRaceSession::raceFixedStep(
@@ -4922,24 +5035,32 @@ void OriginalRaceSession::updateGameplay(
                 projectile.speed = length3(projectile.velocity);
             }
         }
-        const Vec3 previous = projectile.position;
-        const float speed = std::max(projectile.speed, 1.0F);
-        const bool detachedGravity =
-            projectile.detachedFromWeapon &&
-            sourceProgressRoute.handler ==
-                source::Proj::ProgressHandler::Drobilka;
-        if (projectile.ballistic || detachedGravity)
-            projectile.velocity.z -= 20.0F * seconds;
-        Vec3 movement =
-            (projectile.ballistic || projectile.detachedFromWeapon)
-                            ? multiply(projectile.velocity, seconds)
-                            : multiply(projectile.direction,
-                                       speed * seconds);
-        const float step = length3(movement);
-        projectile.position = add(projectile.position, movement);
-        if (length3(movement) > 0.0001F)
-            projectile.direction = normalized3(movement);
-        projectile.distance += step;
+        const Vec3 previous = projectile.physicsBacked
+            ? projectile.physicsPreviousPosition
+            : projectile.position;
+        if (projectile.physicsBacked)
+        {
+            projectile.distance += length3(subtract(
+                projectile.position, previous));
+        }
+        else
+        {
+            const float speed = std::max(projectile.speed, 1.0F);
+            const bool detachedGravity =
+                projectile.detachedFromWeapon &&
+                sourceProgressRoute.handler ==
+                    source::Proj::ProgressHandler::Drobilka;
+            if (projectile.ballistic || detachedGravity)
+                projectile.velocity.z -= 20.0F * seconds;
+            const Vec3 movement =
+                (projectile.ballistic || projectile.detachedFromWeapon)
+                    ? multiply(projectile.velocity, seconds)
+                    : multiply(projectile.direction, speed * seconds);
+            projectile.position = add(projectile.position, movement);
+            if (length3(movement) > 0.0001F)
+                projectile.direction = normalized3(movement);
+            projectile.distance += length3(movement);
+        }
         TrackRayHit trackHit;
         if (sourceProgressRoute.rocketHeight)
         {
@@ -4986,6 +5107,8 @@ void OriginalRaceSession::updateGameplay(
                 // actor/model rotation stays at the shot rotation.
             }
         }
+        if (projectile.physicsBacked)
+            queueProjectileBodySynchronize(projectile);
         RaceEffect fired;
         fired.kind = RaceEventKind::WeaponFired;
         fired.origin = previous;
@@ -5230,6 +5353,11 @@ void OriginalRaceSession::updateGameplay(
                 RacerRuntime::invalidWeapon);
             projectile.active = false;
         }
+    }
+    for (const auto& projectile : projectiles_)
+    {
+        if (!projectile.active)
+            queueProjectileBodyDestroy(projectile);
     }
     projectiles_.erase(
         std::remove_if(
@@ -5937,13 +6065,19 @@ void OriginalRaceSession::updateGameplay(
             if (attachedProjectile)
             {
                 if (!runtimeAlreadyMaterialized)
+                {
+                    queueProjectileBodyCreate(runtimeProjectile);
                     projectiles_.push_back(std::move(runtimeProjectile));
+                }
             }
             else if (!rayProjectile)
             {
                 const float speed = runtimeProjectile.speed;
                 if (!runtimeAlreadyMaterialized)
+                {
+                    queueProjectileBodyCreate(runtimeProjectile);
                     projectiles_.push_back(std::move(runtimeProjectile));
+                }
                 end = add(
                     projectileOrigin,
                     multiply(
@@ -7490,6 +7624,7 @@ void OriginalRaceSession::completeRaceForExit(
         effects_.clear();
         mines_.clear();
         projectiles_.clear();
+        projectileBodyCommands_.clear();
         respawns_.clear();
         velocityRequests_.clear();
         angularVelocityRequests_.clear();
@@ -9092,6 +9227,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                         1.0F / 60.0F,
                         queuedAttackVehicles, input);
                 queuedAttackSession.setExternalRaceFixedStep(true);
+                queuedAttackSession.setExternalProjectilePhysics(true);
                 queuedAttackVehicles[1].body.position = multiply(
                     add(point(0U).position, point(1U).position),
                     0.5F);
@@ -9132,6 +9268,37 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                         "source fixed-step AI attack did not commit its "
                         "charge, cooldown and runtime on the firing tick");
                 }
+                auto projectileBodyCommands =
+                    queuedAttackSession.takeProjectileBodyCommands();
+                if (projectileBodyCommands.size() != 1U ||
+                    projectileBodyCommands.front().kind !=
+                        r3d::physics::ProjectileBodyCommandKind::Create ||
+                    projectileBodyCommands.front().body.id ==
+                        r3d::physics::invalidProjectileBodyId)
+                {
+                    throw std::runtime_error(
+                        "source fixed-step AI projectile did not create "
+                        "exactly one Jolt actor on the firing tick");
+                }
+                r3d::physics::ProjectileBodyState projectileBodyState;
+                projectileBodyState.id =
+                    projectileBodyCommands.front().body.id;
+                projectileBodyState.body =
+                    projectileBodyCommands.front().body.transform;
+                projectileBodyState.body.position.x += 0.25F;
+                projectileBodyState.linearVelocity =
+                    projectileBodyCommands.front().body.linearVelocity;
+                projectileBodyState.active = true;
+                queuedAttackSession.synchronizeProjectilePhysics(
+                    {projectileBodyState});
+                if (std::abs(
+                        queuedAttackSession.projectiles().front().position.x -
+                        projectileBodyState.body.position.x) > 0.0001F)
+                {
+                    throw std::runtime_error(
+                        "Jolt projectile pose was not synchronized back "
+                        "into the source runtime");
+                }
                 queuedAttackVehicles[0].body.position.z += 1000.0F;
                 queuedAttackSession.raceFixedStep(
                     1.0F / 60.0F, queuedAttackVehicles,
@@ -9147,6 +9314,21 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                         "source fixed-step AI attack was committed twice "
                         "before backend materialization");
                 }
+                projectileBodyCommands =
+                    queuedAttackSession.takeProjectileBodyCommands();
+                const bool repeatedBodyCreate = std::any_of(
+                    projectileBodyCommands.begin(),
+                    projectileBodyCommands.end(),
+                    [](const r3d::physics::ProjectileBodyCommand& command) {
+                        return command.kind ==
+                            r3d::physics::ProjectileBodyCommandKind::Create;
+                    });
+                if (repeatedBodyCreate)
+                {
+                    throw std::runtime_error(
+                        "source fixed-step AI projectile created its Jolt "
+                        "actor more than once");
+                }
                 queuedAttackSession.update(
                     2.0F / 60.0F,
                     queuedAttackVehicles, input);
@@ -9158,6 +9340,20 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     throw std::runtime_error(
                         "source fixed-step AI attack was re-fired while "
                         "materializing its backend projectile");
+                }
+                projectileBodyCommands =
+                    queuedAttackSession.takeProjectileBodyCommands();
+                if (std::any_of(
+                        projectileBodyCommands.begin(),
+                        projectileBodyCommands.end(),
+                        [](const r3d::physics::ProjectileBodyCommand& command) {
+                            return command.kind ==
+                                r3d::physics::ProjectileBodyCommandKind::Create;
+                        }))
+                {
+                    throw std::runtime_error(
+                        "source render progression duplicated the Jolt "
+                        "projectile actor");
                 }
                 const bool retainedFixedAttack = std::any_of(
                     queuedAttackSession.events().begin(),

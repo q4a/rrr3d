@@ -359,6 +359,10 @@ struct ProjectileRuntime
     // Source Logic owns every successfully prepared Proj. Runtime keeps the
     // same non-owning pointer that the original optional ProjList exposed.
     source::Proj* sourceObject = nullptr;
+    std::uint64_t physicsBodyId =
+        r3d::physics::invalidProjectileBodyId;
+    Vec3 physicsPreviousPosition;
+    bool physicsBacked = false;
     bool active = true;
 };
 
@@ -429,6 +433,7 @@ public:
     // every Jolt solver substep.  This is deliberately separate from the
     // per-vehicle GameCar drive callback below.
     void setExternalRaceFixedStep(bool enabled) noexcept;
+    void setExternalProjectilePhysics(bool enabled) noexcept;
     void raceFixedStep(
         float deltaTime,
         const std::vector<r3d::physics::VehicleState>& vehicles,
@@ -518,6 +523,10 @@ public:
     std::vector<VelocityRequest> takeVelocityRequests();
     std::vector<AngularVelocityRequest> takeAngularVelocityRequests();
     std::vector<AngularMomentumRequest> takeAngularMomentumRequests();
+    std::vector<r3d::physics::ProjectileBodyCommand>
+        takeProjectileBodyCommands();
+    void synchronizeProjectilePhysics(
+        const std::vector<r3d::physics::ProjectileBodyState>& states);
 
 private:
     bool legacyWindowsDebug_ = false;
@@ -592,6 +601,11 @@ private:
         std::size_t primaryMount, std::size_t preparedOrdinal,
         source::Proj& projectile,
         std::size_t homingTarget);
+    void queueProjectileBodyCreate(ProjectileRuntime& projectile);
+    void queueProjectileBodySynchronize(
+        const ProjectileRuntime& projectile);
+    void queueProjectileBodyDestroy(
+        const ProjectileRuntime& projectile);
     bool prepareAiWeaponAttack(
         PendingAiAttack& attack,
         const std::vector<r3d::physics::VehicleState>& vehicles);
@@ -721,6 +735,9 @@ private:
     std::vector<VelocityRequest> velocityRequests_;
     std::vector<AngularVelocityRequest> angularVelocityRequests_;
     std::vector<AngularMomentumRequest> angularMomentumRequests_;
+    std::vector<r3d::physics::ProjectileBodyCommand>
+        projectileBodyCommands_;
+    std::uint64_t nextProjectileBodyId_ = 1U;
     std::vector<ReplicatedShot> pendingNetworkShots_;
     std::vector<ReplicatedBonus> pendingNetworkBonuses_;
     std::vector<ReplicatedMineContact> pendingNetworkMineContacts_;
@@ -739,6 +756,7 @@ private:
     bool springBorders_ = true;
     bool debugHumanAiControl_ = false;
     bool externalRaceFixedStep_ = false;
+    bool externalProjectilePhysics_ = false;
     bool externalVehicleFixedStep_ = false;
     bool externalRaceLateProgress_ = false;
     bool raceLateProgressPending_ = false;

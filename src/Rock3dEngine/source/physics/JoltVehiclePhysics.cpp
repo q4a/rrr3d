@@ -229,6 +229,7 @@ constexpr JPH::uint64 bodyKindMask = 0xf000000000000000ULL;
 constexpr JPH::uint64 vehicleBodyKind = 0x1000000000000000ULL;
 constexpr JPH::uint64 surfaceBodyKind = 0x2000000000000000ULL;
 constexpr JPH::uint64 decorationBodyKind = 0x3000000000000000ULL;
+constexpr JPH::uint64 projectileBodyKind = 0x4000000000000000ULL;
 
 JPH::uint64 vehicleUserData(std::size_t index)
 {
@@ -243,6 +244,11 @@ JPH::uint64 surfaceUserData(CollisionSurface surface)
 JPH::uint64 decorationUserData(std::size_t index)
 {
     return decorationBodyKind | static_cast<JPH::uint64>(index);
+}
+
+JPH::uint64 projectileUserData(std::size_t index)
+{
+    return projectileBodyKind | static_cast<JPH::uint64>(index);
 }
 
 bool vehicleIndex(JPH::uint64 userData, std::size_t& index)
@@ -714,6 +720,7 @@ public:
     ~JoltVehicleWorld() override
     {
         system_.SetContactListener(nullptr);
+        clearProjectileBodies();
         clearDebris();
         destroyDecorations();
         for (auto& vehicle : vehicles_)
@@ -750,6 +757,7 @@ public:
     {
         sourceFixedStepAccumulator_ = 0.0F;
         sourceFixedInputs_.clear();
+        clearProjectileBodies();
         clearDebris();
         auto& bodies = system_.GetBodyInterface();
         for (std::size_t index = 0; index < decorations_.size(); ++index)
@@ -1036,6 +1044,13 @@ public:
         worldFixedStepController_ = std::move(controller);
     }
 
+    void applyProjectileBodyCommands(
+        const std::vector<ProjectileBodyCommand>& commands) noexcept override
+    {
+        for (const auto& command : commands)
+            applyProjectileBodyCommand(command);
+    }
+
     void step(float seconds,
               const std::vector<VehicleInput>& rawInputs) noexcept override
     {
@@ -1103,9 +1118,20 @@ public:
                     }
                     fixedStepResets_.clear();
                     fixedStepLinearVelocities_.clear();
+                    for (auto& projectile : projectileBodies_)
+                        updateState(projectile);
+                    fixedStepProjectileStates_.clear();
+                    fixedStepProjectileStates_.reserve(
+                        projectileBodies_.size());
+                    for (const auto& projectile : projectileBodies_)
+                        fixedStepProjectileStates_.push_back(
+                            projectile.state);
+                    fixedStepProjectileCommands_.clear();
                     worldFixedStepController_(
                         sourceStep, fixedStepStates_, sourceFixedInputs_,
-                        fixedStepResets_, fixedStepLinearVelocities_);
+                        fixedStepResets_, fixedStepLinearVelocities_,
+                        fixedStepProjectileStates_,
+                        fixedStepProjectileCommands_);
                     sourceFixedInputs_.resize(vehicles_.size());
                     for (const auto& reset : fixedStepResets_)
                         resetVehicle(
@@ -1113,6 +1139,8 @@ public:
                     for (const auto& velocity : fixedStepLinearVelocities_)
                         addLinearVelocity(
                             velocity.vehicle, velocity.delta);
+                    applyProjectileBodyCommands(
+                        fixedStepProjectileCommands_);
                 }
                 ++sourceStepsDispatched;
             }
@@ -1148,6 +1176,8 @@ public:
             }
             updateState(debris);
         }
+        for (auto& projectile : projectileBodies_)
+            updateState(projectile);
     }
 
     const VehicleState& vehicle() const noexcept override
@@ -1310,6 +1340,19 @@ public:
         return debris_.size();
     }
 
+    const ProjectileBodyState& projectileBody(
+        std::size_t index) const noexcept override
+    {
+        return index < projectileBodies_.size()
+                   ? projectileBodies_[index].state
+                   : emptyProjectileBody_;
+    }
+
+    std::size_t projectileBodyCount() const noexcept override
+    {
+        return projectileBodies_.size();
+    }
+
 private:
     struct VehicleRuntime
     {
@@ -1339,6 +1382,12 @@ private:
         JPH::BodyID body;
         DebrisState state;
         float lifetime = -1.0F;
+    };
+
+    struct ProjectileBodyRuntime
+    {
+        JPH::BodyID body;
+        ProjectileBodyState state;
     };
 
     struct DecorationRuntime
@@ -1739,6 +1788,150 @@ private:
         if (input.throttle != 0.0F || input.reverse != 0.0F ||
             input.brake != 0.0F || input.steering != 0.0F)
             bodies.ActivateBody(vehicle.body);
+    }
+
+    ProjectileBodyRuntime* findProjectileBody(
+        std::uint64_t id) noexcept
+    {
+        const auto found = std::find_if(
+            projectileBodies_.begin(), projectileBodies_.end(),
+            [id](const ProjectileBodyRuntime& value) {
+                return value.state.id == id;
+            });
+        return found == projectileBodies_.end() ? nullptr : &*found;
+    }
+
+    void destroyProjectileBody(ProjectileBodyRuntime& projectile) noexcept
+    {
+        if (projectile.body.IsInvalid())
+        {
+            projectile.state.active = false;
+            return;
+        }
+        auto& bodies = system_.GetBodyInterface();
+        if (projectile.state.active)
+            bodies.RemoveBody(projectile.body);
+        bodies.DestroyBody(projectile.body);
+        projectile.body = JPH::BodyID();
+        projectile.state.active = false;
+    }
+
+    bool createProjectileBody(
+        const ProjectileBodyDescription& description) noexcept
+    {
+        if (description.id == invalidProjectileBodyId)
+            return false;
+        ProjectileBodyRuntime* runtime = findProjectileBody(description.id);
+        std::size_t index = 0U;
+        if (runtime != nullptr)
+        {
+            index = static_cast<std::size_t>(
+                runtime - projectileBodies_.data());
+            destroyProjectileBody(*runtime);
+        }
+        else
+        {
+            index = projectileBodies_.size();
+            projectileBodies_.push_back({});
+            runtime = &projectileBodies_.back();
+        }
+
+        const JPH::Vec3 halfExtents{
+            std::max(description.halfExtents.x, 0.01F),
+            std::max(description.halfExtents.z, 0.01F),
+            std::max(description.halfExtents.y, 0.01F)};
+        const auto shifted = JPH::RotatedTranslatedShapeSettings(
+                                 toJolt(description.shapePosition),
+                                 toJolt(description.shapeRotation),
+                                 new JPH::BoxShape(halfExtents))
+                                 .Create();
+        if (shifted.HasError())
+            return false;
+
+        JPH::BodyCreationSettings settings(
+            shifted.Get(), toJolt(description.transform.position),
+            toJolt(description.transform.rotation),
+            JPH::EMotionType::Dynamic, Layers::moving);
+        settings.mOverrideMassProperties =
+            JPH::EOverrideMassProperties::CalculateInertia;
+        settings.mMassPropertiesOverride.mMass =
+            std::max(description.mass, 0.001F);
+        settings.mGravityFactor = description.gravityFactor;
+        settings.mIsSensor = description.sensor;
+        settings.mMotionQuality = JPH::EMotionQuality::LinearCast;
+        settings.mFriction = 0.0F;
+        settings.mRestitution = 0.0F;
+        settings.mUserData = projectileUserData(index);
+        runtime->body = system_.GetBodyInterface().CreateAndAddBody(
+            settings, JPH::EActivation::Activate);
+        if (runtime->body.IsInvalid())
+            return false;
+        auto& bodies = system_.GetBodyInterface();
+        bodies.SetLinearVelocity(
+            runtime->body, toJolt(description.linearVelocity));
+        runtime->state.id = description.id;
+        runtime->state.body = description.transform;
+        runtime->state.linearVelocity = description.linearVelocity;
+        runtime->state.active = true;
+        return true;
+    }
+
+    void synchronizeProjectileBody(
+        const ProjectileBodyDescription& description) noexcept
+    {
+        auto* runtime = findProjectileBody(description.id);
+        if (runtime == nullptr || !runtime->state.active ||
+            runtime->body.IsInvalid())
+            return;
+        auto& bodies = system_.GetBodyInterface();
+        bodies.SetPositionAndRotation(
+            runtime->body, toJolt(description.transform.position),
+            toJolt(description.transform.rotation),
+            JPH::EActivation::Activate);
+        bodies.SetLinearVelocity(
+            runtime->body, toJolt(description.linearVelocity));
+        updateState(*runtime);
+    }
+
+    void applyProjectileBodyCommand(
+        const ProjectileBodyCommand& command) noexcept
+    {
+        switch (command.kind)
+        {
+        case ProjectileBodyCommandKind::Create:
+            createProjectileBody(command.body);
+            break;
+        case ProjectileBodyCommandKind::Synchronize:
+            synchronizeProjectileBody(command.body);
+            break;
+        case ProjectileBodyCommandKind::Destroy:
+            if (auto* runtime = findProjectileBody(command.body.id))
+                destroyProjectileBody(*runtime);
+            break;
+        }
+    }
+
+    void updateState(ProjectileBodyRuntime& projectile) noexcept
+    {
+        if (!projectile.state.active || projectile.body.IsInvalid())
+            return;
+        JPH::BodyLockRead lock(
+            system_.GetBodyLockInterface(), projectile.body);
+        if (!lock.Succeeded())
+            return;
+        const JPH::Body& body = lock.GetBody();
+        projectile.state.body.position = fromJolt(body.GetPosition());
+        projectile.state.body.rotation = fromJolt(body.GetRotation());
+        projectile.state.body.scale = {1.0F, 1.0F, 1.0F};
+        projectile.state.linearVelocity =
+            fromJolt(body.GetLinearVelocity());
+    }
+
+    void clearProjectileBodies() noexcept
+    {
+        for (auto& projectile : projectileBodies_)
+            destroyProjectileBody(projectile);
+        projectileBodies_.clear();
     }
 
     void destroyDebris(DebrisRuntime& debris) noexcept
@@ -2413,8 +2606,10 @@ private:
     std::vector<VehicleRuntime> vehicles_;
     std::vector<DecorationRuntime> decorations_;
     std::vector<DebrisRuntime> debris_;
+    std::vector<ProjectileBodyRuntime> projectileBodies_;
     DecorationState emptyDecoration_;
     DebrisState emptyDebris_;
+    ProjectileBodyState emptyProjectileBody_;
     VehicleFixedStepController fixedStepController_;
     WorldFixedStepController worldFixedStepController_;
     std::vector<VehicleInput> fixedStepInputs_;
@@ -2423,6 +2618,8 @@ private:
     std::vector<VehicleResetCommand> fixedStepResets_;
     std::vector<VehicleLinearVelocityCommand>
         fixedStepLinearVelocities_;
+    std::vector<ProjectileBodyState> fixedStepProjectileStates_;
+    std::vector<ProjectileBodyCommand> fixedStepProjectileCommands_;
     float sourceFixedStepAccumulator_ = 0.0F;
 };
 
@@ -2528,13 +2725,16 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
             const std::vector<VehicleState>& states,
             std::vector<VehicleInput>& inputs,
             std::vector<VehicleResetCommand>& resets,
-            std::vector<VehicleLinearVelocityCommand>& velocities) {
+            std::vector<VehicleLinearVelocityCommand>& velocities,
+            const std::vector<ProjectileBodyState>& projectiles,
+            std::vector<ProjectileBodyCommand>& projectileCommands) {
             ++worldFixedStepCalls;
             worldFixedStepRosterValid =
                 worldFixedStepRosterValid &&
                 std::abs(delta - 1.0F / 60.0F) < 0.000001F &&
                 states.size() == 1U && inputs.size() == 1U &&
-                velocities.empty();
+                velocities.empty() && projectiles.empty() &&
+                projectileCommands.empty();
             inputs.front().throttle = 1.0F;
             if (worldFixedStepCalls == 1U)
             {
@@ -2545,6 +2745,13 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
                       drivetrainDescription.startPosition.z + 1.0F},
                      drivetrainDescription.startDirection});
                 velocities.push_back({0U, {0.0F, 0.0F, 2.0F}});
+                ProjectileBodyCommand projectile;
+                projectile.kind = ProjectileBodyCommandKind::Create;
+                projectile.body.id = 42U;
+                projectile.body.transform.position = {0.0F, 0.0F, 5.0F};
+                projectile.body.halfExtents = {0.1F, 0.1F, 0.1F};
+                projectile.body.linearVelocity = {10.0F, 0.0F, 0.0F};
+                projectileCommands.push_back(projectile);
             }
         });
     fixedStepWorld->setVehicleFixedStepController(
@@ -2580,7 +2787,11 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
         !worldFixedStepRosterValid ||
         fixedStepWorld->vehicle().resetCount !=
             resetCountBeforeWorldCallback + 1U ||
-        fixedStepWorld->vehicle().linearVelocity.z <= 1.0F)
+        fixedStepWorld->vehicle().linearVelocity.z <= 1.0F ||
+        fixedStepWorld->projectileBodyCount() != 1U ||
+        !fixedStepWorld->projectileBody(0U).active ||
+        fixedStepWorld->projectileBody(0U).id != 42U ||
+        fixedStepWorld->projectileBody(0U).body.position.x <= 0.05F)
     {
         error = "source Race world fixed-step/Jolt command bridge failed";
         return false;

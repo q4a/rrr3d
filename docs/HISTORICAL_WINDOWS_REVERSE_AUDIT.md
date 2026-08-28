@@ -5158,6 +5158,30 @@ relative launch velocity, ballistic/homing/attached признаки и выбр
 один runtime до adapter, один после него и прежний 3D target. Прошли 29/29
 CTest, physics smoke и 360-frame bgfx/Metal smoke.
 
+### P2.222 — свободные `Proj` получили Jolt actor lifecycle — выполнено
+
+В оригинале после `Weapon::CreateShot` свободный `Proj` существует как
+динамический PhysX actor: начальная скорость задаётся до `World::Compute`, а
+завершённая поза читается игровым объектом после solve. Portable session до
+B8t вручную прибавляла `velocity * renderDelta`, хотя сами машина и мир уже
+вычислялись Jolt; это оставляло движение снарядов зависимым от FPS и не
+сохраняло исходную границу физического шага.
+
+Теперь каждый persistent non-ray/non-attached projectile получает стабильный
+body id и dynamic Jolt sensor box из исходных `ProjDesc::collision`, `mass` и
+gravity route. Команда Create, возникшая в `Race::OnFixedStep`, применяется
+до текущего solver update; после solve pose и linear velocity возвращаются в
+тот же `ProjectileRuntime`. Source `Proj::OnProgress`/`ProgressFree` остаются
+владельцами lifetime, homing, Thunder и rocket-height правил и могут
+синхронизировать изменённое состояние в тело перед следующим solve.
+
+Ручная интеграция сохранена только для headless regression без подключённого
+physics backend. Тесты требуют одно создание тела, обратную синхронизацию
+Jolt-позы и отсутствие повторного Create. Physics smoke отдельно создаёт
+sensor projectile из world fixed callback и проверяет его перемещение уже в
+том же 60-Hz интервале. Оставшаяся граница B8u — заменить session snapshot
+box/ray contacts событиями Jolt contact/raycast query.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

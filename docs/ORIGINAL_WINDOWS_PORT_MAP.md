@@ -681,6 +681,21 @@ source fixed intervals. Их source `Proj::OnProgress` корректно ост
 frame event, но перенос позиции/контактов replacement physics пока выполняет
 session `updateGameplay`, а не Jolt solver boundary.
 
+Результат B8t: persistent non-ray/non-attached `Proj` получает dynamic Jolt
+sensor body со стабильным id, исходным collision center/half-extents, mass,
+gravity factor и launch velocity. Create из source fixed-step применяется до
+solver; после solve session получает фактические pose/velocity и использует
+их для source progress и bgfx presentation. Destroy следует lifetime/death
+исходного объекта, а Synchronize переносит homing/Thunder/rocket изменения
+обратно в backend.
+
+Ручной `velocity * delta` путь оставлен только session regression без
+external physics. Интеграционный тест требует один Create и pose round-trip,
+Jolt smoke — перемещение нового actor в том же interval. Следующий B8u —
+подключить Jolt sensor contact stream и ray queries к исходным
+`Proj::OnContact`/`Logic` branches, затем удалить дублирующие snapshot
+box/ray проверки активной гонки.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:
