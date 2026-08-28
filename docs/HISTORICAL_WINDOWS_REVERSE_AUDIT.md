@@ -5204,6 +5204,28 @@ regression проверяет полный round-trip contact identity. Оста
 граница — ray-only Laser/FrostRay и rocket-height ground query, которые пока
 используют CPU-копию геометрии вместо Jolt narrow-phase query.
 
+### P2.224 — projectile-group raycasts перенесены в Jolt narrow phase — выполнено
+
+Оригинальные `LaserUpdate`/`FrostRayUpdate`, `MinePrepare` и
+`Proj::RocketUpdate` вызывают PhysX scene query по текущим actors. Portable
+ветка продолжала трассировать загруженные треугольники и snapshot OBB машин,
+поэтому не видела завершённый solver pose и могла пересечь уже удалённый или
+динамически перемещённый actor.
+
+`OriginalVehicleWorld` теперь предоставляет closest raycast с фильтрами
+полной projectile group или только TrackPlane. Jolt collector читает живые
+vehicle/decoration/surface bodies, исключает actor стрелка и projectile
+sensors, сохраняет actor identity, hit point и world normal, принимает обе
+стороны исходных mesh triangles. Удалённые decoration bodies автоматически
+исчезают из query вместе с physics actor.
+
+Session получает этот query через backend callback. Laser/FrostRay,
+обычный/AI MinePrepare, падение отделившейся мины и rocket-height используют
+его в активной гонке; прежние CPU функции остались только deterministic
+fallback и эталоном regression без world. Physics smoke проверяет closest
+vehicle hit, ignored shooter и отдельный TrackPlane hit, session smoke — что
+установка MineRip действительно прошла через backend callback.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

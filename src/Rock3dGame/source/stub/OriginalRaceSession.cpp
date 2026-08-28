@@ -2689,6 +2689,61 @@ void OriginalRaceSession::synchronizeProjectilePhysics(
     }
 }
 
+void OriginalRaceSession::setWorldRaycast(
+    r3d::physics::WorldRayCast raycast)
+{
+    worldRaycast_ = std::move(raycast);
+}
+
+r3d::physics::WorldRayCastHit OriginalRaceSession::queryWorldRay(
+    const std::vector<r3d::physics::VehicleState>& vehicles,
+    Vec3 origin, Vec3 direction, float maximumDistance,
+    std::size_t ignoredVehicle, bool trackPlaneOnly) const
+{
+    r3d::physics::WorldRayCastQuery query;
+    query.origin = origin;
+    query.direction = direction;
+    query.maximumDistance = maximumDistance;
+    query.ignoredVehicle = ignoredVehicle;
+    query.trackPlaneOnly = trackPlaneOnly;
+    if (worldRaycast_)
+        return worldRaycast_(query);
+
+    r3d::physics::WorldRayCastHit result;
+    result.distance = maximumDistance;
+    if (trackPlaneOnly)
+    {
+        const auto hit = raycastTrackPlane(race_, origin);
+        if (!hit.hit || hit.distance > maximumDistance)
+            return result;
+        result.hit = true;
+        result.position = hit.position;
+        result.normal = hit.normal;
+        result.surface =
+            r3d::physics::CollisionSurface::TrackPlane;
+        result.distance = hit.distance;
+        return result;
+    }
+
+    const auto hit = raycastWorld(
+        race_, decorationActive_, vehicles, racers_, ignoredVehicle,
+        origin, direction, maximumDistance);
+    if (!hit.hit)
+        return result;
+    result.hit = true;
+    result.distance = hit.distance;
+    result.position = add(
+        origin, multiply(normalized3(direction), hit.distance));
+    result.vehicle = hit.vehicle;
+    result.decoration = hit.decoration;
+    result.surface = hit.vehicle < vehicles.size()
+        ? r3d::physics::CollisionSurface::Vehicle
+        : hit.decoration < decorationActive_.size()
+            ? r3d::physics::CollisionSurface::Decoration
+            : r3d::physics::CollisionSurface::TrackPlane;
+    return result;
+}
+
 const std::vector<std::uint32_t>& OriginalRaceSession::tracePathAt(
     std::size_t path) const
 {
@@ -3690,8 +3745,9 @@ bool OriginalRaceSession::prepareAiMineAttack(
     localProjectile.rotation = projectile.rotation;
     const Vec3 rayPosition = compose(
         attack.mineWeaponTransform, localProjectile).position;
-    const auto hit = raycastTrackPlane(
-        race_, add(rayPosition, {0.0F, 0.0F, 2.0F}));
+    const auto hit = queryWorldRay(
+        vehicles, add(rayPosition, {0.0F, 0.0F, 2.0F}),
+        {0.0F, 0.0F, -1.0F}, 1000000.0F, racer, true);
     if (!hit.hit)
         return false;
 
@@ -4780,13 +4836,12 @@ void OriginalRaceSession::updateGameplay(
             const Vec3 rayOrigin =
                 add(projectile.position,
                     projectileDefinition.sizeAddPx);
-            const WorldRayHit rayHit =
+            const auto rayHit =
                 sourceRay
-                    ? raycastWorld(
-                          race_, decorationActive_, vehicles, racers_,
-                          projectile.owner, rayOrigin,
-                          projectile.direction, maximumDistance)
-                    : WorldRayHit{};
+                    ? queryWorldRay(
+                          vehicles, rayOrigin, projectile.direction,
+                          maximumDistance, projectile.owner, false)
+                    : r3d::physics::WorldRayCastHit{};
             const auto laserUpdate = !sourceRay
                 ? source::Proj::LaserUpdateResult{}
                 : sourceProgressRoute.handler ==
@@ -5067,8 +5122,15 @@ void OriginalRaceSession::updateGameplay(
         {
             // Proj::RocketUpdate casts from pos + Z*4 against TrackPlane and
             // preserves the projectile's lowest established clearance.
-            trackHit = raycastTrackPlane(
-                race_, add(projectile.position, {0.0F, 0.0F, 4.0F}));
+            const auto physicsTrackHit = queryWorldRay(
+                vehicles,
+                add(projectile.position, {0.0F, 0.0F, 4.0F}),
+                {0.0F, 0.0F, -1.0F}, 1000000.0F,
+                sourcePlayerId, true);
+            trackHit.hit = physicsTrackHit.hit;
+            trackHit.position = physicsTrackHit.position;
+            trackHit.normal = physicsTrackHit.normal;
+            trackHit.distance = physicsTrackHit.distance;
         }
         Vec3 thunderNormal;
         bool thunderBorderContact = false;
@@ -5657,8 +5719,11 @@ void OriginalRaceSession::updateGameplay(
             localProjectile.rotation = projectile->rotation;
             const Vec3 rayPosition =
                 compose(weaponTransform, localProjectile).position;
-            const auto hit = raycastTrackPlane(
-                race_, add(rayPosition, {0.0F, 0.0F, 2.0F}));
+            const auto hit = queryWorldRay(
+                vehicles,
+                add(rayPosition, {0.0F, 0.0F, 2.0F}),
+                {0.0F, 0.0F, -1.0F}, 1000000.0F,
+                owner, true);
             if (!hit.hit)
                 return false;
             // Source MinePrepare uses ComputeAABB(true), while CreatePxBox
@@ -6134,10 +6199,10 @@ void OriginalRaceSession::updateGameplay(
                 RacerRuntime::invalidWeapon;
             if (rayProjectile && !attachedProjectile)
             {
-                const auto rayHit = raycastWorld(
-                    race_, decorationActive_, vehicles, racers_, shooter,
+                const auto rayHit = queryWorldRay(
+                    vehicles,
                     add(projectileOrigin, projectile.sizeAddPx),
-                    sourceDirection, projectileDistance);
+                    sourceDirection, projectileDistance, shooter, false);
                 if (rayHit.hit)
                 {
                     targetDistance = rayHit.distance;
@@ -6698,8 +6763,10 @@ void OriginalRaceSession::updateGameplay(
             mine.position = add(
                 mine.position, multiply(mine.velocity, seconds));
             mine.velocity.z -= 20.0F * seconds;
-            const auto trackHit = raycastTrackPlane(
-                race_, add(mine.position, {0.0F, 0.0F, 2.0F}));
+            const auto trackHit = queryWorldRay(
+                vehicles, add(mine.position, {0.0F, 0.0F, 2.0F}),
+                {0.0F, 0.0F, -1.0F}, 1000000.0F,
+                mine.owner, true);
             const float bottomOffset = std::max(
                 -mineDefinition.collision.center.z +
                     mineDefinition.collision.halfExtents.z,
@@ -13648,6 +13715,26 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
         }
         {
             OriginalRaceSession mineSession(race);
+            std::size_t backendTrackRayQueries = 0U;
+            mineSession.setWorldRaycast(
+                [&](const r3d::physics::WorldRayCastQuery& query) {
+                    ++backendTrackRayQueries;
+                    r3d::physics::WorldRayCastHit result;
+                    result.distance = query.maximumDistance;
+                    const auto sourceHit =
+                        raycastTrackPlane(race, query.origin);
+                    if (query.trackPlaneOnly && sourceHit.hit &&
+                        sourceHit.distance <= query.maximumDistance)
+                    {
+                        result.hit = true;
+                        result.position = sourceHit.position;
+                        result.normal = sourceHit.normal;
+                        result.distance = sourceHit.distance;
+                        result.surface = r3d::physics::
+                            CollisionSurface::TrackPlane;
+                    }
+                    return result;
+                });
             auto mineVehicles = vehicles;
             for (std::size_t racer = 1U;
                  racer < mineVehicles.size(); ++racer)
@@ -13673,8 +13760,13 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             mineSession.update(
                 1.0F / 60.0F, mineVehicles, mineInput);
             mineInput.useMine = false;
-            if (mineSession.mines().empty())
-                throw std::runtime_error("source MineRip was not placed");
+            if (mineSession.mines().empty() ||
+                backendTrackRayQueries == 0U)
+            {
+                throw std::runtime_error(
+                    "source MineRip was not placed through the backend "
+                    "track raycast");
+            }
             const auto& sourceProjectile =
                 mineRip->projectiles.front();
             const Transform sourceWeaponTransform = compose(

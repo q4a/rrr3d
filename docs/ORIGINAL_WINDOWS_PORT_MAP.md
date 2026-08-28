@@ -709,6 +709,19 @@ decoration damage и Thunder border reflection. OBB reconstruction остаёт�
 round-trip. Следующий B8v — backend raycast для Laser/FrostRay и
 `Proj::RocketUpdate`, остающийся snapshot query активной гонки.
 
+Результат B8v: replacement physics экспортирует closest ray query поверх
+живого Jolt narrow phase. Полная projectile group различает Vehicle,
+Decoration и track surface, сохраняет body actor id/point/normal, игнорирует
+машину стрелка и projectile sensors. TrackPlane-only вариант соответствует
+группе, которую исходные `MinePrepare` и `RocketUpdate` запрашивали отдельно.
+
+`OriginalRaceSession` использует backend callback для Laser/FrostRay,
+ручной/AI MinePrepare, ballistic mine ground и rocket-height; CPU mesh/OBB
+query остаётся только fallback-ом без world. Regression проверяет оба Jolt
+фильтра и факт вызова callback при source MineRip placement. Следующий B8w —
+перенести физические actors и contact stream размещённых mine/bonus
+projectiles, которые пока остаются session-integrated.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:

@@ -1654,6 +1654,26 @@ smoke — сохранение contact identity вместе с pose. Следу
 перевести ray-only Laser/FrostRay и rocket-height ray на backend narrow-phase
 query, чтобы удалить оставшуюся CPU-копию world raycast активной гонки.
 
+### B8v: live Jolt ray queries for projectile gameplay
+
+Physics backend получил closest-hit query с двумя исходными группами:
+полный projectile world для Laser/FrostRay и TrackPlane-only для MinePrepare/
+RocketUpdate. Collector работает с текущими Jolt actors, возвращает surface,
+vehicle/decor identity, actor id, hit point/normal/distance, пропускает тело
+стрелка и собственные projectile sensors и поддерживает back-face triangles.
+
+Session callback теперь обслуживает ray projectiles в `updateGameplay`,
+обычный и AI mine placement, ballistic mine landing и rocket-height. При
+пересоздании `physicsWorld` callback продолжает обращаться к актуальному
+unique_ptr. CPU triangle/OBB raycaster вызывается лишь source-only smoke без
+backend.
+
+Physics regression требует корректные closest Vehicle, ignored Vehicle и
+TrackPlane-only результаты. MineRip regression отдельно требует фактический
+вызов backend callback. Следующий блок B8w — продолжить fixed-step аудит
+оставшихся mines/bonus projectile actors: размещённые мины всё ещё хранят
+position/velocity в session и используют OBB vehicle contact, а не Jolt body.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

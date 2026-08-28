@@ -1471,6 +1471,116 @@ public:
         return projectileBodies_.size();
     }
 
+    WorldRayCastHit raycast(
+        const WorldRayCastQuery& query) const noexcept override
+    {
+        WorldRayCastHit result;
+        result.distance = std::max(query.maximumDistance, 0.0F);
+        if (result.distance <= 0.0F)
+            return result;
+        const Vec3 sourceDirection = query.direction;
+        const float sourceLength = std::sqrt(
+            sourceDirection.x * sourceDirection.x +
+            sourceDirection.y * sourceDirection.y +
+            sourceDirection.z * sourceDirection.z);
+        if (sourceLength <= 0.000001F)
+            return result;
+        const Vec3 normalizedDirection{
+            sourceDirection.x / sourceLength,
+            sourceDirection.y / sourceLength,
+            sourceDirection.z / sourceLength};
+        const JPH::RRayCast ray{
+            toJolt(query.origin),
+            result.distance * toJolt(normalizedDirection)};
+
+        class Collector final : public JPH::CastRayCollector
+        {
+        public:
+            Collector(const JPH::PhysicsSystem& physics,
+                      const WorldRayCastQuery& sourceQuery,
+                      const JPH::RRayCast& sourceRay,
+                      float maximumDistance) noexcept
+                : system(physics), query(sourceQuery), ray(sourceRay),
+                  maxDistance(maximumDistance)
+            {
+                hit.distance = maximumDistance;
+            }
+
+            void AddHit(const JPH::RayCastResult& value) override
+            {
+                if (value.mFraction >= GetEarlyOutFraction())
+                    return;
+                JPH::BodyLockRead lock(
+                    system.GetBodyLockInterface(), value.mBodyID);
+                if (!lock.Succeeded())
+                    return;
+                const JPH::Body& body = lock.GetBody();
+                const auto userData = body.GetUserData();
+                const auto kind = userData & bodyKindMask;
+                std::size_t vehicle =
+                    std::numeric_limits<std::size_t>::max();
+                std::size_t decoration =
+                    std::numeric_limits<std::size_t>::max();
+                CollisionSurface surface = CollisionSurface::TrackPlane;
+                if (kind == vehicleBodyKind)
+                {
+                    vehicleIndex(userData, vehicle);
+                    if (query.trackPlaneOnly ||
+                        vehicle == query.ignoredVehicle)
+                        return;
+                    surface = CollisionSurface::Vehicle;
+                }
+                else if (kind == decorationBodyKind)
+                {
+                    if (query.trackPlaneOnly)
+                        return;
+                    decorationIndex(userData, decoration);
+                    surface = CollisionSurface::Decoration;
+                }
+                else if (kind == surfaceBodyKind)
+                {
+                    surface = collisionSurface(userData);
+                    if (query.trackPlaneOnly &&
+                        surface != CollisionSurface::TrackPlane)
+                        return;
+                }
+                else
+                {
+                    return;
+                }
+
+                const auto position = ray.GetPointOnRay(value.mFraction);
+                auto normal = body.GetWorldSpaceSurfaceNormal(
+                    value.mSubShapeID2, position);
+                const auto rayDirection = JPH::Vec3(ray.mDirection);
+                if (normal.Dot(rayDirection) > 0.0F)
+                    normal = -normal;
+                hit.hit = true;
+                hit.distance = maxDistance * value.mFraction;
+                hit.position = fromJolt(JPH::Vec3(position));
+                hit.normal = fromJolt(normal);
+                hit.surface = surface;
+                hit.vehicle = vehicle;
+                hit.decoration = decoration;
+                hit.actor = body.GetID().GetIndexAndSequenceNumber();
+                UpdateEarlyOutFraction(value.mFraction);
+            }
+
+            const JPH::PhysicsSystem& system;
+            const WorldRayCastQuery& query;
+            const JPH::RRayCast& ray;
+            float maxDistance = 0.0F;
+            WorldRayCastHit hit;
+        } collector(system_, query, ray, result.distance);
+
+        JPH::RayCastSettings settings;
+        settings.mBackFaceModeTriangles =
+            JPH::EBackFaceMode::CollideWithBackFaces;
+        system_.GetNarrowPhaseQuery().CastRay(
+            ray, settings, collector);
+        return collector.hit;
+    }
+
 private:
     struct VehicleRuntime
     {
@@ -2938,6 +3048,32 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
             }))
     {
         error = "source Race world fixed-step/Jolt command bridge failed";
+        return false;
+    }
+    WorldRayCastQuery trackRay;
+    trackRay.origin = {0.0F, 0.0F, 10.0F};
+    trackRay.direction = {0.0F, 0.0F, -1.0F};
+    trackRay.maximumDistance = 20.0F;
+    trackRay.trackPlaneOnly = true;
+    const auto trackRayHit = fixedStepWorld->raycast(trackRay);
+    WorldRayCastQuery vehicleRay;
+    vehicleRay.origin = {-10.0F, 0.0F, 3.0F};
+    vehicleRay.direction = {1.0F, 0.0F, 0.0F};
+    vehicleRay.maximumDistance = 20.0F;
+    const auto vehicleRayHit = fixedStepWorld->raycast(vehicleRay);
+    vehicleRay.ignoredVehicle = 0U;
+    const auto ignoredVehicleRayHit =
+        fixedStepWorld->raycast(vehicleRay);
+    if (!trackRayHit.hit ||
+        trackRayHit.surface != CollisionSurface::TrackPlane ||
+        std::abs(trackRayHit.distance - 10.0F) > 0.05F ||
+        !vehicleRayHit.hit ||
+        vehicleRayHit.surface != CollisionSurface::Vehicle ||
+        vehicleRayHit.vehicle != 0U ||
+        vehicleRayHit.distance >= vehicleRay.maximumDistance ||
+        ignoredVehicleRayHit.hit)
+    {
+        error = "source projectile-group Jolt raycast bridge failed";
         return false;
     }
     VehicleInput input;

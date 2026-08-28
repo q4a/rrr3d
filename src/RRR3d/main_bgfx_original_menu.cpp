@@ -3744,6 +3744,13 @@ int main(int argc, char** argv)
             return;
         raceSession.setExternalRaceFixedStep(true);
         raceSession.setExternalProjectilePhysics(true);
+        raceSession.setWorldRaycast(
+            [&physicsWorld](
+                const r3d::physics::WorldRayCastQuery& query) {
+                return physicsWorld
+                    ? physicsWorld->raycast(query)
+                    : r3d::physics::WorldRayCastHit{};
+            });
         raceSession.setExternalVehicleFixedStep(true);
         raceSession.setExternalRaceLateProgress(true);
         physicsWorld->setWorldFixedStepController(

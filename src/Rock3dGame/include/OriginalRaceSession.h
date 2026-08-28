@@ -17,6 +17,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <limits>
 #include <memory>
 #include <map>
@@ -435,6 +436,7 @@ public:
     // per-vehicle GameCar drive callback below.
     void setExternalRaceFixedStep(bool enabled) noexcept;
     void setExternalProjectilePhysics(bool enabled) noexcept;
+    void setWorldRaycast(r3d::physics::WorldRayCast raycast);
     void raceFixedStep(
         float deltaTime,
         const std::vector<r3d::physics::VehicleState>& vehicles,
@@ -607,6 +609,10 @@ private:
         const ProjectileRuntime& projectile);
     void queueProjectileBodyDestroy(
         const ProjectileRuntime& projectile);
+    r3d::physics::WorldRayCastHit queryWorldRay(
+        const std::vector<r3d::physics::VehicleState>& vehicles,
+        Vec3 origin, Vec3 direction, float maximumDistance,
+        std::size_t ignoredVehicle, bool trackPlaneOnly) const;
     bool prepareAiWeaponAttack(
         PendingAiAttack& attack,
         const std::vector<r3d::physics::VehicleState>& vehicles);
@@ -758,6 +764,7 @@ private:
     bool debugHumanAiControl_ = false;
     bool externalRaceFixedStep_ = false;
     bool externalProjectilePhysics_ = false;
+    r3d::physics::WorldRayCast worldRaycast_;
     bool externalVehicleFixedStep_ = false;
     bool externalRaceLateProgress_ = false;
     bool raceLateProgressPending_ = false;

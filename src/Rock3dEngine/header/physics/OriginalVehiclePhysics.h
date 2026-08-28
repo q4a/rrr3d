@@ -350,6 +350,32 @@ struct ProjectileBodyState
     bool active = false;
 };
 
+struct WorldRayCastQuery
+{
+    Vec3 origin;
+    Vec3 direction{1.0F, 0.0F, 0.0F};
+    float maximumDistance = 0.0F;
+    std::size_t ignoredVehicle = std::numeric_limits<std::size_t>::max();
+    // MinePrepare and Proj::RocketUpdate use the original track-plane group,
+    // while Laser/FrostRay query the complete projectile collision group.
+    bool trackPlaneOnly = false;
+};
+
+struct WorldRayCastHit
+{
+    Vec3 position;
+    Vec3 normal;
+    CollisionSurface surface = CollisionSurface::TrackPlane;
+    float distance = std::numeric_limits<float>::max();
+    std::size_t vehicle = std::numeric_limits<std::size_t>::max();
+    std::size_t decoration = std::numeric_limits<std::size_t>::max();
+    std::uint32_t actor = std::numeric_limits<std::uint32_t>::max();
+    bool hit = false;
+};
+
+using WorldRayCast =
+    std::function<WorldRayCastHit(const WorldRayCastQuery&)>;
+
 // Race::OnFixedStep is a world event: Windows calls it exactly once before
 // each PhysX Compute, then dispatches the registered GameCar fixed events.
 // Keep that boundary separate from VehicleFixedStepController, which is
@@ -437,6 +463,8 @@ public:
     virtual const ProjectileBodyState& projectileBody(
         std::size_t index) const noexcept = 0;
     virtual std::size_t projectileBodyCount() const noexcept = 0;
+    virtual WorldRayCastHit raycast(
+        const WorldRayCastQuery& query) const noexcept = 0;
 };
 
 std::unique_ptr<OriginalVehicleWorld> createOriginalVehicleWorld(
