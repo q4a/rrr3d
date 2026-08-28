@@ -4992,6 +4992,28 @@ portable progress registration, единственный torque/gear dispatch, a
 sleep и correction gate. Полные physics и 360-frame Metal smokes подтвердили
 шесть движущихся машин без повторного source step.
 
+### P2.214 — `Race::OnLateProgress` перенесён за завершённый Jolt step — выполнено
+
+Сверка Windows `Race::OnLateProgress` с активным main loop обнаружила
+ошибочную временную границу. `OriginalRaceSession::updatePlaces` выполнялся
+до `physicsWorld->step`, поэтому сортировка `_playerPlaceList`, place в HUD и
+события LeadChanged/ThirdChanged/LastFar/Domination/ThirdFar использовали
+положение предыдущего solver frame. Это было особенно заметно как скачок
+точек/мест при быстром изменении траектории.
+
+`RacePlaceModel` теперь реализует `LateProgressEvent`, хранит prepared roster
+и вычисляет результат только из World late-progress. Active macOS loop
+сначала завершает Jolt step, синхронизирует все vehicle states и только затем
+вызывает `OriginalRaceSession::lateProgress`. Один pending pass создаётся во
+время countdown, racing и finish-wait; early exit делает final synchronous
+pass до разрушения Player graph.
+
+Session-only regressions, где нет отдельного physics backend, используют тот
+же event path немедленно в конце `update`, а не отдельную формулу. Unit test
+проверяет deferred boundary и одноразовый take результата. Полные physics и
+360-frame bgfx/Metal smokes сохранили шесть машин, колёсные контакты и AI
+progress.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

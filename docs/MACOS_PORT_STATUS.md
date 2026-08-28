@@ -2543,3 +2543,17 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   renderer последний source graph state.
 - Regression, arm64 build, physics smoke и 360-frame bgfx/Metal race smoke с
   шестью машинами прошли.
+
+### Source Race late-progress/Jolt ordering follow-up
+
+- `RacePlaceModel` теперь зарегистрирован как настоящий World
+  `LateProgressEvent`; source sorting и place events больше не вызываются
+  напрямую из session до physics.
+- Active runtime выполняет late pass после завершённого Jolt solver и
+  синхронизации всех vehicle poses. HUD/place/minimap consumers видят текущий,
+  а не предыдущий physics frame.
+- Countdown, racing и finish-wait создают один pending pass; headless tests
+  используют тот же event path синхронно, exit завершает final pass до
+  object-graph teardown.
+- Deferred/single-consume regression, physics smoke и 360-frame bgfx/Metal
+  race smoke прошли.

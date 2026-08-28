@@ -222,5 +222,29 @@ int main()
             }))
         return 8;
 
+    places.Reset();
+    source::WorldEventPump lateWorld;
+    lateWorld.RegLateProgressEvent(&places);
+    for (auto& player : placePlayers)
+    {
+        player.disconnected = false;
+        player.finished = false;
+    }
+    placePlayers[0].lap = 1.0F;
+    placePlayers[1].lap = 3.0F;
+    placePlayers[2].lap = 2.0F;
+    places.PrepareLateProgress(placePlayers, false);
+    if (!places.HasPreparedLateProgress() ||
+        !places.TakeLateProgressUpdate().order.empty())
+        return 22;
+    lateWorld.LateProgress(1.0F / 60.0F, true);
+    if (places.HasPreparedLateProgress())
+        return 23;
+    placeUpdate = places.TakeLateProgressUpdate();
+    if (placeUpdate.order != std::vector<std::size_t>{1U, 2U, 0U} ||
+        !places.TakeLateProgressUpdate().order.empty())
+        return 24;
+    lateWorld.UnregLateProgressEvent(&places);
+
     return 0;
 }

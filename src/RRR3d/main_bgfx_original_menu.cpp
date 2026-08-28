@@ -3743,6 +3743,7 @@ int main(int argc, char** argv)
         if (!physicsWorld)
             return;
         raceSession.setExternalVehicleFixedStep(true);
+        raceSession.setExternalRaceLateProgress(true);
         physicsWorld->setVehicleFixedStepController(
             [&raceSession](
                 std::size_t racer, float deltaTime,
@@ -15775,6 +15776,7 @@ int main(int argc, char** argv)
                                         originalRace->tracePath.size(), 1U)));
                     }
                 }
+                raceSession.lateProgress(frameSeconds, raceVehicles);
 #ifdef RRR3D_NETWORK
                 if (networkMatchStarted &&
                     !publishLocalNetworkPlayer())

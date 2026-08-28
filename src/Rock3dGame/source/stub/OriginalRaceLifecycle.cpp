@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 namespace r3d::game::originalrace::source
 {
@@ -217,6 +218,11 @@ void RacePlaceModel::Reset() noexcept
     order_.clear();
     lastLeadPlace_ = 0.0F;
     lastThirdPlace_ = 0.0F;
+    preparedPlayers_.clear();
+    preparedUpdate_ = {};
+    preparedHasResults_ = false;
+    prepared_ = false;
+    updated_ = false;
 }
 
 RacePlaceUpdate RacePlaceModel::Update(
@@ -358,6 +364,41 @@ RacePlaceUpdate RacePlaceModel::Update(
 
     order_ = output.order;
     return output;
+}
+
+void RacePlaceModel::PrepareLateProgress(
+    std::vector<RacePlacePlayer> players, bool hasResults)
+{
+    preparedPlayers_ = std::move(players);
+    preparedHasResults_ = hasResults;
+    prepared_ = true;
+    updated_ = false;
+}
+
+bool RacePlaceModel::HasPreparedLateProgress() const noexcept
+{
+    return prepared_;
+}
+
+RacePlaceUpdate RacePlaceModel::TakeLateProgressUpdate()
+{
+    if (!updated_)
+        return {};
+    updated_ = false;
+    return std::move(preparedUpdate_);
+}
+
+void RacePlaceModel::OnLateProgress(
+    float deltaTime, bool physicsStep)
+{
+    static_cast<void>(deltaTime);
+    static_cast<void>(physicsStep);
+    if (!prepared_)
+        return;
+    preparedUpdate_ = Update(preparedPlayers_, preparedHasResults_);
+    preparedPlayers_.clear();
+    prepared_ = false;
+    updated_ = true;
 }
 
 } // namespace r3d::game::originalrace::source

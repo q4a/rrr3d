@@ -361,6 +361,7 @@ class OriginalRaceSession
 public:
     explicit OriginalRaceSession(const Race& race,
                                  bool legacyWindowsDebug = false);
+    ~OriginalRaceSession();
 
     void reset();
     void applyPlayerProfile(const PlayerProfile& profile);
@@ -418,6 +419,12 @@ public:
     void update(float seconds,
                 const std::vector<r3d::physics::VehicleState>& vehicles,
                 const RaceControl& humanControl);
+    // Native Jolt calls this after its completed solver step. Headless/source
+    // tests retain the synchronous fallback in update().
+    void setExternalRaceLateProgress(bool enabled) noexcept;
+    void lateProgress(
+        float seconds,
+        const std::vector<r3d::physics::VehicleState>& vehicles);
     void completeRaceForExit(
         const std::vector<r3d::physics::VehicleState>& vehicles);
 
@@ -529,6 +536,7 @@ private:
         float seconds,
         const std::vector<r3d::physics::VehicleState>& vehicles);
     void updatePlaces(
+        float seconds,
         const std::vector<r3d::physics::VehicleState>& vehicles);
     void synchronizeRacerGameCars(
         const std::vector<r3d::physics::VehicleState>& vehicles);
@@ -653,6 +661,8 @@ private:
     bool springBorders_ = true;
     bool debugHumanAiControl_ = false;
     bool externalVehicleFixedStep_ = false;
+    bool externalRaceLateProgress_ = false;
+    bool raceLateProgressPending_ = false;
 };
 
 bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error);

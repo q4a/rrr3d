@@ -1089,8 +1089,14 @@ OriginalRaceSession::OriginalRaceSession(
         race_.racers.empty())
         throw std::invalid_argument("Original race session data is incomplete");
     logic_.AttachWorld(&gameplayWorld_);
+    gameplayWorld_.RegLateProgressEvent(&racePlaceModel_);
     buildSourceTrace();
     reset();
+}
+
+OriginalRaceSession::~OriginalRaceSession()
+{
+    gameplayWorld_.UnregLateProgressEvent(&racePlaceModel_);
 }
 
 source::MapObjects& OriginalRaceSession::decorationObjects() noexcept
@@ -1118,6 +1124,7 @@ void OriginalRaceSession::reset()
     humanRacer_ = RacerRuntime::invalidWeapon;
     networkOwnedRacers_.clear();
     elapsedSeconds_ = 0.0F;
+    raceLateProgressPending_ = false;
     // AIPlayer::~AIPlayer writes the source-owned cheat flag back to its
     // Player. Release these owners before replacing the Player vector.
     aiPlayers_.clear();
@@ -3140,6 +3147,7 @@ r3d::physics::VehicleInput OriginalRaceSession::aiInput(
     return input;
 }
 void OriginalRaceSession::updatePlaces(
+    float seconds,
     const std::vector<r3d::physics::VehicleState>& vehicles)
 {
     std::vector<source::RacePlacePlayer> players;
@@ -3163,8 +3171,10 @@ void OriginalRaceSession::updatePlaces(
         players.push_back(player);
     }
 
-    const auto sourceUpdate = racePlaceModel_.Update(
-        players, !raceLifecycle_.GetResults().empty());
+    racePlaceModel_.PrepareLateProgress(
+        std::move(players), !raceLifecycle_.GetResults().empty());
+    gameplayWorld_.LateProgress(seconds, true);
+    const auto sourceUpdate = racePlaceModel_.TakeLateProgressUpdate();
     for (std::size_t place = 0; place < sourceUpdate.order.size(); ++place)
         racers_[sourceUpdate.order[place]].SetPlace(
             static_cast<std::uint32_t>(place + 1U));
@@ -6711,7 +6721,7 @@ void OriginalRaceSession::completeRaceForExit(
     // Jolt actor and bgfx scene destruction remain backend boundaries, but
     // Race's AI/Player/object graph teardown belongs to this source owner.
     completeRemainingRacers(vehicles);
-    updatePlaces(vehicles);
+    updatePlaces(0.0F, vehicles);
     if (raceRunState_.ExitRace(racers_))
     {
         for (auto& aiPlayer : aiPlayers_)
@@ -6913,6 +6923,9 @@ void OriginalRaceSession::update(
             raceRunState_.GoRace(human);
             phase_ = RacePhase::Racing;
         }
+        raceLateProgressPending_ = true;
+        if (!externalRaceLateProgress_)
+            lateProgress(seconds, vehicles);
         return;
     }
 
@@ -6923,6 +6936,9 @@ void OriginalRaceSession::update(
     if (phase_ == RacePhase::Finished && !finishTimerRunning)
     {
         progressPlayers(seconds, vehicles);
+        raceLateProgressPending_ = true;
+        if (!externalRaceLateProgress_)
+            lateProgress(seconds, vehicles);
         return;
     }
 
@@ -6999,14 +7015,31 @@ void OriginalRaceSession::update(
     }
 
     updateGameplay(seconds, vehicles, sourceHumanControl);
-    updatePlaces(vehicles);
     updateAchievements(seconds);
     if (phase_ == RacePhase::Finished &&
         gameModeRaceState_.IsFinishPresentationReady())
     {
         completeRemainingRacers(vehicles);
-        updatePlaces(vehicles);
     }
+    raceLateProgressPending_ = true;
+    if (!externalRaceLateProgress_)
+        lateProgress(seconds, vehicles);
+}
+
+void OriginalRaceSession::setExternalRaceLateProgress(
+    bool enabled) noexcept
+{
+    externalRaceLateProgress_ = enabled;
+}
+
+void OriginalRaceSession::lateProgress(
+    float seconds,
+    const std::vector<r3d::physics::VehicleState>& vehicles)
+{
+    if (!raceLateProgressPending_)
+        return;
+    raceLateProgressPending_ = false;
+    updatePlaces(seconds, vehicles);
 }
 
 void OriginalRaceSession::setDebugHumanAiControl(bool enabled) noexcept

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "OriginalWorld.h"
+
 #include "OriginalGameMode.h"
 
 #include <array>
@@ -155,17 +157,28 @@ struct RacePlaceUpdate
 // Portable owner of Race::_playerPlaceList and Race::OnLateProgress. It keeps
 // the previous ordered list because source lead/third events compare pointers
 // from the preceding late-progress pass, not the mutable Player::place field.
-class RacePlaceModel
+class RacePlaceModel final : public LateProgressEvent
 {
 public:
     void Reset() noexcept;
     RacePlaceUpdate Update(const std::vector<RacePlacePlayer>& players,
                            bool hasResults);
+    void PrepareLateProgress(
+        std::vector<RacePlacePlayer> players, bool hasResults);
+    bool HasPreparedLateProgress() const noexcept;
+    RacePlaceUpdate TakeLateProgressUpdate();
+    void OnLateProgress(
+        float deltaTime, bool physicsStep) override;
 
 private:
     std::vector<std::size_t> order_;
     float lastLeadPlace_ = 0.0F;
     float lastThirdPlace_ = 0.0F;
+    std::vector<RacePlacePlayer> preparedPlayers_;
+    RacePlaceUpdate preparedUpdate_;
+    bool preparedHasResults_ = false;
+    bool prepared_ = false;
+    bool updated_ = false;
 };
 
 } // namespace r3d::game::originalrace::source

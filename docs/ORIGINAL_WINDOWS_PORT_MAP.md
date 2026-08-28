@@ -57,7 +57,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `GameBase` | `OriginalGameObject`, behaviors, effects, motor sound state | Source owner, partial | Закрыть отсутствующие behavior subclasses и единый progress dispatch |
 | `GameCar` | `source::GameCar::{OnFixedStepDrive,OnContact,OnPxSync}` + Jolt vehicle adapter | Source owner, active drive/contact frame | Оставшиеся PhysX solver queries и actor operations являются Jolt boundary; продолжить аудит public serialization/editor-only методов |
 | `GameMode` | `source::GameModeState` + `GameModeRaceState` | Source owner, active race path | Startup/movie/config и часть menu/audio backend-команд ещё находятся в host |
-| `GameObject` | `source::GameObject`, frame sync, listener/contact graph | Source owner, active core | Подключить оставшиеся fixed/frame callbacks и убрать backend-view ветви session |
+| `GameObject` | `source::GameObject`, event counters, frame sync, listener/contact graph | Source owner, active core | Jolt/bgfx snapshots остаются backend boundary; source fixed/frame registration подключена |
 | `HudMenu` | `source::{HudMenu,MiniMapFrame,PlayerStateFrame}` + `OriginalRaceHud` | Source owner, active HUD/minimap/player-state policy | State/Escape/layout/countdown, MiniMap, weapon/place/life, OnProcessEvent, notifications, car-life и opponents source-owned; FinishMenu не дублируется, bgfx/CoreText payload и camera projection остаются backend boundary |
 | `HumanPlayer` | `source::HumanPlayer` | Source owner | Полный input message order, driving/progress gates и weapon selection перенесены; SDL только переводит source-сообщения |
 | `Logic` | `source::Logic` + `WorldEventPump` progress registration | Source owner, active object/contact core | Убрать оставшиеся network authority и projectile backend-view loops из session |
@@ -68,7 +68,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `MenuSystem` | `originalmenu::{MenuSystem,ScreenStack,FrameState}` | Source owner, active menu path | Подключить concrete navigation graphs; bgfx остаётся draw executor |
 | `OptionsMenu` | `originaloptions::{OptionsMenuState,StartOptionsMenuState}` + backend visuals | Source owner, active options path | Legacy Widget events заменены SDL input, CoreText и bgfx draw submission |
 | `Player` | `source::Player`, `CarState`, behaviors, `PresentationState` | Source owner, active gameplay/presentation state | bgfx/Jolt исполняют graph/actor commands; продолжить аудит remaining event/listener and profile bridges |
-| `Race` | `OriginalRace`, `OriginalRaceSession`, lifecycle/place/tournament | Source owner, partial | Разложить 7 971-строчный источник по исходным владельцам вместо session |
+| `Race` | `OriginalRace`, `OriginalRaceSession`, lifecycle/place/tournament | Source owner, active fixed/late lifecycle, partial orchestration | Продолжить вынос gameplay transactions из session; place sorting уже выполняется после Jolt solver через World late-progress |
 | `RaceMenu2` | `originalracemenu::{RaceMenuState,RaceMainFrameState,GamersFrameState,GarageFrameState,WorkshopFrameState,SpaceshipFrameState,AngarFrameState,AchievementFrameState}` | Source owner, all six offline frame paths | Проверить оставшиеся network callbacks и оставить bgfx/CoreText backend boundary |
 | `RecordLib` | `source::{MapObjRecordLibrary,MapObjRecordNode,MapObjRecord}` | Source owner, active hierarchy | Editor-only mutation/serialization API не входит в пользовательский runtime |
 | `ResourceManager` | `OriginalResourceManager` + native readers/uploaders | Source owner, graph/sound path | Mesh/image/sound identity и lifetime общие; font/material-library ownership ещё нужно завершить |
@@ -546,6 +546,21 @@ torque/gear update и active/sleep frame lifecycle.
 Следующий B8l — продолжить method-to-method аудит `Race/Player/Weapon` и
 вынести следующий подтверждённый session-owned gameplay transaction в
 concrete source owner.
+
+Результат B8l: `RacePlaceModel` стал реальным `LateProgressEvent`. Active
+runtime больше не сортирует места и не формирует Lead/Third/Last события до
+`physicsWorld->step`; main передаёт завершённые Jolt poses, после чего World
+late-progress вызывает source `Race::OnLateProgress` owner.
+
+Countdown, обычная гонка и finish-wait ставят один pending late pass. Для
+headless source-smokes сохранён синхронный fallback, а exit выполняет
+немедленный final late pass до teardown. Regression закрепляет, что prepared
+roster не сортируется до World callback и готовый update выдаётся ровно один
+раз.
+
+Следующий B8m — проверить source fixed-step частоту `Race::OnFixedStep`
+(Player затем AISystem) относительно Jolt 1/120 substeps и убрать следующий
+подтверждённый frame-rate dependent session path.
 
 ## Правило обновления карты
 
