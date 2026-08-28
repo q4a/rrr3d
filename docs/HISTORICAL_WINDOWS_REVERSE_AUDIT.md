@@ -5420,6 +5420,25 @@ position, local impulse, `ignoreRot` и ordered pending spawns. Callback
 один prepared projectile. Regression подтверждает multi-projectile order и
 то, что копия Weapon не теряет serialized behavior state.
 
+### P2.236 — car event-effect records возвращены behavior owners — выполнено
+
+Сверка `DataBase::LoadCar` (`GameBase.cpp::LowLifePoints`, `DamageEffect`,
+`ImmortalEffect`) подтвердила ещё один смешанный путь. Состояния behavior уже
+были перенесены, но `smoke6` рисовался непосредственно по флагу Player,
+energy-hit после owner boolean заново выбирался из `Race::Vehicle`, а shield
+record и `scaleK` оставались только данными renderer-а. Тем самым source
+`EventEffect::_effect/_pos` не владели созданным child actor.
+
+`Player::SetCar` теперь связывает все три concrete behavior с точными
+`ObjectDefinition` выбранного автомобиля. `LowLifePoints` создаёт один
+постоянный child-effect на первом переходе ниже 35%, прогрессирует его
+отдельный возраст и немедленно удаляет через `FreeEffect(false)` при лечении.
+Energy `DamageEffect` выдаёт owner spawn-plan только для `dtEnergy` и только
+пока прежний 0.5-секундный actor не жив. `ImmortalEffect` хранит исходные
+`shield1` и `(1.3, 1.7, 1.7)`; bgfx берёт record и коэффициент у behavior.
+Session больше не выбирает эти записи повторно. Regression проверяет identity,
+child attachment, lifetime, release и отсутствие повторного создания.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

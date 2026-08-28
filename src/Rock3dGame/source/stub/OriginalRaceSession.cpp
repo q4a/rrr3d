@@ -1942,19 +1942,29 @@ bool OriginalRaceSession::applyRacerDamageInternal(
     // Listener dispatch belongs after GameObject::Damage. In particular, a
     // non-authoritative Windows client waits for the host packet and must not
     // start local shield/damage effects for its outbound request.
-    const bool makeEnergyEffect =
-        runtime.ConsumeEnergyDamageEffectCreated();
-    if (makeEnergyEffect && target < race_.racers.size())
+    const auto energySpawn =
+        runtime.ConsumeEnergyDamageEffectSpawn();
+    if (energySpawn.has_value() && energySpawn->createEffect &&
+        energySpawn->definition != nullptr)
     {
-        const auto& vehicleDefinition = vehicleForRacer(target);
-        const auto& visual = vehicleDefinition.energyDamageEffect;
+        const auto& visual = *energySpawn->definition;
         if (!visual.visualNodes.empty() ||
             !visual.particleEmitters.empty())
         {
             RaceEffect effect;
             effect.kind = RaceEventKind::VehicleEnergyDamage;
             effect.racer = target;
-            effect.origin = position;
+            effect.parentRacer = target;
+            effect.sourceDefinition = energySpawn->definition;
+            effect.transform.position = {
+                energySpawn->position[0], energySpawn->position[1],
+                energySpawn->position[2]};
+            effect.origin = compose(
+                vehicle.body, effect.transform).position;
+            effect.sourceImpulse = {
+                energySpawn->impulse[0], energySpawn->impulse[1],
+                energySpawn->impulse[2]};
+            effect.ignoreRotation = energySpawn->ignoreRotation;
             const auto timing = sourceEffectTiming(visual, 0.5F);
             applySourceEffectTiming(effect, timing, visual);
             attachSourceLifeEffect(effect, visual.soundPaths, target,
@@ -4395,6 +4405,14 @@ void OriginalRaceSession::destroyRacer(
     freeRacerMapObject(racer);
     appendPlayerGameEvents(racer, position, false);
     releaseRacerProjectileReferences(racer);
+    // LowLifePoints::FreeEffect and destruction of the owning car's include
+    // list delete its persistent smoke and any live energy-damage child
+    // immediately. They must not outlive the source car during restore.
+    std::erase_if(effects_, [racer](const RaceEffect& effect) {
+        return effect.racer == racer &&
+               (effect.kind == RaceEventKind::VehicleLowLife ||
+                effect.kind == RaceEventKind::VehicleEnergyDamage);
+    });
     if (racer < vehicleInputs_.size())
         vehicleInputs_[racer] = {};
     const auto& definition = vehicleForRacer(racer);
@@ -4720,6 +4738,48 @@ void OriginalRaceSession::updateGameplay(
                      ? vehicles[racer].body.position
                      : Vec3{},
                  runtime.GetLife() / runtime.GetMaxLife()});
+            if (behaviorProgress.lowLifeSpawn.has_value() &&
+                behaviorProgress.lowLifeSpawn->createEffect &&
+                behaviorProgress.lowLifeSpawn->definition != nullptr)
+            {
+                const auto& spawn = *behaviorProgress.lowLifeSpawn;
+                RaceEffect effect;
+                effect.kind = RaceEventKind::VehicleLowLife;
+                effect.racer = racer;
+                effect.parentRacer = racer;
+                effect.sourceDefinition = spawn.definition;
+                effect.transform.position = {
+                    spawn.position[0], spawn.position[1],
+                    spawn.position[2]};
+                effect.ignoreRotation = spawn.ignoreRotation;
+                effect.sourceImpulse = {
+                    spawn.impulse[0], spawn.impulse[1],
+                    spawn.impulse[2]};
+                if (racer < vehicles.size())
+                {
+                    effect.origin = compose(
+                        vehicles[racer].body,
+                        effect.transform).position;
+                    effect.sourceVelocity =
+                        vehicles[racer].linearVelocity;
+                }
+                effect.totalSeconds = -1.0F;
+                effect.seconds = -1.0F;
+                configureSourceEffectOwner(effect, false, -1.0F);
+                attachSourceLifeEffect(
+                    effect, spawn.definition->soundPaths,
+                    racer, racer);
+                effects_.push_back(std::move(effect));
+            }
+        }
+        if (behaviorProgress.lowLifeReleased)
+        {
+            // EventEffect::FreeEffect(false) removes the child MapObj at
+            // once; it does not leave a particle tail in the world.
+            std::erase_if(effects_, [racer](const RaceEffect& effect) {
+                return effect.kind == RaceEventKind::VehicleLowLife &&
+                       effect.racer == racer;
+            });
         }
     }
 
@@ -11210,28 +11270,69 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     return event.kind == RaceEventKind::LowLife &&
                            event.racer == 0U;
                 });
+            const auto lowLifeEffect = std::find_if(
+                lowLifeSession.effects().begin(),
+                lowLifeSession.effects().end(),
+                [&](const RaceEffect& effect) {
+                    return effect.kind ==
+                               RaceEventKind::VehicleLowLife &&
+                           effect.racer == 0U &&
+                           effect.parentRacer == 0U &&
+                           effect.sourceDefinition ==
+                               &sourceVehicle.lowLifeEffect &&
+                           std::abs(effect.transform.position.z -
+                                    sourceVehicle.lowLifeEffectPosition.z) <
+                               0.001F;
+                });
             if (!lowLifeSession.racers().front()
                      .lowLifePoints.IsEffectMaked() ||
                 lowLifeSession.racers().front().IsDestroyed() ||
                 lowLifeSession.racers().front().GetLife() <= 0.0F ||
                 lowLifeSession.racers().front()
                         .lowLifePoints.GetEffectSeconds() <= 0.0F ||
-                !hasLowLifeEvent)
+                !hasLowLifeEvent ||
+                lowLifeEffect == lowLifeSession.effects().end())
             {
                 throw std::runtime_error(
                     "source LowLifePoints/smoke6 transition failed");
             }
             lowLifeSession.update(
                 1.0F / 60.0F, lowLifeVehicles, lowLifeInput);
-            if (std::any_of(
+            const bool lowLifeRepeated = std::any_of(
                     lowLifeSession.events().begin(),
                     lowLifeSession.events().end(),
                     [](const RaceEvent& event) {
                         return event.kind == RaceEventKind::LowLife;
+                    });
+            const bool lowLifeChildProgressed = std::any_of(
+                lowLifeSession.effects().begin(),
+                lowLifeSession.effects().end(),
+                [](const RaceEffect& effect) {
+                    return effect.kind ==
+                               RaceEventKind::VehicleLowLife &&
+                           effect.ageSeconds > 0.0F;
+                });
+            if (lowLifeRepeated || !lowLifeChildProgressed)
+            {
+                throw std::runtime_error(
+                    "source LowLifePoints active-child progress failed");
+            }
+            auto& healedLowLifeRacer = const_cast<RacerRuntime&>(
+                lowLifeSession.racers().front());
+            healedLowLifeRacer.SetLife(
+                healedLowLifeRacer.GetMaxLife());
+            lowLifeSession.update(
+                1.0F / 60.0F, lowLifeVehicles, lowLifeInput);
+            if (std::any_of(
+                    lowLifeSession.effects().begin(),
+                    lowLifeSession.effects().end(),
+                    [&](const RaceEffect& effect) {
+                        return effect.kind ==
+                               RaceEventKind::VehicleLowLife;
                     }))
             {
                 throw std::runtime_error(
-                    "source LowLifePoints event repeated while active");
+                    "source LowLifePoints child was not freed");
             }
         }
 
@@ -13660,10 +13761,15 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 return std::count_if(
                     frostSession.effects().begin(),
                     frostSession.effects().end(),
-                    [](const RaceEffect& effect) {
+                    [&](const RaceEffect& effect) {
                         return effect.kind ==
                                    RaceEventKind::VehicleEnergyDamage &&
                                effect.racer == 1U &&
+                               effect.parentRacer == 1U &&
+                               effect.sourceDefinition ==
+                                   frostSession.racers()[1]
+                                       .energyDamageEffect
+                                       .GetEffectDefinition() &&
                                std::abs(effect.totalSeconds - 0.5F) <
                                    0.001F;
                     });

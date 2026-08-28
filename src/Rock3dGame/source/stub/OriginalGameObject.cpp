@@ -1679,6 +1679,19 @@ bool FxSystemSrcSpeedBehavior::HasPhysicsActor() const noexcept
     return actorAvailable_;
 }
 
+void EventEffect::Configure(
+    const ObjectDefinition* definition,
+    std::array<float, 3U> position,
+    std::array<float, 3U> impulse,
+    bool ignoreRotation) noexcept
+{
+    definition_ = definition;
+    position_ = position;
+    impulse_ = impulse;
+    ignoreRotation_ = ignoreRotation;
+    Reset();
+}
+
 void EventEffect::Reset() noexcept
 {
     effectMaked_ = false;
@@ -1708,6 +1721,38 @@ bool EventEffect::OnDestroyEffect() noexcept
 bool EventEffect::IsEffectMaked() const noexcept
 {
     return effectMaked_;
+}
+
+EventEffect::SpawnResult EventEffect::GetSpawnResult(
+    bool created) const noexcept
+{
+    return {
+        created && definition_ != nullptr,
+        true,
+        definition_,
+        position_,
+        impulse_,
+        ignoreRotation_};
+}
+
+const ObjectDefinition* EventEffect::GetEffectDefinition() const noexcept
+{
+    return definition_;
+}
+
+const std::array<float, 3U>& EventEffect::GetPosition() const noexcept
+{
+    return position_;
+}
+
+const std::array<float, 3U>& EventEffect::GetImpulse() const noexcept
+{
+    return impulse_;
+}
+
+bool EventEffect::GetIgnoreRotation() const noexcept
+{
+    return ignoreRotation_;
 }
 
 DeathEffect::DeathEffect(bool effectPhysicsIgnoreSenderCar,
@@ -1872,6 +1917,16 @@ LowLifePoints::LowLifePoints(float lifeLevel) noexcept
     Reset(lifeLevel);
 }
 
+void LowLifePoints::Configure(
+    const ObjectDefinition* definition,
+    std::array<float, 3U> position,
+    float lifeLevel) noexcept
+{
+    eventEffect_.Configure(definition, position);
+    lifeLevel_ = lifeLevel;
+    effectSeconds_ = 0.0F;
+}
+
 void LowLifePoints::Reset(float lifeLevel) noexcept
 {
     lifeLevel_ = lifeLevel;
@@ -1897,6 +1952,7 @@ LowLifePoints::ProgressResult LowLifePoints::OnProgress(
         if (eventEffect_.MakeEffect())
         {
             result.activated = true;
+            result.spawn = eventEffect_.GetSpawnResult(true);
         }
         effectSeconds_ += deltaTime;
     }
@@ -1928,10 +1984,33 @@ float LowLifePoints::GetEffectSeconds() const noexcept
     return effectSeconds_;
 }
 
+const ObjectDefinition*
+LowLifePoints::GetEffectDefinition() const noexcept
+{
+    return eventEffect_.GetEffectDefinition();
+}
+
+const std::array<float, 3U>&
+LowLifePoints::GetEffectPosition() const noexcept
+{
+    return eventEffect_.GetPosition();
+}
+
 DamageEffect::DamageEffect(
     DamageType damageType, float maximumTimeLife) noexcept
     : damageType_(damageType), maximumTimeLife_(maximumTimeLife)
 {
+}
+
+void DamageEffect::Configure(
+    const ObjectDefinition* definition,
+    DamageType damageType,
+    float maximumTimeLife) noexcept
+{
+    damageType_ = damageType;
+    maximumTimeLife_ = maximumTimeLife;
+    eventEffect_.Configure(definition);
+    effectSeconds_ = 0.0F;
 }
 
 void DamageEffect::Reset() noexcept
@@ -1981,6 +2060,27 @@ bool DamageEffect::IsEffectMaked() const noexcept
 float DamageEffect::GetEffectSeconds() const noexcept
 {
     return effectSeconds_;
+}
+
+EventEffect::SpawnResult DamageEffect::GetSpawnResult(
+    bool created) const noexcept
+{
+    return eventEffect_.GetSpawnResult(created);
+}
+
+const ObjectDefinition*
+DamageEffect::GetEffectDefinition() const noexcept
+{
+    return eventEffect_.GetEffectDefinition();
+}
+
+void ImmortalEffect::Configure(
+    const ObjectDefinition* definition,
+    std::array<float, 3U> scaleK) noexcept
+{
+    scaleK_ = scaleK;
+    eventEffect_.Configure(definition);
+    Reset();
 }
 
 void ImmortalEffect::Reset() noexcept
@@ -2094,6 +2194,17 @@ float ImmortalEffect::GetDamageAlpha() const noexcept
     const float alpha = std::clamp(
         damageTime_ / damageSeconds, 0.0F, 1.0F);
     return 1.0F + 2.5F * (1.0F - alpha);
+}
+
+const ObjectDefinition*
+ImmortalEffect::GetEffectDefinition() const noexcept
+{
+    return eventEffect_.GetEffectDefinition();
+}
+
+const std::array<float, 3U>& ImmortalEffect::GetScaleK() const noexcept
+{
+    return scaleK_;
 }
 
 void SlowEffect::Reset() noexcept

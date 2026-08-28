@@ -15,6 +15,8 @@
 namespace r3d::game::originalrace
 {
 
+struct ObjectDefinition;
+
 // GameObjListener::DamageType from the Windows source.
 enum class DamageType : std::uint8_t
 {
@@ -658,13 +660,37 @@ private:
 class EventEffect
 {
 public:
+    struct SpawnResult
+    {
+        bool createEffect = false;
+        bool child = true;
+        const ObjectDefinition* definition = nullptr;
+        std::array<float, 3U> position{};
+        std::array<float, 3U> impulse{};
+        bool ignoreRotation = false;
+    };
+
+    void Configure(
+        const ObjectDefinition* definition,
+        std::array<float, 3U> position = {},
+        std::array<float, 3U> impulse = {},
+        bool ignoreRotation = false) noexcept;
     void Reset() noexcept;
     bool MakeEffect() noexcept;
     bool FreeEffect() noexcept;
     bool OnDestroyEffect() noexcept;
     bool IsEffectMaked() const noexcept;
+    SpawnResult GetSpawnResult(bool created) const noexcept;
+    const ObjectDefinition* GetEffectDefinition() const noexcept;
+    const std::array<float, 3U>& GetPosition() const noexcept;
+    const std::array<float, 3U>& GetImpulse() const noexcept;
+    bool GetIgnoreRotation() const noexcept;
 
 private:
+    const ObjectDefinition* definition_ = nullptr;
+    std::array<float, 3U> position_{};
+    std::array<float, 3U> impulse_{};
+    bool ignoreRotation_ = false;
     bool effectMaked_ = false;
 };
 
@@ -773,9 +799,14 @@ public:
     {
         bool activated = false;
         bool released = false;
+        EventEffect::SpawnResult spawn;
     };
 
     LowLifePoints(float lifeLevel = 0.35F) noexcept;
+    void Configure(
+        const ObjectDefinition* definition,
+        std::array<float, 3U> position,
+        float lifeLevel = 0.35F) noexcept;
     void Reset(float lifeLevel = 0.35F) noexcept;
     ProgressResult OnProgress(
         GameObject& gameObject, float deltaTime,
@@ -785,6 +816,8 @@ public:
     void SetLifeLevel(float value) noexcept;
     bool IsEffectMaked() const noexcept;
     float GetEffectSeconds() const noexcept;
+    const ObjectDefinition* GetEffectDefinition() const noexcept;
+    const std::array<float, 3U>& GetEffectPosition() const noexcept;
 
 private:
     float lifeLevel_ = 0.35F;
@@ -798,6 +831,10 @@ public:
     explicit DamageEffect(
         DamageType damageType = DamageType::Simple,
         float maximumTimeLife = 0.5F) noexcept;
+    void Configure(
+        const ObjectDefinition* definition,
+        DamageType damageType,
+        float maximumTimeLife) noexcept;
     void Reset() noexcept;
     bool OnDamage(DamageType damageType) noexcept;
     void OnProgress(float deltaTime) noexcept;
@@ -806,6 +843,8 @@ public:
     void SetDamageType(DamageType value) noexcept;
     bool IsEffectMaked() const noexcept;
     float GetEffectSeconds() const noexcept;
+    EventEffect::SpawnResult GetSpawnResult(bool created) const noexcept;
+    const ObjectDefinition* GetEffectDefinition() const noexcept;
 
 private:
     DamageType damageType_ = DamageType::Simple;
@@ -820,6 +859,9 @@ public:
     static constexpr float fadeSeconds = 0.5F;
     static constexpr float damageSeconds = 0.25F;
 
+    void Configure(
+        const ObjectDefinition* definition,
+        std::array<float, 3U> scaleK) noexcept;
     void Reset() noexcept;
     void OnImmortalStatus(bool status) noexcept;
     void OnDamage() noexcept;
@@ -832,12 +874,15 @@ public:
     float GetDamageTime() const noexcept;
     float GetScale() const noexcept;
     float GetDamageAlpha() const noexcept;
+    const ObjectDefinition* GetEffectDefinition() const noexcept;
+    const std::array<float, 3U>& GetScaleK() const noexcept;
 
 private:
     float fadeInTime_ = -1.0F;
     float fadeOutTime_ = -1.0F;
     float damageTime_ = -1.0F;
     float effectSeconds_ = 0.0F;
+    std::array<float, 3U> scaleK_{1.0F, 1.0F, 1.0F};
     EventEffect eventEffect_;
 };
 

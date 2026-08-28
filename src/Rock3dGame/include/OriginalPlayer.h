@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <functional>
 #include <limits>
+#include <optional>
 #include <span>
 #include <string>
 #include <vector>
@@ -142,6 +143,7 @@ public:
         GameObject::ProgressResult gameObject;
         bool lowLifeActivated = false;
         bool lowLifeReleased = false;
+        std::optional<EventEffect::SpawnResult> lowLifeSpawn;
         bool slowSpeedLimited = false;
         bool slowReleased = false;
     };
@@ -473,6 +475,8 @@ public:
         const Proj* projectile) const noexcept;
     std::uint32_t GetNextBonusProjectileId() const noexcept;
     bool ConsumeEnergyDamageEffectCreated() noexcept;
+    std::optional<EventEffect::SpawnResult>
+        ConsumeEnergyDamageEffectSpawn() noexcept;
     std::vector<PlayerGameEvent> TakeGameEvents() noexcept;
 
     void SetFinished(bool value, float time = -1.0F) noexcept;
@@ -584,9 +588,10 @@ private:
     const Vehicle* carRecord_ = nullptr;
     bool reflScene_ = true;
     PresentationState presentation_;
-    bool energyDamageEffectCreated_ = false;
+    std::optional<EventEffect::SpawnResult> energyDamageEffectSpawn_;
     bool lowLifeActivated_ = false;
     bool lowLifeReleased_ = false;
+    std::optional<EventEffect::SpawnResult> lowLifeEffectSpawn_;
     float behaviorLinearSpeed_ = 0.0F;
     bool slowSpeedLimited_ = false;
     bool slowReleased_ = false;

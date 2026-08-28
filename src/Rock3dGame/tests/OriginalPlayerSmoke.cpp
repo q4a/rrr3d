@@ -266,8 +266,23 @@ int main()
 
     r3d::game::originalrace::Vehicle firstCar;
     firstCar.record = "world\\db\\root\\ctCar\\marauder";
+    firstCar.lowLifeEffect.record =
+        "world\\db\\root\\ctEffects\\smoke6";
+    firstCar.energyDamageEffect.record =
+        "world\\db\\root\\ctEffects\\damageEnergymarauder";
+    firstCar.shieldEffect.record =
+        "world\\db\\root\\ctEffects\\shield1";
     r3d::game::originalrace::Vehicle secondCar;
     secondCar.record = "world\\db\\root\\ctCar\\buggi";
+    secondCar.lowLifeEffect.record =
+        "world\\db\\root\\ctEffects\\smoke6";
+    secondCar.lowLifeEffectPosition = {0.0F, 0.0F, 0.5F};
+    secondCar.energyDamageEffect.record =
+        "world\\db\\root\\ctEffects\\damageEnergybuggi";
+    secondCar.energyDamageEffect.maximumTimeLife = 0.5F;
+    secondCar.shieldEffect.record =
+        "world\\db\\root\\ctEffects\\shield1";
+    secondCar.shieldEffectScale = {1.3F, 1.7F, 1.7F};
     secondCar.slotMounts[6].position = {2.0F, 3.0F, 4.0F};
     secondCar.slotMounts[6].placements.push_back(
         {"world\\race\\workshopRoot\\workshop\\droid",
@@ -283,7 +298,16 @@ int main()
     player.car.numLaps = 2U;
     player.SetCar(&secondCar);
     if (player.GetCarRecord() != &secondCar || player.HasCar() ||
-        player.car.numLaps != 0U)
+        player.car.numLaps != 0U ||
+        player.lowLifePoints.GetEffectDefinition() !=
+            &secondCar.lowLifeEffect ||
+        player.energyDamageEffect.GetEffectDefinition() !=
+            &secondCar.energyDamageEffect ||
+        player.immortalEffect.GetEffectDefinition() !=
+            &secondCar.shieldEffect ||
+        player.lowLifePoints.GetEffectPosition()[2] != 0.5F ||
+        player.immortalEffect.GetScaleK()[0] != 1.3F ||
+        player.immortalEffect.GetScaleK()[1] != 1.7F)
         return 58;
 
     auto& playerWeapons = player.GetWeaponRack();

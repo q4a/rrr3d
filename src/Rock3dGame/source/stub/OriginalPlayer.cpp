@@ -46,6 +46,8 @@ public:
             player_->lowLifeActivated_ || result.activated;
         player_->lowLifeReleased_ =
             player_->lowLifeReleased_ || result.released;
+        if (result.spawn.createEffect)
+            player_->lowLifeEffectSpawn_ = result.spawn;
     }
 
 private:
@@ -70,8 +72,15 @@ public:
     {
         if (player_ != nullptr)
         {
-            player_->energyDamageEffectCreated_ =
+            const bool created =
                 player_->energyDamageEffect.OnDamage(damageType);
+            if (created)
+            {
+                const auto spawn =
+                    player_->energyDamageEffect.GetSpawnResult(true);
+                if (spawn.createEffect)
+                    player_->energyDamageEffectSpawn_ = spawn;
+            }
         }
     }
 
@@ -919,6 +928,34 @@ void Player::SetCar(const Vehicle* record) noexcept
     // clears the complete CarState before replacing its MapObjRec pointer.
     FreeCar(true);
     carRecord_ = record;
+    if (carRecord_ != nullptr)
+    {
+        lowLifePoints.Configure(
+            &carRecord_->lowLifeEffect,
+            {carRecord_->lowLifeEffectPosition.x,
+             carRecord_->lowLifeEffectPosition.y,
+             carRecord_->lowLifeEffectPosition.z},
+            carRecord_->lowLifeLevel);
+        energyDamageEffect.Configure(
+            &carRecord_->energyDamageEffect,
+            DamageType::Energy,
+            carRecord_->energyDamageEffect.maximumTimeLife > 0.0F
+                ? carRecord_->energyDamageEffect.maximumTimeLife
+                : 0.5F);
+        immortalEffect.Configure(
+            &carRecord_->shieldEffect,
+            {carRecord_->shieldEffectScale.x,
+             carRecord_->shieldEffectScale.y,
+             carRecord_->shieldEffectScale.z});
+    }
+    else
+    {
+        lowLifePoints.Configure(nullptr, {}, 0.35F);
+        energyDamageEffect.Configure(
+            nullptr, DamageType::Energy, 0.5F);
+        immortalEffect.Configure(
+            nullptr, {1.0F, 1.0F, 1.0F});
+    }
 }
 
 void Player::CreateCar(bool newRace) noexcept
@@ -1558,6 +1595,7 @@ void Player::PrepareBehaviors(
     lowLifePoints.SetLifeLevel(lowLifeLevel);
     lowLifeActivated_ = false;
     lowLifeReleased_ = false;
+    lowLifeEffectSpawn_.reset();
     behaviorLinearSpeed_ = linearSpeed;
     slowSpeedLimited_ = false;
     slowReleased_ = false;
@@ -1580,6 +1618,7 @@ Player::BehaviorProgressResult Player::FinishBehaviorProgress(
     }
     result.lowLifeActivated = lowLifeActivated_;
     result.lowLifeReleased = lowLifeReleased_;
+    result.lowLifeSpawn = lowLifeEffectSpawn_;
     result.slowSpeedLimited = slowSpeedLimited_;
     result.slowReleased = slowReleased_;
     return result;
@@ -1891,8 +1930,14 @@ std::uint32_t Player::GetNextBonusProjectileId() const noexcept
 
 bool Player::ConsumeEnergyDamageEffectCreated() noexcept
 {
-    const bool result = energyDamageEffectCreated_;
-    energyDamageEffectCreated_ = false;
+    return ConsumeEnergyDamageEffectSpawn().has_value();
+}
+
+std::optional<EventEffect::SpawnResult>
+Player::ConsumeEnergyDamageEffectSpawn() noexcept
+{
+    auto result = energyDamageEffectSpawn_;
+    energyDamageEffectSpawn_.reset();
     return result;
 }
 

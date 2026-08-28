@@ -2604,3 +2604,14 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   failed/dry paths его не создают.
 - Session больше не читает параллельный `Race::weapons[].shotEffect`, а
   только переводит owner request в bgfx effect и SDL Source3d playback.
+
+### Source vehicle EventEffect ownership follow-up
+
+- `Player::SetCar` теперь передаёт concrete `LowLifePoints`, energy
+  `DamageEffect` и `ImmortalEffect` точные записи текущего автомобиля.
+- `smoke6` существует как один persistent car-child effect: owner создаёт
+  его на первом low-life переходе и удаляет немедленно при лечении/смерти.
+- Energy `damageEnergy*` materialize-ится только из owner spawn-plan и живёт
+  исходные 0.5 секунды без повторного старта от каждого energy hit.
+- Shield bgfx path берёт `shield1` и `scaleK` у `ImmortalEffect`; Race/session
+  больше не являются параллельным владельцем этих параметров.

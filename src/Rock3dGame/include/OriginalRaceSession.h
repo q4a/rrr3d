@@ -62,6 +62,7 @@ enum class RaceEventKind
     ProjectileImpact,
     VehicleDestroyed,
     VehicleEnergyDamage,
+    VehicleLowLife,
     LowLife,
     RaceFinish,
     LastLap,
@@ -263,6 +264,10 @@ struct RaceEffect
     // Current shipped ShotEffect records use zero, but source ownership is
     // retained for the Jolt adapter instead of dropping the serialized field.
     Vec3 sourceImpulse;
+    // Exact MapObj record selected by the owning EventEffect behavior. This
+    // is a non-owning source record reference; Race owns the catalog for the
+    // complete session just as MapObjRec::Object did on Windows.
+    const ObjectDefinition* sourceDefinition = nullptr;
     std::size_t racer = RacerRuntime::invalidWeapon;
     std::size_t vehicleEffect = RacerRuntime::invalidWeapon;
     Transform transform;

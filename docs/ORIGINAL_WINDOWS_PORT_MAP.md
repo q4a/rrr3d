@@ -798,6 +798,13 @@ Map mine использует тот же `Proj::DestroyWithEffect` с target и
 Session больше не принимает решение о создании serialized bonus effect, а
 только материализует подтверждённый spawn-plan в bgfx/SDL/Jolt adapters.
 
+Результат B8ah: car-owned `LowLifePoints`, `DamageEffect` и
+`ImmortalEffect` снова получают свои `MapObjRec`-эквиваленты непосредственно
+в `Player::SetCar`. Persistent `smoke6` создаётся и удаляется как child car
+actor, `damageEnergy*` выдаётся через one-live owner plan, а shield record и
+`scaleK` принадлежат behavior. Session/renderer используют эти ссылки и не
+выбирают эффекты повторно из общего Race descriptor.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:

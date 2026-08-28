@@ -2378,12 +2378,9 @@ bool OriginalRaceRenderer::initialize(
                 // around the source car AABB, then applies
                 // DataBase::LoadCar's scaleK.
                 vehicleShieldScales_[racer] = {
-                    bodySize.x / shieldSize.x *
-                        vehicle.shieldEffectScale.x,
-                    bodySize.y / shieldSize.y *
-                        vehicle.shieldEffectScale.y,
-                    bodySize.z / shieldSize.z *
-                        vehicle.shieldEffectScale.z};
+                    bodySize.x / shieldSize.x,
+                    bodySize.y / shieldSize.y,
+                    bodySize.z / shieldSize.z};
             }
             vehicleWheels_[racer].resize(vehicle.wheelVisuals.size());
             for (std::size_t wheel = 0;
@@ -4809,19 +4806,6 @@ void OriginalRaceRenderer::draw(
                 }
             }
         }
-        if (racer < racerRuntime.size() &&
-            racer < vehicleLowLifeEffects_.size() &&
-            racerRuntime[racer].lowLifePoints.IsEffectMaked())
-        {
-            r3d::physics::Transform local;
-            local.position = definition.lowLifeEffectPosition;
-            drawDefinition(
-                vehicleLowLifeEffects_[racer],
-                definition.lowLifeEffect,
-                compose(state.body, local),
-                racerRuntime[racer].lowLifePoints.GetEffectSeconds(),
-                state.linearVelocity);
-        }
     }
 
     for (const auto& projectile : projectiles)
@@ -4972,17 +4956,31 @@ void OriginalRaceRenderer::draw(
         }
         if (effect.kind ==
                 r3d::game::originalrace::RaceEventKind::
+                    VehicleLowLife &&
+            effect.racer < vehicles.size() &&
+            effect.racer < vehicleLowLifeEffects_.size() &&
+            effect.sourceDefinition != nullptr)
+        {
+            drawDefinition(
+                vehicleLowLifeEffects_[effect.racer],
+                *effect.sourceDefinition,
+                compose(vehicles[effect.racer].body, effect.transform),
+                effect.ageSeconds,
+                vehicles[effect.racer].linearVelocity,
+                nullptr, 1.0F, effectEmissionEnd);
+            continue;
+        }
+        if (effect.kind ==
+                r3d::game::originalrace::RaceEventKind::
                     VehicleEnergyDamage &&
             effect.racer < vehicles.size() &&
-            effect.racer < race.racers.size() &&
-            effect.racer < vehicleEnergyDamageEffects_.size())
+            effect.racer < vehicleEnergyDamageEffects_.size() &&
+            effect.sourceDefinition != nullptr)
         {
-            const auto& vehicle = activeVehicleDefinition(
-                race, racerRuntime, effect.racer);
             drawDefinition(
                 vehicleEnergyDamageEffects_[effect.racer],
-                vehicle.energyDamageEffect,
-                vehicles[effect.racer].body,
+                *effect.sourceDefinition,
+                compose(vehicles[effect.racer].body, effect.transform),
                 effect.totalSeconds - effect.seconds,
                 vehicles[effect.racer].linearVelocity,
                 nullptr, 1.0F, effectEmissionEnd);
@@ -5178,22 +5176,28 @@ void OriginalRaceRenderer::draw(
         const auto& runtime = racerRuntime[racer];
         if (!runtime.immortalEffect.IsEffectMaked())
             continue;
-        const auto& definition =
-            activeVehicleDefinition(race, racerRuntime, racer);
+        const auto* definition =
+            runtime.immortalEffect.GetEffectDefinition();
+        if (definition == nullptr)
+            continue;
+        const auto& scaleK = runtime.immortalEffect.GetScaleK();
         const float fade = runtime.immortalEffect.GetScale();
         r3d::physics::Transform shield = vehicles[racer].body;
         shield.scale = {
-            shield.scale.x * vehicleShieldScales_[racer].x * fade,
-            shield.scale.y * vehicleShieldScales_[racer].y * fade,
-            shield.scale.z * vehicleShieldScales_[racer].z * fade};
+            shield.scale.x * vehicleShieldScales_[racer].x *
+                scaleK[0] * fade,
+            shield.scale.y * vehicleShieldScales_[racer].y *
+                scaleK[1] * fade,
+            shield.scale.z * vehicleShieldScales_[racer].z *
+                scaleK[2] * fade};
         const float damageAlpha =
             runtime.immortalEffect.GetDamageAlpha();
         const std::array<float, 4> shieldTint{
             1.0F, 1.0F, 1.0F, damageAlpha};
         drawObject(
             vehicleShieldEffects_[racer],
-            definition.shieldEffect.visualNodes, shield,
-            definition.shieldEffect.graphOrder, false, 1.0F,
+            definition->visualNodes, shield,
+            definition->graphOrder, false, 1.0F,
             &shieldTint,
             runtime.immortalEffect.GetEffectSeconds());
     }
