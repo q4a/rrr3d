@@ -54,7 +54,6 @@ enum class PlayerRestoreStep : std::uint8_t
 {
     None,
     QueueRespawn,
-    ActivateCar,
 };
 
 enum class PlayerBlockMove : std::uint8_t
@@ -452,8 +451,7 @@ public:
         std::size_t difficulty,
         const std::vector<CheatPlayerView>& players) noexcept;
     ProgressResult OnProgress(
-        float deltaTime, bool carPresent,
-        std::uint32_t cheatMask, std::size_t playerId,
+        float deltaTime, std::uint32_t cheatMask, std::size_t playerId,
         std::size_t difficulty,
         const std::vector<CheatPlayerView>& players) noexcept;
     Player* FindClosestEnemy(

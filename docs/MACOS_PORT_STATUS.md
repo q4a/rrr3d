@@ -2479,3 +2479,14 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   всех peers. Transport-only event исключён из HUD и achievements.
 - arm64 Debug build, 29/29 CTest, physics smoke и 360-frame bgfx/Metal race
   smoke прошли.
+
+### Source Player restore follow-up
+
+- Исправлен подтверждённый разрыв после смерти: Player больше не выдаёт
+  respawn с полной life, пока `carPresent` и новый MapObj ещё отсутствуют.
+- Возвращён Windows fixed-step порядок со строгим `_timeRestoreCar > 2.0f`:
+  `CreateCar(false)`, новый car MapObj и `ResetCar` выполняются атомарно.
+- `Player::OnProgress` читает собственный `HasCar()`; session больше не
+  подменяет source `_car.mapObj` условием `!IsDestroyed()`.
+- Удалён portable-only `ActivateCar` frame. Regression закрепляет новый ID,
+  lights/listeners, один Jolt reset и отсутствие повторного respawn.

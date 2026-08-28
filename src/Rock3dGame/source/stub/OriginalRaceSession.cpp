@@ -2948,18 +2948,16 @@ OriginalRaceSession::progressPlayers(
         if (runtime.disconnected)
             continue;
         results[racer] = runtime.OnProgress(
-            seconds, !runtime.IsDestroyed(), runtime.GetCheat(), racer,
+            seconds, runtime.GetCheat(), racer,
             difficultyIndex, cheatPlayers);
-
-        if (results[racer].restore ==
-            source::PlayerRestoreStep::ActivateCar)
-        {
-            createRacerMapObject(racer);
-        }
 
         if (results[racer].restore ==
             source::PlayerRestoreStep::QueueRespawn)
         {
+            // Source Player::OnProgress executes CreateCar(false) immediately
+            // before ResetCar. Materialize the adapter MapObj before the
+            // ResetCar ray query in this same fixed-step callback.
+            createRacerMapObject(racer);
             queueRespawn(racer, vehicles);
         }
 
@@ -9573,21 +9571,28 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 deathSession.update(0.1F, deathVehicles, deathInput);
                 deathRespawns = deathSession.takeRespawns();
             }
+            const auto deathRestoredMapObjectId =
+                deathSession.racerMapObjectId(0U);
             if (deathRespawns.size() != 1U ||
                 deathSession.racers().front().GetLife() !=
                     deathSession.racers().front().GetMaxLife() ||
-                !deathSession.racers().front().IsDestroyed() ||
-                deathSession.racerMapObjectId(0U) !=
-                    source::Map::defaultMapObjId)
+                deathSession.racers().front().IsDestroyed() ||
+                !deathSession.racers().front().HasCar() ||
+                deathRestoredMapObjectId <= deathInitialMapObjectId ||
+                deathSession.racerForMapObjectId(
+                    deathRestoredMapObjectId) != 0U ||
+                deathSession.racerForMapObjectId(
+                    deathInitialMapObjectId) !=
+                    RacerRuntime::invalidWeapon)
             {
                 throw std::runtime_error(
-                    "source two-second vehicle restore was not queued");
+                    "source atomic CreateCar/ResetCar restore failed");
             }
             deathSession.update(0.1F, deathVehicles, deathInput);
-            const auto deathRestoredMapObjectId =
-                deathSession.racerMapObjectId(0U);
             if (deathSession.racers().front().IsDestroyed() ||
-                deathRestoredMapObjectId <= deathInitialMapObjectId ||
+                deathSession.racerMapObjectId(0U) !=
+                    deathRestoredMapObjectId ||
+                !deathSession.takeRespawns().empty() ||
                 deathSession.racerForMapObjectId(
                     deathRestoredMapObjectId) != 0U ||
                 deathSession.racerForMapObjectId(

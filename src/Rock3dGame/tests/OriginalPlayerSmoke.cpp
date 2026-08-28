@@ -530,7 +530,7 @@ int main()
         {0U, true, true, 0.0F},
         {1U, false, true, 1.0F}};
     const auto progress = progressPlayer.OnProgress(
-        0.1F, true, source::Player::cheatDisabled,
+        0.1F, source::Player::cheatDisabled,
         0U, 1U, progressViews);
     if (progress.cheat.faster || progress.cheat.slower ||
         progress.restore != source::PlayerRestoreStep::None ||
@@ -540,7 +540,7 @@ int main()
     progressPlayer.car.cheatFaster = true;
     progressPlayer.car.cheatSlower = true;
     const auto destroyedProgress = progressPlayer.OnProgress(
-        0.25F, false, source::Player::cheatEnableFaster,
+        0.25F, source::Player::cheatEnableFaster,
         0U, 1U, progressViews);
     if (destroyedProgress.restore != source::PlayerRestoreStep::None ||
         progressPlayer.car.cheatFaster ||
@@ -573,13 +573,14 @@ int main()
         player.HasAttachedLights() ||
         player.ProgressRestore(1.0F) != source::PlayerRestoreStep::None ||
         player.ProgressRestore(1.0F) !=
+            source::PlayerRestoreStep::None ||
+        player.ProgressRestore(0.01F) !=
             source::PlayerRestoreStep::QueueRespawn ||
         player.GetLife() != player.GetMaxLife() ||
-        !player.IsDestroyed() ||
-        player.ProgressRestore(0.01F) !=
-            source::PlayerRestoreStep::ActivateCar ||
         player.IsDestroyed() || !player.HasCar() ||
-        !player.HasAttachedLights())
+        !player.HasAttachedLights() ||
+        player.ProgressRestore(0.01F) !=
+            source::PlayerRestoreStep::None)
         return 11;
 
     if (source::Player::RoundedRandomIndex(4U, 0.16F) != 0U ||

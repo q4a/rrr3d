@@ -4861,6 +4861,28 @@ mine death-before-damage command, отсутствие ранней мутаци
 bonus request и последующее replicated применение. Прошли 29/29 CTest,
 physics smoke и 360-frame bgfx/Metal race smoke.
 
+### P2.208 — атомарный `Player::OnProgress` restore возвращён source owner — выполнено
+
+Сверка `Player::OnProgress`, `CreateCar(false)` и `ResetCar` обнаружила
+критический двухкадровый surrogate. После смерти portable Player по истечении
+двух секунд выставлял полную life и выдавал respawn, но оставлял
+`carPresent == false` и не создавал новый car MapObj. Только следующий кадр
+отдельно выполнял `CreateCar`. Session при этом передавал в Player придуманный
+флаг `!IsDestroyed()` вместо проверки принадлежащего Player `_car.mapObj`.
+
+Windows выполняет всё атомарно внутри одного fixed-step: пока MapObj отсутствует
+увеличивается `_timeRestoreCar`; только при строгом `> 2.0f` вызываются
+`CreateCar(false)` и затем `ResetCar`. `Player::OnProgress` теперь сам читает
+`HasCar()`, а `ProgressRestore` сохраняет этот строгий timer и создаёт concrete
+car до возврата единственной команды `QueueRespawn`. Adapter в том же callback
+материализует новый source MapObj, выполняет ResetCar ray query и отдаёт Jolt
+готовую pose. Промежуточный `ActivateCar` state удалён.
+
+Regression проверяет отсутствие восстановления ровно на 2.0 s, новый MapObj
+ID, live Player/attached lights и единственный respawn в одном кадре, а также
+стабильность следующего кадра. Это устраняет состояние невидимой машины без
+MapObj, способное приводить к телепортации после взрыва.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

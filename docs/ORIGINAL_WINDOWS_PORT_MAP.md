@@ -486,8 +486,18 @@ network gate; RPC replay его не дублирует. Jolt boundary огра�
 Pending contact подавляет повторные запросы, а replay использует переданные
 type/value и сохраняет исходный Charge RNG момент.
 
-Следующий B8f — продолжить method-to-method аудит concrete `Player/Race` и
-оставшихся session-owned death/respawn/finish transitions.
+Результат B8f: восстановление машины теперь целиком принадлежит concrete
+`Player::OnProgress`. Подтверждённый surrogate оживлял `gameCar` и выдавал
+respawn за кадр до `CreateCar(false)`/нового MapObj; session затем определял
+наличие машины по `!IsDestroyed()`, а не по source `_car.mapObj`.
+
+Возвращён точный строгий timer `> 2.0f` и атомарный порядок
+`CreateCar(false) -> MapObj materialization -> ResetCar`. Удалён invented
+`ActivateCar` промежуточный state. Jolt получает только итоговую reset pose в
+том же fixed-step, а следующий кадр не создаёт второй объект/respawn.
+
+Следующий B8g — продолжить method-to-method аудит оставшихся concrete
+`Race/Player/GameObject` listener transitions и graph cleanup boundaries.
 
 ## Правило обновления карты
 

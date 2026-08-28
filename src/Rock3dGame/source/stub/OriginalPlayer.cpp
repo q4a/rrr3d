@@ -1633,13 +1633,12 @@ Player::CheatResult Player::CheatUpdate(
 }
 
 Player::ProgressResult Player::OnProgress(
-    float deltaTime, bool carPresent,
-    std::uint32_t cheatMask, std::size_t playerId,
+    float deltaTime, std::uint32_t cheatMask, std::size_t playerId,
     std::size_t difficulty,
     const std::vector<CheatPlayerView>& players) noexcept
 {
     ProgressResult result;
-    if (carPresent)
+    if (HasCar())
     {
         // CarState::Update is executed by the physics adapter immediately
         // before this call.  The remaining order is the original
@@ -1886,7 +1885,7 @@ void Player::Destroy() noexcept
     Immortal(0.0F);
     gameCar.touchAttacker = undefinedPlayerId;
     gameCar.touchAttributionSeconds = 0.0F;
-    restoreSeconds = restoreCarSeconds;
+    restoreSeconds = 0.0F;
     // GameObject::Death destroys the MapObj immediately afterwards. The
     // portable owner combines that OnDestroy callback here so render/audio
     // adapters cannot retain child state during the restore delay.
@@ -1895,19 +1894,16 @@ void Player::Destroy() noexcept
 
 PlayerRestoreStep Player::ProgressRestore(float seconds) noexcept
 {
-    if (!IsDestroyed())
+    if (HasCar())
         return PlayerRestoreStep::None;
-    if (restoreSeconds < 0.0F)
-    {
-        restoreSeconds = 0.0F;
-        CreateCar(false);
-        return PlayerRestoreStep::ActivateCar;
-    }
-    restoreSeconds = std::max(0.0F, restoreSeconds - seconds);
-    if (restoreSeconds > 0.0F)
+    restoreSeconds += std::max(seconds, 0.0F);
+    // Player.cpp uses a strict `> cTimeRestoreCar` comparison. CreateCar and
+    // ResetCar belong to the same source callback; there is no intermediate
+    // frame with a resurrected GameObject but no car MapObj.
+    if (restoreSeconds <= restoreCarSeconds)
         return PlayerRestoreStep::None;
-    SetLife(GetMaxLife());
-    restoreSeconds = -1.0F;
+    restoreSeconds = 0.0F;
+    CreateCar(false);
     return PlayerRestoreStep::QueueRespawn;
 }
 
