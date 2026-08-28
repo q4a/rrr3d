@@ -236,6 +236,19 @@ Behavior::Behavior(Behaviors* owner) noexcept : owner_(owner) {}
 
 void Behavior::Remove() noexcept { removed_ = true; }
 bool Behavior::IsRemoved() const noexcept { return removed_; }
+bool Behavior::GetPhysicsNotify(
+    BehaviorPhysicsNotify notify) const noexcept
+{
+    const auto index = static_cast<std::size_t>(notify);
+    return index < physicsNotifies_.size() && physicsNotifies_[index];
+}
+void Behavior::SetPhysicsNotify(
+    BehaviorPhysicsNotify notify, bool value) noexcept
+{
+    const auto index = static_cast<std::size_t>(notify);
+    if (index < physicsNotifies_.size())
+        physicsNotifies_[index] = value;
+}
 Behaviors* Behavior::GetOwner() noexcept { return owner_; }
 const Behaviors* Behavior::GetOwner() const noexcept { return owner_; }
 GameObject* Behavior::GetGameObj() noexcept
@@ -325,6 +338,17 @@ void Behaviors::Clear() noexcept
 std::size_t Behaviors::GetCount() const noexcept
 {
     return entries_.size();
+}
+
+bool Behaviors::RequiresPhysicsNotify(
+    BehaviorPhysicsNotify notify) const noexcept
+{
+    return std::any_of(
+        entries_.begin(), entries_.end(),
+        [notify](const Entry& entry) {
+            return entry.value != nullptr &&
+                   entry.value->GetPhysicsNotify(notify);
+        });
 }
 
 Behaviors::ProgressResult Behaviors::OnProgress(
@@ -1426,6 +1450,7 @@ std::size_t DestrObj::ReleaseDestruction(Map& map)
 TouchDeath::TouchDeath(Behaviors* owner) noexcept
     : Behavior(owner)
 {
+    SetPhysicsNotify(BehaviorPhysicsNotify::Contact, true);
 }
 
 void TouchDeath::OnProgress(float) noexcept {}

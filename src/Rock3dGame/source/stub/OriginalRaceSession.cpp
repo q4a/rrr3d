@@ -5846,9 +5846,12 @@ void OriginalRaceSession::updateGameplay(
         }
         if (!touchedDeathPlane)
             continue;
+        auto& groundObject = map_.GetGround().GetGameObj();
+        if (!groundObject.GetBehaviors().RequiresPhysicsNotify(
+                source::BehaviorPhysicsNotify::Contact))
+            continue;
         const bool wasDestroyed = racers_[racer].IsDestroyed();
-        map_.GetGround().GetGameObj().OnContact(
-            &racers_[racer].gameCar);
+        groundObject.OnContact(&racers_[racer].gameCar);
         if (wasDestroyed || !racers_[racer].IsDestroyed())
             continue;
         destroyRacer(

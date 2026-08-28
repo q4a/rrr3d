@@ -587,15 +587,28 @@ int main()
     falling.ResetGameObject(10.0F);
     falling.Damage(8U, 0.0F, original::DamageType::Touch);
     source::GameObject deathPlane;
+    if (deathPlane.GetBehaviors().RequiresPhysicsNotify(
+            source::BehaviorPhysicsNotify::Contact) ||
+        deathPlane.GetBehaviors().RequiresPhysicsNotify(
+            source::BehaviorPhysicsNotify::ContactModify))
+        return 84;
     auto& touchDeath = deathPlane.GetBehaviors()
         .Add<source::TouchDeath>(source::BehaviorType::TouchDeath);
     deathPlane.OnContact(&falling);
     deathPlane.OnContact(&falling);
     if (deathPlane.GetBehaviors().Find(
             source::BehaviorType::TouchDeath) != &touchDeath ||
+        !deathPlane.GetBehaviors().RequiresPhysicsNotify(
+            source::BehaviorPhysicsNotify::Contact) ||
+        deathPlane.GetBehaviors().RequiresPhysicsNotify(
+            source::BehaviorPhysicsNotify::ContactModify) ||
         deathPlane.GetListenerCount() != 1U || !falling.destroyed ||
         falling.GetTouchPlayerId() != 8U)
         return 30;
+    if (!deathPlane.GetBehaviors().Delete(&touchDeath) ||
+        deathPlane.GetBehaviors().RequiresPhysicsNotify(
+            source::BehaviorPhysicsNotify::Contact))
+        return 85;
 
     source::GameObject particleOwner;
     particleOwner.ResetGameObject(-1.0F);

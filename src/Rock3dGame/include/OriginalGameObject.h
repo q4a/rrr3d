@@ -86,6 +86,16 @@ enum class BehaviorType : std::uint8_t
 
 const char* BehaviorTypeName(BehaviorType value) noexcept;
 
+// Portable equivalent of Behavior::PxNotify. The physics backend owns the
+// actual collision flags; behaviors keep the source-level subscription that
+// tells the owner which callbacks must be dispatched.
+enum class BehaviorPhysicsNotify : std::uint8_t
+{
+    Contact = 0,
+    ContactModify,
+    Count,
+};
+
 // Backend-neutral transcription of GameBase::Behavior. Concrete behavior
 // state machines keep their renderer/physics adapters, while this base owns
 // the original GameObject listener registration and deferred removal flag.
@@ -107,6 +117,9 @@ public:
     const Logic* GetLogic() const noexcept;
 
 protected:
+    bool GetPhysicsNotify(BehaviorPhysicsNotify notify) const noexcept;
+    void SetPhysicsNotify(
+        BehaviorPhysicsNotify notify, bool value) noexcept;
     virtual void OnShot(
         const std::array<float, 3U>&) noexcept {}
     virtual void OnMotor(float, float, float, float) noexcept {}
@@ -116,6 +129,8 @@ private:
     friend class Behaviors;
     Behaviors* owner_ = nullptr;
     bool removed_ = false;
+    std::array<bool, static_cast<std::size_t>(
+        BehaviorPhysicsNotify::Count)> physicsNotifies_{};
 };
 
 class Behaviors
@@ -149,6 +164,8 @@ public:
     bool Delete(Behavior* value) noexcept;
     void Clear() noexcept;
     std::size_t GetCount() const noexcept;
+    bool RequiresPhysicsNotify(
+        BehaviorPhysicsNotify notify) const noexcept;
 
     ProgressResult OnProgress(float deltaTime) noexcept;
     void OnShot(const std::array<float, 3U>& position) noexcept;

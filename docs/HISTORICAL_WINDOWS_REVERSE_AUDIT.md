@@ -5311,6 +5311,20 @@ CPU mesh/OBB/plane helper оставлен исключительно для sou
 без backend. Physics smoke проверяет ray filter и реальный car↔plane sensor
 contact; session smoke требует три backend reset rays с death-plane mask.
 
+### P2.229 — исходный `Behavior::PxNotify` восстановлен — выполнено
+
+Concrete behavior classes были перенесены, но их базовый owner потерял
+`PxNotifies`. Из-за этого Jolt death-plane contact попадал в общий listener
+dispatch прямым вызовом session и не зависел от того, зарегистрирован ли у
+ground живой `TouchDeath`, как это делал PhysX actor source-версии.
+
+Portable `Behavior` теперь хранит backend-neutral `Contact` и
+`ContactModify` subscriptions; `Behaviors` агрегирует их для своего
+`GameObject`. `TouchDeath` включает `Contact` при создании, а удаление
+behavior автоматически снимает owner requirement. Session проверяет эту
+регистрацию перед dispatch завершённого death-plane manifold. Smoke-тесты
+покрывают установку, удаление, map ground и неактивный modify flag.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

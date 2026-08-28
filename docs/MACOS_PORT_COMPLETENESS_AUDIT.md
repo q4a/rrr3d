@@ -1738,6 +1738,21 @@ backend reset queries. Следующая B8aa граница определяе
 оставшихся active physics snapshot consumers; подтверждённые projectile,
 bonus, mine, attached weapon, death и reset ветви уже backend-authoritative.
 
+### B8aa — behavior physics-notify ownership — выполнено
+
+Аудит всех active CPU OBB/raycast consumers подтвердил, что после B8z они
+остались только deterministic fallback без physics backend. Следующий
+реальный разрыв находился уровнем выше: portable `Behavior` не хранил
+исходные `PxNotify` flags, поэтому session вызывала ground `OnContact`
+напрямую, независимо от регистрации `TouchDeath`.
+
+Добавлен backend-neutral `BehaviorPhysicsNotify` с исходными `Contact` и
+`ContactModify`, per-behavior flags и owner aggregate query. `TouchDeath`
+регистрирует `Contact` в конструкторе, удаление behavior снимает требование,
+а death-plane manifold dispatch проходит только через живую регистрацию
+ground behavior. Регрессии фиксируют пустой owner, установку/снятие flag,
+map-owned ground subscription и отсутствие ложного `ContactModify`.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

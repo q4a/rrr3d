@@ -237,6 +237,9 @@ int main()
     map.GetGround().GetGameObj().OnContact(&fallingObject);
     map.GetGround().GetGameObj().OnContact(nullptr);
     if (touchDeath != &map.GetGroundTouchDeath() ||
+        !map.GetGround().GetGameObj().GetBehaviors()
+            .RequiresPhysicsNotify(
+                source::BehaviorPhysicsNotify::Contact) ||
         map.GetGround().GetGameObj().GetListenerCount() != 1U ||
         fallingObject.GetLiveState() !=
             source::GameObject::LiveState::Death)
