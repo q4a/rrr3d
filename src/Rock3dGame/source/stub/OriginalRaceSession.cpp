@@ -1245,7 +1245,8 @@ void OriginalRaceSession::reset()
     logic_.SetTouchBorderDamageForce(race_.touchBorderDamageForce);
     logic_.SetTouchCarDamage(race_.touchCarDamage);
     logic_.SetTouchCarDamageForce(race_.touchCarDamageForce);
-    logic_.ResetContactBehavior(race_.contactSoundPaths.size());
+    logic_.ResetContactBehavior(
+        race_.contactSoundPaths.size(), race_.contactEffect.record);
     respawns_.clear();
     velocityRequests_.clear();
     angularVelocityRequests_.clear();
@@ -4552,13 +4553,7 @@ void OriginalRaceSession::ingestPairContacts(
                     [&](const RaceEffect& value) {
                         return value.kind ==
                                    RaceEventKind::ContactImpact &&
-                               value.waitingEnd != nullptr &&
-                               !value.waitingEnd->IsResurrect() &&
-                               !value.effectOwner->destroyed &&
-                               value.racer == racer &&
-                               value.contactSurface == contact.surface &&
-                               value.contactActor == contact.otherActor &&
-                               value.contactIndex == point.slot;
+                               value.logicEffectId == point.effect;
                     });
                 if (effect == effects_.end())
                 {
@@ -4568,6 +4563,7 @@ void OriginalRaceSession::ingestPairContacts(
                     created.contactSurface = contact.surface;
                     created.contactActor = contact.otherActor;
                     created.contactIndex = point.slot;
+                    created.logicEffectId = point.effect;
                     created.totalSeconds =
                         source::PairPxContactEffect::
                             contactReleaseSeconds +
@@ -4601,30 +4597,14 @@ void OriginalRaceSession::ingestPairContacts(
 
 void OriginalRaceSession::releasePairContacts()
 {
-    const auto pairContactKey = [](
-        std::size_t racer,
-        r3d::physics::CollisionSurface surface,
-        std::uint32_t actor) {
-        return source::PairPxContactEffect::Key{
-            static_cast<std::uint64_t>(racer),
-            (static_cast<std::uint64_t>(surface) << 32U) |
-                static_cast<std::uint64_t>(actor)};
-    };
     for (const auto& released :
          logic_.GetPairPxContactEffect().TakeReleases())
     {
         const auto effect = std::find_if(
             effects_.begin(), effects_.end(),
             [&](const RaceEffect& value) {
-                if (value.kind != RaceEventKind::ContactImpact ||
-                    value.contactIndex != released.slot ||
-                    value.waitingEnd == nullptr ||
-                    value.waitingEnd->IsResurrect() ||
-                    value.effectOwner->destroyed)
-                    return false;
-                return pairContactKey(
-                           value.racer, value.contactSurface,
-                           value.contactActor) == released.key;
+                return value.kind == RaceEventKind::ContactImpact &&
+                       value.logicEffectId == released.effect;
             });
         if (effect == effects_.end())
             continue;
@@ -8221,7 +8201,8 @@ void OriginalRaceSession::completeRaceForExit(
             racerMapObjects_.begin(), racerMapObjects_.end(), nullptr);
         std::fill(vehicleInputs_.begin(), vehicleInputs_.end(),
                   r3d::physics::VehicleInput{});
-        logic_.ResetContactBehavior(race_.contactSoundPaths.size());
+        logic_.ResetContactBehavior(
+            race_.contactSoundPaths.size(), race_.contactEffect.record);
     }
     phase_ = RacePhase::Finished;
     phaseBeforePause_ = phase_;
@@ -8368,8 +8349,17 @@ void OriginalRaceSession::update(
     }
     effects_.erase(
         std::remove_if(effects_.begin(), effects_.end(),
-                       [](const RaceEffect& effect) {
-                           return effect.effectOwner->destroyed;
+                       [&](const RaceEffect& effect) {
+                           if (!effect.effectOwner->destroyed)
+                               return false;
+                           if (effect.logicEffectId !=
+                               source::LogicEventEffect::invalidEffect)
+                           {
+                               logic_.GetPairPxContactEffect()
+                                   .NotifyEffectDestroyed(
+                                       effect.logicEffectId);
+                           }
+                           return true;
                        }),
         effects_.end());
     const auto gameModeAdvance = gameModeRaceState_.OnFrame(seconds);

@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 namespace r3d::game::originalrace::source
 {
@@ -60,8 +61,129 @@ void LogicBehavior::UnregProgressEvent() noexcept
         logic->UnregProgressEvent(this);
 }
 
+LogicEventEffect::LogicEventEffect(
+    LogicBehaviors* owner, LogicBehaviorType type) noexcept
+    : LogicBehavior(owner, type)
+{
+}
+
+LogicEventEffect::~LogicEventEffect()
+{
+    ClearEffects();
+}
+
+const std::string& LogicEventEffect::GetEffectRecord() const noexcept
+{
+    return effectRecord_;
+}
+
+void LogicEventEffect::SetEffectRecord(std::string value)
+{
+    effectRecord_ = std::move(value);
+}
+
+const LogicEventEffect::Vector3& LogicEventEffect::GetPos() const noexcept
+{
+    return position_;
+}
+
+void LogicEventEffect::SetPos(Vector3 value) noexcept
+{
+    position_ = value;
+}
+
+bool LogicEventEffect::HasEffect(EffectId effect) const noexcept
+{
+    return std::any_of(
+        effects_.begin(), effects_.end(),
+        [effect](const EffectInstance& value) {
+            return value.id == effect;
+        });
+}
+
+bool LogicEventEffect::IsEffectDying(EffectId effect) const noexcept
+{
+    const auto found = std::find_if(
+        effects_.begin(), effects_.end(),
+        [effect](const EffectInstance& value) {
+            return value.id == effect;
+        });
+    return found != effects_.end() && found->dying;
+}
+
+LogicEventEffect::Vector3 LogicEventEffect::GetEffectPosition(
+    EffectId effect) const noexcept
+{
+    const auto found = std::find_if(
+        effects_.begin(), effects_.end(),
+        [effect](const EffectInstance& value) {
+            return value.id == effect;
+        });
+    return found != effects_.end() ? found->position : Vector3{};
+}
+
+std::size_t LogicEventEffect::GetEffectCount() const noexcept
+{
+    return effects_.size();
+}
+
+void LogicEventEffect::NotifyEffectDestroyed(EffectId effect) noexcept
+{
+    std::erase_if(effects_, [effect](const EffectInstance& value) {
+        return value.id == effect;
+    });
+}
+
+LogicEventEffect::EffectId LogicEventEffect::CreateEffect(
+    Vector3 position)
+{
+    EffectInstance effect;
+    effect.id = nextEffectId_++;
+    if (effect.id == invalidEffect)
+        effect.id = nextEffectId_++;
+    effect.position = {
+        position_.x + position.x,
+        position_.y + position.y,
+        position_.z + position.z};
+    effects_.push_back(effect);
+    return effect.id;
+}
+
+void LogicEventEffect::SetEffectPosition(
+    EffectId effect, Vector3 position) noexcept
+{
+    const auto found = std::find_if(
+        effects_.begin(), effects_.end(),
+        [effect](const EffectInstance& value) {
+            return value.id == effect;
+        });
+    if (found == effects_.end())
+        return;
+    found->position = {
+        position_.x + position.x,
+        position_.y + position.y,
+        position_.z + position.z};
+}
+
+void LogicEventEffect::BeginDeleteEffect(EffectId effect) noexcept
+{
+    const auto found = std::find_if(
+        effects_.begin(), effects_.end(),
+        [effect](const EffectInstance& value) {
+            return value.id == effect;
+        });
+    if (found != effects_.end())
+        found->dying = true;
+}
+
+void LogicEventEffect::ClearEffects() noexcept
+{
+    effects_.clear();
+    nextEffectId_ = 1U;
+}
+
 PairPxContactEffect::PairPxContactEffect(LogicBehaviors* owner)
-    : LogicBehavior(owner, LogicBehaviorType::PairPxContactEffect)
+    : LogicEventEffect(owner, LogicBehaviorType::PairPxContactEffect)
 {
     RegProgressEvent();
 }
@@ -70,6 +192,21 @@ PairPxContactEffect::~PairPxContactEffect()
 {
     UnregProgressEvent();
     Reset();
+}
+
+void PairPxContactEffect::NotifyEffectDestroyed(
+    EffectId effect) noexcept
+{
+    LogicEventEffect::NotifyEffectDestroyed(effect);
+    for (auto& [key, node] : contacts_)
+    {
+        static_cast<void>(key);
+        for (auto& contact : node.contacts)
+        {
+            if (contact.effect == effect)
+                contact.effect = invalidEffect;
+        }
+    }
 }
 
 LogicBehaviors::LogicBehaviors(Logic* logic)
@@ -138,6 +275,7 @@ void PairPxContactEffect::Reset(std::size_t soundCount) noexcept
 {
     contacts_.clear();
     pendingReleases_.clear();
+    ClearEffects();
     soundCount_ = soundCount;
 }
 
@@ -177,13 +315,22 @@ PairPxContactEffect::ContactResult PairPxContactEffect::OnContact(
             node.contacts.emplace_back();
         }
         auto& contact = node.contacts[node.last];
-        const bool createdEffect = !contact.effect;
-        contact.effect = true;
+        const bool createdEffect = contact.effect == invalidEffect;
+        if (createdEffect)
+        {
+            contact.effect = CreateEffect(
+                {point.x, point.y, point.z});
+        }
+        else
+        {
+            SetEffectPosition(
+                contact.effect, {point.x, point.y, point.z});
+        }
         contact.point = point;
         contact.time = 0.0F;
         result.points.push_back(
-            {key, point, static_cast<std::uint8_t>(node.last),
-             createdEffect});
+            {key, point, contact.effect,
+             static_cast<std::uint8_t>(node.last), createdEffect});
         ++node.last;
     }
     result.playSound = node.sound != invalidSound &&
@@ -205,10 +352,12 @@ void PairPxContactEffect::OnProgress(float deltaTime)
             contact.time += deltaTime;
             if (contact.time > contactReleaseSeconds)
             {
-                if (contact.effect)
+                if (contact.effect != invalidEffect)
                 {
+                    BeginDeleteEffect(contact.effect);
                     pendingReleases_.push_back(
                         {nodeIterator->first,
+                         contact.effect,
                          static_cast<std::uint8_t>(index), true});
                 }
             }
@@ -546,9 +695,12 @@ const Logic::ProgressResult& Logic::GetLastProgressResult() const noexcept
     return lastProgressResult_;
 }
 
-void Logic::ResetContactBehavior(std::size_t soundCount) noexcept
+void Logic::ResetContactBehavior(
+    std::size_t soundCount, std::string effectRecord) noexcept
 {
-    GetPairPxContactEffect().Reset(soundCount);
+    auto& behavior = GetPairPxContactEffect();
+    behavior.Reset(soundCount);
+    behavior.SetEffectRecord(std::move(effectRecord));
 }
 
 PairPxContactEffect::ContactResult Logic::OnContact(

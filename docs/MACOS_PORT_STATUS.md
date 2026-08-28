@@ -2577,3 +2577,12 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   progress event через `LogicBehavior::RegProgressEvent`.
 - Jolt manifold теперь входит через `Logic::OnContact` и container dispatch,
   повторяя Windows `PxSceneUser → LogicBehaviors::OnContact` boundary.
+
+### Source LogicEventEffect identity follow-up
+
+- `PairPxContactEffect` снова наследует `LogicEventEffect`; owner хранит
+  record `ctEffects/spark2`, position и live/fading effect instances.
+- Каждый contact generation получает stable handle. Release и окончательный
+  particle destroy адресуют его напрямую вместо поиска по actor/surface/slot.
+- Одновременные старый fading и новый active `spark2` больше не могут
+  перехватить lifecycle друг друга в session adapter.

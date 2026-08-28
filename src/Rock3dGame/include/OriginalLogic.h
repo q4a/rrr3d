@@ -12,6 +12,7 @@
 #include <map>
 #include <memory>
 #include <span>
+#include <string>
 #include <vector>
 
 namespace r3d::game::originalrace::source
@@ -55,10 +56,60 @@ private:
     LogicBehaviorType type_ = LogicBehaviorType::PairPxContactEffect;
 };
 
+// Backend-neutral ownership half of Logic.cpp::LogicEventEffect. The D3D9
+// MapObj visual is replaced by a stable handle consumed by the bgfx adapter,
+// while create/death/final-destroy identity remains in the source owner.
+class LogicEventEffect : public LogicBehavior
+{
+public:
+    using EffectId = std::uint64_t;
+    static constexpr EffectId invalidEffect = 0U;
+
+    struct Vector3
+    {
+        float x = 0.0F;
+        float y = 0.0F;
+        float z = 0.0F;
+    };
+
+    ~LogicEventEffect() override;
+
+    const std::string& GetEffectRecord() const noexcept;
+    void SetEffectRecord(std::string value);
+    const Vector3& GetPos() const noexcept;
+    void SetPos(Vector3 value) noexcept;
+    bool HasEffect(EffectId effect) const noexcept;
+    bool IsEffectDying(EffectId effect) const noexcept;
+    Vector3 GetEffectPosition(EffectId effect) const noexcept;
+    std::size_t GetEffectCount() const noexcept;
+    virtual void NotifyEffectDestroyed(EffectId effect) noexcept;
+
+protected:
+    LogicEventEffect(
+        LogicBehaviors* owner, LogicBehaviorType type) noexcept;
+    EffectId CreateEffect(Vector3 position);
+    void SetEffectPosition(EffectId effect, Vector3 position) noexcept;
+    void BeginDeleteEffect(EffectId effect) noexcept;
+    void ClearEffects() noexcept;
+
+private:
+    struct EffectInstance
+    {
+        EffectId id = invalidEffect;
+        Vector3 position;
+        bool dying = false;
+    };
+
+    std::string effectRecord_;
+    Vector3 position_;
+    std::vector<EffectInstance> effects_;
+    EffectId nextEffectId_ = 1U;
+};
+
 // Portable owner for Logic.cpp::PairPxContactEffect.  Jolt supplies actor
 // identities, friction magnitude and manifold points; this class preserves
 // the original two-effects-per-pair cursor and strict 0.1-second release.
-class PairPxContactEffect final : public LogicBehavior
+class PairPxContactEffect final : public LogicEventEffect
 {
 public:
     using ActorId = std::uint64_t;
@@ -88,6 +139,7 @@ public:
     {
         Key key;
         Point point;
+        EffectId effect = invalidEffect;
         std::uint8_t slot = 0U;
         bool createdEffect = false;
     };
@@ -104,12 +156,14 @@ public:
     struct Release
     {
         Key key;
+        EffectId effect = invalidEffect;
         std::uint8_t slot = 0U;
         bool death = true;
     };
 
     explicit PairPxContactEffect(LogicBehaviors* owner);
     ~PairPxContactEffect() override;
+    void NotifyEffectDestroyed(EffectId effect) noexcept override;
 
     void Reset(std::size_t soundCount = 0U) noexcept;
     ContactResult OnContact(
@@ -129,7 +183,7 @@ private:
     {
         Point point;
         float time = 0.0F;
-        bool effect = false;
+        EffectId effect = invalidEffect;
     };
 
     struct ContactNode
@@ -297,7 +351,9 @@ public:
 
     // Logic.cpp owns the global contact behavior and the four serialized
     // GameCar contact ranges. Physics/audio remain backend adapters.
-    void ResetContactBehavior(std::size_t soundCount = 0U) noexcept;
+    void ResetContactBehavior(
+        std::size_t soundCount = 0U,
+        std::string effectRecord = {}) noexcept;
     PairPxContactEffect::ContactResult OnContact(
         PairPxContactEffect::Key key, float frictionForce,
         bool firstShapeIsWheel, bool secondShapeIsWheel,

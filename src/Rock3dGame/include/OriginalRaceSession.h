@@ -274,6 +274,10 @@ struct RaceEffect
     std::uint32_t contactActor =
         std::numeric_limits<std::uint32_t>::max();
     std::uint8_t contactIndex = 0;
+    // Stable LogicEventEffect identity. Multiple generations may share the
+    // same actor pair/slot while an older particle object is still fading.
+    source::LogicEventEffect::EffectId logicEffectId =
+        source::LogicEventEffect::invalidEffect;
     float ageSeconds = 0.0F;
     float emissionEndSeconds = -1.0F;
     // A source effect is a real GameObject with concrete serialized

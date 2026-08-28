@@ -2087,7 +2087,8 @@ int main()
     logic.SetTouchBorderDamageForce({30.0F, 40.0F});
     logic.SetTouchCarDamage({50.0F, 60.0F});
     logic.SetTouchCarDamageForce({70.0F, 80.0F});
-    logic.ResetContactBehavior(3U);
+    logic.ResetContactBehavior(
+        3U, "world\\db\\root\\ctEffects\\spark2");
     auto& contacts = logic.GetPairPxContactEffect();
     auto& logicBehaviors = logic.GetBehaviors();
     const auto progressContacts = [&](float seconds) {
@@ -2103,6 +2104,9 @@ int main()
         contacts.GetLogic() != &logic ||
         contacts.GetType() !=
             source::LogicBehaviorType::PairPxContactEffect ||
+        contacts.GetEffectRecord() !=
+            "world\\db\\root\\ctEffects\\spark2" ||
+        contacts.GetEffectCount() != 0U ||
         logic.GetTouchBorderDamage() !=
             source::Logic::ContactRange{10.0F, 20.0F} ||
         logic.GetTouchBorderDamageForce() !=
@@ -2132,6 +2136,15 @@ int main()
         firstContact.points.size() != 2U ||
         !firstContact.points[0].createdEffect ||
         !firstContact.points[1].createdEffect ||
+        firstContact.points[0].effect ==
+            source::LogicEventEffect::invalidEffect ||
+        firstContact.points[1].effect ==
+            source::LogicEventEffect::invalidEffect ||
+        firstContact.points[0].effect ==
+            firstContact.points[1].effect ||
+        contacts.GetEffectCount() != 2U ||
+        contacts.GetEffectPosition(
+            firstContact.points[1].effect).x != 4.0F ||
         contacts.GetPairCount() != 1U ||
         contacts.GetContactCount(contactKey) != 2U)
         return 34;
@@ -2143,6 +2156,10 @@ int main()
         contactKey, 10001.0F, false, false, onePoint, 0.0F);
     if (refreshed.pairCreated || refreshed.points.size() != 1U ||
         refreshed.points.front().createdEffect ||
+        refreshed.points.front().effect !=
+            firstContact.points.front().effect ||
+        contacts.GetEffectPosition(
+            refreshed.points.front().effect).x != 10.0F ||
         refreshed.sound != 2U)
         return 36;
     if (!progressContacts(0.001F).empty() ||
@@ -2151,8 +2168,14 @@ int main()
     const auto tailReleased = progressContacts(0.1F);
     if (tailReleased.size() != 1U ||
         tailReleased.front().slot != 1U ||
+        tailReleased.front().effect !=
+            firstContact.points[1].effect ||
+        !contacts.IsEffectDying(tailReleased.front().effect) ||
         contacts.GetContactCount(contactKey) != 1U)
         return 38;
+    contacts.NotifyEffectDestroyed(tailReleased.front().effect);
+    if (contacts.GetEffectCount() != 1U)
+        return 191;
     logic.OnContact(
         contactKey, 10001.0F, false, false, onePoint, 0.0F);
     if (!progressContacts(0.1F).empty())
@@ -2162,8 +2185,13 @@ int main()
     const auto finalReleased = progressContacts(0.001F);
     if (finalReleased.size() != 1U ||
         finalReleased.front().slot != 0U ||
+        finalReleased.front().effect !=
+            firstContact.points[0].effect ||
         contacts.GetPairCount() != 0U)
         return 41;
+    contacts.NotifyEffectDestroyed(finalReleased.front().effect);
+    if (contacts.GetEffectCount() != 0U)
+        return 192;
 
     source::Proj contactDispatchProjectile;
     r3d::game::originalrace::ProjectileDefinition

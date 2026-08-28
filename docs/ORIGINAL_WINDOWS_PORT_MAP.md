@@ -153,6 +153,12 @@ commands только на backend boundary.
 Windows; команды освобождения эффектов забираются после progress. Ручной
 вызов contact timer из session удалён.
 
+Результат B8ae: между global behavior и pair effect снова находится
+`LogicEventEffect`. В D3D9 owner хранил `MapObj*`; bgfx adapter получает
+backend-neutral stable handle, но create → Death → particle-end destroy и
+очистка contact reference принадлежат исходному owner. Actor/slot остаются
+renderer metadata и больше не используются для выбора поколения эффекта.
+
 В `Proj` возвращён первый этап исходного `OnContact`: базовый
 `GameObject::OnContact` выполняется до live-state guard и type switch. Этот
 путь подключён для car/decor projectile contacts, mines и map bonuses; если

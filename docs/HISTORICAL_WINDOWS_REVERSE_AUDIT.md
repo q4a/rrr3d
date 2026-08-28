@@ -5371,6 +5371,21 @@ Session преобразует Jolt manifold и вызывает только `L
 Unit regression закрепляет единственный shipped catalog entry, его type,
 owner/Logic pointers и ordered contact progress/release.
 
+### P2.233 — `LogicEventEffect` и identity `spark2` восстановлены — выполнено
+
+В original graph `PairPxContactEffect` наследует `LogicEventEffect`, который
+владеет созданными MapObj effects и удаляет точный объект по его destroy
+listener. Порт хранил в contact только `bool` и заставлял session искать
+живой `RaceEffect` по actor-pair/slot, что особенно опасно при перекрытии
+старого fading и нового active поколения.
+
+Portable `LogicEventEffect` теперь сохраняет effect record/position и выдаёт
+stable handle каждому create. Contact update, release и окончательный
+renderer destroy проходят с одним handle; `NotifyEffectDestroyed` очищает и
+owner list, и оставшуюся contact reference как source `OnDestroyEffect`.
+`DataBase::Init` provenance `ctEffects/spark2` передаётся owner-у вместе с
+пятью sound variants. Unit и resource regressions проходят полный lifecycle.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

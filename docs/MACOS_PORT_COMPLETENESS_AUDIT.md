@@ -1803,6 +1803,22 @@ shipped type `PairPxContactEffect`. Base behavior возвращает owner/Log
 Regression проверяет catalog/type/owner links, World progress и полный
 двухслотовый create/release contact lifecycle.
 
+### B8ae — `LogicEventEffect` contact generations — выполнено
+
+После возврата container owner сам `PairPxContactEffect` всё ещё наследовал
+непосредственно `LogicBehavior`, хотя Windows держит между ними
+`LogicEventEffect`. Portable contact хранил лишь `bool effect`, а session
+искал renderer object по actor/surface/slot; при одновременном затухании
+старого `spark2` это оставляло identity поколений на эвристике adapter-а.
+
+Возвращён backend-neutral `LogicEventEffect`: он хранит serialized effect
+record, base position и стабильные effect handles от create через begin-death
+до окончательного destroy callback. Pair contacts и release commands несут
+этот handle; session больше не сопоставляет поколения по actor/slot, а bgfx
+`RaceEffect` возвращает owner-у точный handle после завершения
+`FxSystemWaitingEnd`. Regression проверяет разные handles двух contact slots,
+позиционное обновление, dying state и полное удаление обоих поколений.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity
