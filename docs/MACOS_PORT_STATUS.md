@@ -2385,3 +2385,12 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   тогда как старый adapter назначал эти два slot наоборот.
 - Bonus visual mapping и human/kill-credit filters теперь закреплены source
   regression, а `PickNotification` больше не повторяет gameplay enums.
+
+### Single source FinishMenu follow-up
+
+- Удалена вторая renderer-owned таблица результатов из `OriginalRaceHud`.
+  Windows HUD её не имеет: финиш принадлежит отдельному `FinishMenu`.
+- Устранён путь, на котором сначала показывалась придуманная таблица сразу при
+  `RacePhase::Finished`, а затем правильная после `finishPresentationReady`.
+- Frames/cups/results/timing теперь существуют только в active
+  `FinishMenuFrameState` с source voice-duration и Last-event semantics.

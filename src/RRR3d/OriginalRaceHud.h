@@ -87,14 +87,6 @@ private:
         r3d::game::originalrace::source::HudItemId id = 0U;
     };
 
-    struct FinishRow
-    {
-        TextAsset name;
-        TextAsset value;
-        std::size_t racer = std::numeric_limits<std::size_t>::max();
-        int gamerId = -1;
-    };
-
     struct AchievementNotification
     {
         std::size_t achievement = 0;
@@ -150,18 +142,11 @@ private:
     r3d::game::originalrace::source::MiniMapFrame miniMapState_;
     std::vector<OpponentLabel> opponentLabels_;
     std::vector<WeaponVisual> weaponVisuals_;
-    ImageAsset finishLeftFrame_;
-    ImageAsset finishRightFrame_;
-    ImageAsset finishLineFrame_;
-    std::array<ImageAsset, 3> finishCups_;
     std::vector<ImageAsset> racerPhotos_;
     std::map<int, ImageAsset> gamerPhotos_;
     std::vector<ImageAsset> achievementImages_;
     std::vector<ImageAsset> achievementPointsImages_;
     ImageAsset achievementMultiplierImage_;
-    TextAsset finishPrice_;
-    TextAsset finishMoneyPoints_;
-    std::array<FinishRow, 3> finishRows_;
     std::vector<PickNotification> notifications_;
     std::vector<AchievementNotification> achievementNotifications_;
     r3d::game::originalrace::source::PlayerStateFrame playerStateFrame_;
@@ -172,13 +157,9 @@ private:
     std::string lapName_ = "Lap";
     std::string namePlaceFormat_ = "%d place\n%s";
     std::string priceName_ = "Reward";
-    std::string moneyName_ = "Money";
-    std::string pointsName_ = "Points";
     std::vector<std::string> localizedRacerNames_;
     std::map<int, std::string> localizedGamerNames_;
     float uiSeconds_ = 0.0F;
-    float finishStarted_ = -1.0F;
-    bool finishVisible_ = false;
     bool campaign_ = true;
 };
 

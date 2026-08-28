@@ -4679,6 +4679,31 @@ image dimensions, CoreText kill name/photo и `HudMenu` countdown texture.
 Regression закрепляет visual mapping, фильтр чужого pick, achievement item,
 обе damage field/slot ветви, kill gate/target и countdown command.
 
+### P2.200 — удалён второй, выдуманный FinishMenu внутри race HUD — выполнено
+
+Аудит перехода `Race -> FinishMenu` подтвердил крупное архитектурное и
+видимое расхождение. В Windows `HudMenu.cpp` не содержит результатов финиша:
+после `cRaceFinishTimeEnd` `Menu::ExitRaceGoFinish` создаёт отдельный
+`FinishMenu`, который использует `Race::Results`, последовательные
+`voiceNameDur`, три place events и отдельный last-player event. В порте эта
+source `FinishMenuFrameState` уже была активна в host, но параллельно
+`OriginalRaceHud` при одном только `RacePhase::Finished` строил собственную
+трёхстрочную таблицу с единым alpha и сортировкой runtime places.
+
+Именно этот surrogate мог показывать первую таблицу сразу на трассе, а затем
+вторую правильную таблицу после `finishPresentationReady`; это соответствует
+наблюдавшемуся двойному финишному экрану. Из race HUD удалены 226 строк второго
+result owner: runtime sorting/reward fallback, global reveal timer, ранний
+draw return, дублированные frames/cups/textures и CoreText rows.
+
+Единственным владельцем результата остался уже перенесённый
+`originalracemenu::FinishMenuFrameState`, вызываемый только source transition
+`showFinishMenu`: он получает `raceSession.results()` в исходном порядке,
+учитывает индивидуальные voice durations, выдаёт First/Second/Third/Last и
+обрабатывает закрытие. Отдельный `--finish-menu-smoke-test` проверяет полный
+Metal frame/audio/return path; обычный HUD до transition продолжает рисовать
+трассу без придуманной промежуточной таблицы.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

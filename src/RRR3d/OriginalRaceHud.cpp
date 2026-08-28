@@ -168,13 +168,7 @@ bool OriginalRaceHud::initialize(
         !loadImage(device, resources, "Data/GUI/carLifeBack.png",
                    opponentLifeBack_, error) ||
         !loadImage(device, resources, "Data/GUI/carLifeBar.png",
-                   opponentLifeBar_, error) ||
-        !loadImage(device, resources, "Data/GUI/playerLeftFrame.png",
-                   finishLeftFrame_, error) ||
-        !loadImage(device, resources, "Data/GUI/playerRightFrame.png",
-                   finishRightFrame_, error) ||
-        !loadImage(device, resources, "Data/GUI/playerLineFrame.png",
-                   finishLineFrame_, error))
+                   opponentLifeBar_, error))
     {
         shutdown(device);
         return false;
@@ -185,17 +179,6 @@ bool OriginalRaceHud::initialize(
         if (!loadImage(device, resources,
                        "Data/GUI/tablo" + std::to_string(index) + ".png",
                        countdownImages_[index], error))
-        {
-            shutdown(device);
-            return false;
-        }
-    }
-    for (std::size_t index = 0; index < finishCups_.size(); ++index)
-    {
-        if (!loadImage(device, resources,
-                       "Data/GUI/cup" + std::to_string(index + 1U) +
-                           ".dds",
-                       finishCups_[index], error))
         {
             shutdown(device);
             return false;
@@ -346,8 +329,6 @@ bool OriginalRaceHud::initialize(
         lapName_ = localization.get("svLap");
         namePlaceFormat_ = localization.get("svNamePlaceMarker");
         priceName_ = localization.get("svPrice");
-        moneyName_ = localization.get("svMoney");
-        pointsName_ = localization.get("svPoints");
         for (std::size_t index = 0; index < placeNames_.size(); ++index)
         {
             placeNames_[index] = localization.get(
@@ -398,13 +379,6 @@ void OriginalRaceHud::shutdown(GraphicsDevice& device) noexcept
     weaponVisuals_.clear();
     for (auto& opponent : opponentLabels_)
         releaseText(opponent.name);
-    for (auto& row : finishRows_)
-    {
-        releaseText(row.name);
-        releaseText(row.value);
-    }
-    releaseText(finishMoneyPoints_);
-    releaseText(finishPrice_);
     releaseText(hyperAmmo_);
     releaseText(mineAmmo_);
     for (auto& label : weaponAmmo_)
@@ -450,11 +424,6 @@ void OriginalRaceHud::shutdown(GraphicsDevice& device) noexcept
         releaseImage(photo);
     }
     gamerPhotos_.clear();
-    for (auto& cup : finishCups_)
-        releaseImage(cup);
-    releaseImage(finishLineFrame_);
-    releaseImage(finishRightFrame_);
-    releaseImage(finishLeftFrame_);
     if (valid(mapMesh_))
         device.destroy(mapMesh_);
     mapMesh_ = {};
@@ -465,10 +434,7 @@ void OriginalRaceHud::shutdown(GraphicsDevice& device) noexcept
     playerStateFrame_.Reset();
     localizedRacerNames_.clear();
     localizedGamerNames_.clear();
-    finishRows_ = {};
     uiSeconds_ = 0.0F;
-    finishStarted_ = -1.0F;
-    finishVisible_ = false;
     hudMenuState_.Reset();
 }
 
@@ -1001,77 +967,6 @@ void OriginalRaceHud::update(
     }
     playerStateFrame_.ProgressOpponents(opponentInputs, seconds);
 
-    if (session.phase() == originalrace::RacePhase::Finished &&
-        !finishVisible_)
-    {
-        finishVisible_ = true;
-        finishStarted_ = uiSeconds_;
-        setText(device, finishPrice_, priceName_, 30.0F, true,
-                {233, 167, 63, 255});
-        setText(device, finishMoneyPoints_,
-                moneyName_ + "\n" + pointsName_, 30.0F, true,
-                {225, 225, 225, 255});
-        std::vector<std::size_t> order;
-        order.reserve(session.racers().size());
-        for (std::size_t racer = 0U;
-             racer < session.racers().size(); ++racer)
-        {
-            if (!session.racers()[racer].disconnected)
-                order.push_back(racer);
-        }
-        std::stable_sort(
-            order.begin(), order.end(),
-            [&](std::size_t first, std::size_t second) {
-                return session.racers()[first].GetPlace() <
-                       session.racers()[second].GetPlace();
-            });
-        for (std::size_t row = 0; row < finishRows_.size(); ++row)
-        {
-            auto& output = finishRows_[row];
-            if (row >= order.size())
-            {
-                output.racer =
-                    std::numeric_limits<std::size_t>::max();
-                output.gamerId = -1;
-                continue;
-            }
-            output.racer = order[row];
-            const auto& runtime = session.racers()[output.racer];
-            output.gamerId = runtime.GetGamerId();
-            const auto* sourceResult =
-                session.resultForRacer(output.racer);
-            const auto place =
-                std::min<std::size_t>(
-                    runtime.GetPlace() > 0
-                        ? runtime.GetPlace() - 1U
-                        : row,
-                    race.rewardMoney.size() - 1U);
-            const auto rewardMoney =
-                sourceResult != nullptr
-                    ? sourceResult->money
-                    : runtime.rewardMoney > 0
-                    ? runtime.rewardMoney
-                    : race.rewardMoney[place];
-            const auto rewardPoints =
-                sourceResult != nullptr
-                    ? sourceResult->points
-                    : runtime.rewardPoints > 0
-                    ? runtime.rewardPoints
-                    : race.rewardPoints[place];
-            const auto name = racerName(race, session, output.racer);
-            setText(device, output.name, name, 30.0F, true,
-                    {233, 167, 63, 255});
-            std::string value = std::to_string(rewardMoney);
-            const auto pickedMoney =
-                sourceResult != nullptr ? sourceResult->pickedMoney
-                                        : runtime.GetPickMoney();
-            if (pickedMoney > 0)
-                value += " + " + std::to_string(pickedMoney);
-            value += "\n" + std::to_string(rewardPoints);
-            setText(device, output.value, std::move(value), 30.0F,
-                    true, {132, 188, 67, 255});
-        }
-    }
 }
 
 void OriginalRaceHud::draw(GraphicsDevice& device, Mesh quad,
@@ -1084,111 +979,6 @@ void OriginalRaceHud::draw(GraphicsDevice& device, Mesh quad,
     pipeline.depthTest = false;
     pipeline.alphaBlend = true;
 
-    if (finishVisible_)
-    {
-        constexpr float boxHeight = 240.0F;
-        const float firstY =
-            (menu::virtualHeight -
-             static_cast<float>(finishRows_.size()) * boxHeight) *
-            0.5F;
-        const float leftOffsetX =
-            (finishLeftFrame_.width + menu::virtualWidth * 0.5F) *
-            0.5F;
-        const float rightOffsetX =
-            (menu::virtualWidth * 0.5F + menu::virtualWidth -
-             finishLeftFrame_.width) *
-            0.5F;
-        const float shownSeconds =
-            std::max(uiSeconds_ - finishStarted_, 0.0F);
-        const float alpha = std::clamp(
-            (shownSeconds - 0.15F) / 0.5F, 0.0F, 1.0F);
-        const std::array<float, 4> tint{
-            1.0F, 1.0F, 1.0F, alpha};
-        auto stretchedSize = [](const ImageAsset& image, float width,
-                                float height) {
-            const float scale =
-                std::min(width / std::max(image.width, 1.0F),
-                         height / std::max(image.height, 1.0F));
-            return std::array<float, 2>{
-                image.width * scale, image.height * scale};
-        };
-        for (std::size_t row = 0; row < finishRows_.size(); ++row)
-        {
-            if (finishRows_[row].racer ==
-                std::numeric_limits<std::size_t>::max())
-                continue;
-            const float offsetX =
-                (1.0F - alpha) * (menu::virtualWidth + 25.0F) *
-                (row % 2U == 1U ? 1.0F : -1.0F);
-            const float top =
-                firstY + static_cast<float>(row) * boxHeight;
-            drawTintedAsset(
-                device, quad, shader, finishLeftFrame_.texture,
-                finishLeftFrame_.width, finishLeftFrame_.height,
-                offsetX + finishLeftFrame_.width * 0.5F,
-                top + finishLeftFrame_.height * 0.5F, 40.0F,
-                pipeline, tint);
-            drawTintedAsset(
-                device, quad, shader, finishRightFrame_.texture,
-                finishRightFrame_.width, finishRightFrame_.height,
-                offsetX + menu::virtualWidth -
-                    finishRightFrame_.width * 0.5F,
-                top + finishRightFrame_.height * 0.5F, 40.0F,
-                pipeline, tint);
-            const float lineWidth =
-                menu::virtualWidth - finishLeftFrame_.width -
-                finishRightFrame_.width;
-            drawTintedAsset(
-                device, quad, shader, finishLineFrame_.texture,
-                lineWidth, finishLineFrame_.height,
-                offsetX + menu::virtualWidth * 0.5F,
-                top + finishLineFrame_.height * 0.5F, 40.0F,
-                pipeline, tint);
-
-            const auto racer = finishRows_[row].racer;
-            if (const auto* photo =
-                    racerPhoto(finishRows_[row].gamerId, racer))
-            {
-                const auto size = stretchedSize(*photo, 198.0F, 193.0F);
-                drawTintedAsset(
-                    device, quad, shader, photo->texture,
-                    size[0], size[1], offsetX + 128.0F,
-                    top + 116.0F, 28.0F, pipeline, tint);
-            }
-            const auto cupSize =
-                stretchedSize(finishCups_[row], 190.0F, 160.0F);
-            drawTintedAsset(
-                device, quad, shader, finishCups_[row].texture,
-                cupSize[0], cupSize[1],
-                offsetX + menu::virtualWidth -
-                    finishRightFrame_.width + 160.0F,
-                top + 115.0F, 28.0F, pipeline, tint);
-            drawTintedAsset(
-                device, quad, shader, finishRows_[row].name.texture,
-                finishRows_[row].name.width,
-                finishRows_[row].name.height,
-                offsetX + leftOffsetX, top + 63.0F, 20.0F,
-                pipeline, tint);
-            drawTintedAsset(
-                device, quad, shader, finishPrice_.texture,
-                finishPrice_.width, finishPrice_.height,
-                offsetX + rightOffsetX, top + 63.0F, 20.0F,
-                pipeline, tint);
-            drawTintedAsset(
-                device, quad, shader, finishMoneyPoints_.texture,
-                finishMoneyPoints_.width,
-                finishMoneyPoints_.height,
-                offsetX + leftOffsetX, top + 154.0F, 20.0F,
-                pipeline, tint);
-            drawTintedAsset(
-                device, quad, shader, finishRows_[row].value.texture,
-                finishRows_[row].value.width,
-                finishRows_[row].value.height,
-                offsetX + rightOffsetX, top + 154.0F, 20.0F,
-                pipeline, tint);
-        }
-        return;
-    }
 
     SceneLighting hudLighting;
     hudLighting.lightDirection =
