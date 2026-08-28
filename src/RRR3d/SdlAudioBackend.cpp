@@ -178,17 +178,25 @@ r3d::audio::SoundHandle SdlAudioBackend::loadOgg(const std::filesystem::path &pa
 	const vorbis_info *source_info = ov_info(vorbis.get(), -1);
 	const ogg_int64_t source_frames = ov_pcm_total(vorbis.get(), -1);
 	if (source_info == nullptr || ov_streams(vorbis.get()) != 1 || source_info->rate <= 0 ||
-	    source_info->channels <= 0 || source_info->channels > 8 || source_frames <= 0)
+	    source_info->channels <= 0 || source_info->channels > 8)
 	{
 		error = "Invalid Ogg/Vorbis stream metadata: ";
 		error += path.string();
 		return r3d::audio::invalidSound;
 	}
 
-	const long double converted_frames =
-		std::ceil(static_cast<long double>(source_frames) * mixerSampleRate / source_info->rate);
-	const long double converted_bytes = converted_frames * mixerChannels * sizeof(float);
-	if (converted_bytes <= 0.0L || converted_bytes > static_cast<long double>(maximumDecodedBytes))
+	auto convertedByteCount = [&](ogg_int64_t frames) {
+		const long double converted_frames =
+			std::ceil(static_cast<long double>(frames) * mixerSampleRate / source_info->rate);
+		return converted_frames * mixerChannels * sizeof(float);
+	};
+	// A few original voice assets have a valid Vorbis packet sequence but a
+	// zero final Ogg granule position. libvorbisfile consequently reports an
+	// unknown/zero total even though ov_read_float decodes the complete sound.
+	// The Windows audio path streamed these files and never required a total up
+	// front, so retain that behaviour and enforce the size limit while decoding.
+	if (source_frames > 0 &&
+	    convertedByteCount(source_frames) > static_cast<long double>(maximumDecodedBytes))
 	{
 		error = "Decoded Ogg/Vorbis resource exceeds the 512 MiB safety limit: ";
 		error += path.string();
@@ -208,6 +216,7 @@ r3d::audio::SoundHandle SdlAudioBackend::loadOgg(const std::filesystem::path &pa
 	std::vector<float> interleaved;
 	interleaved.reserve(static_cast<std::size_t>(decodeBlockFrames * source_info->channels));
 	int bitstream = 0;
+	ogg_int64_t decoded_source_frames = 0;
 	while (true)
 	{
 		float **channels = nullptr;
@@ -217,6 +226,19 @@ r3d::audio::SoundHandle SdlAudioBackend::loadOgg(const std::filesystem::path &pa
 		if (decoded_frames < 0)
 		{
 			error = "Corrupt Ogg/Vorbis packet in resource: ";
+			error += path.string();
+			return r3d::audio::invalidSound;
+		}
+		if (decoded_source_frames > std::numeric_limits<ogg_int64_t>::max() - decoded_frames)
+		{
+			error = "Decoded Ogg/Vorbis resource frame count overflow: ";
+			error += path.string();
+			return r3d::audio::invalidSound;
+		}
+		decoded_source_frames += decoded_frames;
+		if (convertedByteCount(decoded_source_frames) > static_cast<long double>(maximumDecodedBytes))
+		{
+			error = "Decoded Ogg/Vorbis resource exceeds the 512 MiB safety limit: ";
 			error += path.string();
 			return r3d::audio::invalidSound;
 		}
@@ -240,6 +262,12 @@ r3d::audio::SoundHandle SdlAudioBackend::loadOgg(const std::filesystem::path &pa
 			error += SDL_GetError();
 			return r3d::audio::invalidSound;
 		}
+	}
+	if (decoded_source_frames <= 0)
+	{
+		error = "Decoded Ogg/Vorbis resource contains no audio frames: ";
+		error += path.string();
+		return r3d::audio::invalidSound;
 	}
 
 	if (!SDL_FlushAudioStream(converter.get()))
@@ -271,7 +299,8 @@ r3d::audio::SoundHandle SdlAudioBackend::loadOgg(const std::filesystem::path &pa
 	sound.info.sourceSampleRate = static_cast<int>(source_info->rate);
 	sound.info.sourceChannels = source_info->channels;
 	sound.info.mixerFrames = sound.samples.size() / mixerChannels;
-	sound.info.durationSeconds = static_cast<double>(source_frames) / static_cast<double>(source_info->rate);
+	sound.info.durationSeconds =
+		static_cast<double>(decoded_source_frames) / static_cast<double>(source_info->rate);
 	long double squared_sum = 0.0L;
 	for (const float sample : sound.samples)
 	{

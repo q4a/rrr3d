@@ -102,9 +102,12 @@ bool runSdlAudioSmokeTest(SdlAudioBackend &audio, const r3d::resource::ResourceF
 	r3d::audio::SoundHandle music = r3d::audio::invalidSound;
 	r3d::audio::SoundHandle click = r3d::audio::invalidSound;
 	r3d::audio::SoundHandle gameplay_effect = r3d::audio::invalidSound;
+	r3d::audio::SoundHandle zero_granule_voice = r3d::audio::invalidSound;
 	auto cleanup = [&]() {
 		audio.setPaused(false);
 		audio.stopAll();
+		if (zero_granule_voice != r3d::audio::invalidSound)
+			audio.unloadSound(zero_granule_voice);
 		if (gameplay_effect != r3d::audio::invalidSound)
 			audio.unloadSound(gameplay_effect);
 		if (click != r3d::audio::invalidSound)
@@ -158,6 +161,19 @@ bool runSdlAudioSmokeTest(SdlAudioBackend &audio, const r3d::resource::ResourceF
 	if (gameplay_info.durationSeconds < 1.0 || gameplay_info.mixerFrames == 0 ||
 	    gameplay_info.peakAmplitude <= 0.0F || gameplay_info.rmsAmplitude <= 0.0F)
 		return fail("Decoded fireGun.ogg metadata is invalid");
+
+	// This original asset has a zero final Ogg granule position. It is valid and
+	// was streamed by the Windows engine, but ov_pcm_total() returns zero.
+	r3d::audio::SoundInfo zero_granule_info;
+	zero_granule_voice = load("Voice\\english\\leaderChanged3.ogg", zero_granule_info);
+	if (zero_granule_voice == r3d::audio::invalidSound)
+		return fail("Zero-granule original voice decode failed: " + error);
+	if (zero_granule_info.sourceSampleRate != 44100 || zero_granule_info.sourceChannels != 2 ||
+	    zero_granule_info.durationSeconds < 2.0 || zero_granule_info.mixerFrames == 0 ||
+	    zero_granule_info.peakAmplitude <= 0.0F || zero_granule_info.rmsAmplitude <= 0.0F)
+	{
+		return fail("Decoded zero-granule original voice metadata is invalid");
+	}
 
 	audio.setMasterVolume(3.0F);
 	audio.setBusVolume(r3d::audio::Bus::Music, r3d::game::originalaudio::defaultMusicVolume);
