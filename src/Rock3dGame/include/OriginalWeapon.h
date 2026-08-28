@@ -702,6 +702,13 @@ public:
         GameObject* target,
         ProjList* projectiles = nullptr);
     bool Shot(ProjList* projectiles = nullptr);
+    // Source Weapon::Shot builds one context for every descriptor from the
+    // live weapon actor before CreateShot iterates the batch. Jolt supplies
+    // only the mounted actor velocity and sampled FloatRange values.
+    std::vector<ShotContext> BuildShotContexts(
+        Logic* logic, std::size_t playerId,
+        const ShotDesc& shot, Proj::Vec3 weaponVelocity,
+        std::span<const float> sampledMinimumLifetimes = {}) const;
     // Weapon::CreateShot dispatches Behaviors::OnShot separately for every
     // projectile accepted by PrepareProj.  Keep this separate from the
     // WeaponItem transaction because one trigger may create several actors.

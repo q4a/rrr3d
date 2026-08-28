@@ -965,8 +965,10 @@ int main()
     batchDescription.projectiles[0].maximumDistance = 20.0F;
     batchDescription.projectiles[1] =
         batchDescription.projectiles[0];
+    batchDescription.projectiles[0].relativeSpeed = true;
     batchDescription.projectiles[1].type = 2U;
     batchDescription.projectiles[1].weaponListIndex = 7U;
+    batchDescription.projectiles[1].relativeSpeedMinimum = 13.0F;
     source::Weapon batchWeapon(batchDescription);
     batchWeapon.SetLogic(&autoProjectileLogic);
     batchWeapon.SetWorldPos({5.0F, 6.0F, 7.0F});
@@ -990,6 +992,39 @@ int main()
         projectile->Death();
     if (autoProjectileLogic.ProgressGameObjs(0.0F).removed != 2U)
         return 125;
+
+    source::Weapon preparationWeapon(batchDescription);
+    preparationWeapon.SetWorldPos({5.0F, 6.0F, 7.0F});
+    preparationWeapon.SetWorldRot(
+        {0.0F, 0.0F, 0.70710677F, 0.70710677F});
+    preparationWeapon.SetScale({2.0F, 2.0F, 2.0F});
+    source::GameObject preparationTarget;
+    source::Weapon::ShotDesc preparationShot;
+    preparationShot.targetMapObject = &preparationTarget;
+    const std::array<float, 2U> sampledMinimumLifetimes{3.5F, 0.25F};
+    const auto preparationContexts =
+        preparationWeapon.BuildShotContexts(
+            &autoProjectileLogic, 42U, preparationShot,
+            {0.0F, 4.0F, 0.0F}, sampledMinimumLifetimes);
+    if (preparationContexts.size() != 2U ||
+        preparationContexts[0].logic != &autoProjectileLogic ||
+        preparationContexts[0].shot.targetMapObject !=
+            &preparationTarget ||
+        preparationContexts[0].playerId != 42U ||
+        std::abs(preparationContexts[0].position.x - 5.0F) > 0.001F ||
+        std::abs(preparationContexts[0].position.y - 8.0F) > 0.001F ||
+        std::abs(preparationContexts[0].position.z - 7.0F) > 0.001F ||
+        std::abs(preparationContexts[0].rotation.z - 0.70710677F) >
+            0.001F ||
+        std::abs(preparationContexts[0].maximumLife - 3.5F) > 0.001F ||
+        std::abs(preparationContexts[0].launchVelocity.x) > 0.001F ||
+        std::abs(preparationContexts[0].launchVelocity.y - 14.0F) >
+            0.001F ||
+        std::abs(preparationContexts[0].launchVelocity.z) > 0.001F ||
+        std::abs(preparationContexts[1].maximumLife - 2.0F) > 0.001F ||
+        std::abs(preparationContexts[1].launchVelocity.y - 17.0F) >
+            0.001F)
+        return 182;
 
     std::array<source::Proj::ShotContext, 2U> partialContexts{};
     for (auto& context : partialContexts)

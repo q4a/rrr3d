@@ -2063,6 +2063,16 @@ void Weapon::OnShot(bool projectileCreated) noexcept
 std::vector<Weapon::ShotContext> Weapon::MakeShotContexts(
     const ShotDesc& shot)
 {
+    return BuildShotContexts(
+        GetLogic(), GameObject::undefinedPlayerId,
+        shot, {}, {});
+}
+
+std::vector<Weapon::ShotContext> Weapon::BuildShotContexts(
+    Logic* logic, std::size_t playerId,
+    const ShotDesc& shot, Proj::Vec3 weaponVelocity,
+    std::span<const float> sampledMinimumLifetimes) const
+{
     std::vector<ShotContext> contexts;
     contexts.reserve(desc_->projectiles.size());
     const auto weaponPosition = GetWorldPos();
@@ -2071,14 +2081,21 @@ std::vector<Weapon::ShotContext> Weapon::MakeShotContexts(
     const Proj::Quat worldRotation{
         weaponRotation[0], weaponRotation[1],
         weaponRotation[2], weaponRotation[3]};
-    for (const auto& projectile : desc_->projectiles)
+    for (std::size_t index = 0U;
+         index < desc_->projectiles.size(); ++index)
     {
+        const auto& projectile = desc_->projectiles[index];
         ShotContext context;
-        context.logic = GetLogic();
+        context.logic = logic;
         context.shot = shot;
+        context.playerId = playerId;
+        const float sampledMinimumLife =
+            index < sampledMinimumLifetimes.size()
+                ? sampledMinimumLifetimes[index]
+                : projectile.minimumLife;
         context.maximumLife = Proj::PrepareMaximumLife(
             projectile.speed, projectile.maximumDistance,
-            projectile.minimumLife);
+            sampledMinimumLife);
         const Proj::Vec3 localPosition{
             projectile.position.x * weaponScale[0],
             projectile.position.y * weaponScale[1],
@@ -2100,7 +2117,7 @@ std::vector<Weapon::ShotContext> Weapon::MakeShotContexts(
             const auto direction = normalized(rotate(
                 context.rotation, {1.0F, 0.0F, 0.0F}));
             const auto launch = Proj::CalcSpeed(
-                direction, {}, projectile.speed,
+                direction, weaponVelocity, projectile.speed,
                 projectile.relativeSpeedMinimum,
                 projectile.relativeSpeed);
             context.launchVelocity = launch.linearVelocity;

@@ -3665,17 +3665,6 @@ void OriginalRaceSession::updateGameplay(
             result = compose(result, weaponLocal);
             return result;
         };
-    auto projectileWorldTransform =
-        [&](std::size_t owner, std::size_t weaponIndex,
-            std::size_t mountSlot,
-            const ProjectileDefinition& projectile) {
-            Transform result = weaponWorldTransform(
-                owner, weaponIndex, mountSlot);
-            Transform localProjectile;
-            localProjectile.position = projectile.position;
-            localProjectile.rotation = projectile.rotation;
-            return compose(result, localProjectile);
-        };
     std::vector<source::Player*> playerList;
     playerList.reserve(racers_.size());
     for (auto& racer : racers_)
@@ -5160,12 +5149,22 @@ void OriginalRaceSession::updateGameplay(
             networkReplicated && replicatedProjectileId != 0U
                 ? replicatedProjectileId
                 : runtime.GetNextBonusProjectileId();
-        const Vec3 eventOrigin = weaponWorldTransform(
-            shooter, firedWeapon, firedSlot).position;
+        const Transform liveWeaponTransform = weaponWorldTransform(
+            shooter, firedWeapon, firedSlot);
+        const Vec3 eventOrigin = liveWeaponTransform.position;
+        // The mounted Jolt/car transform is the backend actor state read by
+        // Weapon::Shot before it builds the complete descriptor batch.
+        liveWeapon->SetWorldPos(
+            {liveWeaponTransform.position.x,
+             liveWeaponTransform.position.y,
+             liveWeaponTransform.position.z});
+        liveWeapon->SetWorldRot(
+            {liveWeaponTransform.rotation.x,
+             liveWeaponTransform.rotation.y,
+             liveWeaponTransform.rotation.z,
+             liveWeaponTransform.rotation.w});
         std::size_t target = racers_.size();
         std::vector<Vec3> networkCoordinates;
-        std::vector<source::Weapon::ShotContext> sourceContexts;
-        sourceContexts.reserve(itemProjectiles.size());
 
         // HumanPlayer::Shot(WeaponType) resolves one target for the complete
         // Weapon::Desc batch, not independently for each descriptor.
@@ -5185,32 +5184,23 @@ void OriginalRaceSession::updateGameplay(
                 &racerMapObjects_[homingTarget]->GetGameObj();
         }
 
-        for (std::size_t projectileIndex = 0;
-             projectileIndex < itemProjectiles.size();
-             ++projectileIndex)
+        std::vector<float> sampledMinimumLifetimes;
+        sampledMinimumLifetimes.reserve(itemProjectiles.size());
+        for (const auto& projectile : itemProjectiles)
         {
-            const auto& projectile =
-                itemProjectiles[projectileIndex];
-            auto shotTransform = projectileWorldTransform(
-                shooter, firedWeapon, firedSlot, projectile);
-            if (replicatedOrigin != nullptr)
-                shotTransform.position = *replicatedOrigin;
-            const Vec3 projectileOrigin = shotTransform.position;
-            const Vec3 sourceDirection = normalized3(
-                rotate(shotTransform.rotation,
-                       {1.0F, 0.0F, 0.0F}));
-            const float sampledMinimumLife = sampleSourceRange(
-                projectile.minimumLife, projectile.maximumLife);
-            source::Weapon::ShotContext sourceContext;
-            sourceContext.logic = &logic_;
-            sourceContext.shot.targetMapObject = sourceTarget;
-            sourceContext.playerId = shooter;
-            sourceContext.maximumLife = sampledMinimumLife;
-            sourceContext.position = sourceVec(projectileOrigin);
-            sourceContext.rotation = sourceQuat(shotTransform.rotation);
-            sourceContext.launchVelocity = sourceVec(
-                multiply(sourceDirection, projectile.speed));
-            sourceContexts.push_back(sourceContext);
+            sampledMinimumLifetimes.push_back(sampleSourceRange(
+                projectile.minimumLife, projectile.maximumLife));
+        }
+        source::Weapon::ShotDesc sourceShot;
+        sourceShot.targetMapObject = sourceTarget;
+        auto sourceContexts = liveWeapon->BuildShotContexts(
+            &logic_, shooter, sourceShot,
+            sourceVec(vehicles[shooter].linearVelocity),
+            sampledMinimumLifetimes);
+        if (replicatedOrigin != nullptr)
+        {
+            for (auto& context : sourceContexts)
+                context.position = sourceVec(*replicatedOrigin);
         }
 
         source::Weapon::ProjList sourceProjectiles;
@@ -5277,8 +5267,6 @@ void OriginalRaceSession::updateGameplay(
             runtimeProjectile.velocity =
                 multiply(sourceDirection, projectile.speed);
             runtimeProjectile.sourceObject = sourceObject;
-            const float sampledMinimumLife =
-                sourceObject->GetMaxTimeLife();
             if (networkCoordinates.empty())
                 networkCoordinates.push_back(projectileOrigin);
 
@@ -5331,8 +5319,6 @@ void OriginalRaceSession::updateGameplay(
                         vehicles[shooter].linearVelocity;
                 }
                 runtimeProjectile.attached = true;
-                runtimeProjectile.sourceObject->PrepareMaximumLife(
-                    sampledMinimumLife);
                 projectiles_.push_back(std::move(runtimeProjectile));
             }
             else if (!rayProjectile)
@@ -5355,8 +5341,6 @@ void OriginalRaceSession::updateGameplay(
                     runtimeProjectile.velocity =
                         multiply(launchDirection, speed);
                 }
-                runtimeProjectile.sourceObject->PrepareMaximumLife(
-                    sampledMinimumLife);
                 if (projectileRules.homing)
                 {
                     runtimeProjectile.target = homingTarget;

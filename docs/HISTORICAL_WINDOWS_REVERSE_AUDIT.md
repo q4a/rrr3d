@@ -4728,6 +4728,29 @@ Session исполняет event transaction до progress weapons и до mine/
 Исправлен и точный zero-weapon результат WeaponUp (`_curWeapon == -1`).
 Regression закрепляет порядок, repeat/analog filters, gates и empty inventory.
 
+### P2.202 — подготовка полного `Weapon/Proj` shot batch возвращена source owner — выполнено
+
+После переноса `Weapon::CreateShot` session всё ещё заранее вычислял для
+каждого projectile собственные world position/rotation, lifetime и стартовую
+скорость. Последняя была просто `direction * desc.speed`: исходные ветви
+`speedRelative` и `speedRelativeMin`, учитывающие скорость машины, до создания
+объекта терялись. Это особенно расходилось для Torpeda/Impulse, которые в
+Windows сохраняют результат `Proj::CalcSpeed` в `_vec1` уже при PrepareProj.
+
+`source::Weapon::BuildShotContexts` теперь выполняет backend-neutral часть
+исходной транзакции `Weapon::Shot -> CreateShot -> Proj::PrepareProj`: один
+target передаётся всему descriptor batch, live transform оружия сочетается с
+локальными position/rotation/scale каждого projectile, minimum lifetime
+семплируется adapter-ом из исходного FloatRange, а окончательный max lifetime
+и launch velocity вычисляются точными `Proj::PrepareMaximumLife/CalcSpeed`.
+Jolt сообщает только transform/linear velocity mounted actor и затем создаёт
+либо обновляет физическое тело; gameplay-параметры больше не формируются в
+session.
+
+Удалён ставший ненужным session `projectileWorldTransform`. Regression
+проверяет двухснарядный batch, общий Logic/target/playerId, повёрнутый и
+масштабированный mount, sampled lifetime и обе исходные relative-speed ветви.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

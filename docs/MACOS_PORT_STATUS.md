@@ -2405,3 +2405,17 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   и analog Mine.
 - Maslo удалено из digital mine edge и снова стреляет только через исходный
   continuous readiness path; empty-inventory WeaponUp сохраняет source `-1`.
+
+### Source Weapon/Proj shot-preparation follow-up
+
+- Полный descriptor batch теперь получает position/rotation/scale, общий
+  target, playerId, sampled minimum lifetime и launch velocity в source
+  `Weapon/Proj`, а не в `OriginalRaceSession`.
+- Восстановлены исходные `speedRelative` и `speedRelativeMin` с проекцией
+  скорости машины; Torpeda/Impulse получают правильный initial `_vec1` уже
+  во время подготовки concrete projectile.
+- Session передаёт только данные mounted Jolt actor и материализует backend
+  body/ray после успешного `Weapon::CreateShot`; его дублирующий projectile
+  transform helper удалён.
+- Regression покрывает batch target/lifetime, поворот и масштаб mount, а также
+  обе relative-speed формулы.
