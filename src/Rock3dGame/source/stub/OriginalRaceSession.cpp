@@ -3774,20 +3774,29 @@ void OriginalRaceSession::updateGameplay(
                 target, attacker, position, sourceDamage, damageType,
                 vehicles[target], false, false, 0.0F, false, false);
         };
-    auto applyProjectileDamage =
-        [&](source::Proj& projectile, std::size_t target,
-            const Vec3& position, float sourceDamage,
-            DamageType damageType) {
+    auto applyProjectileDamageCommand =
+        [&](const source::Proj::DamageCommand& command,
+            std::size_t target, const Vec3& position) {
             if (target >= racers_.size())
                 return false;
-            const auto command = projectile.DamageTarget(
-                &racers_[target].gameCar, sourceDamage, damageType);
             if (!command.valid || command.target !=
                                       &racers_[target].gameCar)
                 return false;
             return applyRacerDamage(
                 target, command.playerId, position, command.damage,
                 command.damageType);
+        };
+    auto applyProjectileDamage =
+        [&](source::Proj& projectile, std::size_t target,
+            const Vec3& position, float sourceDamage,
+            DamageType damageType) {
+            if (target >= racers_.size())
+                return false;
+            return applyProjectileDamageCommand(
+                projectile.DamageTarget(
+                    &racers_[target].gameCar,
+                    sourceDamage, damageType),
+                target, position);
         };
 
     auto applyTouchDamage =
@@ -3860,7 +3869,8 @@ void OriginalRaceSession::updateGameplay(
     }
     auto spawnProjectileImpact =
         [&](ProjectileRuntime& projectile, const Vec3& position,
-            std::size_t targetRacer) {
+            std::size_t targetRacer,
+            DamageType damageType = DamageType::Simple) {
             if (projectile.sourceObject == nullptr ||
                 projectile.weapon >= race_.weapons.size())
                 return;
@@ -3877,10 +3887,11 @@ void OriginalRaceSession::updateGameplay(
             const auto deathPlan = hasSourceDeathEffect
                 ? projectile.sourceObject->DestroyWithEffect(
                       targetObject, true,
-                      projectile.sourceObject->GetSourceWeapon() != nullptr)
+                      projectile.sourceObject->GetSourceWeapon() != nullptr,
+                      damageType)
                 : source::DeathEffect::SpawnResult{};
             if (!hasSourceDeathEffect)
-                projectile.sourceObject->Death();
+                projectile.sourceObject->Death(damageType, targetObject);
             auto addVisual =
                 [&](const ObjectDefinition& visual,
                     std::uint8_t variant, Vec3 offset = {},
@@ -4434,53 +4445,36 @@ void OriginalRaceSession::updateGameplay(
                 continue;
             const Vec3 contactPoint =
                 closestPoint(targetBox, projectileBox.center);
-            const auto actualContactRoute =
-                projectile.sourceObject->BeginContact(
-                    &racers_[target].gameCar);
-            if (!actualContactRoute.appliesDamage)
+            const auto sourceContact =
+                projectile.sourceObject->ContactDynamic(
+                    &racers_[target].gameCar,
+                    sourceVec(contactPoint),
+                    sourceVec(projectile.velocity), seconds);
+            if (!sourceContact.handled)
                 continue;
-            const bool sonarContact =
-                actualContactRoute.handler ==
-                source::Proj::ContactHandler::Sonar;
-            const bool targetedImpulse =
-                actualContactRoute.handler ==
-                    source::Proj::ContactHandler::Impulse &&
-                projectile.target < racers_.size();
-            const auto impulseContact =
-                actualContactRoute.handler ==
-                        source::Proj::ContactHandler::Impulse
-                    ? projectile.sourceObject->ContactImpulse(
-                          true, targetedImpulse,
-                          !targetedImpulse ||
-                              target == projectile.target)
-                    : source::Proj::ImpulseContactResult{};
-            if (actualContactRoute.handler ==
-                    source::Proj::ContactHandler::Impulse &&
-                !impulseContact.applyDamage)
+
+            // RocketContact performs Death before DamageTarget. This matters
+            // to DeathEffect/target-child listeners and was reversed while
+            // contact dispatch lived in this adapter.
+            if (sourceContact.destroyBeforeDamage)
             {
-                continue;
+                spawnProjectileImpact(
+                    projectile, projectile.position, target,
+                    sourceContact.route.damageType);
+                projectile.active = false;
             }
-            const auto sonarResult = sonarContact
-                ? projectile.sourceObject->ContactSonar(
-                      &racers_[target].gameCar,
-                      sourceVec(projectile.velocity), seconds)
-                : source::Proj::ContinuousContactResult{};
-            const float sourceDamage =
-                actualContactRoute.handler ==
-                        source::Proj::ContactHandler::Impulse
-                    ? impulseContact.damage
-                    : (sonarContact
-                           ? sonarResult.damage
-                           : projectileDefinition.damage);
-            applyProjectileDamage(
-                *projectile.sourceObject, target, contactPoint,
-                std::max(sourceDamage, 0.0F),
-                actualContactRoute.damageType);
+            applyProjectileDamageCommand(
+                sourceContact.damage, target, contactPoint);
+
+            const bool sonarContact =
+                sourceContact.route.handler ==
+                source::Proj::ContactHandler::Sonar;
             if (sonarContact)
             {
                 const float targetMass =
                     std::max(vehicleDefinition.physics.mass, 1.0F);
-                const Vec3 impulse = runtimeVec(sonarResult.impulse);
+                const Vec3 impulse =
+                    runtimeVec(sourceContact.continuous.impulse);
                 velocityRequests_.push_back(
                     {target, multiply(impulse, 1.0F / targetMass)});
                 // AddContactForce(..., NX_IMPULSE) also applies the
@@ -4518,39 +4512,31 @@ void OriginalRaceSession::updateGameplay(
                          vehicles[target].body.rotation,
                          localAngularDelta)});
             }
-            if (actualContactRoute.rocketResponse)
+            if (sourceContact.torque.apply)
             {
-                const auto torque =
-                    projectile.sourceObject->ContactRocket(
-                        target < racers_.size()
-                            ? &racers_[target].gameCar
-                            : nullptr,
-                        sourceVec(contactPoint),
-                        sourceVec(projectile.velocity));
-                if (torque.apply)
-                {
-                    angularVelocityRequests_.push_back(
-                        {target,
-                         rotate(
-                             vehicles[target].body.rotation,
-                             runtimeVec(torque.localVelocityChange))});
-                }
+                angularVelocityRequests_.push_back(
+                    {target,
+                     rotate(
+                         vehicles[target].body.rotation,
+                         runtimeVec(
+                             sourceContact.torque.localVelocityChange))});
             }
             if (sonarContact)
             {
                 continue;
             }
-            if (actualContactRoute.handler ==
+            if (sourceContact.route.handler ==
                 source::Proj::ContactHandler::Impulse)
             {
-                if (impulseContact.destroy)
+                if (sourceContact.destroyAfterDamage)
                 {
                     spawnProjectileImpact(
-                        projectile, projectile.position, target);
+                        projectile, projectile.position, target,
+                        sourceContact.route.damageType);
                     projectile.active = false;
                     break;
                 }
-                if (!impulseContact.findNextTarget)
+                if (!sourceContact.impulse.findNextTarget)
                     break;
                 source::Player* nextPlayer =
                     projectile.sourceObject->FindNextTarget(
@@ -4569,7 +4555,8 @@ void OriginalRaceSession::updateGameplay(
                 if (nextTarget == RacerRuntime::invalidWeapon)
                 {
                     spawnProjectileImpact(
-                        projectile, projectile.position, target);
+                        projectile, projectile.position, target,
+                        sourceContact.route.damageType);
                     projectile.active = false;
                     break;
                 }
@@ -4581,9 +4568,8 @@ void OriginalRaceSession::updateGameplay(
                         : nullptr);
                 break;
             }
-            spawnProjectileImpact(
-                projectile, projectile.position, target);
-            projectile.active = false;
+            // Rocket-family projectiles were already destroyed before the
+            // damage command; Sonar and Impulse are the only surviving paths.
             break;
         }
         Transform liveProjectileTransform;

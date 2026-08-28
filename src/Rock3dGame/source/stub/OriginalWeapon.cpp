@@ -534,16 +534,16 @@ void Proj::ConfigureDeathEffect(
 
 DeathEffect::SpawnResult Proj::DestroyWithEffect(
     GameObject* target, bool logicAvailable,
-    bool senderIsWeaponProjectile) noexcept
+    bool senderIsWeaponProjectile, DamageType damageType) noexcept
 {
     if (deathEffect_ == nullptr)
     {
-        Death(DamageType::Simple, target);
+        Death(damageType, target);
         return {};
     }
     deathEffect_->SetSpawnContext(
         logicAvailable, senderIsWeaponProjectile);
-    Death(DamageType::Simple, target);
+    Death(damageType, target);
     return deathEffect_->ConsumeSpawnResult();
 }
 
@@ -980,6 +980,67 @@ Proj::ImpulseContactResult Proj::ContactImpulse(
         hasContactActor, hasTarget, contactIsTarget,
         sourceTick_, description_.damage);
     sourceTick_ = result.hitCount;
+    return result;
+}
+
+Proj::DynamicContactResult Proj::ContactDynamic(
+    GameObject* target, Vec3 contactPoint,
+    Vec3 linearVelocity, float deltaTime) noexcept
+{
+    DynamicContactResult result;
+    result.route = BeginContact(target);
+    if (target == nullptr)
+        return result;
+
+    switch (result.route.handler)
+    {
+    case ContactHandler::Rocket:
+    case ContactHandler::Torpeda:
+    case ContactHandler::Mortira:
+    case ContactHandler::Thunder:
+    case ContactHandler::Resonanse:
+        // RocketContact calls Death before Logic::Damage, then applies torque
+        // even if that damage killed the target. Compute the torque before the
+        // adapter executes either command so target live-state cannot suppress
+        // the source tail of the transaction.
+        result.damage = DamageTarget(
+            target, description_.damage, result.route.damageType);
+        result.torque = RocketContactTorque(
+            contactPoint, linearVelocity, description_.mass);
+        result.handled = result.damage.valid;
+        result.destroyBeforeDamage = result.handled;
+        break;
+
+    case ContactHandler::Sonar:
+        result.continuous = SonarContact(
+            true, linearVelocity, description_.mass,
+            description_.damage, deltaTime);
+        result.damage = DamageTarget(
+            target, result.continuous.damage,
+            result.route.damageType);
+        result.handled = result.damage.valid;
+        break;
+
+    case ContactHandler::Impulse:
+    {
+        const bool hasTarget = target_ != nullptr;
+        result.impulse = ContactImpulse(
+            true, hasTarget, !hasTarget || target_ == target);
+        if (result.impulse.applyDamage)
+        {
+            result.damage = DamageTarget(
+                target, result.impulse.damage,
+                result.route.damageType);
+            result.handled = result.damage.valid;
+            result.destroyAfterDamage =
+                result.handled && result.impulse.destroy;
+        }
+        break;
+    }
+
+    default:
+        break;
+    }
     return result;
 }
 

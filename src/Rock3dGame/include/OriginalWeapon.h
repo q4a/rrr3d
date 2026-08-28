@@ -375,6 +375,22 @@ public:
         bool take = false;
     };
 
+    // Complete source transaction for moving projectiles which collide with
+    // a concrete car/destructible actor. The backend supplies contact geometry
+    // and consumes force/effect commands; Proj owns the OnContact dispatch,
+    // damage attribution and scratch-state mutation.
+    struct DynamicContactResult
+    {
+        ContactRoute route;
+        DamageCommand damage;
+        TorqueResult torque;
+        ContinuousContactResult continuous;
+        ImpulseContactResult impulse;
+        bool handled = false;
+        bool destroyBeforeDamage = false;
+        bool destroyAfterDamage = false;
+    };
+
     static ContactResult SpeedArrowContact(
         Vec3 worldDirection, float damage) noexcept;
     static ContactResult LushaContact(
@@ -488,6 +504,9 @@ public:
     ImpulseContactResult ContactImpulse(
         bool hasContactActor, bool hasTarget,
         bool contactIsTarget) noexcept;
+    DynamicContactResult ContactDynamic(
+        GameObject* target, Vec3 contactPoint,
+        Vec3 linearVelocity, float deltaTime) noexcept;
     Player* FindNextTarget(
         Player* currentTarget, Player* weaponOwner,
         std::span<Player* const> players, float viewAngle) noexcept;
@@ -600,7 +619,8 @@ public:
         bool targetChild) noexcept;
     DeathEffect::SpawnResult DestroyWithEffect(
         GameObject* target, bool logicAvailable,
-        bool senderIsWeaponProjectile) noexcept;
+        bool senderIsWeaponProjectile,
+        DamageType damageType = DamageType::Simple) noexcept;
     DeathEffectBehavior* GetDeathEffectBehavior() noexcept;
     const DeathEffectBehavior* GetDeathEffectBehavior() const noexcept;
 

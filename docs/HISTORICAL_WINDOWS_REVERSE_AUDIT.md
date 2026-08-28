@@ -4810,6 +4810,29 @@ Proj/DeathEffect больше не остаётся на позиции пред
 `ProgressMine/ProgressMineRip` вызовы из session удалены. Regression проверяет
 arming completion, model scale и итоговую position/rotation placed Maslo.
 
+### P2.206 — moving `Proj::OnContact` transaction возвращена source owner — выполнено
+
+После progress-блоков collision adapter всё ещё вручную исполнял switch для
+движущихся Rocket/Torpeda/Mortira/Thunder/Resonanse, Sonar и Impulse. Он
+повторно вызывал `DamageTarget`, отдельно мутировал Impulse hit count и после
+урона заново спрашивал `ContactRocket`. Последнее давало два расхождения с
+`Weapon.cpp`: ракетный `Death(dtSimple, target)` происходил после damage, а
+torque исчезал, если damage успевал уничтожить target до повторного route.
+
+`Proj::ContactDynamic` теперь выполняет `GameObject::OnContact`, live-state
+guard и concrete handler одним source transaction. Он заранее формирует
+`DamageCommand`, Sonar impulse, Rocket torque и Impulse `_tick1`/retarget
+решение. Adapter только применяет Jolt linear/angular deltas, damage command
+и эффект уничтожения. Для rocket-family восстановлен исходный порядок
+`Death -> Damage -> torque`; Impulse уничтожается с `dtEnergy`, а не с
+прежним безусловным `dtSimple` внутри `DestroyWithEffect`.
+
+Regression проверяет owner/player attribution, rocket death-before-damage
+команду и torque, три последовательных Impulse damage step и сохранение
+energy death type. Mine/bonus contact authority остаётся отдельной следующей
+границей, поскольку её Windows-порядок проходит через `Logic::MineContact` и
+сетевой RPC.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

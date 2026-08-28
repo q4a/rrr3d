@@ -35,6 +35,22 @@ struct BonusDeathOrder final : source::GameObjectListener
     }
 };
 
+struct DeathTypeRecorder final : source::GameObjectListener
+{
+    r3d::game::originalrace::DamageType damageType =
+        r3d::game::originalrace::DamageType::Simple;
+    std::size_t count = 0U;
+
+    void OnDeath(
+        source::GameObject&,
+        r3d::game::originalrace::DamageType value,
+        source::GameObject*) noexcept override
+    {
+        damageType = value;
+        ++count;
+    }
+};
+
 } // namespace
 
 int main()
@@ -1524,6 +1540,91 @@ int main()
         impulseProjectile.GetSourceTarget() != &secondImpulseTarget ||
         impulseProjectile.GetSourceTimer() != 0.0F)
         return 119;
+
+    source::Logic dynamicContactLogic;
+    source::GameObject dynamicOwnerCar;
+    source::Weapon dynamicContactWeapon;
+    dynamicContactWeapon.SetParent(&dynamicOwnerCar);
+    auto dynamicRocketDescription = sourceDescription;
+    dynamicRocketDescription.type = 0U;
+    dynamicRocketDescription.damage = 12.0F;
+    dynamicRocketDescription.mass = 10.0F;
+    dynamicRocketDescription.secondaryVisual = {};
+    source::Proj::ShotContext dynamicRocketContext;
+    dynamicRocketContext.logic = &dynamicContactLogic;
+    dynamicRocketContext.playerId = 9U;
+    source::Proj dynamicRocket;
+    dynamicRocket.PrepareSource(
+        dynamicRocketDescription, &dynamicContactWeapon,
+        dynamicRocketContext);
+    dynamicRocket.SetLogic(&dynamicContactLogic);
+    source::GameObject dynamicRocketTarget;
+    dynamicRocketTarget.ResetGameObject(100.0F);
+    const auto dynamicRocketContact = dynamicRocket.ContactDynamic(
+        &dynamicRocketTarget, {0.0F, 1.0F, 0.0F},
+        {4.0F, 0.0F, 0.0F}, 0.1F);
+    if (!dynamicRocketContact.handled ||
+        !dynamicRocketContact.destroyBeforeDamage ||
+        dynamicRocketContact.destroyAfterDamage ||
+        dynamicRocketContact.route.handler !=
+            source::Proj::ContactHandler::Rocket ||
+        !dynamicRocketContact.damage.valid ||
+        dynamicRocketContact.damage.logic != &dynamicContactLogic ||
+        dynamicRocketContact.damage.senderCar != &dynamicOwnerCar ||
+        dynamicRocketContact.damage.target != &dynamicRocketTarget ||
+        dynamicRocketContact.damage.playerId != 9U ||
+        dynamicRocketContact.damage.damage != 12.0F ||
+        !dynamicRocketContact.torque.apply ||
+        std::abs(dynamicRocketContact.torque.localVelocityChange.z + 2.0F) >
+            0.001F ||
+        dynamicRocket.destroyed)
+        return 188;
+
+    auto dynamicImpulseDescription = sourceDescription;
+    dynamicImpulseDescription.type = 21U;
+    dynamicImpulseDescription.damage = 12.0F;
+    dynamicImpulseDescription.secondaryVisual = {};
+    source::GameObject dynamicImpulseTarget1;
+    source::GameObject dynamicImpulseTarget2;
+    source::Proj::ShotContext dynamicImpulseContext;
+    dynamicImpulseContext.logic = &dynamicContactLogic;
+    dynamicImpulseContext.shot.targetMapObject =
+        &dynamicImpulseTarget1;
+    source::Proj dynamicImpulse;
+    dynamicImpulse.PrepareSource(
+        dynamicImpulseDescription, nullptr,
+        dynamicImpulseContext);
+    dynamicImpulse.SetLogic(&dynamicContactLogic);
+    const auto dynamicImpulseContact1 = dynamicImpulse.ContactDynamic(
+        &dynamicImpulseTarget1, {}, {}, 0.1F);
+    dynamicImpulse.RetargetImpulse(&dynamicImpulseTarget2);
+    const auto dynamicImpulseContact2 = dynamicImpulse.ContactDynamic(
+        &dynamicImpulseTarget2, {}, {}, 0.1F);
+    dynamicImpulse.RetargetImpulse(&dynamicImpulseTarget1);
+    const auto dynamicImpulseContact3 = dynamicImpulse.ContactDynamic(
+        &dynamicImpulseTarget1, {}, {}, 0.1F);
+    if (!dynamicImpulseContact1.handled ||
+        !dynamicImpulseContact1.impulse.findNextTarget ||
+        dynamicImpulseContact1.damage.damage != 12.0F ||
+        dynamicImpulseContact1.destroyAfterDamage ||
+        dynamicImpulseContact2.damage.damage != 6.0F ||
+        !dynamicImpulseContact3.destroyAfterDamage ||
+        dynamicImpulseContact3.damage.damage != 4.0F ||
+        dynamicImpulse.GetSourceTick() != 3U)
+        return 189;
+
+    source::Proj typedDeathProjectile;
+    typedDeathProjectile.ConfigureDeathEffect(false, false);
+    DeathTypeRecorder deathTypeRecorder;
+    typedDeathProjectile.InsertListener(&deathTypeRecorder);
+    typedDeathProjectile.DestroyWithEffect(
+        &dynamicImpulseTarget1, true, true,
+        r3d::game::originalrace::DamageType::Energy);
+    if (deathTypeRecorder.count != 1U ||
+        deathTypeRecorder.damageType !=
+            r3d::game::originalrace::DamageType::Energy)
+        return 190;
+    typedDeathProjectile.RemoveListener(&deathTypeRecorder);
 
     if (source::Proj::PrepareMaximumLife(
             10.0F, 100.0F, 12.0F) != 12.0F ||

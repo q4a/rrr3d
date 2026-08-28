@@ -462,8 +462,16 @@ reflection-pass gate и node color command.
 Прошли arm64 build, 25/25 offline, 2/2 network, physics и 360-frame
 bgfx/Metal race smoke с шестью машинами.
 
-Следующий B8d — продолжить прямую сверку `Race/Weapon` и выбрать следующий
-активный session-owned branch, а не отсутствующий editor-only API.
+Результат B8d: moving `Proj::OnContact` для Rocket/Torpeda/Mortira/Thunder/
+Resonanse, Sonar и Impulse перенесён в единый `source::Proj::ContactDynamic`.
+Source снова владеет listener/live-state guard, damage attribution, Rocket
+torque, Sonar impulse и Impulse `_tick1`; session применяет только Jolt
+commands и effect spawn. Исправлены подтверждённые отличия: Rocket death
+снова предшествует damage, lethal damage не подавляет последующий torque, а
+Impulse death сохраняет `dtEnergy` вместо adapter `dtSimple`.
+
+Следующий B8e — перенести оставшуюся `Logic::MineContact`/bonus contact
+authority, включая сетевой RPC gate, не смешивая её с Jolt overlap query.
 
 ## Правило обновления карты
 

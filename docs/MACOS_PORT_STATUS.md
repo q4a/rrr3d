@@ -2452,3 +2452,17 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - Session сохраняет только track-plane/ballistic adapter, nested MineRip
   spawning, contact queries и network authority.
 - Regression закрепляет arming/model scale и финальную placed-mine pose.
+
+### Source moving-projectile contact follow-up
+
+- `Proj::ContactDynamic` теперь владеет единым `OnContact` switch для
+  Rocket/Torpeda/Mortira/Thunder/Resonanse, Sonar и Impulse; session больше
+  не собирает damage/torque/Impulse state отдельными вызовами.
+- Восстановлен порядок Windows `RocketContact`: projectile death и
+  DeathEffect происходят до `DamageTarget`, а torque не теряется при
+  уничтожении цели самим damage callback.
+- `DestroyWithEffect` сохраняет исходный `DamageType`; Impulse снова выдаёт
+  `dtEnergy`, тогда как прочие текущие projectile deaths остаются `dtSimple`.
+- Jolt boundary ограничен contact geometry и применением готовых linear/
+  angular velocity commands. Mine/bonus RPC authority переносится следующим
+  contact-блоком.
