@@ -39,6 +39,28 @@ private:
     std::size_t slot_ = 0U;
 };
 
+class DestroyContextProbe final : public source::GameObjectListener
+{
+public:
+    void OnDestroy(source::GameObject& sender) noexcept override
+    {
+        ++calls;
+        mapObject = sender.GetMapObj();
+        logic = sender.GetLogic();
+        parent = sender.GetParent();
+        wasProjectile = sender.IsProj() != nullptr;
+        mapObjectStillPointsToSender =
+            mapObject != nullptr && &mapObject->GetGameObj() == &sender;
+    }
+
+    std::size_t calls = 0U;
+    source::MapObj* mapObject = nullptr;
+    source::Logic* logic = nullptr;
+    source::GameObject* parent = nullptr;
+    bool wasProjectile = false;
+    bool mapObjectStillPointsToSender = false;
+};
+
 } // namespace
 
 int main()
@@ -106,6 +128,8 @@ int main()
     crush.GetGameObj().ResetGameObject(25.0F);
     crush.GetGameObj().SetLife(17.0F);
     crush.SetPlayer(&player);
+    DestroyContextProbe replacementDestroy;
+    crush.GetGameObj().InsertListener(&replacementDestroy);
     crush.SetType(source::GameObjType::DestrObj);
     if (crush.GetOwner() != &objects || crush.GetParent() != nullptr ||
         !parent.GetChildren().empty() || !crush.GetName().empty() ||
@@ -114,7 +138,12 @@ int main()
         crush.GetGameObj().GetMapObj() != &crush ||
         crush.GetDestrObj() == nullptr ||
         crush.GetGameObj().GetLogic() != &logic ||
-        crush.GetGameObj().GetLife() != -1.0F)
+        crush.GetGameObj().GetLife() != -1.0F ||
+        replacementDestroy.calls != 1U ||
+        replacementDestroy.mapObject != &crush ||
+        replacementDestroy.logic != &logic ||
+        replacementDestroy.parent != &parent ||
+        !replacementDestroy.mapObjectStillPointsToSender)
         return 2;
     // Record loading follows concrete construction in MapObj::LoadSource.
     // Reapply the serialized life after verifying CreateGameObj's reset.
@@ -144,6 +173,21 @@ int main()
     autoProjectile->Reset(source::AutoProj::masloType);
     if (!autoProjectile->IsPrepared())
         return 9;
+
+    // A direct MapObj teardown follows the same source order. In particular,
+    // Proj::~Proj dispatches while IsProj(), MapObj and Logic are all valid.
+    DestroyContextProbe directDestroy;
+    {
+        source::MapObj direct;
+        direct.SetType(source::GameObjType::Proj);
+        direct.GetGameObj().SetLogic(&logic);
+        direct.GetGameObj().InsertListener(&directDestroy);
+    }
+    if (directDestroy.calls != 1U ||
+        directDestroy.mapObject == nullptr ||
+        directDestroy.logic != &logic || !directDestroy.wasProjectile ||
+        !directDestroy.mapObjectStillPointsToSender)
+        return 16;
 
     // Only Decoration/Misc and Decoration/Crush belong to the source
     // special list. The architecture lifetime and oil arming timer must not

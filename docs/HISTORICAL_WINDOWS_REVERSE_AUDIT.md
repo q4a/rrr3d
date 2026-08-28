@@ -4905,6 +4905,26 @@ MapObj, способное приводить к телепортации пос
 pointer/id lookup, немедленное исключение death-state и удаление записи после
 deferred object cleanup.
 
+### P2.210 — `MapObj` больше не уничтожает context до `GameObject::Destroy` — выполнено
+
+Сверка `MapObj::~MapObj` и `MapObj::CreateGameObj` выявила ещё одно concrete
+lifecycle-расхождение. Windows вызывает `delete _gameObj`, пока старый объект
+всё ещё содержит `_mapObj`, `_logic` и `_parent`; его `Destroy()` уведомляет
+listeners именно с этим контекстом. Порт сначала вручную выполнял
+`SetParent(nullptr)`, `SetLogic(nullptr)` и `SetMapObj(nullptr)`, и только
+затем разрушал объект. Поэтому destruction effects, Player/network listeners
+и attribution получали уже обезличенный sender.
+
+Owned `GameObject` теперь разрушается в исходном порядке и только затем
+публикуется concrete replacement. Это применено к обычному деструктору,
+смене `GameObjType` и временному record instance при `BindGameObj`. Отдельная
+portable stable-address ветвь для внешнего `Player::gameCar` остаётся
+не-владеющей и лишь безопасно отцепляет объект.
+
+Regression фиксирует, что callback при type replacement ещё видит старые
+`MapObj`, `Logic`, parent и обратную ссылку `MapObj::GetGameObj`; прямое
+удаление projectile MapObj дополнительно проверяет действующий `IsProj()`.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

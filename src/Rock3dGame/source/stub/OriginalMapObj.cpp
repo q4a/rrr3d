@@ -350,8 +350,18 @@ MapObj::MapObj(MapObjects* owner) : owner_(owner)
 MapObj::~MapObj()
 {
     SetPlayer(nullptr);
-    if (gameObj_ != nullptr)
+    if (ownedGameObj_ != nullptr)
     {
+        // Source MapObj deletes _gameObj while it still points back to this
+        // MapObj and its Logic. GameObject::Destroy listeners depend on that
+        // complete context (effects, Player and network attribution).
+        ownedGameObj_.reset();
+        gameObj_ = nullptr;
+    }
+    else if (gameObj_ != nullptr)
+    {
+        // BindGameObj is the portable stable-address exception: MapObj does
+        // not own Player::gameCar, so only this external object is detached.
         gameObj_->SetMapObj(nullptr);
         gameObj_->SetLogic(nullptr);
         gameObj_->SetParent(nullptr);
@@ -390,9 +400,20 @@ void MapObj::CreateGameObj()
     if (gameObj_ != nullptr)
     {
         replacement->AssignSource(*gameObj_);
-        gameObj_->SetParent(nullptr);
-        gameObj_->SetLogic(nullptr);
-        gameObj_->SetMapObj(nullptr);
+        if (ownedGameObj_ != nullptr)
+        {
+            // Match `gameObj->Assign(_gameObj); delete _gameObj`: dispatch
+            // OnDestroy before publishing the replacement and without
+            // stripping the old MapObj/Logic/parent context first.
+            ownedGameObj_.reset();
+        }
+        else
+        {
+            gameObj_->SetParent(nullptr);
+            gameObj_->SetLogic(nullptr);
+            gameObj_->SetMapObj(nullptr);
+        }
+        gameObj_ = nullptr;
     }
     ownedGameObj_ = std::move(replacement);
     gameObj_ = ownedGameObj_.get();
@@ -428,11 +449,20 @@ void MapObj::BindGameObj(RockCar& value)
         value.AssignSource(*gameObj_);
         value.SetMaxLife(gameObj_->GetMaxLife());
         value.CopyProxyStateFrom(*gameObj_);
-        gameObj_->SetParent(nullptr);
-        gameObj_->SetLogic(nullptr);
-        gameObj_->SetMapObj(nullptr);
+        if (ownedGameObj_ != nullptr)
+        {
+            // The temporary record instance is source-owned and must emit
+            // its destruction callback with its complete MapObj context.
+            ownedGameObj_.reset();
+        }
+        else
+        {
+            gameObj_->SetParent(nullptr);
+            gameObj_->SetLogic(nullptr);
+            gameObj_->SetMapObj(nullptr);
+        }
+        gameObj_ = nullptr;
     }
-    ownedGameObj_.reset();
     gameObj_ = &value;
     gameObj_->SetMapObj(this);
     gameObj_->SetName(name);

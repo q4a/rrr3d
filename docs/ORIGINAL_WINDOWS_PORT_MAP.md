@@ -506,9 +506,16 @@ respawn за кадр до `CreateCar(false)`/нового MapObj; session за�
 derived vtable. Явный `Player::~Player` отцепляет projectile/car listeners до
 разрушения embedded `GameCar`, устраняя подтверждённый shutdown crash.
 
-Следующий B8h — продолжить method-to-method аудит concrete
-`GameObject`/`MapObj` ownership, destroy и listener transitions, оставляя
-Jolt/bgfx только backend boundary.
+Результат B8h: `MapObj::~MapObj`, `CreateGameObj` и временный record object в
+`BindGameObj` больше не стирают `MapObj`/`Logic`/parent до уничтожения owned
+`GameObject`. Возвращён source порядок `Assign old -> delete old -> publish
+replacement`; `OnDestroy` снова получает полный sender context и derived
+identity. Не-владеющий stable-address `Player::gameCar` сохранён отдельной
+portable backend-ветвью.
+
+Следующий B8i — проверить и перенести оставшиеся `GameObject::SetLogic`
+registration counters и `World` fixed/late/frame transitions, отделив их от
+Jolt actor snapshot/command boundary.
 
 ## Правило обновления карты
 

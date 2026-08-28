@@ -2501,3 +2501,12 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   поэтому listener callback ещё видит `IsProj()`/`IsCar()`.
 - Явный source-order `Player` destructor устранил crash завершения из callback
   уже частично разрушенного объекта.
+
+### Source MapObj destruction-order follow-up
+
+- Owned `MapObj` теперь уничтожает старый concrete `GameObject` до обнуления
+  его `MapObj`, `Logic` и parent, как Windows `delete _gameObj`.
+- Тот же порядок действует при `GameObjType` replacement и при замене
+  временного record object на stable `Player::gameCar`.
+- `OnDestroy` снова получает полный source context и derived `IsProj()`;
+  отдельная non-owning ветвь внешней машины остаётся безопасно отсоединяемой.
