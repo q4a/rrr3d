@@ -696,6 +696,19 @@ Jolt smoke — перемещение нового actor в том же interval
 `Proj::OnContact`/`Logic` branches, затем удалить дублирующие snapshot
 box/ray проверки активной гонки.
 
+Результат B8u: `OriginalContactListener` теперь маршрутизирует manifold не
+только в `GameCar`, но и в projectile actor по его user-data index. В
+`ProjectileBodyState` сохраняются точные vehicle/decoration owner, surface,
+actor id, normal, relative speed и contact points. Sensor-projectile при этом
+исключён из списка chassis contacts автомобиля и не маскируется как track.
+
+Session использует этот поток для owner separation, `ContactDynamic`, Sonar,
+decoration damage и Thunder border reflection. OBB reconstruction остаётся
+только при выключенном external projectile physics. Jolt regression требует
+реальный manifold projectile↔vehicle, adapter regression — contact identity
+round-trip. Следующий B8v — backend raycast для Laser/FrostRay и
+`Proj::RocketUpdate`, остающийся snapshot query активной гонки.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:

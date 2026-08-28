@@ -362,6 +362,7 @@ struct ProjectileRuntime
     std::uint64_t physicsBodyId =
         r3d::physics::invalidProjectileBodyId;
     Vec3 physicsPreviousPosition;
+    std::vector<r3d::physics::BodyContact> physicsContacts;
     bool physicsBacked = false;
     bool active = true;
 };

@@ -259,6 +259,14 @@ bool vehicleIndex(JPH::uint64 userData, std::size_t& index)
     return true;
 }
 
+bool projectileIndex(JPH::uint64 userData, std::size_t& index)
+{
+    if ((userData & bodyKindMask) != projectileBodyKind)
+        return false;
+    index = static_cast<std::size_t>(userData & ~bodyKindMask);
+    return true;
+}
+
 bool decorationIndex(JPH::uint64 userData, std::size_t& index)
 {
     if ((userData & bodyKindMask) != decorationBodyKind)
@@ -288,10 +296,18 @@ public:
         pending_.assign(count, {});
     }
 
+    void resizeProjectiles(std::size_t count)
+    {
+        std::scoped_lock lock(mutex_);
+        projectilePending_.resize(count);
+    }
+
     void beginStep()
     {
         std::scoped_lock lock(mutex_);
         for (auto& contacts : pending_)
+            contacts.clear();
+        for (auto& contacts : projectilePending_)
             contacts.clear();
     }
 
@@ -301,6 +317,14 @@ public:
         if (index >= pending_.size())
             return {};
         return std::move(pending_[index]);
+    }
+
+    std::vector<BodyContact> takeProjectile(std::size_t index)
+    {
+        std::scoped_lock lock(mutex_);
+        if (index >= projectilePending_.size())
+            return {};
+        return std::move(projectilePending_[index]);
     }
 
     void OnContactAdded(const JPH::Body& first, const JPH::Body& second,
@@ -500,24 +524,118 @@ private:
             originalContactStep;
         std::size_t firstVehicle = 0;
         std::size_t secondVehicle = 0;
-        if (vehicleIndex(first.GetUserData(), firstVehicle))
+        const bool firstIsProjectile =
+            (first.GetUserData() & bodyKindMask) == projectileBodyKind;
+        const bool secondIsProjectile =
+            (second.GetUserData() & bodyKindMask) == projectileBodyKind;
+        if (vehicleIndex(first.GetUserData(), firstVehicle) &&
+            !secondIsProjectile)
         {
             recordOne(firstVehicle, first, second,
                       -manifold.mWorldSpaceNormal, estimatedForce,
                       estimatedFrictionForce,
                       estimatedFrictionForceVector, manifold);
         }
-        if (vehicleIndex(second.GetUserData(), secondVehicle))
+        if (vehicleIndex(second.GetUserData(), secondVehicle) &&
+            !firstIsProjectile)
         {
             recordOne(secondVehicle, second, first,
                       manifold.mWorldSpaceNormal, estimatedForce,
                       estimatedFrictionForce,
                       -estimatedFrictionForceVector, manifold);
         }
+        std::size_t firstProjectile = 0;
+        std::size_t secondProjectile = 0;
+        if (projectileIndex(first.GetUserData(), firstProjectile))
+        {
+            recordProjectile(
+                firstProjectile, first, second,
+                -manifold.mWorldSpaceNormal, manifold);
+        }
+        if (projectileIndex(second.GetUserData(), secondProjectile))
+        {
+            recordProjectile(
+                secondProjectile, second, first,
+                manifold.mWorldSpaceNormal, manifold);
+        }
+    }
+
+    void recordProjectile(
+        std::size_t projectile, const JPH::Body& body,
+        const JPH::Body& other, JPH::Vec3Arg outwardNormal,
+        const JPH::ContactManifold& manifold)
+    {
+        const auto otherKind = other.GetUserData() & bodyKindMask;
+        std::size_t otherVehicle =
+            std::numeric_limits<std::size_t>::max();
+        std::size_t otherDecoration =
+            std::numeric_limits<std::size_t>::max();
+        if (otherKind == vehicleBodyKind)
+            vehicleIndex(other.GetUserData(), otherVehicle);
+        else if (otherKind == decorationBodyKind)
+            decorationIndex(other.GetUserData(), otherDecoration);
+        else if (otherKind != surfaceBodyKind)
+            return;
+
+        BodyContact contact;
+        contact.surface = otherKind == vehicleBodyKind
+            ? CollisionSurface::Vehicle
+            : collisionSurface(other.GetUserData());
+        contact.otherVehicle = otherVehicle;
+        contact.otherDecoration = otherDecoration;
+        contact.otherActor =
+            other.GetID().GetIndexAndSequenceNumber();
+        contact.normal = fromJolt(outwardNormal);
+        const JPH::Vec3 otherVelocity =
+            other.GetMotionType() == JPH::EMotionType::Static
+                ? JPH::Vec3::sZero()
+                : other.GetLinearVelocity();
+        contact.normalSpeed = std::max(
+            0.0F,
+            -(body.GetLinearVelocity() - otherVelocity)
+                 .Dot(outwardNormal));
+        const auto pointCount = std::min<std::size_t>(
+            {manifold.mRelativeContactPointsOn1.size(),
+             manifold.mRelativeContactPointsOn2.size(), 2U});
+        contact.points.reserve(pointCount);
+        for (std::size_t index = 0; index < pointCount; ++index)
+        {
+            const auto firstPoint =
+                manifold.GetWorldSpaceContactPointOn1(
+                    static_cast<JPH::uint>(index));
+            const auto secondPoint =
+                manifold.GetWorldSpaceContactPointOn2(
+                    static_cast<JPH::uint>(index));
+            contact.points.push_back(fromJolt(JPH::Vec3(
+                firstPoint + 0.5F * (secondPoint - firstPoint))));
+        }
+        if (!contact.points.empty())
+        {
+            contact.point = contact.points.front();
+            contact.hasPoint = true;
+        }
+
+        std::scoped_lock lock(mutex_);
+        if (projectile >= projectilePending_.size())
+            return;
+        auto& contacts = projectilePending_[projectile];
+        const auto found = std::find_if(
+            contacts.begin(), contacts.end(),
+            [&](const BodyContact& value) {
+                return value.surface == contact.surface &&
+                       value.otherVehicle == contact.otherVehicle &&
+                       value.otherDecoration == contact.otherDecoration &&
+                       value.otherActor == contact.otherActor;
+            });
+        if (found == contacts.end())
+            contacts.push_back(std::move(contact));
+        else if (contact.normalSpeed > found->normalSpeed)
+            *found = std::move(contact);
     }
 
     std::mutex mutex_;
     std::vector<std::vector<BodyContact>> pending_;
+    std::vector<std::vector<BodyContact>> projectilePending_;
 };
 
 // The original PhysX triangle meshes are used both for solid collision and
@@ -1834,6 +1952,8 @@ private:
             index = projectileBodies_.size();
             projectileBodies_.push_back({});
             runtime = &projectileBodies_.back();
+            contactListener_.resizeProjectiles(
+                projectileBodies_.size());
         }
 
         const JPH::Vec3 halfExtents{
@@ -1925,6 +2045,10 @@ private:
         projectile.state.body.scale = {1.0F, 1.0F, 1.0F};
         projectile.state.linearVelocity =
             fromJolt(body.GetLinearVelocity());
+        const auto index = static_cast<std::size_t>(
+            &projectile - projectileBodies_.data());
+        projectile.state.contacts =
+            contactListener_.takeProjectile(index);
     }
 
     void clearProjectileBodies() noexcept
@@ -1932,6 +2056,7 @@ private:
         for (auto& projectile : projectileBodies_)
             destroyProjectileBody(projectile);
         projectileBodies_.clear();
+        contactListener_.resizeProjectiles(0U);
     }
 
     void destroyDebris(DebrisRuntime& debris) noexcept
@@ -2752,6 +2877,17 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
                 projectile.body.halfExtents = {0.1F, 0.1F, 0.1F};
                 projectile.body.linearVelocity = {10.0F, 0.0F, 0.0F};
                 projectileCommands.push_back(projectile);
+                ProjectileBodyCommand touchingProjectile;
+                touchingProjectile.kind =
+                    ProjectileBodyCommandKind::Create;
+                touchingProjectile.body.id = 43U;
+                touchingProjectile.body.transform.position = {
+                    drivetrainDescription.startPosition.x,
+                    drivetrainDescription.startPosition.y,
+                    drivetrainDescription.startPosition.z + 1.0F};
+                touchingProjectile.body.halfExtents = {
+                    0.5F, 0.5F, 0.5F};
+                projectileCommands.push_back(touchingProjectile);
             }
         });
     fixedStepWorld->setVehicleFixedStepController(
@@ -2788,10 +2924,18 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
         fixedStepWorld->vehicle().resetCount !=
             resetCountBeforeWorldCallback + 1U ||
         fixedStepWorld->vehicle().linearVelocity.z <= 1.0F ||
-        fixedStepWorld->projectileBodyCount() != 1U ||
+        fixedStepWorld->projectileBodyCount() != 2U ||
         !fixedStepWorld->projectileBody(0U).active ||
         fixedStepWorld->projectileBody(0U).id != 42U ||
-        fixedStepWorld->projectileBody(0U).body.position.x <= 0.05F)
+        fixedStepWorld->projectileBody(0U).body.position.x <= 0.05F ||
+        fixedStepWorld->projectileBody(1U).id != 43U ||
+        std::none_of(
+            fixedStepWorld->projectileBody(1U).contacts.begin(),
+            fixedStepWorld->projectileBody(1U).contacts.end(),
+            [](const BodyContact& contact) {
+                return contact.surface == CollisionSurface::Vehicle &&
+                       contact.otherVehicle == 0U && contact.hasPoint;
+            }))
     {
         error = "source Race world fixed-step/Jolt command bridge failed";
         return false;

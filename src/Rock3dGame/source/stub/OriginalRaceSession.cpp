@@ -2680,6 +2680,7 @@ void OriginalRaceSession::synchronizeProjectilePhysics(
         projectile->position = state.body.position;
         projectile->rotation = state.body.rotation;
         projectile->velocity = state.linearVelocity;
+        projectile->physicsContacts = state.contacts;
         projectile->speed = length3(projectile->velocity);
         if (projectile->speed > 0.0001F)
             projectile->direction = normalized3(projectile->velocity);
@@ -5075,14 +5076,31 @@ void OriginalRaceSession::updateGameplay(
                 source::Proj::ProgressHandler::Thunder &&
             length3(projectile.velocity) > 5.0F)
         {
-            Transform thunderTransform;
-            thunderTransform.position = projectile.position;
-            thunderTransform.rotation = projectile.rotation;
-            thunderBorderContact = trackBorderContact(
-                race_, orientedBox(
-                           thunderTransform,
-                           projectileDefinition.collision),
-                thunderNormal);
+            if (projectile.physicsBacked)
+            {
+                const auto border = std::find_if(
+                    projectile.physicsContacts.begin(),
+                    projectile.physicsContacts.end(),
+                    [](const r3d::physics::BodyContact& contact) {
+                        return contact.surface ==
+                            r3d::physics::CollisionSurface::TrackBorder;
+                    });
+                thunderBorderContact =
+                    border != projectile.physicsContacts.end();
+                if (thunderBorderContact)
+                    thunderNormal = border->normal;
+            }
+            else
+            {
+                Transform thunderTransform;
+                thunderTransform.position = projectile.position;
+                thunderTransform.rotation = projectile.rotation;
+                thunderBorderContact = trackBorderContact(
+                    race_, orientedBox(
+                               thunderTransform,
+                               projectileDefinition.collision),
+                    thunderNormal);
+            }
         }
         const auto freeProgress =
             projectile.sourceObject->ProgressFree(
@@ -5130,17 +5148,28 @@ void OriginalRaceSession::updateGameplay(
             sourcePlayerId < vehicles.size() &&
             sourcePlayerId < race_.racers.size())
         {
-            const auto& ownerVehicle =
-                vehicleForRacer(sourcePlayerId);
-            // PhysX ignores only the projectile/weapon actor pair, not the
-            // owning car forever.  Arm owner contacts after the shot has
-            // cleared our coarser portable vehicle box, so reflected and
-            // homing projectiles can return to their shooter.
-            projectile.ownerCollisionArmed = !boxesOverlap(
-                projectileBox,
-                vehicleBox(
-                    vehicles[sourcePlayerId],
-                    ownerVehicle.physics));
+            if (projectile.physicsBacked)
+            {
+                projectile.ownerCollisionArmed = std::none_of(
+                    projectile.physicsContacts.begin(),
+                    projectile.physicsContacts.end(),
+                    [sourcePlayerId](
+                        const r3d::physics::BodyContact& contact) {
+                        return contact.otherVehicle == sourcePlayerId;
+                    });
+            }
+            else
+            {
+                const auto& ownerVehicle =
+                    vehicleForRacer(sourcePlayerId);
+                // Headless fallback has no PhysX/Jolt manifold. Arm after
+                // the projectile clears its coarse source vehicle box.
+                projectile.ownerCollisionArmed = !boxesOverlap(
+                    projectileBox,
+                    vehicleBox(
+                        vehicles[sourcePlayerId],
+                        ownerVehicle.physics));
+            }
         }
         const auto projectileContactRoute =
             projectile.sourceObject->RouteContact(false);
@@ -5161,10 +5190,28 @@ void OriginalRaceSession::updateGameplay(
             const auto& vehicleDefinition = vehicleForRacer(target);
             const OrientedBox targetBox = vehicleBox(
                 vehicles[target], vehicleDefinition.physics);
-            if (!boxesOverlap(projectileBox, targetBox))
+            const auto physicsContact = projectile.physicsBacked
+                ? std::find_if(
+                      projectile.physicsContacts.begin(),
+                      projectile.physicsContacts.end(),
+                      [target](
+                          const r3d::physics::BodyContact& contact) {
+                          return contact.otherVehicle == target;
+                      })
+                : projectile.physicsContacts.end();
+            if (projectile.physicsBacked)
+            {
+                if (physicsContact == projectile.physicsContacts.end())
+                    continue;
+            }
+            else if (!boxesOverlap(projectileBox, targetBox))
+            {
                 continue;
+            }
             const Vec3 contactPoint =
-                closestPoint(targetBox, projectileBox.center);
+                projectile.physicsBacked && physicsContact->hasPoint
+                    ? physicsContact->point
+                    : closestPoint(targetBox, projectileBox.center);
             const auto sourceContact =
                 projectile.sourceObject->ContactDynamic(
                     &racers_[target].gameCar,
@@ -5295,15 +5342,32 @@ void OriginalRaceSession::updateGameplay(
         Transform liveProjectileTransform;
         liveProjectileTransform.position = projectile.position;
         liveProjectileTransform.rotation = projectile.rotation;
+        const auto physicalDecorationContact = projectile.physicsBacked
+            ? std::find_if(
+                  projectile.physicsContacts.begin(),
+                  projectile.physicsContacts.end(),
+                  [&](const r3d::physics::BodyContact& contact) {
+                      return contact.otherDecoration <
+                                 decorationActive_.size() &&
+                             decorationActive_[contact.otherDecoration];
+                  })
+            : projectile.physicsContacts.end();
         if (projectile.active &&
             projectileContactRoute.handler ==
                 source::Proj::ContactHandler::Sonar)
         {
             std::size_t decorationTarget = 0U;
-            if (findDecorationWithBox(
-                    liveProjectileTransform,
-                    projectileDefinition.collision,
-                    decorationTarget))
+            const bool hasDecorationContact = projectile.physicsBacked
+                ? physicalDecorationContact !=
+                      projectile.physicsContacts.end()
+                : findDecorationWithBox(
+                      liveProjectileTransform,
+                      projectileDefinition.collision,
+                      decorationTarget);
+            if (projectile.physicsBacked && hasDecorationContact)
+                decorationTarget =
+                    physicalDecorationContact->otherDecoration;
+            if (hasDecorationContact)
             {
                 auto* mapObject =
                     decorationObjects().Get(decorationTarget);
@@ -5330,18 +5394,46 @@ void OriginalRaceSession::updateGameplay(
         else if (projectile.active &&
                  !(sourceProgressRoute.handler ==
                        source::Proj::ProgressHandler::Impulse &&
-                   projectile.target < racers_.size()) &&
-                 damageDecorationWithBox(
-                     liveProjectileTransform,
-                     projectileDefinition.collision,
-                     projectileDefinition.damage,
-                     sourcePlayerId,
-                     projectile.sourceObject))
+                   projectile.target < racers_.size()))
         {
-            spawnProjectileImpact(
-                projectile, projectile.position,
-                RacerRuntime::invalidWeapon);
-            projectile.active = false;
+            bool decorationDamaged = false;
+            if (projectile.physicsBacked)
+            {
+                if (physicalDecorationContact !=
+                    projectile.physicsContacts.end())
+                {
+                    const auto decorationTarget =
+                        physicalDecorationContact->otherDecoration;
+                    auto* mapObject =
+                        decorationObjects().Get(decorationTarget);
+                    auto* target = mapObject != nullptr
+                        ? mapObject->GetDestrObj()
+                        : nullptr;
+                    decorationDamaged =
+                        projectile.sourceObject->BeginContact(target)
+                            .appliesDamage &&
+                        damageDecoration(
+                            decorationTarget,
+                            projectileDefinition.damage,
+                            sourcePlayerId);
+                }
+            }
+            else
+            {
+                decorationDamaged = damageDecorationWithBox(
+                    liveProjectileTransform,
+                    projectileDefinition.collision,
+                    projectileDefinition.damage,
+                    sourcePlayerId,
+                    projectile.sourceObject);
+            }
+            if (decorationDamaged)
+            {
+                spawnProjectileImpact(
+                    projectile, projectile.position,
+                    RacerRuntime::invalidWeapon);
+                projectile.active = false;
+            }
         }
         if (projectile.active &&
             projectile.sourceObject->GetMaxTimeLife() > 0.0F &&
@@ -9288,17 +9380,33 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 projectileBodyState.body.position.x += 0.25F;
                 projectileBodyState.linearVelocity =
                     projectileBodyCommands.front().body.linearVelocity;
+                r3d::physics::BodyContact projectileVehicleContact;
+                projectileVehicleContact.surface =
+                    r3d::physics::CollisionSurface::Vehicle;
+                projectileVehicleContact.otherVehicle = 0U;
+                projectileVehicleContact.point =
+                    projectileBodyState.body.position;
+                projectileVehicleContact.hasPoint = true;
+                projectileBodyState.contacts.push_back(
+                    projectileVehicleContact);
                 projectileBodyState.active = true;
                 queuedAttackSession.synchronizeProjectilePhysics(
                     {projectileBodyState});
                 if (std::abs(
                         queuedAttackSession.projectiles().front().position.x -
-                        projectileBodyState.body.position.x) > 0.0001F)
+                        projectileBodyState.body.position.x) > 0.0001F ||
+                    queuedAttackSession.projectiles().front()
+                            .physicsContacts.size() != 1U ||
+                    queuedAttackSession.projectiles().front()
+                            .physicsContacts.front().otherVehicle != 0U)
                 {
                     throw std::runtime_error(
-                        "Jolt projectile pose was not synchronized back "
-                        "into the source runtime");
+                        "Jolt projectile pose/contact was not synchronized "
+                        "back into the source runtime");
                 }
+                projectileBodyState.contacts.clear();
+                queuedAttackSession.synchronizeProjectilePhysics(
+                    {projectileBodyState});
                 queuedAttackVehicles[0].body.position.z += 1000.0F;
                 queuedAttackSession.raceFixedStep(
                     1.0F / 60.0F, queuedAttackVehicles,

@@ -343,6 +343,10 @@ struct ProjectileBodyState
     std::uint64_t id = invalidProjectileBodyId;
     Transform body;
     Vec3 linearVelocity;
+    // PhysX delivered Proj::OnContact from the projectile actor's real
+    // manifold. Preserve the contacted actor identity and point so gameplay
+    // does not have to reconstruct contacts from rendered snapshot boxes.
+    std::vector<BodyContact> contacts;
     bool active = false;
 };
 

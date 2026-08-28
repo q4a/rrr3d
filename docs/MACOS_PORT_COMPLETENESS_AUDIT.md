@@ -1635,6 +1635,25 @@ Regression проверяет single Create, body-id continuity, Jolt pose round
 ray-only оружие должны приходить из Jolt query, а не из snapshot overlap в
 session.
 
+### B8u: Jolt sensor contacts for persistent projectiles
+
+Projectile actor включён в существующий thread-safe contact listener. После
+каждого solve его state содержит manifold contacts с `CollisionSurface`,
+vehicle/decor instance, actor id, normal/speed и реальными contact points.
+Listener не выдаёт этот sensor автомобилю как фиктивный контакт с плоскостью.
+
+Активная session больше не использует OBB snapshot для свободного projectile:
+по Jolt identity выбирается target машины или разрушаемая декорация, а
+`ContactDynamic`/Sonar/damage/impact получают manifold point. Отсутствие
+owner contact включает исходную возможность вернувшегося projectile попасть
+в стрелявшего. Thunder использует border normal того же backend contact.
+Source-only regressions без world сохраняют OBB fallback.
+
+Physics smoke требует sensor contact с конкретной машиной и точкой, session
+smoke — сохранение contact identity вместе с pose. Следующая B8v граница —
+перевести ray-only Laser/FrostRay и rocket-height ray на backend narrow-phase
+query, чтобы удалить оставшуюся CPU-копию world raycast активной гонки.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

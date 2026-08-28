@@ -5182,6 +5182,28 @@ sensor projectile из world fixed callback и проверяет его пер�
 том же 60-Hz интервале. Оставшаяся граница B8u — заменить session snapshot
 box/ray contacts событиями Jolt contact/raycast query.
 
+### P2.223 — `Proj::OnContact` получает Jolt sensor manifold — выполнено
+
+Contact listener раньше отбрасывал сторону projectile даже после появления
+его Jolt actor: он заполнял только `VehicleState::bodyContacts`, а session
+повторно искала цель пересечением render-snapshot OBB. На высокой скорости
+это теряло промежуточное столкновение, а при рассинхронизации кадра могло
+повредить объект, которого физический actor не касался.
+
+Listener теперь распознаёт projectile user-data и сохраняет для каждого тела
+тип поверхности, точный vehicle/decor instance, actor id, normal, relative
+normal speed и точки manifold. Готовый contact stream возвращается вместе с
+pose/velocity после solve. `OriginalRaceSession` использует его для
+`ContactDynamic`, owner re-arm, Sonar, destructible decoration и Thunder
+reflection; прежний OBB путь вызывается только без external physics.
+
+Projectile sensor больше не попадает машине как ложный `TrackPlane`
+`BodyContact`. Physics regression создаёт второй projectile внутри машины и
+требует `Vehicle/otherVehicle=0` с реальной точкой контакта. Session
+regression проверяет полный round-trip contact identity. Оставшаяся B8v
+граница — ray-only Laser/FrostRay и rocket-height ground query, которые пока
+используют CPU-копию геометрии вместо Jolt narrow-phase query.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
