@@ -507,6 +507,89 @@ HudItemId PlayerStateFrame::NewAchievment(
     return item.id;
 }
 
+HudPlayerEventResult PlayerStateFrame::ProcessEvent(
+    const HudPlayerEventInput& input)
+{
+    HudPlayerEventResult result;
+    switch (input.kind)
+    {
+    case HudPlayerEventKind::Pick:
+        if (input.player != input.human ||
+            input.pickVisual == HudPickVisual::None ||
+            input.itemWidth <= 0.0F)
+            return result;
+        result.kind = input.kind;
+        result.pickVisual = input.pickVisual;
+        result.item = NewPickItem(input.itemWidth, input.now);
+        return result;
+    case HudPlayerEventKind::Achievement:
+        if (input.slotWidth <= 0.0F || input.slotHeight <= 0.0F ||
+            input.imageHeight <= 0.0F)
+            return result;
+        result.kind = input.kind;
+        result.item = NewAchievment(
+            input.slotWidth, input.slotHeight, input.imageHeight,
+            input.viewportWidth, input.viewportHeight, input.now);
+        return result;
+    case HudPlayerEventKind::Damage:
+        if (input.value <= 0.0F || !input.targetAvailable)
+            return result;
+        // cPlayerDamage stores the attacker in EventData::playerId and the
+        // damaged player in targetPlayerId. clHuman is slot 1; clOpponent
+        // is slot 0 in the original enum.
+        if (input.target == input.human)
+            ShowCarLife(1U, input.target, 1.5F);
+        else if (input.player == input.human)
+            ShowCarLife(0U, input.target, 4.0F);
+        return result;
+    case HudPlayerEventKind::Kill:
+        if (!input.killCredit || input.player != input.human ||
+            !input.targetAvailable || input.itemWidth <= 0.0F)
+            return result;
+        result.kind = input.kind;
+        result.pickVisual = HudPickVisual::Kill;
+        result.target = input.target;
+        result.item = NewPickItem(input.itemWidth, input.now);
+        return result;
+    case HudPlayerEventKind::Countdown:
+        if (input.countdownImage < 0 || input.countdownImage > 4)
+            return result;
+        result.kind = input.kind;
+        result.countdownImage = input.countdownImage;
+        return result;
+    case HudPlayerEventKind::None:
+        return result;
+    }
+    return result;
+}
+
+HudPickVisual PlayerStateFrame::ResolvePickVisual(
+    BonusKind kind, HudPickSlot slot) noexcept
+{
+    switch (kind)
+    {
+    case BonusKind::Medpack:
+        return HudPickVisual::Armor;
+    case BonusKind::Ammunition:
+        if (slot == HudPickSlot::Mine)
+            return HudPickVisual::Mine;
+        if (slot == HudPickSlot::Hyper)
+            return HudPickVisual::Hyper;
+        return HudPickVisual::Weapon;
+    case BonusKind::Money:
+        return HudPickVisual::Money;
+    case BonusKind::Shield:
+        return HudPickVisual::Immortal;
+    case BonusKind::Speed:
+    case BonusKind::SlowHazard:
+    case BonusKind::OilHazard:
+    case BonusKind::MineHazard:
+    case BonusKind::Unknown:
+        return HudPickVisual::None;
+    }
+    return HudPickVisual::None;
+}
+
 void PlayerStateFrame::OnProgress(float deltaTime, float now)
 {
     deltaTime = std::max(deltaTime, 0.0F);

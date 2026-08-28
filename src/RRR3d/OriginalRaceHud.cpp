@@ -666,119 +666,140 @@ void OriginalRaceHud::update(
                 : std::string{},
             18.0F, true, white);
 
+    auto sourcePickSlot = [](originalrace::PickSlot slot) {
+        switch (slot)
+        {
+        case originalrace::PickSlot::Primary:
+            return source::HudPickSlot::Primary;
+        case originalrace::PickSlot::Hyper:
+            return source::HudPickSlot::Hyper;
+        case originalrace::PickSlot::Mine:
+            return source::HudPickSlot::Mine;
+        case originalrace::PickSlot::None:
+            return source::HudPickSlot::None;
+        }
+        return source::HudPickSlot::None;
+    };
+    auto pickImage = [&](source::HudPickVisual visual)
+        -> const ImageAsset* {
+        switch (visual)
+        {
+        case source::HudPickVisual::Armor:
+            return &pickArmor_;
+        case source::HudPickVisual::Weapon:
+            return &pickAmmo_;
+        case source::HudPickVisual::Hyper:
+            return &pickIntro_;
+        case source::HudPickVisual::Mine:
+            return &pickMine_;
+        case source::HudPickVisual::Money:
+            return &pickMoney_;
+        case source::HudPickVisual::Immortal:
+            return &pickShield_;
+        case source::HudPickVisual::Kill:
+            return &playerKill_;
+        case source::HudPickVisual::None:
+            return nullptr;
+        }
+        return nullptr;
+    };
     for (const auto& event : session.events())
     {
+        source::HudPlayerEventInput input;
+        input.human = humanRacer;
+        input.now = uiSeconds_;
+        input.viewportWidth = menu::virtualWidth;
+        input.viewportHeight = menu::virtualHeight;
         if (event.kind == originalrace::RaceEventKind::Achievement &&
             event.target < achievementImages_.size() &&
             event.target < achievementPointsImages_.size())
         {
-            AchievementNotification notification;
-            notification.achievement = event.target;
             const auto& image = achievementImages_[event.target];
             const auto& points =
                 achievementPointsImages_[event.target];
-            const float slotWidth =
+            input.kind = source::HudPlayerEventKind::Achievement;
+            input.slotWidth =
                 std::max(image.width, points.width);
-            const float slotHeight =
+            input.slotHeight =
                 image.height + points.height + 15.0F;
-            // PlayerStateFrame::NewAchievment chooses a fresh source RNG
-            // position for every popup; repeated/skipped positions are
-            // therefore intentional.
-            notification.id = playerStateFrame_.NewAchievment(
-                slotWidth, slotHeight, image.height,
-                menu::virtualWidth, menu::virtualHeight, uiSeconds_);
-            achievementNotifications_.insert(
-                achievementNotifications_.begin(), notification);
+            input.imageHeight = image.height;
         }
         else if (event.kind == originalrace::RaceEventKind::Bonus &&
-            event.racer == humanRacer &&
-            event.target < race.bonuses.size())
+                 event.target < race.bonuses.size())
         {
-            PickNotification notification;
-            notification.kind = race.bonuses[event.target].kind;
-            notification.slot = event.pickSlot;
-            const ImageAsset* image = nullptr;
-            switch (notification.kind)
-            {
-            case originalrace::BonusKind::Medpack:
-                image = &pickArmor_;
-                break;
-            case originalrace::BonusKind::Ammunition:
-                if (notification.slot == originalrace::PickSlot::Mine)
-                    image = &pickMine_;
-                else if (notification.slot ==
-                         originalrace::PickSlot::Hyper)
-                    image = &pickIntro_;
-                else
-                    image = &pickAmmo_;
-                break;
-            case originalrace::BonusKind::Money:
-                image = &pickMoney_;
-                break;
-            case originalrace::BonusKind::Shield:
-                image = &pickShield_;
-                break;
-            case originalrace::BonusKind::Speed:
-            case originalrace::BonusKind::SlowHazard:
-            case originalrace::BonusKind::OilHazard:
-            case originalrace::BonusKind::MineHazard:
-            case originalrace::BonusKind::Unknown:
-                break;
-            }
+            input.kind = source::HudPlayerEventKind::Pick;
+            input.player = event.racer;
+            input.pickVisual = source::PlayerStateFrame::ResolvePickVisual(
+                race.bonuses[event.target].kind,
+                sourcePickSlot(event.pickSlot));
+            const auto* image = pickImage(input.pickVisual);
             if (image != nullptr)
-            {
-                notification.id = playerStateFrame_.NewPickItem(
-                    image->width, uiSeconds_);
-                notifications_.insert(notifications_.begin(),
-                                      notification);
-            }
+                input.itemWidth = image->width;
         }
-        else if (event.kind == originalrace::RaceEventKind::Kill &&
-                 event.killCredit &&
-                 event.racer == humanRacer &&
-                 event.target < race.racers.size())
+        else if (event.kind == originalrace::RaceEventKind::Kill)
         {
-            PickNotification notification;
-            notification.target = event.target;
-            notification.targetGamerId =
-                session.racers()[event.target].GetGamerId();
-            notification.id = playerStateFrame_.NewPickItem(
-                playerKill_.width, uiSeconds_);
-            const auto name = racerName(race, session, event.target);
-            setText(device, notification.label, name, 24.0F, false,
-                    {214, 214, 214, 255});
-            notifications_.insert(notifications_.begin(),
-                                  std::move(notification));
+            input.kind = source::HudPlayerEventKind::Kill;
+            input.player = event.racer;
+            input.target = event.target;
+            input.killCredit = event.killCredit;
+            input.targetAvailable =
+                event.target < session.racers().size();
+            input.itemWidth = playerKill_.width;
         }
         else if (event.kind ==
                      originalrace::RaceEventKind::CountdownChanged)
         {
-            hudMenuState_.OnCountdownEvent(session.countdownStage());
+            input.kind = source::HudPlayerEventKind::Countdown;
+            input.countdownImage = session.countdownStage();
         }
-        else if (event.kind == originalrace::RaceEventKind::Damage &&
-                 event.value > 0.0F)
+        else if (event.kind == originalrace::RaceEventKind::Damage)
         {
-            std::size_t overlay =
-                playerStateFrame_.GetCarLifeItems().size();
-            std::size_t racer = event.racer;
-            float duration = 0.0F;
-            if (event.racer == humanRacer)
-            {
-                overlay = 0;
-                duration = 1.5F;
-            }
-            else if (event.target == humanRacer)
-            {
-                overlay = 1;
-                duration = 4.0F;
-            }
-            if (overlay < playerStateFrame_.GetCarLifeItems().size() &&
-                racer < session.racers().size() &&
-                racer < vehicles.size())
-            {
-                playerStateFrame_.ShowCarLife(
-                    overlay, racer, duration);
-            }
+            input.kind = source::HudPlayerEventKind::Damage;
+            // Portable RaceEvent stores victim in racer and attacker in
+            // target; source cPlayerDamage uses the opposite field names.
+            input.player = event.target;
+            input.target = event.racer;
+            input.value = event.value;
+            input.targetAvailable =
+                event.racer < session.racers().size() &&
+                event.racer < vehicles.size();
+        }
+        else
+            continue;
+
+        const auto result = playerStateFrame_.ProcessEvent(input);
+        if (result.kind == source::HudPlayerEventKind::Achievement)
+        {
+            achievementNotifications_.insert(
+                achievementNotifications_.begin(),
+                {event.target, result.item});
+        }
+        else if (result.kind == source::HudPlayerEventKind::Pick)
+        {
+            PickNotification notification;
+            notification.visual = result.pickVisual;
+            notification.id = result.item;
+            notifications_.insert(
+                notifications_.begin(), std::move(notification));
+        }
+        else if (result.kind == source::HudPlayerEventKind::Kill)
+        {
+            PickNotification notification;
+            notification.visual = result.pickVisual;
+            notification.target = result.target;
+            notification.targetGamerId =
+                session.racers()[result.target].GetGamerId();
+            notification.id = result.item;
+            const auto name = racerName(race, session, result.target);
+            setText(device, notification.label, name, 24.0F, false,
+                    {214, 214, 214, 255});
+            notifications_.insert(
+                notifications_.begin(), std::move(notification));
+        }
+        else if (result.kind ==
+                 source::HudPlayerEventKind::Countdown)
+        {
+            hudMenuState_.OnCountdownEvent(result.countdownImage);
         }
     }
     playerStateFrame_.OnProgress(seconds, uiSeconds_);
@@ -1376,32 +1397,30 @@ void OriginalRaceHud::draw(GraphicsDevice& device, Mesh quad,
         if (state == nullptr)
             continue;
         const ImageAsset* notification = nullptr;
-        if (item.target != std::numeric_limits<std::size_t>::max())
-            notification = &playerKill_;
-        switch (item.kind)
+        switch (item.visual)
         {
-        case originalrace::BonusKind::Medpack:
+        case source::HudPickVisual::Armor:
             notification = &pickArmor_;
             break;
-        case originalrace::BonusKind::Ammunition:
-            if (item.slot == originalrace::PickSlot::Mine)
-                notification = &pickMine_;
-            else if (item.slot == originalrace::PickSlot::Hyper)
-                notification = &pickIntro_;
-            else
-                notification = &pickAmmo_;
+        case source::HudPickVisual::Weapon:
+            notification = &pickAmmo_;
             break;
-        case originalrace::BonusKind::Money:
+        case source::HudPickVisual::Hyper:
+            notification = &pickIntro_;
+            break;
+        case source::HudPickVisual::Mine:
+            notification = &pickMine_;
+            break;
+        case source::HudPickVisual::Money:
             notification = &pickMoney_;
             break;
-        case originalrace::BonusKind::Shield:
+        case source::HudPickVisual::Immortal:
             notification = &pickShield_;
             break;
-        case originalrace::BonusKind::Speed:
-        case originalrace::BonusKind::SlowHazard:
-        case originalrace::BonusKind::OilHazard:
-        case originalrace::BonusKind::MineHazard:
-        case originalrace::BonusKind::Unknown:
+        case source::HudPickVisual::Kill:
+            notification = &playerKill_;
+            break;
+        case source::HudPickVisual::None:
             break;
         }
         if (notification != nullptr)

@@ -4654,6 +4654,31 @@ lifetime transaction.
 backend boundary. Regression проверяет roster order, map transform, position
 и color update, disconnect removal, lookup и Clear.
 
+### P2.199 — `PlayerStateFrame::OnProcessEvent` возвращён source owner — выполнено
+
+Прямая сверка последнего крупного метода PlayerStateFrame подтвердила, что
+bgfx adapter самостоятельно интерпретировал Bonus/Achievement/Damage/Kill и
+countdown events. Нашлась не только ownership-проблема, но и реальная ошибка:
+portable `RaceEvent` хранит victim в `racer`, attacker в `target`, а исходный
+`cPlayerDamage` — attacker в `playerId`, victim в `targetPlayerId`. Adapter
+частично развернул смысл, но назначил повреждение игрока в slot 0 и повреждение
+соперника в slot 1. В Windows enum обратный: `clOpponent=0`, `clHuman=1`.
+Это меняло порядок car-life targets в opponent list и могло перекрывать не ту
+подпись.
+
+Добавлен source `ProcessEvent` transaction с `HudPlayerEventInput/Result`.
+Он восстанавливает human-only pick/kill filters, kill-credit gate, mapping
+Medpack/Ammunition(Mine/Hyper/Primary)/Money/Immortal, achievement creation,
+countdown 0..4 и точные damage branches/durations: human slot 1 на 1.5 s,
+opponent slot 0 на 4 s. Item queues и car-life mutируются внутри source owner;
+result сообщает adapter только какой GPU payload создать.
+
+`PickNotification` больше не хранит повторные gameplay `BonusKind/PickSlot`,
+а использует готовый source `HudPickVisual`. Renderer отвечает только за
+image dimensions, CoreText kill name/photo и `HudMenu` countdown texture.
+Regression закрепляет visual mapping, фильтр чужого pick, achievement item,
+обе damage field/slot ветви, kill gate/target и countdown command.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

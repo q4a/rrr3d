@@ -110,6 +110,65 @@ private:
 
 using HudItemId = std::uint64_t;
 
+enum class HudPickSlot : std::uint8_t
+{
+    None,
+    Primary,
+    Hyper,
+    Mine,
+};
+
+enum class HudPickVisual : std::uint8_t
+{
+    None,
+    Armor,
+    Weapon,
+    Hyper,
+    Mine,
+    Money,
+    Immortal,
+    Kill,
+};
+
+enum class HudPlayerEventKind : std::uint8_t
+{
+    None,
+    Pick,
+    Achievement,
+    Damage,
+    Kill,
+    Countdown,
+};
+
+struct HudPlayerEventInput
+{
+    HudPlayerEventKind kind = HudPlayerEventKind::None;
+    HudPickVisual pickVisual = HudPickVisual::None;
+    std::size_t player = static_cast<std::size_t>(-1);
+    std::size_t target = static_cast<std::size_t>(-1);
+    std::size_t human = static_cast<std::size_t>(-1);
+    float value = 0.0F;
+    float itemWidth = 0.0F;
+    float slotWidth = 0.0F;
+    float slotHeight = 0.0F;
+    float imageHeight = 0.0F;
+    float viewportWidth = 0.0F;
+    float viewportHeight = 0.0F;
+    float now = 0.0F;
+    int countdownImage = -1;
+    bool targetAvailable = false;
+    bool killCredit = true;
+};
+
+struct HudPlayerEventResult
+{
+    HudPlayerEventKind kind = HudPlayerEventKind::None;
+    HudPickVisual pickVisual = HudPickVisual::None;
+    HudItemId item = 0U;
+    std::size_t target = static_cast<std::size_t>(-1);
+    int countdownImage = -1;
+};
+
 struct HudPickItem
 {
     HudItemId id = 0U;
@@ -248,6 +307,10 @@ public:
         float slotWidth, float slotHeight, float imageHeight,
         float viewportWidth, float viewportHeight, float now,
         std::size_t startPosition = randomAchievmentPosition);
+    HudPlayerEventResult ProcessEvent(
+        const HudPlayerEventInput& input);
+    static HudPickVisual ResolvePickVisual(
+        BonusKind kind, HudPickSlot slot) noexcept;
     void OnProgress(float deltaTime, float now);
     void ShowCarLife(
         std::size_t slot, std::size_t racer, float timeMax) noexcept;

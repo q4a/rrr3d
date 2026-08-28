@@ -386,6 +386,89 @@ int main()
             }))
         return 46;
 
+    if (source::PlayerStateFrame::ResolvePickVisual(
+            r3d::game::originalrace::BonusKind::Medpack,
+            source::HudPickSlot::None) !=
+            source::HudPickVisual::Armor ||
+        source::PlayerStateFrame::ResolvePickVisual(
+            r3d::game::originalrace::BonusKind::Ammunition,
+            source::HudPickSlot::Mine) !=
+            source::HudPickVisual::Mine ||
+        source::PlayerStateFrame::ResolvePickVisual(
+            r3d::game::originalrace::BonusKind::Speed,
+            source::HudPickSlot::Primary) !=
+            source::HudPickVisual::None)
+        return 49;
+
+    source::PlayerStateFrame eventState;
+    source::HudPlayerEventInput hudEvent;
+    hudEvent.kind = source::HudPlayerEventKind::Pick;
+    hudEvent.pickVisual = source::HudPickVisual::Money;
+    hudEvent.human = 0U;
+    hudEvent.player = 1U;
+    hudEvent.itemWidth = 100.0F;
+    if (eventState.ProcessEvent(hudEvent).kind !=
+        source::HudPlayerEventKind::None)
+        return 50;
+    hudEvent.player = 0U;
+    const auto pickEvent = eventState.ProcessEvent(hudEvent);
+    if (pickEvent.kind != source::HudPlayerEventKind::Pick ||
+        pickEvent.pickVisual != source::HudPickVisual::Money ||
+        eventState.FindPickItem(pickEvent.item) == nullptr)
+        return 51;
+
+    hudEvent = {};
+    hudEvent.kind = source::HudPlayerEventKind::Achievement;
+    hudEvent.slotWidth = 100.0F;
+    hudEvent.slotHeight = 60.0F;
+    hudEvent.imageHeight = 40.0F;
+    hudEvent.viewportWidth = 1920.0F;
+    hudEvent.viewportHeight = 1080.0F;
+    const auto achievementEvent = eventState.ProcessEvent(hudEvent);
+    if (achievementEvent.kind !=
+            source::HudPlayerEventKind::Achievement ||
+        eventState.FindAchievmentItem(achievementEvent.item) == nullptr)
+        return 52;
+
+    hudEvent = {};
+    hudEvent.kind = source::HudPlayerEventKind::Damage;
+    hudEvent.human = 0U;
+    hudEvent.player = 1U;
+    hudEvent.target = 0U;
+    hudEvent.value = 5.0F;
+    hudEvent.targetAvailable = true;
+    eventState.ProcessEvent(hudEvent);
+    if (eventState.GetCarLifeItems()[1].racer != 0U ||
+        !near(eventState.GetCarLifeItems()[1].timeMax, 1.5F))
+        return 53;
+    hudEvent.player = 0U;
+    hudEvent.target = 2U;
+    eventState.ProcessEvent(hudEvent);
+    if (eventState.GetCarLifeItems()[0].racer != 2U ||
+        !near(eventState.GetCarLifeItems()[0].timeMax, 4.0F))
+        return 54;
+
+    hudEvent = {};
+    hudEvent.kind = source::HudPlayerEventKind::Kill;
+    hudEvent.human = 0U;
+    hudEvent.player = 0U;
+    hudEvent.target = 2U;
+    hudEvent.targetAvailable = true;
+    hudEvent.killCredit = true;
+    hudEvent.itemWidth = 120.0F;
+    const auto killEvent = eventState.ProcessEvent(hudEvent);
+    if (killEvent.kind != source::HudPlayerEventKind::Kill ||
+        killEvent.pickVisual != source::HudPickVisual::Kill ||
+        killEvent.target != 2U ||
+        eventState.FindPickItem(killEvent.item) == nullptr)
+        return 55;
+    hudEvent.kind = source::HudPlayerEventKind::Countdown;
+    hudEvent.countdownImage = 4;
+    const auto countdownEvent = eventState.ProcessEvent(hudEvent);
+    if (countdownEvent.kind != source::HudPlayerEventKind::Countdown ||
+        countdownEvent.countdownImage != 4)
+        return 56;
+
     std::cout << "Original HudMenu smoke passed\n";
     return 0;
 }

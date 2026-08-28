@@ -79,10 +79,8 @@ private:
 
     struct PickNotification
     {
-        r3d::game::originalrace::BonusKind kind =
-            r3d::game::originalrace::BonusKind::Unknown;
-        r3d::game::originalrace::PickSlot slot =
-            r3d::game::originalrace::PickSlot::None;
+        r3d::game::originalrace::source::HudPickVisual visual =
+            r3d::game::originalrace::source::HudPickVisual::None;
         std::size_t target = std::numeric_limits<std::size_t>::max();
         int targetGamerId = -1;
         TextAsset label;

@@ -2376,3 +2376,12 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   car color; renderer-owned `mapMarkers_` удалён.
 - Marker roster больше не обрезается количеством Jolt vehicle snapshots;
   bgfx исполняет только исходный 20x20 playerPoint2 draw.
+
+### Source PlayerStateFrame event follow-up
+
+- `OnProcessEvent` возвращён в source owner для pick, achievement, damage,
+  kill и countdown; renderer создаёт только image/text payload по result.
+- Исправлена инверсия damage overlays: Windows `clOpponent=0`, `clHuman=1`,
+  тогда как старый adapter назначал эти два slot наоборот.
+- Bonus visual mapping и human/kill-credit filters теперь закреплены source
+  regression, а `PickNotification` больше не повторяет gameplay enums.
