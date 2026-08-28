@@ -5289,6 +5289,28 @@ Jolt physics smoke теперь использует именно kinematic proj
 обязательного vehicle manifold. Оставшаяся B8z граница — death-plane и
 ResetCar scene queries, которые ещё вычисляются session snapshot helper-ами.
 
+### P2.228 — `cdgPlaneDeath` и `Player::ResetCar` scene queries перенесены — выполнено
+
+`Map::Map` в Windows всегда создаёт +Z `NxPlaneShape` на Z=0 в отдельной
+группе `cdgPlaneDeath`. Порт проверял нижнюю точку реконструированного OBB
+машины после gameplay update, а `Player::ResetCar` искал ближайший объект
+CPU-raycast по копии mesh/vehicle transforms. Оба пути обходили живую physics
+scene и могли расходиться с завершённым solver pose или уже удалённым actor.
+
+Jolt world теперь содержит отдельный static PlaneShape sensor с identity
+`DeathPlane`. Его manifold проходит через обычный vehicle contact stream в
+исходный `Map::GetGround().TouchDeath`, при этом исключён из generic
+PairPxContactEffect, чтобы смерть не создавала зацикленный звук трения.
+Обычные projectile rays фильтруют plane; только ResetCar query включает его,
+повторяя Windows mask `TrackPlane | PlaneDeath | Default`.
+
+Source `Player::ResetCar` по-прежнему выбирает tile, три offsets и до пяти
+предыдущих узлов. Заменён только callback: closest Jolt hit различает
+TrackPlane, собственную машину, blocked vehicle/decoration и DeathPlane.
+CPU mesh/OBB/plane helper оставлен исключительно для source-only regression
+без backend. Physics smoke проверяет ray filter и реальный car↔plane sensor
+contact; session smoke требует три backend reset rays с death-plane mask.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

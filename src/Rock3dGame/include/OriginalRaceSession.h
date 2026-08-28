@@ -623,6 +623,9 @@ private:
         const std::vector<r3d::physics::VehicleState>& vehicles,
         Vec3 origin, Vec3 direction, float maximumDistance,
         std::size_t ignoredVehicle, bool trackPlaneOnly) const;
+    source::ResetCarRayKind queryResetWorld(
+        const std::vector<r3d::physics::VehicleState>& vehicles,
+        std::size_t ownVehicle, Vec3 origin) const;
     bool prepareAiWeaponAttack(
         PendingAiAttack& attack,
         const std::vector<r3d::physics::VehicleState>& vehicles);

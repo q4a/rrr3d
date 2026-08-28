@@ -8,6 +8,7 @@
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <Jolt/Physics/Collision/Shape/MeshShape.h>
 #include <Jolt/Physics/Collision/Shape/OffsetCenterOfMassShape.h>
+#include <Jolt/Physics/Collision/Shape/PlaneShape.h>
 #include <Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h>
 #include <Jolt/Physics/Body/BodyFilter.h>
 #include <Jolt/Physics/Collision/ContactListener.h>
@@ -282,7 +283,7 @@ CollisionSurface collisionSurface(JPH::uint64 userData)
     if ((userData & bodyKindMask) != surfaceBodyKind)
         return CollisionSurface::TrackPlane;
     const auto value = static_cast<std::uint8_t>(userData & ~bodyKindMask);
-    return value <= static_cast<std::uint8_t>(CollisionSurface::Decoration)
+    return value <= static_cast<std::uint8_t>(CollisionSurface::DeathPlane)
                ? static_cast<CollisionSurface>(value)
                : CollisionSurface::TrackPlane;
 }
@@ -1540,6 +1541,9 @@ public:
                 else if (kind == surfaceBodyKind)
                 {
                     surface = collisionSurface(userData);
+                    if (surface == CollisionSurface::DeathPlane &&
+                        !query.includeDeathPlane)
+                        return;
                     if (query.trackPlaneOnly &&
                         surface != CollisionSurface::TrackPlane)
                         return;
@@ -2348,6 +2352,26 @@ private:
                 decorationTriangles[index], 0.5F, 0.5F,
                 decorationUserData(index), sensor));
         }
+        // Map.cpp creates a +Z NxPlaneShape at world Z=0 in the dedicated
+        // cdgPlaneDeath group. Jolt is Y-up, so +Y is the same source plane.
+        // PlaneShape uses a finite broad-phase extent; keep it far beyond all
+        // serialized maps while preserving the infinite narrow-phase plane.
+        JPH::BodyCreationSettings deathPlaneSettings(
+            new JPH::PlaneShape(
+                JPH::Plane(JPH::Vec3::sAxisY(), 0.0F), nullptr,
+                100000.0F),
+            JPH::RVec3::sZero(), JPH::Quat::sIdentity(),
+            JPH::EMotionType::Static, Layers::nonMoving);
+        deathPlaneSettings.mIsSensor = true;
+        deathPlaneSettings.mUserData = surfaceUserData(
+            CollisionSurface::DeathPlane);
+        const auto deathPlane =
+            system_.GetBodyInterface().CreateAndAddBody(
+                deathPlaneSettings, JPH::EActivation::DontActivate);
+        if (deathPlane.IsInvalid())
+            throw std::runtime_error(
+                "Jolt could not create source death plane");
+        trackBodies_.push_back(deathPlane);
     }
 
     void createDecorationBodies()
@@ -3083,6 +3107,16 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
     vehicleRay.ignoredVehicle = 0U;
     const auto ignoredVehicleRayHit =
         fixedStepWorld->raycast(vehicleRay);
+    WorldRayCastQuery deathPlaneRay;
+    deathPlaneRay.origin = {500.0F, 0.0F, 10.0F};
+    deathPlaneRay.direction = {0.0F, 0.0F, -1.0F};
+    deathPlaneRay.maximumDistance = 20.0F;
+    deathPlaneRay.ignoredVehicle = 0U;
+    const auto excludedDeathPlaneRayHit =
+        fixedStepWorld->raycast(deathPlaneRay);
+    deathPlaneRay.includeDeathPlane = true;
+    const auto deathPlaneRayHit =
+        fixedStepWorld->raycast(deathPlaneRay);
     if (!trackRayHit.hit ||
         trackRayHit.surface != CollisionSurface::TrackPlane ||
         std::abs(trackRayHit.distance - 10.0F) > 0.05F ||
@@ -3090,9 +3124,31 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
         vehicleRayHit.surface != CollisionSurface::Vehicle ||
         vehicleRayHit.vehicle != 0U ||
         vehicleRayHit.distance >= vehicleRay.maximumDistance ||
-        ignoredVehicleRayHit.hit)
+        ignoredVehicleRayHit.hit || excludedDeathPlaneRayHit.hit ||
+        !deathPlaneRayHit.hit ||
+        deathPlaneRayHit.surface != CollisionSurface::DeathPlane ||
+        std::abs(deathPlaneRayHit.distance - 10.0F) > 0.05F)
     {
         error = "source projectile-group Jolt raycast bridge failed";
+        return false;
+    }
+    auto deathPlaneWorld =
+        createOriginalVehicleWorld(drivetrainDescription, error);
+    if (!deathPlaneWorld)
+        return false;
+    deathPlaneWorld->resetVehicle(
+        0U, {500.0F, 0.0F, -2.0F}, {1.0F, 0.0F, 0.0F});
+    deathPlaneWorld->step(1.0F / 60.0F, VehicleInput{});
+    const bool deathPlaneContact = std::any_of(
+        deathPlaneWorld->vehicle().bodyContacts.begin(),
+        deathPlaneWorld->vehicle().bodyContacts.end(),
+        [](const BodyContact& contact) {
+            return contact.surface == CollisionSurface::DeathPlane &&
+                   contact.hasPoint;
+        });
+    if (!deathPlaneContact)
+    {
+        error = "source cdgPlaneDeath Jolt sensor contact failed";
         return false;
     }
     VehicleInput input;

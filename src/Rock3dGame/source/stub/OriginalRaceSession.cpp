@@ -2787,6 +2787,38 @@ r3d::physics::WorldRayCastHit OriginalRaceSession::queryWorldRay(
     return result;
 }
 
+source::ResetCarRayKind OriginalRaceSession::queryResetWorld(
+    const std::vector<r3d::physics::VehicleState>& vehicles,
+    std::size_t ownVehicle, Vec3 origin) const
+{
+    if (!worldRaycast_)
+    {
+        return raycastResetWorld(
+                   race_, decorationActive_, vehicles, racers_,
+                   ownVehicle, origin)
+            .kind;
+    }
+
+    r3d::physics::WorldRayCastQuery query;
+    query.origin = origin;
+    query.direction = {0.0F, 0.0F, -1.0F};
+    // PhysX used NX_MAX_F32. This bound is already ten times larger than the
+    // death-plane broad-phase extent and every serialized map coordinate.
+    query.maximumDistance = 1000000.0F;
+    query.includeDeathPlane = true;
+    const auto hit = worldRaycast_(query);
+    if (!hit.hit)
+        return source::ResetCarRayKind::None;
+    if (hit.surface == r3d::physics::CollisionSurface::DeathPlane)
+        return source::ResetCarRayKind::DeathPlane;
+    if (hit.surface == r3d::physics::CollisionSurface::TrackPlane)
+        return source::ResetCarRayKind::TrackPlane;
+    if (hit.surface == r3d::physics::CollisionSurface::Vehicle &&
+        hit.vehicle == ownVehicle)
+        return source::ResetCarRayKind::OwnCar;
+    return source::ResetCarRayKind::Blocked;
+}
+
 const std::vector<std::uint32_t>& OriginalRaceSession::tracePathAt(
     std::size_t path) const
 {
@@ -4305,10 +4337,9 @@ void OriginalRaceSession::queueRespawn(
     auto& runtime = racers_[racer];
     const auto reset = runtime.ResetCar(
         [&](const source::TraceVec3& position) {
-            return raycastResetWorld(
-                       race_, decorationActive_, vehicles, racers_,
-                       racer, position)
-                .kind;
+            return queryResetWorld(
+                vehicles, racer,
+                {position.x, position.y, position.z});
         });
     if (!reset.valid)
         return;
@@ -4452,6 +4483,12 @@ void OriginalRaceSession::ingestPairContacts(
             continue;
         for (const auto& contact : vehicles[racer].bodyContacts)
         {
+            // cdgPlaneDeath owns TouchDeath, not the generic tire/contact
+            // particle behavior. Emitting a pair effect here would leave a
+            // bogus scrape loop while the car is being destroyed.
+            if (contact.surface ==
+                r3d::physics::CollisionSurface::DeathPlane)
+                continue;
             if (contact.surface ==
                      r3d::physics::CollisionSurface::Vehicle &&
                 contact.otherVehicle < racer)
@@ -5782,16 +5819,32 @@ void OriginalRaceSession::updateGameplay(
     {
         if (racers_[racer].IsDestroyed())
             continue;
-        const auto& definition = vehicleForRacer(racer);
-        const OrientedBox body =
-            vehicleBox(vehicles[racer], definition.physics);
-        const float verticalRadius =
-            std::abs(body.axes[0].z) * body.halfExtents[0] +
-            std::abs(body.axes[1].z) * body.halfExtents[1] +
-            std::abs(body.axes[2].z) * body.halfExtents[2];
-        // Map::Map creates a +Z plane at world Z=0 with TouchDeath.  Any
-        // car shape crossing that plane receives Death(dtDeathPlane).
-        if (body.center.z - verticalRadius > 0.0F)
+        bool touchedDeathPlane = false;
+        if (worldRaycast_)
+        {
+            touchedDeathPlane = std::any_of(
+                vehicles[racer].bodyContacts.begin(),
+                vehicles[racer].bodyContacts.end(),
+                [](const r3d::physics::BodyContact& contact) {
+                    return contact.surface ==
+                        r3d::physics::CollisionSurface::DeathPlane;
+                });
+        }
+        else
+        {
+            // Deterministic source-only tests have no Jolt scene. Preserve
+            // the old shape/plane overlap solely as their backend fallback.
+            const auto& definition = vehicleForRacer(racer);
+            const OrientedBox body =
+                vehicleBox(vehicles[racer], definition.physics);
+            const float verticalRadius =
+                std::abs(body.axes[0].z) * body.halfExtents[0] +
+                std::abs(body.axes[1].z) * body.halfExtents[1] +
+                std::abs(body.axes[2].z) * body.halfExtents[2];
+            touchedDeathPlane =
+                body.center.z - verticalRadius <= 0.0F;
+        }
+        if (!touchedDeathPlane)
             continue;
         const bool wasDestroyed = racers_[racer].IsDestroyed();
         map_.GetGround().GetGameObj().OnContact(
@@ -14688,6 +14741,27 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     "segment");
             }
             OriginalRaceSession resetSession(race);
+            std::size_t backendResetRayCount = 0U;
+            bool backendResetMaskValid = true;
+            resetSession.setWorldRaycast(
+                [&](const r3d::physics::WorldRayCastQuery& query) {
+                    ++backendResetRayCount;
+                    backendResetMaskValid =
+                        backendResetMaskValid &&
+                        query.includeDeathPlane &&
+                        !query.trackPlaneOnly &&
+                        query.direction.z < -0.999F;
+                    r3d::physics::WorldRayCastHit hit;
+                    hit.hit = true;
+                    hit.surface =
+                        r3d::physics::CollisionSurface::TrackPlane;
+                    hit.distance = 1.0F;
+                    hit.position = add(
+                        query.origin,
+                        multiply(query.direction, hit.distance));
+                    hit.normal = {0.0F, 0.0F, 1.0F};
+                    return hit;
+                });
             auto resetVehicles = vehicles;
             RaceControl resetInput;
             for (int frame = 0; frame < 250; ++frame)
@@ -14727,10 +14801,12 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 1.0F / 60.0F, resetVehicles, resetInput);
             const auto resetRequests =
                 resetSession.takeRespawns();
-            if (resetRequests.size() != 1U)
+            if (resetRequests.size() != 1U ||
+                backendResetRayCount < 3U ||
+                !backendResetMaskValid)
             {
                 throw std::runtime_error(
-                    "source ResetCar request count failed");
+                    "source ResetCar backend query/request count failed");
             }
             const float resetDistance = dot2(
                 subtract(

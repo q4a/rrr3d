@@ -39,6 +39,8 @@ enum class CollisionSurface : std::uint8_t
     TrackBorder,
     Decoration,
     Vehicle,
+    // Map::Map installs an infinite cdgPlaneDeath plane at game Z=0.
+    DeathPlane,
 };
 
 struct TriangleMesh
@@ -364,6 +366,9 @@ struct WorldRayCastQuery
     // MinePrepare and Proj::RocketUpdate use the original track-plane group,
     // while Laser/FrostRay query the complete projectile collision group.
     bool trackPlaneOnly = false;
+    // Player::ResetCar additionally includes cdgPlaneDeath. Ordinary
+    // projectile queries deliberately exclude it.
+    bool includeDeathPlane = false;
 };
 
 struct WorldRayCastHit

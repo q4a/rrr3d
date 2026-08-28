@@ -1723,6 +1723,21 @@ Engine regression требует contact от kinematic projectile. Следую
 граница — `Map` death plane и `Player::ResetCar` scene-query helpers, которые
 в active runtime ещё читают snapshot collision вместо одного backend query.
 
+### B8z — death plane и ResetCar backend query — выполнено
+
+Постоянная `Map::Map` плоскость `cdgPlaneDeath` теперь существует в Jolt как
+static sensor на world Z=0. Машина умирает только по завершённому manifold с
+этим actor; старый OBB crossing остаётся headless fallback. Death-plane
+contact не попадает в tire/contact effect owner и не оставляет scrape audio.
+
+`Player::ResetCar` сохранил исходную tile/offset/node state machine, но его
+`raycastClosestShape` callback теперь читает Jolt scene с source mask:
+TrackPlane, PlaneDeath и Default vehicle/decoration actors. Projectile rays
+plane не видят. Regression проверяет фильтр, plane contact и факт трёх
+backend reset queries. Следующая B8aa граница определяется новым аудитом
+оставшихся active physics snapshot consumers; подтверждённые projectile,
+bonus, mine, attached weapon, death и reset ветви уже backend-authoritative.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

@@ -757,6 +757,18 @@ actor пересоздаётся dynamic, продолжает движение 
 Следующий B8z — перенести постоянную death plane и ResetCar scene queries в
 backend, не меняя исходный `Player::ResetCar` выбор trace node.
 
+Результат B8z: `Map::Map` снова владеет отдельным death-plane physics actor —
+в replacement backend это static Jolt PlaneShape sensor на source Z=0.
+Vehicle manifold вызывает оригинальный TouchDeath/DeathPlane path; generic
+contact particles/audio этот actor не обслуживают.
+
+`Player::ResetCar` сохранил Windows tile/offset/previous-node алгоритм, а его
+scene callback использует closest Jolt ray с маской TrackPlane + DeathPlane +
+Default actors. Projectile queries death plane фильтруют. CPU reconstruction
+осталась только при отсутствии backend. Следующий B8aa — повторный поиск
+активных snapshot physics consumers после закрытия projectile/mine/bonus/
+attached/death/reset graph.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:
