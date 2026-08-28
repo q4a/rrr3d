@@ -3237,6 +3237,76 @@ Transform OriginalRaceSession::sourceWeaponWorldTransform(
     return compose(result, weaponLocal);
 }
 
+ProjectileRuntime OriginalRaceSession::buildWeaponProjectileRuntime(
+    const std::vector<r3d::physics::VehicleState>& vehicles,
+    std::size_t owner, std::size_t weaponIndex,
+    std::size_t primaryMount, std::size_t preparedOrdinal,
+    source::Proj& sourceObject,
+    std::size_t homingTarget)
+{
+    const auto& weapon = race_.weapons.at(weaponIndex);
+    const auto& projectile = sourceObject.GetDesc();
+    const auto fallbackProjectileIndex = [&]() {
+        std::size_t visibleOrdinal = 0U;
+        for (std::size_t index = 0U;
+             index < weapon.projectiles.size(); ++index)
+        {
+            if (weapon.projectiles[index].spawnOnParentDeath)
+                continue;
+            if (visibleOrdinal++ == preparedOrdinal)
+                return index;
+        }
+        return std::min(
+            preparedOrdinal,
+            weapon.projectiles.empty()
+                ? std::size_t{0U}
+                : weapon.projectiles.size() - 1U);
+    };
+
+    ProjectileRuntime runtime;
+    runtime.owner = owner;
+    runtime.weapon = weaponIndex;
+    runtime.projectile =
+        projectile.weaponListIndex < weapon.projectiles.size()
+            ? projectile.weaponListIndex
+            : fallbackProjectileIndex();
+    runtime.mountSlot = primaryMount;
+    const auto& position = sourceObject.GetWorldPos();
+    const auto& rotation = sourceObject.GetWorldRot();
+    runtime.position = {position[0], position[1], position[2]};
+    runtime.rotation = {
+        rotation[0], rotation[1], rotation[2], rotation[3]};
+    runtime.direction = normalized3(rotate(
+        runtime.rotation, {1.0F, 0.0F, 0.0F}));
+    runtime.speed = projectile.speed;
+    runtime.velocity = multiply(runtime.direction, runtime.speed);
+    runtime.sourceObject = &sourceObject;
+
+    const auto route = sourceObject.RoutePreparation();
+    runtime.attached = route.attached;
+    runtime.ballistic = route.ballistic;
+    if (route.attached && projectile.type == 14U &&
+        owner < vehicles.size())
+    {
+        // FireUpdate copies the mounted weapon actor velocity before it
+        // relocates the attached contact box on every source tick.
+        runtime.velocity = vehicles[owner].linearVelocity;
+    }
+    else if (!route.ray && route.rocketPrepare &&
+             owner < vehicles.size())
+    {
+        const auto launch = sourceObject.PrepareLaunch(
+            sourceVec(runtime.direction),
+            sourceVec(vehicles[owner].linearVelocity));
+        runtime.direction = runtimeVec(launch.direction);
+        runtime.speed = launch.speed;
+        runtime.velocity = multiply(runtime.direction, runtime.speed);
+    }
+    if (!route.ray && route.homing)
+        runtime.target = homingTarget;
+    return runtime;
+}
+
 bool OriginalRaceSession::prepareAiWeaponAttack(
     PendingAiAttack& attack,
     const std::vector<r3d::physics::VehicleState>& vehicles)
@@ -3318,6 +3388,26 @@ bool OriginalRaceSession::prepareAiWeaponAttack(
         return false;
     }
     runtime.SyncSelectedWeapon(race_.weapons.size());
+    const std::size_t homingTarget =
+        attack.decision.weaponTarget < racers_.size()
+            ? attack.decision.weaponTarget
+            : RacerRuntime::invalidWeapon;
+    for (std::size_t ordinal = 0U;
+         ordinal < attack.sourceProjectiles.size(); ++ordinal)
+    {
+        auto* sourceObject = attack.sourceProjectiles[ordinal];
+        if (sourceObject == nullptr)
+            continue;
+        const auto route = sourceObject->RoutePreparation();
+        if (!route.attached && route.ray)
+            continue;
+        auto backendRuntime = buildWeaponProjectileRuntime(
+            vehicles, racer, weaponIndex, slot, ordinal,
+            *sourceObject, homingTarget);
+        backendRuntime.deferProgressOnce = !externalRaceFixedStep_;
+        projectiles_.push_back(std::move(backendRuntime));
+        ++attack.sourceRuntimeCount;
+    }
     attack.sourcePrepared = true;
     return true;
 }
@@ -3573,7 +3663,18 @@ void OriginalRaceSession::discardPendingAiAttack(
         if (projectile != nullptr && !projectile->destroyed)
             projectile->Death();
     }
+    if (attack.sourceRuntimeCount > 0U)
+    {
+        std::erase_if(projectiles_, [&](const ProjectileRuntime& runtime) {
+            return std::find(
+                       attack.sourceProjectiles.begin(),
+                       attack.sourceProjectiles.end(),
+                       runtime.sourceObject) !=
+                   attack.sourceProjectiles.end();
+        });
+    }
     attack.sourceProjectiles.clear();
+    attack.sourceRuntimeCount = 0U;
     attack.sourcePrepared = false;
     for (auto* projectile : attack.hyperSourceProjectiles)
     {
@@ -4487,6 +4588,11 @@ void OriginalRaceSession::updateGameplay(
     {
         if (!projectile.active)
             continue;
+        if (projectile.deferProgressOnce)
+        {
+            projectile.deferProgressOnce = false;
+            continue;
+        }
         if (!logic_.HasGameObj(projectile.sourceObject))
         {
             projectile.active = false;
@@ -5760,23 +5866,6 @@ void OriginalRaceSession::updateGameplay(
             runtime.SyncSelectedWeapon(race_.weapons.size());
         }
 
-        const auto fallbackProjectileIndex =
-            [&](std::size_t preparedOrdinal) {
-                std::size_t visibleOrdinal = 0U;
-                for (std::size_t index = 0U;
-                     index < weapon->projectiles.size(); ++index)
-                {
-                    if (weapon->projectiles[index].spawnOnParentDeath)
-                        continue;
-                    if (visibleOrdinal++ == preparedOrdinal)
-                        return index;
-                }
-                return std::min(
-                    preparedOrdinal,
-                    weapon->projectiles.empty()
-                        ? std::size_t{0U}
-                        : weapon->projectiles.size() - 1U);
-            };
         for (std::size_t preparedOrdinal = 0U;
              preparedOrdinal < sourceProjectiles.size();
              ++preparedOrdinal)
@@ -5785,49 +5874,36 @@ void OriginalRaceSession::updateGameplay(
             if (sourceObject == nullptr)
                 continue;
             const auto& projectile = sourceObject->GetDesc();
+            const auto projectileRules =
+                sourceObject->RoutePreparation();
+            const bool rayProjectile = projectileRules.ray;
+            const bool attachedProjectile = projectileRules.attached;
+            const bool persistentRuntime =
+                attachedProjectile || !rayProjectile;
+            const auto fixedRuntime = std::find_if(
+                projectiles_.begin(), projectiles_.end(),
+                [&](const ProjectileRuntime& candidate) {
+                    return candidate.sourceObject == sourceObject;
+                });
+            const bool runtimeAlreadyMaterialized =
+                sourcePrepared && persistentRuntime;
+            ProjectileRuntime runtimeProjectile =
+                fixedRuntime != projectiles_.end()
+                    ? *fixedRuntime
+                    : buildWeaponProjectileRuntime(
+                          vehicles, shooter, firedWeapon, firedSlot,
+                          preparedOrdinal, *sourceObject, homingTarget);
             const std::size_t backendProjectileIndex =
-                projectile.weaponListIndex < weapon->projectiles.size()
-                    ? projectile.weaponListIndex
-                    : fallbackProjectileIndex(preparedOrdinal);
-            Transform shotTransform;
-            const auto& sourcePosition = sourceObject->GetWorldPos();
-            const auto& sourceRotation = sourceObject->GetWorldRot();
-            shotTransform.position = {
-                sourcePosition[0], sourcePosition[1], sourcePosition[2]};
-            shotTransform.rotation = {
-                sourceRotation[0], sourceRotation[1],
-                sourceRotation[2], sourceRotation[3]};
-            const Vec3 projectileOrigin = shotTransform.position;
-            const Vec3 sourceDirection = normalized3(
-                rotate(shotTransform.rotation,
-                       {1.0F, 0.0F, 0.0F}));
-            Vec3 launchDirection = sourceDirection;
-
-            ProjectileRuntime runtimeProjectile;
-            runtimeProjectile.owner = shooter;
-            runtimeProjectile.weapon = firedWeapon;
-            runtimeProjectile.projectile =
-                backendProjectileIndex;
-            runtimeProjectile.mountSlot = firedSlot;
-            runtimeProjectile.position = projectileOrigin;
-            runtimeProjectile.direction = sourceDirection;
-            runtimeProjectile.rotation = shotTransform.rotation;
-            runtimeProjectile.speed = projectile.speed;
-            runtimeProjectile.velocity =
-                multiply(sourceDirection, projectile.speed);
-            runtimeProjectile.sourceObject = sourceObject;
+                runtimeProjectile.projectile;
+            const Vec3 projectileOrigin = runtimeProjectile.position;
+            const Vec3 sourceDirection = runtimeProjectile.direction;
+            Vec3 launchDirection = runtimeProjectile.direction;
             if (networkCoordinates.empty())
                 networkCoordinates.push_back(projectileOrigin);
 
             // The concrete projectile has now completed PrepareProj. Its
             // copied descriptor, rather than the session definition, owns
             // the backend route for the rest of this transaction.
-            const auto projectileRules =
-                runtimeProjectile.sourceObject->RoutePreparation();
-            const bool rocketPrepared = projectileRules.rocketPrepare;
-            const bool rayProjectile = projectileRules.ray;
-            const bool attachedProjectile =
-                projectileRules.attached;
             const float projectileDistance =
                 projectile.maximumDistance > 0.0F
                     ? projectile.maximumDistance
@@ -5860,41 +5936,14 @@ void OriginalRaceSession::updateGameplay(
                         : projectileDistance));
             if (attachedProjectile)
             {
-                if (projectile.type == 14U)
-                {
-                    // FireUpdate copies the mounted weapon actor velocity on
-                    // every source tick before relocating the contact box.
-                    runtimeProjectile.velocity =
-                        vehicles[shooter].linearVelocity;
-                }
-                runtimeProjectile.attached = true;
-                projectiles_.push_back(std::move(runtimeProjectile));
+                if (!runtimeAlreadyMaterialized)
+                    projectiles_.push_back(std::move(runtimeProjectile));
             }
             else if (!rayProjectile)
             {
-                float speed = runtimeProjectile.speed;
-                runtimeProjectile.ballistic =
-                    projectileRules.ballistic;
-                if (rocketPrepared)
-                {
-                    const auto sourceLaunch =
-                        runtimeProjectile.sourceObject->PrepareLaunch(
-                            sourceVec(sourceDirection),
-                            sourceVec(
-                                vehicles[shooter].linearVelocity));
-                    launchDirection =
-                        runtimeVec(sourceLaunch.direction);
-                    speed = sourceLaunch.speed;
-                    runtimeProjectile.direction = launchDirection;
-                    runtimeProjectile.speed = speed;
-                    runtimeProjectile.velocity =
-                        multiply(launchDirection, speed);
-                }
-                if (projectileRules.homing)
-                {
-                    runtimeProjectile.target = homingTarget;
-                }
-                projectiles_.push_back(std::move(runtimeProjectile));
+                const float speed = runtimeProjectile.speed;
+                if (!runtimeAlreadyMaterialized)
+                    projectiles_.push_back(std::move(runtimeProjectile));
                 end = add(
                     projectileOrigin,
                     multiply(
@@ -7063,6 +7112,7 @@ void OriginalRaceSession::updateGameplay(
                 // Logic remains the owner. Only release the adapter's
                 // temporary view after every concrete Proj was materialized.
                 attack.sourceProjectiles.clear();
+                attack.sourceRuntimeCount = 0U;
                 attack.sourcePrepared = false;
             }
             else
@@ -9075,11 +9125,12 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                         chargeBeforeFixedAttack ||
                     std::abs(
                         queuedWeaponItem->GetWeapon()->GetShotTime()) >
-                        1.0e-6F)
+                        1.0e-6F ||
+                    queuedAttackSession.projectiles().size() != 1U)
                 {
                     throw std::runtime_error(
                         "source fixed-step AI attack did not commit its "
-                        "charge and cooldown on the firing tick");
+                        "charge, cooldown and runtime on the firing tick");
                 }
                 queuedAttackVehicles[0].body.position.z += 1000.0F;
                 queuedAttackSession.raceFixedStep(
@@ -9089,7 +9140,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                         chargeBeforeFixedAttack ||
                     std::abs(
                         queuedWeaponItem->GetWeapon()->GetShotTime()) >
-                        1.0e-6F)
+                        1.0e-6F ||
+                    queuedAttackSession.projectiles().size() != 1U)
                 {
                     throw std::runtime_error(
                         "source fixed-step AI attack was committed twice "
@@ -9100,7 +9152,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     queuedAttackVehicles, input);
                 if (queuedWeaponItem->GetCurCharge() + 1U !=
                         chargeBeforeFixedAttack ||
-                    queuedWeaponItem->GetWeapon()->GetShotTime() <= 0.0F)
+                    queuedWeaponItem->GetWeapon()->GetShotTime() <= 0.0F ||
+                    queuedAttackSession.projectiles().size() != 1U)
                 {
                     throw std::runtime_error(
                         "source fixed-step AI attack was re-fired while "

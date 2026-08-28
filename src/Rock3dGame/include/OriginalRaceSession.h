@@ -340,6 +340,11 @@ struct ProjectileRuntime
     bool attached = false;
     bool directWeapon = false;
     bool ballistic = false;
+    // Headless/session fallback invokes Race::OnFixedStep inside the frame
+    // update after World::Progress has already run. A projectile created by
+    // that callback must not receive its first Proj progress pass until the
+    // next frame, matching World fixed-step -> PhysX Compute ordering.
+    bool deferProgressOnce = false;
     // Fire and Drobilka follow the weapon without SetParent.  Proj::OnDestroy
     // clears their weapon pointer but does not kill the projectile actor, so
     // it continues with its last PhysX velocity instead of following a new
@@ -526,6 +531,7 @@ private:
         std::uint32_t projectileId = 0U;
         Transform weaponTransform;
         source::Weapon::ProjList sourceProjectiles;
+        std::size_t sourceRuntimeCount = 0U;
         bool sourcePrepared = false;
         std::size_t hyperWeapon = RacerRuntime::invalidWeapon;
         std::uint32_t hyperProjectileId = 0U;
@@ -580,6 +586,12 @@ private:
         const std::vector<r3d::physics::VehicleState>& vehicles,
         std::size_t owner, std::size_t weapon,
         std::optional<std::size_t> primaryMount) const;
+    ProjectileRuntime buildWeaponProjectileRuntime(
+        const std::vector<r3d::physics::VehicleState>& vehicles,
+        std::size_t owner, std::size_t weapon,
+        std::size_t primaryMount, std::size_t preparedOrdinal,
+        source::Proj& projectile,
+        std::size_t homingTarget);
     bool prepareAiWeaponAttack(
         PendingAiAttack& attack,
         const std::vector<r3d::physics::VehicleState>& vehicles);

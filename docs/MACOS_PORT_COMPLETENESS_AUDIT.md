@@ -1593,6 +1593,27 @@ Integration regression подтверждает runtime/velocity до adapter и
 их source-транзакция уже fixed-step, но автономный backend projectile view
 всё ещё создаётся последующим frame adapter.
 
+### B8s: same-step runtime for ordinary AI projectiles
+
+Обычная `ShotByEnemy` транзакция теперь создаёт persistent
+`ProjectileRuntime` одновременно с concrete source `Proj`, charge и
+cooldown. Единый builder читает состояние уже подготовленного объекта, а не
+повторно выводит его из упрощённого weapon definition: точный projectile
+index, transform, relative launch speed, ballistic/homing/attached route и
+AI target сохраняются до следующего source шага.
+
+Frame adapter повторно использует runtime по `sourceObject` и публикует
+`WeaponFired`/shot effects без второго тела или `PrepareLaunch`. Ray-only
+ветка остаётся presentation/contact boundary и не получает фиктивное
+autonomous body. Session fallback пропускает только невозможный повторный
+progress в кадре создания, сохраняя Windows order.
+
+Regression расширен проверкой единственного торпедного runtime до и после
+adapter и существующей 3D target-plane проверкой. Следующая B8t граница —
+сопоставить движение и контакты свободных projectile runtime с
+PhysX/Jolt fixed simulation: сейчас их backend-neutral интеграция всё ещё
+выполняется render `updateGameplay`.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

@@ -5137,6 +5137,27 @@ Regression требует один Hyper runtime и одну velocity-коман
 неизменный charge на втором fixed-step. Physics smoke дополнительно проверяет,
 что переданная callback-ом скорость уже видна после того же Jolt solve.
 
+### P2.221 — runtime обычного AI-снаряда создаётся в firing fixed-step — выполнено
+
+После B8r обычная ветка `AICar::AttackState::ShotByEnemy` оставалась
+асимметричной специальным атакам: concrete source `Proj` уже создавался в
+`Race::OnFixedStep`, но автономный `ProjectileRuntime` появлялся только при
+последующем render adapter pass. Это откладывало backend-тело торпеды и
+прочих обычных снарядов относительно исходного `Weapon::CreateShot`.
+
+Общий builder теперь формирует runtime из фактически подготовленного `Proj`:
+использует его world transform, `weaponListIndex`, preparation route,
+relative launch velocity, ballistic/homing/attached признаки и выбранную AI
+цель. Fixed-step сразу регистрирует все persistent projectile views. Adapter
+находит их по concrete `Proj*`, не вызывает launch preparation второй раз и
+оставляет за собой только ray resolution, событие и presentation effects.
+
+Для встроенного session fallback сохранён исходный порядок
+`World::Progress -> Race::OnFixedStep -> physics`: новый projectile не
+получает лишний `Proj::OnProgress` внутри того же кадра. Regression требует
+один runtime до adapter, один после него и прежний 3D target. Прошли 29/29
+CTest, physics smoke и 360-frame bgfx/Metal smoke.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

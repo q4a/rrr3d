@@ -663,6 +663,24 @@ effects и presentation lifetime. Он не создаёт повторный ru
 обычный AI projectile runtime: concrete source `Proj` создаётся fixed-step-ом,
 но его автономный Jolt/bgfx view пока материализуется render adapter-ом.
 
+Результат B8s: `prepareAiWeaponAttack` после успешного
+`Logic::Shot -> Weapon::CreateShot` сразу строит backend-neutral runtime для
+каждого persistent concrete `Proj`. Общий builder переносит точный source
+transform, projectile index, relative launch velocity и
+ballistic/homing/attached route; выбранная `AttackState` цель становится
+runtime homing target в том же firing tick.
+
+`fireWeapon` больше не создаёт второй runtime и не повторяет
+`PrepareLaunch`: он находит fixed-step view по `Proj*`, затем формирует только
+ray/contact result, network event и visual/audio effects. Headless fallback
+отдельно сохраняет порядок World frame progress перед Race fixed-step, не
+продвигая новый projectile дважды в кадре его создания.
+
+Следующий B8t — проверить backend-интеграцию свободных projectiles между
+source fixed intervals. Их source `Proj::OnProgress` корректно остаётся
+frame event, но перенос позиции/контактов replacement physics пока выполняет
+session `updateGameplay`, а не Jolt solver boundary.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:
