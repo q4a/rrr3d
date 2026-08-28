@@ -2356,3 +2356,14 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   edge fade и последовательным overlap alpha по исходному list order.
 - Уничтоженная машина скрывает widget с сохранением состояния, а disconnect
   удаляет source item и освобождает backend label texture.
+
+### Source PlayerStateFrame race-state follow-up
+
+- `UpdateSlots/UpdateState/OnAdjustLayout` возвращены в source owner:
+  Hyper, Mine и четыре primary boxes хранят visual/charge/selection/layout.
+- Primary slots и два subweapon viewport снова компактно размещаются как в
+  Windows; пустые physical slots больше не оставляют промежутков.
+- Удалены ошибочные HUD icons `mineSlot.png`/`hyperSlot.png`, которые исходный
+  `HudMenu.cpp` использует только в другом RaceMenu frame и в гонке не создаёт.
+- Place/life и `MiniMapFrame` lap clamp также source-owned; CoreText и bgfx
+  выполняют только локализацию, texture cache и draw submission.

@@ -1,5 +1,6 @@
 #include "OriginalHudMenu.h"
 
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 
@@ -109,9 +110,16 @@ int main()
     if (!point(first, geometry.start.x, geometry.start.y) ||
         second.x <= first.x || fourth.y >= first.y)
         return 11;
+    miniMap.UpdateLap(3U, 4U);
+    if (miniMap.GetShownLap() != 4U || miniMap.GetTotalLaps() != 4U)
+        return 40;
+    miniMap.UpdateLap(8U, 4U);
+    if (miniMap.GetShownLap() != 4U)
+        return 41;
     miniMap.Clear();
     if (miniMap.IsValid() || !miniMap.GetGeometry().vertices.empty() ||
-        !miniMap.GetGeometry().indices.empty())
+        !miniMap.GetGeometry().indices.empty() ||
+        miniMap.GetShownLap() != 0U || miniMap.GetTotalLaps() != 0U)
         return 12;
 
     source::PlayerStateFrame playerState;
@@ -299,6 +307,62 @@ int main()
     playerState.Reset();
     if (!playerState.GetOpponents().empty())
         return 39;
+
+    source::HudRaceStateInput raceStateInput;
+    raceStateInput.place = 3U;
+    raceStateInput.life = 25.0F;
+    raceStateInput.maximumLife = 100.0F;
+    raceStateInput.carAlive = true;
+    raceStateInput.selectedPrimarySlot = 2U;
+    raceStateInput.primaryBoxWidth = 100.0F;
+    raceStateInput.primaryBoxHeight = 76.0F;
+    raceStateInput.weapons[0] = {7U, 2U, 3U, true};
+    raceStateInput.weapons[2] = {4U, 5U, 10U, true};
+    raceStateInput.weapons[4] = {6U, 8U, 12U, true};
+    playerState.UpdateRaceState(raceStateInput);
+    const auto& raceState = playerState.GetRaceState();
+    if (raceState.place != 3U || !near(raceState.life, 0.25F) ||
+        !raceState.weapons[0].visible ||
+        !point(raceState.weapons[0].viewPosition, 30.0F, 32.0F) ||
+        !point(raceState.weapons[0].labelPosition, 105.0F, 15.0F))
+        return 42;
+    if (!raceState.weapons[2].visible ||
+        raceState.weapons[2].selected ||
+        !point(raceState.weapons[2].boxPosition, 205.0F, 88.0F) ||
+        !point(raceState.weapons[2].viewPosition, 210.0F, 73.0F) ||
+        !point(raceState.weapons[2].labelPosition, 195.0F, 114.0F))
+        return 43;
+    if (!raceState.weapons[4].visible ||
+        !raceState.weapons[4].selected ||
+        !point(raceState.weapons[4].boxPosition, 280.0F, 88.0F) ||
+        raceState.weapons[4].visual != 6U ||
+        raceState.weapons[4].currentCharge != 8U ||
+        raceState.weapons[4].totalCharge != 12U)
+        return 44;
+
+    raceStateInput.weapons[0] = {};
+    raceStateInput.weapons[1] = {9U, 1U, 4U, true};
+    raceStateInput.carAlive = false;
+    raceStateInput.life = 0.0F;
+    playerState.UpdateRaceState(raceStateInput);
+    if (playerState.GetRaceState().weapons[0].visible ||
+        !playerState.GetRaceState().weapons[1].visible ||
+        !point(playerState.GetRaceState().weapons[1].viewPosition,
+               30.0F, 32.0F) ||
+        !point(playerState.GetRaceState().weapons[1].labelPosition,
+               105.0F, 15.0F) ||
+        !near(playerState.GetRaceState().life, 0.25F))
+        return 45;
+    playerState.Reset();
+    if (playerState.GetRaceState().place != 1U ||
+        !near(playerState.GetRaceState().life, 1.0F) ||
+        std::any_of(
+            playerState.GetRaceState().weapons.begin(),
+            playerState.GetRaceState().weapons.end(),
+            [](const source::HudWeaponSlot& weapon) {
+                return weapon.visible;
+            }))
+        return 46;
 
     std::cout << "Original HudMenu smoke passed\n";
     return 0;

@@ -4605,6 +4605,34 @@ draw order, visibility, позиции, radius и alpha; отключённые 
 car-life move-to-front/radius/fade, edge fade, collision suppression, hidden
 lifetime, disconnect removal и Reset.
 
+### P2.197 — `UpdateSlots/UpdateState` и lap HUD возвращены source owner — выполнено
+
+Следующая сверка `PlayerStateFrame::InsertSlot`, `ClearSlot`, `UpdateSlots`,
+`UpdateState`, `OnAdjustLayout` и `MiniMapFrame::OnProgress` подтвердила ещё
+один renderer surrogate. bgfx HUD напрямую выбирал weapon definitions,
+считал charge text, selected slot, place/life и lap. При этом четыре primary
+слота располагались по физическим индексам с пустыми промежутками, а Windows
+компактно размещает только установленные boxes. Hyper/mine всегда рисовались
+с отдельными `hyperSlot.png`/`mineSlot.png`, хотя исходный HUD эти RaceMenu
+icons вообще не создаёт; его два 3D viewport также компактно занимают первые
+доступные Hyper/Mine layout-точки.
+
+Добавлены `HudRaceStateInput`, шесть исходных `HudWeaponSlot` и
+`HudPlayerRaceState` в active `source::PlayerStateFrame`. Source теперь
+владеет Hyper/Mine/Weapon1..4 order, compact indices, selected primary,
+absolute box/view/label positions, visual identity, charge pairs, place и
+life progress. Сохраняется исходное поведение жизни: при отсутствии car
+GameObject bar удерживает последнее значение вместо принудительного нуля.
+`MiniMapFrame` получил исходный `min(numLaps + 1, lapsCount)` и lifetime
+lap state.
+
+Renderer только собирает portable Slot/WeaponItem snapshot, локализует
+готовые place/lap/charge values и исполняет source draw positions. Удалены
+придуманные HUD-загрузки и draw calls `mineSlot.png`/`hyperSlot.png`;
+оригинальные primary `slot.png`/`slotSel.png` остаются. Regression покрывает
+lap clamp/reset, compact primary gaps, physical selected-slot mapping,
+Hyper/Mine compression, charge/visual identity, life hold и Reset.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

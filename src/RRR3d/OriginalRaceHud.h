@@ -139,8 +139,6 @@ private:
     ImageAsset mapStart_;
     ImageAsset weaponSlot_;
     ImageAsset weaponSlotSelected_;
-    ImageAsset mineSlot_;
-    ImageAsset hyperSlot_;
     ImageAsset pickArmor_;
     ImageAsset pickAmmo_;
     ImageAsset pickIntro_;
@@ -179,22 +177,6 @@ private:
     std::vector<AchievementNotification> achievementNotifications_;
     r3d::game::originalrace::source::PlayerStateFrame playerStateFrame_;
     r3d::game::originalrace::source::HudMenu hudMenuState_;
-    float lifeFraction_ = 1.0F;
-    std::array<bool,
-               r3d::game::originalrace::PlayerProfile::weaponSlotCount>
-        weaponVisible_{};
-    std::array<std::size_t,
-               r3d::game::originalrace::PlayerProfile::weaponSlotCount>
-        weaponVisualIndices_{
-            r3d::game::originalrace::RacerRuntime::invalidWeapon,
-            r3d::game::originalrace::RacerRuntime::invalidWeapon,
-            r3d::game::originalrace::RacerRuntime::invalidWeapon,
-            r3d::game::originalrace::RacerRuntime::invalidWeapon};
-    std::size_t mineVisualIndex_ =
-        r3d::game::originalrace::RacerRuntime::invalidWeapon;
-    std::size_t hyperVisualIndex_ =
-        r3d::game::originalrace::RacerRuntime::invalidWeapon;
-    std::size_t selectedWeaponSlot_ = 0;
     std::array<std::string, 8> placeNames_{
         "1st", "2nd", "3rd", "4th",
         "5th", "6th", "7th", "8th"};

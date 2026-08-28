@@ -151,10 +151,6 @@ bool OriginalRaceHud::initialize(
                    weaponSlot_, error) ||
         !loadImage(device, resources, "Data/GUI/slotSel.png",
                    weaponSlotSelected_, error) ||
-        !loadImage(device, resources, "Data/GUI/mineSlot.png",
-                   mineSlot_, error) ||
-        !loadImage(device, resources, "Data/GUI/hyperSlot.png",
-                   hyperSlot_, error) ||
         !loadImage(device, resources, "Data/GUI/pickArmor.png",
                    pickArmor_, error) ||
         !loadImage(device, resources, "Data/GUI/pickWeapon.png",
@@ -428,8 +424,6 @@ void OriginalRaceHud::shutdown(GraphicsDevice& device) noexcept
     releaseImage(pickIntro_);
     releaseImage(pickAmmo_);
     releaseImage(pickArmor_);
-    releaseImage(hyperSlot_);
-    releaseImage(mineSlot_);
     releaseImage(weaponSlotSelected_);
     releaseImage(weaponSlot_);
     releaseImage(mapStart_);
@@ -591,58 +585,87 @@ void OriginalRaceHud::update(
     const auto& player = session.racers()[humanRacer];
     const auto white = menu::Rgba8{255, 255, 255, 255};
 
+    source::HudRaceStateInput raceStateInput;
+    raceStateInput.place = player.GetPlace();
+    raceStateInput.life = player.GetLife();
+    raceStateInput.maximumLife = player.GetMaxLife();
+    raceStateInput.carAlive = !player.IsDestroyed();
+    raceStateInput.selectedPrimarySlot = player.selectedWeaponSlot;
+    raceStateInput.primaryBoxWidth = weaponSlot_.width;
+    raceStateInput.primaryBoxHeight = weaponSlot_.height;
+    const auto primaryItems = player.GetPrimaryWeaponItems();
+    for (std::size_t slot = 0U; slot < primaryItems.size(); ++slot)
+    {
+        auto& input = raceStateInput.weapons[slot + 2U];
+        input.visual = player.weaponSlots[slot];
+        input.mounted = primaryItems[slot] != nullptr &&
+            input.visual != originalrace::RacerRuntime::invalidWeapon &&
+            input.visual < race.weapons.size();
+        if (input.mounted)
+        {
+            input.currentCharge = primaryItems[slot]->GetCurCharge();
+            input.totalCharge = primaryItems[slot]->GetCntCharge();
+        }
+    }
+    const auto* hyperItem = player.GetHyperWeaponItem();
+    auto& hyperInput = raceStateInput.weapons[0];
+    hyperInput.visual = player.hyperWeapon;
+    hyperInput.mounted = hyperItem != nullptr &&
+        hyperInput.visual != originalrace::RacerRuntime::invalidWeapon &&
+        hyperInput.visual < race.weapons.size();
+    if (hyperInput.mounted)
+    {
+        hyperInput.currentCharge = hyperItem->GetCurCharge();
+        hyperInput.totalCharge = hyperItem->GetCntCharge();
+    }
+    const auto* mineItem = player.GetMineWeaponItem();
+    auto& mineInput = raceStateInput.weapons[1];
+    mineInput.visual = player.mineWeapon;
+    mineInput.mounted = mineItem != nullptr &&
+        mineInput.visual != originalrace::RacerRuntime::invalidWeapon &&
+        mineInput.visual < race.weapons.size();
+    if (mineInput.mounted)
+    {
+        mineInput.currentCharge = mineItem->GetCurCharge();
+        mineInput.totalCharge = mineItem->GetCntCharge();
+    }
+    playerStateFrame_.UpdateRaceState(raceStateInput);
+    miniMapState_.UpdateLap(player.car.numLaps, race.lapCount);
+    const auto& raceState = playerStateFrame_.GetRaceState();
     const auto placeIndex = std::min<std::size_t>(
-        player.GetPlace() > 0U ? player.GetPlace() - 1U : 0U,
+        raceState.place > 0U ? raceState.place - 1U : 0U,
         placeNames_.size() - 1U);
     setText(device, place_, placeNames_[placeIndex],
             30.0F, true, white);
-    const std::uint32_t shownLap =
-        std::min(player.car.numLaps + 1U, race.lapCount);
     setText(device, lap_,
-            lapName_ + " " + std::to_string(shownLap) + "/" +
-                std::to_string(race.lapCount),
+            lapName_ + " " +
+                std::to_string(miniMapState_.GetShownLap()) + "/" +
+                std::to_string(miniMapState_.GetTotalLaps()),
             25.0F, true, white);
-    selectedWeaponSlot_ = player.selectedWeaponSlot;
-    const auto primaryItems = player.GetPrimaryWeaponItems();
     for (std::size_t slot = 0; slot < weaponAmmo_.size(); ++slot)
     {
-        weaponVisible_[slot] =
-            player.weaponSlots[slot] !=
-                originalrace::RacerRuntime::invalidWeapon &&
-            player.weaponSlots[slot] < race.weapons.size();
-        weaponVisualIndices_[slot] = player.weaponSlots[slot];
+        const auto& weapon = raceState.weapons[slot + 2U];
         setText(device, weaponAmmo_[slot],
-                weaponVisible_[slot]
-                    ? std::to_string(
-                          primaryItems[slot] != nullptr
-                              ? primaryItems[slot]->GetCurCharge()
-                              : 0U) +
-                          "/" +
-                          std::to_string(
-                              primaryItems[slot] != nullptr
-                                  ? primaryItems[slot]->GetCntCharge()
-                                  : 0U)
+                weapon.visible
+                    ? std::to_string(weapon.currentCharge) + "/" +
+                          std::to_string(weapon.totalCharge)
                     : std::string{},
                 18.0F, true, white);
     }
-    const auto* mineItem = player.GetMineWeaponItem();
-    const auto* hyperItem = player.GetHyperWeaponItem();
+    const auto& mineState = raceState.weapons[1];
     setText(device, mineAmmo_,
-            std::to_string(
-                mineItem != nullptr ? mineItem->GetCurCharge() : 0U) +
-                "/" +
-                std::to_string(
-                    mineItem != nullptr ? mineItem->GetCntCharge() : 0U),
+            mineState.visible
+                ? std::to_string(mineState.currentCharge) + "/" +
+                      std::to_string(mineState.totalCharge)
+                : std::string{},
             18.0F, true, white);
+    const auto& hyperState = raceState.weapons[0];
     setText(device, hyperAmmo_,
-            std::to_string(
-                hyperItem != nullptr ? hyperItem->GetCurCharge() : 0U) +
-                "/" +
-                std::to_string(
-                    hyperItem != nullptr ? hyperItem->GetCntCharge() : 0U),
+            hyperState.visible
+                ? std::to_string(hyperState.currentCharge) + "/" +
+                      std::to_string(hyperState.totalCharge)
+                : std::string{},
             18.0F, true, white);
-    mineVisualIndex_ = player.mineWeapon;
-    hyperVisualIndex_ = player.hyperWeapon;
 
     for (const auto& event : session.events())
     {
@@ -782,11 +805,6 @@ void OriginalRaceHud::update(
             }),
         achievementNotifications_.end());
     hudMenuState_.OnProgress(seconds);
-
-    lifeFraction_ =
-        std::clamp(
-            player.GetLife() / std::max(player.GetMaxLife(), 1.0F),
-                   0.0F, 1.0F);
 
     mapMarkers_.clear();
     mapMarkers_.reserve(std::min(vehicles.size(), race.racers.size()));
@@ -1291,18 +1309,9 @@ void OriginalRaceHud::draw(GraphicsDevice& device, Mesh quad,
     // countdown) deliberately remain visible in the Windows implementation.
     if (enableRaceState)
     {
+        const auto& raceState = playerStateFrame_.GetRaceState();
         const auto placePos = source::HudMenu::GetPlacePos();
         const auto lifePos = source::HudMenu::GetLifeBarPos();
-        const auto weaponPos = source::HudMenu::GetWeaponPos();
-        const auto weaponBoxPos = source::HudMenu::GetWeaponBoxPos();
-        const auto weaponLabelPos =
-            source::HudMenu::GetWeaponLabelPos();
-        const auto minePos = source::HudMenu::GetWeaponPosMine();
-        const auto mineLabelPos =
-            source::HudMenu::GetWeaponPosMineLabel();
-        const auto hyperPos = source::HudMenu::GetWeaponPosHyper();
-        const auto hyperLabelPos =
-            source::HudMenu::GetWeaponPosHyperLabel();
         const auto lapPos = source::HudMenu::GetLapPos();
         drawAsset(device, quad, shader, placeFrame_.texture,
                   placeFrame_.width, placeFrame_.height,
@@ -1317,7 +1326,7 @@ void OriginalRaceHud::draw(GraphicsDevice& device, Mesh quad,
                   lifePos.x + lifeBack_.width * 0.5F,
                   lifePos.y + lifeBack_.height * 0.5F, 28.0F,
                   pipeline);
-        const float lifeWidth = lifeBar_.width * lifeFraction_;
+        const float lifeWidth = lifeBar_.width * raceState.life;
         drawAsset(device, quad, shader, lifeBar_.texture, lifeWidth,
                   lifeBar_.height,
                   lifePos.x + lifeBack_.width * 0.5F -
@@ -1325,50 +1334,38 @@ void OriginalRaceHud::draw(GraphicsDevice& device, Mesh quad,
                   lifePos.y + lifeBack_.height * 0.5F,
                   18.0F, pipeline);
 
-        for (std::size_t slot = 0; slot < weaponAmmo_.size(); ++slot)
+        for (const auto& weapon : raceState.weapons)
         {
-            if (!weaponVisible_[slot])
+            if (!weapon.visible)
                 continue;
-            const bool selected = slot == selectedWeaponSlot_;
-            const auto& image =
-                selected ? weaponSlotSelected_ : weaponSlot_;
-            const float centerX =
-                weaponPos.x + image.width * 0.5F +
-                static_cast<float>(slot) * (image.width - 25.0F);
-            const float centerY =
-                weaponPos.y + image.height * 0.5F;
-            drawAsset(device, quad, shader, image.texture, image.width,
-                      image.height, centerX, centerY, 34.0F, pipeline);
-            drawWeaponVisual(weaponVisualIndices_[slot],
-                             centerX + weaponBoxPos.x,
-                             centerY + weaponBoxPos.y,
-                             28.0F);
-            drawAsset(device, quad, shader, weaponAmmo_[slot].texture,
-                      weaponAmmo_[slot].width,
-                      weaponAmmo_[slot].height,
-                      centerX + weaponLabelPos.x,
-                      centerY + weaponLabelPos.y, 22.0F,
-                      pipeline);
+            const TextAsset* ammo = nullptr;
+            if (weapon.primary)
+            {
+                const auto& image = weapon.selected
+                    ? weaponSlotSelected_ : weaponSlot_;
+                drawAsset(
+                    device, quad, shader, image.texture, image.width,
+                    image.height, weapon.boxPosition.x,
+                    weapon.boxPosition.y, 34.0F, pipeline);
+                const std::size_t primarySlot = weapon.type - 2U;
+                if (primarySlot < weaponAmmo_.size())
+                    ammo = &weaponAmmo_[primarySlot];
+            }
+            else
+            {
+                ammo = weapon.type == 0U ? &hyperAmmo_ : &mineAmmo_;
+            }
+            drawWeaponVisual(
+                weapon.visual, weapon.viewPosition.x,
+                weapon.viewPosition.y, 28.0F);
+            if (ammo != nullptr)
+            {
+                drawAsset(
+                    device, quad, shader, ammo->texture, ammo->width,
+                    ammo->height, weapon.labelPosition.x,
+                    weapon.labelPosition.y, 22.0F, pipeline);
+            }
         }
-        drawAsset(device, quad, shader, mineSlot_.texture,
-                  mineSlot_.width, mineSlot_.height, minePos.x,
-                  minePos.y,
-                  34.0F, pipeline);
-        drawWeaponVisual(mineVisualIndex_, minePos.x, minePos.y, 28.0F);
-        drawAsset(device, quad, shader, mineAmmo_.texture,
-                  mineAmmo_.width, mineAmmo_.height, mineLabelPos.x,
-                  mineLabelPos.y,
-                  22.0F, pipeline);
-        drawAsset(device, quad, shader, hyperSlot_.texture,
-                  hyperSlot_.width, hyperSlot_.height, hyperPos.x,
-                  hyperPos.y,
-                  34.0F, pipeline);
-        drawWeaponVisual(hyperVisualIndex_, hyperPos.x, hyperPos.y,
-                         28.0F);
-        drawAsset(device, quad, shader, hyperAmmo_.texture,
-                  hyperAmmo_.width, hyperAmmo_.height,
-                  hyperLabelPos.x, hyperLabelPos.y,
-                  22.0F, pipeline);
 
         drawAsset(device, quad, shader, lapBack_.texture,
                   lapBack_.width, lapBack_.height,

@@ -67,9 +67,13 @@ class MiniMapFrame
 {
 public:
     bool Build(const Race& race, float viewportWidth);
+    void UpdateLap(std::uint32_t completedLaps,
+                   std::uint32_t totalLaps) noexcept;
     void Clear() noexcept;
     HudPoint MapPosition(Vec3 position) const noexcept;
     const HudMiniMapGeometry& GetGeometry() const noexcept;
+    std::uint32_t GetShownLap() const noexcept;
+    std::uint32_t GetTotalLaps() const noexcept;
     bool IsValid() const noexcept;
 
 private:
@@ -80,6 +84,8 @@ private:
     float scale_ = 1.0F;
     float originX_ = 0.0F;
     float originY_ = 0.0F;
+    std::uint32_t shownLap_ = 0U;
+    std::uint32_t totalLaps_ = 0U;
     bool valid_ = false;
 };
 
@@ -166,6 +172,50 @@ struct HudOpponent
     bool visible = false;
 };
 
+struct HudWeaponSlotInput
+{
+    std::size_t visual = HudCarLife::invalidRacer;
+    std::uint32_t currentCharge = 0U;
+    std::uint32_t totalCharge = 0U;
+    bool mounted = false;
+};
+
+struct HudRaceStateInput
+{
+    static constexpr std::size_t weaponTypeCount = 6U;
+
+    std::array<HudWeaponSlotInput, weaponTypeCount> weapons{};
+    std::size_t selectedPrimarySlot = 0U;
+    std::uint32_t place = 1U;
+    float life = 1.0F;
+    float maximumLife = 1.0F;
+    float primaryBoxWidth = 0.0F;
+    float primaryBoxHeight = 0.0F;
+    bool carAlive = false;
+};
+
+struct HudWeaponSlot
+{
+    std::size_t type = 0U;
+    std::size_t visual = HudCarLife::invalidRacer;
+    HudPoint boxPosition;
+    HudPoint viewPosition;
+    HudPoint labelPosition;
+    std::uint32_t currentCharge = 0U;
+    std::uint32_t totalCharge = 0U;
+    bool visible = false;
+    bool primary = false;
+    bool selected = false;
+};
+
+struct HudPlayerRaceState
+{
+    std::array<HudWeaponSlot, HudRaceStateInput::weaponTypeCount>
+        weapons{};
+    std::uint32_t place = 1U;
+    float life = 1.0F;
+};
+
 // Source PlayerStateFrame notification queues. GPU images/text remain view
 // resources keyed by HudItemId; ordering, lifetime and all motion/fade state
 // are owned here.
@@ -188,6 +238,7 @@ public:
     void ProgressOpponents(
         const std::vector<HudOpponentInput>& inputs,
         float deltaTime) noexcept;
+    void UpdateRaceState(const HudRaceStateInput& input) noexcept;
     void Reset() noexcept;
 
     const std::vector<HudPickItem>& GetPickItems() const noexcept;
@@ -200,6 +251,7 @@ public:
     bool HasCarLife(std::size_t racer) const noexcept;
     const std::vector<HudOpponent>& GetOpponents() const noexcept;
     const HudOpponent* FindOpponent(std::size_t racer) const noexcept;
+    const HudPlayerRaceState& GetRaceState() const noexcept;
 
 private:
     HudItemId nextId_ = 1U;
@@ -207,6 +259,7 @@ private:
     std::vector<HudAchievmentItem> achievmentItems_;
     std::array<HudCarLife, 2> carLifeItems_{};
     std::vector<HudOpponent> opponents_;
+    HudPlayerRaceState raceState_;
 };
 
 // Backend-neutral owner transcribed from HudMenu/PlayerStateFrame. Widget

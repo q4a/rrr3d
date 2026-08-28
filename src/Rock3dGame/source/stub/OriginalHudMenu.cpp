@@ -341,6 +341,13 @@ bool MiniMapFrame::Build(const Race& race, float viewportWidth)
     return valid_;
 }
 
+void MiniMapFrame::UpdateLap(
+    std::uint32_t completedLaps, std::uint32_t totalLaps) noexcept
+{
+    totalLaps_ = totalLaps;
+    shownLap_ = std::min(completedLaps + 1U, totalLaps);
+}
+
 void MiniMapFrame::Clear() noexcept
 {
     geometry_ = {};
@@ -350,6 +357,8 @@ void MiniMapFrame::Clear() noexcept
     scale_ = 1.0F;
     originX_ = 0.0F;
     originY_ = 0.0F;
+    shownLap_ = 0U;
+    totalLaps_ = 0U;
     valid_ = false;
 }
 
@@ -362,6 +371,16 @@ HudPoint MiniMapFrame::MapPosition(Vec3 position) const noexcept
 const HudMiniMapGeometry& MiniMapFrame::GetGeometry() const noexcept
 {
     return geometry_;
+}
+
+std::uint32_t MiniMapFrame::GetShownLap() const noexcept
+{
+    return shownLap_;
+}
+
+std::uint32_t MiniMapFrame::GetTotalLaps() const noexcept
+{
+    return totalLaps_;
 }
 
 bool MiniMapFrame::IsValid() const noexcept
@@ -712,6 +731,74 @@ void PlayerStateFrame::ProgressOpponents(
     }
 }
 
+void PlayerStateFrame::UpdateRaceState(
+    const HudRaceStateInput& input) noexcept
+{
+    raceState_.place = std::max(input.place, 1U);
+    if (input.carAlive)
+    {
+        raceState_.life = input.maximumLife > 0.0F
+            ? std::clamp(input.life / input.maximumLife, 0.0F, 1.0F)
+            : 1.0F;
+    }
+
+    std::size_t subWeaponIndex = 0U;
+    const std::array<HudPoint, 2> subWeaponPositions{
+        HudMenu::GetWeaponPosHyper(), HudMenu::GetWeaponPosMine()};
+    const std::array<HudPoint, 2> subWeaponLabelPositions{
+        HudMenu::GetWeaponPosHyperLabel(),
+        HudMenu::GetWeaponPosMineLabel()};
+    for (std::size_t type = 0U; type < 2U; ++type)
+    {
+        auto& output = raceState_.weapons[type];
+        output = {};
+        output.type = type;
+        const auto& weapon = input.weapons[type];
+        if (!weapon.mounted)
+            continue;
+        output.visible = true;
+        output.visual = weapon.visual;
+        output.currentCharge = weapon.currentCharge;
+        output.totalCharge = weapon.totalCharge;
+        output.viewPosition = subWeaponPositions[subWeaponIndex];
+        output.labelPosition =
+            subWeaponLabelPositions[subWeaponIndex];
+        ++subWeaponIndex;
+    }
+
+    std::size_t primaryIndex = 0U;
+    for (std::size_t type = 2U;
+         type < raceState_.weapons.size(); ++type)
+    {
+        auto& output = raceState_.weapons[type];
+        output = {};
+        output.type = type;
+        output.primary = true;
+        const auto& weapon = input.weapons[type];
+        if (!weapon.mounted)
+            continue;
+        output.visible = true;
+        output.visual = weapon.visual;
+        output.currentCharge = weapon.currentCharge;
+        output.totalCharge = weapon.totalCharge;
+        output.selected = type - 2U == input.selectedPrimarySlot;
+        output.boxPosition = {
+            HudMenu::GetWeaponPos().x +
+                input.primaryBoxWidth * 0.5F +
+                static_cast<float>(primaryIndex) *
+                    (input.primaryBoxWidth - 25.0F),
+            HudMenu::GetWeaponPos().y +
+                input.primaryBoxHeight * 0.5F};
+        output.viewPosition = {
+            output.boxPosition.x + HudMenu::GetWeaponBoxPos().x,
+            output.boxPosition.y + HudMenu::GetWeaponBoxPos().y};
+        output.labelPosition = {
+            output.boxPosition.x + HudMenu::GetWeaponLabelPos().x,
+            output.boxPosition.y + HudMenu::GetWeaponLabelPos().y};
+        ++primaryIndex;
+    }
+}
+
 void PlayerStateFrame::Reset() noexcept
 {
     nextId_ = 1U;
@@ -719,6 +806,7 @@ void PlayerStateFrame::Reset() noexcept
     achievmentItems_.clear();
     carLifeItems_ = {};
     opponents_.clear();
+    raceState_ = {};
     for (auto& item : carLifeItems_)
         item.barAlpha = 1.0F;
 }
@@ -785,6 +873,12 @@ const HudOpponent* PlayerStateFrame::FindOpponent(
             return opponent.racer == racer;
         });
     return found == opponents_.end() ? nullptr : &*found;
+}
+
+const HudPlayerRaceState&
+PlayerStateFrame::GetRaceState() const noexcept
+{
+    return raceState_;
 }
 
 void HudMenu::Reset() noexcept
