@@ -4947,6 +4947,24 @@ visual records, damage/lifetime, ровно 11 RNG выборок, модуль 
 velocity 10 и положительный Z. Существующий integration regression продолжает
 проверять полную split/death-effect гонку.
 
+### P2.212 — Mortira `deathProjectile`/Crater spawn plan перенесён в `Proj` — выполнено
+
+Второй nested-object surrogate находился в общей session-функции смерти
+снаряда. Adapter сам проверял `deathProjectile`, выбирал запись из weapon
+catalog, допускал только type 20, вычислял position offset/lifetime и
+переносил `effectPxIgnoreSenderCar` в создаваемый crater.
+
+`Proj::BuildDeathProjectileSpawnPlan` теперь владеет всем этим source
+решением. Он не потребляет RNG при отсутствующем DeathEffect или неверной
+записи, проверяет concrete `ptCrater`, возвращает исходный projectile index,
+descriptor, local position, sampled lifetime и owner ignore-pair. Session
+лишь складывает offset с Jolt world contact и материализует готовый plan.
+
+Regression закрепляет valid Mortira→Crater путь, lifetime sampling, offset и
+ignoreSenderCar, а также два отрицательных gate: отсутствующий effect и
+неверный child type. Полный mortar integration по-прежнему проверяет crater
+continuous damage и owner filtering.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

@@ -1009,6 +1009,43 @@ Proj::MineRipSplitPlan Proj::BuildMineRipSplitPlan(
     return result;
 }
 
+Proj::DeathProjectileSpawnPlan
+Proj::BuildDeathProjectileSpawnPlan(
+    std::span<const ProjectileDefinition> weaponProjectiles,
+    const DeathEffect::SpawnResult& deathEffect,
+    const RandomUnitSource& randomUnit) const
+{
+    DeathProjectileSpawnPlan result;
+    if (!randomUnit || !deathEffect.createEffect ||
+        description_.deathProjectile ==
+            ProjectileDefinition::invalidProjectile ||
+        description_.deathProjectile >= weaponProjectiles.size())
+    {
+        return result;
+    }
+
+    const auto& child =
+        weaponProjectiles[description_.deathProjectile];
+    // The only active source death projectile is Mortira's ptCrater. Keep
+    // the concrete type gate here rather than letting the adapter infer a
+    // mine from an arbitrary projectile record.
+    if (child.type !=
+        static_cast<std::uint32_t>(ProjectileType::Crater))
+    {
+        return result;
+    }
+    result.definition = child;
+    result.positionOffset = {
+        child.position.x, child.position.y, child.position.z};
+    result.projectile = description_.deathProjectile;
+    result.maximumLife = child.minimumLife +
+        (std::max(child.maximumLife, child.minimumLife) -
+         child.minimumLife) * randomUnit();
+    result.ignoreSenderCar = deathEffect.ignoreSenderCar;
+    result.spawn = true;
+    return result;
+}
+
 Proj::LaunchResult Proj::PrepareLaunch(
     Vec3 worldDirection, Vec3 weaponVelocity) noexcept
 {

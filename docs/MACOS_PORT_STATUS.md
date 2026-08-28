@@ -2520,3 +2520,12 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - Regression закрепляет child types 11/13, visual/death metadata, 11 RNG
   выборок, lifetime range и fragment velocity; session integration сохраняет
   полный split/death-effect lifecycle.
+
+### Source Mortira/Crater spawn follow-up
+
+- `Proj::BuildDeathProjectileSpawnPlan` теперь владеет Mortira child lookup,
+  `ptCrater` gate, descriptor/offset, lifetime RNG и owner ignore-pair.
+- Session больше не выводит autonomous crater из weapon catalog; он только
+  переводит готовый source plan в Jolt world/runtime объект.
+- Invalid DeathEffect/type paths не потребляют RNG; unit и полный mortar
+  integration закрепляют это вместе с continuous crater damage.

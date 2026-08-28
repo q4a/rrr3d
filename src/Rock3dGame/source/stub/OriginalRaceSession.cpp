@@ -3912,29 +3912,24 @@ void OriginalRaceSession::updateGameplay(
                           deathPlan.targetChild);
             }
 
-            if (!deathPlan.createEffect ||
-                definition->deathProjectile ==
-                    ProjectileDefinition::invalidProjectile ||
-                definition->deathProjectile >=
-                    race_.weapons[projectile.weapon]
-                        .projectiles.size())
-                return;
-            const auto& spawned =
-                race_.weapons[projectile.weapon]
-                    .projectiles[definition->deathProjectile];
-            if (spawned.type != 20U)
+            const auto spawnPlan =
+                projectile.sourceObject
+                    ->BuildDeathProjectileSpawnPlan(
+                        race_.weapons[projectile.weapon].projectiles,
+                        deathPlan, &sourceRandomUnit);
+            if (!spawnPlan.spawn)
                 return;
             MineRuntime crater;
             crater.owner = projectile.owner;
             crater.weapon = projectile.weapon;
-            crater.projectile = definition->deathProjectile;
-            crater.position = add(position, spawned.position);
-            const float craterMaximumLife = sampleSourceRange(
-                spawned.minimumLife, spawned.maximumLife);
+            crater.projectile = spawnPlan.projectile;
+            crater.position = add(
+                position, runtimeVec(spawnPlan.positionOffset));
             crater.ignoreOwnerCollision =
-                deathPlan.ignoreSenderCar;
+                spawnPlan.ignoreSenderCar;
             if (configureAutonomousMineSourceObject(
-                    logic_, crater, spawned, craterMaximumLife))
+                    logic_, crater, spawnPlan.definition,
+                    spawnPlan.maximumLife))
             {
                 mines_.push_back(std::move(crater));
             }

@@ -176,6 +176,17 @@ public:
 
     using RandomUnitSource = std::function<float()>;
 
+    struct DeathProjectileSpawnPlan
+    {
+        ProjectileDefinition definition;
+        Vec3 positionOffset;
+        std::size_t projectile =
+            ProjectileDefinition::invalidProjectile;
+        float maximumLife = -1.0F;
+        bool ignoreSenderCar = false;
+        bool spawn = false;
+    };
+
     struct ImpulseContactResult
     {
         float damage = 0.0F;
@@ -521,6 +532,10 @@ public:
     MineRipUpdateResult ProgressMineRip(
         float deltaTime, float delay = 0.25F) noexcept;
     MineRipSplitPlan BuildMineRipSplitPlan(
+        const RandomUnitSource& randomUnit) const;
+    DeathProjectileSpawnPlan BuildDeathProjectileSpawnPlan(
+        std::span<const ProjectileDefinition> weaponProjectiles,
+        const DeathEffect::SpawnResult& deathEffect,
         const RandomUnitSource& randomUnit) const;
     LaunchResult PrepareLaunch(
         Vec3 worldDirection, Vec3 weaponVelocity) noexcept;

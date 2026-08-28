@@ -1612,6 +1612,43 @@ int main()
             .destroyParent)
         return 203;
 
+    auto mortarDescription = sourceDescription;
+    mortarDescription.type = 19U;
+    mortarDescription.deathProjectile = 1U;
+    source::Proj mortarProjectile;
+    mortarProjectile.PrepareSource(
+        mortarDescription, nullptr,
+        source::Proj::ShotContext{});
+    std::array<r3d::game::originalrace::ProjectileDefinition, 2U>
+        mortarProjectiles{mortarDescription, sourceDescription};
+    mortarProjectiles[1].type = 20U;
+    mortarProjectiles[1].position = {1.0F, 2.0F, 3.0F};
+    mortarProjectiles[1].minimumLife = 3.0F;
+    mortarProjectiles[1].maximumLife = 5.0F;
+    source::DeathEffect::SpawnResult mortarDeath;
+    mortarDeath.createEffect = true;
+    mortarDeath.ignoreSenderCar = true;
+    const auto craterPlan =
+        mortarProjectile.BuildDeathProjectileSpawnPlan(
+            mortarProjectiles, mortarDeath, [] { return 0.25F; });
+    if (!craterPlan.spawn || craterPlan.projectile != 1U ||
+        craterPlan.definition.type != 20U ||
+        craterPlan.positionOffset != source::Proj::Vec3{1.0F, 2.0F, 3.0F} ||
+        std::abs(craterPlan.maximumLife - 3.5F) > 0.0001F ||
+        !craterPlan.ignoreSenderCar)
+        return 204;
+    mortarDeath.createEffect = false;
+    if (mortarProjectile.BuildDeathProjectileSpawnPlan(
+            mortarProjectiles, mortarDeath,
+            [] { return 0.25F; }).spawn)
+        return 205;
+    mortarDeath.createEffect = true;
+    mortarProjectiles[1].type = 19U;
+    if (mortarProjectile.BuildDeathProjectileSpawnPlan(
+            mortarProjectiles, mortarDeath,
+            [] { return 0.25F; }).spawn)
+        return 206;
+
     const auto firstImpulse = source::Proj::ImpulseContact(
         true, true, true, 0U, 12.0F);
     const auto thirdImpulse = source::Proj::ImpulseContact(

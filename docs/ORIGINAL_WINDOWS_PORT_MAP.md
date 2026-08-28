@@ -524,9 +524,15 @@ generic callback: Windows `GameCar::OnFixedStep` требует snapshot реа�
 PhysX шага, поэтому их активное подключение должно выполняться единым B8j
 вместе с Jolt fixed-step bridge, без второго физического шага.
 
-Следующий B8j — перенести оставшиеся nested projectile/death-object creation
-plans (crater и autonomous death Proj), затем объединить World registration с
-существующим Jolt substep callback.
+Результат B8j: `Proj::BuildDeathProjectileSpawnPlan` забрал из session
+Mortira `deathProjectile` lookup, `ptCrater` type gate, child descriptor,
+position offset, lifetime RNG и `effectPxIgnoreSenderCar`. Session применяет
+только Jolt world contact transform и создаёт готовый autonomous runtime view;
+невалидные планы не потребляют RNG.
+
+Следующий B8k — объединить `GameObject::SetLogic` registration counters с
+существующим Jolt substep callback и active frame sync, не создавая второй
+fixed-step/renderer update.
 
 ## Правило обновления карты
 
