@@ -5095,6 +5095,27 @@ Regression требует, чтобы первый fixed-step списал ро�
 последующая backend materialization только продвинула исходный cooldown.
 Прошли 29/29 CTest, полный map1 physics smoke и 360-frame bgfx/Metal smoke.
 
+### P2.219 — Hyper и Mine ИИ возвращены в исходный fixed-step — выполнено
+
+Сверка `AICar::AttackState::RunHyper` и `PlaceMine` показала, что обе функции
+в Windows вызывают `Logic::Shot` непосредственно между обычной атакой и
+`ControlState::Update`. Portable очередь сохраняла флаги `useHyper/useMine`,
+но вызывала `Player::Shot` только в следующем render `updateGameplay`.
+
+Теперь fixed-step вычисляет source transform установленного `stHyper` или
+`stMine`, выполняет исходную projectile preparation, lifetime RNG и
+`WeaponItem::Shot`. Hyper сразу изменяет charge/cooldown и сохраняет
+конкретный `Proj`, рассчитанные source duration и local impulse. Mine в том
+же шаге выполняет track placement, регистрирует bonus-projectile id, ставит
+`GameCar::LockMine` и передаёт concrete mine `Proj` во владение `Logic`.
+
+Frame adapter материализует только Jolt velocity/runtime view, события и
+эффекты, не вызывая `Shot` повторно. Regression проводит AI последовательно
+по исходному WayPath: на подходящем участке Hyper и Mine обязаны списаться до
+adapter pass, второй fixed-step не может списать их повторно, после чего
+backend получает ровно по одному runtime object. Прошли arm64 build, 29/29
+CTest, physics smoke и 360-frame bgfx/Metal smoke.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

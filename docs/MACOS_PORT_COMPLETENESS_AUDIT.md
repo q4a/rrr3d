@@ -1550,7 +1550,28 @@ finish владельца.
 Regression фиксирует single-consume charge/cooldown через два fixed-step без
 render update. Полные arm64 build, 29/29 CTest, physics smoke и 360-frame
 Metal race smoke прошли. Оставшаяся B8q граница — выполнить такую же
-source-step materialization для `Logic::UseHyper` и `Logic::UseMine`.
+source-step materialization для `Logic::Shot(stHyper)` и
+`Logic::Shot(stMine)`.
+
+### B8q: source-owned AI Hyper and Mine transactions
+
+Обе оставшиеся специальные атаки перенесены из frame adapter в место их
+вызова Windows `AICar::AttackState`. `stHyper` теперь создаёт concrete source
+`Proj`, применяет charge/cooldown, рассчитывает `PrepareMaximumLife` и
+сохраняет spring/hyper impulse в том же 60-Гц шаге. `stMine` до возврата из
+AI update выполняет source track placement, `Player::InsertBonusProj`,
+charge/cooldown и `GameCar::LockMine`.
+
+Ordered queue хранит только backend view готовой транзакции. Последующий
+`updateGameplay` добавляет `ProjectileRuntime`/`MineRuntime`, Jolt velocity
+request, source events и shot effects без повторного `Player::Shot`.
+Integration regression отдельно проверяет AI Hyper и Mine через два fixed
+steps без render между ними, затем single materialization. Arm64 build,
+29/29 CTest, physics и 360-frame Metal race smoke прошли.
+
+Следующая B8r граница — убрать оставшуюся задержку Jolt-команд специальных
+атак: source `Proj` уже создаётся вовремя, но velocity/runtime adapter пока
+применяется после solver step следующего render frame.
 
 ## Очередь дальнейшего переноса
 

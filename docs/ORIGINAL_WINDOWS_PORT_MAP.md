@@ -625,8 +625,27 @@ projectiles уничтожаются до teardown weapon/player listeners. Regr
 между ними; arm64 build, 29/29 CTest, physics и 360-frame Metal smoke прошли.
 
 Следующий B8q — перенести в ту же fixed-step транзакцию исходные
-`Logic::UseHyper` и `Logic::UseMine`; сейчас их ordered-команды сохраняются,
-но concrete source projectile/charge всё ещё создаются frame adapter-ом.
+`Logic::Shot(stHyper)` и `Logic::Shot(stMine)`; сейчас их ordered-команды
+сохраняются, но concrete source projectile/charge всё ещё создаются frame
+adapter-ом.
+
+Результат B8q: `AICar::AttackState::RunHyper` и `PlaceMine` теперь завершают
+свои исходные `Logic::Shot` транзакции внутри `Race::OnFixedStep` вслед за
+обычной атакой. Для Hyper fixed-step создаёт concrete `Proj`, списывает
+charge, сбрасывает cooldown, рассчитывает lifetime и сохраняет точный local
+impulse/spring lock. Для Mine он выполняет source ray placement,
+`Player::InsertBonusProj`, charge/cooldown и `GameCar::LockMine`.
+
+Frame adapter получает уже готовые source projectiles и создаёт только
+`ProjectileRuntime`/`MineRuntime`, Jolt velocity request, event и effect.
+Повторного `Shot` нет. Regression проводит AI по WayPath и проверяет source
+state до render pass, отсутствие второго списания на следующем fixed-step и
+ровно одну backend materialization. Полная arm64 сборка, 29/29 CTest,
+physics и 360-frame Metal smoke прошли.
+
+Следующий B8r — передать подготовленные Jolt velocity/runtime команды из
+того же world fixed-step до solver update, устранив оставшуюся одно-frame
+backend задержку Hyper/Mine при сохранении source 60 Гц и Jolt 120 Гц.
 
 ## Правило обновления карты
 

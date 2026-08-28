@@ -527,6 +527,22 @@ private:
         Transform weaponTransform;
         source::Weapon::ProjList sourceProjectiles;
         bool sourcePrepared = false;
+        std::size_t hyperWeapon = RacerRuntime::invalidWeapon;
+        std::uint32_t hyperProjectileId = 0U;
+        Transform hyperWeaponTransform;
+        Transform hyperProjectileTransform;
+        Vec3 hyperPosition;
+        Vec3 hyperVelocityDelta;
+        float hyperDuration = 0.0F;
+        source::Weapon::ProjList hyperSourceProjectiles;
+        bool hyperSpringLocked = false;
+        bool hyperSourcePrepared = false;
+        std::size_t mineWeapon = RacerRuntime::invalidWeapon;
+        std::uint32_t mineProjectileId = 0U;
+        Transform mineWeaponTransform;
+        Transform mineTransform;
+        source::Weapon::ProjList mineSourceProjectiles;
+        bool mineSourcePrepared = false;
     };
     source::MapObjects& decorationObjects() noexcept;
     source::MapObjects& bonusObjects() noexcept;
@@ -562,6 +578,12 @@ private:
         std::size_t owner, std::size_t weapon,
         std::optional<std::size_t> primaryMount) const;
     bool prepareAiWeaponAttack(
+        PendingAiAttack& attack,
+        const std::vector<r3d::physics::VehicleState>& vehicles);
+    bool prepareAiHyperAttack(
+        PendingAiAttack& attack,
+        const std::vector<r3d::physics::VehicleState>& vehicles);
+    bool prepareAiMineAttack(
         PendingAiAttack& attack,
         const std::vector<r3d::physics::VehicleState>& vehicles);
     void discardPendingAiAttack(PendingAiAttack& attack) noexcept;

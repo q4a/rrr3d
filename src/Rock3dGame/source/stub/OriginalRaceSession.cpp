@@ -3131,6 +3131,16 @@ void OriginalRaceSession::progressAi(
             pending.decision.weaponSlot = source::AICar::invalidIndex;
             pending.decision.weaponTarget = source::AICar::invalidIndex;
         }
+        if (pending.decision.useHyper &&
+            !prepareAiHyperAttack(pending, vehicles))
+        {
+            pending.decision.useHyper = false;
+        }
+        if (pending.decision.useMine &&
+            !prepareAiMineAttack(pending, vehicles))
+        {
+            pending.decision.useMine = false;
+        }
         if (pending.decision.hasWeaponShot() ||
             pending.decision.useHyper || pending.decision.useMine)
             pendingAiAttacks_.push_back(std::move(pending));
@@ -3312,6 +3322,197 @@ bool OriginalRaceSession::prepareAiWeaponAttack(
     return true;
 }
 
+bool OriginalRaceSession::prepareAiHyperAttack(
+    PendingAiAttack& attack,
+    const std::vector<r3d::physics::VehicleState>& vehicles)
+{
+    const std::size_t racer = attack.racer;
+    if (racer >= racers_.size() || racer >= vehicles.size() ||
+        racers_[racer].GetFinished() || racers_[racer].IsDestroyed())
+    {
+        return false;
+    }
+    auto& runtime = racers_[racer];
+    const std::size_t weaponIndex = runtime.hyperWeapon;
+    if (weaponIndex == RacerRuntime::invalidWeapon ||
+        weaponIndex >= race_.weapons.size())
+    {
+        return false;
+    }
+    auto* item = runtime.GetHyperWeaponItem();
+    if (item == nullptr || !item->IsInstalled() ||
+        !item->IsReadyShot() || item->GetWeapon() == nullptr)
+    {
+        return false;
+    }
+    auto* weapon = item->GetWeapon();
+    const auto description = weapon->GetDescHandle();
+    if (description->projectiles.empty())
+        return false;
+    const auto& projectile = description->projectiles.front();
+
+    attack.hyperWeapon = weaponIndex;
+    attack.hyperProjectileId = runtime.GetNextBonusProjectileId();
+    attack.hyperPosition = vehicles[racer].body.position;
+    attack.hyperWeaponTransform = sourceWeaponWorldTransform(
+        vehicles, racer, weaponIndex, std::nullopt);
+    Transform localProjectile;
+    localProjectile.position = projectile.position;
+    localProjectile.rotation = projectile.rotation;
+    attack.hyperProjectileTransform = compose(
+        attack.hyperWeaponTransform, localProjectile);
+    weapon->SetWorldPos(
+        {attack.hyperWeaponTransform.position.x,
+         attack.hyperWeaponTransform.position.y,
+         attack.hyperWeaponTransform.position.z});
+    weapon->SetWorldRot(
+        {attack.hyperWeaponTransform.rotation.x,
+         attack.hyperWeaponTransform.rotation.y,
+         attack.hyperWeaponTransform.rotation.z,
+         attack.hyperWeaponTransform.rotation.w});
+
+    const float sampledMinimumLife = sampleSourceRange(
+        projectile.minimumLife, projectile.maximumLife);
+    const Vec3 sourceDirection = normalized3(rotate(
+        attack.hyperProjectileTransform.rotation,
+        {1.0F, 0.0F, 0.0F}));
+    source::Weapon::ShotContext context;
+    context.logic = &logic_;
+    context.playerId = racer;
+    context.maximumLife = sampledMinimumLife;
+    context.position = sourceVec(
+        attack.hyperProjectileTransform.position);
+    context.rotation = sourceQuat(
+        attack.hyperProjectileTransform.rotation);
+    context.launchVelocity = sourceVec(
+        multiply(sourceDirection, projectile.speed));
+    const std::array contexts{context};
+    if (!runtime.Shot(
+            *item, contexts, false, 0U, -1,
+            &attack.hyperSourceProjectiles) ||
+        attack.hyperSourceProjectiles.empty())
+    {
+        for (auto* sourceObject : attack.hyperSourceProjectiles)
+        {
+            if (sourceObject != nullptr && !sourceObject->destroyed)
+                sourceObject->Death();
+        }
+        attack.hyperSourceProjectiles.clear();
+        return false;
+    }
+
+    auto* sourceObject = attack.hyperSourceProjectiles.front();
+    attack.hyperDuration =
+        sourceObject->PrepareMaximumLife(sampledMinimumLife);
+    if (projectile.type == 17U)
+    {
+        sourceObject->SetExternalLifetimeManaged(false);
+        const auto spring = sourceObject->PrepareSpring();
+        if (!spring.prepared)
+        {
+            for (auto* prepared : attack.hyperSourceProjectiles)
+            {
+                if (prepared != nullptr && !prepared->destroyed)
+                    prepared->Death();
+            }
+            attack.hyperSourceProjectiles.clear();
+            return false;
+        }
+        attack.hyperVelocityDelta = rotate(
+            vehicles[racer].body.rotation,
+            runtimeVec(spring.localVelocityChange));
+        attack.hyperSpringLocked = spring.lockSpring;
+    }
+    else
+    {
+        attack.hyperVelocityDelta = rotate(
+            vehicles[racer].body.rotation,
+            {projectile.speed, 0.0F, 0.0F});
+        if (projectile.type != 1U)
+            sourceObject->SetExternalLifetimeManaged(false);
+    }
+    attack.hyperSourcePrepared = true;
+    return true;
+}
+
+bool OriginalRaceSession::prepareAiMineAttack(
+    PendingAiAttack& attack,
+    const std::vector<r3d::physics::VehicleState>& vehicles)
+{
+    const std::size_t racer = attack.racer;
+    if (racer >= racers_.size() || racer >= vehicles.size() ||
+        racers_[racer].GetFinished() || racers_[racer].IsDestroyed())
+    {
+        return false;
+    }
+    auto& runtime = racers_[racer];
+    const std::size_t weaponIndex = runtime.mineWeapon;
+    if (weaponIndex == RacerRuntime::invalidWeapon ||
+        weaponIndex >= race_.weapons.size())
+    {
+        return false;
+    }
+    auto* item = runtime.GetMineWeaponItem();
+    if (item == nullptr || !item->IsInstalled() ||
+        !item->IsReadyShot() || item->GetWeapon() == nullptr)
+    {
+        return false;
+    }
+    auto* weapon = item->GetWeapon();
+    const auto description = weapon->GetDescHandle();
+    if (description->projectiles.empty())
+        return false;
+    const auto& projectile = description->projectiles.front();
+
+    attack.mineWeapon = weaponIndex;
+    attack.mineWeaponTransform = sourceWeaponWorldTransform(
+        vehicles, racer, weaponIndex, std::nullopt);
+    Transform localProjectile;
+    localProjectile.position = projectile.position;
+    localProjectile.rotation = projectile.rotation;
+    const Vec3 rayPosition = compose(
+        attack.mineWeaponTransform, localProjectile).position;
+    const auto hit = raycastTrackPlane(
+        race_, add(rayPosition, {0.0F, 0.0F, 2.0F}));
+    if (!hit.hit)
+        return false;
+
+    attack.mineTransform.position = add(
+        hit.position,
+        {0.0F, 0.0F, projectile.surfacePlacementOffset});
+    attack.mineTransform.rotation = rotationWithUp(hit.normal);
+    attack.mineProjectileId = runtime.GetNextBonusProjectileId();
+    float maximumLife = -1.0F;
+    if (projectile.minimumLife > 0.0F)
+    {
+        maximumLife = sampleSourceRange(
+            projectile.minimumLife, projectile.maximumLife);
+    }
+    source::Weapon::ShotContext context;
+    context.logic = &logic_;
+    context.playerId = racer;
+    context.maximumLife = maximumLife;
+    context.position = sourceVec(attack.mineTransform.position);
+    context.rotation = sourceQuat(attack.mineTransform.rotation);
+    const std::array contexts{context};
+    if (!runtime.Shot(
+            *item, contexts, true, attack.mineProjectileId, -1,
+            &attack.mineSourceProjectiles) ||
+        attack.mineSourceProjectiles.empty())
+    {
+        for (auto* sourceObject : attack.mineSourceProjectiles)
+        {
+            if (sourceObject != nullptr && !sourceObject->destroyed)
+                sourceObject->Death();
+        }
+        attack.mineSourceProjectiles.clear();
+        return false;
+    }
+    runtime.gameCar.LockMine(0.4F);
+    attack.mineSourcePrepared = true;
+    return true;
+}
+
 void OriginalRaceSession::discardPendingAiAttack(
     PendingAiAttack& attack) noexcept
 {
@@ -3322,6 +3523,20 @@ void OriginalRaceSession::discardPendingAiAttack(
     }
     attack.sourceProjectiles.clear();
     attack.sourcePrepared = false;
+    for (auto* projectile : attack.hyperSourceProjectiles)
+    {
+        if (projectile != nullptr && !projectile->destroyed)
+            projectile->Death();
+    }
+    attack.hyperSourceProjectiles.clear();
+    attack.hyperSourcePrepared = false;
+    for (auto* projectile : attack.mineSourceProjectiles)
+    {
+        if (projectile != nullptr && !projectile->destroyed)
+            projectile->Death();
+    }
+    attack.mineSourceProjectiles.clear();
+    attack.mineSourcePrepared = false;
 }
 
 void OriginalRaceSession::progressRaceFixedStep(
@@ -4984,54 +5199,76 @@ void OriginalRaceSession::updateGameplay(
         std::size_t owner, const Vec3* replicatedPosition = nullptr,
         std::uint32_t replicatedProjectileId = 0U,
         bool networkReplicated = false,
-        bool sourceReadinessOverride = false) {
+        bool sourceReadinessOverride = false,
+        const PendingAiAttack* preparedAttack = nullptr) -> bool {
+        const bool sourcePrepared =
+            preparedAttack != nullptr &&
+            preparedAttack->mineSourcePrepared &&
+            !preparedAttack->mineSourceProjectiles.empty();
         if (owner >= vehicles.size() || owner >= racers_.size() ||
             racers_[owner].IsDestroyed())
-            return;
-        const std::size_t weapon = racers_[owner].mineWeapon;
+            return false;
+        const std::size_t weapon =
+            sourcePrepared
+                ? preparedAttack->mineWeapon
+                : racers_[owner].mineWeapon;
         if (weapon == RacerRuntime::invalidWeapon ||
             weapon >= race_.weapons.size())
-            return;
+            return false;
         auto* item = mineWeaponItem(owner);
         if (item == nullptr || !item->IsInstalled())
-            return;
-        if (!networkReplicated && !sourceReadinessOverride &&
+            return false;
+        if (!sourcePrepared && !networkReplicated &&
+            !sourceReadinessOverride &&
             !item->IsReadyShot())
-            return;
-        const int newCharge =
-            networkReplicated
-                ? static_cast<int>(item->GetCurCharge()) - 1
-                : -1;
+            return false;
         auto* liveWeapon = item->GetWeapon();
+        if (liveWeapon == nullptr)
+            return false;
         const auto description = liveWeapon->GetDescHandle();
         const auto& projectiles = description->projectiles;
         const auto* projectile =
             projectiles.empty() ? nullptr : &projectiles.front();
         if (projectile == nullptr)
-            return;
+            return false;
         const Transform weaponTransform =
-            directWeaponWorldTransform(owner, weapon);
-        Transform localProjectile;
-        localProjectile.position = projectile->position;
-        localProjectile.rotation = projectile->rotation;
-        const Vec3 rayPosition =
-            compose(weaponTransform, localProjectile).position;
-        const auto hit = raycastTrackPlane(
-            race_, add(rayPosition, {0.0F, 0.0F, 2.0F}));
-        if (!hit.hit)
-            return;
-        // Source MinePrepare uses ComputeAABB(true), while CreatePxBox uses
-        // ComputeAABB(false).  Using the contact box here lifted the maslo
-        // plane by 0.85 m even though its source model offset is only 0.05 m.
-        const float offset = projectile->surfacePlacementOffset;
-        const Vec3 position =
-            replicatedPosition != nullptr
-                ? *replicatedPosition
-                : add(hit.position, {0.0F, 0.0F, offset});
+            sourcePrepared
+                ? preparedAttack->mineWeaponTransform
+                : directWeaponWorldTransform(owner, weapon);
+        Transform placedTransform;
+        if (sourcePrepared)
+        {
+            placedTransform = preparedAttack->mineTransform;
+        }
+        else
+        {
+            Transform localProjectile;
+            localProjectile.position = projectile->position;
+            localProjectile.rotation = projectile->rotation;
+            const Vec3 rayPosition =
+                compose(weaponTransform, localProjectile).position;
+            const auto hit = raycastTrackPlane(
+                race_, add(rayPosition, {0.0F, 0.0F, 2.0F}));
+            if (!hit.hit)
+                return false;
+            // Source MinePrepare uses ComputeAABB(true), while CreatePxBox
+            // uses ComputeAABB(false). The contact box would lift Maslo.
+            placedTransform.position =
+                replicatedPosition != nullptr
+                    ? *replicatedPosition
+                    : add(
+                          hit.position,
+                          {0.0F, 0.0F,
+                           projectile->surfacePlacementOffset});
+            placedTransform.rotation = rotationWithUp(hit.normal);
+        }
+        const Vec3 position = placedTransform.position;
         const std::uint32_t networkProjectileId =
-            networkReplicated && replicatedProjectileId != 0U
-                ? replicatedProjectileId
-                : racers_[owner].GetNextBonusProjectileId();
+            sourcePrepared
+                ? preparedAttack->mineProjectileId
+                : networkReplicated && replicatedProjectileId != 0U
+                    ? replicatedProjectileId
+                    : racers_[owner].GetNextBonusProjectileId();
         MineRuntime mine;
         mine.owner = owner;
         mine.weapon = weapon;
@@ -5048,31 +5285,44 @@ void OriginalRaceSession::updateGameplay(
                                     race_.weapons[weapon].projectiles.begin(),
                                     sourceProjectile));
         mine.position = position;
-        mine.rotation = rotationWithUp(hit.normal);
+        mine.rotation = placedTransform.rotation;
         mine.networkProjectileId = networkProjectileId;
-        float mineMaximumLife = -1.0F;
-        if (projectile->minimumLife > 0.0F)
-        {
-            mineMaximumLife = sampleSourceRange(
-                projectile->minimumLife,
-                projectile->maximumLife);
-        }
-        source::Weapon::ShotContext sourceContext;
-        sourceContext.logic = &logic_;
-        sourceContext.playerId = owner;
-        sourceContext.maximumLife = mineMaximumLife;
-        sourceContext.position = sourceVec(mine.position);
-        sourceContext.rotation = sourceQuat(mine.rotation);
-        const std::array sourceContexts{sourceContext};
         source::Weapon::ProjList sourceProjectiles;
-        if (!racers_[owner].Shot(
-                *item, sourceContexts, true,
-                networkProjectileId, newCharge,
-                &sourceProjectiles) ||
-            sourceProjectiles.empty())
-            return;
+        if (sourcePrepared)
+        {
+            sourceProjectiles = preparedAttack->mineSourceProjectiles;
+        }
+        else
+        {
+            float mineMaximumLife = -1.0F;
+            if (projectile->minimumLife > 0.0F)
+            {
+                mineMaximumLife = sampleSourceRange(
+                    projectile->minimumLife,
+                    projectile->maximumLife);
+            }
+            source::Weapon::ShotContext sourceContext;
+            sourceContext.logic = &logic_;
+            sourceContext.playerId = owner;
+            sourceContext.maximumLife = mineMaximumLife;
+            sourceContext.position = sourceVec(mine.position);
+            sourceContext.rotation = sourceQuat(mine.rotation);
+            const std::array sourceContexts{sourceContext};
+            const int newCharge =
+                networkReplicated
+                    ? static_cast<int>(item->GetCurCharge()) - 1
+                    : -1;
+            if (!racers_[owner].Shot(
+                    *item, sourceContexts, true,
+                    networkProjectileId, newCharge,
+                    &sourceProjectiles) ||
+                sourceProjectiles.empty())
+            {
+                return false;
+            }
+            racers_[owner].gameCar.LockMine(0.4F);
+        }
         mine.sourceObject = sourceProjectiles.front();
-        racers_[owner].gameCar.LockMine(0.4F);
         pushShotEffect(
             owner, weapon, PlayerProfile::weaponSlotCount + 1U,
             weaponTransform, *projectile);
@@ -5087,91 +5337,129 @@ void OriginalRaceSession::updateGameplay(
         mineEvent.networkProjectileId = networkProjectileId;
         mineEvent.networkCoordinates.push_back(position);
         events_.push_back(std::move(mineEvent));
+        return true;
     };
     auto activateHyper = [&](
         std::size_t owner, const Vec3* replicatedPosition = nullptr,
         std::uint32_t replicatedProjectileId = 0U,
-        bool networkReplicated = false) {
+        bool networkReplicated = false,
+        const PendingAiAttack* preparedAttack = nullptr) -> bool {
+        const bool sourcePrepared =
+            preparedAttack != nullptr &&
+            preparedAttack->hyperSourcePrepared &&
+            !preparedAttack->hyperSourceProjectiles.empty();
         if (owner >= racers_.size() ||
             racers_[owner].IsDestroyed() ||
-            racers_[owner].hyperWeapon ==
+            (sourcePrepared
+                 ? preparedAttack->hyperWeapon
+                 : racers_[owner].hyperWeapon) ==
                 RacerRuntime::invalidWeapon ||
-            racers_[owner].hyperWeapon >= race_.weapons.size() ||
-            (!networkReplicated &&
+            (sourcePrepared
+                 ? preparedAttack->hyperWeapon
+                 : racers_[owner].hyperWeapon) >= race_.weapons.size() ||
+            (!sourcePrepared && !networkReplicated &&
              (racers_[owner].GetHyperWeaponItem() == nullptr ||
               !racers_[owner].GetHyperWeaponItem()->IsReadyShot())))
-            return;
+            return false;
         auto* item = hyperWeaponItem(owner);
         if (item == nullptr || !item->IsInstalled())
-            return;
-        const int newCharge =
-            networkReplicated
-                ? static_cast<int>(item->GetCurCharge()) - 1
-                : -1;
+            return false;
         auto* liveWeapon = item->GetWeapon();
+        if (liveWeapon == nullptr)
+            return false;
         const auto description = liveWeapon->GetDescHandle();
         const auto& projectiles = description->projectiles;
         if (projectiles.empty())
-            return;
+            return false;
         const auto& projectile = projectiles.front();
         if (owner >= vehicles.size())
-            return;
-        const Vec3 position = vehicles[owner].body.position;
-        const float sampledMinimumLife = sampleSourceRange(
-            projectile.minimumLife, projectile.maximumLife);
-        float duration = sampledMinimumLife;
+            return false;
+        const std::size_t weapon =
+            sourcePrepared
+                ? preparedAttack->hyperWeapon
+                : racers_[owner].hyperWeapon;
+        const Vec3 position =
+            sourcePrepared
+                ? preparedAttack->hyperPosition
+                : vehicles[owner].body.position;
         const Transform weaponTransform =
-            directWeaponWorldTransform(
-                owner, racers_[owner].hyperWeapon);
-        Transform localProjectile;
-        localProjectile.position = projectile.position;
-        localProjectile.rotation = projectile.rotation;
-        auto projectileTransform =
-            compose(weaponTransform, localProjectile);
-        if (replicatedPosition != nullptr)
-            projectileTransform.position = *replicatedPosition;
-
-        source::Proj::SpringPrepareResult springPreparation;
-        std::optional<ProjectileRuntime> preparedHyperProjectile;
-        source::Weapon::ShotContext sourceContext;
-        sourceContext.logic = &logic_;
-        sourceContext.playerId = owner;
-        sourceContext.maximumLife = duration;
-        sourceContext.position =
-            sourceVec(projectileTransform.position);
-        sourceContext.rotation =
-            sourceQuat(projectileTransform.rotation);
-        const Vec3 sourceDirection = normalized3(
-            rotate(
+            sourcePrepared
+                ? preparedAttack->hyperWeaponTransform
+                : directWeaponWorldTransform(owner, weapon);
+        Transform projectileTransform;
+        float duration = 0.0F;
+        source::Weapon::ProjList sourceProjectiles;
+        if (sourcePrepared)
+        {
+            projectileTransform =
+                preparedAttack->hyperProjectileTransform;
+            duration = preparedAttack->hyperDuration;
+            sourceProjectiles =
+                preparedAttack->hyperSourceProjectiles;
+        }
+        else
+        {
+            Transform localProjectile;
+            localProjectile.position = projectile.position;
+            localProjectile.rotation = projectile.rotation;
+            projectileTransform = compose(
+                weaponTransform, localProjectile);
+            if (replicatedPosition != nullptr)
+                projectileTransform.position = *replicatedPosition;
+            const float sampledMinimumLife = sampleSourceRange(
+                projectile.minimumLife, projectile.maximumLife);
+            source::Weapon::ShotContext sourceContext;
+            sourceContext.logic = &logic_;
+            sourceContext.playerId = owner;
+            sourceContext.maximumLife = sampledMinimumLife;
+            sourceContext.position =
+                sourceVec(projectileTransform.position);
+            sourceContext.rotation =
+                sourceQuat(projectileTransform.rotation);
+            const Vec3 shotDirection = normalized3(rotate(
                 projectileTransform.rotation,
                 {1.0F, 0.0F, 0.0F}));
-        sourceContext.launchVelocity = sourceVec(
-            multiply(sourceDirection, projectile.speed));
-        const std::array sourceContexts{sourceContext};
-        source::Weapon::ProjList sourceProjectiles;
-        if (!racers_[owner].Shot(
-                *item, sourceContexts, false,
-                replicatedProjectileId, newCharge,
-                &sourceProjectiles) ||
-            sourceProjectiles.empty())
-            return;
-        auto* sourceObject = sourceProjectiles.front();
-        duration = sourceObject->PrepareMaximumLife(
-            sampledMinimumLife);
-
-        if (projectile.type == 17U)
-        {
-            sourceObject->SetExternalLifetimeManaged(false);
-            springPreparation = sourceObject->PrepareSpring();
+            sourceContext.launchVelocity = sourceVec(
+                multiply(shotDirection, projectile.speed));
+            const std::array sourceContexts{sourceContext};
+            const int newCharge =
+                networkReplicated
+                    ? static_cast<int>(item->GetCurCharge()) - 1
+                    : -1;
+            if (!racers_[owner].Shot(
+                    *item, sourceContexts, false,
+                    replicatedProjectileId, newCharge,
+                    &sourceProjectiles) ||
+                sourceProjectiles.empty())
+            {
+                return false;
+            }
+            auto* sourceObject = sourceProjectiles.front();
+            duration = sourceObject->PrepareMaximumLife(
+                sampledMinimumLife);
+            if (projectile.type == 17U)
+            {
+                sourceObject->SetExternalLifetimeManaged(false);
+            }
+            else if (projectile.type != 1U)
+            {
+                // Unknown future source hyper types have no session runtime;
+                // keep their normal GameObject lifetime ownership.
+                sourceObject->SetExternalLifetimeManaged(false);
+            }
         }
-        else if (projectile.type == 1U)
+        const Vec3 sourceDirection = normalized3(
+            rotate(projectileTransform.rotation,
+                   {1.0F, 0.0F, 0.0F}));
+        auto* sourceObject = sourceProjectiles.front();
+        std::optional<ProjectileRuntime> preparedHyperProjectile;
+        if (projectile.type == 1U)
         {
             ProjectileRuntime runtimeProjectile;
             runtimeProjectile.owner = owner;
-            runtimeProjectile.weapon =
-                racers_[owner].hyperWeapon;
+            runtimeProjectile.weapon = weapon;
             const auto& sourceProjectiles =
-                race_.weapons[racers_[owner].hyperWeapon].projectiles;
+                race_.weapons[weapon].projectiles;
             const auto sourceProjectile = std::find_if(
                 sourceProjectiles.begin(), sourceProjectiles.end(),
                 [](const ProjectileDefinition& candidate) {
@@ -5191,43 +5479,43 @@ void OriginalRaceSession::updateGameplay(
             preparedHyperProjectile.emplace(
                 std::move(runtimeProjectile));
         }
-        else
-        {
-            // Unknown future source hyper types have no session runtime;
-            // retain normal GameObject lifetime ownership instead of
-            // leaving an externally managed transient alive forever.
-            sourceObject->SetExternalLifetimeManaged(false);
-        }
         const std::uint32_t networkProjectileId =
-            networkReplicated && replicatedProjectileId != 0U
-                ? replicatedProjectileId
-                : racers_[owner].GetNextBonusProjectileId();
-        if (projectile.type == 17U)
+            sourcePrepared
+                ? preparedAttack->hyperProjectileId
+                : networkReplicated && replicatedProjectileId != 0U
+                    ? replicatedProjectileId
+                    : racers_[owner].GetNextBonusProjectileId();
+        Vec3 velocityDelta;
+        bool springLocked = false;
+        if (sourcePrepared)
         {
-            velocityRequests_.push_back(
-                {owner,
-                 rotate(
-                     vehicles[owner].body.rotation,
-                     runtimeVec(
-                         springPreparation.localVelocityChange))});
-            if (owner < vehicleInputs_.size())
-                vehicleInputs_[owner].springLocked = true;
+            velocityDelta = preparedAttack->hyperVelocityDelta;
+            springLocked = preparedAttack->hyperSpringLocked;
+        }
+        else if (projectile.type == 17U)
+        {
+            const auto springPreparation = sourceObject->PrepareSpring();
+            velocityDelta = rotate(
+                vehicles[owner].body.rotation,
+                runtimeVec(springPreparation.localVelocityChange));
+            springLocked = springPreparation.lockSpring;
         }
         else
         {
-            velocityRequests_.push_back(
-                {owner,
-                 rotate(
-                     vehicles[owner].body.rotation,
-                     {projectile.speed, 0.0F, 0.0F})});
+            velocityDelta = rotate(
+                vehicles[owner].body.rotation,
+                {projectile.speed, 0.0F, 0.0F});
         }
+        velocityRequests_.push_back({owner, velocityDelta});
+        if (springLocked && owner < vehicleInputs_.size())
+            vehicleInputs_[owner].springLocked = true;
         if (preparedHyperProjectile.has_value())
             projectiles_.push_back(
                 std::move(*preparedHyperProjectile));
         RaceEvent hyperEvent;
         hyperEvent.kind = RaceEventKind::HyperActivated;
         hyperEvent.racer = owner;
-        hyperEvent.target = racers_[owner].hyperWeapon;
+        hyperEvent.target = weapon;
         hyperEvent.position = position;
         hyperEvent.value = duration;
         hyperEvent.networkReplicated = networkReplicated;
@@ -5239,10 +5527,11 @@ void OriginalRaceSession::updateGameplay(
                 : weaponTransform.position);
         events_.push_back(std::move(hyperEvent));
         pushShotEffect(
-            owner, racers_[owner].hyperWeapon,
+            owner, weapon,
             PlayerProfile::weaponSlotCount,
             weaponTransform,
             projectile);
+        return true;
     };
     auto fireWeapon =
         [&](std::size_t shooter,
@@ -6691,9 +6980,42 @@ void OriginalRaceSession::updateGameplay(
             }
         }
         if (decision.useHyper)
-            activateHyper(racer);
+        {
+            if (activateHyper(racer, nullptr, 0U, false, &attack))
+            {
+                attack.hyperSourceProjectiles.clear();
+                attack.hyperSourcePrepared = false;
+            }
+            else
+            {
+                for (auto* projectile : attack.hyperSourceProjectiles)
+                {
+                    if (projectile != nullptr && !projectile->destroyed)
+                        projectile->Death();
+                }
+                attack.hyperSourceProjectiles.clear();
+                attack.hyperSourcePrepared = false;
+            }
+        }
         if (decision.useMine)
-            placeMine(racer);
+        {
+            if (placeMine(
+                    racer, nullptr, 0U, false, false, &attack))
+            {
+                attack.mineSourceProjectiles.clear();
+                attack.mineSourcePrepared = false;
+            }
+            else
+            {
+                for (auto* projectile : attack.mineSourceProjectiles)
+                {
+                    if (projectile != nullptr && !projectile->destroyed)
+                        projectile->Death();
+                }
+                attack.mineSourceProjectiles.clear();
+                attack.mineSourcePrepared = false;
+            }
+        }
     }
     pendingAiAttacks_.clear();
     const std::size_t collisionRacers =
@@ -8244,6 +8566,231 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 {
                     throw std::runtime_error(
                         "source AICar corner brake/Hyper exclusion failed");
+                }
+            }
+            {
+                // Windows invokes Logic::Shot directly inside
+                // AICar::AttackState. Verify charge/cooldown and the concrete
+                // source Proj before any render/update adapter pass.
+                Race fixedHyperRace = race;
+                fixedHyperRace.racers.resize(2U);
+                fixedHyperRace.racers[1].loadout.clear();
+                fixedHyperRace.racers[1].loadout.push_back(
+                    {aiHyperdrive->record, "stHyper", 2U});
+                OriginalRaceSession fixedHyperSession(fixedHyperRace);
+                auto fixedHyperVehicles = vehicles;
+                fixedHyperVehicles.resize(2U);
+                for (auto& state : fixedHyperVehicles)
+                {
+                    state.body.position = point(0U).position;
+                    state.body.position.z += 2.0F;
+                    state.speed = 0.0F;
+                }
+                for (int frame = 0; frame < 250; ++frame)
+                {
+                    fixedHyperSession.update(
+                        1.0F / 60.0F, fixedHyperVehicles, input);
+                }
+                fixedHyperSession.setExternalRaceFixedStep(true);
+                auto* fixedHyperItem = fixedHyperSession.racers()[1]
+                                           .GetHyperWeaponItem();
+                if (fixedHyperItem == nullptr ||
+                    fixedHyperItem->GetWeapon() == nullptr)
+                {
+                    throw std::runtime_error(
+                        "source fixed-step AI Hyper fixture missing");
+                }
+                const auto hyperChargeBefore =
+                    fixedHyperItem->GetCurCharge();
+                auto fixedHyperInputs =
+                    fixedHyperSession.vehicleInputs();
+                std::vector<r3d::physics::VehicleResetCommand>
+                    fixedHyperResets;
+                bool fixedHyperFired = false;
+                for (std::size_t segment = 0U;
+                     segment + 1U < race.tracePath.size(); ++segment)
+                {
+                    const Vec3 direction = normalized2(subtract(
+                        point(segment + 1U).position,
+                        point(segment).position));
+                    auto& state = fixedHyperVehicles[1];
+                    state.body.position = multiply(
+                        add(point(segment).position,
+                            point(segment + 1U).position),
+                        0.5F);
+                    state.body.position.z += 2.0F;
+                    state.body.rotation = shortestArcFromX(direction);
+                    state.speed = 20.0F;
+                    state.linearVelocity = multiply(direction, state.speed);
+                    fixedHyperSession.raceFixedStep(
+                        1.0F / 60.0F, fixedHyperVehicles,
+                        fixedHyperInputs, fixedHyperResets);
+                    if (fixedHyperItem->GetCurCharge() <
+                        hyperChargeBefore)
+                    {
+                        fixedHyperFired = true;
+                        break;
+                    }
+                }
+                if (!fixedHyperFired ||
+                    fixedHyperItem->GetCurCharge() + 1U !=
+                        hyperChargeBefore ||
+                    std::abs(
+                        fixedHyperItem->GetWeapon()->GetShotTime()) >
+                        1.0e-6F ||
+                    !fixedHyperSession.projectiles().empty())
+                {
+                    throw std::runtime_error(
+                        "source AI Hyper was not committed inside fixed-step");
+                }
+                fixedHyperSession.raceFixedStep(
+                    1.0F / 60.0F, fixedHyperVehicles,
+                    fixedHyperInputs, fixedHyperResets);
+                if (fixedHyperItem->GetCurCharge() + 1U !=
+                    hyperChargeBefore)
+                {
+                    throw std::runtime_error(
+                        "source AI Hyper was committed twice before adapter");
+                }
+                fixedHyperSession.update(
+                    2.0F / 60.0F, fixedHyperVehicles, input);
+                const bool hyperMaterialized = std::any_of(
+                    fixedHyperSession.events().begin(),
+                    fixedHyperSession.events().end(),
+                    [](const RaceEvent& event) {
+                        return event.kind ==
+                                   RaceEventKind::HyperActivated &&
+                               event.racer == 1U;
+                    });
+                if (!hyperMaterialized ||
+                    fixedHyperSession.projectiles().empty() ||
+                    fixedHyperItem->GetCurCharge() + 1U !=
+                        hyperChargeBefore ||
+                    fixedHyperItem->GetWeapon()->GetShotTime() <= 0.0F)
+                {
+                    throw std::runtime_error(
+                        "source AI Hyper backend materialization re-fired");
+                }
+            }
+            {
+                const auto aiMine = std::find_if(
+                    race.weapons.begin(), race.weapons.end(),
+                    [](const WeaponDefinition& weapon) {
+                        return weapon.slot == WeaponSlot::Mine &&
+                               !weapon.projectiles.empty() &&
+                               weapon.projectiles.front().type !=
+                                   source::AutoProj::masloType;
+                    });
+                if (aiMine == race.weapons.end())
+                {
+                    throw std::runtime_error(
+                        "source mine is missing for AICar regressions");
+                }
+                Race fixedMineRace = race;
+                fixedMineRace.racers.resize(2U);
+                fixedMineRace.racers[1].loadout.clear();
+                fixedMineRace.racers[1].loadout.push_back(
+                    {aiMine->record, "stMine", 2U});
+                OriginalRaceSession fixedMineSession(fixedMineRace);
+                auto fixedMineVehicles = vehicles;
+                fixedMineVehicles.resize(2U);
+                for (auto& state : fixedMineVehicles)
+                {
+                    state.body.position = point(0U).position;
+                    state.body.position.z += 2.0F;
+                    state.speed = 0.0F;
+                }
+                for (int frame = 0; frame < 250; ++frame)
+                {
+                    fixedMineSession.update(
+                        1.0F / 60.0F, fixedMineVehicles, input);
+                }
+                fixedMineSession.setExternalRaceFixedStep(true);
+                auto* fixedMineItem = fixedMineSession.racers()[1]
+                                          .GetMineWeaponItem();
+                if (fixedMineItem == nullptr ||
+                    fixedMineItem->GetWeapon() == nullptr)
+                {
+                    throw std::runtime_error(
+                        "source fixed-step AI Mine fixture missing");
+                }
+                const auto mineChargeBefore =
+                    fixedMineItem->GetCurCharge();
+                auto fixedMineInputs = fixedMineSession.vehicleInputs();
+                std::vector<r3d::physics::VehicleResetCommand>
+                    fixedMineResets;
+                bool fixedMineFired = false;
+                for (std::size_t segment = 0U;
+                     segment + 1U < race.tracePath.size(); ++segment)
+                {
+                    const Vec3 direction = normalized2(subtract(
+                        point(segment + 1U).position,
+                        point(segment).position));
+                    auto& state = fixedMineVehicles[1];
+                    state.body.position = multiply(
+                        add(point(segment).position,
+                            point(segment + 1U).position),
+                        0.5F);
+                    state.body.position.z += 2.0F;
+                    state.body.rotation = shortestArcFromX(direction);
+                    state.speed = 20.0F;
+                    state.linearVelocity = multiply(direction, state.speed);
+                    fixedMineSession.raceFixedStep(
+                        1.0F / 60.0F, fixedMineVehicles,
+                        fixedMineInputs, fixedMineResets);
+                    if (fixedMineItem->GetCurCharge() < mineChargeBefore)
+                    {
+                        fixedMineFired = true;
+                        break;
+                    }
+                }
+                if (!fixedMineFired ||
+                    fixedMineItem->GetCurCharge() + 1U != mineChargeBefore ||
+                    std::abs(fixedMineItem->GetWeapon()->GetShotTime()) >
+                        1.0e-6F ||
+                    !fixedMineSession.mines().empty() ||
+                    !fixedMineSession.racers()[1].gameCar.IsMineLocked())
+                {
+                    throw std::runtime_error(
+                        "source AI Mine was not committed inside fixed-step: "
+                        "fired=" + std::to_string(fixedMineFired) +
+                        " charge=" + std::to_string(
+                            fixedMineItem->GetCurCharge()) +
+                        "/" + std::to_string(mineChargeBefore) +
+                        " shotTime=" + std::to_string(
+                            fixedMineItem->GetWeapon()->GetShotTime()) +
+                        " locked=" + std::to_string(
+                            fixedMineSession.racers()[1]
+                                .gameCar.IsMineLocked()) +
+                        " backend=" + std::to_string(
+                            fixedMineSession.mines().size()) +
+                        " record=" +
+                        std::string(recordName(aiMine->record)));
+                }
+                fixedMineSession.raceFixedStep(
+                    1.0F / 60.0F, fixedMineVehicles,
+                    fixedMineInputs, fixedMineResets);
+                if (fixedMineItem->GetCurCharge() + 1U != mineChargeBefore)
+                {
+                    throw std::runtime_error(
+                        "source AI Mine was committed twice before adapter");
+                }
+                fixedMineSession.update(
+                    2.0F / 60.0F, fixedMineVehicles, input);
+                const bool mineMaterialized = std::any_of(
+                    fixedMineSession.events().begin(),
+                    fixedMineSession.events().end(),
+                    [](const RaceEvent& event) {
+                        return event.kind == RaceEventKind::MinePlaced &&
+                               event.racer == 1U;
+                    });
+                if (!mineMaterialized ||
+                    fixedMineSession.mines().size() != 1U ||
+                    fixedMineItem->GetCurCharge() + 1U != mineChargeBefore ||
+                    fixedMineItem->GetWeapon()->GetShotTime() <= 0.0F)
+                {
+                    throw std::runtime_error(
+                        "source AI Mine backend materialization re-fired");
                 }
             }
             {
