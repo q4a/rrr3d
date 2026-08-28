@@ -1733,6 +1733,14 @@ void OriginalRaceSession::releaseRacerProjectileReferences(
         }
         if (projectile.attached)
         {
+            // Proj::OnDestroy releases the mounted weapon pointer but keeps
+            // the PhysX actor alive.  Recreate the portable actor as dynamic
+            // so its last copied weapon velocity and gravity take over.
+            queueProjectileBodyDestroy(projectile);
+            projectile.physicsBacked = false;
+            projectile.physicsBodyId =
+                r3d::physics::invalidProjectileBodyId;
+            projectile.physicsContacts.clear();
             projectile.attached = false;
             projectile.detachedFromWeapon = true;
             queueProjectileBodyCreate(projectile);
@@ -2687,7 +2695,7 @@ void OriginalRaceSession::synchronizeProjectilePhysics(
             projectile->velocity = state.linearVelocity;
             projectile->physicsContacts = state.contacts;
             projectile->speed = length3(projectile->velocity);
-            if (projectile->speed > 0.0001F)
+            if (!projectile->attached && projectile->speed > 0.0001F)
                 projectile->direction = normalized3(projectile->velocity);
             if (!state.active)
                 projectile->active = false;
@@ -3439,7 +3447,7 @@ void OriginalRaceSession::queueProjectileBodyCreate(
     ProjectileRuntime& projectile)
 {
     if (!externalProjectilePhysics_ ||
-        projectile.sourceObject == nullptr || projectile.attached ||
+        projectile.sourceObject == nullptr ||
         projectile.sourceObject->RoutePreparation().ray ||
         projectile.physicsBacked)
         return;
@@ -3460,6 +3468,8 @@ void OriginalRaceSession::queueProjectileBodyCreate(
     command.body.gravityFactor =
         projectile.ballistic || projectile.detachedFromWeapon
             ? 1.0F : 0.0F;
+    command.body.dynamic = !projectile.attached;
+    command.body.kinematic = projectile.attached;
     command.body.sensor = true;
     projectileBodyCommands_.push_back(command);
 }
@@ -4985,6 +4995,8 @@ void OriginalRaceSession::updateGameplay(
                     runtimeVec(attachedProgress.linearVelocity);
                 projectile.speed = length3(projectile.velocity);
             }
+            if (projectile.physicsBacked)
+                queueProjectileBodySynchronize(projectile);
             const float maximumDistance =
                 projectileDefinition.maximumDistance > 0.0F
                     ? projectileDefinition.maximumDistance
@@ -5074,8 +5086,14 @@ void OriginalRaceSession::updateGameplay(
             }
             else if (sourceContact)
             {
-                const OrientedBox projectileBox = orientedBox(
-                    shotTransform, projectileDefinition.collision);
+                const bool usePhysicsContacts =
+                    projectile.physicsBacked &&
+                    externalProjectilePhysics_;
+                const OrientedBox projectileBox = usePhysicsContacts
+                    ? OrientedBox{}
+                    : orientedBox(
+                          shotTransform,
+                          projectileDefinition.collision);
                 auto refreshDrobilkaContact =
                     [&](const Vec3& contactPoint) {
                         if (sourceContactRoute.handler !=
@@ -5130,13 +5148,31 @@ void OriginalRaceSession::updateGameplay(
                         continue;
                     const auto& vehicleDefinition =
                         vehicleForRacer(target);
-                    const OrientedBox targetBox = vehicleBox(
-                        vehicles[target],
-                        vehicleDefinition.physics);
-                    if (!boxesOverlap(projectileBox, targetBox))
-                        continue;
-                    const Vec3 contactPoint =
-                        closestPoint(targetBox, projectileBox.center);
+                    Vec3 contactPoint = projectile.position;
+                    if (usePhysicsContacts)
+                    {
+                        const auto physicsContact = std::find_if(
+                            projectile.physicsContacts.begin(),
+                            projectile.physicsContacts.end(),
+                            [target](const r3d::physics::BodyContact& value) {
+                                return value.otherVehicle == target;
+                            });
+                        if (physicsContact ==
+                            projectile.physicsContacts.end())
+                            continue;
+                        if (physicsContact->hasPoint)
+                            contactPoint = physicsContact->point;
+                    }
+                    else
+                    {
+                        const OrientedBox targetBox = vehicleBox(
+                            vehicles[target],
+                            vehicleDefinition.physics);
+                        if (!boxesOverlap(projectileBox, targetBox))
+                            continue;
+                        contactPoint = closestPoint(
+                            targetBox, projectileBox.center);
+                    }
                     const auto actualContactRoute =
                         projectile.sourceObject->BeginContact(
                             &racers_[target].gameCar);
@@ -5159,12 +5195,39 @@ void OriginalRaceSession::updateGameplay(
                 }
                 Vec3 decorationContact;
                 std::size_t decorationTarget = 0U;
+                bool decorationHit = false;
                 if (sourceContactRoute.handler ==
-                        source::Proj::ContactHandler::Drobilka &&
-                    findDecorationWithBox(
-                        shotTransform,
-                        projectileDefinition.collision,
-                        decorationTarget, &decorationContact))
+                    source::Proj::ContactHandler::Drobilka)
+                {
+                    if (usePhysicsContacts)
+                    {
+                        const auto contact = std::find_if(
+                            projectile.physicsContacts.begin(),
+                            projectile.physicsContacts.end(),
+                            [&](const r3d::physics::BodyContact& value) {
+                                return value.otherDecoration <
+                                           decorationActive_.size() &&
+                                       decorationActive_[
+                                           value.otherDecoration];
+                            });
+                        if (contact != projectile.physicsContacts.end())
+                        {
+                            decorationTarget = contact->otherDecoration;
+                            decorationContact = contact->hasPoint
+                                ? contact->point
+                                : projectile.position;
+                            decorationHit = true;
+                        }
+                    }
+                    else
+                    {
+                        decorationHit = findDecorationWithBox(
+                            shotTransform,
+                            projectileDefinition.collision,
+                            decorationTarget, &decorationContact);
+                    }
+                }
+                if (decorationHit)
                 {
                     auto* mapObject =
                         decorationObjects().Get(decorationTarget);
@@ -5194,10 +5257,34 @@ void OriginalRaceSession::updateGameplay(
                     source::Proj::ContactHandler::Fire)
             {
                 std::size_t decorationTarget = 0U;
-                if (findDecorationWithBox(
+                const bool usePhysicsContacts =
+                    projectile.physicsBacked &&
+                    externalProjectilePhysics_;
+                bool decorationHit = false;
+                if (usePhysicsContacts)
+                {
+                    const auto contact = std::find_if(
+                        projectile.physicsContacts.begin(),
+                        projectile.physicsContacts.end(),
+                        [&](const r3d::physics::BodyContact& value) {
+                            return value.otherDecoration <
+                                       decorationActive_.size() &&
+                                   decorationActive_[value.otherDecoration];
+                        });
+                    if (contact != projectile.physicsContacts.end())
+                    {
+                        decorationTarget = contact->otherDecoration;
+                        decorationHit = true;
+                    }
+                }
+                else
+                {
+                    decorationHit = findDecorationWithBox(
                         shotTransform,
                         projectileDefinition.collision,
-                        decorationTarget))
+                        decorationTarget);
+                }
+                if (decorationHit)
                 {
                     auto* mapObject =
                         decorationObjects().Get(decorationTarget);

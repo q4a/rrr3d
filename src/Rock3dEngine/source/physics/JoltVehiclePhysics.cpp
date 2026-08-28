@@ -2078,13 +2078,16 @@ private:
         if (shifted.HasError())
             return false;
 
+        const JPH::EMotionType motionType = description.kinematic
+            ? JPH::EMotionType::Kinematic
+            : description.dynamic ? JPH::EMotionType::Dynamic
+                                  : JPH::EMotionType::Static;
+        const bool moving = motionType != JPH::EMotionType::Static;
         JPH::BodyCreationSettings settings(
             shifted.Get(), toJolt(description.transform.position),
             toJolt(description.transform.rotation),
-            description.dynamic ? JPH::EMotionType::Dynamic
-                                : JPH::EMotionType::Static,
-            description.dynamic ? Layers::moving : Layers::nonMoving);
-        if (description.dynamic)
+            motionType, moving ? Layers::moving : Layers::nonMoving);
+        if (motionType == JPH::EMotionType::Dynamic)
         {
             settings.mOverrideMassProperties =
                 JPH::EOverrideMassProperties::CalculateInertia;
@@ -2098,13 +2101,13 @@ private:
         settings.mRestitution = 0.0F;
         settings.mUserData = projectileUserData(index);
         runtime->body = system_.GetBodyInterface().CreateAndAddBody(
-            settings, description.dynamic
+            settings, moving
                           ? JPH::EActivation::Activate
                           : JPH::EActivation::DontActivate);
         if (runtime->body.IsInvalid())
             return false;
         auto& bodies = system_.GetBodyInterface();
-        if (description.dynamic)
+        if (moving)
         {
             bodies.SetLinearVelocity(
                 runtime->body, toJolt(description.linearVelocity));
@@ -3011,6 +3014,8 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
                     drivetrainDescription.startPosition.z + 1.0F};
                 touchingProjectile.body.halfExtents = {
                     0.5F, 0.5F, 0.5F};
+                touchingProjectile.body.dynamic = false;
+                touchingProjectile.body.kinematic = true;
                 projectileCommands.push_back(touchingProjectile);
             }
         });

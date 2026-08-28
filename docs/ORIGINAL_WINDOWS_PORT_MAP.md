@@ -746,6 +746,17 @@ Pickup/source death немедленно выдаёт Destroy и очищает 
 plane/reset/direct attached weapon contact consumers и перенести оставшиеся
 активные snapshot queries по подтверждённому Windows call graph.
 
+Результат B8y: `FireUpdate` и `DrobilkaUpdate` управляют kinematic Jolt
+sensor actor в transform установленного оружия. Fire/Drobilka contact handlers
+получают vehicle/decor identity и manifold point от завершённого solve вместо
+реконструкции OBB по snapshot. Source-only tests сохраняют прежний fallback.
+
+`Proj::OnDestroy`-переход также сохранён: потерявший weapon pointer attached
+actor пересоздаётся dynamic, продолжает движение с последней car velocity и
+включает gravity. Physics smoke требует kinematic projectile↔vehicle contact.
+Следующий B8z — перенести постоянную death plane и ResetCar scene queries в
+backend, не меняя исходный `Player::ResetCar` выбор trace node.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:

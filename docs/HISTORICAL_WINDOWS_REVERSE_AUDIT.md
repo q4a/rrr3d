@@ -5267,6 +5267,28 @@ cache и исключают actor из следующих ray/contact queries. R
 AI attack transaction. Regression требует один Create для единственного oil
 AutoProj и проверяет полный bootstrap count в fixed-step fixtures.
 
+### P2.227 — attached Fire/Drobilka actors перенесены в Jolt — выполнено
+
+Оригинальные `Proj::FireUpdate` и `Proj::DrobilkaUpdate` каждый source tick
+переставляют отдельный PhysX actor в transform установленного оружия и
+копируют линейную скорость машины. Portable session переносил сами handlers,
+но продолжал искать машины и destructible decorations реконструированным OBB
+по render snapshot; реального moving contact actor в backend не было.
+
+Persistent attached projectile теперь создаёт kinematic Jolt sensor с
+collision center/half-extents конкретного `ProjDesc`. `ProgressAttached`
+выдаёт его pose и velocity до очередного solve, а завершённый manifold
+возвращает точный vehicle/decor id и point в `FireContact`/`DrobilkaContact`.
+Headless source regression сохраняет OBB fallback только при выключенном
+external physics.
+
+Когда `Weapon::OnDestroy` очищает ссылку, actor не исчезает: bridge сначала
+удаляет kinematic body и в том же source update создаёт dynamic body с
+последней скоростью и gravity, повторяя исходное продолжение жизни `Proj`.
+Jolt physics smoke теперь использует именно kinematic projectile для
+обязательного vehicle manifold. Оставшаяся B8z граница — death-plane и
+ResetCar scene queries, которые ещё вычисляются session snapshot helper-ами.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

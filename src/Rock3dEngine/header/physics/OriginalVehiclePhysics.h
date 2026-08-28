@@ -321,6 +321,10 @@ struct ProjectileBodyDescription
     float mass = 1.0F;
     float gravityFactor = 0.0F;
     bool dynamic = true;
+    // Fire/Drobilka own PhysX actors which are repositioned from the mounted
+    // weapon every source tick.  A Jolt kinematic sensor preserves that
+    // moving contact boundary without integrating it as a free projectile.
+    bool kinematic = false;
     // RocketPrepare disables PhysX response but keeps contact reports. Jolt
     // sensors provide the same actor boundary without pushing the cars.
     bool sensor = true;

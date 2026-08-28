@@ -1707,10 +1707,21 @@ SpeedArrow, Lusha, Maslo и map Mine. Source handlers и сетевые ветв
 ставит Destroy до выключения `bonusActive`; новый reset строит roster заново.
 
 Regression проверяет один actor у isolated oil AutoProj и bootstrap count до
-AI Mine/ordinary projectile firing. Следующая B8y граница — source-аудит
-оставшихся physics snapshot consumers (death plane, reset rays и direct
-weapon Fire/Drobilka attached shapes), которые ещё не используют единый
-backend actor/query stream.
+AI Mine/ordinary projectile firing.
+
+### B8y — source attached contact actors в Jolt — выполнено
+
+`Proj::FireUpdate`/`DrobilkaUpdate` больше не опираются на active-race OBB
+пересечения. Их persistent runtime создаёт kinematic Jolt sensor, переносит
+weapon pose и car velocity в backend перед solve и на следующем source tick
+потребляет реальные vehicle/decoration manifold identities и points.
+
+При уничтожении установленного оружия исходный `Proj` остаётся жить:
+kinematic body заменяется dynamic sensor с последней velocity и gravity.
+CPU OBB остаётся только deterministic fallback для session smoke без Jolt.
+Engine regression требует contact от kinematic projectile. Следующая B8z
+граница — `Map` death plane и `Player::ResetCar` scene-query helpers, которые
+в active runtime ещё читают snapshot collision вместо одного backend query.
 
 ## Очередь дальнейшего переноса
 
