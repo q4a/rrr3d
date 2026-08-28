@@ -7,6 +7,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <span>
 #include <vector>
@@ -157,6 +158,23 @@ public:
         MineUpdateResult arming;
         bool split = false;
     };
+
+    struct MineRipChildSpawn
+    {
+        ProjectileDefinition definition;
+        Vec3 linearVelocity;
+        float maximumLife = -1.0F;
+        float armingScale = 0.0F;
+        std::uint8_t visualVariant = 0U;
+    };
+
+    struct MineRipSplitPlan
+    {
+        std::vector<MineRipChildSpawn> children;
+        bool destroyParent = false;
+    };
+
+    using RandomUnitSource = std::function<float()>;
 
     struct ImpulseContactResult
     {
@@ -502,6 +520,8 @@ public:
     // must read that concrete clock rather than increment it again.
     MineRipUpdateResult ProgressMineRip(
         float deltaTime, float delay = 0.25F) noexcept;
+    MineRipSplitPlan BuildMineRipSplitPlan(
+        const RandomUnitSource& randomUnit) const;
     LaunchResult PrepareLaunch(
         Vec3 worldDirection, Vec3 weaponVelocity) noexcept;
     float PrepareMaximumLife(

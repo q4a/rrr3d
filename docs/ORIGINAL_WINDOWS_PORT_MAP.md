@@ -513,9 +513,20 @@ replacement`; `OnDestroy` снова получает полный sender contex
 identity. Не-владеющий stable-address `Player::gameCar` сохранён отдельной
 portable backend-ветвью.
 
-Следующий B8i — проверить и перенести оставшиеся `GameObject::SetLogic`
-registration counters и `World` fixed/late/frame transitions, отделив их от
-Jolt actor snapshot/command boundary.
+Результат B8i: оставшийся session-owned `MineRipUpdate` split перенесён в
+`Proj::BuildMineRipSplitPlan`. Concrete Proj теперь формирует model2/model3
+child descriptors, source lifetime RNG order, один core/пять fragments,
+дискретный Vec3Range impulse и parent-death command. Session ограничен
+материализацией готовых child plans в Jolt/runtime views.
+
+`GameObject::SetLogic` registration counters не были подменены пустым
+generic callback: Windows `GameCar::OnFixedStep` требует snapshot реального
+PhysX шага, поэтому их активное подключение должно выполняться единым B8j
+вместе с Jolt fixed-step bridge, без второго физического шага.
+
+Следующий B8j — перенести оставшиеся nested projectile/death-object creation
+plans (crater и autonomous death Proj), затем объединить World registration с
+существующим Jolt substep callback.
 
 ## Правило обновления карты
 

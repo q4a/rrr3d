@@ -4925,6 +4925,28 @@ Regression фиксирует, что callback при type replacement ещё в
 `MapObj`, `Logic`, parent и обратную ссылку `MapObj::GetGameObj`; прямое
 удаление projectile MapObj дополнительно проверяет действующий `IsProj()`.
 
+### P2.211 — `MineRipUpdate` nested spawn plan перенесён в concrete `Proj` — выполнено
+
+После placed-mine dispatch в session оставался крупный кусок исходного
+`Proj::MineRipUpdate`: ручная реконструкция независимых `model2/model3`
+descriptor, sampling их lifetime, создание одного core и пяти fragments, а
+также копия дискретного `Vec3Range((-3,-3,3),(3,3,1),vdVolume)` и импульса.
+Это означало, что типы, damage, death effect и RNG order дочерних снарядов
+по-прежнему определял adapter.
+
+Новый `Proj::BuildMineRipSplitPlan` читает concrete parent descriptor и
+возвращает полный source child batch. Он владеет независимыми child
+`ProjectileDefinition`, исходным порядком RNG (core lifetime, затем для
+каждого fragment lifetime/direction), 100×100×100 grid distribution,
+нормализацией `dir * 10`, visual variant/arming scale и parent-death command.
+`OriginalRaceSession` теперь только материализует эти записи как автономные
+Jolt/runtime mine views и применяет уже подготовленную скорость.
+
+Regression проверяет один core и пять fragments, типы 11/13, отдельные
+visual records, damage/lifetime, ровно 11 RNG выборок, модуль fragment
+velocity 10 и положительный Z. Существующий integration regression продолжает
+проверять полную split/death-effect гонку.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

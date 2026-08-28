@@ -26,6 +26,27 @@ bool hasDeathEffect(
            !effect.visual.soundPaths.empty();
 }
 
+ProjectileDefinition nestedProjectileSourceDefinition(
+    const NestedProjectileDefinition& nested,
+    const ObjectDefinition& visual)
+{
+    // MineRipUpdate creates model2/model3 records whose Proj::Desc is
+    // independent from the parent. The importer already flattened those
+    // record values, so rebuild the concrete child descriptor here.
+    ProjectileDefinition result;
+    result.type = nested.type;
+    result.visual = visual;
+    result.collision = nested.collision;
+    result.modelBounds = nested.collision;
+    result.modelBoundsValid = true;
+    result.deathEffect = nested.deathEffect;
+    result.speed = nested.speed;
+    result.minimumLife = nested.minimumLife;
+    result.maximumLife = nested.maximumLife;
+    result.damage = nested.damage;
+    return result;
+}
+
 float length(Proj::Vec3 value) noexcept
 {
     return std::sqrt(
@@ -912,6 +933,79 @@ Proj::MineRipUpdateResult Proj::ProgressMineRip(
     result.split = MineRipUpdate(
         GetTimeLife(), description_.angularSpeed,
         GetLiveState() == LiveState::Death);
+    return result;
+}
+
+Proj::MineRipSplitPlan Proj::BuildMineRipSplitPlan(
+    const RandomUnitSource& randomUnit) const
+{
+    MineRipSplitPlan result;
+    if (!randomUnit ||
+        RouteProgress().handler != ProgressHandler::MineRip ||
+        !MineRipUpdate(
+            GetTimeLife(), description_.angularSpeed,
+            GetLiveState() == LiveState::Death))
+    {
+        return result;
+    }
+
+    const auto sampleLife = [&](const NestedProjectileDefinition& nested) {
+        if (nested.minimumLife <= 0.0F)
+            return -1.0F;
+        return nested.minimumLife +
+               (std::max(nested.maximumLife, nested.minimumLife) -
+                nested.minimumLife) * randomUnit();
+    };
+    if (description_.secondaryProjectile.valid)
+    {
+        MineRipChildSpawn child;
+        child.definition = nestedProjectileSourceDefinition(
+            description_.secondaryProjectile,
+            description_.secondaryVisual);
+        child.maximumLife = sampleLife(
+            description_.secondaryProjectile);
+        child.armingScale = 0.0F;
+        child.visualVariant = 1U;
+        result.children.push_back(std::move(child));
+    }
+    if (description_.tertiaryProjectile.valid)
+    {
+        constexpr std::uint32_t frequency = 100U;
+        constexpr std::uint32_t volume =
+            frequency * frequency * frequency;
+        for (std::size_t piece = 0U; piece < 5U; ++piece)
+        {
+            MineRipChildSpawn child;
+            child.definition = nestedProjectileSourceDefinition(
+                description_.tertiaryProjectile,
+                description_.tertiaryVisual);
+            child.maximumLife = sampleLife(
+                description_.tertiaryProjectile);
+            const float random = randomUnit();
+            const std::uint32_t cellIndex =
+                random >= 1.0F
+                    ? volume - 1U
+                    : static_cast<std::uint32_t>(
+                          static_cast<float>(volume) * random);
+            const std::uint32_t cellX = cellIndex % frequency;
+            const std::uint32_t cellY =
+                (cellIndex / frequency) % frequency;
+            const std::uint32_t cellZ =
+                (cellIndex / (frequency * frequency)) % frequency;
+            const auto direction = normalized(Vec3{
+                -3.0F + 6.0F * static_cast<float>(cellX) / 99.0F,
+                -3.0F + 6.0F * static_cast<float>(cellY) / 99.0F,
+                3.0F - 2.0F * static_cast<float>(cellZ) / 99.0F});
+            child.linearVelocity = {
+                direction.x * 10.0F,
+                direction.y * 10.0F,
+                direction.z * 10.0F};
+            child.armingScale = 1.0F;
+            child.visualVariant = 2U;
+            result.children.push_back(std::move(child));
+        }
+    }
+    result.destroyParent = true;
     return result;
 }
 

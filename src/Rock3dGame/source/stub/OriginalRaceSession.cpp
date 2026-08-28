@@ -28,29 +28,6 @@ bool hasDeathEffect(const ProjectileDefinition& definition) noexcept
     return hasDeathEffect(definition.deathEffect);
 }
 
-ProjectileDefinition nestedProjectileSourceDefinition(
-    const NestedProjectileDefinition& nested,
-    const ObjectDefinition& visual)
-{
-    // MineRipUpdate adds model2/model3 MapObj records. Those records own
-    // independent Proj::Desc values; copying the parent MineRip descriptor
-    // makes every child execute MineRipUpdate recursively. The importer has
-    // already flattened the nested record's gameplay fields, so rebuild the
-    // concrete source descriptor from that child record here.
-    ProjectileDefinition result;
-    result.type = nested.type;
-    result.visual = visual;
-    result.collision = nested.collision;
-    result.modelBounds = nested.collision;
-    result.modelBoundsValid = true;
-    result.deathEffect = nested.deathEffect;
-    result.speed = nested.speed;
-    result.minimumLife = nested.minimumLife;
-    result.maximumLife = nested.maximumLife;
-    result.damage = nested.damage;
-    return result;
-}
-
 bool configureAutonomousMineSourceObject(
     source::Logic& logic, MineRuntime& mine,
     const ProjectileDefinition& definition,
@@ -1086,33 +1063,6 @@ float sampleSourceRange(float minimum, float maximum)
     return minimum +
            (std::max(maximum, minimum) - minimum) *
                sourceRandomUnit();
-}
-
-Vec3 sourceMineRipFragmentVelocity()
-{
-    // Weapon.cpp uses Vec3Range((-3,-3,3), (3,3,1), vdVolume)
-    // with the default 100^3 grid, normalizes it, then applies a
-    // mass*dir*10 NX_IMPULSE.  The mass cancels, leaving dir*10 as
-    // the fragment's linear-velocity change.
-    constexpr std::uint32_t frequency = 100U;
-    constexpr std::uint32_t volume =
-        frequency * frequency * frequency;
-    const float random = sourceRandomUnit();
-    const std::uint32_t cellIndex =
-        random >= 1.0F
-            ? volume - 1U
-            : static_cast<std::uint32_t>(
-                  static_cast<float>(volume) * random);
-    const std::uint32_t cellX = cellIndex % frequency;
-    const std::uint32_t cellY =
-        (cellIndex / frequency) % frequency;
-    const std::uint32_t cellZ =
-        (cellIndex / (frequency * frequency)) % frequency;
-    const Vec3 direction{
-        -3.0F + 6.0F * static_cast<float>(cellX) / 99.0F,
-        -3.0F + 6.0F * static_cast<float>(cellY) / 99.0F,
-        3.0F - 2.0F * static_cast<float>(cellZ) / 99.0F};
-    return multiply(normalized3(direction), 10.0F);
 }
 
 std::string_view recordName(std::string_view value)
@@ -5861,69 +5811,33 @@ void OriginalRaceSession::updateGameplay(
             continue;
         }
         if (mineProgressRoute.handler ==
-            source::Proj::ProgressHandler::MineRip)
+                source::Proj::ProgressHandler::MineRip &&
+            mineProgress.split)
         {
-            const auto& projectile = mineDefinition;
-            if (mineProgress.split)
+            // Concrete Proj owns model2/model3 descriptor reconstruction,
+            // lifetime sampling order, five-piece Vec3Range distribution
+            // and the decision to destroy its parent. This adapter only
+            // materializes the returned source children as Jolt mine views.
+            const auto splitPlan =
+                mine.sourceObject->BuildMineRipSplitPlan(
+                    &sourceRandomUnit);
+            for (const auto& child : splitPlan.children)
             {
-                if (projectile.secondaryProjectile.valid)
+                MineRuntime spawned = mine;
+                spawned.owner = RacerRuntime::invalidWeapon;
+                spawned.linkedToOwner = false;
+                spawned.visualVariant = child.visualVariant;
+                spawned.armingAlpha = child.armingScale;
+                spawned.velocity = runtimeVec(child.linearVelocity);
+                if (configureAutonomousMineSourceObject(
+                        logic_, spawned, child.definition,
+                        child.maximumLife))
                 {
-                    const auto& source =
-                        projectile.secondaryProjectile;
-                    MineRuntime core = mine;
-                    core.owner = RacerRuntime::invalidWeapon;
-                    core.linkedToOwner = false;
-                    core.visualVariant = 1U;
-                    core.armingAlpha = 0.0F;
-                    const float coreMaximumLife =
-                        source.minimumLife > 0.0F
-                            ? sampleSourceRange(
-                                  source.minimumLife,
-                                  source.maximumLife)
-                            : -1.0F;
-                    core.velocity = {};
-                    const auto childDefinition =
-                        nestedProjectileSourceDefinition(
-                            source, projectile.secondaryVisual);
-                    if (configureAutonomousMineSourceObject(
-                            logic_, core, childDefinition,
-                            coreMaximumLife))
-                    {
-                        spawnedMines.push_back(std::move(core));
-                    }
+                    spawnedMines.push_back(std::move(spawned));
                 }
-                if (projectile.tertiaryProjectile.valid)
-                {
-                    const auto& source =
-                        projectile.tertiaryProjectile;
-                    for (std::size_t piece = 0; piece < 5U; ++piece)
-                    {
-                        MineRuntime fragment = mine;
-                        fragment.owner =
-                            RacerRuntime::invalidWeapon;
-                        fragment.linkedToOwner = false;
-                        fragment.visualVariant = 2U;
-                        fragment.armingAlpha = 1.0F;
-                        const float fragmentMaximumLife =
-                            source.minimumLife > 0.0F
-                                ? sampleSourceRange(
-                                      source.minimumLife,
-                                      source.maximumLife)
-                                : -1.0F;
-                        fragment.velocity =
-                            sourceMineRipFragmentVelocity();
-                        const auto childDefinition =
-                            nestedProjectileSourceDefinition(
-                                source, projectile.tertiaryVisual);
-                        if (configureAutonomousMineSourceObject(
-                                logic_, fragment, childDefinition,
-                                fragmentMaximumLife))
-                        {
-                            spawnedMines.push_back(
-                                std::move(fragment));
-                        }
-                    }
-                }
+            }
+            if (splitPlan.destroyParent)
+            {
                 spawnMineDeathEffect(mine);
                 deactivateMine(mine);
                 continue;

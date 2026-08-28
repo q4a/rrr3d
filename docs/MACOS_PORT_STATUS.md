@@ -2510,3 +2510,13 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   временного record object на stable `Player::gameCar`.
 - `OnDestroy` снова получает полный source context и derived `IsProj()`;
   отдельная non-owning ветвь внешней машины остаётся безопасно отсоединяемой.
+
+### Source MineRip nested-spawn follow-up
+
+- `Proj::BuildMineRipSplitPlan` теперь владеет независимыми model2/model3
+  descriptors, lifetime sampling и batch из одного core/пяти fragments.
+- Дискретный исходный Vec3Range grid и `dir * 10` impulse удалены из session;
+  adapter получает готовые child definitions/velocities/visual variants.
+- Regression закрепляет child types 11/13, visual/death metadata, 11 RNG
+  выборок, lifetime range и fragment velocity; session integration сохраняет
+  полный split/death-effect lifecycle.

@@ -5,6 +5,7 @@
 #include <array>
 #include <cmath>
 #include <iostream>
+#include <vector>
 
 namespace source = r3d::game::originalrace::source;
 
@@ -1545,6 +1546,71 @@ int main()
         std::abs(mineRipProjectile.GetTimeLife() - 2.0011F) > 0.0001F ||
         oilProjectile.ProgressMineRip(3.0F).split)
         return 144;
+    mineRipDescription.secondaryProjectile.valid = true;
+    mineRipDescription.secondaryProjectile.type = 11U;
+    mineRipDescription.secondaryProjectile.speed = 3000.0F;
+    mineRipDescription.secondaryProjectile.minimumLife = 4.0F;
+    mineRipDescription.secondaryProjectile.maximumLife = 4.5F;
+    mineRipDescription.secondaryProjectile.damage = 10.0F;
+    mineRipDescription.secondaryVisual.record = "mineRipCore";
+    mineRipDescription.tertiaryProjectile.valid = true;
+    mineRipDescription.tertiaryProjectile.type = 13U;
+    mineRipDescription.tertiaryProjectile.speed = 3000.0F;
+    mineRipDescription.tertiaryProjectile.minimumLife = 4.0F;
+    mineRipDescription.tertiaryProjectile.maximumLife = 4.5F;
+    mineRipDescription.tertiaryProjectile.damage = 4.0F;
+    mineRipDescription.tertiaryVisual.record = "mineRipPiece";
+    source::Proj plannedMineRip;
+    plannedMineRip.PrepareSource(
+        mineRipDescription, nullptr,
+        source::Proj::ShotContext{});
+    plannedMineRip.OnProgress(2.0011F, false);
+    const std::array<float, 11U> splitRandom{
+        0.5F, 0.0F, 0.05F, 0.2F, 0.25F, 0.4F,
+        0.45F, 0.6F, 0.65F, 0.8F, 0.85F};
+    std::size_t splitRandomIndex = 0U;
+    const auto splitPlan = plannedMineRip.BuildMineRipSplitPlan(
+        [&]() { return splitRandom[splitRandomIndex++]; });
+    bool validFragments = splitPlan.destroyParent &&
+                          splitPlan.children.size() == 6U &&
+                          splitRandomIndex == splitRandom.size();
+    for (std::size_t child = 0U;
+         child < splitPlan.children.size(); ++child)
+    {
+        const auto& spawn = splitPlan.children[child];
+        if (child == 0U)
+        {
+            validFragments = validFragments &&
+                spawn.visualVariant == 1U &&
+                spawn.armingScale == 0.0F &&
+                spawn.definition.type == 11U &&
+                spawn.definition.visual.record == "mineRipCore" &&
+                std::abs(spawn.maximumLife - 4.25F) < 0.0001F &&
+                std::abs(spawn.linearVelocity.x) < 0.0001F &&
+                std::abs(spawn.linearVelocity.y) < 0.0001F &&
+                std::abs(spawn.linearVelocity.z) < 0.0001F;
+        }
+        else
+        {
+            const float velocityLength = std::sqrt(
+                spawn.linearVelocity.x * spawn.linearVelocity.x +
+                spawn.linearVelocity.y * spawn.linearVelocity.y +
+                spawn.linearVelocity.z * spawn.linearVelocity.z);
+            validFragments = validFragments &&
+                spawn.visualVariant == 2U &&
+                spawn.armingScale == 1.0F &&
+                spawn.definition.type == 13U &&
+                spawn.definition.visual.record == "mineRipPiece" &&
+                spawn.maximumLife >= 4.0F &&
+                spawn.maximumLife <= 4.5F &&
+                std::abs(velocityLength - 10.0F) < 0.0001F &&
+                spawn.linearVelocity.z > 0.0F;
+        }
+    }
+    if (!validFragments ||
+        oilProjectile.BuildMineRipSplitPlan([] { return 0.5F; })
+            .destroyParent)
+        return 203;
 
     const auto firstImpulse = source::Proj::ImpulseContact(
         true, true, true, 0U, 12.0F);
