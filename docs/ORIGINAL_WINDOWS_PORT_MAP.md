@@ -769,6 +769,13 @@ Default actors. Projectile queries death plane фильтруют. CPU reconstru
 активных snapshot physics consumers после закрытия projectile/mine/bonus/
 attached/death/reset graph.
 
+Результат B8ac: `DataBase::LoadBonus`/`AutoProj::InitProj` ownership доведён
+до завершения объекта. Pickup сохраняет исходный порядок
+`Player::TakeBonus`: сначала `bonus.Death()` и type-6 listeners, затем reward.
+Map mine использует тот же `Proj::DestroyWithEffect` с target и `dtMine`.
+Session больше не принимает решение о создании serialized bonus effect, а
+только материализует подтверждённый spawn-plan в bgfx/SDL/Jolt adapters.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:

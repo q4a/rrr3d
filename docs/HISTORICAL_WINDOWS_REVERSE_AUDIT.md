@@ -5341,6 +5341,22 @@ behaviors в исходном порядке и пересоздаёт их пр
 target-child flag, два shipped death visuals/sounds и сброс one-live state
 после восстановления машины.
 
+### P2.231 — bonus/map mine `DeathEffect` возвращён owning `AutoProj` — выполнено
+
+Подтвердился ещё один synthetic dispatch: records из `DataBase::LoadBonus`
+корректно становились `AutoProj`, а portable `DataBase::Configure` уже
+передавал type/model/collision/value и serialized model `DeathEffect`. Но
+`OriginalRaceSession` не потреблял его concrete type-6 listener и создавал
+impact visual/sound напрямую из definition.
+
+Для mine hazard source `Proj::MineContact` теперь приводит к
+`AutoProj::DestroyWithEffect(target, Mine)`. Для обычного pickup source
+`Player::TakeBonus(GameObject&)` по-прежнему первым вызывает `bonus.Death()`;
+до него session только устанавливает context listener, а после получает
+one-live spawn result. Renderer, SDL audio и Jolt получают уже решённый
+source plan. Регрессии проверяют behavior на `AutoProj`, mine damage/removal,
+pickup reward, visual и отложенный `LifeEffect` sound.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

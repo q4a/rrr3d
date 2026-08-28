@@ -2557,3 +2557,14 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   object-graph teardown.
 - Deferred/single-consume regression, physics smoke и 360-frame bgfx/Metal
   race smoke прошли.
+
+### Source map bonus DeathEffect follow-up
+
+- Map-owned pickups и hazards уже создавались как concrete `AutoProj`, но
+  session вручную создавал их impact effect. Этот synthetic gate удалён.
+- `Player::TakeBonus(GameObject&)` снова сам вызывает `bonus.Death()` до
+  reward; type-6 `DeathEffectBehavior` решает one-live spawn и отдаёт plan
+  backend adapters.
+- Map mine завершает тот же actor через `DestroyWithEffect` с target и
+  `DamageType::Mine`; target-child attachment больше не выводится из одного
+  лишь наличия serialized visual.

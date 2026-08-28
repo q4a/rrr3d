@@ -878,6 +878,10 @@ int main()
     autoOilDescription.type = 10U;
     autoOilDescription.damage = 1.5F;
     autoOilDescription.visual.record = "Bonus\\maslo";
+    autoOilDescription.deathEffect.visual.record =
+        "Effect\\bonusDeath";
+    autoOilDescription.deathEffect.targetChild = true;
+    autoOilDescription.deathEffect.effectPhysicsIgnoreSenderCar = true;
     autoOil.Reset(autoOilDescription);
     autoOil.SetWorldPos({4.0F, 5.0F, 6.0F});
     autoOil.SetMaxLife(12.0F);
@@ -892,6 +896,10 @@ int main()
         autoOil.GetModelScale() != 0.0F ||
         autoOil.GetDesc().type != 10U ||
         autoOil.GetDesc().damage != 1.5F ||
+        autoOil.GetDeathEffectBehavior() == nullptr ||
+        !autoOil.GetDeathEffectBehavior()->GetTargetChild() ||
+        !autoOil.GetDeathEffectBehavior()
+             ->GetEffectPxIgnoreSenderCar() ||
         autoOil.GetSourceModel() == nullptr ||
         autoOil.GetSourceModel()->GetParent() != &autoOil ||
         autoOil.GetIncludeList().GetLiveCount() != 1U ||

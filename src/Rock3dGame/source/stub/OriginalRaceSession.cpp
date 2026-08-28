@@ -7265,30 +7265,64 @@ void OriginalRaceSession::updateGameplay(
                        }),
         mines_.end());
 
-    auto spawnBonusDeathEffect = [&](std::size_t bonusIndex) {
-        if (bonusIndex >= race_.bonuses.size())
+    auto materializeBonusDeathEffect = [&]
+        (std::size_t bonusIndex,
+         const source::DeathEffect::SpawnResult& deathPlan,
+         std::size_t targetRacer = RacerRuntime::invalidWeapon) {
+        if (!deathPlan.createEffect ||
+            bonusIndex >= race_.bonuses.size())
             return;
         const auto& bonus = race_.bonuses[bonusIndex];
         const auto& visual = bonus.deathEffect.visual;
-        if (visual.record.empty() &&
-            visual.visualNodes.empty() &&
-            visual.particleEmitters.empty() &&
-            visual.soundPaths.empty())
-            return;
         const auto timing = sourceEffectTiming(visual, 0.7F);
-        RaceEffect impact;
-        impact.kind = RaceEventKind::ProjectileImpact;
-        impact.origin = add(
+        Transform effectTransform;
+        Vec3 effectOrigin = add(
             bonus.transform.position,
             bonus.deathEffect.position);
+        if (deathPlan.targetChild && targetRacer < vehicles.size())
+        {
+            const Transform& parent = vehicles[targetRacer].body;
+            const Quat inverseRotation{
+                -parent.rotation.x, -parent.rotation.y,
+                -parent.rotation.z, parent.rotation.w};
+            const Vec3 unscaled = rotate(
+                inverseRotation,
+                subtract(bonus.transform.position, parent.position));
+            const auto removeScale = [](float value, float scale) {
+                return std::abs(scale) > 0.000001F
+                           ? value / scale
+                           : value;
+            };
+            effectTransform.position = {
+                removeScale(unscaled.x, parent.scale.x) +
+                    bonus.deathEffect.position.x,
+                removeScale(unscaled.y, parent.scale.y) +
+                    bonus.deathEffect.position.y,
+                removeScale(unscaled.z, parent.scale.z) +
+                    bonus.deathEffect.position.z};
+            effectOrigin = compose(parent, effectTransform).position;
+        }
+        RaceEffect impact;
+        impact.kind = RaceEventKind::ProjectileImpact;
+        impact.origin = effectOrigin;
         impact.target = add(
-            bonus.transform.position, {0.0F, 0.0F, 2.0F});
+            effectOrigin, {0.0F, 0.0F, 2.0F});
         applySourceEffectTiming(impact, timing, visual);
         impact.weapon = race_.weapons.size();
         impact.bonus = bonusIndex;
         impact.ignoreRotation =
             bonus.deathEffect.ignoreRotation;
-        attachSourceLifeEffect(impact, visual.soundPaths);
+        if (deathPlan.targetChild && targetRacer < vehicles.size())
+        {
+            impact.parentRacer = targetRacer;
+            impact.transform = effectTransform;
+        }
+        attachSourceLifeEffect(
+            impact, visual.soundPaths,
+            RacerRuntime::invalidWeapon,
+            deathPlan.targetChild && targetRacer < vehicles.size()
+                ? targetRacer
+                : RacerRuntime::invalidWeapon);
         effects_.push_back(std::move(impact));
     };
     auto applyMapMineContact = [&](std::size_t bonusIndex,
@@ -7316,11 +7350,14 @@ void OriginalRaceSession::updateGameplay(
         const auto& vehicleDefinition = vehicleForRacer(racer);
         if (sourceResult.destroyBeforeDamage)
         {
-            spawnBonusDeathEffect(bonusIndex);
+            const auto deathPlan =
+                bonusProjectile->DestroyWithEffect(
+                    &racers_[racer].gameCar, true, false,
+                    DamageType::Mine);
+            materializeBonusDeathEffect(
+                bonusIndex, deathPlan, racer);
             bonusActive_[bonusIndex] = false;
             queueBonusBodyDestroy(bonusIndex);
-            if (auto* object = bonusObjects().Get(bonusIndex))
-                object->GetGameObj().Death(DamageType::Mine);
         }
         applyProjectileDamageCommand(
             sourceResult.damage, racer, contactPoint);
@@ -7451,6 +7488,16 @@ void OriginalRaceSession::updateGameplay(
                     sourceType == source::PlayerBonusType::Charge
                 ? sourceRandomUnit()
                 : 0.0F;
+        auto* deathEffect =
+            bonusProjectile->GetDeathEffectBehavior();
+        if (deathEffect != nullptr)
+        {
+            // Player::TakeBonus invokes bonus.Death() before applying the
+            // reward. Arm the concrete listener before that source-owned
+            // transition; a network request does not call Death and thus
+            // leaves no spawn plan to consume.
+            deathEffect->SetSpawnContext(true, false);
+        }
         const auto result = source::Logic::TakeBonus(
             &runtime, &bonusObject->GetGameObj(), sourceType,
             sourceValue, weaponMaximumCharges, bonusRandomUnit,
@@ -7496,7 +7543,11 @@ void OriginalRaceSession::updateGameplay(
             !bonusObject->GetGameObj().destroyed;
         if (!bonusActive_[bonusIndex])
             queueBonusBodyDestroy(bonusIndex);
-        spawnBonusDeathEffect(bonusIndex);
+        if (deathEffect != nullptr)
+        {
+            materializeBonusDeathEffect(
+                bonusIndex, deathEffect->ConsumeSpawnResult());
+        }
         RaceEvent event;
         event.kind = RaceEventKind::Bonus;
         event.racer = racer;
@@ -10460,17 +10511,29 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             auto& sourceOil = autoProjRace.bonuses.front();
             sourceOil.kind = BonusKind::OilHazard;
             sourceOil.projectileType = 10U;
+            sourceOil.deathEffect.visual.record =
+                "Effect\\autoProjDeathRegression";
             sourceOil.transform.position = {
                 100000.0F, 100000.0F, 1000.0F};
             OriginalRaceSession autoProjSession(autoProjRace);
             autoProjSession.setExternalProjectilePhysics(true);
             const auto autoProjBodyCommands =
                 autoProjSession.takeProjectileBodyCommands();
+            const auto* autoProjMapObject =
+                autoProjSession.sourceMap()
+                    .GetMapObjList(source::MapObjCategory::Bonus)
+                    .Get(0U);
+            const auto* autoProjSource =
+                autoProjMapObject != nullptr
+                    ? autoProjMapObject->GetAutoProj()
+                    : nullptr;
             auto autoProjVehicles = vehicles;
             RaceControl autoProjInput;
             if (autoProjBodyCommands.size() != 1U ||
                 autoProjBodyCommands.front().kind !=
                     r3d::physics::ProjectileBodyCommandKind::Create ||
+                autoProjSource == nullptr ||
+                autoProjSource->GetDeathEffectBehavior() == nullptr ||
                 autoProjSession.bonusScales().size() != 1U ||
                 autoProjSession.bonusScales().front() != 0.0F)
             {

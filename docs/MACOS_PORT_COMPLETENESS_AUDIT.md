@@ -100,7 +100,7 @@ Windows target не компилируется.
 | Weapon shot sounds | `Weapon::CreateShot`, `ShotEffect::GiveSource3d`, serialized sound refs | source `ctWeapon/behaviors/items/*[@type=10]/sounds` | Перенесено | Все 24 refs предзагружаются; случайный вариант выбирается на каждый успешно prepared projectile, `drobilka` остаётся без звука, а отдельный Source3d на машину/слот/вариант сохраняет ignore-while-playing и дальний delayed start/resume |
 | Damage/support/shield | `GameObject::Damage`, `Logic::Damage`, `TouchDeath`, `DroidItem`, `ReflectorItem`, behaviors | `OriginalLogic` + active `Behavior/Behaviors` + source-typed session adapters | Частично | Перенесены damage types, reflector rules, immortality, touch attribution, death plane, mine exclusion и Droid heal. `Logic` владеет contact behavior/ranges; runtime MapObj получают исходную `GameObject::_logic` связь, которая наследуется parent/children/include graph. Общий 15-type `Behaviors` owner владеет listener registration, deferred removal, progress и shot/motor/immortality dispatch; Player `LowLifePoints`, `ImmortalEffect`, energy `DamageEffect` и динамический Frost Ray `SlowEffect` уже подключены к нему вместо прямых virtual/session вызовов. Подключение остальных concrete backend behaviors продолжается |
 | Effect resurrection/lifetime | `ResurrectObj`, `FxSystemWaitingEnd`, `FxSystemSrcSpeed`, `LifeEffect`, `GameObject::OnProgress` | concrete type-2/type-3/type-7 behaviors + active MapObj world detach + recursive include progress | Перенесено с backend-адаптацией | Каждый RaceEffect владеет стабильным source GameObject и listener-зарегистрированными behaviors: positive `maximumTimeLife` посылает Death, type 2 воскрешает/fades и завершает объект после нулевого particle count, type 3 получает Jolt actor velocity и выполняет parent WorldToLocalNorm, type 7 делает один delayed Play. Вложенный effect сохраняет world pose/последнюю скорость при detach. bgfx и SDL только потребляют готовые particle/audio границы вместо создания игровых state machines в render/audio loops |
-| Bonuses | `Proj` types 4–10, `Player::TakeBonus` | source boxes, serialized values/DeathEffect и сопоставленные contact branches | Частично | Перенесены persistent speed/lusha/oil, одноразовый `Death()`, medpack/charge/money/immortal, Windows `Round((N-1)*Random())`, charge truncation и source pickup sounds; остаётся ручной portable dispatch вместо исходных объектов/PhysX callbacks |
+| Bonuses | `Proj` types 4–10, `Player::TakeBonus` | concrete map-owned `AutoProj`, Jolt sensor, serialized values/DeathEffect и source contact branches | Перенесено с backend-адаптацией | Persistent speed/lusha/oil, одноразовый `Death()`, medpack/charge/money/immortal, Windows `Round((N-1)*Random())`, charge truncation и pickup sounds идут через source object graph; Jolt заменяет PhysX sensor/manifold, а spawn разрешает type-6 `DeathEffectBehavior` |
 | Destructible decorations | `DestrObj`, `GameBase`, `GameCar::OnContact` | life flags, active runtime `DestrList`, source fragments/debris и collision meshes | Перенесено с backend-адаптацией | Все map destructibles инстанцируют serialized `_destrList`; `NX_AF_DISABLE_RESPONSE` представлен Jolt sensor с identity владельца, нулевой `dtTouch` разрушает `maxLife == 0`, parent actor удаляется, а `DestrObj::OnProgress` реально вынимает каждый дочерний MapObj, передаёт его в глобальную Map через `InsertMapObj` и даёт world pose родителя. Static/dynamic shapes этих же объектов заменены Jolt bodies, распад одноразовый; в source нет impulse или lifetime для этих частей |
 | Achievements | все 9 `AchievmentCondition*` classes, `AchievmentModel`, `AchievmentFrame`, `PlayerStateFrame` | definitions + source-matched counters + source reward frame | Частично | Сопоставлены Bonus/SpeedKill/RaceKill/LapPass/Dodge/LapBreak/Survival/FirstKill/TouchKill и exact record counts; campaign начисляет `Floor(reward × 1/1.2/1.5)`, skirmish не начисляет points и скрывает points HUD. Девять reward cards, state/price, purchase/points и навигация перенесены; generic legacy event/model object graph не компилируется |
 | HUD | `PlayerStateFrame`, `MiniMapFrame`, `HudMenu` | `OriginalRaceHud.cpp` с исходными images/strings | Перенесено для offline race | Сопоставлены единственное активное состояние `msMain`, slots/life/place/lap, точная последовательность countdown `tablo0..tablo4`, pick/kill/achievement, opponent/life overlays и finish. `enableHUD` скрывает только `_raceState` и lap, сохраняя map/event siblings как Windows |
@@ -1771,6 +1771,22 @@ DeathEffect → Immortal → Damage, после чего `GameCar` добавл�
 две duplicate type-6 записи, target-child semantics и повторную смерть после
 respawn; integrated physics regression требует два исходных эффекта и их
 behavior roster до и после восстановления.
+
+### B8ac — map-owned `AutoProj` death ownership — выполнено
+
+`DataBase::Configure` уже создавал каждый bonus/hazard как конкретный
+`AutoProj` и передавал ему serialized `ProjectileDefinition`, включая model
+`DeathEffect`. Однако два active contact path обходили этот listener:
+session напрямую проверял visual definition и безусловно создавал
+`RaceEffect` для pickup и map mine.
+
+Теперь mine contact завершает concrete `AutoProj` через
+`Proj::DestroyWithEffect`, а pickup заранее устанавливает context его
+`DeathEffectBehavior` и оставляет исходному `Player::TakeBonus(GameObject&)`
+вызвать `bonus.Death()` до изменения денег/life/charge. Session переводит в
+renderer/audio только подтверждённый behavior spawn-plan. Unit и
+full-session regressions требуют type-6 behavior на map-owned actor и
+сохраняют shipped pickup sound/mine damage transitions.
 
 ## Очередь дальнейшего переноса
 
