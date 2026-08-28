@@ -459,7 +459,6 @@ void OriginalRaceHud::shutdown(GraphicsDevice& device) noexcept
         device.destroy(mapMesh_);
     mapMesh_ = {};
     miniMapState_.Clear();
-    mapMarkers_.clear();
     opponentLabels_.clear();
     notifications_.clear();
     achievementNotifications_.clear();
@@ -806,29 +805,22 @@ void OriginalRaceHud::update(
         achievementNotifications_.end());
     hudMenuState_.OnProgress(seconds);
 
-    mapMarkers_.clear();
-    mapMarkers_.reserve(std::min(vehicles.size(), race.racers.size()));
-    for (std::size_t index = 0;
-         index < vehicles.size() && index < race.racers.size(); ++index)
+    std::vector<source::HudMiniMapPlayerInput> miniMapPlayers;
+    miniMapPlayers.reserve(session.racers().size());
+    for (std::size_t index = 0U;
+         index < session.racers().size(); ++index)
     {
-        if (index < session.racers().size() &&
-            session.racers()[index].disconnected)
-        {
+        if (session.racers()[index].disconnected)
             continue;
-        }
         // MiniMapFrame::UpdatePlayers uses CarState::GetMapPos(), which is a
         // trace projection and retains the last valid tile coordinate while
         // a car is off-road. A raw body coordinate makes an AI reset look
         // like a marker teleport across the map.
-        const auto position = session.mapPosition(index);
-        const auto mapPosition = miniMapState_.MapPosition(position);
-        mapMarkers_.push_back(
-            {mapPosition.x, mapPosition.y,
-             0.0F,
-             index < session.racers().size()
-                 ? session.racers()[index].GetColor()
-                 : race.racers[index].color});
+        miniMapPlayers.push_back(
+            {index, session.mapPosition(index),
+             session.racers()[index].GetColor()});
     }
+    miniMapState_.UpdatePlayers(miniMapPlayers);
 
     const std::size_t visibleRacers =
         std::min({vehicles.size(), race.racers.size(),
@@ -1251,13 +1243,14 @@ void OriginalRaceHud::draw(GraphicsDevice& device, Mesh quad,
               miniMapGeometry.startHeight,
               miniMapGeometry.start.x, miniMapGeometry.start.y,
               66.0F, pipeline, miniMapGeometry.startAngle);
-    for (const auto& marker : mapMarkers_)
+    for (const auto& marker : miniMapState_.GetPlayers())
     {
         // Legacy Plane3d renders from -size to +size, so SetSize(10, 10)
         // corresponds to a 20x20 marker in the final viewport.
         drawTintedAsset(device, quad, shader, mapPlayer_.texture,
-                        20.0F, 20.0F, marker.x, marker.y, 58.0F,
-                        pipeline, marker.color, marker.angle);
+                        20.0F, 20.0F, marker.position.x,
+                        marker.position.y, 58.0F, pipeline,
+                        marker.color);
     }
     for (const auto& opponent : playerStateFrame_.GetOpponents())
     {

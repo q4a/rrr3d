@@ -2367,3 +2367,12 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   `HudMenu.cpp` использует только в другом RaceMenu frame и в гонке не создаёт.
 - Place/life и `MiniMapFrame` lap clamp также source-owned; CoreText и bgfx
   выполняют только локализацию, texture cache и draw submission.
+
+### Source MiniMapFrame player follow-up
+
+- `CreatePlayers`, `UpdatePlayers`, `DelPlayer` и disconnect lifetime
+  перенесены в `source::MiniMapFrame` по стабильному racer id.
+- Source collection использует `CarState::GetMapPos`, общий map transform и
+  car color; renderer-owned `mapMarkers_` удалён.
+- Marker roster больше не обрезается количеством Jolt vehicle snapshots;
+  bgfx исполняет только исходный 20x20 playerPoint2 draw.

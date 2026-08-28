@@ -348,6 +348,39 @@ void MiniMapFrame::UpdateLap(
     shownLap_ = std::min(completedLaps + 1U, totalLaps);
 }
 
+void MiniMapFrame::UpdatePlayers(
+    const std::vector<HudMiniMapPlayerInput>& inputs) noexcept
+{
+    players_.erase(
+        std::remove_if(
+            players_.begin(), players_.end(),
+            [&](const HudMiniMapPlayer& player) {
+                return std::none_of(
+                    inputs.begin(), inputs.end(),
+                    [&](const HudMiniMapPlayerInput& input) {
+                        return input.racer == player.racer;
+                    });
+            }),
+        players_.end());
+    for (const auto& input : inputs)
+    {
+        auto player = std::find_if(
+            players_.begin(), players_.end(),
+            [&](const HudMiniMapPlayer& candidate) {
+                return candidate.racer == input.racer;
+            });
+        if (player == players_.end())
+        {
+            HudMiniMapPlayer created;
+            created.racer = input.racer;
+            players_.push_back(created);
+            player = std::prev(players_.end());
+        }
+        player->position = MapPosition(input.mapPosition);
+        player->color = input.color;
+    }
+}
+
 void MiniMapFrame::Clear() noexcept
 {
     geometry_ = {};
@@ -359,6 +392,7 @@ void MiniMapFrame::Clear() noexcept
     originY_ = 0.0F;
     shownLap_ = 0U;
     totalLaps_ = 0U;
+    players_.clear();
     valid_ = false;
 }
 
@@ -381,6 +415,23 @@ std::uint32_t MiniMapFrame::GetShownLap() const noexcept
 std::uint32_t MiniMapFrame::GetTotalLaps() const noexcept
 {
     return totalLaps_;
+}
+
+const std::vector<HudMiniMapPlayer>&
+MiniMapFrame::GetPlayers() const noexcept
+{
+    return players_;
+}
+
+const HudMiniMapPlayer* MiniMapFrame::FindPlayer(
+    std::size_t racer) const noexcept
+{
+    const auto found = std::find_if(
+        players_.begin(), players_.end(),
+        [racer](const HudMiniMapPlayer& player) {
+            return player.racer == racer;
+        });
+    return found == players_.end() ? nullptr : &*found;
 }
 
 bool MiniMapFrame::IsValid() const noexcept

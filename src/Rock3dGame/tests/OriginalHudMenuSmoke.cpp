@@ -116,10 +116,32 @@ int main()
     miniMap.UpdateLap(8U, 4U);
     if (miniMap.GetShownLap() != 4U)
         return 41;
+    std::vector<source::HudMiniMapPlayerInput> miniMapPlayers{
+        {0U, {0.0F, 0.0F, 0.0F}, {1.0F, 0.0F, 0.0F, 1.0F}},
+        {1U, {100.0F, 100.0F, 0.0F},
+         {0.0F, 1.0F, 0.0F, 1.0F}}};
+    miniMap.UpdatePlayers(miniMapPlayers);
+    if (miniMap.GetPlayers().size() != 2U ||
+        miniMap.GetPlayers()[0].racer != 0U ||
+        miniMap.GetPlayers()[1].racer != 1U ||
+        !point(miniMap.GetPlayers()[0].position, first.x, first.y) ||
+        !point(miniMap.GetPlayers()[1].position, second.x, fourth.y))
+        return 47;
+    miniMapPlayers.erase(miniMapPlayers.begin());
+    miniMapPlayers[0].mapPosition = {0.0F, 0.0F, 0.0F};
+    miniMapPlayers[0].color = {0.0F, 0.0F, 1.0F, 1.0F};
+    miniMap.UpdatePlayers(miniMapPlayers);
+    const auto* remainingPlayer = miniMap.FindPlayer(1U);
+    if (miniMap.FindPlayer(0U) != nullptr || remainingPlayer == nullptr ||
+        miniMap.GetPlayers().size() != 1U ||
+        !point(remainingPlayer->position, first.x, first.y) ||
+        !near(remainingPlayer->color[2], 1.0F))
+        return 48;
     miniMap.Clear();
     if (miniMap.IsValid() || !miniMap.GetGeometry().vertices.empty() ||
         !miniMap.GetGeometry().indices.empty() ||
-        miniMap.GetShownLap() != 0U || miniMap.GetTotalLaps() != 0U)
+        miniMap.GetShownLap() != 0U || miniMap.GetTotalLaps() != 0U ||
+        !miniMap.GetPlayers().empty())
         return 12;
 
     source::PlayerStateFrame playerState;

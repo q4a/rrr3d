@@ -4633,6 +4633,27 @@ Renderer только собирает portable Slot/WeaponItem snapshot, лок
 lap clamp/reset, compact primary gaps, physical selected-slot mapping,
 Hyper/Mine compression, charge/visual identity, life hold и Reset.
 
+### P2.198 — `MiniMapFrame::CreatePlayers/UpdatePlayers` возвращены source owner — выполнено
+
+Завершающий MiniMap-аудит подтвердил, что после переноса `BuildPath/UpdateMap`
+renderer всё ещё каждый кадр заново создавал временный `mapMarkers_`. Это
+теряло исходный lifetime `CreatePlayers -> DelPlayer/OnDisconnectedPlayer`,
+а количество markers дополнительно ограничивалось размером physics vehicle
+массива, чего Windows `Race::PlayerList` не делает.
+
+`source::MiniMapFrame` теперь владеет стабильной player collection по racer
+identity. `UpdatePlayers` создаёт отсутствующие записи в roster order,
+обновляет source `CarState::GetMapPos` и car color, удаляет только исчезнувших
+или отключённых участников и переводит world map coordinates через тот же
+source map transform. `Clear` освобождает geometry, lap и players единым
+lifetime transaction.
+
+`OriginalRaceHud` больше не содержит `MiniMapMarker` и не реконструирует
+коллекцию renderer-owned объектов. Он передаёт source position/color snapshots
+и рисует готовые markers; bgfx texture/20x20 Plane3d-compatible quad остаются
+backend boundary. Regression проверяет roster order, map transform, position
+и color update, disconnect removal, lookup и Clear.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

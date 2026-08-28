@@ -60,6 +60,20 @@ struct HudMiniMapGeometry
     float startHeight = 0.0F;
 };
 
+struct HudMiniMapPlayerInput
+{
+    std::size_t racer = static_cast<std::size_t>(-1);
+    Vec3 mapPosition;
+    std::array<float, 4> color{1.0F, 1.0F, 1.0F, 1.0F};
+};
+
+struct HudMiniMapPlayer
+{
+    std::size_t racer = static_cast<std::size_t>(-1);
+    HudPoint position;
+    std::array<float, 4> color{1.0F, 1.0F, 1.0F, 1.0F};
+};
+
 // Source MiniMapFrame::BuildPath/UpdateMap owner. It retains the aligned and
 // smoothed road strip, world-to-map transform and original start marker;
 // bgfx only converts these vertices to its upload format.
@@ -69,11 +83,15 @@ public:
     bool Build(const Race& race, float viewportWidth);
     void UpdateLap(std::uint32_t completedLaps,
                    std::uint32_t totalLaps) noexcept;
+    void UpdatePlayers(
+        const std::vector<HudMiniMapPlayerInput>& inputs) noexcept;
     void Clear() noexcept;
     HudPoint MapPosition(Vec3 position) const noexcept;
     const HudMiniMapGeometry& GetGeometry() const noexcept;
     std::uint32_t GetShownLap() const noexcept;
     std::uint32_t GetTotalLaps() const noexcept;
+    const std::vector<HudMiniMapPlayer>& GetPlayers() const noexcept;
+    const HudMiniMapPlayer* FindPlayer(std::size_t racer) const noexcept;
     bool IsValid() const noexcept;
 
 private:
@@ -86,6 +104,7 @@ private:
     float originY_ = 0.0F;
     std::uint32_t shownLap_ = 0U;
     std::uint32_t totalLaps_ = 0U;
+    std::vector<HudMiniMapPlayer> players_;
     bool valid_ = false;
 };
 

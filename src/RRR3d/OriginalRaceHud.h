@@ -61,14 +61,6 @@ private:
         std::string value;
     };
 
-    struct MiniMapMarker
-    {
-        float x = 0.0F;
-        float y = 0.0F;
-        float angle = 0.0F;
-        std::array<float, 4> color{1.0F, 1.0F, 1.0F, 1.0F};
-    };
-
     struct OpponentLabel
     {
         TextAsset name;
@@ -158,7 +150,6 @@ private:
     TextAsset hyperAmmo_;
     r3d::renderer::Mesh mapMesh_;
     r3d::game::originalrace::source::MiniMapFrame miniMapState_;
-    std::vector<MiniMapMarker> mapMarkers_;
     std::vector<OpponentLabel> opponentLabels_;
     std::vector<WeaponVisual> weaponVisuals_;
     ImageAsset finishLeftFrame_;
