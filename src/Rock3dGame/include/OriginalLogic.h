@@ -18,11 +18,47 @@ namespace r3d::game::originalrace::source
 {
 
 class Map;
+class Logic;
+class LogicBehaviors;
+
+enum class LogicBehaviorType : std::uint8_t
+{
+    PairPxContactEffect = 0U,
+    Count,
+};
+
+// Logic.cpp keeps global, non-GameObject behaviors in a separate owner.
+// The owner supplies Map/Logic access and the same World progress
+// registration used by the original IProgressEvent base.
+class LogicBehavior : public ProgressEvent
+{
+public:
+    virtual ~LogicBehavior() = default;
+
+    LogicBehaviorType GetType() const noexcept;
+    LogicBehaviors* GetOwner() noexcept;
+    const LogicBehaviors* GetOwner() const noexcept;
+    Logic* GetLogic() noexcept;
+    const Logic* GetLogic() const noexcept;
+    Map* GetMap() noexcept;
+    const Map* GetMap() const noexcept;
+
+protected:
+    LogicBehavior(
+        LogicBehaviors* owner, LogicBehaviorType type) noexcept;
+    void RegProgressEvent();
+    void UnregProgressEvent() noexcept;
+
+private:
+    friend class LogicBehaviors;
+    LogicBehaviors* owner_ = nullptr;
+    LogicBehaviorType type_ = LogicBehaviorType::PairPxContactEffect;
+};
 
 // Portable owner for Logic.cpp::PairPxContactEffect.  Jolt supplies actor
 // identities, friction magnitude and manifold points; this class preserves
 // the original two-effects-per-pair cursor and strict 0.1-second release.
-class PairPxContactEffect final : public ProgressEvent
+class PairPxContactEffect final : public LogicBehavior
 {
 public:
     using ActorId = std::uint64_t;
@@ -72,6 +108,9 @@ public:
         bool death = true;
     };
 
+    explicit PairPxContactEffect(LogicBehaviors* owner);
+    ~PairPxContactEffect() override;
+
     void Reset(std::size_t soundCount = 0U) noexcept;
     ContactResult OnContact(
         Key key, float frictionForce, bool firstShapeIsWheel,
@@ -103,6 +142,34 @@ private:
     std::map<Key, ContactNode> contacts_;
     std::vector<Release> pendingReleases_;
     std::size_t soundCount_ = 0U;
+};
+
+// Concrete counterpart of Logic.cpp::LogicBehaviors. The Windows catalog
+// contains exactly one shipped type, PairPxContactEffect; Jolt contact
+// conversion enters here rather than bypassing the owner.
+class LogicBehaviors final
+{
+public:
+    explicit LogicBehaviors(Logic* logic);
+    ~LogicBehaviors();
+
+    Logic* GetLogic() noexcept;
+    const Logic* GetLogic() const noexcept;
+    std::size_t GetCount() const noexcept;
+    LogicBehavior* Find(LogicBehaviorType type) noexcept;
+    const LogicBehavior* Find(LogicBehaviorType type) const noexcept;
+
+    PairPxContactEffect::ContactResult OnContact(
+        PairPxContactEffect::Key key, float frictionForce,
+        bool firstShapeIsWheel, bool secondShapeIsWheel,
+        std::span<const PairPxContactEffect::Point> points,
+        float randomUnit);
+    void AttachWorld();
+    void DetachWorld() noexcept;
+
+private:
+    Logic* logic_ = nullptr;
+    std::unique_ptr<PairPxContactEffect> pairPxContactEffect_;
 };
 
 // Backend-neutral gameplay portion of Logic. Network transport remains at
@@ -193,7 +260,7 @@ public:
         GameObjectProgress transient;
     };
 
-    Logic() = default;
+    Logic();
     ~Logic();
     Logic(const Logic&) = delete;
     Logic& operator=(const Logic&) = delete;
@@ -219,6 +286,8 @@ public:
     const WorldEventPump* GetWorld() const noexcept;
     void RegFixedStepEvent(FixedStepEvent* event);
     void UnregFixedStepEvent(FixedStepEvent* event) noexcept;
+    void RegProgressEvent(ProgressEvent* event);
+    void UnregProgressEvent(ProgressEvent* event) noexcept;
     void RegLateProgressEvent(LateProgressEvent* event);
     void UnregLateProgressEvent(LateProgressEvent* event) noexcept;
     void RegFrameEvent(FrameEvent* event);
@@ -229,6 +298,13 @@ public:
     // Logic.cpp owns the global contact behavior and the four serialized
     // GameCar contact ranges. Physics/audio remain backend adapters.
     void ResetContactBehavior(std::size_t soundCount = 0U) noexcept;
+    PairPxContactEffect::ContactResult OnContact(
+        PairPxContactEffect::Key key, float frictionForce,
+        bool firstShapeIsWheel, bool secondShapeIsWheel,
+        std::span<const PairPxContactEffect::Point> points,
+        float randomUnit);
+    LogicBehaviors& GetBehaviors() noexcept;
+    const LogicBehaviors& GetBehaviors() const noexcept;
     PairPxContactEffect& GetPairPxContactEffect() noexcept;
     const PairPxContactEffect& GetPairPxContactEffect() const noexcept;
 
@@ -245,7 +321,7 @@ private:
     WorldEventPump* world_ = nullptr;
     Map* map_ = nullptr;
     std::vector<std::unique_ptr<GameObject>> gameObjects_;
-    PairPxContactEffect pairPxContactEffect_;
+    std::unique_ptr<LogicBehaviors> behaviors_;
     ProgressResult lastProgressResult_;
     ContactRange touchBorderDamage_{};
     ContactRange touchBorderDamageForce_{};

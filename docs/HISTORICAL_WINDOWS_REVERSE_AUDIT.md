@@ -5357,6 +5357,20 @@ one-live spawn result. Renderer, SDL audio и Jolt получают уже ре�
 source plan. Регрессии проверяют behavior на `AutoProj`, mine damage/removal,
 pickup reward, visual и отложенный `LifeEffect` sound.
 
+### P2.232 — global `LogicBehaviors` graph восстановлен — выполнено
+
+Windows `Logic` не владеет `PairPxContactEffect` прямым полем. Он создаёт
+`LogicBehaviors`, а concrete `LogicBehavior` регистрирует себя в World и
+получает Map/Logic через owner. PhysX `PxSceneUser::OnContact` также сначала
+dispatch-ит container, а не вызывает pair effect напрямую.
+
+Portable runtime теперь повторяет этот graph: отдельные `LogicBehaviorType`,
+`LogicBehavior`, `LogicBehaviors` и concrete pair instance имеют стабильные
+owner links; attach/detach World использует source registration methods.
+Session преобразует Jolt manifold и вызывает только `Logic::OnContact`.
+Unit regression закрепляет единственный shipped catalog entry, его type,
+owner/Logic pointers и ordered contact progress/release.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

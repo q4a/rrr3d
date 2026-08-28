@@ -2089,11 +2089,21 @@ int main()
     logic.SetTouchCarDamageForce({70.0F, 80.0F});
     logic.ResetContactBehavior(3U);
     auto& contacts = logic.GetPairPxContactEffect();
+    auto& logicBehaviors = logic.GetBehaviors();
     const auto progressContacts = [&](float seconds) {
         logicWorld.Progress(seconds);
         return contacts.TakeReleases();
     };
-    if (logic.GetTouchBorderDamage() !=
+    if (logicBehaviors.GetLogic() != &logic ||
+        logicBehaviors.GetCount() != 1U ||
+        logicBehaviors.Find(
+            source::LogicBehaviorType::PairPxContactEffect) !=
+            &contacts ||
+        contacts.GetOwner() != &logicBehaviors ||
+        contacts.GetLogic() != &logic ||
+        contacts.GetType() !=
+            source::LogicBehaviorType::PairPxContactEffect ||
+        logic.GetTouchBorderDamage() !=
             source::Logic::ContactRange{10.0F, 20.0F} ||
         logic.GetTouchBorderDamageForce() !=
             source::Logic::ContactRange{30.0F, 40.0F} ||
@@ -2107,14 +2117,14 @@ int main()
         contactPoints{{{1.0F, 2.0F, 3.0F},
                        {4.0F, 5.0F, 6.0F},
                        {7.0F, 8.0F, 9.0F}}};
-    if (contacts.OnContact(
+    if (logic.OnContact(
             contactKey, 10000.0F, false, false,
             contactPoints, 0.5F).accepted ||
-        contacts.OnContact(
+        logic.OnContact(
             contactKey, 10001.0F, true, false,
             contactPoints, 0.5F).accepted)
         return 33;
-    const auto firstContact = contacts.OnContact(
+    const auto firstContact = logic.OnContact(
         contactKey, 10001.0F, false, false,
         contactPoints, 1.0F);
     if (!firstContact.accepted || !firstContact.pairCreated ||
@@ -2129,7 +2139,7 @@ int main()
         return 35;
     const std::array<source::PairPxContactEffect::Point, 1U>
         onePoint{{{10.0F, 11.0F, 12.0F}}};
-    const auto refreshed = contacts.OnContact(
+    const auto refreshed = logic.OnContact(
         contactKey, 10001.0F, false, false, onePoint, 0.0F);
     if (refreshed.pairCreated || refreshed.points.size() != 1U ||
         refreshed.points.front().createdEffect ||
@@ -2143,7 +2153,7 @@ int main()
         tailReleased.front().slot != 1U ||
         contacts.GetContactCount(contactKey) != 1U)
         return 38;
-    contacts.OnContact(
+    logic.OnContact(
         contactKey, 10001.0F, false, false, onePoint, 0.0F);
     if (!progressContacts(0.1F).empty())
         return 39;

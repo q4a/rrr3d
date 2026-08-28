@@ -8,6 +8,125 @@
 namespace r3d::game::originalrace::source
 {
 
+LogicBehavior::LogicBehavior(
+    LogicBehaviors* owner, LogicBehaviorType type) noexcept
+    : owner_(owner), type_(type)
+{
+}
+
+LogicBehaviorType LogicBehavior::GetType() const noexcept
+{
+    return type_;
+}
+
+LogicBehaviors* LogicBehavior::GetOwner() noexcept { return owner_; }
+
+const LogicBehaviors* LogicBehavior::GetOwner() const noexcept
+{
+    return owner_;
+}
+
+Logic* LogicBehavior::GetLogic() noexcept
+{
+    return owner_ != nullptr ? owner_->GetLogic() : nullptr;
+}
+
+const Logic* LogicBehavior::GetLogic() const noexcept
+{
+    return owner_ != nullptr ? owner_->GetLogic() : nullptr;
+}
+
+Map* LogicBehavior::GetMap() noexcept
+{
+    auto* logic = GetLogic();
+    return logic != nullptr ? logic->GetMap() : nullptr;
+}
+
+const Map* LogicBehavior::GetMap() const noexcept
+{
+    const auto* logic = GetLogic();
+    return logic != nullptr ? logic->GetMap() : nullptr;
+}
+
+void LogicBehavior::RegProgressEvent()
+{
+    if (auto* logic = GetLogic())
+        logic->RegProgressEvent(this);
+}
+
+void LogicBehavior::UnregProgressEvent() noexcept
+{
+    if (auto* logic = GetLogic())
+        logic->UnregProgressEvent(this);
+}
+
+PairPxContactEffect::PairPxContactEffect(LogicBehaviors* owner)
+    : LogicBehavior(owner, LogicBehaviorType::PairPxContactEffect)
+{
+    RegProgressEvent();
+}
+
+PairPxContactEffect::~PairPxContactEffect()
+{
+    UnregProgressEvent();
+    Reset();
+}
+
+LogicBehaviors::LogicBehaviors(Logic* logic)
+    : logic_(logic),
+      pairPxContactEffect_(
+          std::make_unique<PairPxContactEffect>(this))
+{
+}
+
+LogicBehaviors::~LogicBehaviors() = default;
+
+Logic* LogicBehaviors::GetLogic() noexcept { return logic_; }
+
+const Logic* LogicBehaviors::GetLogic() const noexcept { return logic_; }
+
+std::size_t LogicBehaviors::GetCount() const noexcept
+{
+    return pairPxContactEffect_ != nullptr ? 1U : 0U;
+}
+
+LogicBehavior* LogicBehaviors::Find(LogicBehaviorType type) noexcept
+{
+    return const_cast<LogicBehavior*>(
+        static_cast<const LogicBehaviors*>(this)->Find(type));
+}
+
+const LogicBehavior* LogicBehaviors::Find(
+    LogicBehaviorType type) const noexcept
+{
+    return type == LogicBehaviorType::PairPxContactEffect
+               ? pairPxContactEffect_.get()
+               : nullptr;
+}
+
+PairPxContactEffect::ContactResult LogicBehaviors::OnContact(
+    PairPxContactEffect::Key key, float frictionForce,
+    bool firstShapeIsWheel, bool secondShapeIsWheel,
+    std::span<const PairPxContactEffect::Point> points,
+    float randomUnit)
+{
+    return pairPxContactEffect_->OnContact(
+        key, frictionForce, firstShapeIsWheel,
+        secondShapeIsWheel, points, randomUnit);
+}
+
+void LogicBehaviors::AttachWorld()
+{
+    if (pairPxContactEffect_ != nullptr)
+        pairPxContactEffect_->RegProgressEvent();
+}
+
+void LogicBehaviors::DetachWorld() noexcept
+{
+    if (pairPxContactEffect_ != nullptr)
+        pairPxContactEffect_->UnregProgressEvent();
+}
+
 bool PairPxContactEffect::Key::operator<(
     const Key& other) const noexcept
 {
@@ -233,6 +352,11 @@ Logic::MineContactResult Logic::MineContact(
     return {true, false, true};
 }
 
+Logic::Logic()
+    : behaviors_(std::make_unique<LogicBehaviors>(this))
+{
+}
+
 Logic::~Logic()
 {
     DetachWorld();
@@ -349,14 +473,14 @@ void Logic::AttachWorld(WorldEventPump* world) noexcept
     if (world_ == nullptr)
         return;
     world_->SetHost(this);
-    world_->RegProgressEvent(&pairPxContactEffect_);
+    behaviors_->AttachWorld();
 }
 
 void Logic::DetachWorld() noexcept
 {
     if (world_ == nullptr)
         return;
-    world_->UnregProgressEvent(&pairPxContactEffect_);
+    behaviors_->DetachWorld();
     world_->SetHost(nullptr);
     world_ = nullptr;
 }
@@ -374,6 +498,18 @@ void Logic::UnregFixedStepEvent(FixedStepEvent* event) noexcept
 {
     if (world_ != nullptr)
         world_->UnregFixedStepEvent(event);
+}
+
+void Logic::RegProgressEvent(ProgressEvent* event)
+{
+    if (world_ != nullptr)
+        world_->RegProgressEvent(event);
+}
+
+void Logic::UnregProgressEvent(ProgressEvent* event) noexcept
+{
+    if (world_ != nullptr)
+        world_->UnregProgressEvent(event);
 }
 
 void Logic::RegLateProgressEvent(LateProgressEvent* event)
@@ -412,16 +548,39 @@ const Logic::ProgressResult& Logic::GetLastProgressResult() const noexcept
 
 void Logic::ResetContactBehavior(std::size_t soundCount) noexcept
 {
-    pairPxContactEffect_.Reset(soundCount);
+    GetPairPxContactEffect().Reset(soundCount);
+}
+
+PairPxContactEffect::ContactResult Logic::OnContact(
+    PairPxContactEffect::Key key, float frictionForce,
+    bool firstShapeIsWheel, bool secondShapeIsWheel,
+    std::span<const PairPxContactEffect::Point> points,
+    float randomUnit)
+{
+    return behaviors_->OnContact(
+        key, frictionForce, firstShapeIsWheel,
+        secondShapeIsWheel, points, randomUnit);
+}
+
+LogicBehaviors& Logic::GetBehaviors() noexcept
+{
+    return *behaviors_;
+}
+
+const LogicBehaviors& Logic::GetBehaviors() const noexcept
+{
+    return *behaviors_;
 }
 
 PairPxContactEffect& Logic::GetPairPxContactEffect() noexcept
 {
-    return pairPxContactEffect_;
+    return *static_cast<PairPxContactEffect*>(
+        behaviors_->Find(LogicBehaviorType::PairPxContactEffect));
 }
 const PairPxContactEffect& Logic::GetPairPxContactEffect() const noexcept
 {
-    return pairPxContactEffect_;
+    return *static_cast<const PairPxContactEffect*>(
+        behaviors_->Find(LogicBehaviorType::PairPxContactEffect));
 }
 
 const Logic::ContactRange& Logic::GetTouchBorderDamage() const noexcept

@@ -1788,6 +1788,21 @@ renderer/audio только подтверждённый behavior spawn-plan. Un
 full-session regressions требуют type-6 behavior на map-owned actor и
 сохраняют shipped pickup sound/mine damage transitions.
 
+### B8ad — `LogicBehavior`/`LogicBehaviors` owner graph — выполнено
+
+Алгоритм `PairPxContactEffect` был перенесён, но исходные `LogicBehavior` и
+`LogicBehaviors` отсутствовали: `Logic::AttachWorld` вручную регистрировал
+конкретный эффект, а session напрямую вызывал его contact method. Это
+сохраняло вычисления, но обходило исходный global behavior owner.
+
+Теперь `Logic` создаёт отдельный `LogicBehaviors` catalog с единственным
+shipped type `PairPxContactEffect`. Base behavior возвращает owner/Logic/Map
+и сам проходит source `RegProgressEvent`/`UnregProgressEvent`; reattach World
+переустанавливает эту регистрацию через owner. Jolt adapter вызывает
+`Logic::OnContact`, затем `LogicBehaviors` dispatch-ит concrete behavior.
+Regression проверяет catalog/type/owner links, World progress и полный
+двухслотовый create/release contact lifecycle.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

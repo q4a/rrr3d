@@ -2568,3 +2568,12 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - Map mine завершает тот же actor через `DestroyWithEffect` с target и
   `DamageType::Mine`; target-child attachment больше не выводится из одного
   лишь наличия serialized visual.
+
+### Source LogicBehaviors ownership follow-up
+
+- Возвращены отдельные `LogicBehavior` и `LogicBehaviors`; global contact
+  effect больше не является прямым полем `Logic`.
+- `PairPxContactEffect` получает Logic/Map через owner и регистрирует source
+  progress event через `LogicBehavior::RegProgressEvent`.
+- Jolt manifold теперь входит через `Logic::OnContact` и container dispatch,
+  повторяя Windows `PxSceneUser → LogicBehaviors::OnContact` boundary.

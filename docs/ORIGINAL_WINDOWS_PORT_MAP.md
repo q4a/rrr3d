@@ -144,12 +144,14 @@ race-local concrete objects — это пересекается с центра�
 исходный virtual progress/contact graph, возвращая Jolt/audio/render
 commands только на backend boundary.
 
-Результат B4a: `Logic` снова подключён к `WorldEventPump` как исходный
-`WorldHost`, а `PairPxContactEffect` — как ordered `ProgressEvent` после
-`Logic::OnProgress`. Jolt contact manifolds теперь импортируются до этого
-progress-прохода, как PhysX callbacks в Windows; команды освобождения
-эффектов забираются после него. Ручной вызов contact timer из середины
-`OriginalRaceSession::updateGameplay` удалён.
+Результат B4a/B8ad: `Logic` снова подключён к `WorldEventPump` как исходный
+`WorldHost`, а отдельный `LogicBehaviors` владеет единственным shipped
+`PairPxContactEffect`. `LogicBehavior::RegProgressEvent` ставит его ordered
+`ProgressEvent` после `Logic::OnProgress`; attach/detach World больше не
+управляет конкретным эффектом напрямую. Jolt contact manifolds входят через
+`Logic::OnContact → LogicBehaviors::OnContact`, как PhysX `PxSceneUser` в
+Windows; команды освобождения эффектов забираются после progress. Ручной
+вызов contact timer из session удалён.
 
 В `Proj` возвращён первый этап исходного `OnContact`: базовый
 `GameObject::OnContact` выполняется до live-state guard и type switch. Этот

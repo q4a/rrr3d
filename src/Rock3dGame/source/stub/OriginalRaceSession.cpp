@@ -4519,7 +4519,7 @@ void OriginalRaceSession::ingestPairContacts(
                 pointCount = 1U;
             }
             const auto contactResult =
-                logic_.GetPairPxContactEffect().OnContact(
+                logic_.OnContact(
                     pairContactKey(
                         racer, contact.surface, contact.otherActor),
                     contact.frictionForce, false, false,
