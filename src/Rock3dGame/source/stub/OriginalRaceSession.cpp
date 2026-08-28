@@ -1148,6 +1148,7 @@ void OriginalRaceSession::reset()
     aiSystemEntriesScratch_.clear();
     aiSystemEntriesScratch_.reserve(race_.racers.size());
     aiAttackTargetsScratch_.assign(race_.racers.size(), {});
+    pendingAiAttacks_.clear();
     previousPositions_.assign(race_.racers.size(), {});
     racePlaceModel_.Reset();
     decorationActive_.assign(race_.decorationInstances.size(), true);
@@ -1773,6 +1774,9 @@ bool OriginalRaceSession::disconnectNetworkRacer(
     });
     std::erase_if(angularMomentumRequests_, [racer](const auto& request) {
         return request.racer == racer;
+    });
+    std::erase_if(pendingAiAttacks_, [racer](const auto& attack) {
+        return attack.racer == racer;
     });
     // FreeCar removes car-owned listener/effect objects. Independent fired
     // projectiles and mines remain world objects in the source.
@@ -3112,6 +3116,12 @@ void OriginalRaceSession::progressAi(
         aiProgressScratch_[racer] = aiPlayers_[racer].OnProgress(
             seconds, vehicle, context, &sourceRandomUnit);
         aiProgressValidScratch_[racer] = true;
+        const auto& decision = aiProgressScratch_[racer].attack;
+        if (decision.hasWeaponShot() || decision.useHyper ||
+            decision.useMine)
+        {
+            pendingAiAttacks_.push_back({racer, decision});
+        }
     }
 }
 
@@ -3158,6 +3168,28 @@ void OriginalRaceSession::progressRaceFixedStep(
                 vehicleInputs_[racer] =
                     aiInput(racer, aiProgressScratch_[racer].command);
             }
+        }
+        // AICar::OnProgress performs ControlState::UpdateResetCar after
+        // UpdateAI and calls Logic::ResetCar immediately. Consume that
+        // source-owned edge in this fixed transaction, not in the later
+        // render-frame gameplay adapter.
+        for (std::size_t racer = 0U;
+             racer < racers_.size() && racer < aiPlayers_.size(); ++racer)
+        {
+            if (!racers_[racer].IsComputer() ||
+                (networkGameplayEnabled_ &&
+                 (racer >= networkOwnedRacers_.size() ||
+                  !networkOwnedRacers_[racer])))
+            {
+                continue;
+            }
+            // Consume the edge even when a concurrent damage transaction
+            // already removed the car; the old frame must not respawn a
+            // later replacement. This is the original updateGameplay
+            // short-circuit order preserved at the fixed-step boundary.
+            const bool resetCar = aiPlayers_[racer].TakeResetCar();
+            if (resetCar && !racers_[racer].IsDestroyed())
+                queueRespawn(racer, vehicles);
         }
     }
 
@@ -4731,19 +4763,6 @@ void OriginalRaceSession::updateGameplay(
             racer, vehicles[racer].body.position,
             vehicles[racer], true);
     }
-    for (std::size_t racer = 0U;
-         racer < vehicles.size() && racer < racers_.size(); ++racer)
-    {
-        if (racers_[racer].IsComputer() &&
-            (!networkGameplayEnabled_ ||
-             (racer < networkOwnedRacers_.size() &&
-              networkOwnedRacers_[racer])) &&
-            racer < aiPlayers_.size() &&
-            aiPlayers_[racer].TakeResetCar() &&
-            !racers_[racer].IsDestroyed())
-            queueRespawn(racer, vehicles);
-    }
-
     auto pushShotEffect =
         [&](std::size_t owner, std::size_t weapon,
             std::size_t soundSource,
@@ -6501,20 +6520,20 @@ void OriginalRaceSession::updateGameplay(
         runtime.SyncSelectedWeapon(race_.weapons.size());
     }
     pendingNetworkShots_.clear();
-    // AISystem::OnProgress has already run the source-owned
-    // PathState -> AttackState -> ControlState transaction.  Only execute
-    // its weapon commands here, after the primary/network shot adapters have
-    // established their backend lambdas.
-    for (std::size_t racer = 0U;
-         racer < racers_.size() &&
-         racer < aiProgressScratch_.size() &&
-         racer < aiProgressValidScratch_.size(); ++racer)
+    // AISystem::OnProgress has already run each source-owned
+    // PathState -> AttackState -> ControlState transaction. Execute every
+    // retained command in fixed-step order: the latest scratch snapshot is
+    // insufficient when a low-FPS frame contains multiple source steps.
+    for (const auto& attack : pendingAiAttacks_)
     {
-        auto& runtime = racers_[racer];
-        if (!aiProgressValidScratch_[racer] ||
-            !runtime.IsComputer())
+        const std::size_t racer = attack.racer;
+        if (racer >= racers_.size())
             continue;
-        const auto& decision = aiProgressScratch_[racer].attack;
+        auto& runtime = racers_[racer];
+        if (!runtime.IsComputer() || runtime.IsDestroyed() ||
+            runtime.GetFinished() || runtime.disconnected)
+            continue;
+        const auto& decision = attack.decision;
         if (decision.hasWeaponShot())
         {
             runtime.selectedWeaponSlot = decision.weaponSlot;
@@ -6526,6 +6545,7 @@ void OriginalRaceSession::updateGameplay(
         if (decision.useMine)
             placeMine(racer);
     }
+    pendingAiAttacks_.clear();
     const std::size_t collisionRacers =
         std::min(vehicles.size(), racers_.size());
     auto kineticEnergy = [&](std::size_t racer) {
@@ -6788,6 +6808,9 @@ void OriginalRaceSession::completeRacer(
     runtime.SetBlockTime(source::Player::finishBlockSeconds);
     if (racer < vehicleInputs_.size())
         vehicleInputs_[racer] = {};
+    std::erase_if(pendingAiAttacks_, [racer](const auto& attack) {
+        return attack.racer == racer;
+    });
 
     // AIPlayer::FreeCar deletes AICar only. The Player::GameCar and its
     // renderer/physics actor remain in the race and are governed by the
@@ -6847,6 +6870,7 @@ void OriginalRaceSession::completeRaceForExit(
         velocityRequests_.clear();
         angularVelocityRequests_.clear();
         angularMomentumRequests_.clear();
+        pendingAiAttacks_.clear();
         pendingNetworkShots_.clear();
         pendingNetworkBonuses_.clear();
         pendingNetworkMineContacts_.clear();
@@ -8188,6 +8212,67 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     throw std::runtime_error(
                         "source AICar ptTorpeda back-target shot failed");
                 }
+
+                // A slow render frame can contain two 60 Hz source steps.
+                // The first step fires; the second no longer has a valid
+                // target. The backend must retain the first transaction
+                // rather than reading only the final scratch result.
+                OriginalRaceSession queuedAttackSession(backTargetRace);
+                auto queuedAttackVehicles = vehicles;
+                queuedAttackVehicles.resize(2U);
+                for (auto& state : queuedAttackVehicles)
+                {
+                    state.body.position = point(0U).position;
+                    state.body.position.z += 2.0F;
+                    state.body.rotation = rotation;
+                    state.speed = 0.0F;
+                }
+                for (int frame = 0; frame < 250; ++frame)
+                    queuedAttackSession.update(
+                        1.0F / 60.0F,
+                        queuedAttackVehicles, input);
+                queuedAttackSession.setExternalRaceFixedStep(true);
+                queuedAttackVehicles[1].body.position = multiply(
+                    add(point(0U).position, point(1U).position),
+                    0.5F);
+                queuedAttackVehicles[1].body.position.z =
+                    (point(0U).position.z + point(1U).position.z) *
+                        0.5F +
+                    2.0F;
+                queuedAttackVehicles[0].body.position = subtract(
+                    queuedAttackVehicles[1].body.position,
+                    multiply(direction, 10.0F));
+                auto queuedInputs = queuedAttackSession.vehicleInputs();
+                std::vector<r3d::physics::VehicleResetCommand>
+                    queuedResets;
+                queuedAttackSession.raceFixedStep(
+                    1.0F / 60.0F, queuedAttackVehicles,
+                    queuedInputs, queuedResets);
+                queuedAttackVehicles[0].body.position.z += 1000.0F;
+                queuedAttackSession.raceFixedStep(
+                    1.0F / 60.0F, queuedAttackVehicles,
+                    queuedInputs, queuedResets);
+                queuedAttackSession.update(
+                    2.0F / 60.0F,
+                    queuedAttackVehicles, input);
+                const bool retainedFixedAttack = std::any_of(
+                    queuedAttackSession.events().begin(),
+                    queuedAttackSession.events().end(),
+                    [&](const RaceEvent& event) {
+                        return event.kind ==
+                                   RaceEventKind::WeaponFired &&
+                               event.racer == 1U &&
+                               event.weapon ==
+                                   static_cast<std::size_t>(
+                                       sourceTorpedo -
+                                       race.weapons.begin());
+                    });
+                if (!retainedFixedAttack)
+                {
+                    throw std::runtime_error(
+                        "source fixed-step AI attack queue lost an earlier "
+                        "transaction");
+                }
             }
 
             if (vehicles.size() > 2U)
@@ -8309,6 +8394,42 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             {
                 throw std::runtime_error(
                     "source AICar moving off-trace reset transition failed");
+            }
+
+            OriginalRaceSession fixedResetSession(race);
+            auto fixedResetVehicles = vehicles;
+            for (int frame = 0; frame < 250; ++frame)
+            {
+                fixedResetSession.update(
+                    1.0F / 60.0F, fixedResetVehicles, input);
+            }
+            fixedResetSession.setExternalRaceFixedStep(true);
+            fixedResetVehicles[1].body.position = {
+                100000.0F, 100000.0F, 1000.0F};
+            fixedResetVehicles[1].speed = 10.0F;
+            fixedResetVehicles[1].linearVelocity =
+                {10.0F, 0.0F, 0.0F};
+            auto fixedResetInputs = fixedResetSession.vehicleInputs();
+            std::vector<r3d::physics::VehicleResetCommand>
+                fixedResetCommands;
+            bool bridgedAiReset = false;
+            for (int frame = 0; frame < 240 && !bridgedAiReset; ++frame)
+            {
+                fixedResetCommands.clear();
+                fixedResetSession.raceFixedStep(
+                    1.0F / 60.0F, fixedResetVehicles,
+                    fixedResetInputs, fixedResetCommands);
+                bridgedAiReset = std::any_of(
+                    fixedResetCommands.begin(),
+                    fixedResetCommands.end(),
+                    [](const auto& command) {
+                        return command.vehicle == 1U;
+                    });
+            }
+            if (!bridgedAiReset)
+            {
+                throw std::runtime_error(
+                    "source AICar reset missed same fixed-step Jolt batch");
             }
 
             OriginalRaceSession aiCheatSession(race);

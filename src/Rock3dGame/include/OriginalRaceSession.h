@@ -516,6 +516,11 @@ public:
 private:
     bool legacyWindowsDebug_ = false;
     using TraceNodeRef = source::Trace::NodeRef;
+    struct PendingAiAttack
+    {
+        std::size_t racer = RacerRuntime::invalidWeapon;
+        source::AICar::AttackDecision decision;
+    };
     source::MapObjects& decorationObjects() noexcept;
     source::MapObjects& bonusObjects() noexcept;
 
@@ -651,6 +656,10 @@ private:
     // returned Jolt and weapon commands but never reorders Path/Attack/Control.
     std::vector<source::AICar::ProgressResult> aiProgressScratch_;
     std::vector<bool> aiProgressValidScratch_;
+    // A render frame can contain more than one source 60 Hz fixed step.
+    // Preserve every resulting AttackState command in source call order;
+    // aiProgressScratch_ is only the latest drive-command cache.
+    std::vector<PendingAiAttack> pendingAiAttacks_;
     std::vector<Vec3> previousPositions_;
     std::vector<RaceEvent> events_;
     std::vector<RaceEffect> effects_;

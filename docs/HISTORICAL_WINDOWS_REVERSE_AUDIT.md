@@ -5056,6 +5056,24 @@ solver substeps. Direct steering yaw и momentum stabilization выполняю�
 Regression проверяет также единственный reset. 720-frame Metal smoke дал
 скорости игрока 39.36 и AI 37–42 без накопительной деградации.
 
+### P2.217 — AI fixed-step actions больше не теряются — выполнено
+
+После переноса `Race::OnFixedStep` обнаружился отдельный adapter-дефект:
+`progressAi` сохранял только последний `AICar::ProgressResult` каждого
+гонщика. Если один render frame содержал несколько source-интервалов 1/60,
+ранний Shot/Hyper/Mine стирался более поздним решением. Кроме того,
+`AICar::TakeResetCar` читался только в последующем `updateGameplay`, поэтому
+off-trace reset не попадал в текущий Jolt reset batch.
+
+Теперь все attack-решения сохраняются в порядке вызовов source fixed-step и
+исполняются последовательно с повторной проверкой live/finished/death и
+готовности concrete Weapon. Reset edge потребляется сразу после
+`AISystem::OnProgress` и материализуется до того же solver update. Очередь
+очищается при disconnect, finish, reset и ExitRace. Regression выполняет два
+fixed-step без промежуточного render pass: первый создаёт торпедный выстрел,
+второй теряет цель; выстрел не теряется. Отдельный тест требует AI reset в
+том же переданном Jolt batch.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

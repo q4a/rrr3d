@@ -1515,6 +1515,22 @@ Windows константа `World::cMaxSimStep` равна 1/60, поэтому 
 drive command. Regression, physics smoke и 720-frame Metal race подтвердили
 единственный reset, скорости игрока 39.36 и AI 37–42 без деградации.
 
+### B8o: ordered AI fixed-step actions and reset bridge
+
+Подтверждены два расхождения с Windows `AICar::OnProgress`. Порт хранил
+только последний `AttackDecision` render-кадра, поэтому при catch-up ранний
+выстрел мог исчезнуть. AI reset извлекался позже в frame gameplay и не мог
+войти в текущий Jolt reset batch.
+
+Добавлена упорядоченная очередь каждого Shot/Hyper/Mine результата source
+fixed-step; stale команды удаляются при finish/disconnect/death, а concrete
+Weapon повторно подтверждает readiness. `TakeResetCar` теперь выполняется в
+той же `Race::OnFixedStep` транзакции и выдаёт reset до solver. Regression
+проверяет потерю цели на втором fixed-step и same-batch off-trace reset.
+Оставшаяся B8p граница: сам `Logic::Shot` пока materialize-ится в следующем
+render adapter, поэтому charge/cooldown первого шага ещё недоступны второму
+source шагу внутри того же редкого кадра.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

@@ -592,6 +592,24 @@ portable `updateGameplay` сейчас исполняет attack/weapon command 
 physics callback и поэтому использует решение предыдущего кадра вместо того
 же исходного fixed-step.
 
+Результат B8o: одиночный `aiProgressScratch_` больше не является владельцем
+результата `AICar::AttackState::Update`. Каждый source fixed-step сохраняет
+свою attack-команду в упорядоченной очереди, поэтому два или более интервала
+1/60 внутри медленного render frame не стирают ранний Shot/Hyper/Mine решением
+последнего интервала. Перед исполнением повторно проверяются live Player,
+finished/disconnected/death и готовность concrete Weapon.
+
+`AICar::ControlState::UpdateResetCar` также возвращён в атомарную
+`Race::OnFixedStep` транзакцию: edge потребляется там же и готовый ResetCar
+попадает в Jolt reset batch до solver update. Поздний frame-loop удалён.
+Regression закрепляет два fixed-step, где первый стреляет, второй теряет цель,
+и отдельный off-trace AI reset, появляющийся в том же backend batch.
+
+Следующий B8p — убрать оставшуюся задержку materialization attack-команд до
+следующего render `updateGameplay`: `Logic::Shot` должен изменить charge,
+cooldown и source projectile graph до следующего source fixed-step, даже если
+оба интервала 1/60 находятся внутри одного render frame.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:
