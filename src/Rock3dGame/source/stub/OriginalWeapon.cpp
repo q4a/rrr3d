@@ -1044,6 +1044,24 @@ Proj::DynamicContactResult Proj::ContactDynamic(
     return result;
 }
 
+Proj::MineContactResult Proj::ResolveMineContact(
+    GameObject* target) noexcept
+{
+    MineContactResult result;
+    // Weapon.cpp performs this Death even when target is null. The adapter
+    // consumes the command before DamageTarget so model/effect/listener
+    // teardown retains that exact observable ordering.
+    result.destroyBeforeDamage = true;
+    if (target == nullptr)
+        return result;
+    result.damage = DamageTarget(
+        target, description_.damage, DamageType::Mine);
+    result.impulse = {0.0F, 0.0F, description_.speed};
+    result.applyImpulseAfterDamage = description_.speed != 0.0F;
+    result.handled = result.damage.valid;
+    return result;
+}
+
 Player* Proj::FindNextTarget(
     Player* currentTarget, Player* weaponOwner,
     std::span<Player* const> players, float viewAngle) noexcept

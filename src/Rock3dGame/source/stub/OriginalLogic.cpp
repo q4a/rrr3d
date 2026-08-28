@@ -199,14 +199,38 @@ Logic::TakeBonusResult Logic::TakeBonus(
     Player* player, GameObject* bonus, PlayerBonusType type,
     float value,
     const std::vector<std::uint32_t>& maximumCharges,
-    float randomUnit) noexcept
+    float randomUnit, bool networkGame,
+    bool senderNetworkPlayerAvailable) noexcept
 {
     if (player == nullptr || bonus == nullptr || player->IsDestroyed() ||
         bonus->destroyed)
         return {};
+    if (networkGame)
+    {
+        if (!senderNetworkPlayerAvailable)
+            return {};
+        // NetPlayer::TakeBonus emits the RPC only from its owner. Logic still
+        // returns true on every peer and does not mutate Player or bonus.
+        return {{}, true, false, true};
+    }
     return {player->TakeBonus(
                 *bonus, type, value, maximumCharges, randomUnit),
-            true};
+            true, true, false};
+}
+
+Logic::MineContactResult Logic::MineContact(
+    Proj* sender, GameObject* target, bool networkGame,
+    bool targetNetworkPlayerAvailable) noexcept
+{
+    if (sender == nullptr || target == nullptr)
+        return {};
+    if (networkGame)
+    {
+        if (!targetNetworkPlayerAvailable)
+            return {};
+        return {true, true, false};
+    }
+    return {true, false, true};
 }
 
 Logic::~Logic()

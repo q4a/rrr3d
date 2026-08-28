@@ -391,6 +391,18 @@ public:
         bool destroyAfterDamage = false;
     };
 
+    // Backend-neutral result of Proj::MineContact(GameObject*, point).
+    // The Windows transaction kills the mine before validating/damaging the
+    // target, then applies the vertical contact force after damage.
+    struct MineContactResult
+    {
+        DamageCommand damage;
+        Vec3 impulse;
+        bool handled = false;
+        bool destroyBeforeDamage = false;
+        bool applyImpulseAfterDamage = false;
+    };
+
     static ContactResult SpeedArrowContact(
         Vec3 worldDirection, float damage) noexcept;
     static ContactResult LushaContact(
@@ -507,6 +519,8 @@ public:
     DynamicContactResult ContactDynamic(
         GameObject* target, Vec3 contactPoint,
         Vec3 linearVelocity, float deltaTime) noexcept;
+    MineContactResult ResolveMineContact(
+        GameObject* target) noexcept;
     Player* FindNextTarget(
         Player* currentTarget, Player* weaponOwner,
         std::span<Player* const> players, float viewAngle) noexcept;

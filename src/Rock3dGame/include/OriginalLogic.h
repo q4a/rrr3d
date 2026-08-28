@@ -153,13 +153,30 @@ public:
     {
         PlayerBonusResult player;
         bool taken = false;
+        bool playerApplied = false;
+        bool requestSenderPlayer = false;
     };
 
     static TakeBonusResult TakeBonus(
         Player* player, GameObject* bonus, PlayerBonusType type,
         float value,
         const std::vector<std::uint32_t>& maximumCharges,
-        float randomUnit) noexcept;
+        float randomUnit, bool networkGame = false,
+        bool senderNetworkPlayerAvailable = false) noexcept;
+
+    // Logic.cpp::MineContact selects either the contacted NetPlayer RPC or
+    // the immediate Proj::MineContact overload. Network ownership is checked
+    // by NetPlayer itself; the backend only reports whether that model exists.
+    struct MineContactResult
+    {
+        bool accepted = false;
+        bool requestTargetPlayer = false;
+        bool applyProjectile = false;
+    };
+
+    static MineContactResult MineContact(
+        Proj* sender, GameObject* target, bool networkGame,
+        bool targetNetworkPlayerAvailable) noexcept;
 
     struct GameObjectProgress
     {

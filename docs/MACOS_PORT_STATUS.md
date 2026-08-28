@@ -2466,3 +2466,16 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - Jolt boundary ограничен contact geometry и применением готовых linear/
   angular velocity commands. Mine/bonus RPC authority переносится следующим
   contact-блоком.
+
+### Source mine/bonus network-contact follow-up
+
+- `Logic::MineContact` теперь владеет offline/RPC dispatch, а
+  `Proj::ResolveMineContact` сохраняет Windows-порядок `Death -> Damage ->
+  impulse`; session выполняет только overlap, network authority и Jolt writes.
+- Базовый `GameObject::OnContact` вызывается на первичном контакте до RPC и не
+  повторяется в `NetPlayer::OnMineContact1/2` replay.
+- `Logic::TakeBonus` больше не применяет pickup до сетевого подтверждения:
+  request оставляет Player/MapObj без изменений, replay применяет payload на
+  всех peers. Transport-only event исключён из HUD и achievements.
+- arm64 Debug build, 29/29 CTest, physics smoke и 360-frame bgfx/Metal race
+  smoke прошли.

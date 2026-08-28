@@ -691,6 +691,7 @@ void OriginalRaceHud::update(
             input.imageHeight = image.height;
         }
         else if (event.kind == originalrace::RaceEventKind::Bonus &&
+                 !event.networkRequest &&
                  event.target < race.bonuses.size())
         {
             input.kind = source::HudPlayerEventKind::Pick;

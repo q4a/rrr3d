@@ -14947,6 +14947,7 @@ int main(int argc, char** argv)
                 if (networkMatchStarted &&
                     event.kind ==
                         r3d::game::originalrace::RaceEventKind::Bonus &&
+                    event.networkRequest &&
                     !event.networkReplicated &&
                     event.racer < networkRaceModelOrder.size() &&
                     event.target < originalRace->bonuses.size())

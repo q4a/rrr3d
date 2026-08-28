@@ -775,6 +775,21 @@ int main()
             &bonusPlayer, &bonusObject,
             source::PlayerBonusType::Money, 25.0F, {}, 0.0F).taken)
         return 28;
+    source::GameObject networkBonusObject;
+    networkBonusObject.ResetGameObject(-1.0F);
+    const auto networkBonus = source::Logic::TakeBonus(
+        &bonusPlayer, &networkBonusObject,
+        source::PlayerBonusType::Money, 25.0F, {}, 0.0F,
+        true, true);
+    if (!networkBonus.taken || networkBonus.playerApplied ||
+        !networkBonus.requestSenderPlayer ||
+        networkBonusObject.destroyed ||
+        bonusPlayer.GetPickMoney() != 25U ||
+        source::Logic::TakeBonus(
+            &bonusPlayer, &networkBonusObject,
+            source::PlayerBonusType::Money, 25.0F, {}, 0.0F,
+            true, false).taken)
+        return 203;
 
     const auto speedArrow = source::Proj::SpeedArrowContact(
         {3.0F, 4.0F, 0.0F}, 10.0F);
@@ -1461,6 +1476,40 @@ int main()
     if (concreteMineProjectile.ContactMine(&mineTargetCar, true) ||
         !concreteMineProjectile.ContactMine(&mineTargetCar, false))
         return 148;
+    concreteMineProjectile.SetLogic(&autoProjectileLogic);
+    const auto offlineMineDispatch = source::Logic::MineContact(
+        &concreteMineProjectile, &mineTargetCar, false, false);
+    const auto networkMineDispatch = source::Logic::MineContact(
+        &concreteMineProjectile, &mineTargetCar, true, true);
+    if (!offlineMineDispatch.accepted ||
+        !offlineMineDispatch.applyProjectile ||
+        offlineMineDispatch.requestTargetPlayer ||
+        !networkMineDispatch.accepted ||
+        networkMineDispatch.applyProjectile ||
+        !networkMineDispatch.requestTargetPlayer ||
+        source::Logic::MineContact(
+            &concreteMineProjectile, &mineTargetCar,
+            true, false).accepted ||
+        source::Logic::MineContact(
+            nullptr, &mineTargetCar, false, false).accepted)
+        return 201;
+    const auto concreteMineContact =
+        concreteMineProjectile.ResolveMineContact(&mineTargetCar);
+    if (!concreteMineContact.handled ||
+        !concreteMineContact.destroyBeforeDamage ||
+        concreteMineContact.damage.target != &mineTargetCar ||
+        concreteMineContact.damage.damageType !=
+            r3d::game::originalrace::DamageType::Mine ||
+        concreteMineContact.damage.damage !=
+            concreteMineDescription.damage ||
+        concreteMineContact.impulse != source::Proj::Vec3{
+            0.0F, 0.0F, concreteMineDescription.speed} ||
+        concreteMineContact.applyImpulseAfterDamage !=
+            (concreteMineDescription.speed != 0.0F) ||
+        !concreteMineProjectile.ResolveMineContact(nullptr)
+             .destroyBeforeDamage)
+        return 202;
+    concreteMineProjectile.SetLogic(nullptr);
     source::GameCar oilTargetCar;
     oilTargetCar.BindWheels({false}, {false});
     oilProjectile.SetSourceTimer(-1.0F);

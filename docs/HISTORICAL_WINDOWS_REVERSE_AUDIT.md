@@ -4833,6 +4833,34 @@ energy death type. Mine/bonus contact authority остаётся отдельн�
 границей, поскольку её Windows-порядок проходит через `Logic::MineContact` и
 сетевой RPC.
 
+### P2.207 — `Logic::MineContact`/`TakeBonus` и RPC ordering возвращены source owner — выполнено
+
+Прямая сверка `Logic.cpp`, `Weapon.cpp` и `NetPlayer.cpp` подтвердила два
+расхождения. Для мины порт вызывал базовый `GameObject::OnContact` только при
+получении сетевого replay, хотя Windows исполняет его на физическом контакте
+до обращения к `Logic::MineContact`. Конкретный `Proj::MineContact` также был
+переставлен: session наносил damage и impulse до смерти мины, тогда как source
+выполняет `Death -> DamageTarget -> AddContactForce`.
+
+`Logic::MineContact` теперь формирует исходный local/RPC dispatch, а
+`Proj::ResolveMineContact` — concrete death/damage/force transaction. Session
+оставляет за собой только overlap, target-owner gate, сетевой transport и
+применение Jolt impulse. RPC replay не повторяет базовый listener pass.
+
+Вторая подтверждённая ошибка находилась в бонусах: network client сразу
+вызывал `Player::TakeBonus`, удалял MapObj и лишь затем отправлял событие в
+transport. Windows `NetPlayer::TakeBonus` до RPC ничего не меняет; реальное
+применение происходит только в `OnTakeBonus` на всех узлах. `Logic::TakeBonus`
+теперь явно различает RPC request и player application. Pending request не
+повторяется на следующих кадрах, не показывает HUD и не засчитывает
+achievement; replay использует переданные type/value и только тогда удаляет
+бонус.
+
+Regression покрывает local/network dispatch, недоступный NetPlayer, точный
+mine death-before-damage command, отсутствие ранней мутации life/MapObj при
+bonus request и последующее replicated применение. Прошли 29/29 CTest,
+physics smoke и 360-frame bgfx/Metal race smoke.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

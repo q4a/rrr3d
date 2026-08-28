@@ -5723,32 +5723,43 @@ void OriginalRaceSession::updateGameplay(
             mine.sourceObject->GetDesc();
         const auto& vehicleDefinition = vehicleForRacer(racer);
         const auto sourceContactRoute =
-            mine.sourceObject->BeginContact(
-                &racers_[racer].gameCar);
+            mine.sourceObject->RouteContact(
+                racers_[racer].gameCar.destroyed);
         if (sourceContactRoute.handler ==
             source::Proj::ContactHandler::Maslo)
         {
             return applyMasloContact(
                 mine.sourceObject, racer, mine.position);
         }
-        if (!sourceContactRoute.appliesDamage)
+        if (sourceContactRoute.handler ==
+            source::Proj::ContactHandler::Crater)
+        {
+            applyProjectileDamage(
+                *mine.sourceObject, racer, contactPoint,
+                std::max(sourceDefinition.damage * seconds, 0.0F),
+                sourceContactRoute.damageType);
+            return true;
+        }
+        const auto sourceResult =
+            mine.sourceObject->ResolveMineContact(
+                &racers_[racer].gameCar);
+        if (!sourceResult.handled)
             return false;
-        applyProjectileDamage(
-            *mine.sourceObject, racer, contactPoint,
-            std::max(
-                sourceContactRoute.handler ==
-                        source::Proj::ContactHandler::Crater
-                    ? sourceDefinition.damage * seconds
-                    : sourceDefinition.damage,
-                0.0F),
-            sourceContactRoute.damageType);
-        if (sourceContactRoute.handler !=
-                source::Proj::ContactHandler::Crater &&
-            sourceDefinition.speed != 0.0F)
+        if (sourceResult.destroyBeforeDamage)
+        {
+            spawnMineDeathEffect(mine, racer);
+            deactivateMine(mine);
+        }
+        applyProjectileDamageCommand(
+            sourceResult.damage, racer, contactPoint);
+        if (sourceResult.applyImpulseAfterDamage)
         {
             const float targetMass =
                 std::max(vehicleDefinition.physics.mass, 1.0F);
-            const Vec3 impulse{0.0F, 0.0F, sourceDefinition.speed};
+            const Vec3 impulse{
+                sourceResult.impulse.x,
+                sourceResult.impulse.y,
+                sourceResult.impulse.z};
             velocityRequests_.push_back(
                 {racer, multiply(impulse, 1.0F / targetMass)});
             const Vec3 lever = subtract(
@@ -5777,12 +5788,6 @@ void OriginalRaceSession::updateGameplay(
                 {racer,
                  rotate(vehicles[racer].body.rotation,
                         localAngularDelta)});
-        }
-        if (sourceContactRoute.handler !=
-            source::Proj::ContactHandler::Crater)
-        {
-            spawnMineDeathEffect(mine, racer);
-            deactivateMine(mine);
         }
         return true;
     };
@@ -5931,8 +5936,6 @@ void OriginalRaceSession::updateGameplay(
                 continue;
             }
         }
-        const auto mineContactRoute =
-            mine.sourceObject->RouteContact(false);
         for (std::size_t racer = 0;
              racer < vehicles.size() && racer < racers_.size(); ++racer)
         {
@@ -5940,23 +5943,6 @@ void OriginalRaceSession::updateGameplay(
                 continue;
             if (mine.ignoreOwnerCollision && racer == mine.owner)
                 continue;
-            const bool targetMineLocked =
-                racers_[racer].gameCar.IsMineLocked();
-            bool sourceContactAllowed = true;
-            if (mineContactRoute.handler ==
-                source::Proj::ContactHandler::Maslo)
-            {
-                sourceContactAllowed =
-                    mine.sourceObject->GetSourceTimer() == -1.0F &&
-                    !targetMineLocked;
-            }
-            else if (mineContactRoute.handler !=
-                     source::Proj::ContactHandler::Crater)
-            {
-                sourceContactAllowed = mine.sourceObject->ContactMine(
-                    &racers_[racer].gameCar,
-                    enableMineBug_);
-            }
             Transform mineTransform;
             mineTransform.position = mine.position;
             mineTransform.rotation = mine.rotation;
@@ -5967,21 +5953,52 @@ void OriginalRaceSession::updateGameplay(
                     vehicleDefinition.physics);
             const OrientedBox mineBox =
                 orientedBox(mineTransform, mineDefinition.collision);
-            if (!sourceContactAllowed ||
-                !boxesOverlap(targetBox, mineBox))
+            if (!boxesOverlap(targetBox, mineBox))
+                continue;
+            if (networkGameplayEnabled_ &&
+                mine.networkPendingContact !=
+                    RacerRuntime::invalidWeapon)
                 continue;
             const Vec3 contactPoint =
                 closestPoint(targetBox, mineBox.center);
-            if (networkGameplayEnabled_)
+            // Proj::OnContact invokes GameObject::OnContact before the live
+            // guard and before Logic::MineContact selects local or RPC
+            // execution. The RPC replay below calls only the concrete mine
+            // overload and deliberately does not repeat this listener pass.
+            const auto mineContactRoute =
+                mine.sourceObject->BeginContact(
+                    &racers_[racer].gameCar);
+            if (mineContactRoute.handler ==
+                source::Proj::ContactHandler::Maslo)
             {
-                if (racer >= networkOwnedRacers_.size() ||
-                    !networkOwnedRacers_[racer] ||
-                    mine.networkPendingContact !=
-                        RacerRuntime::invalidWeapon)
+                if (mine.sourceObject->GetSourceTimer() != -1.0F ||
+                    racers_[racer].gameCar.IsMineLocked())
                     continue;
-                // Logic::MineContact is owned by the contacted NetPlayer.
-                // It broadcasts the projectile identity and all peers call
-                // Proj::MineContact only after that reliable RPC arrives.
+                applyMasloContact(
+                    mine.sourceObject, racer, mine.position);
+                continue;
+            }
+            if (mineContactRoute.handler ==
+                source::Proj::ContactHandler::Crater)
+            {
+                applyMineContact(mine, racer, contactPoint);
+                continue;
+            }
+            if (!mine.sourceObject->ContactMine(
+                    &racers_[racer].gameCar, enableMineBug_))
+                continue;
+            const auto sourceContact = source::Logic::MineContact(
+                mine.sourceObject, &racers_[racer].gameCar,
+                networkGameplayEnabled_, true);
+            if (!sourceContact.accepted)
+                continue;
+            if (sourceContact.requestTargetPlayer)
+            {
+                // NetPlayer::MineContact only emits from the target owner;
+                // every peer applies Proj::MineContact when the RPC arrives.
+                if (racer >= networkOwnedRacers_.size() ||
+                    !networkOwnedRacers_[racer])
+                    continue;
                 if (mine.owner == RacerRuntime::invalidWeapon ||
                     mine.networkProjectileId == 0U)
                     continue;
@@ -5996,7 +6013,8 @@ void OriginalRaceSession::updateGameplay(
                 events_.push_back(std::move(contact));
                 continue;
             }
-            applyMineContact(mine, racer, contactPoint);
+            if (sourceContact.applyProjectile)
+                applyMineContact(mine, racer, contactPoint);
             if (!mine.active)
                 break;
         }
@@ -6053,22 +6071,31 @@ void OriginalRaceSession::updateGameplay(
             ? mapBonus->GetAutoProj()
             : nullptr;
         if (bonus.kind != BonusKind::MineHazard ||
-            bonusProjectile == nullptr ||
-            !bonusProjectile->BeginContact(
-                &racers_[racer].gameCar).appliesDamage ||
-            !bonusProjectile->ContactMine(
-                &racers_[racer].gameCar, enableMineBug_))
+            bonusProjectile == nullptr)
+            return false;
+        const auto sourceResult =
+            bonusProjectile->ResolveMineContact(
+                &racers_[racer].gameCar);
+        if (!sourceResult.handled)
             return false;
         const auto& vehicleDefinition = vehicleForRacer(racer);
-        applyRacerDamage(
-            racer, RacerRuntime::invalidWeapon, contactPoint,
-            std::max(bonus.value, 0.0F), DamageType::Mine);
-        spawnBonusDeathEffect(bonusIndex);
+        if (sourceResult.destroyBeforeDamage)
+        {
+            spawnBonusDeathEffect(bonusIndex);
+            bonusActive_[bonusIndex] = false;
+            if (auto* object = bonusObjects().Get(bonusIndex))
+                object->GetGameObj().Death(DamageType::Mine);
+        }
+        applyProjectileDamageCommand(
+            sourceResult.damage, racer, contactPoint);
         const float mass =
             std::max(vehicleDefinition.physics.mass, 1.0F);
-        if (bonus.speed > 0.0F)
+        if (sourceResult.applyImpulseAfterDamage)
         {
-            const Vec3 impulse{0.0F, 0.0F, bonus.speed};
+            const Vec3 impulse{
+                sourceResult.impulse.x,
+                sourceResult.impulse.y,
+                sourceResult.impulse.z};
             velocityRequests_.push_back(
                 {racer, multiply(impulse, 1.0F / mass)});
             const Vec3 lever = subtract(
@@ -6095,9 +6122,6 @@ void OriginalRaceSession::updateGameplay(
                  rotate(vehicles[racer].body.rotation,
                         localAngularDelta)});
         }
-        bonusActive_[bonusIndex] = false;
-        if (auto* object = bonusObjects().Get(bonusIndex))
-            object->GetGameObj().Death(DamageType::Mine);
         return true;
     };
 
@@ -6115,7 +6139,9 @@ void OriginalRaceSession::updateGameplay(
 
     auto takeBonus = [&](
         std::size_t racer, std::size_t bonusIndex,
-        bool networkReplicated) {
+        bool networkReplicated,
+        BonusKind replicatedKind = BonusKind::Unknown,
+        float replicatedValue = 0.0F) {
         if (racer >= racers_.size() ||
             bonusIndex >= race_.bonuses.size() ||
             bonusIndex >= bonusActive_.size() ||
@@ -6127,30 +6153,53 @@ void OriginalRaceSession::updateGameplay(
         auto* bonusProjectile = bonusObject->GetAutoProj();
         if (bonusProjectile == nullptr)
             return false;
-        bonusProjectile->BeginContact(&runtime.gameCar);
-        const auto sourceBonus = bonusProjectile->ContactBonus(
-            &runtime.gameCar, &runtime);
-        if (!sourceBonus.take)
-            return false;
-        const float sourceValue =
-            sourceBonus.value;
         source::PlayerBonusType sourceType;
-        switch (sourceBonus.type)
+        float sourceValue = replicatedValue;
+        if (networkReplicated)
         {
-        case source::Proj::BonusContactType::Money:
-            sourceType = source::PlayerBonusType::Money;
-            break;
-        case source::Proj::BonusContactType::Charge:
-            sourceType = source::PlayerBonusType::Charge;
-            break;
-        case source::Proj::BonusContactType::Medpack:
-            sourceType = source::PlayerBonusType::Medpack;
-            break;
-        case source::Proj::BonusContactType::Immortal:
-            sourceType = source::PlayerBonusType::Immortal;
-            break;
-        case source::Proj::BonusContactType::None:
-            return false;
+            switch (replicatedKind)
+            {
+            case BonusKind::Money:
+                sourceType = source::PlayerBonusType::Money;
+                break;
+            case BonusKind::Ammunition:
+                sourceType = source::PlayerBonusType::Charge;
+                break;
+            case BonusKind::Medpack:
+                sourceType = source::PlayerBonusType::Medpack;
+                break;
+            case BonusKind::Shield:
+                sourceType = source::PlayerBonusType::Immortal;
+                break;
+            default:
+                return false;
+            }
+        }
+        else
+        {
+            bonusProjectile->BeginContact(&runtime.gameCar);
+            const auto sourceBonus = bonusProjectile->ContactBonus(
+                &runtime.gameCar, &runtime);
+            if (!sourceBonus.take)
+                return false;
+            sourceValue = sourceBonus.value;
+            switch (sourceBonus.type)
+            {
+            case source::Proj::BonusContactType::Money:
+                sourceType = source::PlayerBonusType::Money;
+                break;
+            case source::Proj::BonusContactType::Charge:
+                sourceType = source::PlayerBonusType::Charge;
+                break;
+            case source::Proj::BonusContactType::Medpack:
+                sourceType = source::PlayerBonusType::Medpack;
+                break;
+            case source::Proj::BonusContactType::Immortal:
+                sourceType = source::PlayerBonusType::Immortal;
+                break;
+            case source::Proj::BonusContactType::None:
+                return false;
+            }
         }
         std::vector<std::uint32_t> weaponMaximumCharges;
         weaponMaximumCharges.reserve(race_.weapons.size());
@@ -6159,14 +6208,38 @@ void OriginalRaceSession::updateGameplay(
         // The Windows code advances rand() only for the ammunition branch.
         // Consuming it for money/medpack/shield changes every later AI and
         // gameplay random decision in the shared source sequence.
+        const bool requestNetwork =
+            networkGameplayEnabled_ && !networkReplicated;
         const float bonusRandomUnit =
-            sourceType == source::PlayerBonusType::Charge
+            !requestNetwork &&
+                    sourceType == source::PlayerBonusType::Charge
                 ? sourceRandomUnit()
                 : 0.0F;
         const auto result = source::Logic::TakeBonus(
             &runtime, &bonusObject->GetGameObj(), sourceType,
-            sourceValue, weaponMaximumCharges, bonusRandomUnit);
+            sourceValue, weaponMaximumCharges, bonusRandomUnit,
+            requestNetwork, true);
         if (!result.taken)
+            return false;
+        if (result.requestSenderPlayer)
+        {
+            if (bonusIndex >= bonusNetworkPendingContact_.size() ||
+                bonusNetworkPendingContact_[bonusIndex] !=
+                    RacerRuntime::invalidWeapon)
+                return false;
+            bonusNetworkPendingContact_[bonusIndex] = racer;
+            RaceEvent event;
+            event.kind = RaceEventKind::Bonus;
+            event.racer = racer;
+            event.target = bonusIndex;
+            event.position =
+                race_.bonuses[bonusIndex].transform.position;
+            event.value = sourceValue;
+            event.networkRequest = true;
+            events_.push_back(std::move(event));
+            return true;
+        }
+        if (!result.playerApplied)
             return false;
         PickSlot pickSlot = PickSlot::None;
         switch (result.player.slot)
@@ -6200,8 +6273,14 @@ void OriginalRaceSession::updateGameplay(
 
     for (const auto& bonus : pendingNetworkBonuses_)
     {
+        if (bonus.bonus < bonusNetworkPendingContact_.size())
+        {
+            bonusNetworkPendingContact_[bonus.bonus] =
+                RacerRuntime::invalidWeapon;
+        }
         takeBonus(
-            bonus.racer, bonus.bonus, true);
+            bonus.racer, bonus.bonus, true,
+            bonus.kind, bonus.value);
     }
     pendingNetworkBonuses_.clear();
 
@@ -6309,15 +6388,26 @@ void OriginalRaceSession::updateGameplay(
                     ? mapBonus->GetAutoProj()
                     : nullptr;
                 if (bonusProjectile == nullptr ||
+                    (networkGameplayEnabled_ &&
+                     bonusIndex < bonusNetworkPendingContact_.size() &&
+                     bonusNetworkPendingContact_[bonusIndex] !=
+                         RacerRuntime::invalidWeapon))
+                    continue;
+                const auto sourceRoute =
+                    bonusProjectile->BeginContact(&runtime.gameCar);
+                if (!sourceRoute.appliesDamage ||
                     !bonusProjectile->ContactMine(
                         &runtime.gameCar, enableMineBug_))
                     continue;
-                if (networkGameplayEnabled_)
+                const auto sourceContact = source::Logic::MineContact(
+                    bonusProjectile, &runtime.gameCar,
+                    networkGameplayEnabled_, true);
+                if (!sourceContact.accepted)
+                    continue;
+                if (sourceContact.requestTargetPlayer)
                 {
                     if (bonusIndex >=
-                            bonusNetworkPendingContact_.size() ||
-                        bonusNetworkPendingContact_[bonusIndex] !=
-                            RacerRuntime::invalidWeapon)
+                            bonusNetworkPendingContact_.size())
                         continue;
                     bonusNetworkPendingContact_[bonusIndex] = racer;
                     RaceEvent contact;
@@ -6330,10 +6420,17 @@ void OriginalRaceSession::updateGameplay(
                     events_.push_back(std::move(contact));
                     continue;
                 }
-                applyMapMineContact(bonusIndex, racer, contactPoint);
+                if (sourceContact.applyProjectile)
+                    applyMapMineContact(
+                        bonusIndex, racer, contactPoint);
                 break;
             }
 
+            if (networkGameplayEnabled_ &&
+                bonusIndex < bonusNetworkPendingContact_.size() &&
+                bonusNetworkPendingContact_[bonusIndex] !=
+                    RacerRuntime::invalidWeapon)
+                continue;
             takeBonus(
                 racer, bonusIndex, false);
             break;
@@ -6544,6 +6641,8 @@ void OriginalRaceSession::updateAchievements(float seconds)
         switch (event.kind)
         {
         case RaceEventKind::Bonus:
+            if (event.networkRequest)
+                continue;
             if (event.target >= race_.bonuses.size())
                 continue;
             sourceEvent.kind = source::AchievmentEventKind::Bonus;
@@ -13172,11 +13271,47 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             const float expectedBonusLife = std::min(
                 lifeBeforeBonus + sourceNetworkBonusValue,
                 bonusTarget.racers().front().GetMaxLife());
+            auto bonusVehicles = vehicles;
+            const auto& bonusRacer = networkRace.racers.front();
+            const auto& bonusVehicleDefinition =
+                bonusRacer.hasConfiguredVehicle
+                    ? bonusRacer.configuredVehicle
+                    : networkRace.vehicles.at(bonusRacer.vehicle);
+            const Vec3 bonusCenter = add(
+                sourceBonus->transform.position,
+                rotate(
+                    sourceBonus->transform.rotation,
+                    sourceBonus->collision.center));
+            bonusVehicles[0].body.rotation = {};
+            bonusVehicles[0].body.position = subtract(
+                bonusCenter,
+                bonusVehicleDefinition.physics.shapePosition);
+            bonusTarget.update(
+                1.0F / 60.0F, bonusVehicles, noShotInput);
+            const auto bonusRequest = std::find_if(
+                bonusTarget.events().begin(),
+                bonusTarget.events().end(),
+                [&](const RaceEvent& event) {
+                    return event.kind == RaceEventKind::Bonus &&
+                           event.racer == 0U &&
+                           event.target == bonusIndex &&
+                           event.networkRequest &&
+                           !event.networkReplicated;
+                });
+            if (bonusRequest == bonusTarget.events().end() ||
+                !bonusTarget.bonusActive()[bonusIndex] ||
+                std::abs(
+                    bonusTarget.racers().front().GetLife() -
+                    lifeBeforeBonus) > 0.001F)
+            {
+                throw std::runtime_error(
+                    "source NetPlayer::TakeBonus request mutated state");
+            }
             bonusTarget.queueNetworkBonus(
                 {0U, bonusIndex, sourceBonus->kind,
                  sourceNetworkBonusValue});
             bonusTarget.update(
-                1.0F / 60.0F, vehicles, noShotInput);
+                1.0F / 60.0F, bonusVehicles, noShotInput);
             const auto bonusEvent = std::find_if(
                 bonusTarget.events().begin(),
                 bonusTarget.events().end(),

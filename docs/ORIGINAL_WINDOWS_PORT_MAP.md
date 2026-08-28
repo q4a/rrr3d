@@ -473,6 +473,22 @@ Impulse death сохраняет `dtEnergy` вместо adapter `dtSimple`.
 Следующий B8e — перенести оставшуюся `Logic::MineContact`/bonus contact
 authority, включая сетевой RPC gate, не смешивая её с Jolt overlap query.
 
+Результат B8e: source `Logic::MineContact` снова выбирает immediate
+`Proj::MineContact` либо RPC contacted `NetPlayer`, а concrete Proj выдаёт
+исходную транзакцию `Death -> DamageTarget(dtMine) -> AddContactForce`.
+`GameObject::OnContact` выполняется на первичном физическом контакте до
+network gate; RPC replay его не дублирует. Jolt boundary ограничен overlap,
+геометрией contact point и применением готового impulse.
+
+`Logic::TakeBonus` также разделяет source RPC request и `Player::TakeBonus`.
+В сетевой игре pickup больше не лечит/начисляет деньги, не уничтожает MapObj,
+не рисует HUD и не засчитывает achievement до `NetPlayer::OnTakeBonus` replay.
+Pending contact подавляет повторные запросы, а replay использует переданные
+type/value и сохраняет исходный Charge RNG момент.
+
+Следующий B8f — продолжить method-to-method аудит concrete `Player/Race` и
+оставшихся session-owned death/respawn/finish transitions.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:

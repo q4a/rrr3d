@@ -188,6 +188,10 @@ struct RaceEvent
     // GameObject listener graph, but must not send the resulting local event
     // back over the wire a second time.
     bool networkReplicated = false;
+    // Local source transaction requested a NetPlayer RPC but deliberately
+    // did not yet mutate gameplay state. UI/achievement consumers ignore
+    // this transport event and observe the replicated application instead.
+    bool networkRequest = false;
     bool networkMapObject = false;
     std::uint8_t networkSlotMask = 0U;
     std::uint32_t networkProjectileId = 0U;
