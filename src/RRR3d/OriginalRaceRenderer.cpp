@@ -4603,6 +4603,8 @@ void OriginalRaceRenderer::draw(
                 r3d::physics::Transform local;
                 const auto wanted =
                     recordName(race.weapons[weaponIndex].record);
+                const r3d::game::originalrace::source::Weapon*
+                    mountedWeapon = nullptr;
                 const auto* installed = runtime.GetSlotInst(
                     static_cast<r3d::game::originalrace::source::
                                     PlayerSlotType>(physicalSlot));
@@ -4611,6 +4613,9 @@ void OriginalRaceRenderer::draw(
                 {
                     const auto& position = installed->GetItem().GetPos();
                     const auto& rotation = installed->GetItem().GetRot();
+                    if (const auto* item =
+                            installed->GetItem().IsWeaponItem())
+                        mountedWeapon = item->GetWeapon();
                     local.position = {
                         position[0], position[1], position[2]};
                     local.rotation = {
@@ -4636,13 +4641,13 @@ void OriginalRaceRenderer::draw(
                 const auto& weaponNode =
                     race.weapons[weaponIndex].visual;
                 auto weaponTransform = weaponNode.transform;
-                if (primarySlot < runtime.weaponSpinRadians.size())
+                if (mountedWeapon != nullptr)
                 {
-                    const float halfAngle =
-                        runtime.weaponSpinRadians[primarySlot] * 0.5F;
+                    const auto rotation =
+                        mountedWeapon->GetDrobilkaRotation();
                     const r3d::physics::Quat sourceSpin{
-                        std::sin(halfAngle), 0.0F, 0.0F,
-                        std::cos(halfAngle)};
+                        rotation.x, rotation.y,
+                        rotation.z, rotation.w};
                     weaponTransform.rotation = multiply(
                         sourceSpin, weaponTransform.rotation);
                 }

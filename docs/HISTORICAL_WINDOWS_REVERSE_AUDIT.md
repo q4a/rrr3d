@@ -4751,6 +4751,29 @@ session.
 проверяет двухснарядный batch, общий Logic/target/playerId, повёрнутый и
 масштабированный mount, sampled lifetime и обе исходные relative-speed ветви.
 
+### P2.203 — attached `Proj::OnProgress` и Drobilka rotation возвращены source owner — выполнено
+
+Session самостоятельно компоновал transform для Hyper/Laser/Fire/Drobilka/
+FrostRay, отдельно исправлял rotation Fire/Drobilka, копировал car velocity в
+Fire и только затем вызывал часть source update. Вдобавок вращение Drobilka
+дублировалось в `Player::weaponSpinRadians`: session накапливал scalar, а
+renderer ещё раз строил quaternion. Это не является полем Windows Player и
+могло расходиться с live Weapon после destroy/respawn или смены mount.
+
+Добавлен единый `Proj::ProgressAttached`: он читает concrete descriptor,
+применяет source `LocalToWorldCoord(_desc.pos)`, различает linked rotation и
+точное присваивание weapon world rotation для Fire/Drobilka, возвращает
+Fire linear velocity и внутри вызывает Drobilka update. Jolt/session теперь
+передают только actor transform/scale/velocity и исполняют collision queries.
+
+Drobilka rotation хранится в concrete `Weapon`, откуда её читают и contact
+transform, и bgfx renderer. `Player::weaponSpinRadians` и session accumulator
+удалены. Одновременно исправлен подтверждённый порядок quaternion multiply:
+Windows выполняет `weapon->GetRot() * deltaX`, тогда как порт делал
+`deltaX * localRotation`; ошибка была видна на непустом mount rotation.
+Regression проверяет scale/rotation/velocity Fire, persistent Weapon spin,
+неединичный mount и правое умножение, contact actor и исчезновение эффекта.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

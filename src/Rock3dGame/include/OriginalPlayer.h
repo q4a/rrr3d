@@ -500,9 +500,6 @@ public:
         invalidWeapon, invalidWeapon, invalidWeapon, invalidWeapon};
     std::array<std::uint32_t, weaponSlotCount> weaponCharges{};
     std::array<std::uint32_t, weaponSlotCount> weaponCapacity{};
-    // Proj::DrobilkaUpdate rotates the mounted weapon actor itself. Keep the
-    // actor rotation independent from projectile age for renderer/contact use.
-    std::array<float, weaponSlotCount> weaponSpinRadians{};
     std::size_t selectedWeaponSlot = 0;
     std::size_t selectedWeapon = invalidWeapon;
     std::size_t hyperWeapon = invalidWeapon;

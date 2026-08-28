@@ -3615,10 +3615,14 @@ void OriginalRaceSession::updateGameplay(
             std::size_t mountSlot) {
             Transform result = vehicles[owner].body;
             const auto& vehicleDefinition = vehicleForRacer(owner);
+            const source::Weapon* mountedWeapon = nullptr;
             if (const auto* slot = installedWeaponSlot(
                     owner, weaponIndex, mountSlot))
             {
                 result = compose(result, installedSlotTransform(*slot));
+                if (const auto* item =
+                        slot->GetItem().IsWeaponItem())
+                    mountedWeapon = item->GetWeapon();
             }
             else
             {
@@ -3650,15 +3654,13 @@ void OriginalRaceSession::updateGameplay(
             }
             Transform weaponLocal =
                 race_.weapons[weaponIndex].visual.transform;
-            if (owner < racers_.size() &&
-                mountSlot <
-                    racers_[owner].weaponSpinRadians.size())
+            if (mountedWeapon != nullptr)
             {
-                const float halfAngle =
-                    racers_[owner].weaponSpinRadians[mountSlot] * 0.5F;
+                const auto rotation =
+                    mountedWeapon->GetDrobilkaRotation();
                 const Quat sourceSpin{
-                    std::sin(halfAngle), 0.0F, 0.0F,
-                    std::cos(halfAngle)};
+                    rotation.x, rotation.y,
+                    rotation.z, rotation.w};
                 weaponLocal.rotation =
                     multiply(sourceSpin, weaponLocal.rotation);
             }
@@ -4009,43 +4011,36 @@ void OriginalRaceSession::updateGameplay(
                     : weaponWorldTransform(
                           projectile.owner, projectile.weapon,
                           projectile.mountSlot);
-            Transform localProjectile;
-            localProjectile.position = projectileDefinition.position;
-            localProjectile.rotation = projectileDefinition.rotation;
-            Transform shotTransform = compose(
-                attachedWeaponTransform, localProjectile);
-            if (sourceProgressRoute.handler ==
-                    source::Proj::ProgressHandler::Fire ||
-                sourceProgressRoute.handler ==
-                    source::Proj::ProgressHandler::Drobilka)
-            {
-                // FireUpdate/DrobilkaUpdate relocate through _desc.pos but
-                // then use the current weapon world rotation verbatim.
-                shotTransform.rotation =
-                    attachedWeaponTransform.rotation;
-                projectile.sourceObject->SyncSourceWeaponTransform(
+            const auto attachedProgress =
+                projectile.sourceObject->ProgressAttached(
                     sourceVec(attachedWeaponTransform.position),
-                    sourceQuat(attachedWeaponTransform.rotation));
+                    sourceQuat(attachedWeaponTransform.rotation),
+                    sourceVec(attachedWeaponTransform.scale),
+                    sourceVec(
+                        vehicles[projectile.owner].linearVelocity),
+                    seconds);
+            if (!attachedProgress.valid)
+            {
+                projectile.active = false;
+                continue;
             }
+            Transform shotTransform;
+            shotTransform.position =
+                runtimeVec(attachedProgress.position);
+            shotTransform.rotation =
+                runtimeQuat(attachedProgress.rotation);
+            shotTransform.scale = attachedWeaponTransform.scale;
             projectile.position = shotTransform.position;
             projectile.rotation = shotTransform.rotation;
-            projectile.direction = normalized3(
-                rotate(shotTransform.rotation,
-                       {1.0F, 0.0F, 0.0F}));
-            projectile.sourceObject->SyncSourceTransform(
-                sourceVec(projectile.position),
-                sourceQuat(projectile.rotation));
-            if (sourceProgressRoute.handler ==
-                source::Proj::ProgressHandler::Drobilka)
-                projectile.sourceObject->ProgressDrobilka(seconds);
-            if (sourceProgressRoute.handler ==
-                source::Proj::ProgressHandler::Fire)
+            projectile.direction =
+                runtimeVec(attachedProgress.direction);
+            if (attachedProgress.setLinearVelocity)
             {
                 // Proj::FireUpdate mirrors the current mounted weapon/car
                 // actor velocity, allowing world-coordinate emitters to
                 // subtract the correct source motion.
                 projectile.velocity =
-                    vehicles[projectile.owner].linearVelocity;
+                    runtimeVec(attachedProgress.linearVelocity);
                 projectile.speed = length3(projectile.velocity);
             }
             const float maximumDistance =
@@ -4294,20 +4289,6 @@ void OriginalRaceSession::updateGameplay(
                     projectile, projectile.position,
                     RacerRuntime::invalidWeapon);
                 projectile.active = false;
-            }
-            if (sourceProgressRoute.handler ==
-                    source::Proj::ProgressHandler::Drobilka &&
-                projectile.owner < racers_.size() &&
-                projectile.mountSlot <
-                    racers_[projectile.owner]
-                        .weaponSpinRadians.size())
-            {
-                auto& angle =
-                    racers_[projectile.owner]
-                        .weaponSpinRadians[projectile.mountSlot];
-                angle = std::fmod(
-                    angle + projectileDefinition.angularSpeed * seconds,
-                    6.28318530717958647692F);
             }
             continue;
         }
@@ -10822,14 +10803,26 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 });
             const float expectedSpin =
                 drobilka->projectiles.front().angularSpeed / 60.0F;
+            const auto drobilkaItems =
+                drobilkaSession.racers()[0]
+                    .GetPrimaryWeaponItems();
+            const auto* spunSourceWeapon =
+                drobilkaItems[0] != nullptr
+                    ? drobilkaItems[0]->GetWeapon()
+                    : nullptr;
+            const auto sourceWeaponSpin =
+                spunSourceWeapon != nullptr
+                    ? spunSourceWeapon->GetDrobilkaRotation()
+                    : source::Proj::Quat{};
             if (sourceContactEffect ==
                     drobilkaSession.effects().end() ||
                 drobilkaSession.racers()[1].GetLife() >=
                     lifeBeforeDrobilka ||
-                std::abs(
-                    drobilkaSession.racers()[0]
-                            .weaponSpinRadians[0] -
-                    expectedSpin) > 0.001F)
+                spunSourceWeapon == nullptr ||
+                std::abs(sourceWeaponSpin.x -
+                         std::sin(expectedSpin * 0.5F)) > 0.001F ||
+                std::abs(sourceWeaponSpin.w -
+                         std::cos(expectedSpin * 0.5F)) > 0.001F)
             {
                 throw std::runtime_error(
                     "source DrobilkaContact/DrobilkaUpdate transition "

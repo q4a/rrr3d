@@ -270,6 +270,16 @@ public:
         bool mineArming = false;
     };
 
+    struct AttachedProgressResult
+    {
+        Vec3 position{};
+        Quat rotation{};
+        Vec3 direction{};
+        Vec3 linearVelocity{};
+        bool setLinearVelocity = false;
+        bool valid = false;
+    };
+
     enum class PrepareHandler : std::uint8_t
     {
         None,
@@ -507,6 +517,10 @@ public:
     ContactRoute RouteContact(bool targetDestroyed) const noexcept;
     ProgressRoute RouteProgress() const noexcept;
     PreparationRoute RoutePreparation() const noexcept;
+    AttachedProgressResult ProgressAttached(
+        Vec3 weaponPosition, Quat weaponRotation,
+        Vec3 weaponScale, Vec3 weaponLinearVelocity,
+        float deltaTime) noexcept;
     void ProgressDrobilka(float deltaTime) noexcept;
 
     Proj();
@@ -725,6 +739,11 @@ public:
                  std::span<const ProjectileDefinition> projectiles);
     const ShotEffect& GetShotEffect() const noexcept;
     const std::array<float, 3U>& GetLastShotPosition() const noexcept;
+    // DrobilkaUpdate rotates the source Weapon actor itself. The quaternion
+    // is the backend-visible delta relative to its serialized mount pose;
+    // renderer and Jolt consume it without keeping a second Player mirror.
+    void RotateDrobilka(float angle) noexcept;
+    Proj::Quat GetDrobilkaRotation() const noexcept;
 
     // Backend-neutral Weapon::CreateShot commit point.  Preparation values
     // which used to come from PhysX are carried by ShotContext; successful
@@ -746,6 +765,7 @@ private:
 
     DescHandle desc_;
     float shotTime_ = 0.0F;
+    Proj::Quat drobilkaRotation_{0.0F, 0.0F, 0.0F, 1.0F};
     ShotEffectBehavior* shotEffect_ = nullptr;
 };
 

@@ -1225,15 +1225,24 @@ void Proj::ProgressDrobilka(float deltaTime) noexcept
 {
     if (weapon_ != nullptr)
     {
-        const float halfAngle = description_.angularSpeed * deltaTime * 0.5F;
-        const Quat delta{
-            std::sin(halfAngle), 0.0F, 0.0F,
-            std::cos(halfAngle)};
-        const auto rotation = weapon_->GetRot();
-        const Quat local{
-            rotation[0], rotation[1], rotation[2], rotation[3]};
-        const auto next = normalized(multiply(delta, local));
-        weapon_->SetRot({next.x, next.y, next.z, next.w});
+        const float angle = description_.angularSpeed * deltaTime;
+        if (auto* weapon = dynamic_cast<Weapon*>(weapon_))
+        {
+            weapon->RotateDrobilka(angle);
+        }
+        else
+        {
+            const float halfAngle = angle * 0.5F;
+            const Quat delta{
+                std::sin(halfAngle), 0.0F, 0.0F,
+                std::cos(halfAngle)};
+            const auto rotation = weapon_->GetRot();
+            const Quat local{
+                rotation[0], rotation[1], rotation[2], rotation[3]};
+            // Weapon.cpp executes weapon->GetRot() * deltaRotation.
+            const auto next = normalized(multiply(local, delta));
+            weapon_->SetRot({next.x, next.y, next.z, next.w});
+        }
     }
     if (sourceModel_ == nullptr ||
         sourceModel_->GetGameObj().GetLiveState() == LiveState::Death)
@@ -1244,6 +1253,58 @@ void Proj::ProgressDrobilka(float deltaTime) noexcept
         sourceModel_->GetGameObj().Death();
         FreeSourceModel(false, false);
     }
+}
+
+Proj::AttachedProgressResult Proj::ProgressAttached(
+    Vec3 weaponPosition, Quat weaponRotation,
+    Vec3 weaponScale, Vec3 weaponLinearVelocity,
+    float deltaTime) noexcept
+{
+    AttachedProgressResult result;
+    const auto preparation = RoutePreparation();
+    if (!prepared_ || !preparation.attached || weapon_ == nullptr)
+        return result;
+
+    weaponRotation = normalized(weaponRotation);
+    const Vec3 scaledOffset{
+        description_.position.x * weaponScale.x,
+        description_.position.y * weaponScale.y,
+        description_.position.z * weaponScale.z};
+    const auto worldOffset = rotate(weaponRotation, scaledOffset);
+    result.position = {
+        weaponPosition.x + worldOffset.x,
+        weaponPosition.y + worldOffset.y,
+        weaponPosition.z + worldOffset.z};
+
+    const auto progress = RouteProgress();
+    if (progress.handler == ProgressHandler::Fire ||
+        progress.handler == ProgressHandler::Drobilka)
+    {
+        // FireUpdate and DrobilkaUpdate transform _desc.pos through the
+        // weapon actor, but assign the weapon world rotation verbatim.
+        result.rotation = weaponRotation;
+    }
+    else
+    {
+        const Quat localRotation{
+            description_.rotation.x, description_.rotation.y,
+            description_.rotation.z, description_.rotation.w};
+        result.rotation = normalized(multiply(
+            weaponRotation, localRotation));
+    }
+    result.direction = normalized(rotate(
+        result.rotation, {1.0F, 0.0F, 0.0F}));
+    if (progress.handler == ProgressHandler::Fire)
+    {
+        result.linearVelocity = weaponLinearVelocity;
+        result.setLinearVelocity = true;
+    }
+    result.valid = true;
+
+    SyncSourceTransform(result.position, result.rotation);
+    if (progress.handler == ProgressHandler::Drobilka)
+        ProgressDrobilka(deltaTime);
+    return result;
 }
 
 Proj::ContactRoute Proj::RouteContact(
@@ -1973,7 +2034,8 @@ Weapon::Weapon(const Desc& desc)
 }
 
 Weapon::Weapon(const Weapon& other)
-    : GameObject(other), desc_(other.desc_), shotTime_(other.shotTime_)
+    : GameObject(other), desc_(other.desc_), shotTime_(other.shotTime_),
+      drobilkaRotation_(other.drobilkaRotation_)
 {
     BindSourceBehaviors();
     if (other.shotEffect_ != nullptr)
@@ -1987,6 +2049,7 @@ Weapon& Weapon::operator=(const Weapon& other)
     GameObject::operator=(other);
     desc_ = other.desc_;
     shotTime_ = other.shotTime_;
+    drobilkaRotation_ = other.drobilkaRotation_;
     BindSourceBehaviors();
     if (other.shotEffect_ != nullptr)
         shotEffect_->CopyStateFrom(*other.shotEffect_);
@@ -2221,6 +2284,27 @@ const std::array<float, 3U>& Weapon::GetLastShotPosition() const noexcept
     return shotEffect_ != nullptr
         ? shotEffect_->GetLastShotPosition()
         : empty;
+}
+
+void Weapon::RotateDrobilka(float angle) noexcept
+{
+    const float halfAngle = angle * 0.5F;
+    const Proj::Quat delta{
+        std::sin(halfAngle), 0.0F, 0.0F,
+        std::cos(halfAngle)};
+    const auto rotation = GetRot();
+    const Proj::Quat local{
+        rotation[0], rotation[1], rotation[2], rotation[3]};
+    // Source DrobilkaUpdate right-multiplies the local mount rotation.
+    const auto next = normalized(multiply(local, delta));
+    SetRot({next.x, next.y, next.z, next.w});
+    drobilkaRotation_ = normalized(multiply(
+        drobilkaRotation_, delta));
+}
+
+Proj::Quat Weapon::GetDrobilkaRotation() const noexcept
+{
+    return drobilkaRotation_;
 }
 
 Proj* Weapon::CreateShot(

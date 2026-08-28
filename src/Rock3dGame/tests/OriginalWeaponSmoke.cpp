@@ -240,16 +240,67 @@ int main()
         &drobilkaTarget, 0.1F, {7.0F, 8.0F, 9.0F});
     drobilkaProjectile.ProgressDrobilka(0.25F);
     const auto spunWeapon = drobilkaWeapon.GetRot();
+    const auto sourceSpin =
+        drobilkaWeapon.GetDrobilkaRotation();
     if (concreteDrobilka.damage != 1.0F ||
         drobilkaProjectile.GetSourceModel() == nullptr ||
         drobilkaProjectile.GetSourceModel()->GetGameObj().GetWorldPos() !=
             source::GameObject::Vector3{7.0F, 8.0F, 9.0F} ||
         std::abs(spunWeapon[0] - 0.38268343F) > 0.001F ||
+        std::abs(sourceSpin.x - 0.38268343F) > 0.001F ||
         std::abs(drobilkaProjectile.GetSourceTimer() - 0.25F) > 0.001F)
         return 122;
     drobilkaProjectile.ProgressDrobilka(0.3F);
     if (drobilkaProjectile.GetSourceModel() != nullptr)
         return 123;
+
+    source::Weapon rotatedDrobilkaWeapon;
+    rotatedDrobilkaWeapon.SetRot(
+        {0.0F, 0.0F, 0.70710677F, 0.70710677F});
+    source::Proj rotatedDrobilkaProjectile;
+    rotatedDrobilkaProjectile.PrepareSource(
+        drobilkaDescription, &rotatedDrobilkaWeapon,
+        drobilkaContext);
+    rotatedDrobilkaProjectile.ProgressDrobilka(0.5F);
+    const auto orderedRotation =
+        rotatedDrobilkaWeapon.GetRot();
+    const auto orderedSpin =
+        rotatedDrobilkaWeapon.GetDrobilkaRotation();
+    if (std::abs(orderedRotation[0] - 0.5F) > 0.001F ||
+        std::abs(orderedRotation[1] - 0.5F) > 0.001F ||
+        std::abs(orderedRotation[2] - 0.5F) > 0.001F ||
+        std::abs(orderedRotation[3] - 0.5F) > 0.001F ||
+        std::abs(orderedSpin.x - 0.70710677F) > 0.001F ||
+        std::abs(orderedSpin.w - 0.70710677F) > 0.001F)
+        return 183;
+
+    auto attachedFireDescription = sourceDescription;
+    attachedFireDescription.type = 14U;
+    attachedFireDescription.position = {1.0F, 0.0F, 0.0F};
+    attachedFireDescription.rotation =
+        {0.0F, 0.0F, 0.70710677F, 0.70710677F};
+    source::Weapon attachedFireWeapon;
+    source::Proj attachedFireProjectile;
+    source::Proj::ShotContext attachedFireContext;
+    attachedFireContext.maximumLife = 2.0F;
+    attachedFireProjectile.PrepareSource(
+        attachedFireDescription, &attachedFireWeapon,
+        attachedFireContext);
+    const auto attachedFire = attachedFireProjectile.ProgressAttached(
+        {5.0F, 6.0F, 7.0F},
+        {0.0F, 0.0F, 0.70710677F, 0.70710677F},
+        {2.0F, 2.0F, 2.0F}, {3.0F, 4.0F, 5.0F},
+        0.25F);
+    if (!attachedFire.valid || !attachedFire.setLinearVelocity ||
+        std::abs(attachedFire.position.x - 5.0F) > 0.001F ||
+        std::abs(attachedFire.position.y - 8.0F) > 0.001F ||
+        std::abs(attachedFire.position.z - 7.0F) > 0.001F ||
+        std::abs(attachedFire.rotation.z - 0.70710677F) > 0.001F ||
+        std::abs(attachedFire.direction.x) > 0.001F ||
+        std::abs(attachedFire.direction.y - 1.0F) > 0.001F ||
+        attachedFire.linearVelocity !=
+            source::Proj::Vec3{3.0F, 4.0F, 5.0F})
+        return 184;
 
     auto torpedaDescription = sourceDescription;
     torpedaDescription.type = 2U;

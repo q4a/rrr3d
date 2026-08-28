@@ -2419,3 +2419,15 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   transform helper удалён.
 - Regression покрывает batch target/lifetime, поворот и масштаб mount, а также
   обе relative-speed формулы.
+
+### Source attached Proj progress follow-up
+
+- Hyper/Laser/Fire/Drobilka/FrostRay attached transforms перенесены из
+  `OriginalRaceSession` в concrete `Proj::ProgressAttached`; session оставляет
+  только Jolt transform/velocity input и collision/raycast execution.
+- Fire снова копирует mounted actor velocity внутри source update, а
+  Fire/Drobilka используют weapon world rotation без projectile local rotation.
+- Удалён придуманный `Player::weaponSpinRadians`. Drobilka вращает concrete
+  `Weapon`, и один source quaternion теперь читают renderer и contact path.
+- Исправлен порядок вращения неединичного mount: `localRotation * deltaX`,
+  как в оригинальном Windows `DrobilkaUpdate`, вместо обратного произведения.
