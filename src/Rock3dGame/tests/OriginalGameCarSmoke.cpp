@@ -1,4 +1,5 @@
 #include "OriginalGameCar.h"
+#include "OriginalLogic.h"
 
 #include <cmath>
 #include <iostream>
@@ -13,6 +14,60 @@ int main()
     if (car.IsCar() != &car || genericCar.IsCar() != &car ||
         ordinaryObject.IsCar() != nullptr)
         return 69;
+    source::WorldEventPump bridgeWorld;
+    source::Logic bridgeLogic;
+    bridgeLogic.AttachWorld(&bridgeWorld);
+    source::GameCar bridgeCar;
+    bridgeCar.SetLogic(&bridgeLogic);
+    if (bridgeCar.GetFixedStepEventCount() != 1U ||
+        !bridgeWorld.HasFixedStepEvent(&bridgeCar))
+        return 71;
+    bridgeCar.ConfigureMotor(
+        {7500.0F, 3.42F, 7000.0F, 1000.0F,
+         2000.0F, 0.805F, 400.0F, 10.0F, true});
+    const auto bridgeDrive = bridgeCar.DispatchFixedStepDrive(
+        bridgeWorld, 1.0F / 120.0F,
+        {1.0F, 0.0F, 0.0F, 0.0F, false},
+        {0.0F, 0.0F, 0.0F, 0.0F,
+         true, true, true, false});
+    if (bridgeDrive.motorTorque <= 0.0F || bridgeDrive.gear != 1)
+        return 72;
+    const source::GameObjectFrameSync::Pose bridgePose{
+        {2.0F, 3.0F, 0.0F}, {0.0F, 0.0F, 0.0F, 1.0F}};
+    bridgeCar.SynchronizePhysicsState(
+        bridgePose, {1.0F, 0.0F, 0.0F}, true);
+    if (!bridgeCar.IsBodyProgressEvent() ||
+        bridgeCar.GetLateProgressEventCount() != 1U ||
+        bridgeCar.GetFrameEventCount() != 1U ||
+        !bridgeWorld.HasLateProgressEvent(&bridgeCar) ||
+        !bridgeWorld.HasFrameEvent(&bridgeCar))
+        return 73;
+    const std::vector<source::GameCar::PxSyncPose> noBridgeWheels;
+    const auto bridgeFrame = bridgeCar.DispatchPxSync(
+        bridgeWorld, bridgePose, noBridgeWheels, 1.0F / 60.0F);
+    if (std::abs(bridgeFrame.body.position.x - 2.0F) > 0.0001F ||
+        std::abs(bridgeFrame.body.position.y - 3.0F) > 0.0001F)
+        return 74;
+    if (!bridgeCar.SynchronizeNetworkPose(
+             bridgePose.position, bridgePose.position,
+             bridgePose.rotation, {8.0F, 3.0F, 0.0F},
+             bridgePose.rotation).snapPosition ||
+        !bridgeCar.IsSyncFrameEvent() ||
+        bridgeCar.GetFrameEventCount() != 2U)
+        return 75;
+    bridgeCar.SynchronizePhysicsState(
+        bridgePose, {}, false);
+    if (bridgeCar.IsBodyProgressEvent() ||
+        bridgeCar.GetLateProgressEventCount() != 0U ||
+        bridgeCar.GetFrameEventCount() != 1U ||
+        bridgeWorld.HasLateProgressEvent(&bridgeCar) ||
+        !bridgeWorld.HasFrameEvent(&bridgeCar))
+        return 76;
+    bridgeCar.SetLogic(nullptr);
+    if (bridgeWorld.FixedStepEventCount() != 0U ||
+        bridgeWorld.LateProgressEventCount() != 0U ||
+        bridgeWorld.FrameEventCount() != 0U)
+        return 77;
     source::GameCar lethalCar;
     lethalCar.ResetGameObject(10.0F);
     const auto carKill = lethalCar.Damage(

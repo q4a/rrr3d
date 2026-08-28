@@ -135,6 +135,60 @@ void WorldEventPump::FrameStep(float deltaTime, float physicsAlpha)
         gameMode_->OnGameFrame(deltaTime, physicsAlpha, paused_);
 }
 
+bool WorldEventPump::DispatchFixedStepEvent(
+    FixedStepEvent* event, float deltaTime)
+{
+    if (!HasFixedStepEvent(event) || event->Removed())
+        return false;
+    event->OnFixedStep(deltaTime);
+    return true;
+}
+
+bool WorldEventPump::DispatchFrameEvent(
+    FrameEvent* event, float deltaTime, float physicsAlpha)
+{
+    if (paused_ || !HasFrameEvent(event) || event->Removed())
+        return false;
+    event->OnFrame(deltaTime, physicsAlpha);
+    return true;
+}
+
+bool WorldEventPump::HasFixedStepEvent(
+    const FixedStepEvent* event) const noexcept
+{
+    return std::find(fixedStepEvents_.begin(), fixedStepEvents_.end(), event) !=
+           fixedStepEvents_.end();
+}
+
+bool WorldEventPump::HasLateProgressEvent(
+    const LateProgressEvent* event) const noexcept
+{
+    return std::find(
+               lateProgressEvents_.begin(), lateProgressEvents_.end(), event) !=
+           lateProgressEvents_.end();
+}
+
+bool WorldEventPump::HasFrameEvent(const FrameEvent* event) const noexcept
+{
+    return std::find(frameEvents_.begin(), frameEvents_.end(), event) !=
+           frameEvents_.end();
+}
+
+std::size_t WorldEventPump::FixedStepEventCount() const noexcept
+{
+    return fixedStepEvents_.size();
+}
+
+std::size_t WorldEventPump::LateProgressEventCount() const noexcept
+{
+    return lateProgressEvents_.size();
+}
+
+std::size_t WorldEventPump::FrameEventCount() const noexcept
+{
+    return frameEvents_.size();
+}
+
 void WorldEventPump::Pause(bool paused) noexcept
 {
     paused_ = paused;

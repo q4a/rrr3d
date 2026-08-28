@@ -246,7 +246,21 @@ public:
     PxSyncState OnPxSync(
         PxSyncPose physicalBody,
         const std::vector<PxSyncPose>& physicalWheels,
-        float deltaTime) noexcept;
+        float deltaTime, float physicsAlpha = 1.0F) noexcept;
+    PxSyncState DispatchPxSync(
+        WorldEventPump& world, PxSyncPose physicalBody,
+        const std::vector<PxSyncPose>& physicalWheels,
+        float deltaTime, float physicsAlpha = 1.0F) noexcept;
+    GameObjectFrameSync::NetworkCorrection SynchronizeNetworkPose(
+        GameObjectFrameSync::Vector physicsPosition,
+        GameObjectFrameSync::Vector graphPosition,
+        GameObjectFrameSync::Quaternion graphRotation,
+        GameObjectFrameSync::Vector targetPosition,
+        GameObjectFrameSync::Quaternion targetRotation) noexcept;
+    void SynchronizePhysicsState(
+        GameObjectFrameSync::Pose pose,
+        GameObjectFrameSync::Vector linearVelocity,
+        bool awake) noexcept;
     void ConfigureMotor(MotorDescription description) noexcept;
     void ConfigureDynamics(
         DynamicsDescription description,
@@ -254,6 +268,9 @@ public:
     DriveCommand OnFixedStepDrive(
         float deltaTime, FixedStepInput input,
         FixedStepState state) noexcept;
+    DriveCommand DispatchFixedStepDrive(
+        WorldEventPump& world, float deltaTime,
+        FixedStepInput input, FixedStepState state) noexcept;
     ContactResult OnContact(
         const ContactInput& contact,
         const ContactRules& rules) noexcept;
@@ -367,6 +384,10 @@ public:
 private:
     class SoundMotorBehavior;
 
+    void OnFixedStep(float deltaTime) noexcept override;
+    void OnFrame(
+        float deltaTime, float physicsAlpha) noexcept override;
+
     float clutchStrength_ = 0.0F;
     float clutchTime_ = 0.0F;
     float springTime_ = 0.0F;
@@ -396,6 +417,16 @@ private:
     bool bodyContact_ = false;
     bool clutchImmunity_ = false;
     bool disableColor_ = false;
+    FixedStepInput pendingFixedStepInput_;
+    FixedStepState pendingFixedStepState_;
+    DriveCommand pendingFixedStepCommand_;
+    bool fixedStepPending_ = false;
+    bool fixedStepDispatched_ = false;
+    PxSyncPose pendingPhysicalBody_;
+    const std::vector<PxSyncPose>* pendingPhysicalWheels_ = nullptr;
+    PxSyncState lastPxSyncState_;
+    bool pxSyncPending_ = false;
+    bool pxSyncInitialized_ = false;
 };
 
 // Backend-neutral owner for GameBase.cpp::SoundMotor. SDL owns the two

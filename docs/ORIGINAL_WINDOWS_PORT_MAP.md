@@ -530,9 +530,22 @@ position offset, lifetime RNG и `effectPxIgnoreSenderCar`. Session примен
 только Jolt world contact transform и создаёт готовый autonomous runtime view;
 невалидные планы не потребляют RNG.
 
-Следующий B8k — объединить `GameObject::SetLogic` registration counters с
-существующим Jolt substep callback и active frame sync, не создавая второй
-fixed-step/renderer update.
+Результат B8k: восстановлены четыре source reference counter и точный
+`GameObject::SetLogic` unregister/re-register order. `GameCar` снова
+регистрирует fixed-step в constructor и снимает в derived destructor;
+portable progress counter намеренно не добавлен в World, поскольку эти
+вызовы закомментированы в оригинале.
+
+Jolt per-vehicle callback адресно dispatch-ит только соответствующий
+зарегистрированный `GameCar`, поэтому общий World list не выполняется N раз.
+Awake/sleep управляет late+frame reference, network correction — отдельным
+frame reference, а renderer получает последний source graph state, когда
+тело спит. Regression закрепляет смену Logic/World, ref-count gates, один
+torque/gear update и active/sleep frame lifecycle.
+
+Следующий B8l — продолжить method-to-method аудит `Race/Player/Weapon` и
+вынести следующий подтверждённый session-owned gameplay transaction в
+concrete source owner.
 
 ## Правило обновления карты
 

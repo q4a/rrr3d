@@ -2337,8 +2337,8 @@ physics::VehicleDriveCommand OriginalRaceSession::racerFixedStepDrive(
 {
     if (racer >= racers_.size())
         return {};
-    const auto command = racers_[racer].gameCar.OnFixedStepDrive(
-        deltaTime,
+    const auto command = racers_[racer].gameCar.DispatchFixedStepDrive(
+        gameplayWorld_, deltaTime,
         {input.throttle, input.reverse, input.brake,
          input.steering, input.manualSteering},
         {state.signedSpeed, state.absoluteSpeed,
@@ -2366,7 +2366,7 @@ OriginalRaceSession::synchronizeRacerNetworkPose(
 {
     if (racer >= racers_.size())
         return {};
-    return racers_[racer].gameCar.GetFrameSync().OnNetworkPose(
+    return racers_[racer].gameCar.SynchronizeNetworkPose(
         physicsPosition, graphPosition, graphRotation,
         targetPosition, targetRotation);
 }
@@ -2379,7 +2379,7 @@ void OriginalRaceSession::synchronizeRacerPhysicsState(
 {
     if (racer >= racers_.size())
         return;
-    racers_[racer].gameCar.GetFrameSync().OnPhysicsState(
+    racers_[racer].gameCar.SynchronizePhysicsState(
         pose, linearVelocity, awake);
 }
 
@@ -2408,8 +2408,8 @@ physics::VehicleState OriginalRaceSession::racerFrameState(
             {wheel.rotation.x, wheel.rotation.y,
              wheel.rotation.z, wheel.rotation.w}});
     }
-    const auto graph = racers_[racer].gameCar.OnPxSync(
-        physicalBody, physicalWheels, deltaTime);
+    const auto graph = racers_[racer].gameCar.DispatchPxSync(
+        gameplayWorld_, physicalBody, physicalWheels, deltaTime);
 
     physics::VehicleState state = physicsState;
     state.body.position = {

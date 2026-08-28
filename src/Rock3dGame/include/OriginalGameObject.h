@@ -1,5 +1,7 @@
 #pragma once
 
+#include "OriginalWorld.h"
+
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -172,7 +174,9 @@ private:
 // Gameplay-owned part of GameObject. Graph/PhysX actors and listener
 // dispatch remain backend boundaries, while lifetime, immortality, damage,
 // healing, death and touch attribution execute through the original owner.
-class GameObject
+class GameObject : public FixedStepEvent,
+                   public LateProgressEvent,
+                   public FrameEvent
 {
 public:
     using Vector3 = std::array<float, 3U>;
@@ -268,6 +272,12 @@ public:
     Logic* GetLogic() noexcept;
     const Logic* GetLogic() const noexcept;
     void SetLogic(Logic* value) noexcept;
+    unsigned GetFrameEventCount() const noexcept;
+    unsigned GetProgressEventCount() const noexcept;
+    unsigned GetLateProgressEventCount() const noexcept;
+    unsigned GetFixedStepEventCount() const noexcept;
+    bool IsSyncFrameEvent() const noexcept;
+    bool IsBodyProgressEvent() const noexcept;
 
     // GameObject.cpp exposes concrete source identity without RTTI.  The
     // physics adapter can therefore resolve a generic contact actor exactly
@@ -321,6 +331,22 @@ public:
     bool destroyed = false;
 
 protected:
+    void RegFrameEvent();
+    void UnregFrameEvent() noexcept;
+    void RegProgressEvent() noexcept;
+    void UnregProgressEvent() noexcept;
+    void RegLateProgressEvent();
+    void UnregLateProgressEvent() noexcept;
+    void RegFixedStepEvent();
+    void UnregFixedStepEvent() noexcept;
+    void SetSyncFrameEvent(bool value);
+    void SetBodyProgressEvent(bool value);
+    void OnFixedStep(float deltaTime) noexcept override;
+    void OnLateProgress(
+        float deltaTime, bool physicsStep) noexcept override;
+    void OnFrame(
+        float deltaTime, float physicsAlpha) noexcept override;
+
     // GameObject.cpp releases the old concrete object before propagating a
     // new Logic through children, then initializes the concrete object.
     virtual void LogicReleased() noexcept {}
@@ -359,6 +385,12 @@ private:
     Vector3 position_{};
     Vector3 scale_{1.0F, 1.0F, 1.0F};
     Quaternion rotation_{0.0F, 0.0F, 0.0F, 1.0F};
+    unsigned frameEventCount_ = 0U;
+    unsigned progressEventCount_ = 0U;
+    unsigned lateProgressEventCount_ = 0U;
+    unsigned fixedStepEventCount_ = 0U;
+    bool syncFrameEvent_ = false;
+    bool bodyProgressEvent_ = false;
     bool objectDestroyed_ = false;
 };
 

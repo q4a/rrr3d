@@ -217,6 +217,12 @@ public:
     void DetachWorld() noexcept;
     WorldEventPump* GetWorld() noexcept;
     const WorldEventPump* GetWorld() const noexcept;
+    void RegFixedStepEvent(FixedStepEvent* event);
+    void UnregFixedStepEvent(FixedStepEvent* event) noexcept;
+    void RegLateProgressEvent(LateProgressEvent* event);
+    void UnregLateProgressEvent(LateProgressEvent* event) noexcept;
+    void RegFrameEvent(FrameEvent* event);
+    void UnregFrameEvent(FrameEvent* event) noexcept;
     void OnLogicProgress(float deltaTime) override;
     const ProgressResult& GetLastProgressResult() const noexcept;
 

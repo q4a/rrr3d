@@ -364,6 +364,42 @@ void Logic::DetachWorld() noexcept
 WorldEventPump* Logic::GetWorld() noexcept { return world_; }
 const WorldEventPump* Logic::GetWorld() const noexcept { return world_; }
 
+void Logic::RegFixedStepEvent(FixedStepEvent* event)
+{
+    if (world_ != nullptr)
+        world_->RegFixedStepEvent(event);
+}
+
+void Logic::UnregFixedStepEvent(FixedStepEvent* event) noexcept
+{
+    if (world_ != nullptr)
+        world_->UnregFixedStepEvent(event);
+}
+
+void Logic::RegLateProgressEvent(LateProgressEvent* event)
+{
+    if (world_ != nullptr)
+        world_->RegLateProgressEvent(event);
+}
+
+void Logic::UnregLateProgressEvent(LateProgressEvent* event) noexcept
+{
+    if (world_ != nullptr)
+        world_->UnregLateProgressEvent(event);
+}
+
+void Logic::RegFrameEvent(FrameEvent* event)
+{
+    if (world_ != nullptr)
+        world_->RegFrameEvent(event);
+}
+
+void Logic::UnregFrameEvent(FrameEvent* event) noexcept
+{
+    if (world_ != nullptr)
+        world_->UnregFrameEvent(event);
+}
+
 void Logic::OnLogicProgress(float deltaTime)
 {
     lastProgressResult_ = OnProgress(deltaTime);

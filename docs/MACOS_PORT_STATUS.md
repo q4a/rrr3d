@@ -2529,3 +2529,17 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   переводит готовый source plan в Jolt world/runtime объект.
 - Invalid DeathEffect/type paths не потребляют RNG; unit и полный mortar
   integration закрепляют это вместе с continuous crater damage.
+
+### Source GameObject event/Jolt bridge follow-up
+
+- Возвращены source reference counters frame/progress/late/fixed и точный
+  `SetLogic` unregister/re-register порядок; progress остаётся не подключён к
+  World, как в закомментированной Windows ветви.
+- `GameCar` снова регистрируется на fixed-step в constructor/destructor, а
+  Jolt per-vehicle callback адресно dispatch-ит только этот объект без
+  второго physics step или N×N обновления машин.
+- Jolt awake/sleep управляет исходной парой late+frame registrations;
+  network correction удерживает второй frame reference. Спящее тело отдаёт
+  renderer последний source graph state.
+- Regression, arm64 build, physics smoke и 360-frame bgfx/Metal race smoke с
+  шестью машинами прошли.

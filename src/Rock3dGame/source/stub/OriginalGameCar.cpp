@@ -162,10 +162,14 @@ private:
     GameCar* car_ = nullptr;
 };
 
-GameCar::GameCar() = default;
+GameCar::GameCar()
+{
+    RegFixedStepEvent();
+}
 
 GameCar::GameCar(const GameCar& other) : GameObject(other)
 {
+    RegFixedStepEvent();
     *this = other;
 }
 
@@ -252,6 +256,7 @@ GameCar& GameCar::operator=(GameCar&& other) noexcept
 
 GameCar::~GameCar()
 {
+    UnregFixedStepEvent();
     // GameCar::~GameCar in the Windows source repeats Destroy after
     // RockCar::~RockCar; the idempotent guard makes this safe for a bare
     // GameCar while retaining the original listener lifecycle.
@@ -413,6 +418,8 @@ void GameCar::Reset() noexcept
             wheel->SetContact(false, 0.0F, 0.0F, 0.0F, 0.0F);
         }
     }
+    SetSyncFrameEvent(false);
+    SetBodyProgressEvent(false);
     GetFrameSync().Reset();
     if (soundMotor_ != nullptr)
         soundMotor_->Reset();
@@ -450,10 +457,11 @@ GameCar::ProgressResult GameCar::OnProgress(float deltaTime) noexcept
 GameCar::PxSyncState GameCar::OnPxSync(
     PxSyncPose physicalBody,
     const std::vector<PxSyncPose>& physicalWheels,
-    float deltaTime) noexcept
+    float deltaTime, float physicsAlpha) noexcept
 {
     PxSyncState state;
-    state.body = GetFrameSync().OnFrame(physicalBody, deltaTime);
+    state.body = GetFrameSync().OnFrame(
+        physicalBody, deltaTime, physicsAlpha);
     const std::size_t count = std::min(
         wheels_.size(), physicalWheels.size());
     state.wheels.reserve(count);
@@ -465,6 +473,55 @@ GameCar::PxSyncState GameCar::OnPxSync(
             physicalBody, state.body, physicalWheels[index]));
     }
     return state;
+}
+
+GameCar::PxSyncState GameCar::DispatchPxSync(
+    WorldEventPump& world, PxSyncPose physicalBody,
+    const std::vector<PxSyncPose>& physicalWheels,
+    float deltaTime, float physicsAlpha) noexcept
+{
+    pendingPhysicalBody_ = physicalBody;
+    pendingPhysicalWheels_ = &physicalWheels;
+    pxSyncPending_ = true;
+    const bool dispatched = world.DispatchFrameEvent(
+        this, deltaTime, physicsAlpha);
+    pxSyncPending_ = false;
+    pendingPhysicalWheels_ = nullptr;
+    if (dispatched && pxSyncInitialized_)
+        return lastPxSyncState_;
+    if (pxSyncInitialized_)
+        return lastPxSyncState_;
+
+    // An object which has never woken has no source frame registration.
+    // Preserve its physical pose without advancing correction state.
+    PxSyncState state;
+    state.body = physicalBody;
+    state.wheels = physicalWheels;
+    return state;
+}
+
+GameObjectFrameSync::NetworkCorrection GameCar::SynchronizeNetworkPose(
+    GameObjectFrameSync::Vector physicsPosition,
+    GameObjectFrameSync::Vector graphPosition,
+    GameObjectFrameSync::Quaternion graphRotation,
+    GameObjectFrameSync::Vector targetPosition,
+    GameObjectFrameSync::Quaternion targetRotation) noexcept
+{
+    auto result = GetFrameSync().OnNetworkPose(
+        physicsPosition, graphPosition, graphRotation,
+        targetPosition, targetRotation);
+    if (GetFrameSync().HasActiveCorrection())
+        SetSyncFrameEvent(true);
+    return result;
+}
+
+void GameCar::SynchronizePhysicsState(
+    GameObjectFrameSync::Pose pose,
+    GameObjectFrameSync::Vector linearVelocity,
+    bool awake) noexcept
+{
+    GetFrameSync().OnPhysicsState(pose, linearVelocity, awake);
+    SetBodyProgressEvent(GetFrameSync().IsBodyProgressEvent());
 }
 
 void GameCar::ConfigureMotor(MotorDescription description) noexcept
@@ -732,6 +789,39 @@ GameCar::DriveCommand GameCar::OnFixedStepDrive(
         deltaTime, command.rpm,
         motor_.idlingRpm, motor_.maximumRpm);
     return command;
+}
+
+GameCar::DriveCommand GameCar::DispatchFixedStepDrive(
+    WorldEventPump& world, float deltaTime,
+    FixedStepInput input, FixedStepState state) noexcept
+{
+    pendingFixedStepInput_ = input;
+    pendingFixedStepState_ = state;
+    pendingFixedStepCommand_ = {};
+    fixedStepPending_ = true;
+    fixedStepDispatched_ = false;
+    world.DispatchFixedStepEvent(this, deltaTime);
+    fixedStepPending_ = false;
+    return fixedStepDispatched_ ? pendingFixedStepCommand_ : DriveCommand{};
+}
+
+void GameCar::OnFixedStep(float deltaTime) noexcept
+{
+    if (!fixedStepPending_)
+        return;
+    pendingFixedStepCommand_ = OnFixedStepDrive(
+        deltaTime, pendingFixedStepInput_, pendingFixedStepState_);
+    fixedStepDispatched_ = true;
+}
+
+void GameCar::OnFrame(float deltaTime, float physicsAlpha) noexcept
+{
+    if (!pxSyncPending_ || pendingPhysicalWheels_ == nullptr)
+        return;
+    lastPxSyncState_ = OnPxSync(
+        pendingPhysicalBody_, *pendingPhysicalWheels_,
+        deltaTime, physicsAlpha);
+    pxSyncInitialized_ = true;
 }
 
 int GameCar::GearUp() noexcept

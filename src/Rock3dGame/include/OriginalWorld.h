@@ -86,6 +86,22 @@ public:
     void LateProgress(float deltaTime, bool physicsStep);
     void FrameStep(float deltaTime, float physicsAlpha);
 
+    // Jolt exposes one callback per vehicle inside a world substep.  Calling
+    // FixedStep there would advance every registered GameCar once per car.
+    // These address-specific adapters preserve the World registration gate
+    // while dispatching only the source object represented by that callback.
+    bool DispatchFixedStepEvent(
+        FixedStepEvent* event, float deltaTime);
+    bool DispatchFrameEvent(
+        FrameEvent* event, float deltaTime, float physicsAlpha);
+    bool HasFixedStepEvent(const FixedStepEvent* event) const noexcept;
+    bool HasLateProgressEvent(
+        const LateProgressEvent* event) const noexcept;
+    bool HasFrameEvent(const FrameEvent* event) const noexcept;
+    std::size_t FixedStepEventCount() const noexcept;
+    std::size_t LateProgressEventCount() const noexcept;
+    std::size_t FrameEventCount() const noexcept;
+
     void Pause(bool paused) noexcept;
     bool IsPaused() const noexcept;
     void ResetInput(bool reset) noexcept;

@@ -101,6 +101,27 @@ private:
     bool removeOnProgress = false;
 };
 
+struct EventRegistrationProbe final : source::GameObject
+{
+    void AddFrame() { RegFrameEvent(); }
+    void DropFrame() { UnregFrameEvent(); }
+    void AddProgress() { RegProgressEvent(); }
+    void DropProgress() { UnregProgressEvent(); }
+    void AddLate() { RegLateProgressEvent(); }
+    void DropLate() { UnregLateProgressEvent(); }
+    void AddFixed() { RegFixedStepEvent(); }
+    void DropFixed() { UnregFixedStepEvent(); }
+
+    int fixedCalls = 0;
+    int lateCalls = 0;
+    int frameCalls = 0;
+
+protected:
+    void OnFixedStep(float) noexcept override { ++fixedCalls; }
+    void OnLateProgress(float, bool) noexcept override { ++lateCalls; }
+    void OnFrame(float, float) noexcept override { ++frameCalls; }
+};
+
 } // namespace
 
 int main()
@@ -205,6 +226,56 @@ int main()
         assignTarget.GetLife() != 10.0F ||
         assignTarget.GetName() != "targetName")
         return 63;
+
+    source::WorldEventPump firstEventWorld;
+    source::WorldEventPump secondEventWorld;
+    source::Logic firstEventLogic;
+    source::Logic secondEventLogic;
+    firstEventLogic.AttachWorld(&firstEventWorld);
+    secondEventLogic.AttachWorld(&secondEventWorld);
+    EventRegistrationProbe eventProbe;
+    eventProbe.AddFixed();
+    eventProbe.AddFixed();
+    eventProbe.AddLate();
+    eventProbe.AddFrame();
+    eventProbe.AddProgress();
+    eventProbe.SetLogic(&firstEventLogic);
+    if (eventProbe.GetFixedStepEventCount() != 2U ||
+        eventProbe.GetLateProgressEventCount() != 1U ||
+        eventProbe.GetFrameEventCount() != 1U ||
+        eventProbe.GetProgressEventCount() != 1U ||
+        firstEventWorld.FixedStepEventCount() != 1U ||
+        firstEventWorld.LateProgressEventCount() != 1U ||
+        firstEventWorld.FrameEventCount() != 1U)
+        return 101;
+    if (!firstEventWorld.DispatchFixedStepEvent(&eventProbe, 0.01F) ||
+        !firstEventWorld.DispatchFrameEvent(&eventProbe, 0.01F, 0.5F) ||
+        eventProbe.fixedCalls != 1 || eventProbe.frameCalls != 1)
+        return 102;
+    firstEventWorld.LateProgress(0.01F, true);
+    if (eventProbe.lateCalls != 1)
+        return 103;
+    eventProbe.SetLogic(&secondEventLogic);
+    if (firstEventWorld.FixedStepEventCount() != 0U ||
+        firstEventWorld.LateProgressEventCount() != 0U ||
+        firstEventWorld.FrameEventCount() != 0U ||
+        !secondEventWorld.HasFixedStepEvent(&eventProbe) ||
+        !secondEventWorld.HasLateProgressEvent(&eventProbe) ||
+        !secondEventWorld.HasFrameEvent(&eventProbe))
+        return 104;
+    eventProbe.DropFixed();
+    if (!secondEventWorld.HasFixedStepEvent(&eventProbe) ||
+        eventProbe.GetFixedStepEventCount() != 1U)
+        return 105;
+    eventProbe.DropFixed();
+    eventProbe.DropLate();
+    eventProbe.DropFrame();
+    eventProbe.DropProgress();
+    if (secondEventWorld.FixedStepEventCount() != 0U ||
+        secondEventWorld.LateProgressEventCount() != 0U ||
+        secondEventWorld.FrameEventCount() != 0U ||
+        eventProbe.GetProgressEventCount() != 0U)
+        return 106;
 
     source::GameObject proxySource;
     proxySource.ResetGameObject(80.0F);

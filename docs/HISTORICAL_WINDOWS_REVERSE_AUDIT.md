@@ -4965,6 +4965,33 @@ ignoreSenderCar, а также два отрицательных gate: отсу�
 неверный child type. Полный mortar integration по-прежнему проверяет crater
 continuous damage и owner filtering.
 
+### P2.213 — `GameObject` event registration и Jolt fixed-step bridge восстановлены — выполнено
+
+Сверка `GameObject::Reg/UnregFrameEvent`, `Reg/UnregProgressEvent`,
+`Reg/UnregLateProgressEvent`, `Reg/UnregFixedStepEvent`, `SetLogic`,
+`SetSyncFrameEvent`, `SetBodyProgressEvent` и конструктора/деструктора
+`GameCar` подтвердила, что portable object graph полностью утратил четыре
+source-счётчика. `GameCar` вызывался из Jolt напрямую независимо от
+регистрации, а awake/sleep и network correction не управляли списками
+frame/late callbacks.
+
+Четыре счётчика и точный `SetLogic` unregister/re-register order возвращены.
+Как и в Windows, progress counter сохраняется, но его World-вызовы остаются
+закомментированной source-ветвью. `GameCar` регистрирует fixed-step в
+конструкторе и снимает его до derived destruction. Jolt callback теперь
+делает адресный `WorldEventPump::DispatchFixedStepEvent` для одной машины:
+общий `World::FixedStep` внутри per-vehicle callback не вызывается и N×N либо
+двойного шага физики не возникает.
+
+После Jolt solver state `SynchronizePhysicsState` включает/выключает исходную
+пару late+frame по awake/sleep, а network correction удерживает второй frame
+reference. `DispatchPxSync` вызывает только зарегистрированный source frame;
+спящее тело использует последний готовый graph state. Regression проверяет
+reference counts, перенос одного объекта между двумя Logic/World, отсутствие
+portable progress registration, единственный torque/gear dispatch, awake,
+sleep и correction gate. Полные physics и 360-frame Metal smokes подтвердили
+шесть движущихся машин без повторного source step.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

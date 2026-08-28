@@ -385,6 +385,8 @@ GameObject::GameObject()
 
 GameObject::~GameObject()
 {
+    SetSyncFrameEvent(false);
+    SetBodyProgressEvent(false);
     DestroyObject();
     if (behaviors_ != nullptr)
         behaviors_->Clear();
@@ -556,12 +558,106 @@ const MapObj* GameObject::GetMapObj() const noexcept { return mapObj_; }
 void GameObject::SetMapObj(MapObj* value) noexcept { mapObj_ = value; }
 Logic* GameObject::GetLogic() noexcept { return logic_; }
 const Logic* GameObject::GetLogic() const noexcept { return logic_; }
+
+void GameObject::RegFrameEvent()
+{
+    if (++frameEventCount_ == 1U && logic_ != nullptr)
+        logic_->RegFrameEvent(this);
+}
+
+void GameObject::UnregFrameEvent() noexcept
+{
+    if (frameEventCount_ == 0U)
+        return;
+    if (--frameEventCount_ == 0U && logic_ != nullptr)
+        logic_->UnregFrameEvent(this);
+}
+
+void GameObject::RegProgressEvent() noexcept
+{
+    // The two Logic::RegProgressEvent calls are commented out in the
+    // original GameObject.cpp. Retain the counter without inventing a World
+    // registration which the Windows game never made.
+    ++progressEventCount_;
+}
+
+void GameObject::UnregProgressEvent() noexcept
+{
+    if (progressEventCount_ != 0U)
+        --progressEventCount_;
+}
+
+void GameObject::RegLateProgressEvent()
+{
+    if (++lateProgressEventCount_ == 1U && logic_ != nullptr)
+        logic_->RegLateProgressEvent(this);
+}
+
+void GameObject::UnregLateProgressEvent() noexcept
+{
+    if (lateProgressEventCount_ == 0U)
+        return;
+    if (--lateProgressEventCount_ == 0U && logic_ != nullptr)
+        logic_->UnregLateProgressEvent(this);
+}
+
+void GameObject::RegFixedStepEvent()
+{
+    if (++fixedStepEventCount_ == 1U && logic_ != nullptr)
+        logic_->RegFixedStepEvent(this);
+}
+
+void GameObject::UnregFixedStepEvent() noexcept
+{
+    if (fixedStepEventCount_ == 0U)
+        return;
+    if (--fixedStepEventCount_ == 0U && logic_ != nullptr)
+        logic_->UnregFixedStepEvent(this);
+}
+
+void GameObject::SetSyncFrameEvent(bool value)
+{
+    if (syncFrameEvent_ == value)
+        return;
+    syncFrameEvent_ = value;
+    if (value)
+        RegFrameEvent();
+    else
+        UnregFrameEvent();
+}
+
+void GameObject::SetBodyProgressEvent(bool value)
+{
+    if (bodyProgressEvent_ == value)
+        return;
+    bodyProgressEvent_ = value;
+    if (value)
+    {
+        RegLateProgressEvent();
+        RegFrameEvent();
+    }
+    else
+    {
+        UnregLateProgressEvent();
+        UnregFrameEvent();
+    }
+}
+
 void GameObject::SetLogic(Logic* value) noexcept
 {
     if (logic_ == value)
         return;
     if (logic_ != nullptr)
+    {
+        if (frameEventCount_ > 0U)
+            logic_->UnregFrameEvent(this);
+        // Original GameObject.cpp deliberately does not register progress.
+        if (lateProgressEventCount_ > 0U)
+            logic_->UnregLateProgressEvent(this);
+        if (fixedStepEventCount_ > 0U)
+            logic_->UnregFixedStepEvent(this);
         LogicReleased();
+    }
     logic_ = value;
     for (auto* child : children_)
     {
@@ -569,7 +665,64 @@ void GameObject::SetLogic(Logic* value) noexcept
             child->SetLogic(value);
     }
     if (logic_ != nullptr)
+    {
+        if (frameEventCount_ > 0U)
+            logic_->RegFrameEvent(this);
+        if (lateProgressEventCount_ > 0U)
+            logic_->RegLateProgressEvent(this);
+        if (fixedStepEventCount_ > 0U)
+            logic_->RegFixedStepEvent(this);
         LogicInited();
+    }
+}
+
+unsigned GameObject::GetFrameEventCount() const noexcept
+{
+    return frameEventCount_;
+}
+
+unsigned GameObject::GetProgressEventCount() const noexcept
+{
+    return progressEventCount_;
+}
+
+unsigned GameObject::GetLateProgressEventCount() const noexcept
+{
+    return lateProgressEventCount_;
+}
+
+unsigned GameObject::GetFixedStepEventCount() const noexcept
+{
+    return fixedStepEventCount_;
+}
+
+bool GameObject::IsSyncFrameEvent() const noexcept
+{
+    return syncFrameEvent_;
+}
+
+bool GameObject::IsBodyProgressEvent() const noexcept
+{
+    return bodyProgressEvent_;
+}
+
+void GameObject::OnFixedStep(float deltaTime) noexcept
+{
+    static_cast<void>(deltaTime);
+}
+
+void GameObject::OnLateProgress(
+    float deltaTime, bool physicsStep) noexcept
+{
+    static_cast<void>(deltaTime);
+    static_cast<void>(physicsStep);
+}
+
+void GameObject::OnFrame(
+    float deltaTime, float physicsAlpha) noexcept
+{
+    static_cast<void>(deltaTime);
+    static_cast<void>(physicsAlpha);
 }
 
 Proj* GameObject::IsProj() noexcept { return nullptr; }
