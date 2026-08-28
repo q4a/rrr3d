@@ -1350,6 +1350,35 @@ Proj::FreeProgressResult Proj::ProgressFree(
     return result;
 }
 
+Proj::PlacedMineProgressResult Proj::ProgressPlacedMine(
+    Vec3 position, Quat rotation,
+    float deltaTime, float armingDelay) noexcept
+{
+    PlacedMineProgressResult result;
+    if (!prepared_)
+        return result;
+
+    SyncSourceTransform(position, rotation);
+    const auto progress = RouteProgress();
+    if (progress.mineArming)
+    {
+        if (progress.handler == ProgressHandler::MineRip)
+        {
+            const auto mineRip = ProgressMineRip(
+                deltaTime, armingDelay);
+            result.arming = mineRip.arming;
+            result.split = mineRip.split;
+        }
+        else
+        {
+            result.arming = ProgressMine(
+                deltaTime, armingDelay);
+        }
+    }
+    result.valid = true;
+    return result;
+}
+
 Proj::ContactRoute Proj::RouteContact(
     bool targetDestroyed) const noexcept
 {

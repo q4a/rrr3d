@@ -4795,6 +4795,21 @@ Thunder cooldown/reflection и запись итоговых position/velocity. 
 больше нет прямых вызовов `ProgressRocket`, `ProgressResonanse` или
 `ProgressThunder`.
 
+### P2.205 — placed mine progress dispatcher возвращён source owner — выполнено
+
+Maslo/Mine/MineRip/MineProton оставались последним runtime path, где session
+сам выбирал между `ProgressMine` и `ProgressMineRip`, отдельно переносил
+arming alpha и синхронизировал transform до backend ballistic integration.
+Теперь `Proj::ProgressPlacedMine` выполняет concrete type dispatch, source
+arming/model scale, MineRip split decision и окончательный graph transform.
+
+Session отвечает только за Jolt-подобное движение автономных fragments,
+контакт с track plane, создание nested descriptor children и collision/network
+authority. Source transform записывается после integration, поэтому concrete
+Proj/DeathEffect больше не остаётся на позиции предыдущего кадра. Прямые
+`ProgressMine/ProgressMineRip` вызовы из session удалены. Regression проверяет
+arming completion, model scale и итоговую position/rotation placed Maslo.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

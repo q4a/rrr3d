@@ -76,7 +76,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `Trace` | `source::{Trace,WayPath,WayNode,WayPoint}` | Source owner, active race/debug path | Editor serialization остаётся вне пользовательской игры; gameplay geometry и TraceGfx используют один owner |
 | `TraceGfx` | `source::TraceGfx` + transient bgfx submission | Source owner, active F6 path | Selection/link/geometry/material policy source-owned; D3D9 Box/Sprite/DrawPrimitiveUP заменены backend triangles |
 | `View` | SDL window/input + bgfx device | Backend boundary | Перенести source view policy: reset/display/input coordinate lifecycle |
-| `Weapon` | `source::{Weapon,Proj,AutoProj,WeaponItem...}` | Source owner, active shot/contact/progress core | Shot preparation, attached и free progress dispatch выполнены; остались Jolt actor integration/query adapters и автономные mine backend loops |
+| `Weapon` | `source::{Weapon,Proj,AutoProj,WeaponItem...}` | Source owner, active shot/contact/progress core | Shot preparation и все active Proj progress dispatch выполнены; остались Jolt actor integration/query, nested spawning и network authority adapters |
 | `World` | `source::WorldEventPump` + native `WorldHost` | Source owner, event core | Подключить к спискам все race objects/environment/network adapters вместо оставшихся session loops |
 
 ## Очередь крупных блоков

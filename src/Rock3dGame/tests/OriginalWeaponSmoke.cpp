@@ -1387,6 +1387,18 @@ int main()
         oilProjectile.GetSourceModel()->GetGameObj().GetScale() !=
             source::GameObject::Vector3{0.4F, 0.4F, 0.4F})
         return 118;
+    const auto placedOil = oilProjectile.ProgressPlacedMine(
+        {7.0F, 8.0F, 9.0F},
+        {0.0F, 0.0F, 0.70710677F, 0.70710677F},
+        0.15F);
+    if (!placedOil.valid || !placedOil.arming.armed ||
+        placedOil.arming.visualScale != 1.0F ||
+        oilProjectile.GetWorldPos() !=
+            source::GameObject::Vector3{7.0F, 8.0F, 9.0F} ||
+        oilProjectile.GetWorldRot() !=
+            source::GameObject::Quaternion{
+                0.0F, 0.0F, 0.70710677F, 0.70710677F})
+        return 187;
     if (source::Proj::MineContactAllowed(
             true, true, true, true, -1.0F, false) ||
         source::Proj::MineContactAllowed(

@@ -5835,36 +5835,12 @@ void OriginalRaceSession::updateGameplay(
         }
         const auto& mineDefinition =
             mine.sourceObject->GetDesc();
-        mine.sourceObject->SyncSourceTransform(
-            source::Proj::Vec3{
-                mine.position.x, mine.position.y, mine.position.z},
-            source::Proj::Quat{
-                mine.rotation.x, mine.rotation.y,
-                mine.rotation.z, mine.rotation.w});
         const auto mineProgressRoute =
             mine.sourceObject->RouteProgress();
         const float mineSeconds =
             mine.sourceObject->GetTimeLife();
         const float mineMaximumLife =
             mine.sourceObject->GetMaxTimeLife();
-        source::Proj::MineRipUpdateResult mineRipProgress;
-        if (mineProgressRoute.mineArming)
-        {
-            source::Proj::MineUpdateResult arming;
-            if (mineProgressRoute.handler ==
-                source::Proj::ProgressHandler::MineRip)
-            {
-                mineRipProgress =
-                    mine.sourceObject->ProgressMineRip(seconds);
-                arming = mineRipProgress.arming;
-            }
-            else
-            {
-                arming = mine.sourceObject->ProgressMine(seconds);
-            }
-            if (arming.visualScale >= 0.0F)
-                mine.armingAlpha = arming.visualScale;
-        }
         if (length2(mine.velocity) > 0.0F ||
             std::abs(mine.velocity.z) > 0.0F)
         {
@@ -5886,6 +5862,13 @@ void OriginalRaceSession::updateGameplay(
                 mine.velocity = {};
             }
         }
+        const auto mineProgress =
+            mine.sourceObject->ProgressPlacedMine(
+                sourceVec(mine.position),
+                sourceQuat(mine.rotation), seconds);
+        if (mineProgress.arming.visualScale >= 0.0F)
+            mine.armingAlpha =
+                mineProgress.arming.visualScale;
         if (mineMaximumLife > 0.0F &&
             mineSeconds > mineMaximumLife)
         {
@@ -5897,7 +5880,7 @@ void OriginalRaceSession::updateGameplay(
             source::Proj::ProgressHandler::MineRip)
         {
             const auto& projectile = mineDefinition;
-            if (mineRipProgress.split)
+            if (mineProgress.split)
             {
                 if (projectile.secondaryProjectile.valid)
                 {

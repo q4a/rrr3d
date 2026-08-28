@@ -289,6 +289,13 @@ public:
         bool valid = false;
     };
 
+    struct PlacedMineProgressResult
+    {
+        MineUpdateResult arming{};
+        bool split = false;
+        bool valid = false;
+    };
+
     enum class PrepareHandler : std::uint8_t
     {
         None,
@@ -535,6 +542,9 @@ public:
         float deltaTime, bool trackHit, float trackZ,
         float boxHalfExtentZ, bool shotTransparencyContact,
         Vec3 contactNormal) noexcept;
+    PlacedMineProgressResult ProgressPlacedMine(
+        Vec3 position, Quat rotation,
+        float deltaTime, float armingDelay = 0.25F) noexcept;
     void ProgressDrobilka(float deltaTime) noexcept;
 
     Proj();

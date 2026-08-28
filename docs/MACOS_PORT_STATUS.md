@@ -2442,3 +2442,13 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   0.4-секундный `_time1`, а не замораживают его до появления target.
 - Regression проверяет no-target timer, накопленный clearance, reflection
   velocity/cooldown и итоговую concrete source pose.
+
+### Source placed-mine progress follow-up
+
+- Maslo/Mine/MineRip/MineProton arming и split dispatch объединены в
+  `Proj::ProgressPlacedMine`; session больше не выбирает concrete handler.
+- Source pose теперь синхронизируется после backend fragment integration, а
+  не остаётся на предыдущей позиции до следующего кадра.
+- Session сохраняет только track-plane/ballistic adapter, nested MineRip
+  spawning, contact queries и network authority.
+- Regression закрепляет arming/model scale и финальную placed-mine pose.
