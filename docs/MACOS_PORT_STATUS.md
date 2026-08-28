@@ -2431,3 +2431,14 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   `Weapon`, и один source quaternion теперь читают renderer и contact path.
 - Исправлен порядок вращения неединичного mount: `localRotation * deltaX`,
   как в оригинальном Windows `DrobilkaUpdate`, вместо обратного произведения.
+
+### Source free-projectile progress follow-up
+
+- `Proj::ProgressFree` теперь владеет единым source dispatch для Rocket height,
+  Resonanse rotation, Thunder cooldown/reflection и graph transform sync.
+- Session оставляет только интеграцию Jolt и backend track/border queries;
+  прямые type-specific progress вызовы из него удалены.
+- Исправлен homing без текущей цели: Torpeda/Impulse всегда уменьшают исходный
+  0.4-секундный `_time1`, а не замораживают его до появления target.
+- Regression проверяет no-target timer, накопленный clearance, reflection
+  velocity/cooldown и итоговую concrete source pose.

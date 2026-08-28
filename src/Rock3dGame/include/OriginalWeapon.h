@@ -280,6 +280,15 @@ public:
         bool valid = false;
     };
 
+    struct FreeProgressResult
+    {
+        Vec3 position{};
+        Quat rotation{};
+        Vec3 linearVelocity{};
+        bool setLinearVelocity = false;
+        bool valid = false;
+    };
+
     enum class PrepareHandler : std::uint8_t
     {
         None,
@@ -521,6 +530,11 @@ public:
         Vec3 weaponPosition, Quat weaponRotation,
         Vec3 weaponScale, Vec3 weaponLinearVelocity,
         float deltaTime) noexcept;
+    FreeProgressResult ProgressFree(
+        Vec3 position, Quat rotation, Vec3 linearVelocity,
+        float deltaTime, bool trackHit, float trackZ,
+        float boxHalfExtentZ, bool shotTransparencyContact,
+        Vec3 contactNormal) noexcept;
     void ProgressDrobilka(float deltaTime) noexcept;
 
     Proj();

@@ -1234,6 +1234,14 @@ int main()
         std::abs(concreteTorpedaAimed.linearVelocity.y - 20.0F) >
             0.001F)
         return 116;
+    source::Proj noTargetTorpeda;
+    noTargetTorpeda.PrepareSource(
+        torpedaDescription, &sourceWeapon,
+        torpedaContext);
+    noTargetTorpeda.ProgressTorpeda(
+        0.1F, {}, {}, false, {});
+    if (std::abs(noTargetTorpeda.GetSourceTimer() - 0.3F) > 0.001F)
+        return 185;
 
     if (std::abs(source::Proj::ThunderUpdate(0.1F, 0.16F) + 0.06F) >
         0.001F)
@@ -1267,6 +1275,18 @@ int main()
              .setLinearVelocity ||
         std::abs(thunderProjectile.GetSourceTimer() - 0.1F) > 0.001F)
         return 117;
+    thunderProjectile.ProgressRocket(
+        5.0F, 2.0F, 1.0F, true);
+    const auto freeThunder = thunderProjectile.ProgressFree(
+        {0.0F, 0.0F, 5.0F}, {},
+        {10.0F, 0.0F, 0.0F}, 0.16F,
+        true, 0.0F, 1.0F, true,
+        {1.0F, 0.0F, 0.0F});
+    if (!freeThunder.valid || !freeThunder.setLinearVelocity ||
+        std::abs(freeThunder.position.z - 3.0F) > 0.001F ||
+        std::abs(freeThunder.linearVelocity.x + 10.0F) > 0.001F ||
+        std::abs(thunderProjectile.GetSourceTimer() - 0.1F) > 0.001F)
+        return 186;
 
     const auto resonance = source::Proj::ResonanseUpdate(
         {}, 3.14159265358979323846F, 0.5F);

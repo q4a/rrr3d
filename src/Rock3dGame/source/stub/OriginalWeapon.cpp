@@ -1307,6 +1307,49 @@ Proj::AttachedProgressResult Proj::ProgressAttached(
     return result;
 }
 
+Proj::FreeProgressResult Proj::ProgressFree(
+    Vec3 position, Quat rotation, Vec3 linearVelocity,
+    float deltaTime, bool trackHit, float trackZ,
+    float boxHalfExtentZ, bool shotTransparencyContact,
+    Vec3 contactNormal) noexcept
+{
+    FreeProgressResult result;
+    if (!prepared_ || RoutePreparation().attached)
+        return result;
+
+    result.position = position;
+    result.rotation = normalized(rotation);
+    result.linearVelocity = linearVelocity;
+    const auto progress = RouteProgress();
+    if (progress.rocketHeight)
+    {
+        const auto rocket = ProgressRocket(
+            result.position.z, trackZ, boxHalfExtentZ,
+            trackHit);
+        result.position.z = rocket.positionZ;
+    }
+    if (progress.handler == ProgressHandler::Resonanse)
+    {
+        result.rotation = ProgressResonanse(
+            result.rotation, deltaTime);
+    }
+    if (progress.handler == ProgressHandler::Thunder &&
+        ProgressThunder(deltaTime) <= 0.0F)
+    {
+        const auto contact = ContactThunder(
+            result.linearVelocity, contactNormal,
+            shotTransparencyContact);
+        if (contact.setLinearVelocity)
+        {
+            result.linearVelocity = contact.linearVelocity;
+            result.setLinearVelocity = true;
+        }
+    }
+    SyncSourceTransform(result.position, result.rotation);
+    result.valid = true;
+    return result;
+}
+
 Proj::ContactRoute Proj::RouteContact(
     bool targetDestroyed) const noexcept
 {

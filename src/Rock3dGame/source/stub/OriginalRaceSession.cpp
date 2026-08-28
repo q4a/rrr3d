@@ -4292,17 +4292,20 @@ void OriginalRaceSession::updateGameplay(
             }
             continue;
         }
-        if (sourceProgressRoute.homing &&
-            projectile.target < vehicles.size())
+        if (sourceProgressRoute.homing)
         {
             const bool hasTarget =
+                projectile.target < vehicles.size() &&
                 projectile.target < racers_.size() &&
                 !racers_[projectile.target].IsDestroyed();
+            const Vec3 targetPosition = hasTarget
+                ? vehicles[projectile.target].body.position
+                : Vec3{};
             const auto update =
                 projectile.sourceObject->ProgressTorpeda(
                 seconds, sourceVec(projectile.position),
                 sourceQuat(projectile.rotation), hasTarget,
-                sourceVec(vehicles[projectile.target].body.position));
+                sourceVec(targetPosition));
             if (update.setLinearVelocity)
             {
                 projectile.rotation = runtimeQuat(update.rotation);
@@ -4329,61 +4332,50 @@ void OriginalRaceSession::updateGameplay(
         if (length3(movement) > 0.0001F)
             projectile.direction = normalized3(movement);
         projectile.distance += step;
-        const bool sourceRocketUpdate =
-            sourceProgressRoute.rocketHeight;
-        if (sourceRocketUpdate)
+        TrackRayHit trackHit;
+        if (sourceProgressRoute.rocketHeight)
         {
             // Proj::RocketUpdate casts from pos + Z*4 against TrackPlane and
             // preserves the projectile's lowest established clearance.
-            const auto trackHit = raycastTrackPlane(
+            trackHit = raycastTrackPlane(
                 race_, add(projectile.position, {0.0F, 0.0F, 4.0F}));
-            const auto update =
-                projectile.sourceObject->ProgressRocket(
-                projectile.position.z, trackHit.position.z,
+        }
+        Vec3 thunderNormal;
+        bool thunderBorderContact = false;
+        if (sourceProgressRoute.handler ==
+                source::Proj::ProgressHandler::Thunder &&
+            length3(projectile.velocity) > 5.0F)
+        {
+            Transform thunderTransform;
+            thunderTransform.position = projectile.position;
+            thunderTransform.rotation = projectile.rotation;
+            thunderBorderContact = trackBorderContact(
+                race_, orientedBox(
+                           thunderTransform,
+                           projectileDefinition.collision),
+                thunderNormal);
+        }
+        const auto freeProgress =
+            projectile.sourceObject->ProgressFree(
+                sourceVec(projectile.position),
+                sourceQuat(projectile.rotation),
+                sourceVec(projectile.velocity), seconds,
+                trackHit.hit, trackHit.position.z,
                 projectileDefinition.collision.halfExtents.z,
-                trackHit.hit);
-            projectile.position.z = update.positionZ;
-        }
-        if (sourceProgressRoute.handler ==
-                source::Proj::ProgressHandler::Resonanse &&
-            std::abs(projectileDefinition.angularSpeed) > 0.0001F)
+                thunderBorderContact,
+                sourceVec(thunderNormal));
+        if (freeProgress.valid)
         {
-            projectile.rotation = runtimeQuat(
-                projectile.sourceObject->ProgressResonanse(
-                    sourceQuat(projectile.rotation), seconds));
-        }
-        projectile.sourceObject->SyncSourceTransform(
-            sourceVec(projectile.position),
-            sourceQuat(projectile.rotation));
-        if (sourceProgressRoute.handler ==
-            source::Proj::ProgressHandler::Thunder)
-        {
-            if (projectile.sourceObject->ProgressThunder(seconds) <= 0.0F)
+            projectile.position = runtimeVec(freeProgress.position);
+            projectile.rotation = runtimeQuat(freeProgress.rotation);
+            if (freeProgress.setLinearVelocity)
             {
-                Transform thunderTransform;
-                thunderTransform.position = projectile.position;
-                thunderTransform.rotation = projectile.rotation;
-                Vec3 normal;
-                const bool borderContact =
-                    length3(projectile.velocity) > 5.0F &&
-                    trackBorderContact(
-                        race_, orientedBox(
-                                   thunderTransform,
-                                   projectileDefinition.collision),
-                        normal);
-                const auto contact =
-                    projectile.sourceObject->ContactThunder(
-                    sourceVec(projectile.velocity), sourceVec(normal),
-                    borderContact);
-                if (contact.setLinearVelocity)
-                {
-                    projectile.velocity =
-                        runtimeVec(contact.linearVelocity);
-                    projectile.direction =
-                        normalized3(projectile.velocity);
-                    // ThunderContact only changes PhysX linear velocity. The
-                    // actor/model rotation stays at the shot rotation.
-                }
+                projectile.velocity =
+                    runtimeVec(freeProgress.linearVelocity);
+                projectile.direction =
+                    normalized3(projectile.velocity);
+                // ThunderContact only changes PhysX linear velocity. The
+                // actor/model rotation stays at the shot rotation.
             }
         }
         RaceEffect fired;

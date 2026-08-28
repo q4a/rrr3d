@@ -4774,6 +4774,27 @@ Windows выполняет `weapon->GetRot() * deltaX`, тогда как пор
 Regression проверяет scale/rotation/velocity Fire, persistent Weapon spin,
 неединичный mount и правое умножение, contact actor и исчезновение эффекта.
 
+### P2.204 — free-projectile `Proj::OnProgress` dispatcher возвращён source owner — выполнено
+
+После attached-блока session всё ещё самостоятельно выбирал RocketUpdate,
+ResonanseUpdate и ThunderUpdate/Contact, мутировал position/rotation/velocity
+между отдельными вызовами и вручную синхронизировал source transform. Это
+оставляло type switch вне `Proj::OnProgress`. Также обнаружена функциональная
+ошибка: `ProgressTorpeda` вызывался только при валидном runtime target, поэтому
+исходный `_time1 = max(_time1-dt, 0)` не продвигался без цели. Получив цель
+позже, Torpeda/Impulse снова ждали полные 0.4 s вместо уже прошедшего времени.
+
+`Proj::ProgressFree` теперь единым concrete dispatch выполняет Rocket height,
+Resonanse rotation, Thunder cooldown/reflection и окончательный graph sync.
+Session интегрирует Jolt velocity/gravity и передаёт только результаты track
+ray и shot-transparency contact. Homing update вызывается каждый кадр даже без
+target; наличие цели влияет только на ветвь поворота, как в Windows.
+
+Regression закрепляет no-target timer, последовательный Rocket clearance,
+Thunder cooldown/reflection и запись итоговых position/velocity. В session
+больше нет прямых вызовов `ProgressRocket`, `ProgressResonanse` или
+`ProgressThunder`.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
