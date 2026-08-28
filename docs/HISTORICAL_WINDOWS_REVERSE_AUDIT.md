@@ -4579,6 +4579,32 @@ Opponent suppression теперь использует source `GetCarLife` ident
 полного release. Regression покрывает first fade-in, placement, repeated hit,
 edge fade, separate alphas и destroyed cleanup.
 
+### P2.196 — `PlayerStateFrame::Opponent` возвращён source owner — выполнено
+
+Прямая сверка `UpdateOpponents`, `UpdateState`, `RemoveOpponent` и
+`OnDisconnectedPlayer` подтвердила, что активный HUD всё ещё держал состояние
+opponent labels внутри bgfx adapter. Одновременно существовали поведенческие
+расхождения: текст располагался приблизительным сдвигом `-20`, collision
+center совпадал с точкой вместо label world position, car-life менял только
+alpha, но не исходный list order, а overlap пропускал скрытые предыдущие
+элементы.
+
+В `source::PlayerStateFrame` добавлены исходные `Opponent` collection и полный
+кадровый transaction. Source выполняет stable sort по убыванию места, затем
+по порядку двух car-life slots переносит targets в начало; сохраняет состояние
+скрытого уничтоженного объекта, удаляет отключившегося участника, повторяет
+edge/car-life fade `alpha - 4*dt` и считает перекрытие со всеми предыдущими
+элементами списка. Восстановлена widget-геометрия dummy/point/centered label:
+исходные clamps через text AABB minimum, отдельные point/label positions и
+радиус по text AABB либо `carLifeBack`.
+
+`OriginalRaceHud` теперь хранит только CoreText texture по racer id, получает
+camera projection и передаёт размеры backend ресурсов. Source state определяет
+draw order, visibility, позиции, radius и alpha; отключённые GPU labels
+освобождаются сразу. Regression фиксирует place order, обе экранные позиции,
+car-life move-to-front/radius/fade, edge fade, collision suppression, hidden
+lifetime, disconnect removal и Reset.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

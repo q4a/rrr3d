@@ -231,6 +231,75 @@ int main()
         playerState.HasCarLife(2U))
         return 31;
 
+    auto opponentInput = [](std::size_t racer, int place,
+                            float x, float y) {
+        source::HudOpponentInput input;
+        input.racer = racer;
+        input.place = place;
+        input.projected = {x, y};
+        input.viewportWidth = 200.0F;
+        input.viewportHeight = 100.0F;
+        input.pointWidth = 20.0F;
+        input.pointHeight = 10.0F;
+        input.carLifeBackWidth = 40.0F;
+        input.carLifeBackHeight = 15.0F;
+        input.labelWidth = 20.0F;
+        input.labelHeight = 10.0F;
+        input.labelAabbMinY = -5.0F;
+        input.targetAlive = true;
+        return input;
+    };
+    std::vector<source::HudOpponentInput> opponentInputs{
+        opponentInput(1U, 1, 20.0F, 60.0F),
+        opponentInput(2U, 3, 100.0F, 60.0F),
+        opponentInput(3U, 2, 180.0F, 60.0F)};
+    playerState.ProgressOpponents(opponentInputs, 0.1F);
+    const auto& sortedOpponents = playerState.GetOpponents();
+    if (sortedOpponents.size() != 3U ||
+        sortedOpponents[0].racer != 2U ||
+        sortedOpponents[1].racer != 3U ||
+        sortedOpponents[2].racer != 1U)
+        return 32;
+    const auto* firstOpponent = playerState.FindOpponent(1U);
+    if (firstOpponent == nullptr ||
+        !point(firstOpponent->pointPosition, 30.0F, 55.0F) ||
+        !point(firstOpponent->labelPosition, 30.0F, 50.0F) ||
+        !near(firstOpponent->radius, 20.0F) ||
+        !near(firstOpponent->alpha, 1.0F))
+        return 33;
+
+    playerState.ShowCarLife(0U, 1U, 1.0F);
+    playerState.ProgressOpponents(opponentInputs, 0.1F);
+    if (playerState.GetOpponents().front().racer != 1U ||
+        !near(playerState.GetOpponents().front().radius, 40.0F) ||
+        !near(playerState.GetOpponents().front().alpha, 0.6F))
+        return 34;
+
+    opponentInputs[1].atEdge = true;
+    playerState.ProgressOpponents(opponentInputs, 0.1F);
+    if (!near(playerState.FindOpponent(2U)->alpha, 0.6F))
+        return 35;
+    opponentInputs[1].atEdge = false;
+    opponentInputs[2].projected = opponentInputs[1].projected;
+    playerState.ProgressOpponents(opponentInputs, 0.0F);
+    if (!near(playerState.FindOpponent(2U)->alpha, 1.0F) ||
+        !near(playerState.FindOpponent(3U)->alpha, 0.0F))
+        return 36;
+
+    opponentInputs[1].targetAlive = false;
+    playerState.ProgressOpponents(opponentInputs, 0.1F);
+    if (playerState.FindOpponent(2U)->visible ||
+        !near(playerState.FindOpponent(2U)->alpha, 1.0F))
+        return 37;
+    opponentInputs.erase(opponentInputs.begin() + 1);
+    playerState.ProgressOpponents(opponentInputs, 0.1F);
+    if (playerState.FindOpponent(2U) != nullptr ||
+        playerState.GetOpponents().size() != 2U)
+        return 38;
+    playerState.Reset();
+    if (!playerState.GetOpponents().empty())
+        return 39;
+
     std::cout << "Original HudMenu smoke passed\n";
     return 0;
 }

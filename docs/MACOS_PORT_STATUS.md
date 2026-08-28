@@ -2347,3 +2347,12 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   Windows, вместо придуманного плавного fade после уничтожения.
 - Projection остаётся camera adapter, но source выполняет точный clamp и
   half-size placement; opponent label suppression читает source target graph.
+
+### Source PlayerStateFrame opponent follow-up
+
+- Opponent collection, place sort и car-life move-to-front возвращены в
+  `source::PlayerStateFrame`; CoreText cache привязан к стабильному racer id.
+- Source теперь владеет dummy/point/label layout, text/car-life radius,
+  edge fade и последовательным overlap alpha по исходному list order.
+- Уничтоженная машина скрывает widget с сохранением состояния, а disconnect
+  удаляет source item и освобождает backend label texture.

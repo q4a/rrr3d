@@ -591,12 +591,134 @@ void PlayerStateFrame::ProgressCarLife(
     item.visible = true;
 }
 
+void PlayerStateFrame::ProgressOpponents(
+    const std::vector<HudOpponentInput>& inputs,
+    float deltaTime) noexcept
+{
+    deltaTime = std::max(deltaTime, 0.0F);
+    const auto findInput = [&](std::size_t racer) {
+        return std::find_if(
+            inputs.begin(), inputs.end(),
+            [racer](const HudOpponentInput& input) {
+                return input.racer == racer;
+            });
+    };
+
+    opponents_.erase(
+        std::remove_if(
+            opponents_.begin(), opponents_.end(),
+            [&](const HudOpponent& opponent) {
+                return findInput(opponent.racer) == inputs.end();
+            }),
+        opponents_.end());
+    for (const auto& input : inputs)
+    {
+        if (input.racer == HudCarLife::invalidRacer ||
+            FindOpponent(input.racer) != nullptr)
+            continue;
+        HudOpponent opponent;
+        opponent.racer = input.racer;
+        opponents_.push_back(opponent);
+    }
+
+    std::stable_sort(
+        opponents_.begin(), opponents_.end(),
+        [&](const HudOpponent& first, const HudOpponent& second) {
+            const auto firstInput = findInput(first.racer);
+            const auto secondInput = findInput(second.racer);
+            return firstInput != inputs.end() &&
+                   secondInput != inputs.end() &&
+                   firstInput->place > secondInput->place;
+        });
+
+    // PlayerStateFrame::UpdateState sorts by place first, then moves each
+    // active car-life target to the front. With two slots the later slot
+    // therefore becomes the first entry; retain that source ordering.
+    for (const auto& carLife : carLifeItems_)
+    {
+        if (carLife.racer == HudCarLife::invalidRacer)
+            continue;
+        const auto found = std::find_if(
+            opponents_.begin(), opponents_.end(),
+            [&](const HudOpponent& opponent) {
+                return opponent.racer == carLife.racer;
+            });
+        if (found == opponents_.end())
+            continue;
+        const HudOpponent opponent = *found;
+        opponents_.erase(found);
+        opponents_.insert(opponents_.begin(), opponent);
+    }
+
+    for (auto iterator = opponents_.begin();
+         iterator != opponents_.end(); ++iterator)
+    {
+        auto& opponent = *iterator;
+        const auto input = findInput(opponent.racer);
+        if (input == inputs.end())
+            continue;
+        opponent.place = input->place;
+        opponent.visible = input->targetAlive;
+        if (!opponent.visible)
+            continue;
+
+        const bool hasCarLife = HasCarLife(opponent.racer);
+        float targetAlpha = 1.0F;
+        if (input->atEdge || hasCarLife)
+            targetAlpha = std::max(
+                opponent.alpha - 4.0F * deltaTime, 0.0F);
+
+        const float maximumX = std::max(
+            input->viewportWidth - input->pointWidth, 0.0F);
+        const float minimumY =
+            -(-input->pointHeight) - input->labelAabbMinY;
+        const float dummyX = std::clamp(
+            input->projected.x, 0.0F, maximumX);
+        const float dummyY = std::clamp(
+            input->projected.y, minimumY,
+            std::max(input->viewportHeight, minimumY));
+        opponent.pointPosition = {
+            dummyX + input->pointWidth * 0.5F,
+            dummyY - input->pointHeight * 0.5F};
+        opponent.labelPosition = {
+            dummyX + input->pointWidth * 0.5F,
+            dummyY - input->pointHeight};
+        opponent.center = opponent.labelPosition;
+        if (hasCarLife)
+        {
+            opponent.radius = std::max(
+                input->carLifeBackWidth,
+                input->carLifeBackHeight);
+        }
+        else
+        {
+            opponent.radius = std::max(
+                input->labelWidth, input->labelHeight);
+        }
+
+        float overlapAlpha = 1.0F;
+        for (auto previous = opponents_.begin(); previous != iterator;
+             ++previous)
+        {
+            const float dx = previous->center.x - opponent.center.x;
+            const float dy = previous->center.y - opponent.center.y;
+            const float distance = std::hypot(dx, dy);
+            const float radius = opponent.radius + previous->radius;
+            overlapAlpha = std::min(
+                overlapAlpha,
+                radius != 0.0F ? distance / radius : 0.0F);
+        }
+        opponent.alpha = std::min(overlapAlpha, targetAlpha);
+    }
+}
+
 void PlayerStateFrame::Reset() noexcept
 {
     nextId_ = 1U;
     pickItems_.clear();
     achievmentItems_.clear();
     carLifeItems_ = {};
+    opponents_.clear();
     for (auto& item : carLifeItems_)
         item.barAlpha = 1.0F;
 }
@@ -646,6 +768,23 @@ bool PlayerStateFrame::HasCarLife(std::size_t racer) const noexcept
         [racer](const HudCarLife& item) {
             return item.racer == racer;
         });
+}
+
+const std::vector<HudOpponent>&
+PlayerStateFrame::GetOpponents() const noexcept
+{
+    return opponents_;
+}
+
+const HudOpponent* PlayerStateFrame::FindOpponent(
+    std::size_t racer) const noexcept
+{
+    const auto found = std::find_if(
+        opponents_.begin(), opponents_.end(),
+        [racer](const HudOpponent& opponent) {
+            return opponent.racer == racer;
+        });
+    return found == opponents_.end() ? nullptr : &*found;
 }
 
 void HudMenu::Reset() noexcept

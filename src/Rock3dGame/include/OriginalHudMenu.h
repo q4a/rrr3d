@@ -136,6 +136,36 @@ struct HudCarLife
     bool visible = false;
 };
 
+struct HudOpponentInput
+{
+    std::size_t racer = HudCarLife::invalidRacer;
+    int place = 0;
+    HudPoint projected;
+    float viewportWidth = 0.0F;
+    float viewportHeight = 0.0F;
+    float pointWidth = 0.0F;
+    float pointHeight = 0.0F;
+    float carLifeBackWidth = 0.0F;
+    float carLifeBackHeight = 0.0F;
+    float labelWidth = 0.0F;
+    float labelHeight = 0.0F;
+    float labelAabbMinY = 0.0F;
+    bool targetAlive = false;
+    bool atEdge = false;
+};
+
+struct HudOpponent
+{
+    std::size_t racer = HudCarLife::invalidRacer;
+    int place = 0;
+    HudPoint pointPosition;
+    HudPoint labelPosition;
+    HudPoint center;
+    float radius = 0.0F;
+    float alpha = 1.0F;
+    bool visible = false;
+};
+
 // Source PlayerStateFrame notification queues. GPU images/text remain view
 // resources keyed by HudItemId; ordering, lifetime and all motion/fade state
 // are owned here.
@@ -155,6 +185,9 @@ public:
     void ProgressCarLife(
         std::size_t slot, const HudCarLifeInput& input,
         float deltaTime) noexcept;
+    void ProgressOpponents(
+        const std::vector<HudOpponentInput>& inputs,
+        float deltaTime) noexcept;
     void Reset() noexcept;
 
     const std::vector<HudPickItem>& GetPickItems() const noexcept;
@@ -165,12 +198,15 @@ public:
         HudItemId id) const noexcept;
     const std::array<HudCarLife, 2>& GetCarLifeItems() const noexcept;
     bool HasCarLife(std::size_t racer) const noexcept;
+    const std::vector<HudOpponent>& GetOpponents() const noexcept;
+    const HudOpponent* FindOpponent(std::size_t racer) const noexcept;
 
 private:
     HudItemId nextId_ = 1U;
     std::vector<HudPickItem> pickItems_;
     std::vector<HudAchievmentItem> achievmentItems_;
     std::array<HudCarLife, 2> carLifeItems_{};
+    std::vector<HudOpponent> opponents_;
 };
 
 // Backend-neutral owner transcribed from HudMenu/PlayerStateFrame. Widget

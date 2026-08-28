@@ -9,8 +9,8 @@
 #include <algorithm>
 #include <cmath>
 #include <exception>
+#include <iterator>
 #include <limits>
-#include <numeric>
 #include <sstream>
 
 namespace rrr3d::race
@@ -812,16 +812,9 @@ void OriginalRaceHud::update(
                  : race.racers[index].color});
     }
 
-    std::vector<std::size_t> opponentRacers;
     const std::size_t visibleRacers =
         std::min({vehicles.size(), race.racers.size(),
                   session.racers().size()});
-    opponentRacers.reserve(visibleRacers > 0U ? visibleRacers - 1U : 0U);
-    for (std::size_t racer = 0U; racer < visibleRacers; ++racer)
-        if (racer != humanRacer)
-            opponentRacers.push_back(racer);
-    const std::size_t opponentCount = opponentRacers.size();
-    opponentLabels_.resize(opponentCount);
     std::array<float, 16> viewProjection{};
     bx::mtxMul(viewProjection.data(), camera.view.data(),
                camera.projection.data());
@@ -913,67 +906,69 @@ void OriginalRaceHud::update(
         }
         playerStateFrame_.ProgressCarLife(slot, input, seconds);
     }
-    for (std::size_t index = 0; index < opponentCount; ++index)
+    std::vector<source::HudOpponentInput> opponentInputs;
+    opponentInputs.reserve(
+        visibleRacers > 0U ? visibleRacers - 1U : 0U);
+    for (std::size_t racerIndex = 0U;
+         racerIndex < visibleRacers; ++racerIndex)
     {
-        auto& label = opponentLabels_[index];
-        const std::size_t racerIndex = opponentRacers[index];
+        if (racerIndex == humanRacer ||
+            session.racers()[racerIndex].disconnected)
+            continue;
+        auto label = std::find_if(
+            opponentLabels_.begin(), opponentLabels_.end(),
+            [racerIndex](const OpponentLabel& candidate) {
+                return candidate.racer == racerIndex;
+            });
+        if (label == opponentLabels_.end())
+        {
+            opponentLabels_.push_back({});
+            label = std::prev(opponentLabels_.end());
+            label->racer = racerIndex;
+        }
         const auto name = racerName(race, session, racerIndex);
         const auto& runtime = session.racers()[racerIndex];
-        setText(device, label.name,
+        setText(device, label->name,
                 formatNamePlace(
                     namePlaceFormat_, runtime.GetPlace(), name),
                 15.0F, true, white);
-        const bool atEdge = project(
+        source::HudOpponentInput input;
+        input.racer = racerIndex;
+        input.place = static_cast<int>(runtime.GetPlace());
+        input.viewportWidth = menu::virtualWidth;
+        input.viewportHeight = menu::virtualHeight;
+        input.pointWidth = mapOpponent_.width;
+        input.pointHeight = mapOpponent_.height;
+        input.carLifeBackWidth = opponentLifeBack_.width;
+        input.carLifeBackHeight = opponentLifeBack_.height;
+        input.labelWidth = label->name.width;
+        input.labelHeight = label->name.height;
+        input.labelAabbMinY = -label->name.height * 0.5F;
+        input.atEdge = project(
             vehicles[racerIndex].body.position,
-            {1.0F, -0.5F, 0.0F}, label.x, label.y);
-        label.visible = !runtime.IsDestroyed() && !runtime.disconnected;
-        const bool hasLifeOverlay =
-            label.visible &&
-            playerStateFrame_.HasCarLife(racerIndex);
-        label.x = std::clamp(label.x, 40.5F,
-                             menu::virtualWidth - 40.5F);
-        label.y = std::clamp(label.y, label.name.height,
-                             menu::virtualHeight - 11.5F);
-        label.radius =
-            std::max({label.name.width, label.name.height, 1.0F});
-        if (!label.visible)
-            label.alpha = 0.0F;
-        else if (atEdge || hasLifeOverlay)
-            label.alpha = std::max(
-                label.alpha - 4.0F * seconds, 0.0F);
-        else
-            label.alpha = 1.0F;
+            {1.0F, -0.5F, 0.0F}, input.projected.x,
+            input.projected.y);
+        input.targetAlive = !runtime.IsDestroyed();
+        opponentInputs.push_back(input);
     }
-    std::vector<std::size_t> labelOrder(opponentCount);
-    std::iota(labelOrder.begin(), labelOrder.end(), 0U);
-    std::stable_sort(
-        labelOrder.begin(), labelOrder.end(),
-        [&](std::size_t first, std::size_t second) {
-            return session.racers()[opponentRacers[first]].GetPlace() >
-                   session.racers()[opponentRacers[second]].GetPlace();
-        });
-    for (std::size_t order = 0; order < labelOrder.size(); ++order)
+    for (auto label = opponentLabels_.begin();
+         label != opponentLabels_.end();)
     {
-        auto& opponent = opponentLabels_[labelOrder[order]];
-        if (!opponent.visible || opponent.alpha <= 0.0F)
-            continue;
-        const float targetAlpha = opponent.alpha;
-        float alpha = 1.0F;
-        for (std::size_t previous = 0; previous < order; ++previous)
+        const auto input = std::find_if(
+            opponentInputs.begin(), opponentInputs.end(),
+            [&](const source::HudOpponentInput& candidate) {
+                return candidate.racer == label->racer;
+            });
+        if (input != opponentInputs.end())
         {
-            const auto& other =
-                opponentLabels_[labelOrder[previous]];
-            if (!other.visible)
-                continue;
-            const float dx = other.x - opponent.x;
-            const float dy = other.y - opponent.y;
-            const float distance = std::sqrt(dx * dx + dy * dy);
-            const float radius = opponent.radius + other.radius;
-            alpha = std::min(
-                alpha, radius > 0.0F ? distance / radius : 0.0F);
+            ++label;
+            continue;
         }
-        opponent.alpha = std::min(alpha, targetAlpha);
+        if (valid(label->name.texture))
+            device.destroy(label->name.texture);
+        label = opponentLabels_.erase(label);
     }
+    playerStateFrame_.ProgressOpponents(opponentInputs, seconds);
 
     if (session.phase() == originalrace::RacePhase::Finished &&
         !finishVisible_)
@@ -1246,19 +1241,29 @@ void OriginalRaceHud::draw(GraphicsDevice& device, Mesh quad,
                         20.0F, 20.0F, marker.x, marker.y, 58.0F,
                         pipeline, marker.color, marker.angle);
     }
-    for (const auto& opponent : opponentLabels_)
+    for (const auto& opponent : playerStateFrame_.GetOpponents())
     {
         if (!opponent.visible)
+            continue;
+        const auto label = std::find_if(
+            opponentLabels_.begin(), opponentLabels_.end(),
+            [&](const OpponentLabel& candidate) {
+                return candidate.racer == opponent.racer;
+            });
+        if (label == opponentLabels_.end())
             continue;
         const std::array<float, 4> tint{
             1.0F, 1.0F, 1.0F, opponent.alpha};
         drawTintedAsset(
-            device, quad, shader, mapOpponent_.texture, 81.0F,
-            23.0F, opponent.x, opponent.y, 44.0F, pipeline, tint);
+            device, quad, shader, mapOpponent_.texture,
+            mapOpponent_.width, mapOpponent_.height,
+            opponent.pointPosition.x, opponent.pointPosition.y,
+            44.0F, pipeline, tint);
         drawTintedAsset(
-            device, quad, shader, opponent.name.texture,
-            opponent.name.width, opponent.name.height, opponent.x,
-            opponent.y - 20.0F, 36.0F, pipeline, tint);
+            device, quad, shader, label->name.texture,
+            label->name.width, label->name.height,
+            opponent.labelPosition.x, opponent.labelPosition.y,
+            36.0F, pipeline, tint);
     }
     for (const auto& overlay : playerStateFrame_.GetCarLifeItems())
     {

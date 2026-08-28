@@ -72,11 +72,8 @@ private:
     struct OpponentLabel
     {
         TextAsset name;
-        float x = 0.0F;
-        float y = 0.0F;
-        float radius = 0.0F;
-        float alpha = 1.0F;
-        bool visible = false;
+        std::size_t racer =
+            r3d::game::originalrace::source::HudCarLife::invalidRacer;
     };
 
     struct WeaponVisual
