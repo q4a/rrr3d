@@ -2674,18 +2674,34 @@ void OriginalRaceSession::synchronizeProjectilePhysics(
             [&](const ProjectileRuntime& value) {
                 return value.physicsBodyId == state.id;
             });
-        if (projectile == projectiles_.end())
+        if (projectile != projectiles_.end())
+        {
+            projectile->physicsPreviousPosition = projectile->position;
+            projectile->position = state.body.position;
+            projectile->rotation = state.body.rotation;
+            projectile->velocity = state.linearVelocity;
+            projectile->physicsContacts = state.contacts;
+            projectile->speed = length3(projectile->velocity);
+            if (projectile->speed > 0.0001F)
+                projectile->direction = normalized3(projectile->velocity);
+            if (!state.active)
+                projectile->active = false;
             continue;
-        projectile->physicsPreviousPosition = projectile->position;
-        projectile->position = state.body.position;
-        projectile->rotation = state.body.rotation;
-        projectile->velocity = state.linearVelocity;
-        projectile->physicsContacts = state.contacts;
-        projectile->speed = length3(projectile->velocity);
-        if (projectile->speed > 0.0001F)
-            projectile->direction = normalized3(projectile->velocity);
+        }
+        const auto mine = std::find_if(
+            mines_.begin(), mines_.end(),
+            [&](const MineRuntime& value) {
+                return value.physicsBodyId == state.id;
+            });
+        if (mine == mines_.end())
+            continue;
+        mine->physicsPreviousPosition = mine->position;
+        mine->position = state.body.position;
+        mine->rotation = state.body.rotation;
+        mine->velocity = state.linearVelocity;
+        mine->physicsContacts = state.contacts;
         if (!state.active)
-            projectile->active = false;
+            mine->active = false;
     }
 }
 
@@ -3442,6 +3458,9 @@ void OriginalRaceSession::queueProjectileBodySynchronize(
     command.body.transform.position = projectile.position;
     command.body.transform.rotation = projectile.rotation;
     command.body.linearVelocity = projectile.velocity;
+    command.body.gravityFactor =
+        projectile.ballistic || projectile.detachedFromWeapon
+            ? 1.0F : 0.0F;
     projectileBodyCommands_.push_back(command);
 }
 
@@ -3455,6 +3474,60 @@ void OriginalRaceSession::queueProjectileBodyDestroy(
     r3d::physics::ProjectileBodyCommand command;
     command.kind = r3d::physics::ProjectileBodyCommandKind::Destroy;
     command.body.id = projectile.physicsBodyId;
+    projectileBodyCommands_.push_back(command);
+}
+
+void OriginalRaceSession::queueMineBodyCreate(MineRuntime& mine)
+{
+    if (!externalProjectilePhysics_ || mine.sourceObject == nullptr ||
+        mine.physicsBacked)
+        return;
+    const auto& source = mine.sourceObject->GetDesc();
+    mine.physicsBacked = true;
+    mine.physicsBodyId = nextProjectileBodyId_++;
+    mine.physicsPreviousPosition = mine.position;
+    r3d::physics::ProjectileBodyCommand command;
+    command.kind = r3d::physics::ProjectileBodyCommandKind::Create;
+    command.body.id = mine.physicsBodyId;
+    command.body.transform.position = mine.position;
+    command.body.transform.rotation = mine.rotation;
+    command.body.shapePosition = source.collision.center;
+    command.body.halfExtents = source.collision.halfExtents;
+    command.body.linearVelocity = mine.velocity;
+    command.body.mass = std::max(source.mass, 0.001F);
+    command.body.gravityFactor =
+        length3(mine.velocity) > 0.0001F ? 1.0F : 0.0F;
+    command.body.sensor = true;
+    projectileBodyCommands_.push_back(command);
+}
+
+void OriginalRaceSession::queueMineBodySynchronize(
+    const MineRuntime& mine)
+{
+    if (!mine.physicsBacked ||
+        mine.physicsBodyId == r3d::physics::invalidProjectileBodyId)
+        return;
+    r3d::physics::ProjectileBodyCommand command;
+    command.kind =
+        r3d::physics::ProjectileBodyCommandKind::Synchronize;
+    command.body.id = mine.physicsBodyId;
+    command.body.transform.position = mine.position;
+    command.body.transform.rotation = mine.rotation;
+    command.body.linearVelocity = mine.velocity;
+    command.body.gravityFactor =
+        length3(mine.velocity) > 0.0001F ? 1.0F : 0.0F;
+    projectileBodyCommands_.push_back(command);
+}
+
+void OriginalRaceSession::queueMineBodyDestroy(
+    const MineRuntime& mine)
+{
+    if (!mine.physicsBacked ||
+        mine.physicsBodyId == r3d::physics::invalidProjectileBodyId)
+        return;
+    r3d::physics::ProjectileBodyCommand command;
+    command.kind = r3d::physics::ProjectileBodyCommandKind::Destroy;
+    command.body.id = mine.physicsBodyId;
     projectileBodyCommands_.push_back(command);
 }
 
@@ -3802,6 +3875,7 @@ bool OriginalRaceSession::prepareAiMineAttack(
     mine.rotation = attack.mineTransform.rotation;
     mine.networkProjectileId = attack.mineProjectileId;
     mine.sourceObject = attack.mineSourceProjectiles.front();
+    queueMineBodyCreate(mine);
     mines_.push_back(std::move(mine));
     attack.mineRuntimeMaterialized = true;
     attack.mineSourcePrepared = true;
@@ -3866,6 +3940,17 @@ void OriginalRaceSession::discardPendingAiAttack(
     }
     if (attack.mineRuntimeMaterialized)
     {
+        for (const auto& runtime : mines_)
+        {
+            if (std::find(
+                    attack.mineSourceProjectiles.begin(),
+                    attack.mineSourceProjectiles.end(),
+                    runtime.sourceObject) !=
+                attack.mineSourceProjectiles.end())
+            {
+                queueMineBodyDestroy(runtime);
+            }
+        }
         std::erase_if(mines_, [&](const MineRuntime& runtime) {
             return std::find(
                        attack.mineSourceProjectiles.begin(),
@@ -4750,6 +4835,7 @@ void OriginalRaceSession::updateGameplay(
                     logic_, crater, spawnPlan.definition,
                     spawnPlan.maximumLife))
             {
+                queueMineBodyCreate(crater);
                 mines_.push_back(std::move(crater));
             }
         };
@@ -5804,6 +5890,7 @@ void OriginalRaceSession::updateGameplay(
         if (!sourcePrepared ||
             !preparedAttack->mineRuntimeMaterialized)
         {
+            queueMineBodyCreate(mine);
             mines_.push_back(std::move(mine));
         }
         RaceEvent mineEvent;
@@ -6636,6 +6723,7 @@ void OriginalRaceSession::updateGameplay(
         // Logic's deferred GameObject destruction notifies Player::OnDestroy,
         // which removes the retained BonusProj listener entry. GetBonusProj
         // already rejects this death-state object before that callback.
+        queueMineBodyDestroy(mine);
         mine.active = false;
     };
     auto applyMineContact = [&](MineRuntime& mine, std::size_t racer,
@@ -6746,6 +6834,7 @@ void OriginalRaceSession::updateGameplay(
             continue;
         if (!logic_.HasGameObj(mine.sourceObject))
         {
+            queueMineBodyDestroy(mine);
             mine.active = false;
             continue;
         }
@@ -6760,9 +6849,12 @@ void OriginalRaceSession::updateGameplay(
         if (length2(mine.velocity) > 0.0F ||
             std::abs(mine.velocity.z) > 0.0F)
         {
-            mine.position = add(
-                mine.position, multiply(mine.velocity, seconds));
-            mine.velocity.z -= 20.0F * seconds;
+            if (!mine.physicsBacked)
+            {
+                mine.position = add(
+                    mine.position, multiply(mine.velocity, seconds));
+                mine.velocity.z -= 20.0F * seconds;
+            }
             const auto trackHit = queryWorldRay(
                 vehicles, add(mine.position, {0.0F, 0.0F, 2.0F}),
                 {0.0F, 0.0F, -1.0F}, 1000000.0F,
@@ -6779,6 +6871,8 @@ void OriginalRaceSession::updateGameplay(
                     trackHit.position.z + bottomOffset;
                 mine.velocity = {};
             }
+            if (mine.physicsBacked)
+                queueMineBodySynchronize(mine);
         }
         const auto mineProgress =
             mine.sourceObject->ProgressPlacedMine(
@@ -6813,10 +6907,16 @@ void OriginalRaceSession::updateGameplay(
                 spawned.visualVariant = child.visualVariant;
                 spawned.armingAlpha = child.armingScale;
                 spawned.velocity = runtimeVec(child.linearVelocity);
+                spawned.physicsBodyId =
+                    r3d::physics::invalidProjectileBodyId;
+                spawned.physicsPreviousPosition = spawned.position;
+                spawned.physicsContacts.clear();
+                spawned.physicsBacked = false;
                 if (configureAutonomousMineSourceObject(
                         logic_, spawned, child.definition,
                         child.maximumLife))
                 {
+                    queueMineBodyCreate(spawned);
                     spawnedMines.push_back(std::move(spawned));
                 }
             }
@@ -6844,14 +6944,32 @@ void OriginalRaceSession::updateGameplay(
                     vehicleDefinition.physics);
             const OrientedBox mineBox =
                 orientedBox(mineTransform, mineDefinition.collision);
-            if (!boxesOverlap(targetBox, mineBox))
+            const auto physicsContact = mine.physicsBacked
+                ? std::find_if(
+                      mine.physicsContacts.begin(),
+                      mine.physicsContacts.end(),
+                      [racer](
+                          const r3d::physics::BodyContact& contact) {
+                          return contact.otherVehicle == racer;
+                      })
+                : mine.physicsContacts.end();
+            if (mine.physicsBacked)
+            {
+                if (physicsContact == mine.physicsContacts.end())
+                    continue;
+            }
+            else if (!boxesOverlap(targetBox, mineBox))
+            {
                 continue;
+            }
             if (networkGameplayEnabled_ &&
                 mine.networkPendingContact !=
                     RacerRuntime::invalidWeapon)
                 continue;
             const Vec3 contactPoint =
-                closestPoint(targetBox, mineBox.center);
+                mine.physicsBacked && physicsContact->hasPoint
+                    ? physicsContact->point
+                    : closestPoint(targetBox, mineBox.center);
             // Proj::OnContact invokes GameObject::OnContact before the live
             // guard and before Logic::MineContact selects local or RPC
             // execution. The RPC replay below calls only the concrete mine
@@ -9158,6 +9276,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                         1.0F / 60.0F, fixedMineVehicles, input);
                 }
                 fixedMineSession.setExternalRaceFixedStep(true);
+                fixedMineSession.setExternalProjectilePhysics(true);
                 auto* fixedMineItem = fixedMineSession.racers()[1]
                                           .GetMineWeaponItem();
                 if (fixedMineItem == nullptr ||
@@ -9219,6 +9338,19 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                         " record=" +
                         std::string(recordName(aiMine->record)));
                 }
+                auto mineBodyCommands =
+                    fixedMineSession.takeProjectileBodyCommands();
+                if (mineBodyCommands.size() != 1U ||
+                    mineBodyCommands.front().kind !=
+                        r3d::physics::ProjectileBodyCommandKind::Create ||
+                    !fixedMineSession.mines().front().physicsBacked ||
+                    mineBodyCommands.front().body.id !=
+                        fixedMineSession.mines().front().physicsBodyId)
+                {
+                    throw std::runtime_error(
+                        "source fixed-step AI Mine did not create exactly "
+                        "one Jolt actor on the firing tick");
+                }
                 fixedMineSession.raceFixedStep(
                     1.0F / 60.0F, fixedMineVehicles,
                     fixedMineInputs, fixedMineResets);
@@ -9226,6 +9358,19 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 {
                     throw std::runtime_error(
                         "source AI Mine was committed twice before adapter");
+                }
+                mineBodyCommands =
+                    fixedMineSession.takeProjectileBodyCommands();
+                if (std::any_of(
+                        mineBodyCommands.begin(), mineBodyCommands.end(),
+                        [](const r3d::physics::ProjectileBodyCommand& command) {
+                            return command.kind ==
+                                r3d::physics::ProjectileBodyCommandKind::Create;
+                        }))
+                {
+                    throw std::runtime_error(
+                        "source AI Mine duplicated its Jolt actor before "
+                        "adapter materialization");
                 }
                 fixedMineSession.update(
                     2.0F / 60.0F, fixedMineVehicles, input);

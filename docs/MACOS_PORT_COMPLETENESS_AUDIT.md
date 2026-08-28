@@ -1674,6 +1674,25 @@ TrackPlane-only результаты. MineRip regression отдельно тре
 оставшихся mines/bonus projectile actors: размещённые мины всё ещё хранят
 position/velocity в session и используют OBB vehicle contact, а не Jolt body.
 
+### B8w: Jolt actors for placed mines and MineRip fragments
+
+Weapon Mine, AI same-step Mine, autonomous crater и MineRip model2/model3
+children теперь имеют отдельные Jolt sensor actors. Body description берётся
+из concrete source `Proj`, поэтому collision center/extents, mass, launch
+velocity и gravity соответствуют фактически созданному объекту. Split child
+сбрасывает parent id/contact cache перед Create.
+
+Session читает completed pose/velocity/contact stream и маршрутизирует
+Maslo, Crater, ordinary Mine, impulse и network mine request по реальному
+vehicle manifold. Ручная position/gravity и OBB contact остаются только при
+отсутствии external physics. После ground clamp Synchronize останавливает
+velocity и gravity; lifetime/death/stale owner выдают Destroy.
+
+AI regression требует единственный actor уже на firing fixed-step и не
+допускает duplicate Create в adapter pass. Следующая B8x граница — map-owned
+`AutoProj` bonuses/hazards: их source objects активны, но статические контакты
+машин всё ещё вычисляются session OBB без Jolt identity.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

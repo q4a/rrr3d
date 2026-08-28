@@ -317,6 +317,11 @@ struct MineRuntime
     // DeathEffect::effectPxIgnoreSenderCar is permanent for the spawned
     // effect actor, unlike the ordinary mine arming delay.
     bool ignoreOwnerCollision = false;
+    std::uint64_t physicsBodyId =
+        r3d::physics::invalidProjectileBodyId;
+    Vec3 physicsPreviousPosition;
+    std::vector<r3d::physics::BodyContact> physicsContacts;
+    bool physicsBacked = false;
     bool active = true;
 };
 
@@ -609,6 +614,9 @@ private:
         const ProjectileRuntime& projectile);
     void queueProjectileBodyDestroy(
         const ProjectileRuntime& projectile);
+    void queueMineBodyCreate(MineRuntime& mine);
+    void queueMineBodySynchronize(const MineRuntime& mine);
+    void queueMineBodyDestroy(const MineRuntime& mine);
     r3d::physics::WorldRayCastHit queryWorldRay(
         const std::vector<r3d::physics::VehicleState>& vehicles,
         Vec3 origin, Vec3 direction, float maximumDistance,

@@ -722,6 +722,18 @@ query остаётся только fallback-ом без world. Regression пр�
 перенести физические actors и contact stream размещённых mine/bonus
 projectiles, которые пока остаются session-integrated.
 
+Результат B8w: weapon/AI Mine, crater и каждый MineRip child получают
+stable-id Jolt sensor actor из concrete source `ProjDesc`. AI Create выдаётся
+из `Race::OnFixedStep` до solve; split children сбрасывают скопированный
+backend id и создают собственные bodies. Jolt gravity/velocity заменяют
+ручную интеграцию, а ground clamp синхронно ставит velocity/gravity в ноль.
+
+MineContact/Maslo/Crater/network branches используют vehicle identity и
+точку sensor manifold. Lifetime, split, source death и stale Logic owner
+удаляют body до стирания runtime. Source-only fallback сохраняет прежний OBB
+путь. Следующий B8x — зарегистрировать map-owned AutoProj bonus/hazard actors
+и убрать оставшийся OBB contact loop статических pickups/mines/oil.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:

@@ -2120,6 +2120,8 @@ private:
             JPH::EActivation::Activate);
         bodies.SetLinearVelocity(
             runtime->body, toJolt(description.linearVelocity));
+        bodies.SetGravityFactor(
+            runtime->body, description.gravityFactor);
         updateState(*runtime);
     }
 

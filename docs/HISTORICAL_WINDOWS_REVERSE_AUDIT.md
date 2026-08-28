@@ -5226,6 +5226,27 @@ fallback и эталоном regression без world. Physics smoke провер
 vehicle hit, ignored shooter и отдельный TrackPlane hit, session smoke — что
 установка MineRip действительно прошла через backend callback.
 
+### P2.225 — размещённые Mine/MineRip возвращены в physics actor graph — выполнено
+
+Windows хранит поставленную мину и каждый отделившийся MineRip fragment как
+самостоятельный `Proj` с PhysX actor. Portable runtime после переноса source
+объектов всё ещё вручную интегрировал fragment velocity/gravity и определял
+контакт машины OBB-пересечением render snapshots.
+
+`MineRuntime` теперь использует тот же stable-id Create/Synchronize/Destroy
+bridge, что свободные projectiles. Обычная и AI Mine создают Jolt sensor body
+из concrete `ProjDesc` collision/mass в момент source Shot; AI-команда
+попадает до того же solve. Autonomous crater и каждый MineRip child получают
+собственный id, source descriptor, velocity и gravity, а копирование parent
+runtime явно сбрасывает backend identity.
+
+После solve session принимает pose/velocity/manifold, выполняет исходные
+arming/Maslo/Crater/MineContact и network RPC branches по точному vehicle id и
+contact point. Ground clamp останавливает fragment и одновременно отключает
+его gravity factor. Death, lifetime, split и stale Logic owner выдают Destroy
+до удаления runtime. Headless smoke сохраняет ручную интеграцию. Regression
+требует один same-step Jolt Create для AI Mine и отсутствие повторного actor.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
