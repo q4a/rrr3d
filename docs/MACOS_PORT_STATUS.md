@@ -2595,3 +2595,12 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   session больше не конфигурирует их и не индексирует параллельный Race list.
 - Active `ctEffects` projectile/object records и parsed `ctWeapon` catalog
   загружаются как typed `AutoProj`/`Weapon` factories с source descriptors.
+
+### Source Weapon ShotEffect follow-up
+
+- Type-10 `ShotEffect` теперь хранит serialized visual, sounds, pos, impulse
+  и `ignoreRot` на concrete mounted `Weapon`.
+- Каждый successful `PrepareProj` создаёт один ordered source spawn request;
+  failed/dry paths его не создают.
+- Session больше не читает параллельный `Race::weapons[].shotEffect`, а
+  только переводит owner request в bgfx effect и SDL Source3d playback.

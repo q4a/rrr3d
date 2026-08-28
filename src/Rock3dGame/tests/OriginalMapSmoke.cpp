@@ -583,6 +583,10 @@ int main()
     databaseWeapon.record =
         "world\\db\\root\\ctWeapon\\databaseWeapon";
     databaseWeapon.shotDelay = 0.75F;
+    databaseWeapon.shotEffect.visual.record =
+        "world\\db\\root\\ctEffects\\databaseShot";
+    databaseWeapon.shotEffect.soundPaths = {
+        "Sounds/database_shot.ogg"};
     r3d::game::originalrace::ProjectileDefinition databaseProjectile;
     databaseProjectile.type = 17U;
     databaseProjectile.damage = 33.0F;
@@ -629,7 +633,7 @@ int main()
         configuredDecoration.GetDestrObj()->GetDestrList().Get(0U);
     if (!missingDatabaseRecordRejected ||
         &databaseMap.GetDataBase() != &database ||
-        database.GetRecordCount() != 7U ||
+        database.GetRecordCount() != 8U ||
         database.GetRecord(
             source::MapObjCategory::Decoration,
             databaseDecoration.record) !=
@@ -643,6 +647,12 @@ int main()
         configuredWeapon.GetWeapon() == nullptr ||
         configuredWeapon.GetWeapon()->GetDesc().shotDelay != 0.75F ||
         configuredWeapon.GetWeapon()->GetDesc().projectiles.size() != 1U ||
+        configuredWeapon.GetWeapon()
+                ->GetShotEffectDefinition().visual.record !=
+            databaseWeapon.shotEffect.visual.record ||
+        configuredWeapon.GetWeapon()
+                ->GetShotEffectDefinition().soundPaths !=
+            databaseWeapon.shotEffect.soundPaths ||
         configuredProjectile.GetAutoProj() == nullptr ||
         configuredProjectile.GetAutoProj()->GetType() != 17U ||
         databaseLogic.GetBehaviors().GetCount() != 1U ||

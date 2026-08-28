@@ -5403,6 +5403,23 @@ record graph возвращены все извлечённые active effect/pr
 Unit regression требует нулевой catalog до DataBase, один type после него и
 проверяет фактическую загрузку projectile/weapon descriptors.
 
+### P2.235 — source `ShotEffect` владеет spawn transaction — выполнено
+
+Windows `GameBase.cpp:827-847` показывает, что type-10 behavior на каждый
+`Behaviors::OnShot(pos)` сам создаёт child effect и запускает выбранный
+`Source3d`. В портированном runtime `ShotEffectBehavior` лишь увеличивал
+counter, а большой `OriginalRaceSession::pushShotEffect` повторно читал
+record data и исполнял всю логику вручную.
+
+Перенесён полный owner state: effect definition, sound catalog, base
+position, local impulse, `ignoreRot` и ordered pending spawns. Callback
+возникает только после успешного `PrepareProj`, как в source, поэтому rejected
+и dry shots не создают payload. `WeaponItem` сохраняет record behavior рядом
+с descriptor и устанавливает его на live mount при `CreateCar`; DataBase
+делает то же для прямого record proxy. Adapter теперь потребляет один plan на
+один prepared projectile. Regression подтверждает multi-projectile order и
+то, что копия Weapon не теряет serialized behavior state.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

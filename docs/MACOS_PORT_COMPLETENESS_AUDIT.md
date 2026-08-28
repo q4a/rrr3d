@@ -1837,6 +1837,26 @@ descriptor, а не анонимный `GameObject`. `ctWaypoint` коррект
 пустой-before-init catalog, типы record factories, weapon descriptor,
 `spark2` и полный sound catalog.
 
+### B8ag — `ShotEffect` возвращён owning `Weapon` — выполнено
+
+`DataBase::LoadWeapons` добавляет type-10 `ShotEffect` непосредственно в
+concrete `Weapon`. Portable behavior сохранял только число callbacks, тогда
+как session после каждого projectile заново находил `WeaponDefinition`, сам
+выбирал sound и решал, создавать ли effect. Это оставляло сериализованные
+`effect/pos/impulse/ignoreRot/sounds` вне behavior owner.
+
+Теперь `ShotEffect` наследует portable `EventEffect`, хранит полный
+`ShotEffectDefinition` и на каждый успешный `Weapon::PrepareProj` выдаёт
+ordered spawn request. Request уже содержит source child-local position,
+impulse, rotation rule и признаки effect/sound; выбор sound выполняется
+методом owner. `DataBase` настраивает catalog weapons, а `WeaponItem`
+переносит ту же record-компоненту на фактический weapon MapObj машины.
+Session только материализует request в bgfx/SDL и больше не обращается к
+`race_.weapons[...].shotEffect`. Unit regression проверяет два projectile
+callbacks, порядок queue, transform, impulse, sound selection, копирование
+Weapon и загрузку typed DataBase record; полный race smoke покрывает
+primary/hyper/mine и AI paths.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

@@ -2253,19 +2253,58 @@ std::uint32_t AutoProj::GetType() const noexcept
     return autoDescription_.type;
 }
 
+void ShotEffect::Configure(ShotEffectDefinition definition)
+{
+    definition_ = std::move(definition);
+    Reset();
+}
+
 void ShotEffect::Reset() noexcept
 {
+    EventEffect::Reset();
     shotCount_ = 0U;
 }
 
-void ShotEffect::OnShot() noexcept
+ShotEffect::SpawnResult ShotEffect::OnShot(
+    const std::array<float, 3U>& position) noexcept
 {
     ++shotCount_;
+    SpawnResult result;
+    result.createEffect = !definition_.visual.record.empty();
+    result.playSound = !definition_.soundPaths.empty();
+    result.position = {
+        definition_.position.x + position[0],
+        definition_.position.y + position[1],
+        definition_.position.z + position[2]};
+    result.impulse = {
+        definition_.impulse.x,
+        definition_.impulse.y,
+        definition_.impulse.z};
+    result.ignoreRotation = definition_.ignoreRotation;
+    return result;
 }
 
 std::uint64_t ShotEffect::GetShotCount() const noexcept
 {
     return shotCount_;
+}
+
+const ShotEffectDefinition& ShotEffect::GetDefinition() const noexcept
+{
+    return definition_;
+}
+
+std::string_view ShotEffect::SelectSound(
+    float randomUnit) const noexcept
+{
+    if (definition_.soundPaths.empty())
+        return {};
+    const float unit = std::clamp(randomUnit, 0.0F, 1.0F);
+    const auto index = std::min(
+        static_cast<std::size_t>(
+            static_cast<float>(definition_.soundPaths.size()) * unit),
+        definition_.soundPaths.size() - 1U);
+    return definition_.soundPaths[index];
 }
 
 ShotEffectBehavior::ShotEffectBehavior(Behaviors* owner) noexcept
@@ -2279,6 +2318,29 @@ void ShotEffectBehavior::Reset() noexcept
 {
     state_.Reset();
     lastShotPosition_ = {};
+    pendingSpawns_.clear();
+}
+
+void ShotEffectBehavior::Configure(ShotEffectDefinition definition)
+{
+    state_.Configure(std::move(definition));
+    lastShotPosition_ = {};
+    pendingSpawns_.clear();
+}
+
+std::optional<ShotEffect::SpawnResult>
+ShotEffectBehavior::ConsumeSpawnResult()
+{
+    if (pendingSpawns_.empty())
+        return std::nullopt;
+    auto result = pendingSpawns_.front();
+    pendingSpawns_.erase(pendingSpawns_.begin());
+    return result;
+}
+
+std::size_t ShotEffectBehavior::GetPendingSpawnCount() const noexcept
+{
+    return pendingSpawns_.size();
 }
 
 const ShotEffect& ShotEffectBehavior::GetState() const noexcept
@@ -2297,13 +2359,14 @@ void ShotEffectBehavior::CopyStateFrom(
 {
     state_ = value.state_;
     lastShotPosition_ = value.lastShotPosition_;
+    pendingSpawns_ = value.pendingSpawns_;
 }
 
 void ShotEffectBehavior::OnShot(
     const std::array<float, 3U>& position) noexcept
 {
     lastShotPosition_ = position;
-    state_.OnShot();
+    pendingSpawns_.push_back(state_.OnShot(position));
 }
 
 Weapon::Weapon() : desc_(std::make_shared<Desc>())
@@ -2564,6 +2627,37 @@ const ShotEffect& Weapon::GetShotEffect() const noexcept
     return shotEffect_ != nullptr ? shotEffect_->GetState() : empty;
 }
 
+void Weapon::ConfigureShotEffect(ShotEffectDefinition definition)
+{
+    if (shotEffect_ != nullptr)
+        shotEffect_->Configure(std::move(definition));
+}
+
+const ShotEffectDefinition&
+Weapon::GetShotEffectDefinition() const noexcept
+{
+    static const ShotEffectDefinition empty;
+    return shotEffect_ != nullptr
+               ? shotEffect_->GetState().GetDefinition()
+               : empty;
+}
+
+std::optional<ShotEffect::SpawnResult>
+Weapon::ConsumeShotEffectSpawn()
+{
+    return shotEffect_ != nullptr
+               ? shotEffect_->ConsumeSpawnResult()
+               : std::nullopt;
+}
+
+std::string_view Weapon::SelectShotEffectSound(
+    float randomUnit) const noexcept
+{
+    return shotEffect_ != nullptr
+               ? shotEffect_->GetState().SelectSound(randomUnit)
+               : std::string_view{};
+}
+
 const std::array<float, 3U>& Weapon::GetLastShotPosition() const noexcept
 {
     static const std::array<float, 3U> empty{};
@@ -2678,7 +2772,10 @@ void WeaponItem::OnCreateCar() noexcept
 {
     carAttached_ = weapon_ != nullptr;
     if (weapon_ != nullptr)
+    {
         weapon_->SetDescHandle(weaponDesc_);
+        weapon_->ConfigureShotEffect(shotEffectDefinition_);
+    }
 }
 
 void WeaponItem::OnDestroyCar() noexcept
@@ -2702,13 +2799,18 @@ void WeaponItem::Bind(
     weaponDesc_ = weapon != nullptr
                       ? weapon->GetDescHandle()
                       : std::make_shared<Weapon::Desc>();
+    if (weapon != nullptr)
+        shotEffectDefinition_ = weapon->GetShotEffectDefinition();
 }
 
 void WeaponItem::AttachWeapon(Weapon* weapon) noexcept
 {
     weapon_ = weapon;
     if (weapon_ != nullptr)
+    {
         weapon_->SetDescHandle(weaponDesc_);
+        weapon_->ConfigureShotEffect(shotEffectDefinition_);
+    }
 }
 
 bool WeaponItem::Shot(
@@ -2838,6 +2940,19 @@ void WeaponItem::SetWpnDesc(const Weapon::Desc& value)
     weaponDesc_ = std::make_shared<Weapon::Desc>(value);
     if (carAttached_ && weapon_ != nullptr)
         weapon_->SetDescHandle(weaponDesc_);
+}
+
+void WeaponItem::SetShotEffectDefinition(ShotEffectDefinition value)
+{
+    shotEffectDefinition_ = std::move(value);
+    if (carAttached_ && weapon_ != nullptr)
+        weapon_->ConfigureShotEffect(shotEffectDefinition_);
+}
+
+const ShotEffectDefinition&
+WeaponItem::GetShotEffectDefinition() const noexcept
+{
+    return shotEffectDefinition_;
 }
 
 Weapon* WeaponItem::GetWeapon() const noexcept

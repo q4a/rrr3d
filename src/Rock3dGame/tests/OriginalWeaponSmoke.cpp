@@ -69,6 +69,16 @@ int main()
         std::abs(weapon.GetShotTime()) > 0.0001F)
         return 1;
 
+    r3d::game::originalrace::ShotEffectDefinition shotDefinition;
+    shotDefinition.visual.record =
+        "world\\db\\root\\ctEffects\\shotEff1";
+    shotDefinition.position = {0.5F, 1.0F, 1.5F};
+    shotDefinition.impulse = {2.0F, 3.0F, 4.0F};
+    shotDefinition.ignoreRotation = true;
+    shotDefinition.soundPaths = {
+        "Sounds/shot_a.ogg", "Sounds/shot_b.ogg"};
+    weapon.ConfigureShotEffect(shotDefinition);
+
     weapon.OnProgress(0.1F);
     if (weapon.IsReadyShot())
         return 2;
@@ -89,8 +99,30 @@ int main()
     weapon.OnProjectilePrepared({1.0F, 2.0F, 3.0F});
     if (weapon.GetShotEffect().GetShotCount() != 2U ||
         weapon.GetLastShotPosition() !=
-            std::array<float, 3U>{1.0F, 2.0F, 3.0F})
+            std::array<float, 3U>{1.0F, 2.0F, 3.0F} ||
+        shotBehavior->GetPendingSpawnCount() != 2U)
         return 6;
+    const auto firstShotSpawn = weapon.ConsumeShotEffectSpawn();
+    const auto secondShotSpawn = weapon.ConsumeShotEffectSpawn();
+    if (!firstShotSpawn.has_value() ||
+        !secondShotSpawn.has_value() ||
+        weapon.ConsumeShotEffectSpawn().has_value() ||
+        !firstShotSpawn->createEffect ||
+        !firstShotSpawn->playSound || !firstShotSpawn->child ||
+        firstShotSpawn->position !=
+            std::array<float, 3U>{0.5F, 1.0F, 1.5F} ||
+        secondShotSpawn->position !=
+            std::array<float, 3U>{1.5F, 3.0F, 4.5F} ||
+        secondShotSpawn->impulse !=
+            std::array<float, 3U>{2.0F, 3.0F, 4.0F} ||
+        !secondShotSpawn->ignoreRotation ||
+        weapon.SelectShotEffectSound(0.0F) !=
+            "Sounds/shot_a.ogg" ||
+        weapon.SelectShotEffectSound(1.0F) !=
+            "Sounds/shot_b.ogg" ||
+        weapon.GetShotEffectDefinition().visual.record !=
+            shotDefinition.visual.record)
+        return 194;
     source::Weapon copiedWeapon = weapon;
     const auto* copiedShotBehavior =
         dynamic_cast<const source::ShotEffectBehavior*>(
@@ -100,6 +132,8 @@ int main()
         copiedShotBehavior->GetGameObj() != &copiedWeapon ||
         copiedWeapon.GetListenerCount() != 1U ||
         copiedWeapon.GetShotEffect().GetShotCount() != 2U ||
+        copiedWeapon.GetShotEffectDefinition().soundPaths !=
+            shotDefinition.soundPaths ||
         copiedWeapon.GetLastShotPosition() !=
             std::array<float, 3U>{1.0F, 2.0F, 3.0F})
         return 6;

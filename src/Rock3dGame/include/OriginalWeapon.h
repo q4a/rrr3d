@@ -9,7 +9,9 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <span>
+#include <string_view>
 #include <vector>
 
 namespace r3d::game::originalrace::source
@@ -733,14 +735,29 @@ private:
 // GameBase.cpp::ShotEffect receives one OnShot callback only after
 // Weapon::PrepareProj succeeds. The backend may create a child visual and a
 // Source3d, but this owner preserves the callback lifetime per weapon actor.
-class ShotEffect
+class ShotEffect : public EventEffect
 {
 public:
+    struct SpawnResult
+    {
+        bool createEffect = false;
+        bool playSound = false;
+        bool child = true;
+        std::array<float, 3U> position{};
+        std::array<float, 3U> impulse{};
+        bool ignoreRotation = false;
+    };
+
+    void Configure(ShotEffectDefinition definition);
     void Reset() noexcept;
-    void OnShot() noexcept;
+    SpawnResult OnShot(
+        const std::array<float, 3U>& position) noexcept;
     std::uint64_t GetShotCount() const noexcept;
+    const ShotEffectDefinition& GetDefinition() const noexcept;
+    std::string_view SelectSound(float randomUnit) const noexcept;
 
 private:
+    ShotEffectDefinition definition_;
     std::uint64_t shotCount_ = 0U;
 };
 
@@ -753,6 +770,9 @@ public:
     void Reset() noexcept;
     const ShotEffect& GetState() const noexcept;
     const std::array<float, 3U>& GetLastShotPosition() const noexcept;
+    void Configure(ShotEffectDefinition definition);
+    std::optional<ShotEffect::SpawnResult> ConsumeSpawnResult();
+    std::size_t GetPendingSpawnCount() const noexcept;
     void CopyStateFrom(const ShotEffectBehavior& value) noexcept;
 
 protected:
@@ -762,6 +782,7 @@ protected:
 private:
     ShotEffect state_;
     std::array<float, 3U> lastShotPosition_{};
+    std::vector<ShotEffect::SpawnResult> pendingSpawns_;
 };
 
 // Backend-neutral transcription of the original Weapon timer and Desc
@@ -831,6 +852,13 @@ public:
     void SetDesc(float shotDelay,
                  std::span<const ProjectileDefinition> projectiles);
     const ShotEffect& GetShotEffect() const noexcept;
+    void ConfigureShotEffect(ShotEffectDefinition definition);
+    const ShotEffectDefinition&
+    GetShotEffectDefinition() const noexcept;
+    std::optional<ShotEffect::SpawnResult>
+    ConsumeShotEffectSpawn();
+    std::string_view SelectShotEffectSound(
+        float randomUnit) const noexcept;
     const std::array<float, 3U>& GetLastShotPosition() const noexcept;
     // DrobilkaUpdate rotates the source Weapon actor itself. The quaternion
     // is the backend-visible delta relative to its serialized mount pose;
@@ -918,6 +946,9 @@ public:
     void SetChargeCost(int value) noexcept;
     const Weapon::Desc& GetWpnDesc() const noexcept;
     void SetWpnDesc(const Weapon::Desc& value);
+    void SetShotEffectDefinition(ShotEffectDefinition value);
+    const ShotEffectDefinition&
+    GetShotEffectDefinition() const noexcept;
     Weapon* GetWeapon() const noexcept;
     Weapon::Desc GetDesc() const;
     const std::string& GetMapObjRecord() const noexcept;
@@ -935,6 +966,7 @@ private:
     std::string mapObjRecord_;
     Weapon::DescHandle weaponDesc_ =
         std::make_shared<Weapon::Desc>();
+    ShotEffectDefinition shotEffectDefinition_;
 };
 
 class HyperItem final : public WeaponItem

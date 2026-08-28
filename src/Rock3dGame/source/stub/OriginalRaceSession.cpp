@@ -5846,35 +5846,37 @@ void OriginalRaceSession::updateGameplay(
         [&](std::size_t owner, std::size_t weapon,
             std::size_t soundSource,
             const Transform& weaponTransform,
-            const ProjectileDefinition& projectile) {
-            if (weapon >= race_.weapons.size())
+            source::Weapon& liveWeapon) {
+            const auto spawn =
+                liveWeapon.ConsumeShotEffectSpawn();
+            if (!spawn.has_value())
                 return;
-            const auto& source = race_.weapons[weapon].shotEffect;
+            const auto& source =
+                liveWeapon.GetShotEffectDefinition();
             // Weapon::CreateShot calls Behaviors::OnShot once for every
             // projectile which PrepareProj accepted. ShotEffect then uses
             // GiveSource3d(), whose RandomRange chooses one of the serialized
             // sounds independently of whether a visual effect exists.
-            if (!source.soundPaths.empty())
+            if (spawn->playSound)
             {
+                const auto soundPath =
+                    liveWeapon.SelectShotEffectSound(
+                        sourceUniformRandomUnit());
                 RaceEvent sound;
                 sound.kind = RaceEventKind::EffectSound;
                 sound.racer = owner;
                 sound.target = weapon;
                 sound.position = weaponTransform.position;
-                sound.soundPath = source.soundPaths[
-                    sourceUniformRandomIndex(
-                        source.soundPaths.size(),
-                        sourceUniformRandomUnit())];
+                sound.soundPath = soundPath;
                 sound.soundSource = soundSource;
                 events_.push_back(std::move(sound));
             }
-            if ((source.visual.visualNodes.empty() &&
-                 source.visual.particleEmitters.empty() &&
-                 source.visual.soundPaths.empty()) ||
-                source.duration <= 0.0F)
+            if (!spawn->createEffect)
                 return;
             Transform local;
-            local.position = add(projectile.position, source.position);
+            local.position = {
+                spawn->position[0], spawn->position[1],
+                spawn->position[2]};
             RaceEffect effect;
             effect.kind = RaceEventKind::WeaponShotEffect;
             effect.transform = compose(
@@ -5888,7 +5890,10 @@ void OriginalRaceSession::updateGameplay(
                 source.visual, source.duration);
             applySourceEffectTiming(effect, timing, source.visual);
             effect.weapon = weapon;
-            effect.ignoreRotation = source.ignoreRotation;
+            effect.ignoreRotation = spawn->ignoreRotation;
+            effect.sourceImpulse = {
+                spawn->impulse[0], spawn->impulse[1],
+                spawn->impulse[2]};
             if (owner < vehicles.size())
             {
                 // ShotEffect::EffectDesc::child attaches the spawned actor
@@ -6091,7 +6096,7 @@ void OriginalRaceSession::updateGameplay(
         mine.sourceObject = sourceProjectiles.front();
         pushShotEffect(
             owner, weapon, PlayerProfile::weaponSlotCount + 1U,
-            weaponTransform, *projectile);
+            weaponTransform, *liveWeapon);
         if (!sourcePrepared ||
             !preparedAttack->mineRuntimeMaterialized)
         {
@@ -6303,8 +6308,7 @@ void OriginalRaceSession::updateGameplay(
         pushShotEffect(
             owner, weapon,
             PlayerProfile::weaponSlotCount,
-            weaponTransform,
-            projectile);
+            weaponTransform, *liveWeapon);
         return true;
     };
     auto fireWeapon =
@@ -6566,7 +6570,7 @@ void OriginalRaceSession::updateGameplay(
             pushShotEffect(
                 shooter, firedWeapon, firedSlot,
                 liveWeaponTransform,
-                projectile);
+                *liveWeapon);
         }
         RaceEvent shotEvent;
         shotEvent.kind = RaceEventKind::WeaponFired;

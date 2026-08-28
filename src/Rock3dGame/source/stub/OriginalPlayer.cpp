@@ -1093,6 +1093,7 @@ void Player::BindWeaponItems(
         {
             item->Bind(nullptr, 0U, 0U, nullptr);
             item->SetMapObjRecord({});
+            item->SetShotEffectDefinition({});
             return;
         }
         const auto& definition = definitions[definitionIndex];
@@ -1102,6 +1103,7 @@ void Player::BindWeaponItems(
             definition.chargeCost);
         item->SetMapObjRecord(definition.record);
         item->SetWpnDesc(makeWeaponDescription(definition));
+        item->SetShotEffectDefinition(definition.shotEffect);
     };
 
     for (std::size_t slot = 0U; slot < weaponSlotCount; ++slot)
@@ -1133,6 +1135,7 @@ void Player::BindWeaponItems(
         }
         item->SetMapObjRecord(definition.record);
         item->SetWpnDesc(makeWeaponDescription(definition));
+        item->SetShotEffectDefinition(definition.shotEffect);
         item->SetChargeStep(definition.chargeStep);
         item->SetDamage(definition.damage);
         item->SetChargeCost(definition.chargeCost);

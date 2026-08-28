@@ -287,6 +287,8 @@ void DataBase::Configure(const Race& race, Logic& logic)
                 weapon->SetDesc(
                     sourceDefinition->shotDelay,
                     sourceDefinition->projectiles);
+                weapon->ConfigureShotEffect(
+                    sourceDefinition->shotEffect);
             });
     }
 

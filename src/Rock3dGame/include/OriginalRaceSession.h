@@ -259,6 +259,10 @@ struct RaceEffect
     std::uint8_t visualVariant = 0;
     std::size_t bonus = RacerRuntime::invalidWeapon;
     bool ignoreRotation = false;
+    // EventEffect applies this local impulse to a spawned physics actor.
+    // Current shipped ShotEffect records use zero, but source ownership is
+    // retained for the Jolt adapter instead of dropping the serialized field.
+    Vec3 sourceImpulse;
     std::size_t racer = RacerRuntime::invalidWeapon;
     std::size_t vehicleEffect = RacerRuntime::invalidWeapon;
     Transform transform;

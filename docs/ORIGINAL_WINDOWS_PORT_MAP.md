@@ -204,6 +204,12 @@ DataBase добавляет его, связывает с typed `ctEffects/spark
 полный active `ctWeapon` catalog также создают concrete `AutoProj`/`Weapon`
 с parsed descriptors; shipped пустой `ctWaypoint` остаётся пустым.
 
+Результат B5a.3/B8ag переносит record-компонент type-10 вместе с concrete
+`Weapon`. `ShotEffect::OnShot` после каждого успешного `PrepareProj` сам
+формирует child effect/sound request с serialized pos/impulse/ignoreRot.
+`WeaponItem` переносит компонент record-а на mounted weapon; session больше
+не реконструирует его из `Race::weapons`, а лишь исполняет bgfx/SDL payload.
+
 Результат B5b: добавлен единый `OriginalResourceManager`, который возвращает
 стабильную identity по каноническому физическому пути и владеет decoded
 `R3DMeshAsset`, bgfx mesh и texture до общего shutdown. Это source-аналог
