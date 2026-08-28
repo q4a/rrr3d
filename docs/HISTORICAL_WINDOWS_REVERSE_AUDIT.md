@@ -4883,6 +4883,28 @@ ID, live Player/attached lights и единственный respawn в одно�
 стабильность следующего кадра. Это устраняет состояние невидимой машины без
 MapObj, способное приводить к телепортации после взрыва.
 
+### P2.209 — ownership/listener lifecycle bonus `Proj` возвращён из Windows — выполнено
+
+Прямая сверка `Player::InsertBonusProj`, `RemoveBonusProj`, `GetBonusProj`,
+`GetBonusProjId` и `OnDestroy` подтвердила, что порт хранил только числовые ID
+сетевых мин. Реальный `Proj*` не удерживался и не слушался, а session удалял ID
+вручную сразу при `Death`, до исходной границы уничтожения объекта. Это
+разрывало Windows lifetime и позволяло RPC lookup расходиться с concrete
+снарядом.
+
+`Player` теперь хранит пару `Proj*/id`, подписывается при успешном mine shot,
+отклоняет уже мёртвый объект в обоих lookup и окончательно удаляет запись из
+`OnDestroy`. Ранняя session-cleanup удалена. Одновременно восстановлен важный
+порядок деструкторов: `Proj`, `RockCar` и `GameCar` вызывают idempotent
+`DestroyObject` ещё с действующим derived type, как их Windows `Destroy()`;
+иначе callback из базового деструктора уже не видел `IsProj()`/`IsCar()`.
+
+Выявленный этим переносом crash при завершении также исправлен исходным явным
+`Player::~Player`: bonus listeners, headlights, car listener и color material
+освобождаются до начала разрушения членов класса. Regression проверяет
+pointer/id lookup, немедленное исключение death-state и удаление записи после
+deferred object cleanup.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

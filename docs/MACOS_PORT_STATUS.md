@@ -2490,3 +2490,14 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   подменяет source `_car.mapObj` условием `!IsDestroyed()`.
 - Удалён portable-only `ActivateCar` frame. Regression закрепляет новый ID,
   lights/listeners, один Jolt reset и отсутствие повторного respawn.
+
+### Source bonus-projectile listener follow-up
+
+- `Player::_bonusProjs` снова хранит исходную пару concrete `Proj*`/network ID,
+  подписывает Player на mine projectile и очищается через `OnDestroy`.
+- RPC lookup исключает death-state немедленно; session-side раннее удаление ID
+  убрано, deferred `Logic` destruction завершает lifetime.
+- В `Proj`, `RockCar` и `GameCar` восстановлен derived-stage `DestroyObject`,
+  поэтому listener callback ещё видит `IsProj()`/`IsCar()`.
+- Явный source-order `Player` destructor устранил crash завершения из callback
+  уже частично разрушенного объекта.

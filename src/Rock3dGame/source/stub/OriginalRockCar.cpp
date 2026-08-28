@@ -143,7 +143,12 @@ RockCar& RockCar::operator=(RockCar&& value) noexcept
     return *this = static_cast<const RockCar&>(value);
 }
 
-RockCar::~RockCar() = default;
+RockCar::~RockCar()
+{
+    // Preserve the source destructor ordering: listeners are notified while
+    // IsCar() still resolves through the derived car hierarchy.
+    DestroyObject();
+}
 
 GameCar::ProgressResult RockCar::OnProgress(float deltaTime) noexcept
 {

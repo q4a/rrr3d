@@ -452,6 +452,10 @@ int main()
         secondShotProjectiles.size() != 1U ||
         shotItem.GetCurCharge() != 0U || shotCharge != 2U ||
         !player.HasBonusProjectile(21U) ||
+        player.GetBonusProjectile(21U) !=
+            secondShotProjectiles.front() ||
+        player.GetBonusProjectileId(
+            secondShotProjectiles.front()) != 21U ||
         player.GetNextBonusProjectileId() != 22U)
         return 53;
     // NetPlayer::DoShot supplies its replicated charge even if projectile
@@ -468,8 +472,13 @@ int main()
         projectile->Death();
     for (auto* projectile : secondShotProjectiles)
         projectile->Death();
+    if (player.HasBonusProjectile(21U) ||
+        player.GetBonusProjectile(21U) != nullptr)
+        return 55;
     if (shotLogic.ProgressGameObjs(0.0F).removed != 2U)
         return 54;
+    if (player.RemoveBonusProjectile(21U))
+        return 56;
 
     player.SetLife(50.0F);
     player.TakeMedpack(7.5F);

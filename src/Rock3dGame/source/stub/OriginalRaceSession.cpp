@@ -5701,14 +5701,9 @@ void OriginalRaceSession::updateGameplay(
             return;
         if (!mine.sourceObject->destroyed)
             mine.sourceObject->Death();
-        if (mine.owner < racers_.size() &&
-            mine.networkProjectileId != 0U)
-        {
-            // Proj destruction notifies Player::OnDestroy, which removes the
-            // retained BonusProj listener entry without rewinding the id.
-            racers_[mine.owner].RemoveBonusProjectile(
-                mine.networkProjectileId);
-        }
+        // Logic's deferred GameObject destruction notifies Player::OnDestroy,
+        // which removes the retained BonusProj listener entry. GetBonusProj
+        // already rejects this death-state object before that callback.
         mine.active = false;
     };
     auto applyMineContact = [&](MineRuntime& mine, std::size_t racer,

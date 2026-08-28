@@ -155,6 +155,10 @@ Proj::Proj()
 
 Proj::~Proj()
 {
+    // The Windows Proj destructor calls GameObject::Destroy before the
+    // derived vtable is lost. Player::OnDestroy therefore still sees
+    // sender->IsProj() and drops the retained mine RPC entry.
+    DestroyObject();
     FreeSourceModel(true, false);
     FreeSourceModel(false, false);
     SetSourceTarget(nullptr);

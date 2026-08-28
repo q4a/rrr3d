@@ -496,8 +496,19 @@ respawn за кадр до `CreateCar(false)`/нового MapObj; session за�
 `ActivateCar` промежуточный state. Jolt получает только итоговую reset pose в
 том же fixed-step, а следующий кадр не создаёт второй объект/respawn.
 
-Следующий B8g — продолжить method-to-method аудит оставшихся concrete
-`Race/Player/GameObject` listener transitions и graph cleanup boundaries.
+Результат B8g: возвращён полный `Player::_bonusProjs` owner вместо списка
+голых ID. Успешный mine shot сохраняет `Proj*/id` и listener, live lookup
+работает по concrete объекту, а `Player::OnDestroy` удаляет запись на исходной
+границе. Session больше не имитирует эту очистку сразу при `Death`.
+
+Также восстановлен Windows destructor dispatch: `Proj::~Proj`,
+`RockCar::~RockCar` и `GameCar::~GameCar` вызывают `DestroyObject` до потери
+derived vtable. Явный `Player::~Player` отцепляет projectile/car listeners до
+разрушения embedded `GameCar`, устраняя подтверждённый shutdown crash.
+
+Следующий B8h — продолжить method-to-method аудит concrete
+`GameObject`/`MapObj` ownership, destroy и listener transitions, оставляя
+Jolt/bgfx только backend boundary.
 
 ## Правило обновления карты
 

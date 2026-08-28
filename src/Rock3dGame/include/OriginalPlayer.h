@@ -135,7 +135,7 @@ public:
     static const std::array<float, 3> humanEasingMaximumSpeed;
 
     Player();
-    ~Player() override = default;
+    ~Player() override;
 
     struct BehaviorProgressResult
     {
@@ -458,9 +458,16 @@ public:
         float viewAngle, bool zTest,
         std::span<Player* const> players) noexcept;
     void InsertBonusProjectile(std::uint32_t projectileId);
+    void InsertBonusProjectile(
+        Proj* projectile, std::uint32_t projectileId);
     bool RemoveBonusProjectile(std::uint32_t projectileId) noexcept;
     void ClearBonusProjectiles() noexcept;
     bool HasBonusProjectile(std::uint32_t projectileId) const noexcept;
+    Proj* GetBonusProjectile(std::uint32_t projectileId) noexcept;
+    const Proj* GetBonusProjectile(
+        std::uint32_t projectileId) const noexcept;
+    std::uint32_t GetBonusProjectileId(
+        const Proj* projectile) const noexcept;
     std::uint32_t GetNextBonusProjectileId() const noexcept;
     bool ConsumeEnergyDamageEffectCreated() noexcept;
     std::vector<PlayerGameEvent> TakeGameEvents() noexcept;
@@ -579,7 +586,12 @@ private:
     bool slowSpeedLimited_ = false;
     bool slowReleased_ = false;
     std::vector<PlayerGameEvent> gameEvents_;
-    std::vector<std::uint32_t> bonusProjectileIds_;
+    struct BonusProjectileRef
+    {
+        Proj* projectile = nullptr;
+        std::uint32_t id = 0U;
+    };
+    std::vector<BonusProjectileRef> bonusProjectiles_;
     std::uint32_t nextBonusProjectileId_ = 1U;
     PlayerSlotRack slotRack_;
 };

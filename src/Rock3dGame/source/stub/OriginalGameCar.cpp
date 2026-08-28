@@ -252,6 +252,10 @@ GameCar& GameCar::operator=(GameCar&& other) noexcept
 
 GameCar::~GameCar()
 {
+    // GameCar::~GameCar in the Windows source repeats Destroy after
+    // RockCar::~RockCar; the idempotent guard makes this safe for a bare
+    // GameCar while retaining the original listener lifecycle.
+    DestroyObject();
     ReleaseAnimationChildren();
     ReleaseWheels();
     ReleaseSoundMotor();

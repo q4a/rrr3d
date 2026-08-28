@@ -141,6 +141,20 @@ Player::Player()
     BindSourceBehaviors();
 }
 
+Player::~Player()
+{
+    // Player::~Player in the Windows source tears down retained bonus
+    // projectiles before releasing the car and presentation resources.  The
+    // portable GameCar is an embedded object, so its listener must also be
+    // detached while every Player member is still alive; otherwise its own
+    // destructor would call back into a partially destroyed Player.
+    ClearBonusProjectiles();
+    SetHeadlight(HeadLightMode::None);
+    FreeCar(true);
+    carRecord_ = nullptr;
+    FreeColorMaterial();
+}
+
 void Player::BindSourceBehaviors()
 {
     gameCar.SetEventSink(this);
@@ -1185,7 +1199,7 @@ bool Player::Shot(
         : &localProjectiles;
     const bool result = item.Shot(contexts, newCharge, output);
     if (result && mineSlot && !output->empty())
-        InsertBonusProjectile(projectileId);
+        InsertBonusProjectile(output->front(), projectileId);
     return result;
 }
 
@@ -1724,36 +1738,95 @@ Player* Player::FindClosestEnemy(
 
 void Player::InsertBonusProjectile(std::uint32_t projectileId)
 {
+    InsertBonusProjectile(nullptr, projectileId);
+}
+
+void Player::InsertBonusProjectile(
+    Proj* projectile, std::uint32_t projectileId)
+{
     // Player::InsertBonusProj is reached only from Player::Shot(stMine).
     // Ordinary weapon/hyper shots reuse the current RPC id and do not advance
     // this owner-specific sequence.
     nextBonusProjectileId_ = projectileId + 1U;
-    bonusProjectileIds_.push_back(projectileId);
+    if (projectile != nullptr)
+        projectile->InsertListener(this);
+    bonusProjectiles_.push_back({projectile, projectileId});
 }
 
 bool Player::RemoveBonusProjectile(
     std::uint32_t projectileId) noexcept
 {
-    const auto found = std::find(
-        bonusProjectileIds_.begin(), bonusProjectileIds_.end(),
-        projectileId);
-    if (found == bonusProjectileIds_.end())
+    const auto found = std::find_if(
+        bonusProjectiles_.begin(), bonusProjectiles_.end(),
+        [projectileId](const BonusProjectileRef& value) {
+            return value.id == projectileId;
+        });
+    if (found == bonusProjectiles_.end())
         return false;
-    bonusProjectileIds_.erase(found);
+    if (found->projectile != nullptr)
+        found->projectile->RemoveListener(this);
+    bonusProjectiles_.erase(found);
     return true;
 }
 
 void Player::ClearBonusProjectiles() noexcept
 {
-    bonusProjectileIds_.clear();
+    while (!bonusProjectiles_.empty())
+    {
+        auto& projectile = bonusProjectiles_.back();
+        if (projectile.projectile != nullptr)
+            projectile.projectile->RemoveListener(this);
+        bonusProjectiles_.pop_back();
+    }
 }
 
 bool Player::HasBonusProjectile(
     std::uint32_t projectileId) const noexcept
 {
-    return std::find(
-               bonusProjectileIds_.begin(), bonusProjectileIds_.end(),
-               projectileId) != bonusProjectileIds_.end();
+    return GetBonusProjectile(projectileId) != nullptr ||
+           std::any_of(
+               bonusProjectiles_.begin(), bonusProjectiles_.end(),
+               [projectileId](const BonusProjectileRef& value) {
+                   return value.projectile == nullptr &&
+                          value.id == projectileId;
+               });
+}
+
+Proj* Player::GetBonusProjectile(
+    std::uint32_t projectileId) noexcept
+{
+    return const_cast<Proj*>(
+        static_cast<const Player*>(this)->GetBonusProjectile(projectileId));
+}
+
+const Proj* Player::GetBonusProjectile(
+    std::uint32_t projectileId) const noexcept
+{
+    const auto found = std::find_if(
+        bonusProjectiles_.begin(), bonusProjectiles_.end(),
+        [projectileId](const BonusProjectileRef& value) {
+            return value.id == projectileId &&
+                   value.projectile != nullptr &&
+                   value.projectile->GetLiveState() ==
+                       GameObject::LiveState::Live;
+        });
+    return found == bonusProjectiles_.end()
+               ? nullptr
+               : found->projectile;
+}
+
+std::uint32_t Player::GetBonusProjectileId(
+    const Proj* projectile) const noexcept
+{
+    const auto found = std::find_if(
+        bonusProjectiles_.begin(), bonusProjectiles_.end(),
+        [projectile](const BonusProjectileRef& value) {
+            return value.projectile == projectile &&
+                   value.projectile != nullptr &&
+                   value.projectile->GetLiveState() ==
+                       GameObject::LiveState::Live;
+        });
+    return found == bonusProjectiles_.end() ? 0U : found->id;
 }
 
 std::uint32_t Player::GetNextBonusProjectileId() const noexcept
@@ -1779,6 +1852,19 @@ void Player::OnDestroy(GameObject& sender) noexcept
 {
     if (&sender == &gameCar)
         FreeCar(false);
+    else if (auto* projectile = sender.IsProj())
+    {
+        const auto found = std::find_if(
+            bonusProjectiles_.begin(), bonusProjectiles_.end(),
+            [projectile](const BonusProjectileRef& value) {
+                return value.projectile == projectile;
+            });
+        if (found != bonusProjectiles_.end())
+        {
+            projectile->RemoveListener(this);
+            bonusProjectiles_.erase(found);
+        }
+    }
 }
 
 void Player::OnLowLife(
