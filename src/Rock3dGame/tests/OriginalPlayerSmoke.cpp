@@ -73,6 +73,53 @@ int main()
         return 78;
     if (slowPlayer.gameCar.GetListenerCount() != 3U)
         return 79;
+
+    // DataBase::LoadCar installs all type-6 DeathEffect entries on the car
+    // GameObject. They dispatch together and are reconstructed for the next
+    // physical car instead of retaining EventEffect::_makeEffect state.
+    r3d::game::originalrace::Vehicle deathBehaviorVehicle;
+    deathBehaviorVehicle.deathEffects.resize(2U);
+    deathBehaviorVehicle.deathEffects[1].targetChild = true;
+    deathBehaviorVehicle.deathEffects[1]
+        .effectPhysicsIgnoreSenderCar = true;
+    source::Logic deathBehaviorLogic;
+    source::GameObject deathBehaviorTarget;
+    source::Player deathBehaviorPlayer;
+    deathBehaviorPlayer.Reset(100.0F, 1U);
+    deathBehaviorPlayer.SetCar(&deathBehaviorVehicle);
+    deathBehaviorPlayer.CreateCar(true);
+    deathBehaviorPlayer.gameCar.SetLogic(&deathBehaviorLogic);
+    if (deathBehaviorPlayer.GetVehicleDeathEffectBehaviorCount() != 2U ||
+        deathBehaviorPlayer.gameCar.GetBehaviors().GetCount() != 6U ||
+        deathBehaviorPlayer.gameCar.GetBehaviors().Find(
+            source::BehaviorType::DeathEffect) == nullptr)
+        return 86;
+    if (!deathBehaviorPlayer.Death(
+            r3d::game::originalrace::DamageType::Simple,
+            &deathBehaviorTarget))
+        return 87;
+    const auto firstDeathPlans =
+        deathBehaviorPlayer.ConsumeVehicleDeathEffectSpawns();
+    if (firstDeathPlans.size() != 2U ||
+        !firstDeathPlans[0].createEffect ||
+        firstDeathPlans[0].targetChild ||
+        !firstDeathPlans[1].createEffect ||
+        !firstDeathPlans[1].targetChild ||
+        firstDeathPlans[1].ignoreSenderCar)
+        return 88;
+    deathBehaviorPlayer.Destroy();
+    deathBehaviorPlayer.CreateCar(false);
+    deathBehaviorPlayer.gameCar.SetLogic(&deathBehaviorLogic);
+    if (!deathBehaviorPlayer.Death() ||
+        deathBehaviorPlayer.GetVehicleDeathEffectBehaviorCount() != 2U)
+        return 89;
+    const auto respawnDeathPlans =
+        deathBehaviorPlayer.ConsumeVehicleDeathEffectSpawns();
+    if (respawnDeathPlans.size() != 2U ||
+        !respawnDeathPlans[0].createEffect ||
+        !respawnDeathPlans[1].createEffect)
+        return 90;
+
     player.car.SetSize(7.5F);
     player.ConfigureIdentity(
         source::Player::humanId, 7, 3U, "Tyler", "Network Tyler",

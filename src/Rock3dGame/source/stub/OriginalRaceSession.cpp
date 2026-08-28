@@ -4391,6 +4391,8 @@ void OriginalRaceSession::destroyRacer(
     auto& runtime = racers_[racer];
     // Player::OnDeath/OnDestroy begins the exact cTimeRestoreCar lifecycle.
     runtime.Destroy();
+    const auto sourceDeathPlans =
+        runtime.ConsumeVehicleDeathEffectSpawns();
     freeRacerMapObject(racer);
     appendPlayerGameEvents(racer, position, false);
     releaseRacerProjectileReferences(racer);
@@ -4400,6 +4402,9 @@ void OriginalRaceSession::destroyRacer(
     for (std::size_t index = 0;
          index < definition.deathEffects.size(); ++index)
     {
+        if (index >= sourceDeathPlans.size() ||
+            !sourceDeathPlans[index].createEffect)
+            continue;
         const auto& source = definition.deathEffects[index];
         const auto timing = sourceEffectTiming(source.visual, 0.7F);
         RaceEffect effect;
@@ -11379,6 +11384,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     RacerRuntime::invalidWeapon ||
                 !deathSession.takeRespawns().empty() ||
                 sourceVehicle.deathEffects.size() != 2U ||
+                deathSession.racers().front()
+                        .GetVehicleDeathEffectBehaviorCount() !=
+                    sourceVehicle.deathEffects.size() ||
                 sourceDeathEffectCount !=
                     sourceVehicle.deathEffects.size() ||
                 sourceDeathSoundCount != expectedDeathSoundCount)
@@ -11411,6 +11419,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     deathSession.racers().front().GetMaxLife() ||
                 deathSession.racers().front().IsDestroyed() ||
                 !deathSession.racers().front().HasCar() ||
+                deathSession.racers().front()
+                        .GetVehicleDeathEffectBehaviorCount() !=
+                    sourceVehicle.deathEffects.size() ||
                 deathRestoredMapObjectId <= deathInitialMapObjectId ||
                 deathSession.racerForMapObjectId(
                     deathRestoredMapObjectId) != 0U ||

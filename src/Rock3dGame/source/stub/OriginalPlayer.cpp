@@ -161,9 +161,26 @@ void Player::BindSourceBehaviors()
     gameCar.ClearListenerList();
     gameCar.InsertListener(this);
     auto& behaviors = gameCar.GetBehaviors();
+    vehicleDeathEffects_.clear();
     behaviors.Clear();
     behaviors.Add<LowLifeBehavior>(
         BehaviorType::LowLifePoints, this);
+    // DataBase::LoadCar inserts every serialized DeathEffect immediately
+    // after LowLifePoints. Keep duplicate type-6 entries: each owns a
+    // different effect record and all of them receive the same Death event.
+    if (carRecord_ != nullptr)
+    {
+        vehicleDeathEffects_.reserve(
+            carRecord_->deathEffects.size());
+        for (const auto& effect : carRecord_->deathEffects)
+        {
+            vehicleDeathEffects_.push_back(
+                &behaviors.Add<DeathEffectBehavior>(
+                    BehaviorType::DeathEffect,
+                    effect.effectPhysicsIgnoreSenderCar,
+                    effect.targetChild));
+        }
+    }
     // DataBase::LoadCar inserts ImmortalEffect before DamageEffect.
     behaviors.Add<PlayerImmortalBehavior>(
         BehaviorType::ImmortalEffect, this);
@@ -690,6 +707,7 @@ GameObject::DamageResult Player::Damage(
     std::size_t senderPlayerId, float value,
     DamageType damageType) noexcept
 {
+    PrepareVehicleDeathEffects();
     return gameCar.Damage(senderPlayerId, value, damageType);
 }
 
@@ -697,6 +715,7 @@ GameObject::DamageResult Player::Damage(
     std::size_t senderPlayerId, float value, float newLife,
     bool death, DamageType damageType) noexcept
 {
+    PrepareVehicleDeathEffects();
     return gameCar.Damage(
         senderPlayerId, value, newLife, death, damageType);
 }
@@ -704,6 +723,7 @@ GameObject::DamageResult Player::Damage(
 bool Player::Death(
     DamageType damageType, GameObject* target) noexcept
 {
+    PrepareVehicleDeathEffects();
     return gameCar.Death(damageType, target);
 }
 
@@ -906,8 +926,10 @@ void Player::CreateCar(bool newRace) noexcept
     if (!carPresent_)
     {
         carPresent_ = true;
-        gameCar.SetEventSink(this);
-        gameCar.InsertListener(this);
+        // Windows creates a new GameObject from the car record here. Rebuild
+        // its behavior graph so EventEffect one-live state never leaks from
+        // the previous destroyed actor into the respawned car.
+        BindSourceBehaviors();
         if (carRecord_ != nullptr)
         {
             gameCar.ConfigureMotor({
@@ -1557,6 +1579,36 @@ Player::BehaviorProgressResult Player::FinishBehaviorProgress(
     result.lowLifeReleased = lowLifeReleased_;
     result.slowSpeedLimited = slowSpeedLimited_;
     result.slowReleased = slowReleased_;
+    return result;
+}
+
+void Player::PrepareVehicleDeathEffects() noexcept
+{
+    const bool logicAvailable = gameCar.GetLogic() != nullptr;
+    for (auto* behavior : vehicleDeathEffects_)
+    {
+        if (behavior != nullptr)
+            behavior->SetSpawnContext(logicAvailable, false);
+    }
+}
+
+std::size_t Player::GetVehicleDeathEffectBehaviorCount() const noexcept
+{
+    return vehicleDeathEffects_.size();
+}
+
+std::vector<DeathEffect::SpawnResult>
+Player::ConsumeVehicleDeathEffectSpawns() noexcept
+{
+    std::vector<DeathEffect::SpawnResult> result;
+    result.reserve(vehicleDeathEffects_.size());
+    for (auto* behavior : vehicleDeathEffects_)
+    {
+        result.push_back(
+            behavior != nullptr
+                ? behavior->ConsumeSpawnResult()
+                : DeathEffect::SpawnResult{});
+    }
     return result;
 }
 

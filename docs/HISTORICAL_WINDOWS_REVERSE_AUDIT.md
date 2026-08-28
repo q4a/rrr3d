@@ -5325,6 +5325,22 @@ behavior автоматически снимает owner requirement. Session п
 регистрацию перед dispatch завершённого death-plane manifold. Smoke-тесты
 покрывают установку, удаление, map ground и неактивный modify flag.
 
+### P2.230 — car `DeathEffect` возвращён в `GameObject` graph — выполнено
+
+Windows `DataBase::LoadCar` добавляет после `LowLifePoints` две отдельные
+записи `DeathEffect`: `death2` и fragment actor автомобиля. Порт сохранял их
+definitions, но `OriginalRaceSession::destroyRacer` создавал оба эффекта
+безусловно; у самого `RockCar` type-6 listeners отсутствовали.
+
+Теперь `Player::CreateCar` материализует все serialized vehicle death
+behaviors в исходном порядке и пересоздаёт их при каждом respawn. Наличие
+`Logic` проверяется самим owning behavior в `OnDeath`, поэтому прямой
+`Logic::Damage(GameObject&)`, death-plane и Player wrappers сходятся в одном
+пути. Session потребляет ordered spawn-plans и больше не решает, должен ли
+эффект существовать. Регрессии фиксируют duplicate behavior entries,
+target-child flag, два shipped death visuals/sounds и сброс one-live state
+после восстановления машины.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

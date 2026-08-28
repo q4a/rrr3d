@@ -1772,7 +1772,8 @@ void DeathEffectBehavior::OnDeath(
     GameObject&, DamageType, GameObject* target) noexcept
 {
     const auto result = state_.OnDeath(
-        logicAvailable_, target != nullptr,
+        logicAvailable_ || GetLogic() != nullptr,
+        target != nullptr,
         senderIsWeaponProjectile_);
     if (result.createEffect)
         pending_ = result;

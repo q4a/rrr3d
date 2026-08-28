@@ -443,6 +443,9 @@ public:
         float lowLifeLevel, float linearSpeed) noexcept;
     BehaviorProgressResult FinishBehaviorProgress(
         float deltaTime) noexcept;
+    std::size_t GetVehicleDeathEffectBehaviorCount() const noexcept;
+    std::vector<DeathEffect::SpawnResult>
+        ConsumeVehicleDeathEffectSpawns() noexcept;
     bool AttachSlowEffect(
         float maximumTimeLife, std::size_t weapon,
         std::size_t projectile) noexcept;
@@ -545,6 +548,7 @@ private:
     class PlayerImmortalBehavior;
     class SlowBehavior;
     void BindSourceBehaviors();
+    void PrepareVehicleDeathEffects() noexcept;
     void ClearSlowBehavior() noexcept;
     void AttachWeaponMapObjects() noexcept;
     void DetachWeaponMapObjects() noexcept;
@@ -571,6 +575,7 @@ private:
     std::uint32_t pickedMoney_ = 0U;
     std::uint32_t place_ = 1U;
     bool finished_ = false;
+    std::vector<DeathEffectBehavior*> vehicleDeathEffects_;
     HeadLightMode headLight_ = HeadLightMode::None;
     // Portable counterpart of CarState::mapObj. Player::ReleaseCar detaches
     // both spot lights and the night-flare actor without changing the

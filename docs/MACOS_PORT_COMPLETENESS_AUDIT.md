@@ -1753,6 +1753,25 @@ bonus, mine, attached weapon, death и reset ветви уже backend-authorita
 ground behavior. Регрессии фиксируют пустой owner, установку/снятие flag,
 map-owned ground subscription и отсутствие ложного `ContactModify`.
 
+### B8ab — vehicle `DeathEffect` ownership — выполнено
+
+Повторная сверка `DataBase::LoadCar` выявила обход исходного object graph:
+оба serialized type-6 `DeathEffect` машины читались в `Vehicle`, но active
+session безусловно создавала их visuals своим циклом. В `RockCar::Behaviors`
+при этом существовали только LowLife/Immortal/Damage/SoundMotor, поэтому
+`GameObject::OnDeath` не владел эффектами, а one-live state не пересоздавался
+вместе с машиной после respawn.
+
+`Player::CreateCar` теперь в исходном порядке строит LowLife → все
+DeathEffect → Immortal → Damage, после чего `GameCar` добавляет SoundMotor.
+Каждый type-6 получает общий Death callback даже при lethal пути через
+`Logic::Damage(GameObject&)`, формирует свой source spawn-plan, а session
+только материализует подтверждённые plans. Новый физический автомобиль
+пересоздаёт behaviors и очищает EventEffect state. Unit regression проверяет
+две duplicate type-6 записи, target-child semantics и повторную смерть после
+respawn; integrated physics regression требует два исходных эффекта и их
+behavior roster до и после восстановления.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity
