@@ -5297,15 +5297,8 @@ int main(int argc, char** argv)
     bool exitRaceDialogVisible = false;
     bool exitRaceYesFocused = true;
     r3d::physics::VehicleInput raceInput;
-    bool raceUseWeaponRequested = false;
-    bool raceUseAllWeaponsRequested = false;
-    bool raceUseMineRequested = false;
-    bool raceMineAnalogBinding = false;
-    bool raceUseHyper = false;
-    bool raceChangeWeaponRequested = false;
-    int raceWeaponChangeDirection = 1;
-    int raceFireWeaponSlotRequested = -1;
-    bool raceResetRequested = false;
+    std::vector<r3d::game::originalcontrol::InputMessage>
+        raceHumanInputMessages;
     std::vector<r3d::physics::VehicleState> raceVehicles(
         physicsWorld->vehicleCount());
     struct DecorationDebrisBinding
@@ -6654,15 +6647,7 @@ int main(int argc, char** argv)
                 ? rrr3d::race::RaceCameraStyle::ThirdPerson
                 : rrr3d::race::RaceCameraStyle::Isometric;
         raceInput = {};
-        raceUseWeaponRequested = false;
-        raceUseAllWeaponsRequested = false;
-        raceUseMineRequested = false;
-        raceMineAnalogBinding = false;
-        raceUseHyper = false;
-        raceChangeWeaponRequested = false;
-        raceWeaponChangeDirection = 1;
-        raceFireWeaponSlotRequested = -1;
-        raceResetRequested = false;
+        raceHumanInputMessages.clear();
         gameDebug.resetRaceState();
         if (gameDebug.enabled() && options->raceRenderSmokeTest)
         {
@@ -6759,14 +6744,7 @@ int main(int argc, char** argv)
     };
     auto clearRaceControls = [&]() {
         raceInput = {};
-        raceUseWeaponRequested = false;
-        raceUseAllWeaponsRequested = false;
-        raceUseMineRequested = false;
-        raceUseHyper = false;
-        raceChangeWeaponRequested = false;
-        raceWeaponChangeDirection = 1;
-        raceFireWeaponSlotRequested = -1;
-        raceResetRequested = false;
+        raceHumanInputMessages.clear();
     };
     auto setRacePaused = [&](bool paused) {
         // Exact GameMode::Pause boundary: the world clock is stopped while
@@ -9739,15 +9717,7 @@ int main(int argc, char** argv)
         const auto& player = raceSession.racers().at(humanRacer);
         inRace = false;
         raceInput = {};
-        raceUseWeaponRequested = false;
-        raceUseAllWeaponsRequested = false;
-        raceUseMineRequested = false;
-        raceMineAnalogBinding = false;
-        raceUseHyper = false;
-        raceChangeWeaponRequested = false;
-        raceWeaponChangeDirection = 1;
-        raceFireWeaponSlotRequested = -1;
-        raceResetRequested = false;
+        raceHumanInputMessages.clear();
         menuStack = {MenuScreen::Main, MenuScreen::Finish};
         menuSelection = 0;
         gameModeState.ExitRaceGoFinish();
@@ -12621,6 +12591,22 @@ int main(int argc, char** argv)
                 }
                 if (inRace)
                 {
+                    const auto queueHumanInput = [&]() {
+                        using Controller =
+                            r3d::game::originalcontrol::ControllerType;
+                        const auto controller =
+                            inputEvent.source ==
+                                        rrr3d::input::Source::Keyboard ||
+                                    inputEvent.source ==
+                                        rrr3d::input::Source::Mouse
+                                ? Controller::Keyboard
+                                : Controller::Gamepad;
+                        raceHumanInputMessages.push_back(
+                            {inputEvent.action, {}, inputEvent.active,
+                             inputEvent.repeated, controller, U'\0',
+                             inputEvent.value, inputEvent.source,
+                             inputEvent.device_id});
+                    };
                     switch (inputEvent.action)
                     {
                     case rrr3d::input::Action::Debug1:
@@ -12709,54 +12695,28 @@ int main(int argc, char** argv)
                             raceInput.steering = 0.0F;
                         break;
                     case rrr3d::input::Action::UseWeapon:
-                        if (inputEvent.active && !inputEvent.repeated)
-                            raceUseWeaponRequested = true;
+                        queueHumanInput();
                         break;
                     case rrr3d::input::Action::UseAllWeapons:
-                        if (inputEvent.active && !inputEvent.repeated)
-                            raceUseAllWeaponsRequested = true;
+                        queueHumanInput();
                         break;
                     case rrr3d::input::Action::UseMine:
-                        if (inputEvent.source ==
-                            rrr3d::input::Source::GamepadAxis)
-                        {
-                            raceMineAnalogBinding = true;
-                        }
-                        else if (inputEvent.active &&
-                                 !inputEvent.repeated)
-                        {
-                            raceUseMineRequested = true;
-                        }
+                        queueHumanInput();
                         break;
                     case rrr3d::input::Action::UseHyper:
-                        raceUseHyper = inputEvent.active;
                         break;
                     case rrr3d::input::Action::ChangeWeapon:
                     case rrr3d::input::Action::NextWeapon:
-                        if (inputEvent.active && !inputEvent.repeated)
-                        {
-                            raceChangeWeaponRequested = true;
-                            raceWeaponChangeDirection = 1;
-                        }
+                        queueHumanInput();
                         break;
                     case rrr3d::input::Action::PreviousWeapon:
-                        if (inputEvent.active && !inputEvent.repeated)
-                        {
-                            raceChangeWeaponRequested = true;
-                            raceWeaponChangeDirection = -1;
-                        }
+                        queueHumanInput();
                         break;
                     case rrr3d::input::Action::SelectWeapon1:
                     case rrr3d::input::Action::SelectWeapon2:
                     case rrr3d::input::Action::SelectWeapon3:
                     case rrr3d::input::Action::SelectWeapon4:
-                        if (inputEvent.active && !inputEvent.repeated)
-                        {
-                            raceFireWeaponSlotRequested =
-                                static_cast<int>(inputEvent.action) -
-                                static_cast<int>(
-                                    rrr3d::input::Action::SelectWeapon1);
-                        }
+                        queueHumanInput();
                         break;
                     case rrr3d::input::Action::ToggleCamera:
                         if (inputEvent.active && !inputEvent.repeated)
@@ -12807,8 +12767,7 @@ int main(int argc, char** argv)
                         }
                         break;
                     case rrr3d::input::Action::ResetVehicle:
-                        if (inputEvent.active && !inputEvent.repeated)
-                            raceResetRequested = true;
+                        queueHumanInput();
                         break;
                     case rrr3d::input::Action::Pause:
                         if (inputEvent.active && !inputEvent.repeated)
@@ -14501,17 +14460,14 @@ int main(int argc, char** argv)
             }
             r3d::game::originalrace::RaceControl control;
             control.driving = raceInput;
-            control.useWeapon = raceUseWeaponRequested;
-            control.useAllWeapons = raceUseAllWeaponsRequested;
-            control.useMine = raceUseMineRequested;
+            control.inputMessages = std::move(raceHumanInputMessages);
             control.mineHeld = input.heldValue(
                 rrr3d::input::Action::UseMine);
-            control.mineAnalogBinding = raceMineAnalogBinding;
-            control.useHyper = raceUseHyper;
-            control.changeWeapon = raceChangeWeaponRequested;
-            control.weaponChange = raceWeaponChangeDirection;
-            control.fireWeaponSlot = raceFireWeaponSlotRequested;
-            control.reset = raceResetRequested;
+            control.mineAnalogBinding = input.heldValue(
+                rrr3d::input::Action::UseMine,
+                rrr3d::input::Source::GamepadAxis) > 0.0F;
+            control.useHyper = input.heldValue(
+                rrr3d::input::Action::UseHyper) > 0.0F;
             control.chatMode = userChat.inputVisible();
 #ifdef RRR3D_NETWORK
             if (networkMatchStarted &&
@@ -14930,13 +14886,6 @@ int main(int argc, char** argv)
                 minimumRacePlayerLife = std::min(
                     minimumRacePlayerLife,
                     raceSession.racers()[humanRacer].GetLife());
-            raceUseWeaponRequested = false;
-            raceUseAllWeaponsRequested = false;
-            raceUseMineRequested = false;
-            raceChangeWeaponRequested = false;
-            raceWeaponChangeDirection = 1;
-            raceFireWeaponSlotRequested = -1;
-            raceResetRequested = false;
             for (const auto& event : raceSession.events())
             {
 #ifdef RRR3D_NETWORK

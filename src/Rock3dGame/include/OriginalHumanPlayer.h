@@ -1,9 +1,11 @@
 #pragma once
 
+#include "OriginalControlManager.h"
 #include "OriginalWeapon.h"
 
 #include <cstddef>
 #include <span>
+#include <vector>
 
 namespace r3d::game::originalrace::source
 {
@@ -14,6 +16,22 @@ namespace r3d::game::originalrace::source
 class HumanPlayer
 {
 public:
+    enum class InputCommandKind
+    {
+        ShotAll,
+        ResetCar,
+        ShotMine,
+        ShotCurrent,
+        ChangeWeapon,
+        ShotWeaponSlot,
+    };
+
+    struct InputCommand
+    {
+        InputCommandKind kind = InputCommandKind::ShotCurrent;
+        int value = 0;
+    };
+
     struct Selection
     {
         std::size_t slot = 0U;
@@ -54,6 +72,13 @@ public:
         std::span<WeaponItem* const> primaryWeapons) noexcept;
     Selection SelectWeapon(
         std::span<WeaponItem* const> primaryWeapons) noexcept;
+
+    // Exact HumanPlayer::Control::OnHandleInput event transaction. The
+    // returned commands retain ControlManager delivery order; the platform
+    // host must not collapse them into one flag per action/frame.
+    static std::vector<InputCommand> OnHandleInput(
+        std::span<const originalcontrol::InputMessage> messages,
+        bool playerBlocked, bool carPresent, bool chatMode);
 
     static DrivingCommand OnInputProgress(
         bool accelerateDown, bool backDown,

@@ -2394,3 +2394,14 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   `RacePhase::Finished`, а затем правильная после `finishPresentationReady`.
 - Frames/cups/results/timing теперь существуют только в active
   `FinishMenuFrameState` с source voice-duration и Last-event semantics.
+
+### Source HumanPlayer input follow-up
+
+- SDL race input больше не схлопывает weapon/reset события в независимые
+  frame-флаги: в `source::HumanPlayer` передаётся ordered ControlManager
+  `InputMessage` transaction.
+- Восстановлены source gates и порядок `ShotAll/Reset/Mine/Shot/WeaponDown/
+  WeaponUp/direct slots`, после которого отдельно polling-исполняются Hyper
+  и analog Mine.
+- Maslo удалено из digital mine edge и снова стреляет только через исходный
+  continuous readiness path; empty-inventory WeaponUp сохраняет source `-1`.

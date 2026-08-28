@@ -4696,12 +4696,6 @@ void OriginalRaceSession::updateGameplay(
 
     if (humanRacer_ < vehicles.size() && humanRacer_ < racers_.size())
     {
-        if (humanControl.reset &&
-            source::HumanPlayer::ResetCar(
-                !racers_[humanRacer_].IsDestroyed(),
-                vehicles[humanRacer_].contactCount > 0U,
-                !vehicles[humanRacer_].bodyContacts.empty()))
-            queueRespawn(humanRacer_, vehicles);
         previousPositions_[humanRacer_] =
             vehicles[humanRacer_].body.position;
     }
@@ -4859,16 +4853,6 @@ void OriginalRaceSession::updateGameplay(
             racers_[humanRacer_].SyncSelectedWeapon(race_.weapons.size());
         }
     }
-    if (humanControl.changeWeapon && humanRacer_ < racers_.size())
-    {
-        auto items = humanPrimaryItems();
-        humanPlayer_.ChangeWeapon(
-            humanControl.weaponChange, items);
-        racers_[humanRacer_].selectedWeaponSlot = static_cast<std::size_t>(
-            std::max(humanPlayer_.GetCurWeapon(), 0));
-        racers_[humanRacer_].SyncSelectedWeapon(race_.weapons.size());
-    }
-
     auto placeMine = [&](
         std::size_t owner, const Vec3* replicatedPosition = nullptr,
         std::uint32_t replicatedProjectileId = 0U,
@@ -4977,40 +4961,6 @@ void OriginalRaceSession::updateGameplay(
         mineEvent.networkCoordinates.push_back(position);
         events_.push_back(std::move(mineEvent));
     };
-    if (humanControl.useMine)
-    {
-        auto* item = mineWeaponItem(humanRacer_);
-        const auto plan = source::Logic::Shot(
-            item != nullptr && item->IsInstalled() ? item : nullptr,
-            source::Logic::SlotType::Mine, true);
-        emitHumanShot(plan);
-        if (plan.Get(source::Logic::SlotType::Mine))
-            placeMine(humanRacer_, nullptr, 0U, false, true);
-    }
-    if (humanRacer_ < racers_.size() && humanControl.mineHeld > 0.0F &&
-        racers_[humanRacer_].mineWeapon != RacerRuntime::invalidWeapon &&
-        racers_[humanRacer_].mineWeapon < race_.weapons.size())
-    {
-        auto* mineItem = racers_[humanRacer_].GetMineWeaponItem();
-        auto* mineWeapon = mineItem != nullptr
-            ? mineItem->GetWeapon() : nullptr;
-        const bool maslo =
-            mineWeapon != nullptr && mineWeapon->IsMaslo();
-        if (humanControl.mineAnalogBinding || maslo)
-        {
-            const float alpha =
-                std::clamp(humanControl.mineHeld, 0.0F, 1.0F);
-            const float sourceDelay = (1.0F - alpha) * 0.6F;
-            if (mineWeapon != nullptr &&
-                mineWeapon->IsReadyShot(sourceDelay))
-            {
-                source::Logic::ShotPlan humanShot;
-                humanShot.humanShotEvent = true;
-                emitHumanShot(humanShot);
-                placeMine(humanRacer_, nullptr, 0U, false, true);
-            }
-        }
-    }
     auto activateHyper = [&](
         std::size_t owner, const Vec3* replicatedPosition = nullptr,
         std::uint32_t replicatedProjectileId = 0U,
@@ -5167,6 +5117,488 @@ void OriginalRaceSession::updateGameplay(
             weaponTransform,
             projectile);
     };
+    auto fireWeapon =
+        [&](std::size_t shooter,
+            std::size_t requestedTarget =
+                RacerRuntime::invalidWeapon,
+            const Vec3* replicatedOrigin = nullptr,
+            std::uint32_t replicatedProjectileId = 0U,
+            bool networkReplicated = false,
+            bool sourceReadinessOverride = false) {
+        if (shooter >= vehicles.size() ||
+            shooter >= racers_.size() ||
+            racers_[shooter].GetFinished() ||
+            racers_[shooter].IsDestroyed())
+            return;
+        auto& runtime = racers_[shooter];
+        runtime.SyncSelectedWeapon(race_.weapons.size());
+        if (runtime.selectedWeapon == RacerRuntime::invalidWeapon ||
+            runtime.selectedWeapon >= race_.weapons.size() ||
+            runtime.selectedWeaponSlot >= PlayerProfile::weaponSlotCount)
+            return;
+        const std::size_t firedSlot = runtime.selectedWeaponSlot;
+        const std::size_t firedWeapon = runtime.selectedWeapon;
+        auto* item = primaryWeaponItem(shooter, firedSlot);
+        if (item == nullptr || !item->IsInstalled())
+            return;
+        if (!networkReplicated && !sourceReadinessOverride &&
+            !item->IsReadyShot())
+            return;
+        const auto* weapon =
+            &race_.weapons[firedWeapon];
+        if (weapon->slot == WeaponSlot::Support)
+            return;
+        auto* liveWeapon = item->GetWeapon();
+        const auto shotDescription = liveWeapon->GetDescHandle();
+        const auto& itemProjectiles =
+            shotDescription->projectiles;
+        const int newCharge =
+            networkReplicated
+                ? static_cast<int>(item->GetCurCharge()) - 1
+                : -1;
+        const std::uint32_t networkProjectileId =
+            networkReplicated && replicatedProjectileId != 0U
+                ? replicatedProjectileId
+                : runtime.GetNextBonusProjectileId();
+        const Vec3 eventOrigin = weaponWorldTransform(
+            shooter, firedWeapon, firedSlot).position;
+        std::size_t target = racers_.size();
+        std::vector<Vec3> networkCoordinates;
+        std::vector<source::Weapon::ShotContext> sourceContexts;
+        sourceContexts.reserve(itemProjectiles.size());
+
+        // HumanPlayer::Shot(WeaponType) resolves one target for the complete
+        // Weapon::Desc batch, not independently for each descriptor.
+        const float homingViewAngle =
+            recordName(weapon->record) == "sphereGun"
+                ? 0.0F
+                : 3.14159265358979323846F / 5.5F;
+        const std::size_t homingTarget =
+            requestedTarget < racers_.size()
+                ? requestedTarget
+                : findClosestEnemy(shooter, homingViewAngle);
+        source::GameObject* sourceTarget = nullptr;
+        if (homingTarget < racerMapObjects_.size() &&
+            racerMapObjects_[homingTarget] != nullptr)
+        {
+            sourceTarget =
+                &racerMapObjects_[homingTarget]->GetGameObj();
+        }
+
+        for (std::size_t projectileIndex = 0;
+             projectileIndex < itemProjectiles.size();
+             ++projectileIndex)
+        {
+            const auto& projectile =
+                itemProjectiles[projectileIndex];
+            auto shotTransform = projectileWorldTransform(
+                shooter, firedWeapon, firedSlot, projectile);
+            if (replicatedOrigin != nullptr)
+                shotTransform.position = *replicatedOrigin;
+            const Vec3 projectileOrigin = shotTransform.position;
+            const Vec3 sourceDirection = normalized3(
+                rotate(shotTransform.rotation,
+                       {1.0F, 0.0F, 0.0F}));
+            const float sampledMinimumLife = sampleSourceRange(
+                projectile.minimumLife, projectile.maximumLife);
+            source::Weapon::ShotContext sourceContext;
+            sourceContext.logic = &logic_;
+            sourceContext.shot.targetMapObject = sourceTarget;
+            sourceContext.playerId = shooter;
+            sourceContext.maximumLife = sampledMinimumLife;
+            sourceContext.position = sourceVec(projectileOrigin);
+            sourceContext.rotation = sourceQuat(shotTransform.rotation);
+            sourceContext.launchVelocity = sourceVec(
+                multiply(sourceDirection, projectile.speed));
+            sourceContexts.push_back(sourceContext);
+        }
+
+        source::Weapon::ProjList sourceProjectiles;
+        if (!runtime.Shot(
+                *item, sourceContexts, false,
+                replicatedProjectileId, newCharge,
+                &sourceProjectiles))
+            return;
+        runtime.SyncSelectedWeapon(race_.weapons.size());
+
+        const auto fallbackProjectileIndex =
+            [&](std::size_t preparedOrdinal) {
+                std::size_t visibleOrdinal = 0U;
+                for (std::size_t index = 0U;
+                     index < weapon->projectiles.size(); ++index)
+                {
+                    if (weapon->projectiles[index].spawnOnParentDeath)
+                        continue;
+                    if (visibleOrdinal++ == preparedOrdinal)
+                        return index;
+                }
+                return std::min(
+                    preparedOrdinal,
+                    weapon->projectiles.empty()
+                        ? std::size_t{0U}
+                        : weapon->projectiles.size() - 1U);
+            };
+        for (std::size_t preparedOrdinal = 0U;
+             preparedOrdinal < sourceProjectiles.size();
+             ++preparedOrdinal)
+        {
+            auto* sourceObject = sourceProjectiles[preparedOrdinal];
+            if (sourceObject == nullptr)
+                continue;
+            const auto& projectile = sourceObject->GetDesc();
+            const std::size_t backendProjectileIndex =
+                projectile.weaponListIndex < weapon->projectiles.size()
+                    ? projectile.weaponListIndex
+                    : fallbackProjectileIndex(preparedOrdinal);
+            Transform shotTransform;
+            const auto& sourcePosition = sourceObject->GetWorldPos();
+            const auto& sourceRotation = sourceObject->GetWorldRot();
+            shotTransform.position = {
+                sourcePosition[0], sourcePosition[1], sourcePosition[2]};
+            shotTransform.rotation = {
+                sourceRotation[0], sourceRotation[1],
+                sourceRotation[2], sourceRotation[3]};
+            const Vec3 projectileOrigin = shotTransform.position;
+            const Vec3 sourceDirection = normalized3(
+                rotate(shotTransform.rotation,
+                       {1.0F, 0.0F, 0.0F}));
+            Vec3 launchDirection = sourceDirection;
+
+            ProjectileRuntime runtimeProjectile;
+            runtimeProjectile.owner = shooter;
+            runtimeProjectile.weapon = firedWeapon;
+            runtimeProjectile.projectile =
+                backendProjectileIndex;
+            runtimeProjectile.mountSlot = firedSlot;
+            runtimeProjectile.position = projectileOrigin;
+            runtimeProjectile.direction = sourceDirection;
+            runtimeProjectile.rotation = shotTransform.rotation;
+            runtimeProjectile.speed = projectile.speed;
+            runtimeProjectile.velocity =
+                multiply(sourceDirection, projectile.speed);
+            runtimeProjectile.sourceObject = sourceObject;
+            const float sampledMinimumLife =
+                sourceObject->GetMaxTimeLife();
+            if (networkCoordinates.empty())
+                networkCoordinates.push_back(projectileOrigin);
+
+            // The concrete projectile has now completed PrepareProj. Its
+            // copied descriptor, rather than the session definition, owns
+            // the backend route for the rest of this transaction.
+            const auto projectileRules =
+                runtimeProjectile.sourceObject->RoutePreparation();
+            const bool rocketPrepared = projectileRules.rocketPrepare;
+            const bool rayProjectile = projectileRules.ray;
+            const bool attachedProjectile =
+                projectileRules.attached;
+            const float projectileDistance =
+                projectile.maximumDistance > 0.0F
+                    ? projectile.maximumDistance
+                    : 100.0F;
+            float targetDistance = projectileDistance;
+            std::size_t projectileTarget = racers_.size();
+            std::size_t projectileDecoration =
+                RacerRuntime::invalidWeapon;
+            if (rayProjectile && !attachedProjectile)
+            {
+                const auto rayHit = raycastWorld(
+                    race_, decorationActive_, vehicles, racers_, shooter,
+                    add(projectileOrigin, projectile.sizeAddPx),
+                    sourceDirection, projectileDistance);
+                if (rayHit.hit)
+                {
+                    targetDistance = rayHit.distance;
+                    projectileTarget = rayHit.vehicle;
+                    projectileDecoration = rayHit.decoration;
+                }
+            }
+            Vec3 end = add(
+                projectileOrigin,
+                multiply(
+                    rayProjectile || attachedProjectile
+                        ? sourceDirection
+                        : launchDirection,
+                    rayProjectile && !attachedProjectile
+                        ? targetDistance
+                        : projectileDistance));
+            if (attachedProjectile)
+            {
+                if (projectile.type == 14U)
+                {
+                    // FireUpdate copies the mounted weapon actor velocity on
+                    // every source tick before relocating the contact box.
+                    runtimeProjectile.velocity =
+                        vehicles[shooter].linearVelocity;
+                }
+                runtimeProjectile.attached = true;
+                runtimeProjectile.sourceObject->PrepareMaximumLife(
+                    sampledMinimumLife);
+                projectiles_.push_back(std::move(runtimeProjectile));
+            }
+            else if (!rayProjectile)
+            {
+                float speed = runtimeProjectile.speed;
+                runtimeProjectile.ballistic =
+                    projectileRules.ballistic;
+                if (rocketPrepared)
+                {
+                    const auto sourceLaunch =
+                        runtimeProjectile.sourceObject->PrepareLaunch(
+                            sourceVec(sourceDirection),
+                            sourceVec(
+                                vehicles[shooter].linearVelocity));
+                    launchDirection =
+                        runtimeVec(sourceLaunch.direction);
+                    speed = sourceLaunch.speed;
+                    runtimeProjectile.direction = launchDirection;
+                    runtimeProjectile.speed = speed;
+                    runtimeProjectile.velocity =
+                        multiply(launchDirection, speed);
+                }
+                runtimeProjectile.sourceObject->PrepareMaximumLife(
+                    sampledMinimumLife);
+                if (projectileRules.homing)
+                {
+                    runtimeProjectile.target = homingTarget;
+                }
+                projectiles_.push_back(std::move(runtimeProjectile));
+                end = add(
+                    projectileOrigin,
+                    multiply(
+                        launchDirection,
+                        std::min(std::max(speed * 0.03F, 0.5F),
+                                 projectileDistance)));
+            }
+            else if (projectileTarget < racers_.size())
+            {
+                target = projectileTarget;
+                applyProjectileDamage(
+                    *runtimeProjectile.sourceObject, target, end,
+                    std::max(projectile.damage, 0.0F),
+                    runtimeProjectile.sourceObject->RouteContact(false)
+                        .damageType);
+            }
+            else if (projectileDecoration < decorationActive_.size())
+            {
+                damageDecoration(
+                    projectileDecoration,
+                    std::max(projectile.damage, 0.0F), shooter);
+            }
+            if (rayProjectile && !attachedProjectile)
+                runtimeProjectile.sourceObject->Death();
+            RaceEffect fired;
+            fired.kind = RaceEventKind::WeaponFired;
+            fired.origin = projectileOrigin;
+            fired.target = end;
+            fired.seconds =
+                (rayProjectile || attachedProjectile) ? 0.12F : 0.03F;
+            fired.totalSeconds = fired.seconds;
+            configureSourceEffectOwner(
+                fired, false, fired.totalSeconds);
+            fired.weapon = firedWeapon;
+            fired.projectile = backendProjectileIndex;
+            effects_.push_back(std::move(fired));
+            pushShotEffect(
+                shooter, firedWeapon, firedSlot,
+                weaponWorldTransform(
+                    shooter, firedWeapon, firedSlot),
+                projectile);
+        }
+        RaceEvent shotEvent;
+        shotEvent.kind = RaceEventKind::WeaponFired;
+        shotEvent.racer = shooter;
+        shotEvent.target = target;
+        shotEvent.position =
+            networkCoordinates.empty()
+                ? eventOrigin
+                : networkCoordinates.front();
+        shotEvent.value = 5.0F;
+        shotEvent.weapon = firedWeapon;
+        shotEvent.networkReplicated = networkReplicated;
+        shotEvent.networkSlotMask = static_cast<std::uint8_t>(
+            1U << (firedSlot + 2U));
+        shotEvent.networkProjectileId = networkProjectileId;
+        shotEvent.networkCoordinates =
+            std::move(networkCoordinates);
+        events_.push_back(std::move(shotEvent));
+    };
+    using HumanCommand = source::HumanPlayer::InputCommand;
+    using HumanCommandKind = source::HumanPlayer::InputCommandKind;
+    auto humanCommands = source::HumanPlayer::OnHandleInput(
+        humanControl.inputMessages, false, true, false);
+
+    // Backend-neutral tests may still submit the old one-shot adapter fields.
+    // Convert them once into the same source command stream; the SDL runtime
+    // supplies ordered ControlManager messages exclusively.
+    if (humanControl.useAllWeapons)
+        humanCommands.push_back(
+            {HumanCommandKind::ShotAll, 0});
+    if (humanControl.reset)
+        humanCommands.push_back(
+            {HumanCommandKind::ResetCar, 0});
+    if (humanControl.useMine)
+        humanCommands.push_back(
+            {HumanCommandKind::ShotMine, 0});
+    if (humanControl.useWeapon)
+        humanCommands.push_back(
+            {HumanCommandKind::ShotCurrent, 0});
+    if (humanControl.changeWeapon)
+        humanCommands.push_back(
+            {HumanCommandKind::ChangeWeapon,
+             humanControl.weaponChange});
+    if (humanControl.fireWeaponSlot >= 0)
+        humanCommands.push_back(
+            {HumanCommandKind::ShotWeaponSlot,
+             humanControl.fireWeaponSlot});
+
+    auto shootCurrent = [&]() {
+        if (humanRacer_ >= racers_.size())
+            return;
+        auto& runtime = racers_[humanRacer_];
+        auto items = humanPrimaryItems();
+        humanPlayer_.SetCurWeapon(
+            static_cast<int>(runtime.selectedWeaponSlot));
+        const auto selection = humanPlayer_.SelectWeapon(items);
+        runtime.selectedWeaponSlot = selection.slot;
+        runtime.SyncSelectedWeapon(race_.weapons.size());
+        if (!selection.found)
+            return;
+        auto* item = items[selection.slot];
+        const auto slotType =
+            static_cast<source::Logic::SlotType>(
+                static_cast<std::size_t>(
+                    source::Logic::SlotType::Weapon1) +
+                selection.slot);
+        const auto plan = source::Logic::Shot(item, slotType, true);
+        emitHumanShot(plan);
+        if (!plan.Get(slotType))
+            return;
+        fireWeapon(humanRacer_, RacerRuntime::invalidWeapon,
+                   nullptr, 0U, false, true);
+        if (item->GetCurCharge() == 0U)
+        {
+            const auto next = humanPlayer_.SelectWeapon(items);
+            runtime.selectedWeaponSlot = next.slot;
+            runtime.SyncSelectedWeapon(race_.weapons.size());
+        }
+    };
+    auto shootWeaponOrdinal = [&](int ordinal) {
+        if (humanRacer_ >= racers_.size() || ordinal < 0 ||
+            ordinal >=
+                static_cast<int>(PlayerProfile::weaponSlotCount))
+            return;
+        auto& runtime = racers_[humanRacer_];
+        auto items = humanPrimaryItems();
+        const std::size_t requested =
+            humanPlayer_.GetWeaponByIndex(ordinal, items);
+        if (requested >= items.size())
+            return;
+        const auto selected = runtime.selectedWeaponSlot;
+        runtime.selectedWeaponSlot = requested;
+        runtime.SyncSelectedWeapon(race_.weapons.size());
+        auto* item = primaryWeaponItem(humanRacer_, requested);
+        const auto slotType =
+            static_cast<source::Logic::SlotType>(
+                static_cast<std::size_t>(
+                    source::Logic::SlotType::Weapon1) +
+                requested);
+        const auto plan = source::Logic::Shot(
+            item != nullptr && item->IsInstalled() ? item : nullptr,
+            slotType, true);
+        emitHumanShot(plan);
+        if (plan.Get(slotType))
+            fireWeapon(humanRacer_, RacerRuntime::invalidWeapon,
+                       nullptr, 0U, false, true);
+        runtime.selectedWeaponSlot = selected;
+        runtime.SyncSelectedWeapon(race_.weapons.size());
+    };
+    auto shootAll = [&]() {
+        if (humanRacer_ >= racers_.size())
+            return;
+        auto& runtime = racers_[humanRacer_];
+        const auto selected = runtime.selectedWeaponSlot;
+        auto items = humanPrimaryItems();
+        const auto plan = source::Logic::ShotAll(items, true);
+        emitHumanShot(plan);
+        for (std::size_t slot = 0;
+             slot < runtime.weaponSlots.size(); ++slot)
+        {
+            const auto slotType =
+                static_cast<source::Logic::SlotType>(
+                    static_cast<std::size_t>(
+                        source::Logic::SlotType::Weapon1) +
+                    slot);
+            if (!plan.Get(slotType))
+                continue;
+            runtime.selectedWeaponSlot = slot;
+            runtime.SyncSelectedWeapon(race_.weapons.size());
+            fireWeapon(humanRacer_, RacerRuntime::invalidWeapon,
+                       nullptr, 0U, false, true);
+        }
+        runtime.selectedWeaponSlot = selected;
+        runtime.SyncSelectedWeapon(race_.weapons.size());
+    };
+    auto shootDigitalMine = [&]() {
+        auto* item = mineWeaponItem(humanRacer_);
+        auto* weapon = item != nullptr ? item->GetWeapon() : nullptr;
+        // OnHandleInput excludes Maslo from the digital edge. Maslo is
+        // always handled by the continuous alpha path below.
+        if (item == nullptr || !item->IsInstalled() ||
+            weapon == nullptr || weapon->IsMaslo())
+            return;
+        const auto plan = source::Logic::Shot(
+            item, source::Logic::SlotType::Mine, true);
+        emitHumanShot(plan);
+        if (plan.Get(source::Logic::SlotType::Mine))
+            placeMine(humanRacer_, nullptr, 0U, false, true);
+    };
+
+    // ControlManager dispatches every queued message before OnInputProgress.
+    // Execute each command in that same order instead of collapsing actions
+    // into a renderer/session-selected priority.
+    for (const HumanCommand& command : humanCommands)
+    {
+        switch (command.kind)
+        {
+        case HumanCommandKind::ShotAll:
+            shootAll();
+            break;
+        case HumanCommandKind::ResetCar:
+            if (humanRacer_ < vehicles.size() &&
+                humanRacer_ < racers_.size() &&
+                source::HumanPlayer::ResetCar(
+                    !racers_[humanRacer_].IsDestroyed(),
+                    vehicles[humanRacer_].contactCount > 0U,
+                    !vehicles[humanRacer_].bodyContacts.empty()))
+                queueRespawn(humanRacer_, vehicles);
+            break;
+        case HumanCommandKind::ShotMine:
+            shootDigitalMine();
+            break;
+        case HumanCommandKind::ShotCurrent:
+            shootCurrent();
+            break;
+        case HumanCommandKind::ChangeWeapon:
+            if (humanRacer_ < racers_.size())
+            {
+                auto items = humanPrimaryItems();
+                humanPlayer_.ChangeWeapon(command.value, items);
+                racers_[humanRacer_].selectedWeaponSlot =
+                    static_cast<std::size_t>(
+                        std::max(humanPlayer_.GetCurWeapon(), 0));
+                racers_[humanRacer_].SyncSelectedWeapon(
+                    race_.weapons.size());
+            }
+            break;
+        case HumanCommandKind::ShotWeaponSlot:
+            shootWeaponOrdinal(command.value);
+            break;
+        }
+    }
+
+    // HumanPlayer::Control::OnInputProgress polls Hyper first, then the first
+    // active Mine controller. These commands deliberately run after all
+    // event messages above.
     if (humanControl.useHyper)
     {
         auto* item = hyperWeaponItem(humanRacer_);
@@ -5176,7 +5608,32 @@ void OriginalRaceSession::updateGameplay(
         if (plan.Get(source::Logic::SlotType::Hyper))
             activateHyper(humanRacer_);
     }
-
+    if (humanRacer_ < racers_.size() &&
+        humanControl.mineHeld > 0.0F &&
+        racers_[humanRacer_].mineWeapon !=
+            RacerRuntime::invalidWeapon &&
+        racers_[humanRacer_].mineWeapon < race_.weapons.size())
+    {
+        auto* mineItem = racers_[humanRacer_].GetMineWeaponItem();
+        auto* mineWeapon =
+            mineItem != nullptr ? mineItem->GetWeapon() : nullptr;
+        const bool maslo =
+            mineWeapon != nullptr && mineWeapon->IsMaslo();
+        if (humanControl.mineAnalogBinding || maslo)
+        {
+            const float alpha =
+                std::clamp(humanControl.mineHeld, 0.0F, 1.0F);
+            const float sourceDelay = (1.0F - alpha) * 0.6F;
+            if (mineWeapon != nullptr &&
+                mineWeapon->IsReadyShot(sourceDelay))
+            {
+                source::Logic::ShotPlan humanShot;
+                humanShot.humanShotEvent = true;
+                emitHumanShot(humanShot);
+                placeMine(humanRacer_, nullptr, 0U, false, true);
+            }
+        }
+    }
     std::vector<MineRuntime> spawnedMines;
     auto spawnMineDeathEffect = [&](
         MineRuntime& mine,
@@ -5957,402 +6414,6 @@ void OriginalRaceSession::updateGameplay(
         }
     }
 
-    auto fireWeapon =
-        [&](std::size_t shooter,
-            std::size_t requestedTarget =
-                RacerRuntime::invalidWeapon,
-            const Vec3* replicatedOrigin = nullptr,
-            std::uint32_t replicatedProjectileId = 0U,
-            bool networkReplicated = false,
-            bool sourceReadinessOverride = false) {
-        if (shooter >= vehicles.size() ||
-            shooter >= racers_.size() ||
-            racers_[shooter].GetFinished() ||
-            racers_[shooter].IsDestroyed())
-            return;
-        auto& runtime = racers_[shooter];
-        runtime.SyncSelectedWeapon(race_.weapons.size());
-        if (runtime.selectedWeapon == RacerRuntime::invalidWeapon ||
-            runtime.selectedWeapon >= race_.weapons.size() ||
-            runtime.selectedWeaponSlot >= PlayerProfile::weaponSlotCount)
-            return;
-        const std::size_t firedSlot = runtime.selectedWeaponSlot;
-        const std::size_t firedWeapon = runtime.selectedWeapon;
-        auto* item = primaryWeaponItem(shooter, firedSlot);
-        if (item == nullptr || !item->IsInstalled())
-            return;
-        if (!networkReplicated && !sourceReadinessOverride &&
-            !item->IsReadyShot())
-            return;
-        const auto* weapon =
-            &race_.weapons[firedWeapon];
-        if (weapon->slot == WeaponSlot::Support)
-            return;
-        auto* liveWeapon = item->GetWeapon();
-        const auto shotDescription = liveWeapon->GetDescHandle();
-        const auto& itemProjectiles =
-            shotDescription->projectiles;
-        const int newCharge =
-            networkReplicated
-                ? static_cast<int>(item->GetCurCharge()) - 1
-                : -1;
-        const std::uint32_t networkProjectileId =
-            networkReplicated && replicatedProjectileId != 0U
-                ? replicatedProjectileId
-                : runtime.GetNextBonusProjectileId();
-        const Vec3 eventOrigin = weaponWorldTransform(
-            shooter, firedWeapon, firedSlot).position;
-        std::size_t target = racers_.size();
-        std::vector<Vec3> networkCoordinates;
-        std::vector<source::Weapon::ShotContext> sourceContexts;
-        sourceContexts.reserve(itemProjectiles.size());
-
-        // HumanPlayer::Shot(WeaponType) resolves one target for the complete
-        // Weapon::Desc batch, not independently for each descriptor.
-        const float homingViewAngle =
-            recordName(weapon->record) == "sphereGun"
-                ? 0.0F
-                : 3.14159265358979323846F / 5.5F;
-        const std::size_t homingTarget =
-            requestedTarget < racers_.size()
-                ? requestedTarget
-                : findClosestEnemy(shooter, homingViewAngle);
-        source::GameObject* sourceTarget = nullptr;
-        if (homingTarget < racerMapObjects_.size() &&
-            racerMapObjects_[homingTarget] != nullptr)
-        {
-            sourceTarget =
-                &racerMapObjects_[homingTarget]->GetGameObj();
-        }
-
-        for (std::size_t projectileIndex = 0;
-             projectileIndex < itemProjectiles.size();
-             ++projectileIndex)
-        {
-            const auto& projectile =
-                itemProjectiles[projectileIndex];
-            auto shotTransform = projectileWorldTransform(
-                shooter, firedWeapon, firedSlot, projectile);
-            if (replicatedOrigin != nullptr)
-                shotTransform.position = *replicatedOrigin;
-            const Vec3 projectileOrigin = shotTransform.position;
-            const Vec3 sourceDirection = normalized3(
-                rotate(shotTransform.rotation,
-                       {1.0F, 0.0F, 0.0F}));
-            const float sampledMinimumLife = sampleSourceRange(
-                projectile.minimumLife, projectile.maximumLife);
-            source::Weapon::ShotContext sourceContext;
-            sourceContext.logic = &logic_;
-            sourceContext.shot.targetMapObject = sourceTarget;
-            sourceContext.playerId = shooter;
-            sourceContext.maximumLife = sampledMinimumLife;
-            sourceContext.position = sourceVec(projectileOrigin);
-            sourceContext.rotation = sourceQuat(shotTransform.rotation);
-            sourceContext.launchVelocity = sourceVec(
-                multiply(sourceDirection, projectile.speed));
-            sourceContexts.push_back(sourceContext);
-        }
-
-        source::Weapon::ProjList sourceProjectiles;
-        if (!runtime.Shot(
-                *item, sourceContexts, false,
-                replicatedProjectileId, newCharge,
-                &sourceProjectiles))
-            return;
-        runtime.SyncSelectedWeapon(race_.weapons.size());
-
-        const auto fallbackProjectileIndex =
-            [&](std::size_t preparedOrdinal) {
-                std::size_t visibleOrdinal = 0U;
-                for (std::size_t index = 0U;
-                     index < weapon->projectiles.size(); ++index)
-                {
-                    if (weapon->projectiles[index].spawnOnParentDeath)
-                        continue;
-                    if (visibleOrdinal++ == preparedOrdinal)
-                        return index;
-                }
-                return std::min(
-                    preparedOrdinal,
-                    weapon->projectiles.empty()
-                        ? std::size_t{0U}
-                        : weapon->projectiles.size() - 1U);
-            };
-        for (std::size_t preparedOrdinal = 0U;
-             preparedOrdinal < sourceProjectiles.size();
-             ++preparedOrdinal)
-        {
-            auto* sourceObject = sourceProjectiles[preparedOrdinal];
-            if (sourceObject == nullptr)
-                continue;
-            const auto& projectile = sourceObject->GetDesc();
-            const std::size_t backendProjectileIndex =
-                projectile.weaponListIndex < weapon->projectiles.size()
-                    ? projectile.weaponListIndex
-                    : fallbackProjectileIndex(preparedOrdinal);
-            Transform shotTransform;
-            const auto& sourcePosition = sourceObject->GetWorldPos();
-            const auto& sourceRotation = sourceObject->GetWorldRot();
-            shotTransform.position = {
-                sourcePosition[0], sourcePosition[1], sourcePosition[2]};
-            shotTransform.rotation = {
-                sourceRotation[0], sourceRotation[1],
-                sourceRotation[2], sourceRotation[3]};
-            const Vec3 projectileOrigin = shotTransform.position;
-            const Vec3 sourceDirection = normalized3(
-                rotate(shotTransform.rotation,
-                       {1.0F, 0.0F, 0.0F}));
-            Vec3 launchDirection = sourceDirection;
-
-            ProjectileRuntime runtimeProjectile;
-            runtimeProjectile.owner = shooter;
-            runtimeProjectile.weapon = firedWeapon;
-            runtimeProjectile.projectile =
-                backendProjectileIndex;
-            runtimeProjectile.mountSlot = firedSlot;
-            runtimeProjectile.position = projectileOrigin;
-            runtimeProjectile.direction = sourceDirection;
-            runtimeProjectile.rotation = shotTransform.rotation;
-            runtimeProjectile.speed = projectile.speed;
-            runtimeProjectile.velocity =
-                multiply(sourceDirection, projectile.speed);
-            runtimeProjectile.sourceObject = sourceObject;
-            const float sampledMinimumLife =
-                sourceObject->GetMaxTimeLife();
-            if (networkCoordinates.empty())
-                networkCoordinates.push_back(projectileOrigin);
-
-            // The concrete projectile has now completed PrepareProj. Its
-            // copied descriptor, rather than the session definition, owns
-            // the backend route for the rest of this transaction.
-            const auto projectileRules =
-                runtimeProjectile.sourceObject->RoutePreparation();
-            const bool rocketPrepared = projectileRules.rocketPrepare;
-            const bool rayProjectile = projectileRules.ray;
-            const bool attachedProjectile =
-                projectileRules.attached;
-            const float projectileDistance =
-                projectile.maximumDistance > 0.0F
-                    ? projectile.maximumDistance
-                    : 100.0F;
-            float targetDistance = projectileDistance;
-            std::size_t projectileTarget = racers_.size();
-            std::size_t projectileDecoration =
-                RacerRuntime::invalidWeapon;
-            if (rayProjectile && !attachedProjectile)
-            {
-                const auto rayHit = raycastWorld(
-                    race_, decorationActive_, vehicles, racers_, shooter,
-                    add(projectileOrigin, projectile.sizeAddPx),
-                    sourceDirection, projectileDistance);
-                if (rayHit.hit)
-                {
-                    targetDistance = rayHit.distance;
-                    projectileTarget = rayHit.vehicle;
-                    projectileDecoration = rayHit.decoration;
-                }
-            }
-            Vec3 end = add(
-                projectileOrigin,
-                multiply(
-                    rayProjectile || attachedProjectile
-                        ? sourceDirection
-                        : launchDirection,
-                    rayProjectile && !attachedProjectile
-                        ? targetDistance
-                        : projectileDistance));
-            if (attachedProjectile)
-            {
-                if (projectile.type == 14U)
-                {
-                    // FireUpdate copies the mounted weapon actor velocity on
-                    // every source tick before relocating the contact box.
-                    runtimeProjectile.velocity =
-                        vehicles[shooter].linearVelocity;
-                }
-                runtimeProjectile.attached = true;
-                runtimeProjectile.sourceObject->PrepareMaximumLife(
-                    sampledMinimumLife);
-                projectiles_.push_back(std::move(runtimeProjectile));
-            }
-            else if (!rayProjectile)
-            {
-                float speed = runtimeProjectile.speed;
-                runtimeProjectile.ballistic =
-                    projectileRules.ballistic;
-                if (rocketPrepared)
-                {
-                    const auto sourceLaunch =
-                        runtimeProjectile.sourceObject->PrepareLaunch(
-                            sourceVec(sourceDirection),
-                            sourceVec(
-                                vehicles[shooter].linearVelocity));
-                    launchDirection =
-                        runtimeVec(sourceLaunch.direction);
-                    speed = sourceLaunch.speed;
-                    runtimeProjectile.direction = launchDirection;
-                    runtimeProjectile.speed = speed;
-                    runtimeProjectile.velocity =
-                        multiply(launchDirection, speed);
-                }
-                runtimeProjectile.sourceObject->PrepareMaximumLife(
-                    sampledMinimumLife);
-                if (projectileRules.homing)
-                {
-                    runtimeProjectile.target = homingTarget;
-                }
-                projectiles_.push_back(std::move(runtimeProjectile));
-                end = add(
-                    projectileOrigin,
-                    multiply(
-                        launchDirection,
-                        std::min(std::max(speed * 0.03F, 0.5F),
-                                 projectileDistance)));
-            }
-            else if (projectileTarget < racers_.size())
-            {
-                target = projectileTarget;
-                applyProjectileDamage(
-                    *runtimeProjectile.sourceObject, target, end,
-                    std::max(projectile.damage, 0.0F),
-                    runtimeProjectile.sourceObject->RouteContact(false)
-                        .damageType);
-            }
-            else if (projectileDecoration < decorationActive_.size())
-            {
-                damageDecoration(
-                    projectileDecoration,
-                    std::max(projectile.damage, 0.0F), shooter);
-            }
-            if (rayProjectile && !attachedProjectile)
-                runtimeProjectile.sourceObject->Death();
-            RaceEffect fired;
-            fired.kind = RaceEventKind::WeaponFired;
-            fired.origin = projectileOrigin;
-            fired.target = end;
-            fired.seconds =
-                (rayProjectile || attachedProjectile) ? 0.12F : 0.03F;
-            fired.totalSeconds = fired.seconds;
-            configureSourceEffectOwner(
-                fired, false, fired.totalSeconds);
-            fired.weapon = firedWeapon;
-            fired.projectile = backendProjectileIndex;
-            effects_.push_back(std::move(fired));
-            pushShotEffect(
-                shooter, firedWeapon, firedSlot,
-                weaponWorldTransform(
-                    shooter, firedWeapon, firedSlot),
-                projectile);
-        }
-        RaceEvent shotEvent;
-        shotEvent.kind = RaceEventKind::WeaponFired;
-        shotEvent.racer = shooter;
-        shotEvent.target = target;
-        shotEvent.position =
-            networkCoordinates.empty()
-                ? eventOrigin
-                : networkCoordinates.front();
-        shotEvent.value = 5.0F;
-        shotEvent.weapon = firedWeapon;
-        shotEvent.networkReplicated = networkReplicated;
-        shotEvent.networkSlotMask = static_cast<std::uint8_t>(
-            1U << (firedSlot + 2U));
-        shotEvent.networkProjectileId = networkProjectileId;
-        shotEvent.networkCoordinates =
-            std::move(networkCoordinates);
-        events_.push_back(std::move(shotEvent));
-    };
-    if (humanControl.useWeapon && humanRacer_ < racers_.size())
-    {
-        auto& runtime = racers_[humanRacer_];
-        auto items = humanPrimaryItems();
-        humanPlayer_.SetCurWeapon(
-            static_cast<int>(runtime.selectedWeaponSlot));
-        const auto selection = humanPlayer_.SelectWeapon(items);
-        runtime.selectedWeaponSlot = selection.slot;
-        runtime.SyncSelectedWeapon(race_.weapons.size());
-        if (selection.found)
-        {
-            auto* item = items[selection.slot];
-            const auto slotType =
-                static_cast<source::Logic::SlotType>(
-                    static_cast<std::size_t>(
-                        source::Logic::SlotType::Weapon1) +
-                    selection.slot);
-            const auto plan = source::Logic::Shot(
-                item, slotType, true);
-            emitHumanShot(plan);
-            if (plan.Get(slotType))
-            {
-                fireWeapon(humanRacer_, RacerRuntime::invalidWeapon,
-                           nullptr, 0U, false, true);
-                if (item->GetCurCharge() == 0U)
-                {
-                    const auto next = humanPlayer_.SelectWeapon(items);
-                    runtime.selectedWeaponSlot = next.slot;
-                    runtime.SyncSelectedWeapon(
-                        race_.weapons.size());
-                }
-            }
-        }
-    }
-    if (humanControl.fireWeaponSlot >= 0 &&
-        humanRacer_ < racers_.size() &&
-        humanControl.fireWeaponSlot <
-            static_cast<int>(PlayerProfile::weaponSlotCount))
-    {
-        auto& runtime = racers_[humanRacer_];
-        const auto requestedOrdinal =
-            static_cast<std::size_t>(humanControl.fireWeaponSlot);
-        auto items = humanPrimaryItems();
-        const std::size_t requested =
-            humanPlayer_.GetWeaponByIndex(
-                static_cast<int>(requestedOrdinal), items);
-        if (requested < items.size())
-        {
-            const auto selected = runtime.selectedWeaponSlot;
-            runtime.selectedWeaponSlot = requested;
-            runtime.SyncSelectedWeapon(race_.weapons.size());
-            auto* item = primaryWeaponItem(humanRacer_, requested);
-            const auto slotType =
-                static_cast<source::Logic::SlotType>(
-                    static_cast<std::size_t>(
-                        source::Logic::SlotType::Weapon1) + requested);
-            const auto plan = source::Logic::Shot(
-                item != nullptr && item->IsInstalled() ? item : nullptr,
-                slotType, true);
-            emitHumanShot(plan);
-            if (plan.Get(slotType))
-                fireWeapon(humanRacer_, RacerRuntime::invalidWeapon,
-                           nullptr, 0U, false, true);
-            runtime.selectedWeaponSlot = selected;
-            runtime.SyncSelectedWeapon(race_.weapons.size());
-        }
-    }
-    if (humanControl.useAllWeapons && humanRacer_ < racers_.size())
-    {
-        auto& runtime = racers_[humanRacer_];
-        const auto selected = runtime.selectedWeaponSlot;
-        auto items = humanPrimaryItems();
-        const auto plan = source::Logic::ShotAll(items, true);
-        emitHumanShot(plan);
-        for (std::size_t slot = 0;
-             slot < runtime.weaponSlots.size(); ++slot)
-        {
-            const auto slotType =
-                static_cast<source::Logic::SlotType>(
-                    static_cast<std::size_t>(
-                        source::Logic::SlotType::Weapon1) + slot);
-            if (!plan.Get(slotType))
-                continue;
-            runtime.selectedWeaponSlot = slot;
-            runtime.SyncSelectedWeapon(race_.weapons.size());
-            fireWeapon(humanRacer_, RacerRuntime::invalidWeapon,
-                       nullptr, 0U, false, true);
-        }
-        runtime.selectedWeaponSlot = selected;
-        runtime.SyncSelectedWeapon(race_.weapons.size());
-    }
     for (const auto& shot : pendingNetworkShots_)
     {
         if (shot.racer >= racers_.size() ||
@@ -6951,6 +7012,7 @@ void OriginalRaceSession::update(
         sourceHumanControl.driving = {};
     if (!humanGate.inputActions)
     {
+        sourceHumanControl.inputMessages.clear();
         sourceHumanControl.useWeapon = false;
         sourceHumanControl.useAllWeapons = false;
         sourceHumanControl.useMine = false;
@@ -9916,7 +9978,10 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 reloadVehicles, reloadInput);
             reloadSession.takeVelocityRequests();
             reloadInput = {};
-            reloadInput.useMine = true;
+            // This fixture carries Maslo. HumanPlayer::OnHandleInput rejects
+            // its digital gaMine edge; OnInputProgress polls the held action
+            // and fires it through the continuous readiness path.
+            reloadInput.mineHeld = 1.0F;
             reloadSession.update(
                 1.0F / 60.0F,
                 reloadVehicles, reloadInput);
@@ -12524,10 +12589,10 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             advanceMineCountdown(
                 oilSession, sourceVehicles);
             RaceControl sourceInput;
-            sourceInput.useMine = true;
+            sourceInput.mineHeld = 1.0F;
             oilSession.update(
                 1.0F / 60.0F, sourceVehicles, sourceInput);
-            sourceInput.useMine = false;
+            sourceInput.mineHeld = 0.0F;
             const auto earlyMomentum =
                 oilSession.takeAngularMomentumRequests();
             for (int frame = 0; frame < 30; ++frame)

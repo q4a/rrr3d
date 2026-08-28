@@ -94,6 +94,10 @@ enum class PickSlot : std::uint8_t
 struct RaceControl
 {
     r3d::physics::VehicleInput driving;
+    // Source ControlManager messages in their original delivery order.
+    // Legacy one-shot fields below remain for backend-neutral regressions;
+    // the active SDL path uses this message list.
+    std::vector<originalcontrol::InputMessage> inputMessages;
     bool useWeapon = false;
     bool useAllWeapons = false;
     // Digital gaMine is an edge; analog bindings (and Maslo) are evaluated

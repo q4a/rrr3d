@@ -4704,6 +4704,30 @@ draw return, дублированные frames/cups/textures и CoreText rows.
 Metal frame/audio/return path; обычный HUD до transition продолжает рисовать
 трассу без придуманной промежуточной таблицы.
 
+### P2.201 — `HumanPlayer::Control` input transaction возвращён source owner — выполнено
+
+Прямая сверка `HumanPlayer.cpp` подтвердила, что SDL adapter схлопывал все
+сообщения одного кадра в независимые bool-флаги, а `OriginalRaceSession`
+исполнял их в собственном порядке: reset до weapon actions, Mine/Hyper до
+Shot/ShotAll и только один direct-slot request. Windows передаёт каждое
+`InputMessage` немедленно и сохраняет порядок доставки, затем отдельно
+вызывает `OnInputProgress`: сначала движение, потом Hyper и analog Mine.
+
+`source::HumanPlayer::OnHandleInput` теперь принимает ordered source
+`InputMessage` list, применяет исходные block/car/chat, down/repeat и
+controller-alpha gates и возвращает команды `ShotAll`, `ResetCar`, digital
+Mine, `ShotCurrent`, WeaponDown/Up и direct Weapon1..4 в том же порядке.
+Активный SDL путь больше не хранит девять параллельных gameplay flags:
+он передаёт source-сообщения и непрерывные polled состояния Hyper/Mine.
+Session исполняет event transaction до progress weapons и до mine/contact
+прохода текущего кадра, как исходный `ControlManager -> World::Progress`.
+
+Дополнительно устранено подтверждённое поведенческое расхождение: цифровой
+`gaMine` больше не запускает Maslo. Исходник исключает `IsMaslo()` из edge
+ветви и обрабатывает масло только continuous polling с readiness delay.
+Исправлен и точный zero-weapon результат WeaponUp (`_curWeapon == -1`).
+Regression закрепляет порядок, repeat/analog filters, gates и empty inventory.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

@@ -57,9 +57,9 @@ void HumanPlayer::ChangeWeapon(
         return;
     }
     const int count = GetWeaponCount(primaryWeapons);
-    currentWeapon_ = count > 0
-                         ? std::min(currentWeapon_ + 1, count - 1)
-                         : 0;
+    // HumanPlayer.cpp uses min(cur + 1, GetWeaponCount() - 1) verbatim.
+    // With no installed primary weapon the source therefore stores -1.
+    currentWeapon_ = std::min(currentWeapon_ + 1, count - 1);
 }
 
 HumanPlayer::Selection HumanPlayer::SelectWeapon(
@@ -83,6 +83,72 @@ HumanPlayer::Selection HumanPlayer::SelectWeapon(
     }
     currentWeapon_ = 0;
     return {0U, false};
+}
+
+std::vector<HumanPlayer::InputCommand> HumanPlayer::OnHandleInput(
+    std::span<const originalcontrol::InputMessage> messages,
+    bool playerBlocked, bool carPresent, bool chatMode)
+{
+    using Action = rrr3d::input::Action;
+    using Source = rrr3d::input::Source;
+
+    std::vector<InputCommand> commands;
+    commands.reserve(messages.size());
+    for (const auto& message : messages)
+    {
+        // The four keyboard driving booleans are updated before these gates
+        // in the source. Continuous driving is polled separately by the
+        // portable ControlManager owner, so only event commands remain here.
+        if (playerBlocked || !carPresent || chatMode ||
+            !message.action.has_value() || !message.active ||
+            message.repeat)
+            continue;
+
+        const auto action = *message.action;
+        if (action == Action::UseAllWeapons)
+        {
+            commands.push_back({InputCommandKind::ShotAll, 0});
+            continue;
+        }
+        if (action == Action::ResetVehicle)
+        {
+            commands.push_back({InputCommandKind::ResetCar, 0});
+            continue;
+        }
+        if (action == Action::UseMine)
+        {
+            // gaMine with alphaMax != 0 is not an edge command. It is polled
+            // later by OnInputProgress with the alpha-dependent delay.
+            if (message.source != Source::GamepadAxis)
+                commands.push_back({InputCommandKind::ShotMine, 0});
+            continue;
+        }
+        if (action == Action::UseWeapon)
+        {
+            commands.push_back({InputCommandKind::ShotCurrent, 0});
+            continue;
+        }
+        if (action == Action::PreviousWeapon)
+        {
+            commands.push_back({InputCommandKind::ChangeWeapon, -1});
+            continue;
+        }
+        if (action == Action::NextWeapon ||
+            action == Action::ChangeWeapon)
+        {
+            commands.push_back({InputCommandKind::ChangeWeapon, 1});
+            continue;
+        }
+        if (action >= Action::SelectWeapon1 &&
+            action <= Action::SelectWeapon4)
+        {
+            commands.push_back(
+                {InputCommandKind::ShotWeaponSlot,
+                 static_cast<int>(action) -
+                     static_cast<int>(Action::SelectWeapon1)});
+        }
+    }
+    return commands;
 }
 
 HumanPlayer::DrivingCommand HumanPlayer::OnInputProgress(
