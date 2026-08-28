@@ -2705,9 +2705,10 @@ adapter. Regression покрывает body-relative position/rotation коле�
 `GameCar` теперь хранит исходные `MoveCarState`, motor description и текущую
 передачу, выполняет neutral/brake/back/accel, brake-to-reverse,
 reverse-to-forward, source torque/RPM, automatic shift и maximum-speed branch
-в правильном Windows-порядке. Jolt вызывает этот контроллер на каждом своём
-fixed substep 1/120 с живыми wheel-contact/axle-speed/body-speed данными и
-только применяет готовые motor/brake команды. `SoundMotor::OnMotor` снова
+в правильном Windows-порядке. Jolt вызывает source-контроллер на исходном
+fixed-step 1/60 с живыми wheel-contact/axle-speed/body-speed данными, затем
+применяет готовые motor/brake команды на двух backend substeps 1/120.
+`SoundMotor::OnMotor` снова
 диспетчеризуется из этого fixed-step. Backend-local копия оставлена только
 как fallback автономного physics-smoke, где Rock3dGame намеренно не участвует.
 
@@ -2748,7 +2749,7 @@ oil/mine/spring состояний и их physics gates.
 
 Таймеры удалены из `OnProgress` и перенесены в source fixed-step в исходном
 порядке: clutch/mine до `MotorProgress`, spring перед airborne pitch branch.
-Native runtime помечает сессию как имеющую внешний 1/120 Jolt callback;
+Native runtime помечает сессию как имеющую внешний 1/60 source callback;
 session-only regressions без physics world выполняют один эквивалентный
 source fixed-step сами. Это исключает и пропуск, и двойное уменьшение.
 Regression доказывает, что frame progress не меняет locks, а fixed-step
@@ -5014,7 +5015,7 @@ Session-only regressions, где нет отдельного physics backend, и
 360-frame bgfx/Metal smokes сохранили шесть машин, колёсные контакты и AI
 progress.
 
-### P2.215 — `Race::OnFixedStep` перенесён на каждый Jolt substep — выполнено
+### P2.215 — `Race::OnFixedStep` перенесён на source fixed clock — выполнено
 
 Прямая сверка `World::OnFrame` и `Race::OnFixedStep` подтвердила зависимость
 порта от render FPS. Windows при каждом `maxTimeStep` сначала вызывает
@@ -5025,18 +5026,35 @@ progress.
 по 1/120 секунды с одним устаревшим AI решением.
 
 В backend-neutral physics API добавлен единый `WorldFixedStepController`.
-Jolt обновляет snapshot завершённого предыдущего substep, вызывает Race один
-раз на весь roster, применяет итоговые inputs/reset команды и затем вызывает
-отдельный зарегистрированный `GameCar` callback для каждой машины. Это
-сохраняет исходный порядок и не создаёт N×N dispatch. `Player::ResetCar`,
-возникший внутри callback, применяется до того же solver step.
+Jolt обновляет snapshot завершённого предыдущего интервала, вызывает Race
+один раз на весь roster, применяет итоговые inputs/reset команды и затем
+вызывает отдельный зарегистрированный `GameCar` callback для каждой машины.
+Это сохраняет исходный порядок и не создаёт N×N dispatch.
+`Player::ResetCar`, возникший внутри callback, применяется до solver step.
 
 Поскольку main уже обработал события Progress перед входом в physics,
 события checkpoint/lap/finish/respawn из fixed-step хранятся в отдельной
 очереди до следующего adapter pass; обработанные frame events при этом не
-повторяются. Physics regression требует ровно два world callback на два
-шага 1/120 и один reset. Прошли 29/29 CTest, полный map1 physics smoke,
+повторяются. Physics regression требует один source callback и reset на один
+интервал 1/60. Прошли 29/29 CTest, полный map1 physics smoke,
 360-frame Metal race smoke и обычный запуск `.app` с видимым главным меню.
+
+### P2.216 — source 60 Hz отделён от Jolt 120 Hz — выполнено
+
+Дополнительная сверка константы обнаружила принципиальную деталь:
+`World::cMaxSimStep` в оригинале равен `1/60.0f`, а 1/120 является только
+внутренним шагом replacement backend. Первичная интеграция B8m ошибочно
+связала source callbacks с каждым Jolt substep и тем самым удвоила бы
+Player/AI timers, RNG, `SoundMotor::OnMotor` и GameCar steering/stabilize.
+
+Jolt теперь хранит отдельный persistent аккумулятор 60 Гц. Race и все
+зарегистрированные GameCar вызываются только при полном source interval;
+готовая torque/brake/gear/grip команда кэшируется и применяется на двух
+solver substeps. Direct steering yaw и momentum stabilization выполняются
+один раз, силы/torque интегрируются backend с delta 1/120. На дисплее 120 Гц
+первый frame не продвигает source clock, второй даёт ровно один callback.
+Regression проверяет также единственный reset. 720-frame Metal smoke дал
+скорости игрока 39.36 и AI 37–42 без накопительной деградации.
 
 ## Итоговое решение
 

@@ -562,22 +562,32 @@ roster не сортируется до World callback и готовый update 
 (Player затем AISystem) относительно Jolt 1/120 substeps и убрать следующий
 подтверждённый frame-rate dependent session path.
 
-Результат B8m: добавлена отдельная world-level граница Jolt fixed-step.
-Перед каждым solver substep она получает завершённые состояния всех машин и
-ровно один раз выполняет исходный `Race::OnFixedStep`: сначала весь список
-`Player::OnProgress`, затем `AISystem::OnProgress` при `GoRace`. После неё
-существующие адресные callbacks вызывают зарегистрированные `GameCar`, как и
-порядок регистрации Windows `Race -> level/GameCar`.
+Результат B8m: добавлена отдельная world-level граница source fixed-step.
+На каждом исходном интервале `World::cMaxSimStep == 1/60` она получает
+завершённые состояния всех машин и ровно один раз выполняет
+`Race::OnFixedStep`: сначала весь список `Player::OnProgress`, затем
+`AISystem::OnProgress` при `GoRace`. После неё адресные callbacks вызывают
+зарегистрированные `GameCar`, как и порядок Windows
+`Race -> level/GameCar`.
 
-Frame update больше не повторяет Player/AI с render delta. AI получает pose
-предыдущего 1/120 substep, а не предыдущего render frame. Возникший в
+Frame update больше не повторяет Player/AI с render delta. Jolt сохраняет
+два внутренних solver substep 1/120, но source AI/GameCar получают один шаг
+1/60, а готовая drive command кэшируется между backend substeps. Возникший в
 `Player::OnProgress` `ResetCar` возвращается backend как готовая команда и
 применяется до того же Jolt `Update`. Fixed-step события сохраняются отдельно
 до следующего adapter event pass, не теряются при очистке кадра и не
-дублируют уже обработанные Progress events. Regression требует два world
-callback на два substep и только один reset.
+дублируют уже обработанные Progress events. Regression требует ноль source
+callbacks после первого render frame 1/120, ровно один после второго и один
+reset.
 
-Следующий B8n — проверить применение результата `AISystem::OnProgress`:
+Результат B8n: дополнительная сверка `World::cMaxSimStep` исправила
+обнаруженную при B8m неверную привязку source callbacks к backend 1/120.
+Аккумулятор Race/GameCar теперь строго 60 Гц, сохраняется между render frames
+и не зависит от частоты дисплея. Torque/gear/brake/grip кэшируются на полный
+source interval; прямой yaw и momentum stabilization не применяются дважды.
+Два вызова physics по 1/120 дают ноль, затем ровно один source callback.
+
+Следующий B8o — проверить применение результата `AISystem::OnProgress`:
 portable `updateGameplay` сейчас исполняет attack/weapon command до нового
 physics callback и поэтому использует решение предыдущего кадра вместо того
 же исходного fixed-step.

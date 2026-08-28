@@ -1495,14 +1495,25 @@ branches. Прошли arm64 build, 25/25 offline, 2/2 network, physics и
 шагом. При просадках FPS это особенно сильно меняло AI state machine,
 restore timers и checkpoint/lap sampling.
 
-Теперь Jolt имеет отдельный world callback на каждый substep 1/120. В нём
-исполняется исходный порядок всех Player, затем AISystem; после него идут
-per-car `GameCar` callbacks и solver. AI видит свежий pose предыдущего
-substep, а respawn применяется до текущего solver. Event adapter сохраняет
-fixed-step события до следующего main pass. Frame update этот код больше не
-дублирует. 29/29 CTest, physics и 360-frame Metal smokes прошли; обычная
+Теперь Jolt имеет отдельный source clock `World::cMaxSimStep == 1/60`. В нём
+исполняется исходный порядок всех Player, затем AISystem и per-car GameCar.
+Два внутренних Jolt substeps 1/120 используют закэшированную drive command,
+не удваивая AI RNG, timers, steering и stabilization; respawn применяется до
+solver. Event adapter сохраняет fixed-step события до следующего main pass.
+Frame update этот код больше не дублирует. Regression отдельно проверяет два
+render frames по 1/120 и единственный source callback. 29/29 CTest, physics и
+720-frame Metal smokes прошли; обычная
 подписанная arm64 `.app` также открыта через LaunchServices и показала главное
 меню.
+
+### B8n: separate source and backend fixed clocks
+
+Windows константа `World::cMaxSimStep` равна 1/60, поэтому source fixed events
+не должны наследовать внутреннюю частоту Jolt 1/120. Добавлен persistent
+аккумулятор: на 120-Гц render первый кадр не вызывает Race/GameCar, второй
+вызывает их один раз с delta 1/60. Jolt между ними использует закэшированную
+drive command. Regression, physics smoke и 720-frame Metal race подтвердили
+единственный reset, скорости игрока 39.36 и AI 37–42 без деградации.
 
 ## Очередь дальнейшего переноса
 

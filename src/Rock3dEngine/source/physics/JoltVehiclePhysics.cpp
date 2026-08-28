@@ -748,6 +748,8 @@ public:
 
     void reset() noexcept override
     {
+        sourceFixedStepAccumulator_ = 0.0F;
+        sourceFixedInputs_.clear();
         clearDebris();
         auto& bodies = system_.GetBodyInterface();
         for (std::size_t index = 0; index < decorations_.size(); ++index)
@@ -823,6 +825,21 @@ public:
         vehicle.currentGear = -1;
         vehicle.motorTorque = 0.0F;
         vehicle.engineRpm = vehicle.spawn.vehicle.idlingRpm;
+        vehicle.sourceDriveCommand = {};
+        vehicle.sourceDriveCommand.brakeTorque =
+            vehicle.spawn.vehicle.restBrakeTorque;
+        vehicle.sourceDriveCommand.engineRpm =
+            vehicle.spawn.vehicle.idlingRpm;
+        vehicle.sourceDriveCommand.gear = -1;
+        vehicle.sourceDriveCommand.lateralGripScale = 1.0F;
+        vehicle.sourceDriveCommand.angularDamping = {
+            vehicle.spawn.vehicle.angularDamping.x,
+            vehicle.spawn.vehicle.angularDamping.y,
+            vehicle.spawn.vehicle.angularDamping.z};
+        vehicle.sourceDriveCommand.clampRollAngle =
+            vehicle.spawn.vehicle.clampRollAngle;
+        vehicle.sourceDriveCommand.clampPitchAngle =
+            vehicle.spawn.vehicle.clampPitchAngle;
         ++vehicle.resetCount;
         updateState(vehicle);
     }
@@ -1025,52 +1042,88 @@ public:
         const float simulationSeconds =
             std::clamp(seconds, 0.0F, 0.25F);
         float remaining = simulationSeconds;
-        constexpr float fixedStep = 1.0F / 120.0F;
+        constexpr float joltStep = 1.0F / 120.0F;
+        // Windows gameplay has a separate fixed clock. World::cMaxSimStep
+        // is 1/60 even though the replacement backend uses two smaller Jolt
+        // solver steps for stability. Never advance Race/GameCar timers at
+        // the backend's 120 Hz rate.
+        constexpr float sourceStep = 1.0F / 60.0F;
+        const bool sourceFixedStepEnabled =
+            static_cast<bool>(worldFixedStepController_) ||
+            static_cast<bool>(fixedStepController_);
+        std::size_t sourceStepsDue = 0U;
+        if (sourceFixedStepEnabled)
+        {
+            sourceFixedStepAccumulator_ += simulationSeconds;
+            sourceStepsDue = static_cast<std::size_t>(std::floor(
+                (sourceFixedStepAccumulator_ + 0.000001F) / sourceStep));
+            sourceFixedStepAccumulator_ -=
+                static_cast<float>(sourceStepsDue) * sourceStep;
+            sourceFixedStepAccumulator_ = std::max(
+                sourceFixedStepAccumulator_, 0.0F);
+        }
+        float simulatedSeconds = 0.0F;
+        std::size_t sourceStepsDispatched = 0U;
         contactListener_.beginStep();
         while (remaining > 0.0F)
         {
-            const float delta = std::min(remaining, fixedStep);
-            fixedStepInputs_.assign(rawInputs.begin(), rawInputs.end());
-            fixedStepInputs_.resize(vehicles_.size());
-            if (worldFixedStepController_)
+            const float delta = std::min(remaining, joltStep);
+            const bool dispatchSourceFixedStep =
+                sourceStepsDispatched < sourceStepsDue &&
+                simulatedSeconds + 0.000001F >=
+                    static_cast<float>(sourceStepsDispatched) * sourceStep;
+            if (dispatchSourceFixedStep)
             {
-                // World::FixedStep runs before PhysX Scene::Compute. Refresh
-                // the completed state from the preceding substep so Race AI
-                // never reasons from a render-frame-old pose.
-                fixedStepStates_.resize(vehicles_.size());
-                for (std::size_t index = 0; index < vehicles_.size(); ++index)
+                sourceFixedInputs_.assign(
+                    rawInputs.begin(), rawInputs.end());
+                sourceFixedInputs_.resize(vehicles_.size());
+                if (worldFixedStepController_)
                 {
-                    updateState(vehicles_[index]);
-                    const auto& state = vehicles_[index].state;
-                    auto& snapshot = fixedStepStates_[index];
-                    snapshot.body = state.body;
-                    snapshot.bodyAwake = state.bodyAwake;
-                    snapshot.linearVelocity = state.linearVelocity;
-                    snapshot.angularMomentum = state.angularMomentum;
-                    snapshot.kineticEnergy = state.kineticEnergy;
-                    snapshot.speed = state.speed;
-                    snapshot.drivenWheelSpeed = state.drivenWheelSpeed;
-                    snapshot.engineRpm = state.engineRpm;
-                    snapshot.gear = state.gear;
-                    snapshot.contactCount = state.contactCount;
-                    snapshot.resetCount = state.resetCount;
+                    // World::FixedStep runs before PhysX Scene::Compute.
+                    // Refresh the completed state from the preceding source
+                    // interval before Race updates its full player roster.
+                    fixedStepStates_.resize(vehicles_.size());
+                    for (std::size_t index = 0;
+                         index < vehicles_.size(); ++index)
+                    {
+                        updateState(vehicles_[index]);
+                        const auto& state = vehicles_[index].state;
+                        auto& snapshot = fixedStepStates_[index];
+                        snapshot.body = state.body;
+                        snapshot.bodyAwake = state.bodyAwake;
+                        snapshot.linearVelocity = state.linearVelocity;
+                        snapshot.angularMomentum = state.angularMomentum;
+                        snapshot.kineticEnergy = state.kineticEnergy;
+                        snapshot.speed = state.speed;
+                        snapshot.drivenWheelSpeed = state.drivenWheelSpeed;
+                        snapshot.engineRpm = state.engineRpm;
+                        snapshot.gear = state.gear;
+                        snapshot.contactCount = state.contactCount;
+                        snapshot.resetCount = state.resetCount;
+                    }
+                    fixedStepResets_.clear();
+                    worldFixedStepController_(
+                        sourceStep, fixedStepStates_, sourceFixedInputs_,
+                        fixedStepResets_);
+                    sourceFixedInputs_.resize(vehicles_.size());
+                    for (const auto& reset : fixedStepResets_)
+                        resetVehicle(
+                            reset.vehicle, reset.position, reset.direction);
                 }
-                fixedStepResets_.clear();
-                worldFixedStepController_(
-                    delta, fixedStepStates_, fixedStepInputs_,
-                    fixedStepResets_);
-                fixedStepInputs_.resize(vehicles_.size());
-                for (const auto& reset : fixedStepResets_)
-                    resetVehicle(
-                        reset.vehicle, reset.position, reset.direction);
+                ++sourceStepsDispatched;
             }
+            fixedStepInputs_ = sourceFixedStepEnabled
+                ? sourceFixedInputs_ : rawInputs;
+            fixedStepInputs_.resize(vehicles_.size());
             for (std::size_t index = 0; index < vehicles_.size(); ++index)
             {
                 prepareVehicleStep(
-                    index, vehicles_[index], fixedStepInputs_[index], delta);
+                    index, vehicles_[index], fixedStepInputs_[index], delta,
+                    dispatchSourceFixedStep, sourceStep);
             }
             system_.Update(delta, 1, &tempAllocator_, &jobs_);
             remaining -= delta;
+            simulatedSeconds += delta;
         }
         for (auto& vehicle : vehicles_)
             updateState(vehicle);
@@ -1265,6 +1318,7 @@ private:
         float motorTorque = 0.0F;
         float engineRpm = 1000.0F;
         float lateralGripScale = 1.0F;
+        VehicleDriveCommand sourceDriveCommand;
         std::vector<float> wheelNormalReactions;
         std::vector<float> wheelNormalImpulses;
         std::vector<bool> wheelTireReleaseConsumed;
@@ -1444,7 +1498,8 @@ private:
 
     void prepareVehicleStep(std::size_t vehicleIndex,
                             VehicleRuntime& vehicle, VehicleInput input,
-                            float delta) noexcept
+                            float delta, bool dispatchSourceFixedStep,
+                            float sourceDelta) noexcept
     {
         if (!vehicle.enabled)
             return;
@@ -1510,12 +1565,16 @@ private:
             static_cast<bool>(fixedStepController_);
         if (gameCarControlled)
         {
-            gameCarCommand = fixedStepController_(
-                vehicleIndex, delta, input,
-                {signedSpeed, velocity.Length(),
-                 horizontalVelocity.Length(), drivenWheelSpeed,
-                 anyContact, drivenContact, allContact,
-                 !vehicle.state.bodyContacts.empty()});
+            if (dispatchSourceFixedStep)
+            {
+                vehicle.sourceDriveCommand = fixedStepController_(
+                    vehicleIndex, sourceDelta, input,
+                    {signedSpeed, velocity.Length(),
+                     horizontalVelocity.Length(), drivenWheelSpeed,
+                     anyContact, drivenContact, allContact,
+                     !vehicle.state.bodyContacts.empty()});
+            }
+            gameCarCommand = vehicle.sourceDriveCommand;
             motorTorque = gameCarCommand.motorTorque;
             brakeTorque = gameCarCommand.brakeTorque;
             rpm = gameCarCommand.engineRpm;
@@ -1592,11 +1651,14 @@ private:
 
         if (gameCarControlled)
         {
-            stabilizeVehicle(
-                vehicle, anyContact, gameCarCommand.angularDamping,
-                gameCarCommand.clampRollAngle,
-                gameCarCommand.clampPitchAngle);
-            applyGameCarSteering(vehicle, gameCarCommand);
+            if (dispatchSourceFixedStep)
+            {
+                stabilizeVehicle(
+                    vehicle, anyContact, gameCarCommand.angularDamping,
+                    gameCarCommand.clampRollAngle,
+                    gameCarCommand.clampPitchAngle);
+                applyGameCarSteering(vehicle, gameCarCommand);
+            }
         }
         else
         {
@@ -2352,8 +2414,10 @@ private:
     VehicleFixedStepController fixedStepController_;
     WorldFixedStepController worldFixedStepController_;
     std::vector<VehicleInput> fixedStepInputs_;
+    std::vector<VehicleInput> sourceFixedInputs_;
     std::vector<VehicleState> fixedStepStates_;
     std::vector<VehicleResetCommand> fixedStepResets_;
+    float sourceFixedStepAccumulator_ = 0.0F;
 };
 
 } // namespace
@@ -2451,6 +2515,7 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
     const auto resetCountBeforeWorldCallback =
         fixedStepWorld->vehicle().resetCount;
     std::size_t worldFixedStepCalls = 0U;
+    std::size_t vehicleFixedStepCalls = 0U;
     bool worldFixedStepRosterValid = true;
     fixedStepWorld->setWorldFixedStepController(
         [&](float delta,
@@ -2460,7 +2525,7 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
             ++worldFixedStepCalls;
             worldFixedStepRosterValid =
                 worldFixedStepRosterValid &&
-                std::abs(delta - 1.0F / 120.0F) < 0.000001F &&
+                std::abs(delta - 1.0F / 60.0F) < 0.000001F &&
                 states.size() == 1U && inputs.size() == 1U;
             inputs.front().throttle = 1.0F;
             if (worldFixedStepCalls == 1U)
@@ -2473,8 +2538,37 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
                      drivetrainDescription.startDirection});
             }
         });
-    fixedStepWorld->step(2.0F / 120.0F, VehicleInput{});
-    if (worldFixedStepCalls != 2U || !worldFixedStepRosterValid ||
+    fixedStepWorld->setVehicleFixedStepController(
+        [&](std::size_t vehicle, float delta,
+            const VehicleInput&, const VehicleFixedStepState&) {
+            ++vehicleFixedStepCalls;
+            worldFixedStepRosterValid =
+                worldFixedStepRosterValid && vehicle == 0U &&
+                std::abs(delta - 1.0F / 60.0F) < 0.000001F;
+            VehicleDriveCommand command;
+            command.brakeTorque =
+                drivetrainDescription.vehicle.restBrakeTorque;
+            command.engineRpm =
+                drivetrainDescription.vehicle.idlingRpm;
+            command.gear = -1;
+            command.lateralGripScale = 1.0F;
+            command.angularDamping = {
+                drivetrainDescription.vehicle.angularDamping.x,
+                drivetrainDescription.vehicle.angularDamping.y,
+                drivetrainDescription.vehicle.angularDamping.z};
+            return command;
+        });
+    fixedStepWorld->step(1.0F / 120.0F, VehicleInput{});
+    if (worldFixedStepCalls != 0U || vehicleFixedStepCalls != 0U ||
+        fixedStepWorld->vehicle().resetCount !=
+            resetCountBeforeWorldCallback)
+    {
+        error = "source 60 Hz fixed clock advanced on one 120 Hz frame";
+        return false;
+    }
+    fixedStepWorld->step(1.0F / 120.0F, VehicleInput{});
+    if (worldFixedStepCalls != 1U || vehicleFixedStepCalls != 1U ||
+        !worldFixedStepRosterValid ||
         fixedStepWorld->vehicle().resetCount !=
             resetCountBeforeWorldCallback + 1U)
     {

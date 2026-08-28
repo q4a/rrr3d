@@ -448,9 +448,10 @@ public:
     const std::vector<r3d::physics::VehicleInput>& vehicleInputs() const
         noexcept;
     const std::vector<RacerRuntime>& racers() const noexcept;
-    // The native runtime lets Jolt call GameCar at every 1/120 substep.
-    // Session-only source regressions have no physics world and use one
-    // equivalent fixed-step advance from progressPlayers instead.
+    // The native runtime keeps the Windows World::cMaxSimStep clock at 1/60
+    // while Jolt integrates two backend substeps at 1/120. Session-only
+    // source regressions have no physics world and use one equivalent
+    // fixed-step advance from progressPlayers instead.
     void setExternalVehicleFixedStep(bool enabled) noexcept;
     r3d::physics::VehicleDriveCommand racerFixedStepDrive(
         std::size_t racer, float deltaTime,
