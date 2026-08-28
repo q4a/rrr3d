@@ -572,7 +572,8 @@ public:
         Vec3 worldDirection) noexcept;
     bool AttachFrostSlow(
         GameObject* target, Player* targetPlayer,
-        std::size_t weapon, std::size_t projectile) noexcept;
+        std::size_t weapon, std::size_t projectile,
+        const ObjectDefinition* effectDefinition = nullptr) noexcept;
     ContinuousContactResult ContactFire(
         GameObject* target, float deltaTime) const noexcept;
     ContinuousContactResult ContactDrobilka(

@@ -1941,6 +1941,13 @@ Shield renderer получает record и `scaleK` от `ImmortalEffect`. Regre
 Milestone smoke, успешная сборка и наличие оригинальных ресурсов сами по себе
 не доказывают полноту порта.
 
+### B8ai — dynamic Frost model3 ownership — выполнено
+
+`Proj::FrostRayUpdate` передаёт точный model3 record вновь добавленному
+`SlowEffect`. Behavior владеет one-live `EventEffect`, session материализует
+его как target-child, а renderer потребляет `sourceDefinition`. Прежний
+параллельный выбор tertiary visual из racer slow-state удалён.
+
 ## Воспроизведение проверки
 
 ```sh

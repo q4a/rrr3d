@@ -200,6 +200,7 @@ void Player::BindSourceBehaviors()
 void Player::ClearSlowBehavior() noexcept
 {
     slowEffect.Reset();
+    slowEffectSpawn_.reset();
     auto& behaviors = gameCar.GetBehaviors();
     if (auto* behavior = behaviors.Find(BehaviorType::SlowEffect))
         behaviors.Delete(behavior);
@@ -1655,6 +1656,7 @@ Player::ConsumeVehicleDeathEffectSpawns() noexcept
 }
 
 bool Player::AttachSlowEffect(
+    const ObjectDefinition* effectDefinition,
     float maximumTimeLife, std::size_t weapon,
     std::size_t projectile) noexcept
 {
@@ -1662,11 +1664,21 @@ bool Player::AttachSlowEffect(
     // Proj::FrostRayUpdate checks Find<SlowEffect>() before adding. Repeated
     // ray contacts therefore neither replace the model nor restart lifetime.
     if (behaviors.Find(BehaviorType::SlowEffect) != nullptr ||
-        !slowEffect.Attach(maximumTimeLife, weapon, projectile))
+        !slowEffect.Attach(
+            effectDefinition, maximumTimeLife, weapon, projectile))
         return false;
+    slowEffectSpawn_ = slowEffect.GetSpawnResult(true);
     behaviors.Add<SlowBehavior>(
         BehaviorType::SlowEffect, this);
     return true;
+}
+
+std::optional<EventEffect::SpawnResult>
+Player::ConsumeSlowEffectSpawn() noexcept
+{
+    auto result = slowEffectSpawn_;
+    slowEffectSpawn_.reset();
+    return result;
 }
 
 Player::CheatResult Player::CheatUpdate(

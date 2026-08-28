@@ -805,6 +805,11 @@ actor, `damageEnergy*` выдаётся через one-live owner plan, а shiel
 `scaleK` принадлежат behavior. Session/renderer используют эти ссылки и не
 выбирают эффекты повторно из общего Race descriptor.
 
+Результат B8ai: `Proj::FrostRayUpdate` снова добавляет `SlowEffect`, который
+сам владеет точной model3-записью и одним car-child actor. Session переводит
+owner spawn-plan в backend object, а bgfx рисует этот actor; прямой renderer
+lookup по weapon/projectile индексам удалён.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:

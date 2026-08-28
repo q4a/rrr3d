@@ -4411,7 +4411,8 @@ void OriginalRaceSession::destroyRacer(
     std::erase_if(effects_, [racer](const RaceEffect& effect) {
         return effect.racer == racer &&
                (effect.kind == RaceEventKind::VehicleLowLife ||
-                effect.kind == RaceEventKind::VehicleEnergyDamage);
+                effect.kind == RaceEventKind::VehicleEnergyDamage ||
+                effect.kind == RaceEventKind::VehicleSlowEffect);
     });
     if (racer < vehicleInputs_.size())
         vehicleInputs_[racer] = {};
@@ -5148,9 +5149,47 @@ void OriginalRaceSession::updateGameplay(
                 if (sourceProgressRoute.handler ==
                     source::Proj::ProgressHandler::FrostRay)
                 {
-                    projectile.sourceObject->AttachFrostSlow(
-                        &racers_[target].gameCar, &racers_[target],
-                        projectile.weapon, projectile.projectile);
+                    const auto& stableDefinition =
+                        race_.weapons[projectile.weapon]
+                            .projectiles[projectile.projectile]
+                            .tertiaryVisual;
+                    const bool attached =
+                        projectile.sourceObject->AttachFrostSlow(
+                            &racers_[target].gameCar,
+                            &racers_[target], projectile.weapon,
+                            projectile.projectile, &stableDefinition);
+                    const auto spawn =
+                        racers_[target].ConsumeSlowEffectSpawn();
+                    if (attached && spawn.has_value() &&
+                        spawn->createEffect &&
+                        spawn->definition != nullptr)
+                    {
+                        RaceEffect effect;
+                        effect.kind = RaceEventKind::VehicleSlowEffect;
+                        effect.racer = target;
+                        effect.parentRacer = target;
+                        effect.weapon = projectile.weapon;
+                        effect.projectile = projectile.projectile;
+                        effect.sourceDefinition = spawn->definition;
+                        effect.transform.position = {
+                            spawn->position[0], spawn->position[1],
+                            spawn->position[2]};
+                        effect.origin = compose(
+                            vehicles[target].body,
+                            effect.transform).position;
+                        effect.sourceImpulse = {
+                            spawn->impulse[0], spawn->impulse[1],
+                            spawn->impulse[2]};
+                        effect.ignoreRotation = spawn->ignoreRotation;
+                        const auto timing = sourceEffectTiming(
+                            *spawn->definition, 1.0F);
+                        applySourceEffectTiming(
+                            effect, timing, *spawn->definition);
+                        attachSourceLifeEffect(
+                            effect, spawn->definition->soundPaths,
+                            target, target);
+                        effects_.push_back(std::move(effect));
+                    }
                 }
             }
             else if (sourceRay &&
@@ -13757,6 +13796,28 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 throw std::runtime_error(
                     "source FrostRay SlowEffect child was not created");
             }
+            const auto slowEffectCount = [&]() {
+                return std::count_if(
+                    frostSession.effects().begin(),
+                    frostSession.effects().end(),
+                    [&](const RaceEffect& effect) {
+                        return effect.kind ==
+                                   RaceEventKind::VehicleSlowEffect &&
+                               effect.racer == 1U &&
+                               effect.parentRacer == 1U &&
+                               effect.weapon == frostWeapon &&
+                               effect.projectile == 0U &&
+                               effect.sourceDefinition ==
+                                   &race.weapons[frostWeapon]
+                                        .projectiles[0U]
+                                        .tertiaryVisual;
+                    });
+            };
+            if (slowEffectCount() != 1)
+            {
+                throw std::runtime_error(
+                    "source Frost SlowEffect model owner was not created");
+            }
             const auto energyDamageCount = [&]() {
                 return std::count_if(
                     frostSession.effects().begin(),
@@ -13783,7 +13844,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 1.0F / 60.0F, frostVehicles, frostInput);
             if (frostSession.racers()[1]
                     .slowEffect.GetRemainingSeconds() >= 0.99F ||
-                energyDamageCount() != 1)
+                energyDamageCount() != 1 || slowEffectCount() != 1)
             {
                 throw std::runtime_error(
                     "source EventEffect lifetime was reset by every ray "
@@ -13803,7 +13864,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 frostSession.racers()[1]
                         .slowEffect.GetProjectile() !=
                     RacerRuntime::invalidWeapon ||
-                energyDamageCount() != 0)
+                energyDamageCount() != 0 || slowEffectCount() != 0)
             {
                 throw std::runtime_error(
                     "source Frost SlowEffect did not expire with its "

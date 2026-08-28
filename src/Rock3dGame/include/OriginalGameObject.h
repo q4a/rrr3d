@@ -898,6 +898,9 @@ public:
     };
 
     void Reset() noexcept;
+    bool Attach(const ObjectDefinition* effectDefinition,
+                float maximumTimeLife, std::size_t weapon,
+                std::size_t projectile) noexcept;
     bool Attach(float maximumTimeLife, std::size_t weapon,
                 std::size_t projectile) noexcept;
     ProgressResult OnProgress(
@@ -907,6 +910,8 @@ public:
     float GetRemainingSeconds() const noexcept;
     std::size_t GetWeapon() const noexcept;
     std::size_t GetProjectile() const noexcept;
+    const ObjectDefinition* GetEffectDefinition() const noexcept;
+    EventEffect::SpawnResult GetSpawnResult(bool created) const noexcept;
 
 private:
     float maximumTimeLife_ = -1.0F;

@@ -1275,7 +1275,8 @@ Proj::LaserUpdateResult Proj::ProgressFrostRay(
 
 bool Proj::AttachFrostSlow(
     GameObject* target, Player* targetPlayer,
-    std::size_t weapon, std::size_t projectile) noexcept
+    std::size_t weapon, std::size_t projectile,
+    const ObjectDefinition* effectDefinition) noexcept
 {
     if (target == nullptr || target->IsCar() == nullptr ||
         targetPlayer == nullptr || &targetPlayer->gameCar != target ||
@@ -1287,6 +1288,9 @@ bool Proj::AttachFrostSlow(
         ? description_.tertiaryVisual.maximumTimeLife
         : 1.0F;
     return targetPlayer->AttachSlowEffect(
+        effectDefinition != nullptr
+            ? effectDefinition
+            : &description_.tertiaryVisual,
         duration, weapon, projectile);
 }
 

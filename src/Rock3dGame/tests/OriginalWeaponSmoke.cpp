@@ -436,6 +436,8 @@ int main()
         frostTargetPlayer.slowEffect.GetRemainingSeconds() != 2.5F ||
         frostTargetPlayer.slowEffect.GetWeapon() != 8U ||
         frostTargetPlayer.slowEffect.GetProjectile() != 2U ||
+        frostTargetPlayer.slowEffect.GetEffectDefinition() !=
+            &concreteFrostProjectile.GetDesc().tertiaryVisual ||
         concreteFrostProjectile.AttachFrostSlow(
             &frostNonCarTarget, &frostTargetPlayer, 8U, 2U))
         return 138;

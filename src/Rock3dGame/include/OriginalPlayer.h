@@ -449,8 +449,11 @@ public:
     std::vector<DeathEffect::SpawnResult>
         ConsumeVehicleDeathEffectSpawns() noexcept;
     bool AttachSlowEffect(
+        const ObjectDefinition* effectDefinition,
         float maximumTimeLife, std::size_t weapon,
         std::size_t projectile) noexcept;
+    std::optional<EventEffect::SpawnResult>
+        ConsumeSlowEffectSpawn() noexcept;
     CheatResult CheatUpdate(
         std::uint32_t cheatMask, std::size_t playerId,
         std::size_t difficulty,
@@ -595,6 +598,7 @@ private:
     float behaviorLinearSpeed_ = 0.0F;
     bool slowSpeedLimited_ = false;
     bool slowReleased_ = false;
+    std::optional<EventEffect::SpawnResult> slowEffectSpawn_;
     std::vector<PlayerGameEvent> gameEvents_;
     struct BonusProjectileRef
     {

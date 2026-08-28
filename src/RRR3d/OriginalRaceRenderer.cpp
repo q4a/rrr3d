@@ -4525,42 +4525,6 @@ void OriginalRaceRenderer::draw(
         if (racer < racerRuntime.size())
         {
             const auto& runtime = racerRuntime[racer];
-            const auto slowWeapon = runtime.slowEffect.GetWeapon();
-            const auto slowProjectile =
-                runtime.slowEffect.GetProjectile();
-            if (runtime.slowEffect.IsEffectMaked() &&
-                slowWeapon < race.weapons.size() &&
-                slowWeapon < projectiles_.size() &&
-                slowProjectile <
-                    race.weapons[slowWeapon]
-                        .projectiles.size() &&
-                slowProjectile < projectiles_[slowWeapon].size())
-            {
-                const auto& slowDefinition =
-                    race.weapons[slowWeapon]
-                        .projectiles[slowProjectile];
-                const auto& slowAssets =
-                    projectiles_[slowWeapon][slowProjectile];
-                if (!slowDefinition.tertiaryVisual.visualNodes.empty() ||
-                    !slowDefinition.tertiaryVisual
-                         .particleEmitters.empty())
-                {
-                    const float total =
-                        slowDefinition.tertiaryVisual.maximumTimeLife >
-                                0.0F
-                            ? slowDefinition.tertiaryVisual
-                                  .maximumTimeLife
-                            : 1.0F;
-                    drawDefinition(
-                        slowAssets.tertiaryVisual,
-                        slowDefinition.tertiaryVisual, state.body,
-                        std::max(
-                            total - runtime.slowEffect
-                                        .GetRemainingSeconds(),
-                            0.0F),
-                        state.linearVelocity);
-                }
-            }
             const std::size_t firstVisibleSlot =
                 static_cast<std::size_t>(
                     r3d::game::originalrace::GarageSlotType::Hyper);
@@ -4979,6 +4943,24 @@ void OriginalRaceRenderer::draw(
         {
             drawDefinition(
                 vehicleEnergyDamageEffects_[effect.racer],
+                *effect.sourceDefinition,
+                compose(vehicles[effect.racer].body, effect.transform),
+                effect.totalSeconds - effect.seconds,
+                vehicles[effect.racer].linearVelocity,
+                nullptr, 1.0F, effectEmissionEnd);
+            continue;
+        }
+        if (effect.kind ==
+                r3d::game::originalrace::RaceEventKind::
+                    VehicleSlowEffect &&
+            effect.racer < vehicles.size() &&
+            effect.weapon < projectiles_.size() &&
+            effect.projectile < projectiles_[effect.weapon].size() &&
+            effect.sourceDefinition != nullptr)
+        {
+            drawDefinition(
+                projectiles_[effect.weapon][effect.projectile]
+                    .tertiaryVisual,
                 *effect.sourceDefinition,
                 compose(vehicles[effect.racer].body, effect.transform),
                 effect.totalSeconds - effect.seconds,

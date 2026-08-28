@@ -2217,6 +2217,7 @@ void SlowEffect::Reset() noexcept
 }
 
 bool SlowEffect::Attach(
+    const ObjectDefinition* effectDefinition,
     float maximumTimeLife, std::size_t weapon,
     std::size_t projectile) noexcept
 {
@@ -2228,8 +2229,16 @@ bool SlowEffect::Attach(
     timeLife_ = 0.0F;
     weapon_ = weapon;
     projectile_ = projectile;
+    eventEffect_.Configure(effectDefinition);
     eventEffect_.MakeEffect();
     return true;
+}
+
+bool SlowEffect::Attach(
+    float maximumTimeLife, std::size_t weapon,
+    std::size_t projectile) noexcept
+{
+    return Attach(nullptr, maximumTimeLife, weapon, projectile);
 }
 
 SlowEffect::ProgressResult SlowEffect::OnProgress(
@@ -2271,6 +2280,17 @@ std::size_t SlowEffect::GetWeapon() const noexcept
 std::size_t SlowEffect::GetProjectile() const noexcept
 {
     return projectile_;
+}
+
+const ObjectDefinition* SlowEffect::GetEffectDefinition() const noexcept
+{
+    return eventEffect_.GetEffectDefinition();
+}
+
+EventEffect::SpawnResult SlowEffect::GetSpawnResult(
+    bool created) const noexcept
+{
+    return eventEffect_.GetSpawnResult(created);
 }
 
 } // namespace r3d::game::originalrace::source

@@ -63,6 +63,7 @@ enum class RaceEventKind
     VehicleDestroyed,
     VehicleEnergyDamage,
     VehicleLowLife,
+    VehicleSlowEffect,
     LowLife,
     RaceFinish,
     LastLap,

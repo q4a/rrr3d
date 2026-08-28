@@ -5439,6 +5439,24 @@ Energy `DamageEffect` выдаёт owner spawn-plan только для `dtEnerg
 Session больше не выбирает эти записи повторно. Regression проверяет identity,
 child attachment, lifetime, release и отсутствие повторного создания.
 
+### P2.237 — Frost `SlowEffect` снова владеет model3 child — выполнено
+
+Сверка `Weapon.cpp::Proj::FrostRayUpdate` и
+`GameBase.cpp::SlowEffect::OnProgress/OnDestroyEffect` выявила оставшийся
+двойной путь: dynamic behavior ограничивал скорость и время жизни, однако
+bgfx самостоятельно выбирал `projectiles[weapon][projectile].tertiaryVisual`
+по сохранённым индексам. В Windows именно
+`SlowEffect::SetEffect(_desc.GetModel3())` сохраняет точную запись и создаёт
+car-child actor.
+
+Portable `SlowEffect` теперь хранит точный `ObjectDefinition*` и выдаёт
+одноразовый `EventEffect` spawn-plan. `Proj::AttachFrostSlow` передаёт owner-у
+стабильную запись model3, а session только материализует `VehicleSlowEffect`
+с parent-racer и source lifetime. Renderer больше не смотрит на состояние
+`Player::slowEffect` и не выбирает record повторно. Regression проверяет
+identity, one-shot consumption, child attachment, отсутствие refresh при
+повторном луче и совместное завершение behavior/model.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

@@ -33,8 +33,12 @@ int main()
     // the beginning of the next source behavior pass.
     source::Player slowPlayer;
     slowPlayer.Reset(100.0F, 1U);
-    if (!slowPlayer.AttachSlowEffect(0.5F, 4U, 2U) ||
-        slowPlayer.AttachSlowEffect(2.0F, 5U, 3U) ||
+    r3d::game::originalrace::ObjectDefinition slowDefinition;
+    slowDefinition.record = "frostSlow";
+    if (!slowPlayer.AttachSlowEffect(
+            &slowDefinition, 0.5F, 4U, 2U) ||
+        slowPlayer.AttachSlowEffect(
+            &slowDefinition, 2.0F, 5U, 3U) ||
         slowPlayer.gameCar.GetBehaviors().GetCount() != 4U ||
         slowPlayer.gameCar.GetBehaviors().Find(
             source::BehaviorType::SlowEffect) == nullptr ||
@@ -45,8 +49,14 @@ int main()
     if (!slowActive.slowSpeedLimited || slowActive.slowReleased ||
         slowActive.gameObject.behaviorsProgressed != 4U ||
         slowPlayer.slowEffect.GetWeapon() != 4U ||
-        slowPlayer.slowEffect.GetProjectile() != 2U)
+        slowPlayer.slowEffect.GetProjectile() != 2U ||
+        slowPlayer.slowEffect.GetEffectDefinition() != &slowDefinition)
         return 73;
+    const auto slowSpawn = slowPlayer.ConsumeSlowEffectSpawn();
+    if (!slowSpawn.has_value() || !slowSpawn->createEffect ||
+        slowSpawn->definition != &slowDefinition ||
+        slowPlayer.ConsumeSlowEffectSpawn().has_value())
+        return 80;
     const auto slowReleased = slowPlayer.ProgressBehaviors(
         0.251F, 0.35F, 30.0F);
     if (!slowReleased.slowSpeedLimited || !slowReleased.slowReleased ||
@@ -63,7 +73,8 @@ int main()
             source::BehaviorType::SlowEffect) != nullptr ||
         slowPlayer.gameCar.GetListenerCount() != 4U)
         return 75;
-    if (!slowPlayer.AttachSlowEffect(1.0F, 1U, 1U))
+    if (!slowPlayer.AttachSlowEffect(
+            &slowDefinition, 1.0F, 1U, 1U))
         return 76;
     slowPlayer.Destroy();
     if (slowPlayer.gameCar.GetBehaviors().Find(

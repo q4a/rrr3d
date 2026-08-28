@@ -2615,3 +2615,12 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   исходные 0.5 секунды без повторного старта от каждого energy hit.
 - Shield bgfx path берёт `shield1` и `scaleK` у `ImmortalEffect`; Race/session
   больше не являются параллельным владельцем этих параметров.
+
+### Source Frost SlowEffect model ownership follow-up
+
+- `SlowEffect::SetEffect(model3)` восстановлен как точная non-owning запись
+  на динамическом car behavior, а не renderer lookup по двум индексам.
+- Первый FrostRay contact создаёт один car-child effect через owner plan;
+  последующие контакты не заменяют record и не продлевают lifetime.
+- Session отвечает только за bgfx/SDL object boundary; удаление model и
+  снятие ограничения скорости происходят из одного source lifetime.
