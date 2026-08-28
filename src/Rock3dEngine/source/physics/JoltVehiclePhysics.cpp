@@ -1102,13 +1102,17 @@ public:
                         snapshot.resetCount = state.resetCount;
                     }
                     fixedStepResets_.clear();
+                    fixedStepLinearVelocities_.clear();
                     worldFixedStepController_(
                         sourceStep, fixedStepStates_, sourceFixedInputs_,
-                        fixedStepResets_);
+                        fixedStepResets_, fixedStepLinearVelocities_);
                     sourceFixedInputs_.resize(vehicles_.size());
                     for (const auto& reset : fixedStepResets_)
                         resetVehicle(
                             reset.vehicle, reset.position, reset.direction);
+                    for (const auto& velocity : fixedStepLinearVelocities_)
+                        addLinearVelocity(
+                            velocity.vehicle, velocity.delta);
                 }
                 ++sourceStepsDispatched;
             }
@@ -2417,6 +2421,8 @@ private:
     std::vector<VehicleInput> sourceFixedInputs_;
     std::vector<VehicleState> fixedStepStates_;
     std::vector<VehicleResetCommand> fixedStepResets_;
+    std::vector<VehicleLinearVelocityCommand>
+        fixedStepLinearVelocities_;
     float sourceFixedStepAccumulator_ = 0.0F;
 };
 
@@ -2521,12 +2527,14 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
         [&](float delta,
             const std::vector<VehicleState>& states,
             std::vector<VehicleInput>& inputs,
-            std::vector<VehicleResetCommand>& resets) {
+            std::vector<VehicleResetCommand>& resets,
+            std::vector<VehicleLinearVelocityCommand>& velocities) {
             ++worldFixedStepCalls;
             worldFixedStepRosterValid =
                 worldFixedStepRosterValid &&
                 std::abs(delta - 1.0F / 60.0F) < 0.000001F &&
-                states.size() == 1U && inputs.size() == 1U;
+                states.size() == 1U && inputs.size() == 1U &&
+                velocities.empty();
             inputs.front().throttle = 1.0F;
             if (worldFixedStepCalls == 1U)
             {
@@ -2536,6 +2544,7 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
                       drivetrainDescription.startPosition.y,
                       drivetrainDescription.startPosition.z + 1.0F},
                      drivetrainDescription.startDirection});
+                velocities.push_back({0U, {0.0F, 0.0F, 2.0F}});
             }
         });
     fixedStepWorld->setVehicleFixedStepController(
@@ -2570,9 +2579,10 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
     if (worldFixedStepCalls != 1U || vehicleFixedStepCalls != 1U ||
         !worldFixedStepRosterValid ||
         fixedStepWorld->vehicle().resetCount !=
-            resetCountBeforeWorldCallback + 1U)
+            resetCountBeforeWorldCallback + 1U ||
+        fixedStepWorld->vehicle().linearVelocity.z <= 1.0F)
     {
-        error = "source Race world fixed-step/Jolt reset bridge failed";
+        error = "source Race world fixed-step/Jolt command bridge failed";
         return false;
     }
     VehicleInput input;

@@ -1573,6 +1573,26 @@ steps без render между ними, затем single materialization. Arm6
 атак: source `Proj` уже создаётся вовремя, но velocity/runtime adapter пока
 применяется после solver step следующего render frame.
 
+### B8r: same-step backend bridge for AI specials
+
+Задержка специальных атак устранена без смешивания частот source и backend.
+Успешный Hyper fixed-step теперь сразу создаёт единственный attached
+`ProjectileRuntime`, сохраняет spring lock и выдаёт адресную команду
+изменения линейной скорости. Mine сразу создаёт единственный `MineRuntime` с
+тем же concrete source `Proj` и network projectile id.
+
+World callback расширен отдельным списком linear-velocity commands. Jolt
+принимает его вместе с input/reset результатом `Race::OnFixedStep`, сначала
+выполняет reset, затем изменение скорости и только после этого запускает
+текущий solver update. Render adapter публикует события и эффекты, но больше
+не создаёт второй runtime и не повторяет импульс.
+
+Integration regression подтверждает runtime/velocity до adapter и отсутствие
+повторной materialization. Physics regression подтверждает эффект команды в
+том же solver interval. Следующая B8s граница — проверить обычные AI shots:
+их source-транзакция уже fixed-step, но автономный backend projectile view
+всё ещё создаётся последующим frame adapter.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

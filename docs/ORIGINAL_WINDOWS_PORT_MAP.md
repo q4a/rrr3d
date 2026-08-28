@@ -647,6 +647,22 @@ physics и 360-frame Metal smoke прошли.
 того же world fixed-step до solver update, устранив оставшуюся одно-frame
 backend задержку Hyper/Mine при сохранении source 60 Гц и Jolt 120 Гц.
 
+Результат B8r: Hyper создаёт attached `ProjectileRuntime`, Mine создаёт
+`MineRuntime`, а spring lock попадает в итоговый vehicle input непосредственно
+внутри source fixed-step. Новый список `VehicleLinearVelocityCommand`
+возвращается из `WorldFixedStepController`; Jolt применяет его после
+same-step reset и до текущего `system_.Update`.
+
+Frame adapter теперь отвечает только за `HyperActivated`/`MinePlaced`, shot
+effects и presentation lifetime. Он не создаёт повторный runtime и не
+добавляет второй импульс. Regression требует по одному runtime до adapter и
+одну Hyper velocity-команду; Jolt smoke проверяет, что эта скорость уже
+присутствует после того же solver update.
+
+Следующий B8s — проверить и при необходимости перенести в эту же границу
+обычный AI projectile runtime: concrete source `Proj` создаётся fixed-step-ом,
+но его автономный Jolt/bgfx view пока материализуется render adapter-ом.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:

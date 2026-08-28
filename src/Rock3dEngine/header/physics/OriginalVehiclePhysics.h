@@ -301,6 +301,12 @@ struct VehicleResetCommand
     Vec3 direction{1.0F, 0.0F, 0.0F};
 };
 
+struct VehicleLinearVelocityCommand
+{
+    std::size_t vehicle = std::numeric_limits<std::size_t>::max();
+    Vec3 delta;
+};
+
 // Race::OnFixedStep is a world event: Windows calls it exactly once before
 // each PhysX Compute, then dispatches the registered GameCar fixed events.
 // Keep that boundary separate from VehicleFixedStepController, which is
@@ -309,7 +315,8 @@ struct VehicleResetCommand
 // same solver step rather than one rendered frame later.
 using WorldFixedStepController = std::function<void(
     float, const std::vector<VehicleState>&,
-    std::vector<VehicleInput>&, std::vector<VehicleResetCommand>&)>;
+    std::vector<VehicleInput>&, std::vector<VehicleResetCommand>&,
+    std::vector<VehicleLinearVelocityCommand>&)>;
 
 struct DebrisDescription
 {

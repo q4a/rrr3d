@@ -5116,6 +5116,27 @@ adapter pass, второй fixed-step не может списать их пов
 backend получает ровно по одному runtime object. Прошли arm64 build, 29/29
 CTest, physics smoke и 360-frame bgfx/Metal smoke.
 
+### P2.220 — backend-команды Hyper и Mine применяются до того же solver step — выполнено
+
+После переноса source-транзакций оставалась ещё одна временная граница:
+готовые `Proj`, charge и cooldown уже появлялись внутри
+`Race::OnFixedStep`, но `ProjectileRuntime`/`MineRuntime` и импульс Hyper
+создавались следующим render adapter pass. Поэтому Jolt видел специальную
+атаку на один кадр позже оригинального PhysX `Compute`.
+
+Hyper и Mine теперь создают единственное backend-neutral runtime-view сразу
+после успешного `WeaponItem::Shot` в том же source fixed-step. Расширенный
+`WorldFixedStepController` возвращает адресные linear-velocity commands;
+Jolt применяет их после reset-команд и до текущего `system_.Update`.
+Spring lock также переносится в итоговый input этого интервала. Поздний
+adapter оставлен владельцем только событий, звуковых/визуальных эффектов и
+не повторяет runtime или импульс.
+
+Regression требует один Hyper runtime и одну velocity-команду до adapter,
+один Mine runtime до adapter, отсутствие повторной команды после adapter и
+неизменный charge на втором fixed-step. Physics smoke дополнительно проверяет,
+что переданная callback-ом скорость уже видна после того же Jolt solve.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

@@ -3431,6 +3431,37 @@ bool OriginalRaceSession::prepareAiHyperAttack(
         if (projectile.type != 1U)
             sourceObject->SetExternalLifetimeManaged(false);
     }
+    velocityRequests_.push_back(
+        {racer, attack.hyperVelocityDelta});
+    attack.hyperVelocityQueued = true;
+    if (projectile.type == 1U)
+    {
+        ProjectileRuntime runtimeProjectile;
+        runtimeProjectile.owner = racer;
+        runtimeProjectile.weapon = weaponIndex;
+        const auto& definitionProjectiles =
+            race_.weapons[weaponIndex].projectiles;
+        const auto sourceProjectile = std::find_if(
+            definitionProjectiles.begin(), definitionProjectiles.end(),
+            [](const ProjectileDefinition& candidate) {
+                return !candidate.spawnOnParentDeath;
+            });
+        runtimeProjectile.projectile =
+            sourceProjectile == definitionProjectiles.end()
+                ? 0U
+                : static_cast<std::size_t>(std::distance(
+                      definitionProjectiles.begin(), sourceProjectile));
+        runtimeProjectile.position =
+            attack.hyperProjectileTransform.position;
+        runtimeProjectile.direction = sourceDirection;
+        runtimeProjectile.rotation =
+            attack.hyperProjectileTransform.rotation;
+        runtimeProjectile.attached = true;
+        runtimeProjectile.directWeapon = true;
+        runtimeProjectile.sourceObject = sourceObject;
+        projectiles_.push_back(std::move(runtimeProjectile));
+        attack.hyperRuntimeMaterialized = true;
+    }
     attack.hyperSourcePrepared = true;
     return true;
 }
@@ -3509,6 +3540,27 @@ bool OriginalRaceSession::prepareAiMineAttack(
         return false;
     }
     runtime.gameCar.LockMine(0.4F);
+    MineRuntime mine;
+    mine.owner = racer;
+    mine.weapon = weaponIndex;
+    const auto sourceProjectile = std::find_if(
+        race_.weapons[weaponIndex].projectiles.begin(),
+        race_.weapons[weaponIndex].projectiles.end(),
+        [](const ProjectileDefinition& candidate) {
+            return !candidate.spawnOnParentDeath;
+        });
+    mine.projectile =
+        sourceProjectile == race_.weapons[weaponIndex].projectiles.end()
+            ? 0U
+            : static_cast<std::size_t>(std::distance(
+                  race_.weapons[weaponIndex].projectiles.begin(),
+                  sourceProjectile));
+    mine.position = attack.mineTransform.position;
+    mine.rotation = attack.mineTransform.rotation;
+    mine.networkProjectileId = attack.mineProjectileId;
+    mine.sourceObject = attack.mineSourceProjectiles.front();
+    mines_.push_back(std::move(mine));
+    attack.mineRuntimeMaterialized = true;
     attack.mineSourcePrepared = true;
     return true;
 }
@@ -3528,14 +3580,37 @@ void OriginalRaceSession::discardPendingAiAttack(
         if (projectile != nullptr && !projectile->destroyed)
             projectile->Death();
     }
+    if (attack.hyperRuntimeMaterialized)
+    {
+        std::erase_if(projectiles_, [&](const ProjectileRuntime& runtime) {
+            return std::find(
+                       attack.hyperSourceProjectiles.begin(),
+                       attack.hyperSourceProjectiles.end(),
+                       runtime.sourceObject) !=
+                   attack.hyperSourceProjectiles.end();
+        });
+    }
     attack.hyperSourceProjectiles.clear();
+    attack.hyperVelocityQueued = false;
+    attack.hyperRuntimeMaterialized = false;
     attack.hyperSourcePrepared = false;
     for (auto* projectile : attack.mineSourceProjectiles)
     {
         if (projectile != nullptr && !projectile->destroyed)
             projectile->Death();
     }
+    if (attack.mineRuntimeMaterialized)
+    {
+        std::erase_if(mines_, [&](const MineRuntime& runtime) {
+            return std::find(
+                       attack.mineSourceProjectiles.begin(),
+                       attack.mineSourceProjectiles.end(),
+                       runtime.sourceObject) !=
+                   attack.mineSourceProjectiles.end();
+        });
+    }
     attack.mineSourceProjectiles.clear();
+    attack.mineRuntimeMaterialized = false;
     attack.mineSourcePrepared = false;
 }
 
@@ -3581,6 +3656,15 @@ void OriginalRaceSession::progressRaceFixedStep(
             {
                 vehicleInputs_[racer] =
                     aiInput(racer, aiProgressScratch_[racer].command);
+            }
+        }
+        for (const auto& attack : pendingAiAttacks_)
+        {
+            if (attack.hyperSourcePrepared &&
+                attack.hyperSpringLocked &&
+                attack.racer < vehicleInputs_.size())
+            {
+                vehicleInputs_[attack.racer].springLocked = true;
             }
         }
         // AICar::OnProgress performs ControlState::UpdateResetCar after
@@ -5326,7 +5410,11 @@ void OriginalRaceSession::updateGameplay(
         pushShotEffect(
             owner, weapon, PlayerProfile::weaponSlotCount + 1U,
             weaponTransform, *projectile);
-        mines_.push_back(std::move(mine));
+        if (!sourcePrepared ||
+            !preparedAttack->mineRuntimeMaterialized)
+        {
+            mines_.push_back(std::move(mine));
+        }
         RaceEvent mineEvent;
         mineEvent.kind = RaceEventKind::MinePlaced;
         mineEvent.racer = owner;
@@ -5453,7 +5541,9 @@ void OriginalRaceSession::updateGameplay(
                    {1.0F, 0.0F, 0.0F}));
         auto* sourceObject = sourceProjectiles.front();
         std::optional<ProjectileRuntime> preparedHyperProjectile;
-        if (projectile.type == 1U)
+        if (projectile.type == 1U &&
+            (!sourcePrepared ||
+             !preparedAttack->hyperRuntimeMaterialized))
         {
             ProjectileRuntime runtimeProjectile;
             runtimeProjectile.owner = owner;
@@ -5506,7 +5596,8 @@ void OriginalRaceSession::updateGameplay(
                 vehicles[owner].body.rotation,
                 {projectile.speed, 0.0F, 0.0F});
         }
-        velocityRequests_.push_back({owner, velocityDelta});
+        if (!sourcePrepared || !preparedAttack->hyperVelocityQueued)
+            velocityRequests_.push_back({owner, velocityDelta});
         if (springLocked && owner < vehicleInputs_.size())
             vehicleInputs_[owner].springLocked = true;
         if (preparedHyperProjectile.has_value())
@@ -6984,6 +7075,8 @@ void OriginalRaceSession::updateGameplay(
             if (activateHyper(racer, nullptr, 0U, false, &attack))
             {
                 attack.hyperSourceProjectiles.clear();
+                attack.hyperVelocityQueued = false;
+                attack.hyperRuntimeMaterialized = false;
                 attack.hyperSourcePrepared = false;
             }
             else
@@ -6994,6 +7087,8 @@ void OriginalRaceSession::updateGameplay(
                         projectile->Death();
                 }
                 attack.hyperSourceProjectiles.clear();
+                attack.hyperVelocityQueued = false;
+                attack.hyperRuntimeMaterialized = false;
                 attack.hyperSourcePrepared = false;
             }
         }
@@ -7003,6 +7098,7 @@ void OriginalRaceSession::updateGameplay(
                     racer, nullptr, 0U, false, false, &attack))
             {
                 attack.mineSourceProjectiles.clear();
+                attack.mineRuntimeMaterialized = false;
                 attack.mineSourcePrepared = false;
             }
             else
@@ -7013,6 +7109,7 @@ void OriginalRaceSession::updateGameplay(
                         projectile->Death();
                 }
                 attack.mineSourceProjectiles.clear();
+                attack.mineRuntimeMaterialized = false;
                 attack.mineSourcePrepared = false;
             }
         }
@@ -8634,20 +8731,30 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 }
                 if (!fixedHyperFired ||
                     fixedHyperItem->GetCurCharge() + 1U !=
-                        hyperChargeBefore ||
+                    hyperChargeBefore ||
                     std::abs(
                         fixedHyperItem->GetWeapon()->GetShotTime()) >
                         1.0e-6F ||
-                    !fixedHyperSession.projectiles().empty())
+                    fixedHyperSession.projectiles().size() != 1U)
                 {
                     throw std::runtime_error(
                         "source AI Hyper was not committed inside fixed-step");
+                }
+                const auto fixedHyperVelocity =
+                    fixedHyperSession.takeVelocityRequests();
+                if (fixedHyperVelocity.size() != 1U ||
+                    fixedHyperVelocity.front().racer != 1U)
+                {
+                    throw std::runtime_error(
+                        "source AI Hyper did not publish its fixed-step "
+                        "velocity command");
                 }
                 fixedHyperSession.raceFixedStep(
                     1.0F / 60.0F, fixedHyperVehicles,
                     fixedHyperInputs, fixedHyperResets);
                 if (fixedHyperItem->GetCurCharge() + 1U !=
-                    hyperChargeBefore)
+                        hyperChargeBefore ||
+                    !fixedHyperSession.takeVelocityRequests().empty())
                 {
                     throw std::runtime_error(
                         "source AI Hyper was committed twice before adapter");
@@ -8666,7 +8773,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     fixedHyperSession.projectiles().empty() ||
                     fixedHyperItem->GetCurCharge() + 1U !=
                         hyperChargeBefore ||
-                    fixedHyperItem->GetWeapon()->GetShotTime() <= 0.0F)
+                    fixedHyperItem->GetWeapon()->GetShotTime() <= 0.0F ||
+                    !fixedHyperSession.takeVelocityRequests().empty())
                 {
                     throw std::runtime_error(
                         "source AI Hyper backend materialization re-fired");
@@ -8748,7 +8856,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     fixedMineItem->GetCurCharge() + 1U != mineChargeBefore ||
                     std::abs(fixedMineItem->GetWeapon()->GetShotTime()) >
                         1.0e-6F ||
-                    !fixedMineSession.mines().empty() ||
+                    fixedMineSession.mines().size() != 1U ||
                     !fixedMineSession.racers()[1].gameCar.IsMineLocked())
                 {
                     throw std::runtime_error(

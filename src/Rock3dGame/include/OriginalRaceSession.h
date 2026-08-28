@@ -536,12 +536,15 @@ private:
         float hyperDuration = 0.0F;
         source::Weapon::ProjList hyperSourceProjectiles;
         bool hyperSpringLocked = false;
+        bool hyperVelocityQueued = false;
+        bool hyperRuntimeMaterialized = false;
         bool hyperSourcePrepared = false;
         std::size_t mineWeapon = RacerRuntime::invalidWeapon;
         std::uint32_t mineProjectileId = 0U;
         Transform mineWeaponTransform;
         Transform mineTransform;
         source::Weapon::ProjList mineSourceProjectiles;
+        bool mineRuntimeMaterialized = false;
         bool mineSourcePrepared = false;
     };
     source::MapObjects& decorationObjects() noexcept;

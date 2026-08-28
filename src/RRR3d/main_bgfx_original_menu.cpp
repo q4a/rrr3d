@@ -3750,9 +3750,17 @@ int main(int argc, char** argv)
                 float deltaTime,
                 const std::vector<r3d::physics::VehicleState>& vehicles,
                 std::vector<r3d::physics::VehicleInput>& inputs,
-                std::vector<r3d::physics::VehicleResetCommand>& resets) {
+                std::vector<r3d::physics::VehicleResetCommand>& resets,
+                std::vector<r3d::physics::VehicleLinearVelocityCommand>&
+                    velocities) {
                 raceSession.raceFixedStep(
                     deltaTime, vehicles, inputs, resets);
+                for (const auto& request :
+                     raceSession.takeVelocityRequests())
+                {
+                    velocities.push_back(
+                        {request.racer, request.delta});
+                }
             });
         physicsWorld->setVehicleFixedStepController(
             [&raceSession](
