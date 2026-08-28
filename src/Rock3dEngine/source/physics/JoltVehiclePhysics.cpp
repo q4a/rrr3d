@@ -1013,6 +1013,12 @@ public:
         fixedStepController_ = std::move(controller);
     }
 
+    void setWorldFixedStepController(
+        WorldFixedStepController controller) override
+    {
+        worldFixedStepController_ = std::move(controller);
+    }
+
     void step(float seconds,
               const std::vector<VehicleInput>& rawInputs) noexcept override
     {
@@ -1024,12 +1030,44 @@ public:
         while (remaining > 0.0F)
         {
             const float delta = std::min(remaining, fixedStep);
+            fixedStepInputs_.assign(rawInputs.begin(), rawInputs.end());
+            fixedStepInputs_.resize(vehicles_.size());
+            if (worldFixedStepController_)
+            {
+                // World::FixedStep runs before PhysX Scene::Compute. Refresh
+                // the completed state from the preceding substep so Race AI
+                // never reasons from a render-frame-old pose.
+                fixedStepStates_.resize(vehicles_.size());
+                for (std::size_t index = 0; index < vehicles_.size(); ++index)
+                {
+                    updateState(vehicles_[index]);
+                    const auto& state = vehicles_[index].state;
+                    auto& snapshot = fixedStepStates_[index];
+                    snapshot.body = state.body;
+                    snapshot.bodyAwake = state.bodyAwake;
+                    snapshot.linearVelocity = state.linearVelocity;
+                    snapshot.angularMomentum = state.angularMomentum;
+                    snapshot.kineticEnergy = state.kineticEnergy;
+                    snapshot.speed = state.speed;
+                    snapshot.drivenWheelSpeed = state.drivenWheelSpeed;
+                    snapshot.engineRpm = state.engineRpm;
+                    snapshot.gear = state.gear;
+                    snapshot.contactCount = state.contactCount;
+                    snapshot.resetCount = state.resetCount;
+                }
+                fixedStepResets_.clear();
+                worldFixedStepController_(
+                    delta, fixedStepStates_, fixedStepInputs_,
+                    fixedStepResets_);
+                fixedStepInputs_.resize(vehicles_.size());
+                for (const auto& reset : fixedStepResets_)
+                    resetVehicle(
+                        reset.vehicle, reset.position, reset.direction);
+            }
             for (std::size_t index = 0; index < vehicles_.size(); ++index)
             {
-                VehicleInput input;
-                if (index < rawInputs.size())
-                    input = rawInputs[index];
-                prepareVehicleStep(index, vehicles_[index], input, delta);
+                prepareVehicleStep(
+                    index, vehicles_[index], fixedStepInputs_[index], delta);
             }
             system_.Update(delta, 1, &tempAllocator_, &jobs_);
             remaining -= delta;
@@ -2312,6 +2350,10 @@ private:
     DecorationState emptyDecoration_;
     DebrisState emptyDebris_;
     VehicleFixedStepController fixedStepController_;
+    WorldFixedStepController worldFixedStepController_;
+    std::vector<VehicleInput> fixedStepInputs_;
+    std::vector<VehicleState> fixedStepStates_;
+    std::vector<VehicleResetCommand> fixedStepResets_;
 };
 
 } // namespace
@@ -2402,6 +2444,43 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
         createOriginalVehicleWorld(drivetrainDescription, error);
     if (!world)
         return false;
+    auto fixedStepWorld =
+        createOriginalVehicleWorld(drivetrainDescription, error);
+    if (!fixedStepWorld)
+        return false;
+    const auto resetCountBeforeWorldCallback =
+        fixedStepWorld->vehicle().resetCount;
+    std::size_t worldFixedStepCalls = 0U;
+    bool worldFixedStepRosterValid = true;
+    fixedStepWorld->setWorldFixedStepController(
+        [&](float delta,
+            const std::vector<VehicleState>& states,
+            std::vector<VehicleInput>& inputs,
+            std::vector<VehicleResetCommand>& resets) {
+            ++worldFixedStepCalls;
+            worldFixedStepRosterValid =
+                worldFixedStepRosterValid &&
+                std::abs(delta - 1.0F / 120.0F) < 0.000001F &&
+                states.size() == 1U && inputs.size() == 1U;
+            inputs.front().throttle = 1.0F;
+            if (worldFixedStepCalls == 1U)
+            {
+                resets.push_back(
+                    {0U,
+                     {drivetrainDescription.startPosition.x,
+                      drivetrainDescription.startPosition.y,
+                      drivetrainDescription.startPosition.z + 1.0F},
+                     drivetrainDescription.startDirection});
+            }
+        });
+    fixedStepWorld->step(2.0F / 120.0F, VehicleInput{});
+    if (worldFixedStepCalls != 2U || !worldFixedStepRosterValid ||
+        fixedStepWorld->vehicle().resetCount !=
+            resetCountBeforeWorldCallback + 1U)
+    {
+        error = "source Race world fixed-step/Jolt reset bridge failed";
+        return false;
+    }
     VehicleInput input;
     for (int step = 0; step < 240; ++step)
         world->step(1.0F / 120.0F, input);

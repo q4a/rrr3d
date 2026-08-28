@@ -1487,6 +1487,23 @@ CreateCar, переключение Two→One, FreeCar/CreateCar, SetHeadlight(N
 branches. Прошли arm64 build, 25/25 offline, 2/2 network, physics и
 360-frame Metal race smoke.
 
+### B8m: source Race fixed-step cadence
+
+Подтвердилось, что `OriginalRaceSession::update` вызывал
+`Player::OnProgress` и `AISystem::OnProgress` один раз с render delta, тогда
+как Windows `World` вызывает `Race::OnFixedStep` перед каждым физическим
+шагом. При просадках FPS это особенно сильно меняло AI state machine,
+restore timers и checkpoint/lap sampling.
+
+Теперь Jolt имеет отдельный world callback на каждый substep 1/120. В нём
+исполняется исходный порядок всех Player, затем AISystem; после него идут
+per-car `GameCar` callbacks и solver. AI видит свежий pose предыдущего
+substep, а respawn применяется до текущего solver. Event adapter сохраняет
+fixed-step события до следующего main pass. Frame update этот код больше не
+дублирует. 29/29 CTest, physics и 360-frame Metal smokes прошли; обычная
+подписанная arm64 `.app` также открыта через LaunchServices и показала главное
+меню.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

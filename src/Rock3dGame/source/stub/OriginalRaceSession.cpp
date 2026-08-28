@@ -3115,6 +3115,112 @@ void OriginalRaceSession::progressAi(
     }
 }
 
+void OriginalRaceSession::progressRaceFixedStep(
+    float seconds,
+    const std::vector<r3d::physics::VehicleState>& vehicles,
+    std::vector<r3d::physics::VehicleInput>& inputs,
+    std::vector<r3d::physics::VehicleResetCommand>* resets,
+    bool deferEvents)
+{
+    // World registers Race before loading the level and its GameCars, so
+    // Race::OnFixedStep owns this first transaction at every physics step:
+    // all Player::OnProgress calls, then AISystem::OnProgress when GoRace.
+    std::vector<RaceEvent> frameEvents;
+    if (deferEvents)
+    {
+        // The main loop has already consumed frame Progress events when Jolt
+        // enters this callback. Keep fixed-step events for the next adapter
+        // pass without replaying the already consumed frame events.
+        frameEvents = std::move(events_);
+        events_.clear();
+    }
+
+    vehicleInputs_ = inputs;
+    vehicleInputs_.resize(racers_.size());
+    const std::size_t firstFixedRespawn = respawns_.size();
+    const auto playerProgress = progressPlayers(seconds, vehicles);
+
+    const bool aiEnabled =
+        phase_ == RacePhase::Racing ||
+        (phase_ == RacePhase::Finished &&
+         gameModeRaceState_.IsFinishTimerRunning());
+    if (aiEnabled)
+    {
+        updateAiTracks(vehicles);
+        progressAi(seconds, vehicles);
+        for (std::size_t racer = 0U;
+             racer < vehicleInputs_.size() &&
+             racer < aiProgressScratch_.size() &&
+             racer < aiProgressValidScratch_.size(); ++racer)
+        {
+            if (aiProgressValidScratch_[racer])
+            {
+                vehicleInputs_[racer] =
+                    aiInput(racer, aiProgressScratch_[racer].command);
+            }
+        }
+    }
+
+    for (std::size_t racer = 0U;
+         racer < playerProgress.size() &&
+         racer < vehicleInputs_.size(); ++racer)
+    {
+        const float torqueScale = playerProgress[racer].cheat.faster
+            ? playerProgress[racer].cheat.torqueScale : 1.0F;
+        const float steeringScale = playerProgress[racer].cheat.faster
+            ? playerProgress[racer].cheat.steeringScale : 1.0F;
+        racers_[racer].gameCar.SetMotorTorqueK(torqueScale);
+        racers_[racer].gameCar.SetWheelSteerK(steeringScale);
+        vehicleInputs_[racer].motorTorqueScale =
+            racers_[racer].gameCar.GetMotorTorqueK();
+        vehicleInputs_[racer].lateralGripScale =
+            racers_[racer].gameCar.GetWheelSteerK();
+    }
+    inputs = vehicleInputs_;
+
+    if (resets != nullptr && firstFixedRespawn < respawns_.size())
+    {
+        resets->reserve(
+            resets->size() + respawns_.size() - firstFixedRespawn);
+        for (std::size_t index = firstFixedRespawn;
+             index < respawns_.size(); ++index)
+        {
+            const auto& reset = respawns_[index];
+            resets->push_back(
+                {reset.racer, reset.position, reset.direction});
+        }
+        respawns_.erase(
+            respawns_.begin() +
+                static_cast<std::ptrdiff_t>(firstFixedRespawn),
+            respawns_.end());
+    }
+
+    if (deferEvents)
+    {
+        deferredFixedStepEvents_.insert(
+            deferredFixedStepEvents_.end(),
+            std::make_move_iterator(events_.begin()),
+            std::make_move_iterator(events_.end()));
+        events_ = std::move(frameEvents);
+    }
+}
+
+void OriginalRaceSession::setExternalRaceFixedStep(
+    bool enabled) noexcept
+{
+    externalRaceFixedStep_ = enabled;
+}
+
+void OriginalRaceSession::raceFixedStep(
+    float deltaTime,
+    const std::vector<r3d::physics::VehicleState>& vehicles,
+    std::vector<r3d::physics::VehicleInput>& inputs,
+    std::vector<r3d::physics::VehicleResetCommand>& resets)
+{
+    progressRaceFixedStep(
+        deltaTime, vehicles, inputs, &resets, true);
+}
+
 r3d::physics::VehicleInput OriginalRaceSession::aiInput(
     std::size_t racer,
     const source::AICar::Command& command) const
@@ -6764,7 +6870,8 @@ void OriginalRaceSession::update(
     const RaceControl& humanControl)
 {
     seconds = std::clamp(seconds, 0.0F, 7.0F / 60.0F);
-    events_.clear();
+    events_ = std::move(deferredFixedStepEvents_);
+    deferredFixedStepEvents_.clear();
     std::fill(vehicleInputs_.begin(), vehicleInputs_.end(),
               r3d::physics::VehicleInput{});
     if (phase_ == RacePhase::Paused)
@@ -6906,7 +7013,9 @@ void OriginalRaceSession::update(
     {
         // Windows Race::OnFixedStep progresses Player state throughout the
         // countdown; only AISystem is gated by GoRace.
-        progressPlayers(seconds, vehicles);
+        if (!externalRaceFixedStep_)
+            progressRaceFixedStep(
+                seconds, vehicles, vehicleInputs_, nullptr, false);
         if (gameModeAdvance.countdownStage)
             events_.push_back(
                 {RaceEventKind::CountdownChanged, 0, 0, {},
@@ -6935,7 +7044,9 @@ void OriginalRaceSession::update(
          gameModeAdvance.finishTimeEnded);
     if (phase_ == RacePhase::Finished && !finishTimerRunning)
     {
-        progressPlayers(seconds, vehicles);
+        if (!externalRaceFixedStep_)
+            progressRaceFixedStep(
+                seconds, vehicles, vehicleInputs_, nullptr, false);
         raceLateProgressPending_ = true;
         if (!externalRaceLateProgress_)
             lateProgress(seconds, vehicles);
@@ -6979,40 +7090,9 @@ void OriginalRaceSession::update(
         if (racers_[humanRacer_].speedBoostSeconds > 0.0F)
             vehicleInputs_[humanRacer_].throttle = 1.0F;
     }
-    const auto playerProgress = progressPlayers(seconds, vehicles);
-
-    updateAiTracks(vehicles);
-    progressAi(seconds, vehicles);
-    for (std::size_t racer = 0U;
-         racer < vehicleInputs_.size() &&
-         racer < aiProgressScratch_.size() &&
-         racer < aiProgressValidScratch_.size(); ++racer)
-    {
-        if (aiProgressValidScratch_[racer])
-        {
-            vehicleInputs_[racer] =
-                aiInput(racer, aiProgressScratch_[racer].command);
-        }
-    }
-
-    for (std::size_t racer = 0U;
-         racer < playerProgress.size() &&
-         racer < vehicleInputs_.size(); ++racer)
-    {
-        const float torqueScale = playerProgress[racer].cheat.faster
-            ? playerProgress[racer].cheat.torqueScale : 1.0F;
-        const float steeringScale = playerProgress[racer].cheat.faster
-            ? playerProgress[racer].cheat.steeringScale : 1.0F;
-        // Windows Player::SetCheatK writes the live GameCar. Keep the input
-        // copies only for debug/network visibility; active Jolt control gets
-        // both values back through GameCar::DriveCommand.
-        racers_[racer].gameCar.SetMotorTorqueK(torqueScale);
-        racers_[racer].gameCar.SetWheelSteerK(steeringScale);
-        vehicleInputs_[racer].motorTorqueScale =
-            racers_[racer].gameCar.GetMotorTorqueK();
-        vehicleInputs_[racer].lateralGripScale =
-            racers_[racer].gameCar.GetWheelSteerK();
-    }
+    if (!externalRaceFixedStep_)
+        progressRaceFixedStep(
+            seconds, vehicles, vehicleInputs_, nullptr, false);
 
     updateGameplay(seconds, vehicles, sourceHumanControl);
     updateAchievements(seconds);

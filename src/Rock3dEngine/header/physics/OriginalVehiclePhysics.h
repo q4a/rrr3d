@@ -294,6 +294,23 @@ struct VehicleState
     std::vector<BodyContact> bodyContacts;
 };
 
+struct VehicleResetCommand
+{
+    std::size_t vehicle = std::numeric_limits<std::size_t>::max();
+    Vec3 position;
+    Vec3 direction{1.0F, 0.0F, 0.0F};
+};
+
+// Race::OnFixedStep is a world event: Windows calls it exactly once before
+// each PhysX Compute, then dispatches the registered GameCar fixed events.
+// Keep that boundary separate from VehicleFixedStepController, which is
+// intentionally invoked once per car.  The controller may update the input
+// roster and return Player::ResetCar operations that must happen before the
+// same solver step rather than one rendered frame later.
+using WorldFixedStepController = std::function<void(
+    float, const std::vector<VehicleState>&,
+    std::vector<VehicleInput>&, std::vector<VehicleResetCommand>&)>;
+
 struct DebrisDescription
 {
     Transform transform;
@@ -346,6 +363,8 @@ public:
                                   float maximumSpeed) noexcept = 0;
     virtual void setVehicleFixedStepController(
         VehicleFixedStepController controller) = 0;
+    virtual void setWorldFixedStepController(
+        WorldFixedStepController controller) = 0;
     virtual void step(float seconds, const VehicleInput& input) noexcept = 0;
     virtual void step(float seconds,
                       const std::vector<VehicleInput>& inputs) noexcept = 0;

@@ -5014,6 +5014,30 @@ Session-only regressions, где нет отдельного physics backend, и
 360-frame bgfx/Metal smokes сохранили шесть машин, колёсные контакты и AI
 progress.
 
+### P2.215 — `Race::OnFixedStep` перенесён на каждый Jolt substep — выполнено
+
+Прямая сверка `World::OnFrame` и `Race::OnFixedStep` подтвердила зависимость
+порта от render FPS. Windows при каждом `maxTimeStep` сначала вызывает
+`FixedStep`, где Race последовательно выполняет всех `Player::OnProgress` и
+затем `AISystem::OnProgress`, и только после этого запускает
+`_pxScene->Compute`. Порт выполнял этот блок один раз в
+`OriginalRaceSession::update`, после чего Jolt мог сделать несколько шагов
+по 1/120 секунды с одним устаревшим AI решением.
+
+В backend-neutral physics API добавлен единый `WorldFixedStepController`.
+Jolt обновляет snapshot завершённого предыдущего substep, вызывает Race один
+раз на весь roster, применяет итоговые inputs/reset команды и затем вызывает
+отдельный зарегистрированный `GameCar` callback для каждой машины. Это
+сохраняет исходный порядок и не создаёт N×N dispatch. `Player::ResetCar`,
+возникший внутри callback, применяется до того же solver step.
+
+Поскольку main уже обработал события Progress перед входом в physics,
+события checkpoint/lap/finish/respawn из fixed-step хранятся в отдельной
+очереди до следующего adapter pass; обработанные frame events при этом не
+повторяются. Physics regression требует ровно два world callback на два
+шага 1/120 и один reset. Прошли 29/29 CTest, полный map1 physics smoke,
+360-frame Metal race smoke и обычный запуск `.app` с видимым главным меню.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

@@ -3742,8 +3742,18 @@ int main(int argc, char** argv)
     auto bindSourceVehicleFixedStep = [&]() {
         if (!physicsWorld)
             return;
+        raceSession.setExternalRaceFixedStep(true);
         raceSession.setExternalVehicleFixedStep(true);
         raceSession.setExternalRaceLateProgress(true);
+        physicsWorld->setWorldFixedStepController(
+            [&raceSession](
+                float deltaTime,
+                const std::vector<r3d::physics::VehicleState>& vehicles,
+                std::vector<r3d::physics::VehicleInput>& inputs,
+                std::vector<r3d::physics::VehicleResetCommand>& resets) {
+                raceSession.raceFixedStep(
+                    deltaTime, vehicles, inputs, resets);
+            });
         physicsWorld->setVehicleFixedStepController(
             [&raceSession](
                 std::size_t racer, float deltaTime,

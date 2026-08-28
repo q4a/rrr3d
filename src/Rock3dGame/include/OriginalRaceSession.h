@@ -419,6 +419,15 @@ public:
     void update(float seconds,
                 const std::vector<r3d::physics::VehicleState>& vehicles,
                 const RaceControl& humanControl);
+    // Native physics invokes the source Race::OnFixedStep owner once before
+    // every Jolt solver substep.  This is deliberately separate from the
+    // per-vehicle GameCar drive callback below.
+    void setExternalRaceFixedStep(bool enabled) noexcept;
+    void raceFixedStep(
+        float deltaTime,
+        const std::vector<r3d::physics::VehicleState>& vehicles,
+        std::vector<r3d::physics::VehicleInput>& inputs,
+        std::vector<r3d::physics::VehicleResetCommand>& resets);
     // Native Jolt calls this after its completed solver step. Headless/source
     // tests retain the synchronous fallback in update().
     void setExternalRaceLateProgress(bool enabled) noexcept;
@@ -535,6 +544,12 @@ private:
     void progressAi(
         float seconds,
         const std::vector<r3d::physics::VehicleState>& vehicles);
+    void progressRaceFixedStep(
+        float seconds,
+        const std::vector<r3d::physics::VehicleState>& vehicles,
+        std::vector<r3d::physics::VehicleInput>& inputs,
+        std::vector<r3d::physics::VehicleResetCommand>* resets,
+        bool deferEvents);
     void updatePlaces(
         float seconds,
         const std::vector<r3d::physics::VehicleState>& vehicles);
@@ -610,6 +625,7 @@ private:
     std::vector<RacerRuntime> racers_;
     std::vector<source::MapObj*> racerMapObjects_;
     std::vector<r3d::physics::VehicleInput> vehicleInputs_;
+    std::vector<RaceEvent> deferredFixedStepEvents_;
     std::vector<bool> decorationActive_;
     std::vector<float> decorationLife_;
     // Active source owner. The parallel arrays are renderer/physics views,
@@ -660,6 +676,7 @@ private:
     bool enableMineBug_ = true;
     bool springBorders_ = true;
     bool debugHumanAiControl_ = false;
+    bool externalRaceFixedStep_ = false;
     bool externalVehicleFixedStep_ = false;
     bool externalRaceLateProgress_ = false;
     bool raceLateProgressPending_ = false;

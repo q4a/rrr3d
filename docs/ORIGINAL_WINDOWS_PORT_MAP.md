@@ -562,6 +562,26 @@ roster не сортируется до World callback и готовый update 
 (Player затем AISystem) относительно Jolt 1/120 substeps и убрать следующий
 подтверждённый frame-rate dependent session path.
 
+Результат B8m: добавлена отдельная world-level граница Jolt fixed-step.
+Перед каждым solver substep она получает завершённые состояния всех машин и
+ровно один раз выполняет исходный `Race::OnFixedStep`: сначала весь список
+`Player::OnProgress`, затем `AISystem::OnProgress` при `GoRace`. После неё
+существующие адресные callbacks вызывают зарегистрированные `GameCar`, как и
+порядок регистрации Windows `Race -> level/GameCar`.
+
+Frame update больше не повторяет Player/AI с render delta. AI получает pose
+предыдущего 1/120 substep, а не предыдущего render frame. Возникший в
+`Player::OnProgress` `ResetCar` возвращается backend как готовая команда и
+применяется до того же Jolt `Update`. Fixed-step события сохраняются отдельно
+до следующего adapter event pass, не теряются при очистке кадра и не
+дублируют уже обработанные Progress events. Regression требует два world
+callback на два substep и только один reset.
+
+Следующий B8n — проверить применение результата `AISystem::OnProgress`:
+portable `updateGameplay` сейчас исполняет attack/weapon command до нового
+physics callback и поэтому использует решение предыдущего кадра вместо того
+же исходного fixed-step.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:
