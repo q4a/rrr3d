@@ -1693,6 +1693,25 @@ AI regression требует единственный actor уже на firing f
 `AutoProj` bonuses/hazards: их source objects активны, но статические контакты
 машин всё ещё вычисляются session OBB без Jolt identity.
 
+### B8x: static Jolt sensors for map AutoProj bonuses
+
+Каждый активный serialized Bonus MapObj при bind/reset создаёт static sensor
+body из concrete `AutoProj::ProjDesc`. В отличие от свободных projectiles и
+MineRip fragments он не получает dynamic motion/gravity, поэтому большой
+набор pickups не добавляет непрерывную интеграцию и не сползает с исходного
+map transform.
+
+Body-id contact cache заменяет OBB loop для Money/Medpack/Ammunition/Shield,
+SpeedArrow, Lusha, Maslo и map Mine. Source handlers и сетевые ветви не
+изменены: им передаются реальный vehicle id и manifold point. Pickup/death
+ставит Destroy до выключения `bonusActive`; новый reset строит roster заново.
+
+Regression проверяет один actor у isolated oil AutoProj и bootstrap count до
+AI Mine/ordinary projectile firing. Следующая B8y граница — source-аудит
+оставшихся physics snapshot consumers (death plane, reset rays и direct
+weapon Fire/Drobilka attached shapes), которые ещё не используют единый
+backend actor/query stream.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

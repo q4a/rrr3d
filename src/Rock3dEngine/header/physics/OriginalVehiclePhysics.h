@@ -320,6 +320,7 @@ struct ProjectileBodyDescription
     Vec3 linearVelocity;
     float mass = 1.0F;
     float gravityFactor = 0.0F;
+    bool dynamic = true;
     // RocketPrepare disables PhysX response but keeps contact reports. Jolt
     // sensors provide the same actor boundary without pushing the cars.
     bool sensor = true;

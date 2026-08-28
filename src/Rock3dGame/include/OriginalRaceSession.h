@@ -440,7 +440,7 @@ public:
     // every Jolt solver substep.  This is deliberately separate from the
     // per-vehicle GameCar drive callback below.
     void setExternalRaceFixedStep(bool enabled) noexcept;
-    void setExternalProjectilePhysics(bool enabled) noexcept;
+    void setExternalProjectilePhysics(bool enabled);
     void setWorldRaycast(r3d::physics::WorldRayCast raycast);
     void raceFixedStep(
         float deltaTime,
@@ -617,6 +617,8 @@ private:
     void queueMineBodyCreate(MineRuntime& mine);
     void queueMineBodySynchronize(const MineRuntime& mine);
     void queueMineBodyDestroy(const MineRuntime& mine);
+    void queueBonusBodyCreate(std::size_t bonus);
+    void queueBonusBodyDestroy(std::size_t bonus);
     r3d::physics::WorldRayCastHit queryWorldRay(
         const std::vector<r3d::physics::VehicleState>& vehicles,
         Vec3 origin, Vec3 direction, float maximumDistance,
@@ -753,6 +755,9 @@ private:
     std::vector<r3d::physics::ProjectileBodyCommand>
         projectileBodyCommands_;
     std::uint64_t nextProjectileBodyId_ = 1U;
+    std::vector<std::uint64_t> bonusPhysicsBodyIds_;
+    std::vector<std::vector<r3d::physics::BodyContact>>
+        bonusPhysicsContacts_;
     std::vector<ReplicatedShot> pendingNetworkShots_;
     std::vector<ReplicatedBonus> pendingNetworkBonuses_;
     std::vector<ReplicatedMineContact> pendingNetworkMineContacts_;

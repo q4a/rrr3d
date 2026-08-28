@@ -2081,11 +2081,16 @@ private:
         JPH::BodyCreationSettings settings(
             shifted.Get(), toJolt(description.transform.position),
             toJolt(description.transform.rotation),
-            JPH::EMotionType::Dynamic, Layers::moving);
-        settings.mOverrideMassProperties =
-            JPH::EOverrideMassProperties::CalculateInertia;
-        settings.mMassPropertiesOverride.mMass =
-            std::max(description.mass, 0.001F);
+            description.dynamic ? JPH::EMotionType::Dynamic
+                                : JPH::EMotionType::Static,
+            description.dynamic ? Layers::moving : Layers::nonMoving);
+        if (description.dynamic)
+        {
+            settings.mOverrideMassProperties =
+                JPH::EOverrideMassProperties::CalculateInertia;
+            settings.mMassPropertiesOverride.mMass =
+                std::max(description.mass, 0.001F);
+        }
         settings.mGravityFactor = description.gravityFactor;
         settings.mIsSensor = description.sensor;
         settings.mMotionQuality = JPH::EMotionQuality::LinearCast;
@@ -2093,12 +2098,17 @@ private:
         settings.mRestitution = 0.0F;
         settings.mUserData = projectileUserData(index);
         runtime->body = system_.GetBodyInterface().CreateAndAddBody(
-            settings, JPH::EActivation::Activate);
+            settings, description.dynamic
+                          ? JPH::EActivation::Activate
+                          : JPH::EActivation::DontActivate);
         if (runtime->body.IsInvalid())
             return false;
         auto& bodies = system_.GetBodyInterface();
-        bodies.SetLinearVelocity(
-            runtime->body, toJolt(description.linearVelocity));
+        if (description.dynamic)
+        {
+            bodies.SetLinearVelocity(
+                runtime->body, toJolt(description.linearVelocity));
+        }
         runtime->state.id = description.id;
         runtime->state.body = description.transform;
         runtime->state.linearVelocity = description.linearVelocity;
@@ -2156,7 +2166,9 @@ private:
         projectile.state.body.rotation = fromJolt(body.GetRotation());
         projectile.state.body.scale = {1.0F, 1.0F, 1.0F};
         projectile.state.linearVelocity =
-            fromJolt(body.GetLinearVelocity());
+            body.GetMotionType() == JPH::EMotionType::Static
+                ? Vec3{}
+                : fromJolt(body.GetLinearVelocity());
         const auto index = static_cast<std::size_t>(
             &projectile - projectileBodies_.data());
         projectile.state.contacts =

@@ -1207,6 +1207,10 @@ void OriginalRaceSession::reset()
             mapObject.SetName(instance.name);
     }
     bonusActive_.assign(race_.bonuses.size(), true);
+    bonusPhysicsBodyIds_.assign(
+        race_.bonuses.size(),
+        r3d::physics::invalidProjectileBodyId);
+    bonusPhysicsContacts_.assign(race_.bonuses.size(), {});
     bonusObjects().Reserve(race_.bonuses.size());
     bonusScales_.assign(race_.bonuses.size(), -1.0F);
     for (std::size_t index = 0U; index < race_.bonuses.size(); ++index)
@@ -1231,6 +1235,7 @@ void OriginalRaceSession::reset()
             throw std::runtime_error(
                 "DataBase bonus proxy created wrong type");
         bonusScales_[index] = projectile->GetModelScale();
+        queueBonusBodyCreate(index);
     }
     bonusNetworkPendingContact_.assign(
         race_.bonuses.size(), RacerRuntime::invalidWeapon);
@@ -2693,15 +2698,29 @@ void OriginalRaceSession::synchronizeProjectilePhysics(
             [&](const MineRuntime& value) {
                 return value.physicsBodyId == state.id;
             });
-        if (mine == mines_.end())
+        if (mine != mines_.end())
+        {
+            mine->physicsPreviousPosition = mine->position;
+            mine->position = state.body.position;
+            mine->rotation = state.body.rotation;
+            mine->velocity = state.linearVelocity;
+            mine->physicsContacts = state.contacts;
+            if (!state.active)
+                mine->active = false;
             continue;
-        mine->physicsPreviousPosition = mine->position;
-        mine->position = state.body.position;
-        mine->rotation = state.body.rotation;
-        mine->velocity = state.linearVelocity;
-        mine->physicsContacts = state.contacts;
-        if (!state.active)
-            mine->active = false;
+        }
+        const auto bonus = std::find(
+            bonusPhysicsBodyIds_.begin(),
+            bonusPhysicsBodyIds_.end(), state.id);
+        if (bonus != bonusPhysicsBodyIds_.end())
+        {
+            const auto index = static_cast<std::size_t>(
+                bonus - bonusPhysicsBodyIds_.begin());
+            if (index < bonusPhysicsContacts_.size())
+                bonusPhysicsContacts_[index] = state.contacts;
+            if (!state.active && index < bonusActive_.size())
+                bonusActive_[index] = false;
+        }
     }
 }
 
@@ -3531,6 +3550,54 @@ void OriginalRaceSession::queueMineBodyDestroy(
     projectileBodyCommands_.push_back(command);
 }
 
+void OriginalRaceSession::queueBonusBodyCreate(std::size_t bonus)
+{
+    if (!externalProjectilePhysics_ || bonus >= race_.bonuses.size() ||
+        bonus >= bonusActive_.size() || !bonusActive_[bonus] ||
+        bonus >= bonusPhysicsBodyIds_.size() ||
+        bonusPhysicsBodyIds_[bonus] !=
+            r3d::physics::invalidProjectileBodyId)
+        return;
+    auto* mapObject = bonusObjects().Get(bonus);
+    auto* projectile = mapObject != nullptr
+        ? mapObject->GetAutoProj()
+        : nullptr;
+    if (projectile == nullptr)
+        return;
+    const auto& instance = race_.bonuses[bonus];
+    const auto& source = projectile->GetDesc();
+    const auto id = nextProjectileBodyId_++;
+    bonusPhysicsBodyIds_[bonus] = id;
+    r3d::physics::ProjectileBodyCommand command;
+    command.kind = r3d::physics::ProjectileBodyCommandKind::Create;
+    command.body.id = id;
+    command.body.transform = instance.transform;
+    command.body.shapePosition = source.collision.center;
+    command.body.halfExtents = source.collision.halfExtents;
+    command.body.mass = std::max(source.mass, 0.001F);
+    command.body.gravityFactor = 0.0F;
+    command.body.dynamic = false;
+    command.body.sensor = true;
+    projectileBodyCommands_.push_back(command);
+}
+
+void OriginalRaceSession::queueBonusBodyDestroy(std::size_t bonus)
+{
+    if (bonus >= bonusPhysicsBodyIds_.size())
+        return;
+    const auto id = bonusPhysicsBodyIds_[bonus];
+    if (id == r3d::physics::invalidProjectileBodyId)
+        return;
+    r3d::physics::ProjectileBodyCommand command;
+    command.kind = r3d::physics::ProjectileBodyCommandKind::Destroy;
+    command.body.id = id;
+    projectileBodyCommands_.push_back(command);
+    bonusPhysicsBodyIds_[bonus] =
+        r3d::physics::invalidProjectileBodyId;
+    if (bonus < bonusPhysicsContacts_.size())
+        bonusPhysicsContacts_[bonus].clear();
+}
+
 bool OriginalRaceSession::prepareAiWeaponAttack(
     PendingAiAttack& attack,
     const std::vector<r3d::physics::VehicleState>& vehicles)
@@ -4091,10 +4158,21 @@ void OriginalRaceSession::setExternalRaceFixedStep(
     externalRaceFixedStep_ = enabled;
 }
 
-void OriginalRaceSession::setExternalProjectilePhysics(
-    bool enabled) noexcept
+void OriginalRaceSession::setExternalProjectilePhysics(bool enabled)
 {
+    if (externalProjectilePhysics_ == enabled)
+        return;
+    if (!enabled)
+    {
+        for (std::size_t index = 0U;
+             index < bonusPhysicsBodyIds_.size(); ++index)
+            queueBonusBodyDestroy(index);
+        externalProjectilePhysics_ = false;
+        return;
+    }
     externalProjectilePhysics_ = enabled;
+    for (std::size_t index = 0U; index < race_.bonuses.size(); ++index)
+        queueBonusBodyCreate(index);
 }
 
 void OriginalRaceSession::raceFixedStep(
@@ -7092,6 +7170,7 @@ void OriginalRaceSession::updateGameplay(
         {
             spawnBonusDeathEffect(bonusIndex);
             bonusActive_[bonusIndex] = false;
+            queueBonusBodyDestroy(bonusIndex);
             if (auto* object = bonusObjects().Get(bonusIndex))
                 object->GetGameObj().Death(DamageType::Mine);
         }
@@ -7267,6 +7346,8 @@ void OriginalRaceSession::updateGameplay(
         }
         bonusActive_[bonusIndex] =
             !bonusObject->GetGameObj().destroyed;
+        if (!bonusActive_[bonusIndex])
+            queueBonusBodyDestroy(bonusIndex);
         spawnBonusDeathEffect(bonusIndex);
         RaceEvent event;
         event.kind = RaceEventKind::Bonus;
@@ -7316,10 +7397,34 @@ void OriginalRaceSession::updateGameplay(
             const OrientedBox bonusBox =
                 orientedBox(
                     bonus.transform, bonus.collision);
-            if (!boxesOverlap(targetBox, bonusBox))
+            const bool physicsBacked =
+                externalProjectilePhysics_ &&
+                bonusIndex < bonusPhysicsBodyIds_.size() &&
+                bonusPhysicsBodyIds_[bonusIndex] !=
+                    r3d::physics::invalidProjectileBodyId &&
+                bonusIndex < bonusPhysicsContacts_.size();
+            const r3d::physics::BodyContact* physicsContact = nullptr;
+            if (physicsBacked)
+            {
+                const auto found = std::find_if(
+                    bonusPhysicsContacts_[bonusIndex].begin(),
+                    bonusPhysicsContacts_[bonusIndex].end(),
+                    [racer](
+                        const r3d::physics::BodyContact& contact) {
+                        return contact.otherVehicle == racer;
+                    });
+                if (found == bonusPhysicsContacts_[bonusIndex].end())
+                    continue;
+                physicsContact = &*found;
+            }
+            else if (!boxesOverlap(targetBox, bonusBox))
+            {
                 continue;
+            }
             const Vec3 contactPoint =
-                closestPoint(targetBox, bonusBox.center);
+                physicsContact != nullptr && physicsContact->hasPoint
+                    ? physicsContact->point
+                    : closestPoint(targetBox, bonusBox.center);
 
             if (bonus.kind == BonusKind::Speed)
             {
@@ -9277,6 +9382,16 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 }
                 fixedMineSession.setExternalRaceFixedStep(true);
                 fixedMineSession.setExternalProjectilePhysics(true);
+                const auto fixedMineMapBodyCommands =
+                    fixedMineSession.takeProjectileBodyCommands();
+                if (!fixedMineRace.bonuses.empty() &&
+                    fixedMineMapBodyCommands.size() !=
+                        fixedMineRace.bonuses.size())
+                {
+                    throw std::runtime_error(
+                        "source fixed-step AI Mine fixture did not "
+                        "bootstrap map AutoProj Jolt actors");
+                }
                 auto* fixedMineItem = fixedMineSession.racers()[1]
                                           .GetMineWeaponItem();
                 if (fixedMineItem == nullptr ||
@@ -9532,6 +9647,16 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                         queuedAttackVehicles, input);
                 queuedAttackSession.setExternalRaceFixedStep(true);
                 queuedAttackSession.setExternalProjectilePhysics(true);
+                const auto queuedAttackMapBodyCommands =
+                    queuedAttackSession.takeProjectileBodyCommands();
+                if (!backTargetRace.bonuses.empty() &&
+                    queuedAttackMapBodyCommands.size() !=
+                        backTargetRace.bonuses.size())
+                {
+                    throw std::runtime_error(
+                        "source fixed-step projectile fixture did not "
+                        "bootstrap map AutoProj Jolt actors");
+                }
                 queuedAttackVehicles[1].body.position = multiply(
                     add(point(0U).position, point(1U).position),
                     0.5F);
@@ -10190,13 +10315,20 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             sourceOil.transform.position = {
                 100000.0F, 100000.0F, 1000.0F};
             OriginalRaceSession autoProjSession(autoProjRace);
+            autoProjSession.setExternalProjectilePhysics(true);
+            const auto autoProjBodyCommands =
+                autoProjSession.takeProjectileBodyCommands();
             auto autoProjVehicles = vehicles;
             RaceControl autoProjInput;
-            if (autoProjSession.bonusScales().size() != 1U ||
+            if (autoProjBodyCommands.size() != 1U ||
+                autoProjBodyCommands.front().kind !=
+                    r3d::physics::ProjectileBodyCommandKind::Create ||
+                autoProjSession.bonusScales().size() != 1U ||
                 autoProjSession.bonusScales().front() != 0.0F)
             {
                 throw std::runtime_error(
-                    "source AutoProj oil did not start at scale zero");
+                    "source AutoProj oil did not start at scale zero with "
+                    "one Jolt actor");
             }
             autoProjSession.update(
                 0.1F, autoProjVehicles, autoProjInput);

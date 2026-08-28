@@ -5247,6 +5247,26 @@ contact point. Ground clamp останавливает fragment и одновр�
 до удаления runtime. Headless smoke сохраняет ручную интеграцию. Regression
 требует один same-step Jolt Create для AI Mine и отсутствие повторного actor.
 
+### P2.226 — map-owned `AutoProj` получили статические Jolt actors — выполнено
+
+Serialized Bonus MapObjs (`Money`, `Medpack`, `Charge`, `Immortal`,
+`SpeedArrow`, `Lusha`, `Maslo`, `Mine`) в Windows создают projectile-group
+PhysX shapes ещё при загрузке карты. Порт хранил их source `AutoProj`, но
+контакты всех машин вычислял отдельным OBB loop по неизменному transform.
+
+При включении external physics session теперь bootstrap-ит ровно один static
+Jolt sensor на каждый живой Bonus MapObj, используя concrete AutoProj
+collision и map transform. Static motion type исключает gravity/solver drift
+и не поддерживает bodies активными без причины. Completed manifold
+сохраняется по stable body id и используется всеми исходными contact branches:
+SpeedArrow, Lusha, Maslo, map Mine и обычный TakeBonus.
+
+Source death/pickup и map-mine destruction выдают Destroy, очищают contact
+cache и исключают actor из следующих ray/contact queries. Reset заново
+создаёт body roster, а initial bind отделяет bootstrap commands от последующей
+AI attack transaction. Regression требует один Create для единственного oil
+AutoProj и проверяет полный bootstrap count в fixed-step fixtures.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

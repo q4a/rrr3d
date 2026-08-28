@@ -734,6 +734,18 @@ MineContact/Maslo/Crater/network branches используют vehicle identity 
 путь. Следующий B8x — зарегистрировать map-owned AutoProj bonus/hazard actors
 и убрать оставшийся OBB contact loop статических pickups/mines/oil.
 
+Результат B8x: все живые Bonus MapObj bootstrap-ят static Jolt sensor actor
+из своего concrete `AutoProj` descriptor и serialized transform. Stable ids
+сопоставляют contact stream с индексом map bonus; SpeedArrow, Lusha, Maslo,
+MineHazard и TakeBonus используют реальный vehicle manifold вместо OBB.
+
+Pickup/source death немедленно выдаёт Destroy и очищает cache. Static motion
+не создаёт gravity drift и постоянную dynamic integration нагрузку. Reset
+строит roster заново; fixed-step regressions сначала отделяют map bootstrap,
+затем требуют единственный attack actor. Следующий B8y — проверить death
+plane/reset/direct attached weapon contact consumers и перенести оставшиеся
+активные snapshot queries по подтверждённому Windows call graph.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:
