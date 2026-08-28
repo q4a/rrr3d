@@ -1819,6 +1819,24 @@ record, base position и стабильные effect handles от create чер�
 `FxSystemWaitingEnd`. Regression проверяет разные handles двух contact slots,
 позиционное обновление, dying state и полное удаление обоих поколений.
 
+### B8af — `DataBase::Init` устанавливает global contact behavior — выполнено
+
+Предыдущий перенос создавал `PairPxContactEffect` уже в constructor
+`LogicBehaviors`, а `OriginalRaceSession` затем вручную передавал количество
+звуков и `spark2`. В Windows container изначально пуст: именно
+`DataBase::Init` после загрузки RecordLib вызывает `Add<PairPxContactEffect>`,
+назначает effect record и вставляет пять `light_impact0N.ogg`.
+
+Теперь `LogicBehaviors` пуст до `DataBase::Configure`; DataBase идемпотентно
+добавляет concrete pair behavior, передаёт ему сам catalog путей, а session
+берёт выбранный sound обратно у owner. Одновременно активные `ctEffects`
+projectile/object records и все parsed `ctWeapon` definitions загружаются в
+свои typed библиотеки: proxy создаёт concrete `AutoProj`/`Weapon` с исходным
+descriptor, а не анонимный `GameObject`. `ctWaypoint` корректно остаётся
+пустым, как shipped `db.xml`. Map/Weapon regressions проверяют
+пустой-before-init catalog, типы record factories, weapon descriptor,
+`spark2` и полный sound catalog.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

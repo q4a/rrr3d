@@ -14,6 +14,8 @@ struct Race;
 namespace source
 {
 
+class Logic;
+
 // Backend-neutral owner of DataBase.cpp's seven MapObjLib instances and
 // source-record load transaction.  XML/R3D parsing supplies Race records;
 // bgfx and Jolt remain consumers of the graph/physics descriptors loaded
@@ -23,7 +25,9 @@ class DataBase
 public:
     DataBase();
 
-    void Configure(const Race& race);
+    // Original DataBase::Init loads all record libraries and then installs
+    // PairPxContactEffect into World::Logic with spark2 and five sounds.
+    void Configure(const Race& race, Logic& logic);
     void Clear() noexcept;
 
     MapObjRecordLibrary& GetMapObjLib(

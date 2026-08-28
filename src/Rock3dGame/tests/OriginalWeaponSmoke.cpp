@@ -2087,10 +2087,15 @@ int main()
     logic.SetTouchBorderDamageForce({30.0F, 40.0F});
     logic.SetTouchCarDamage({50.0F, 60.0F});
     logic.SetTouchCarDamageForce({70.0F, 80.0F});
-    logic.ResetContactBehavior(
-        3U, "world\\db\\root\\ctEffects\\spark2");
-    auto& contacts = logic.GetPairPxContactEffect();
     auto& logicBehaviors = logic.GetBehaviors();
+    if (logicBehaviors.GetCount() != 0U)
+        return 193;
+    auto& contacts = logicBehaviors.AddPairPxContactEffect();
+    contacts.Configure(
+        "world\\db\\root\\ctEffects\\spark2",
+        {"Sounds/light_impact01.ogg",
+         "Sounds/light_impact02.ogg",
+         "Sounds/light_impact03.ogg"});
     const auto progressContacts = [&](float seconds) {
         logicWorld.Progress(seconds);
         return contacts.TakeReleases();
@@ -2106,6 +2111,10 @@ int main()
             source::LogicBehaviorType::PairPxContactEffect ||
         contacts.GetEffectRecord() !=
             "world\\db\\root\\ctEffects\\spark2" ||
+        contacts.GetSounds().size() != 3U ||
+        contacts.GetSound(2U) !=
+            "Sounds/light_impact03.ogg" ||
+        !contacts.GetSound(3U).empty() ||
         contacts.GetEffectCount() != 0U ||
         logic.GetTouchBorderDamage() !=
             source::Logic::ContactRange{10.0F, 20.0F} ||

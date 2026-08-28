@@ -196,6 +196,14 @@ Follow-up B5a.1 вернул и самого владельца `DataBase.cpp`. 
 получает локальный DataBase, active Race — общий owner с правильным порядком
 уничтожения `Map -> RecordLib`.
 
+Результат B5a.2/B8af возвращает хвост исходного `DataBase::Init` после
+`InitMapObjLib`. `LogicBehaviors` больше не конструирует pair effect заранее:
+DataBase добавляет его, связывает с typed `ctEffects/spark2` record и хранит
+в owner все пять `light_impact` sound paths. Session только преобразует
+выбранный sound/effect в SDL/bgfx payload. `ctEffects` projectile records и
+полный active `ctWeapon` catalog также создают concrete `AutoProj`/`Weapon`
+с parsed descriptors; shipped пустой `ctWaypoint` остаётся пустым.
+
 Результат B5b: добавлен единый `OriginalResourceManager`, который возвращает
 стабильную identity по каноническому физическому пути и владеет decoded
 `R3DMeshAsset`, bgfx mesh и texture до общего shutdown. Это source-аналог

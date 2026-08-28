@@ -209,12 +209,7 @@ void PairPxContactEffect::NotifyEffectDestroyed(
     }
 }
 
-LogicBehaviors::LogicBehaviors(Logic* logic)
-    : logic_(logic),
-      pairPxContactEffect_(
-          std::make_unique<PairPxContactEffect>(this))
-{
-}
+LogicBehaviors::LogicBehaviors(Logic* logic) : logic_(logic) {}
 
 LogicBehaviors::~LogicBehaviors() = default;
 
@@ -241,12 +236,35 @@ const LogicBehavior* LogicBehaviors::Find(
                : nullptr;
 }
 
+PairPxContactEffect& LogicBehaviors::AddPairPxContactEffect()
+{
+    if (pairPxContactEffect_ == nullptr)
+    {
+        pairPxContactEffect_ =
+            std::make_unique<PairPxContactEffect>(this);
+    }
+    return *pairPxContactEffect_;
+}
+
+PairPxContactEffect* LogicBehaviors::FindPairPxContactEffect() noexcept
+{
+    return pairPxContactEffect_.get();
+}
+
+const PairPxContactEffect*
+LogicBehaviors::FindPairPxContactEffect() const noexcept
+{
+    return pairPxContactEffect_.get();
+}
+
 PairPxContactEffect::ContactResult LogicBehaviors::OnContact(
     PairPxContactEffect::Key key, float frictionForce,
     bool firstShapeIsWheel, bool secondShapeIsWheel,
     std::span<const PairPxContactEffect::Point> points,
     float randomUnit)
 {
+    if (pairPxContactEffect_ == nullptr)
+        return {};
     return pairPxContactEffect_->OnContact(
         key, frictionForce, firstShapeIsWheel,
         secondShapeIsWheel, points, randomUnit);
@@ -271,12 +289,27 @@ bool PairPxContactEffect::Key::operator<(
                                   : actor1 < other.actor1;
 }
 
-void PairPxContactEffect::Reset(std::size_t soundCount) noexcept
+void PairPxContactEffect::Configure(
+    std::string effectRecord,
+    std::vector<std::string> soundPaths)
+{
+    ClearContacts();
+    SetEffectRecord(std::move(effectRecord));
+    soundPaths_ = std::move(soundPaths);
+}
+
+void PairPxContactEffect::ClearContacts() noexcept
 {
     contacts_.clear();
     pendingReleases_.clear();
     ClearEffects();
-    soundCount_ = soundCount;
+}
+
+void PairPxContactEffect::Reset() noexcept
+{
+    ClearContacts();
+    SetEffectRecord({});
+    soundPaths_.clear();
 }
 
 PairPxContactEffect::ContactResult PairPxContactEffect::OnContact(
@@ -295,13 +328,13 @@ PairPxContactEffect::ContactResult PairPxContactEffect::OnContact(
     auto [nodeIterator, inserted] = contacts_.try_emplace(key);
     auto& node = nodeIterator->second;
     result.pairCreated = inserted;
-    if (inserted && soundCount_ > 0U)
+    if (inserted && !soundPaths_.empty())
     {
         const float unit = std::clamp(randomUnit, 0.0F, 1.0F);
         node.sound = std::min(
             static_cast<std::size_t>(
-                static_cast<float>(soundCount_) * unit),
-            soundCount_ - 1U);
+                static_cast<float>(soundPaths_.size()) * unit),
+            soundPaths_.size() - 1U);
     }
     result.sound = node.sound;
 
@@ -396,6 +429,20 @@ std::size_t PairPxContactEffect::GetContactCount(Key key) const noexcept
 {
     const auto found = contacts_.find(key);
     return found == contacts_.end() ? 0U : found->second.contacts.size();
+}
+
+const std::vector<std::string>&
+PairPxContactEffect::GetSounds() const noexcept
+{
+    return soundPaths_;
+}
+
+std::string_view PairPxContactEffect::GetSound(
+    std::size_t index) const noexcept
+{
+    return index < soundPaths_.size()
+               ? std::string_view{soundPaths_[index]}
+               : std::string_view{};
 }
 
 bool Logic::ShotPlan::Get(SlotType type) const noexcept
@@ -695,12 +742,10 @@ const Logic::ProgressResult& Logic::GetLastProgressResult() const noexcept
     return lastProgressResult_;
 }
 
-void Logic::ResetContactBehavior(
-    std::size_t soundCount, std::string effectRecord) noexcept
+void Logic::ClearContactBehavior() noexcept
 {
-    auto& behavior = GetPairPxContactEffect();
-    behavior.Reset(soundCount);
-    behavior.SetEffectRecord(std::move(effectRecord));
+    if (auto* behavior = behaviors_->FindPairPxContactEffect())
+        behavior->ClearContacts();
 }
 
 PairPxContactEffect::ContactResult Logic::OnContact(
@@ -724,15 +769,21 @@ const LogicBehaviors& Logic::GetBehaviors() const noexcept
     return *behaviors_;
 }
 
-PairPxContactEffect& Logic::GetPairPxContactEffect() noexcept
+PairPxContactEffect& Logic::GetPairPxContactEffect()
 {
-    return *static_cast<PairPxContactEffect*>(
-        behaviors_->Find(LogicBehaviorType::PairPxContactEffect));
+    auto* behavior = behaviors_->FindPairPxContactEffect();
+    if (behavior == nullptr)
+        throw std::logic_error(
+            "DataBase has not installed PairPxContactEffect");
+    return *behavior;
 }
-const PairPxContactEffect& Logic::GetPairPxContactEffect() const noexcept
+const PairPxContactEffect& Logic::GetPairPxContactEffect() const
 {
-    return *static_cast<const PairPxContactEffect*>(
-        behaviors_->Find(LogicBehaviorType::PairPxContactEffect));
+    const auto* behavior = behaviors_->FindPairPxContactEffect();
+    if (behavior == nullptr)
+        throw std::logic_error(
+            "DataBase has not installed PairPxContactEffect");
+    return *behavior;
 }
 
 const Logic::ContactRange& Logic::GetTouchBorderDamage() const noexcept

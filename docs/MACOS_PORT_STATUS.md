@@ -2586,3 +2586,12 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   particle destroy адресуют его напрямую вместо поиска по actor/surface/slot.
 - Одновременные старый fading и новый active `spark2` больше не могут
   перехватить lifecycle друг друга в session adapter.
+
+### Source DataBase global behavior/catalog follow-up
+
+- `LogicBehaviors` теперь пуст до исходного `DataBase::Init` boundary;
+  `DataBase::Configure` создаёт единственный `PairPxContactEffect`.
+- `spark2` и пять concrete `light_impact` paths принадлежат behavior owner;
+  session больше не конфигурирует их и не индексирует параллельный Race list.
+- Active `ctEffects` projectile/object records и parsed `ctWeapon` catalog
+  загружаются как typed `AutoProj`/`Weapon` factories с source descriptors.

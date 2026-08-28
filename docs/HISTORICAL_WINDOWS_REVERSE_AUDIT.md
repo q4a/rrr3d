@@ -5386,6 +5386,23 @@ owner list, и оставшуюся contact reference как source `OnDestroyEf
 `DataBase::Init` provenance `ctEffects/spark2` передаётся owner-у вместе с
 пятью sound variants. Unit и resource regressions проходят полный lifecycle.
 
+### P2.234 — `DataBase::Init` снова создаёт global behavior — выполнено
+
+Обратная проверка `eff9338:prog/Rock3dGame/source/game/DataBase.cpp:4347-4357`
+подтвердила ошибку ownership: portable `LogicBehaviors` заранее создавал
+pair effect, а session конфигурировал его числом звуков. Оригинал делает это
+только после `InitMapObjLib`: добавляет behavior, привязывает record
+`ctEffects/spark2` и пять конкретных объектов SoundLib.
+
+Portable `DataBase::Configure(Race, Logic)` теперь выполняет ту же
+транзакцию. Behavior хранит канонические sound paths и сам выбирает запись;
+SDL adapter получает выбранный путь из owner. Повторная конфигурация
+переиспользует один behavior и очищает его live contacts. В этот же typed
+record graph возвращены все извлечённые active effect/projectile records и
+полный `Race::weapons` catalog как concrete `AutoProj`/`Weapon` factories.
+Unit regression требует нулевой catalog до DataBase, один type после него и
+проверяет фактическую загрузку projectile/weapon descriptors.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

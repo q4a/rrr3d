@@ -165,7 +165,14 @@ public:
     ~PairPxContactEffect() override;
     void NotifyEffectDestroyed(EffectId effect) noexcept override;
 
-    void Reset(std::size_t soundCount = 0U) noexcept;
+    // DataBase::Init owns the serialized effect/sound catalog. Reconfiguring
+    // it also releases every live contact, just as replacing the Windows
+    // database tears down the old LogicBehavior instance.
+    void Configure(
+        std::string effectRecord,
+        std::vector<std::string> soundPaths);
+    void ClearContacts() noexcept;
+    void Reset() noexcept;
     ContactResult OnContact(
         Key key, float frictionForce, bool firstShapeIsWheel,
         bool secondShapeIsWheel, std::span<const Point> points,
@@ -177,6 +184,8 @@ public:
 
     std::size_t GetPairCount() const noexcept;
     std::size_t GetContactCount(Key key) const noexcept;
+    const std::vector<std::string>& GetSounds() const noexcept;
+    std::string_view GetSound(std::size_t index) const noexcept;
 
 private:
     struct Contact
@@ -195,7 +204,7 @@ private:
 
     std::map<Key, ContactNode> contacts_;
     std::vector<Release> pendingReleases_;
-    std::size_t soundCount_ = 0U;
+    std::vector<std::string> soundPaths_;
 };
 
 // Concrete counterpart of Logic.cpp::LogicBehaviors. The Windows catalog
@@ -212,6 +221,9 @@ public:
     std::size_t GetCount() const noexcept;
     LogicBehavior* Find(LogicBehaviorType type) noexcept;
     const LogicBehavior* Find(LogicBehaviorType type) const noexcept;
+    PairPxContactEffect& AddPairPxContactEffect();
+    PairPxContactEffect* FindPairPxContactEffect() noexcept;
+    const PairPxContactEffect* FindPairPxContactEffect() const noexcept;
 
     PairPxContactEffect::ContactResult OnContact(
         PairPxContactEffect::Key key, float frictionForce,
@@ -349,11 +361,9 @@ public:
     void OnLogicProgress(float deltaTime) override;
     const ProgressResult& GetLastProgressResult() const noexcept;
 
-    // Logic.cpp owns the global contact behavior and the four serialized
-    // GameCar contact ranges. Physics/audio remain backend adapters.
-    void ResetContactBehavior(
-        std::size_t soundCount = 0U,
-        std::string effectRecord = {}) noexcept;
+    // DataBase.cpp installs the global contact behavior. Logic owns its
+    // lifetime and the four serialized GameCar contact ranges.
+    void ClearContactBehavior() noexcept;
     PairPxContactEffect::ContactResult OnContact(
         PairPxContactEffect::Key key, float frictionForce,
         bool firstShapeIsWheel, bool secondShapeIsWheel,
@@ -361,8 +371,8 @@ public:
         float randomUnit);
     LogicBehaviors& GetBehaviors() noexcept;
     const LogicBehaviors& GetBehaviors() const noexcept;
-    PairPxContactEffect& GetPairPxContactEffect() noexcept;
-    const PairPxContactEffect& GetPairPxContactEffect() const noexcept;
+    PairPxContactEffect& GetPairPxContactEffect();
+    const PairPxContactEffect& GetPairPxContactEffect() const;
 
     const ContactRange& GetTouchBorderDamage() const noexcept;
     void SetTouchBorderDamage(ContactRange value) noexcept;

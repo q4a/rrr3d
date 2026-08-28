@@ -1,6 +1,7 @@
 #include "OriginalDataBase.h"
 
 #include "OriginalGameObject.h"
+#include "OriginalLogic.h"
 #include "OriginalRace.h"
 #include "OriginalWeapon.h"
 
@@ -28,6 +29,31 @@ void applyProxyTransform(
         transform.rotation.z, transform.rotation.w});
 }
 
+bool belongsToCategory(
+    std::string_view record, std::string_view category) noexcept
+{
+    const auto categoryPosition = record.find(category);
+    if (categoryPosition == std::string_view::npos)
+        return false;
+    const auto end = categoryPosition + category.size();
+    return (categoryPosition == 0U ||
+            record[categoryPosition - 1U] == '\\' ||
+            record[categoryPosition - 1U] == '/') &&
+           (end == record.size() || record[end] == '\\' ||
+            record[end] == '/');
+}
+
+void loadObjectDefinition(
+    MapObj& mapObject, const ObjectDefinition& definition)
+{
+    auto& object = mapObject.GetGameObj();
+    object.ResetGameObject(
+        definition.maximumLife >= 0.0F
+            ? definition.maximumLife
+            : -1.0F);
+    object.SetMaxTimeLife(definition.maximumTimeLife);
+}
+
 } // namespace
 
 DataBase::DataBase()
@@ -52,9 +78,94 @@ void DataBase::Clear() noexcept
         library.Clear();
 }
 
-void DataBase::Configure(const Race& race)
+void DataBase::Configure(const Race& race, Logic& logic)
 {
     Clear();
+
+    // LoadEffects/LoadWeapons populate the source record libraries before
+    // DataBase::Init installs PairPxContactEffect. Race contains the active
+    // parsed subset of those records; keep their concrete source type here
+    // rather than letting the session construct anonymous gameplay objects.
+    auto& effectLibrary = GetMapObjLib(MapObjCategory::Effects);
+    std::unordered_set<std::string> projectileEffects;
+    for (const auto& weapon : race.weapons)
+    {
+        for (const auto& projectile : weapon.projectiles)
+        {
+            if (projectile.visual.record.empty() ||
+                !belongsToCategory(
+                    projectile.visual.record, "ctEffects") ||
+                !projectileEffects.insert(
+                    projectile.visual.record).second)
+            {
+                continue;
+            }
+            const auto* sourceProjectile = &projectile;
+            effectLibrary.DefineRecord(
+                projectile.visual.record, GameObjType::Proj,
+                [sourceProjectile](MapObj& mapObject) {
+                    auto* object = mapObject.GetAutoProj();
+                    if (object == nullptr)
+                    {
+                        throw std::runtime_error(
+                            "DataBase projectile effect record created "
+                            "wrong type");
+                    }
+                    object->Reset(*sourceProjectile);
+                });
+        }
+    }
+
+    std::unordered_set<std::string> registeredEffects;
+    const auto defineEffect = [&](const ObjectDefinition& definition) {
+        if (definition.record.empty() ||
+            !belongsToCategory(definition.record, "ctEffects") ||
+            projectileEffects.contains(definition.record) ||
+            !registeredEffects.insert(definition.record).second)
+        {
+            return;
+        }
+        const auto* sourceDefinition = &definition;
+        effectLibrary.DefineRecord(
+            definition.record, GameObjType::GameObj,
+            [sourceDefinition](MapObj& mapObject) {
+                loadObjectDefinition(mapObject, *sourceDefinition);
+            });
+    };
+    defineEffect(race.rainEffect);
+    defineEffect(race.wheelTrailEffect);
+    defineEffect(race.wheelSmokeEffect);
+    defineEffect(race.contactEffect);
+    const auto defineVehicleEffects = [&](const Vehicle& vehicle) {
+        defineEffect(vehicle.lowLifeEffect);
+        defineEffect(vehicle.energyDamageEffect);
+        defineEffect(vehicle.shieldEffect);
+        for (const auto& effect : vehicle.deathEffects)
+            defineEffect(effect.visual);
+    };
+    for (const auto& vehicle : race.vehicles)
+        defineVehicleEffects(vehicle);
+    for (const auto& racer : race.racers)
+    {
+        if (racer.hasConfiguredVehicle)
+            defineVehicleEffects(racer.configuredVehicle);
+    }
+    defineVehicleEffects(race.vehicle);
+    for (const auto& weapon : race.weapons)
+    {
+        defineEffect(weapon.shotEffect.visual);
+        for (const auto& projectile : weapon.projectiles)
+        {
+            defineEffect(projectile.secondaryVisual);
+            defineEffect(projectile.tertiaryVisual);
+            defineEffect(projectile.deathEffect.visual);
+        }
+    }
+    for (const auto& bonus : race.bonuses)
+    {
+        defineEffect(bonus.visual);
+        defineEffect(bonus.deathEffect.visual);
+    }
 
     auto& decorationLibrary =
         GetMapObjLib(MapObjCategory::Decoration);
@@ -160,6 +271,33 @@ void DataBase::Configure(const Race& race)
                     sourceVehicle->maximumLife);
             });
     }
+
+    auto& weaponLibrary = GetMapObjLib(MapObjCategory::Weapon);
+    for (const auto& definition : race.weapons)
+    {
+        const auto* sourceDefinition = &definition;
+        weaponLibrary.DefineRecord(
+            definition.record, GameObjType::Weapon,
+            [sourceDefinition](MapObj& mapObject) {
+                auto* weapon = mapObject.GetWeapon();
+                if (weapon == nullptr)
+                    throw std::runtime_error(
+                        "DataBase weapon record created wrong type");
+                weapon->Reset();
+                weapon->SetDesc(
+                    sourceDefinition->shotDelay,
+                    sourceDefinition->projectiles);
+            });
+    }
+
+    auto& contactBehavior =
+        logic.GetBehaviors().AddPairPxContactEffect();
+    const auto* contactRecord = GetRecord(
+        MapObjCategory::Effects, race.contactEffect.record, false);
+    contactBehavior.Configure(
+        contactRecord != nullptr ? contactRecord->GetPath()
+                                 : race.contactEffect.record,
+        race.contactSoundPaths);
 }
 
 MapObjRecordLibrary& DataBase::GetMapObjLib(

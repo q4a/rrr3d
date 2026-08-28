@@ -3,6 +3,7 @@
 #include "OriginalLogic.h"
 #include "OriginalMap.h"
 #include "OriginalRace.h"
+#include "OriginalWeapon.h"
 
 #include <cmath>
 #include <iostream>
@@ -569,10 +570,32 @@ int main()
     databaseCar.record = "world\\db\\root\\ctCar\\databaseCar";
     databaseCar.maximumLife = 222.0F;
     databaseRace.vehicles.push_back(databaseCar);
+    databaseRace.contactEffect.record =
+        "world\\db\\root\\ctEffects\\spark2";
+    databaseRace.contactEffect.maximumTimeLife = -1.0F;
+    databaseRace.contactSoundPaths = {
+        "Sounds/light_impact01.ogg",
+        "Sounds/light_impact02.ogg",
+        "Sounds/light_impact03.ogg",
+        "Sounds/light_impact04.ogg",
+        "Sounds/light_impact05.ogg"};
+    r3d::game::originalrace::WeaponDefinition databaseWeapon;
+    databaseWeapon.record =
+        "world\\db\\root\\ctWeapon\\databaseWeapon";
+    databaseWeapon.shotDelay = 0.75F;
+    r3d::game::originalrace::ProjectileDefinition databaseProjectile;
+    databaseProjectile.type = 17U;
+    databaseProjectile.damage = 33.0F;
+    databaseProjectile.visual.record =
+        "world\\db\\root\\ctEffects\\databaseProjectile";
+    databaseWeapon.projectiles.push_back(databaseProjectile);
+    databaseRace.weapons.push_back(databaseWeapon);
 
     source::DataBase database;
-    database.Configure(databaseRace);
     source::Logic databaseLogic;
+    if (databaseLogic.GetBehaviors().GetCount() != 0U)
+        return 32;
+    database.Configure(databaseRace, databaseLogic);
     source::Map databaseMap(&databaseLogic, &database);
     auto& configuredDecoration = databaseMap.AddMapObj(
         source::MapObjCategory::Decoration,
@@ -582,6 +605,14 @@ int main()
         source::MapObjCategory::Car,
         source::GameObjType::RockCar,
         databaseCar.record, 42U, 0U);
+    auto& configuredWeapon = databaseMap.AddMapObj(
+        source::MapObjCategory::Weapon,
+        source::GameObjType::Weapon,
+        databaseWeapon.record, 44U, 0U);
+    auto& configuredProjectile = databaseMap.AddMapObj(
+        source::MapObjCategory::Effects,
+        source::GameObjType::Proj,
+        databaseProjectile.visual.record, 45U, 0U);
     bool missingDatabaseRecordRejected = false;
     try
     {
@@ -598,7 +629,7 @@ int main()
         configuredDecoration.GetDestrObj()->GetDestrList().Get(0U);
     if (!missingDatabaseRecordRejected ||
         &databaseMap.GetDataBase() != &database ||
-        database.GetRecordCount() != 4U ||
+        database.GetRecordCount() != 7U ||
         database.GetRecord(
             source::MapObjCategory::Decoration,
             databaseDecoration.record) !=
@@ -608,13 +639,23 @@ int main()
         configuredFragment == nullptr ||
         configuredFragment->GetGameObj().GetPos() !=
             source::GameObject::Vector3{1.0F, 2.0F, 3.0F} ||
-        configuredCar.GetGameObj().GetMaxLife() != 222.0F)
+        configuredCar.GetGameObj().GetMaxLife() != 222.0F ||
+        configuredWeapon.GetWeapon() == nullptr ||
+        configuredWeapon.GetWeapon()->GetDesc().shotDelay != 0.75F ||
+        configuredWeapon.GetWeapon()->GetDesc().projectiles.size() != 1U ||
+        configuredProjectile.GetAutoProj() == nullptr ||
+        configuredProjectile.GetAutoProj()->GetType() != 17U ||
+        databaseLogic.GetBehaviors().GetCount() != 1U ||
+        databaseLogic.GetPairPxContactEffect().GetEffectRecord() !=
+            databaseRace.contactEffect.record ||
+        databaseLogic.GetPairPxContactEffect().GetSounds() !=
+            databaseRace.contactSoundPaths)
         return 32;
 
     databaseMap.Clear();
     databaseRace.decorationDefinitions.front().record =
         "world\\db\\root\\ctDecoration\\Crush\\reconfiguredCrate";
-    database.Configure(databaseRace);
+    database.Configure(databaseRace, databaseLogic);
     if (database.GetRecord(
             source::MapObjCategory::Decoration,
             databaseDecoration.record, false) != nullptr ||

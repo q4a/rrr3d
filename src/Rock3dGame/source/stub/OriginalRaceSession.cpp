@@ -1139,7 +1139,7 @@ void OriginalRaceSession::reset()
     // Car MapObjs bind the live Player::gameCar. Release the map side while
     // Player storage is still valid, then rebuild both collections.
     map_.Clear();
-    dataBase_.Configure(race_);
+    dataBase_.Configure(race_, logic_);
     racers_.clear();
     racers_.resize(race_.racers.size());
     racerMapObjects_.assign(race_.racers.size(), nullptr);
@@ -1245,8 +1245,6 @@ void OriginalRaceSession::reset()
     logic_.SetTouchBorderDamageForce(race_.touchBorderDamageForce);
     logic_.SetTouchCarDamage(race_.touchCarDamage);
     logic_.SetTouchCarDamageForce(race_.touchCarDamageForce);
-    logic_.ResetContactBehavior(
-        race_.contactSoundPaths.size(), race_.contactEffect.record);
     respawns_.clear();
     velocityRequests_.clear();
     angularVelocityRequests_.clear();
@@ -4529,9 +4527,11 @@ void OriginalRaceSession::ingestPairContacts(
                     sourceRandomUnit());
             if (!contactResult.accepted)
                 continue;
+            const auto contactSound =
+                logic_.GetPairPxContactEffect().GetSound(
+                    contactResult.sound);
             if (contactResult.pairCreated &&
-                contactResult.playSound &&
-                contactResult.sound < race_.contactSoundPaths.size())
+                contactResult.playSound && !contactSound.empty())
             {
                 RaceEvent sound;
                 sound.kind = RaceEventKind::EffectSound;
@@ -4540,8 +4540,7 @@ void OriginalRaceSession::ingestPairContacts(
                     contactResult.points.front().point.x,
                     contactResult.points.front().point.y,
                     contactResult.points.front().point.z};
-                sound.soundPath = race_.contactSoundPaths[
-                    contactResult.sound];
+                sound.soundPath = contactSound;
                 sound.soundContactActor = contact.otherActor;
                 sound.soundContactSurface = contact.surface;
                 events_.push_back(std::move(sound));
@@ -8201,8 +8200,7 @@ void OriginalRaceSession::completeRaceForExit(
             racerMapObjects_.begin(), racerMapObjects_.end(), nullptr);
         std::fill(vehicleInputs_.begin(), vehicleInputs_.end(),
                   r3d::physics::VehicleInput{});
-        logic_.ResetContactBehavior(
-            race_.contactSoundPaths.size(), race_.contactEffect.record);
+        logic_.ClearContactBehavior();
     }
     phase_ = RacePhase::Finished;
     phaseBeforePause_ = phase_;
