@@ -1531,6 +1531,27 @@ Weapon повторно подтверждает readiness. `TakeResetCar` те�
 render adapter, поэтому charge/cooldown первого шага ещё недоступны второму
 source шагу внутри того же редкого кадра.
 
+### B8p: source-owned AI weapon transaction
+
+Оставшаяся граница B8o подтверждена сравнением с Windows `Logic::Shot`:
+source-объекты снарядов, charge и cooldown обязаны изменяться в том же
+`Race::OnFixedStep`, где `AICar` принял решение. Перенос команды без её
+`WeaponItem::Shot` транзакции оставлял второй catch-up step в неверном
+состоянии.
+
+Для обычного оружия AI fixed-step теперь вычисляет исходный transform
+установленного slot/weapon, строит `ShotContext`, вызывает concrete
+`Weapon::CreateShot` через `Player::Shot` и сохраняет созданные `Proj` как
+временный ordered view. Frame adapter больше не вызывает `Shot` повторно:
+он только создаёт backend projectile/effect/event view для уже принадлежащих
+`Logic` объектов. Очистка pending-транзакций выполняется до disconnect/
+finish владельца.
+
+Regression фиксирует single-consume charge/cooldown через два fixed-step без
+render update. Полные arm64 build, 29/29 CTest, physics smoke и 360-frame
+Metal race smoke прошли. Оставшаяся B8q граница — выполнить такую же
+source-step materialization для `Logic::UseHyper` и `Logic::UseMine`.
+
 ## Очередь дальнейшего переноса
 
 ### P0 — offline game parity

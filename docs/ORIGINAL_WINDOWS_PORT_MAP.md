@@ -610,6 +610,24 @@ Regression закрепляет два fixed-step, где первый стре�
 cooldown и source projectile graph до следующего source fixed-step, даже если
 оба интервала 1/60 находятся внутри одного render frame.
 
+Результат B8p: обычная AI-атака теперь завершает исходную цепочку
+`Logic::Shot -> Player::Shot -> WeaponItem::Shot -> Weapon::CreateShot`
+внутри того же source fixed-step. Transform берётся из установленного
+physical slot и текущего Jolt pose, concrete `Proj` сразу передаётся во
+владение `Logic`, charge списывается, а `Weapon::OnShot` сбрасывает cooldown
+до следующего вызова `AICar::AttackState`.
+
+Очередь сохраняет созданные source projectiles и позже materialize-ит только
+backend view — `ProjectileRuntime`, contact/effect/event и bgfx presentation —
+без второго вызова `Shot`. При stale owner, finish и disconnect временные
+projectiles уничтожаются до teardown weapon/player listeners. Regression
+проверяет ровно одно списание и cooldown через два fixed-step без render
+между ними; arm64 build, 29/29 CTest, physics и 360-frame Metal smoke прошли.
+
+Следующий B8q — перенести в ту же fixed-step транзакцию исходные
+`Logic::UseHyper` и `Logic::UseMine`; сейчас их ordered-команды сохраняются,
+но concrete source projectile/charge всё ещё создаются frame adapter-ом.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:

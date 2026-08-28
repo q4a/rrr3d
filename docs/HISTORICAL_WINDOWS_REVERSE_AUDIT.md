@@ -5074,6 +5074,27 @@ fixed-step без промежуточного render pass: первый соз�
 второй теряет цель; выстрел не теряется. Отдельный тест требует AI reset в
 том же переданном Jolt batch.
 
+### P2.218 — `Logic::Shot` ИИ возвращён в исходный fixed-step — выполнено
+
+Прямая сверка цепочки Windows `AICar::AttackState::Update -> Logic::Shot ->
+Player::Shot -> WeaponItem::Shot -> Weapon::CreateShot` показала, что
+предыдущий bridge сохранял только команду атаки. Конкретный `Proj`, списание
+заряда и `Weapon::OnShot` выполнялись позже в render `updateGameplay`. При
+двух source-интервалах 1/60 в одном кадре второй AI step поэтому видел
+устаревшие charge/cooldown и мог принять лишнее решение о выстреле.
+
+Теперь обычное оружие ИИ подготавливает полный source `ShotContext`, создаёт
+принадлежащие `Logic` concrete `Proj`, списывает charge и сбрасывает cooldown
+непосредственно внутри того же `Race::OnFixedStep`. Упорядоченная очередь
+хранит только временный adapter-view этих объектов и на следующем frame без
+повторного `Shot` создаёт Jolt/bgfx runtime-представление. Stale/finish/
+disconnect ветви вызывают `Proj::Death` до разрушения владельца оружия.
+
+Regression требует, чтобы первый fixed-step списал ровно один заряд и
+обнулил shot time, второй step без render pass не списал заряд повторно, а
+последующая backend materialization только продвинула исходный cooldown.
+Прошли 29/29 CTest, полный map1 physics smoke и 360-frame bgfx/Metal smoke.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

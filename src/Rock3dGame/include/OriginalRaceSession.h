@@ -20,6 +20,7 @@
 #include <limits>
 #include <memory>
 #include <map>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -520,6 +521,12 @@ private:
     {
         std::size_t racer = RacerRuntime::invalidWeapon;
         source::AICar::AttackDecision decision;
+        std::size_t weapon = RacerRuntime::invalidWeapon;
+        std::size_t weaponSlot = RacerRuntime::invalidWeapon;
+        std::uint32_t projectileId = 0U;
+        Transform weaponTransform;
+        source::Weapon::ProjList sourceProjectiles;
+        bool sourcePrepared = false;
     };
     source::MapObjects& decorationObjects() noexcept;
     source::MapObjects& bonusObjects() noexcept;
@@ -550,6 +557,14 @@ private:
     void progressAi(
         float seconds,
         const std::vector<r3d::physics::VehicleState>& vehicles);
+    Transform sourceWeaponWorldTransform(
+        const std::vector<r3d::physics::VehicleState>& vehicles,
+        std::size_t owner, std::size_t weapon,
+        std::optional<std::size_t> primaryMount) const;
+    bool prepareAiWeaponAttack(
+        PendingAiAttack& attack,
+        const std::vector<r3d::physics::VehicleState>& vehicles);
+    void discardPendingAiAttack(PendingAiAttack& attack) noexcept;
     void progressRaceFixedStep(
         float seconds,
         const std::vector<r3d::physics::VehicleState>& vehicles,

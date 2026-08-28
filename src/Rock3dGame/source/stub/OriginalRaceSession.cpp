@@ -1750,6 +1750,11 @@ bool OriginalRaceSession::disconnectNetworkRacer(
     if (racer >= racers_.size() || racers_[racer].disconnected)
         return false;
 
+    for (auto& attack : pendingAiAttacks_)
+    {
+        if (attack.racer == racer)
+            discardPendingAiAttack(attack);
+    }
     auto& runtime = racers_[racer];
     runtime.Disconnect();
     freeRacerMapObject(racer);
@@ -3117,12 +3122,206 @@ void OriginalRaceSession::progressAi(
             seconds, vehicle, context, &sourceRandomUnit);
         aiProgressValidScratch_[racer] = true;
         const auto& decision = aiProgressScratch_[racer].attack;
-        if (decision.hasWeaponShot() || decision.useHyper ||
-            decision.useMine)
+        PendingAiAttack pending;
+        pending.racer = racer;
+        pending.decision = decision;
+        if (pending.decision.hasWeaponShot() &&
+            !prepareAiWeaponAttack(pending, vehicles))
         {
-            pendingAiAttacks_.push_back({racer, decision});
+            pending.decision.weaponSlot = source::AICar::invalidIndex;
+            pending.decision.weaponTarget = source::AICar::invalidIndex;
+        }
+        if (pending.decision.hasWeaponShot() ||
+            pending.decision.useHyper || pending.decision.useMine)
+            pendingAiAttacks_.push_back(std::move(pending));
+    }
+}
+
+Transform OriginalRaceSession::sourceWeaponWorldTransform(
+    const std::vector<r3d::physics::VehicleState>& vehicles,
+    std::size_t owner, std::size_t weaponIndex,
+    std::optional<std::size_t> primaryMount) const
+{
+    Transform result;
+    if (owner >= vehicles.size() || owner >= racers_.size() ||
+        weaponIndex >= race_.weapons.size())
+    {
+        return result;
+    }
+
+    result = vehicles[owner].body;
+    std::optional<source::PlayerSlotType> physicalType;
+    if (primaryMount && *primaryMount < PlayerProfile::weaponSlotCount)
+    {
+        physicalType = static_cast<source::PlayerSlotType>(
+            static_cast<std::size_t>(source::PlayerSlotType::Weapon1) +
+            *primaryMount);
+    }
+    else if (racers_[owner].hyperWeapon == weaponIndex)
+    {
+        physicalType = source::PlayerSlotType::Hyper;
+    }
+    else if (racers_[owner].mineWeapon == weaponIndex)
+    {
+        physicalType = source::PlayerSlotType::Mine;
+    }
+
+    const source::Slot* installed =
+        physicalType ? racers_[owner].GetSlotInst(*physicalType) : nullptr;
+    if (installed != nullptr &&
+        recordName(installed->GetItem().GetRecord()) !=
+            recordName(race_.weapons[weaponIndex].record))
+    {
+        installed = nullptr;
+    }
+
+    const source::Weapon* mountedWeapon = nullptr;
+    if (installed != nullptr)
+    {
+        Transform local;
+        const auto& position = installed->GetItem().GetPos();
+        const auto& rotation = installed->GetItem().GetRot();
+        local.position = {position[0], position[1], position[2]};
+        local.rotation = {
+            rotation[0], rotation[1], rotation[2], rotation[3]};
+        result = compose(result, local);
+        if (const auto* item = installed->GetItem().IsWeaponItem())
+            mountedWeapon = item->GetWeapon();
+    }
+    else if (primaryMount)
+    {
+        const auto& vehicleDefinition = vehicleForRacer(owner);
+        const std::size_t physicalMount =
+            static_cast<std::size_t>(GarageSlotType::Weapon1) +
+            *primaryMount;
+        if (physicalMount < vehicleDefinition.slotMounts.size())
+        {
+            const auto& mount =
+                vehicleDefinition.slotMounts[physicalMount];
+            Transform local;
+            local.position = mount.position;
+            const auto wanted =
+                recordName(race_.weapons[weaponIndex].record);
+            const auto placement = std::find_if(
+                mount.placements.begin(), mount.placements.end(),
+                [&](const VehicleSlotPlacement& item) {
+                    return recordName(item.record) == wanted;
+                });
+            if (placement != mount.placements.end())
+            {
+                local.position = add(local.position, placement->offset);
+                local.rotation = placement->rotation;
+            }
+            result = compose(result, local);
         }
     }
+
+    Transform weaponLocal = race_.weapons[weaponIndex].visual.transform;
+    if (mountedWeapon != nullptr)
+    {
+        const auto rotation = mountedWeapon->GetDrobilkaRotation();
+        const Quat sourceSpin{
+            rotation.x, rotation.y, rotation.z, rotation.w};
+        weaponLocal.rotation = multiply(sourceSpin, weaponLocal.rotation);
+    }
+    return compose(result, weaponLocal);
+}
+
+bool OriginalRaceSession::prepareAiWeaponAttack(
+    PendingAiAttack& attack,
+    const std::vector<r3d::physics::VehicleState>& vehicles)
+{
+    const std::size_t racer = attack.racer;
+    const std::size_t slot = attack.decision.weaponSlot;
+    if (racer >= racers_.size() || racer >= vehicles.size() ||
+        slot >= PlayerProfile::weaponSlotCount ||
+        racers_[racer].GetFinished() ||
+        racers_[racer].IsDestroyed())
+    {
+        return false;
+    }
+
+    auto& runtime = racers_[racer];
+    runtime.selectedWeaponSlot = slot;
+    runtime.SyncSelectedWeapon(race_.weapons.size());
+    if (runtime.selectedWeapon == RacerRuntime::invalidWeapon ||
+        runtime.selectedWeapon >= race_.weapons.size())
+    {
+        return false;
+    }
+    const std::size_t weaponIndex = runtime.selectedWeapon;
+    const auto& weaponDefinition = race_.weapons[weaponIndex];
+    if (weaponDefinition.slot == WeaponSlot::Support)
+        return false;
+    const auto items = runtime.GetPrimaryWeaponItems();
+    auto* item = items[slot];
+    if (item == nullptr || !item->IsInstalled() ||
+        !item->IsReadyShot())
+    {
+        return false;
+    }
+    auto* weapon = item->GetWeapon();
+    if (weapon == nullptr)
+        return false;
+
+    attack.weapon = weaponIndex;
+    attack.weaponSlot = slot;
+    attack.projectileId = runtime.GetNextBonusProjectileId();
+    attack.weaponTransform = sourceWeaponWorldTransform(
+        vehicles, racer, weaponIndex, slot);
+    weapon->SetWorldPos(
+        {attack.weaponTransform.position.x,
+         attack.weaponTransform.position.y,
+         attack.weaponTransform.position.z});
+    weapon->SetWorldRot(
+        {attack.weaponTransform.rotation.x,
+         attack.weaponTransform.rotation.y,
+         attack.weaponTransform.rotation.z,
+         attack.weaponTransform.rotation.w});
+
+    source::Weapon::ShotDesc shot;
+    const std::size_t target = attack.decision.weaponTarget;
+    if (target < racerMapObjects_.size() &&
+        racerMapObjects_[target] != nullptr)
+    {
+        shot.targetMapObject =
+            &racerMapObjects_[target]->GetGameObj();
+    }
+    const auto description = weapon->GetDescHandle();
+    std::vector<float> sampledMinimumLifetimes;
+    sampledMinimumLifetimes.reserve(description->projectiles.size());
+    for (const auto& projectile : description->projectiles)
+    {
+        sampledMinimumLifetimes.push_back(sampleSourceRange(
+            projectile.minimumLife, projectile.maximumLife));
+    }
+    const auto contexts = weapon->BuildShotContexts(
+        &logic_, racer, shot,
+        sourceVec(vehicles[racer].linearVelocity),
+        sampledMinimumLifetimes);
+    if (!runtime.Shot(
+            *item, contexts, false, attack.projectileId, -1,
+            &attack.sourceProjectiles) ||
+        attack.sourceProjectiles.empty())
+    {
+        attack.sourceProjectiles.clear();
+        return false;
+    }
+    runtime.SyncSelectedWeapon(race_.weapons.size());
+    attack.sourcePrepared = true;
+    return true;
+}
+
+void OriginalRaceSession::discardPendingAiAttack(
+    PendingAiAttack& attack) noexcept
+{
+    for (auto* projectile : attack.sourceProjectiles)
+    {
+        if (projectile != nullptr && !projectile->destroyed)
+            projectile->Death();
+    }
+    attack.sourceProjectiles.clear();
+    attack.sourcePrepared = false;
 }
 
 void OriginalRaceSession::progressRaceFixedStep(
@@ -3654,114 +3853,16 @@ void OriginalRaceSession::updateGameplay(
     const std::vector<r3d::physics::VehicleState>& vehicles,
     const RaceControl& humanControl)
 {
-    auto installedWeaponSlot =
-        [&](std::size_t owner, std::size_t weaponIndex,
-            std::optional<std::size_t> primaryMount)
-        -> const source::Slot* {
-            if (owner >= racers_.size() ||
-                weaponIndex >= race_.weapons.size())
-                return nullptr;
-            std::optional<source::PlayerSlotType> physicalType;
-            if (primaryMount &&
-                *primaryMount < PlayerProfile::weaponSlotCount)
-            {
-                physicalType = static_cast<source::PlayerSlotType>(
-                    static_cast<std::size_t>(
-                        source::PlayerSlotType::Weapon1) +
-                    *primaryMount);
-            }
-            else if (racers_[owner].hyperWeapon == weaponIndex)
-            {
-                physicalType = source::PlayerSlotType::Hyper;
-            }
-            else if (racers_[owner].mineWeapon == weaponIndex)
-            {
-                physicalType = source::PlayerSlotType::Mine;
-            }
-            if (!physicalType)
-                return nullptr;
-            const auto* slot =
-                racers_[owner].GetSlotInst(*physicalType);
-            if (slot == nullptr ||
-                recordName(slot->GetItem().GetRecord()) !=
-                    recordName(race_.weapons[weaponIndex].record))
-                return nullptr;
-            return slot;
-        };
-    auto installedSlotTransform = [](const source::Slot& slot) {
-        Transform result;
-        const auto& position = slot.GetItem().GetPos();
-        const auto& rotation = slot.GetItem().GetRot();
-        result.position = {position[0], position[1], position[2]};
-        result.rotation = {
-            rotation[0], rotation[1], rotation[2], rotation[3]};
-        return result;
-    };
     auto directWeaponWorldTransform =
         [&](std::size_t owner, std::size_t weaponIndex) {
-            Transform result = vehicles[owner].body;
-            if (const auto* slot = installedWeaponSlot(
-                    owner, weaponIndex, std::nullopt))
-                result = compose(result, installedSlotTransform(*slot));
-            return compose(
-                result, race_.weapons[weaponIndex].visual.transform);
+            return sourceWeaponWorldTransform(
+                vehicles, owner, weaponIndex, std::nullopt);
         };
     auto weaponWorldTransform =
         [&](std::size_t owner, std::size_t weaponIndex,
             std::size_t mountSlot) {
-            Transform result = vehicles[owner].body;
-            const auto& vehicleDefinition = vehicleForRacer(owner);
-            const source::Weapon* mountedWeapon = nullptr;
-            if (const auto* slot = installedWeaponSlot(
-                    owner, weaponIndex, mountSlot))
-            {
-                result = compose(result, installedSlotTransform(*slot));
-                if (const auto* item =
-                        slot->GetItem().IsWeaponItem())
-                    mountedWeapon = item->GetWeapon();
-            }
-            else
-            {
-                const std::size_t physicalMount =
-                    static_cast<std::size_t>(GarageSlotType::Weapon1) +
-                    mountSlot;
-                if (physicalMount < vehicleDefinition.slotMounts.size())
-                {
-                    const auto& mount =
-                        vehicleDefinition.slotMounts[physicalMount];
-                    Transform local;
-                    local.position = mount.position;
-                    const auto wanted =
-                        recordName(race_.weapons[weaponIndex].record);
-                    const auto placement = std::find_if(
-                        mount.placements.begin(),
-                        mount.placements.end(),
-                        [&](const VehicleSlotPlacement& item) {
-                            return recordName(item.record) == wanted;
-                        });
-                    if (placement != mount.placements.end())
-                    {
-                        local.position = add(
-                            local.position, placement->offset);
-                        local.rotation = placement->rotation;
-                    }
-                    result = compose(result, local);
-                }
-            }
-            Transform weaponLocal =
-                race_.weapons[weaponIndex].visual.transform;
-            if (mountedWeapon != nullptr)
-            {
-                const auto rotation =
-                    mountedWeapon->GetDrobilkaRotation();
-                const Quat sourceSpin{
-                    rotation.x, rotation.y,
-                    rotation.z, rotation.w};
-                weaponLocal.rotation =
-                    multiply(sourceSpin, weaponLocal.rotation);
-            }
-            result = compose(result, weaponLocal);
-            return result;
+            return sourceWeaponWorldTransform(
+                vehicles, owner, weaponIndex, mountSlot);
         };
     std::vector<source::Player*> playerList;
     playerList.reserve(racers_.size());
@@ -5150,56 +5251,76 @@ void OriginalRaceSession::updateGameplay(
             const Vec3* replicatedOrigin = nullptr,
             std::uint32_t replicatedProjectileId = 0U,
             bool networkReplicated = false,
-            bool sourceReadinessOverride = false) {
+            bool sourceReadinessOverride = false,
+            const PendingAiAttack* preparedAttack = nullptr) -> bool {
         if (shooter >= vehicles.size() ||
             shooter >= racers_.size() ||
             racers_[shooter].GetFinished() ||
             racers_[shooter].IsDestroyed())
-            return;
+            return false;
         auto& runtime = racers_[shooter];
+        const bool sourcePrepared =
+            preparedAttack != nullptr &&
+            preparedAttack->sourcePrepared &&
+            !preparedAttack->sourceProjectiles.empty();
+        if (sourcePrepared)
+            runtime.selectedWeaponSlot = preparedAttack->weaponSlot;
         runtime.SyncSelectedWeapon(race_.weapons.size());
         if (runtime.selectedWeapon == RacerRuntime::invalidWeapon ||
             runtime.selectedWeapon >= race_.weapons.size() ||
             runtime.selectedWeaponSlot >= PlayerProfile::weaponSlotCount)
-            return;
+            return false;
         const std::size_t firedSlot = runtime.selectedWeaponSlot;
         const std::size_t firedWeapon = runtime.selectedWeapon;
+        if (sourcePrepared &&
+            (firedSlot != preparedAttack->weaponSlot ||
+             firedWeapon != preparedAttack->weapon))
+        {
+            return false;
+        }
         auto* item = primaryWeaponItem(shooter, firedSlot);
         if (item == nullptr || !item->IsInstalled())
-            return;
-        if (!networkReplicated && !sourceReadinessOverride &&
+            return false;
+        if (!sourcePrepared && !networkReplicated &&
+            !sourceReadinessOverride &&
             !item->IsReadyShot())
-            return;
+            return false;
         const auto* weapon =
             &race_.weapons[firedWeapon];
         if (weapon->slot == WeaponSlot::Support)
-            return;
+            return false;
         auto* liveWeapon = item->GetWeapon();
+        if (liveWeapon == nullptr)
+            return false;
         const auto shotDescription = liveWeapon->GetDescHandle();
         const auto& itemProjectiles =
             shotDescription->projectiles;
-        const int newCharge =
-            networkReplicated
-                ? static_cast<int>(item->GetCurCharge()) - 1
-                : -1;
         const std::uint32_t networkProjectileId =
-            networkReplicated && replicatedProjectileId != 0U
-                ? replicatedProjectileId
-                : runtime.GetNextBonusProjectileId();
-        const Transform liveWeaponTransform = weaponWorldTransform(
-            shooter, firedWeapon, firedSlot);
+            sourcePrepared
+                ? preparedAttack->projectileId
+                : networkReplicated && replicatedProjectileId != 0U
+                    ? replicatedProjectileId
+                    : runtime.GetNextBonusProjectileId();
+        const Transform liveWeaponTransform =
+            sourcePrepared
+                ? preparedAttack->weaponTransform
+                : weaponWorldTransform(
+                      shooter, firedWeapon, firedSlot);
         const Vec3 eventOrigin = liveWeaponTransform.position;
         // The mounted Jolt/car transform is the backend actor state read by
         // Weapon::Shot before it builds the complete descriptor batch.
-        liveWeapon->SetWorldPos(
-            {liveWeaponTransform.position.x,
-             liveWeaponTransform.position.y,
-             liveWeaponTransform.position.z});
-        liveWeapon->SetWorldRot(
-            {liveWeaponTransform.rotation.x,
-             liveWeaponTransform.rotation.y,
-             liveWeaponTransform.rotation.z,
-             liveWeaponTransform.rotation.w});
+        if (!sourcePrepared)
+        {
+            liveWeapon->SetWorldPos(
+                {liveWeaponTransform.position.x,
+                 liveWeaponTransform.position.y,
+                 liveWeaponTransform.position.z});
+            liveWeapon->SetWorldRot(
+                {liveWeaponTransform.rotation.x,
+                 liveWeaponTransform.rotation.y,
+                 liveWeaponTransform.rotation.z,
+                 liveWeaponTransform.rotation.w});
+        }
         std::size_t target = racers_.size();
         std::vector<Vec3> networkCoordinates;
 
@@ -5213,40 +5334,51 @@ void OriginalRaceSession::updateGameplay(
             requestedTarget < racers_.size()
                 ? requestedTarget
                 : findClosestEnemy(shooter, homingViewAngle);
-        source::GameObject* sourceTarget = nullptr;
-        if (homingTarget < racerMapObjects_.size() &&
-            racerMapObjects_[homingTarget] != nullptr)
-        {
-            sourceTarget =
-                &racerMapObjects_[homingTarget]->GetGameObj();
-        }
-
-        std::vector<float> sampledMinimumLifetimes;
-        sampledMinimumLifetimes.reserve(itemProjectiles.size());
-        for (const auto& projectile : itemProjectiles)
-        {
-            sampledMinimumLifetimes.push_back(sampleSourceRange(
-                projectile.minimumLife, projectile.maximumLife));
-        }
-        source::Weapon::ShotDesc sourceShot;
-        sourceShot.targetMapObject = sourceTarget;
-        auto sourceContexts = liveWeapon->BuildShotContexts(
-            &logic_, shooter, sourceShot,
-            sourceVec(vehicles[shooter].linearVelocity),
-            sampledMinimumLifetimes);
-        if (replicatedOrigin != nullptr)
-        {
-            for (auto& context : sourceContexts)
-                context.position = sourceVec(*replicatedOrigin);
-        }
-
         source::Weapon::ProjList sourceProjectiles;
-        if (!runtime.Shot(
-                *item, sourceContexts, false,
-                replicatedProjectileId, newCharge,
-                &sourceProjectiles))
-            return;
-        runtime.SyncSelectedWeapon(race_.weapons.size());
+        if (sourcePrepared)
+        {
+            sourceProjectiles = preparedAttack->sourceProjectiles;
+        }
+        else
+        {
+            source::GameObject* sourceTarget = nullptr;
+            if (homingTarget < racerMapObjects_.size() &&
+                racerMapObjects_[homingTarget] != nullptr)
+            {
+                sourceTarget =
+                    &racerMapObjects_[homingTarget]->GetGameObj();
+            }
+            std::vector<float> sampledMinimumLifetimes;
+            sampledMinimumLifetimes.reserve(itemProjectiles.size());
+            for (const auto& projectile : itemProjectiles)
+            {
+                sampledMinimumLifetimes.push_back(sampleSourceRange(
+                    projectile.minimumLife, projectile.maximumLife));
+            }
+            source::Weapon::ShotDesc sourceShot;
+            sourceShot.targetMapObject = sourceTarget;
+            auto sourceContexts = liveWeapon->BuildShotContexts(
+                &logic_, shooter, sourceShot,
+                sourceVec(vehicles[shooter].linearVelocity),
+                sampledMinimumLifetimes);
+            if (replicatedOrigin != nullptr)
+            {
+                for (auto& context : sourceContexts)
+                    context.position = sourceVec(*replicatedOrigin);
+            }
+            const int newCharge =
+                networkReplicated
+                    ? static_cast<int>(item->GetCurCharge()) - 1
+                    : -1;
+            if (!runtime.Shot(
+                    *item, sourceContexts, false,
+                    replicatedProjectileId, newCharge,
+                    &sourceProjectiles))
+            {
+                return false;
+            }
+            runtime.SyncSelectedWeapon(race_.weapons.size());
+        }
 
         const auto fallbackProjectileIndex =
             [&](std::size_t preparedOrdinal) {
@@ -5421,8 +5553,7 @@ void OriginalRaceSession::updateGameplay(
             effects_.push_back(std::move(fired));
             pushShotEffect(
                 shooter, firedWeapon, firedSlot,
-                weaponWorldTransform(
-                    shooter, firedWeapon, firedSlot),
+                liveWeaponTransform,
                 projectile);
         }
         RaceEvent shotEvent;
@@ -5442,6 +5573,7 @@ void OriginalRaceSession::updateGameplay(
         shotEvent.networkCoordinates =
             std::move(networkCoordinates);
         events_.push_back(std::move(shotEvent));
+        return true;
     };
     using HumanCommand = source::HumanPlayer::InputCommand;
     using HumanCommandKind = source::HumanPlayer::InputCommandKind;
@@ -6524,21 +6656,39 @@ void OriginalRaceSession::updateGameplay(
     // PathState -> AttackState -> ControlState transaction. Execute every
     // retained command in fixed-step order: the latest scratch snapshot is
     // insufficient when a low-FPS frame contains multiple source steps.
-    for (const auto& attack : pendingAiAttacks_)
+    for (auto& attack : pendingAiAttacks_)
     {
         const std::size_t racer = attack.racer;
         if (racer >= racers_.size())
+        {
+            discardPendingAiAttack(attack);
             continue;
+        }
         auto& runtime = racers_[racer];
         if (!runtime.IsComputer() || runtime.IsDestroyed() ||
             runtime.GetFinished() || runtime.disconnected)
+        {
+            discardPendingAiAttack(attack);
             continue;
+        }
         const auto& decision = attack.decision;
         if (decision.hasWeaponShot())
         {
             runtime.selectedWeaponSlot = decision.weaponSlot;
             runtime.SyncSelectedWeapon(race_.weapons.size());
-            fireWeapon(racer, decision.weaponTarget);
+            if (fireWeapon(
+                    racer, decision.weaponTarget, nullptr, 0U,
+                    false, attack.sourcePrepared, &attack))
+            {
+                // Logic remains the owner. Only release the adapter's
+                // temporary view after every concrete Proj was materialized.
+                attack.sourceProjectiles.clear();
+                attack.sourcePrepared = false;
+            }
+            else
+            {
+                discardPendingAiAttack(attack);
+            }
         }
         if (decision.useHyper)
             activateHyper(racer);
@@ -6796,6 +6946,11 @@ void OriginalRaceSession::completeRacer(
     if (racer >= racers_.size())
         return;
 
+    for (auto& attack : pendingAiAttacks_)
+    {
+        if (attack.racer == racer)
+            discardPendingAiAttack(attack);
+    }
     auto& runtime = racers_[racer];
     runtime.Complete(
         result.place, result.money, result.points, finishTime);
@@ -8242,19 +8397,60 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 queuedAttackVehicles[0].body.position = subtract(
                     queuedAttackVehicles[1].body.position,
                     multiply(direction, 10.0F));
+                const auto queuedWeaponItems =
+                    queuedAttackSession.racers()[1]
+                        .GetPrimaryWeaponItems();
+                auto* queuedWeaponItem = queuedWeaponItems[0];
+                if (queuedWeaponItem == nullptr ||
+                    queuedWeaponItem->GetWeapon() == nullptr ||
+                    queuedWeaponItem->GetCurCharge() == 0U)
+                {
+                    throw std::runtime_error(
+                        "source fixed-step AI attack test has no weapon");
+                }
+                const auto chargeBeforeFixedAttack =
+                    queuedWeaponItem->GetCurCharge();
                 auto queuedInputs = queuedAttackSession.vehicleInputs();
                 std::vector<r3d::physics::VehicleResetCommand>
                     queuedResets;
                 queuedAttackSession.raceFixedStep(
                     1.0F / 60.0F, queuedAttackVehicles,
                     queuedInputs, queuedResets);
+                if (queuedWeaponItem->GetCurCharge() + 1U !=
+                        chargeBeforeFixedAttack ||
+                    std::abs(
+                        queuedWeaponItem->GetWeapon()->GetShotTime()) >
+                        1.0e-6F)
+                {
+                    throw std::runtime_error(
+                        "source fixed-step AI attack did not commit its "
+                        "charge and cooldown on the firing tick");
+                }
                 queuedAttackVehicles[0].body.position.z += 1000.0F;
                 queuedAttackSession.raceFixedStep(
                     1.0F / 60.0F, queuedAttackVehicles,
                     queuedInputs, queuedResets);
+                if (queuedWeaponItem->GetCurCharge() + 1U !=
+                        chargeBeforeFixedAttack ||
+                    std::abs(
+                        queuedWeaponItem->GetWeapon()->GetShotTime()) >
+                        1.0e-6F)
+                {
+                    throw std::runtime_error(
+                        "source fixed-step AI attack was committed twice "
+                        "before backend materialization");
+                }
                 queuedAttackSession.update(
                     2.0F / 60.0F,
                     queuedAttackVehicles, input);
+                if (queuedWeaponItem->GetCurCharge() + 1U !=
+                        chargeBeforeFixedAttack ||
+                    queuedWeaponItem->GetWeapon()->GetShotTime() <= 0.0F)
+                {
+                    throw std::runtime_error(
+                        "source fixed-step AI attack was re-fired while "
+                        "materializing its backend projectile");
+                }
                 const bool retainedFixedAttack = std::any_of(
                     queuedAttackSession.events().begin(),
                     queuedAttackSession.events().end(),
