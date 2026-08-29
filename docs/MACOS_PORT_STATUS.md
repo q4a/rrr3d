@@ -2662,3 +2662,12 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   повторно выбирает его из глобального weapon descriptor.
 - Копия `Weapon` переносит конфигурацию и shot counter, но не live handles и
   не pending spawn requests с указателями на исходный behavior.
+
+### Source DeathEffect identity/lifetime follow-up
+
+- Type-6 `DeathEffect` возвращает exact owner/handle для car, projectile,
+  mine и bonus death visuals; bgfx получает visual от того же owner path.
+- `Logic` не уничтожает погибший transient `Proj`, пока его death-effect
+  handle жив, поэтому backend callback не обращается к освобождённой памяти.
+- Respawn заменяет car behavior graph и одновременно отсоединяет callbacks
+  старых vehicle-death visuals; detached particle tails остаются безопасны.

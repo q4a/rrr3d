@@ -723,6 +723,8 @@ public:
         bool createEffect = false;
         bool targetChild = false;
         bool ignoreSenderCar = false;
+        EventEffect* owner = nullptr;
+        EffectId effectId = invalidEffect;
     };
 
     DeathEffect() = default;
@@ -765,6 +767,7 @@ public:
                          bool senderIsWeaponProjectile) noexcept;
     DeathEffect::SpawnResult ConsumeSpawnResult() noexcept;
     bool IsEffectMaked() const noexcept;
+    bool HasLiveEffects() const noexcept;
     bool GetEffectPxIgnoreSenderCar() const noexcept;
     bool GetTargetChild() const noexcept;
 

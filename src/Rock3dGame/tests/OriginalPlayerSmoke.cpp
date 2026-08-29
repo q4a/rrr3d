@@ -129,10 +129,22 @@ int main()
     if (firstDeathPlans.size() != 2U ||
         !firstDeathPlans[0].createEffect ||
         firstDeathPlans[0].targetChild ||
+        firstDeathPlans[0].owner == nullptr ||
+        firstDeathPlans[0].effectId ==
+            source::EventEffect::invalidEffect ||
         !firstDeathPlans[1].createEffect ||
         !firstDeathPlans[1].targetChild ||
+        firstDeathPlans[1].owner == nullptr ||
+        firstDeathPlans[1].owner == firstDeathPlans[0].owner ||
+        firstDeathPlans[1].effectId ==
+            source::EventEffect::invalidEffect ||
         firstDeathPlans[1].ignoreSenderCar)
         return 88;
+    for (const auto& plan : firstDeathPlans)
+    {
+        if (!plan.owner->OnDestroyEffect(plan.effectId))
+            return 91;
+    }
     deathBehaviorPlayer.Destroy();
     deathBehaviorPlayer.CreateCar(false);
     deathBehaviorPlayer.gameCar.SetLogic(&deathBehaviorLogic);
@@ -143,8 +155,15 @@ int main()
         deathBehaviorPlayer.ConsumeVehicleDeathEffectSpawns();
     if (respawnDeathPlans.size() != 2U ||
         !respawnDeathPlans[0].createEffect ||
-        !respawnDeathPlans[1].createEffect)
+        !respawnDeathPlans[1].createEffect ||
+        respawnDeathPlans[0].owner == nullptr ||
+        respawnDeathPlans[1].owner == nullptr)
         return 90;
+    for (const auto& plan : respawnDeathPlans)
+    {
+        if (!plan.owner->OnDestroyEffect(plan.effectId))
+            return 92;
+    }
 
     player.car.SetSize(7.5F);
     player.ConfigureIdentity(

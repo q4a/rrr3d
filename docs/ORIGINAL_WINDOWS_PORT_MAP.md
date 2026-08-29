@@ -834,6 +834,11 @@ boolean `_makeEffect`. Каждый transient `ShotEffect::CreateEffect` пол�
 bgfx получает visual-definition от этого же live owner, без повторного
 lookup в `Race::weapons`.
 
+Результат B8an: type-6 `DeathEffect` передаёт backend exact owner/handle для
+vehicle/projectile/mine/bonus actors. Погибший transient `Proj` остаётся в
+`Logic` до callback последнего death-effect; car respawn отсоединяет ссылки
+старого behavior graph. Renderer читает live owner-definition.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:

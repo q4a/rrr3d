@@ -269,9 +269,9 @@ struct RaceEffect
     // is a non-owning source record reference; Race owns the catalog for the
     // complete session just as MapObjRec::Object did on Windows.
     const ObjectDefinition* sourceDefinition = nullptr;
-    // EventEffect::GameObjEvent::OnDestroy callback target. The source owner
-    // outlives this backend object and clears its distinguished _makeEffect
-    // identity exactly when the portable effect GameObject dies.
+    // EventEffect::GameObjEvent::OnDestroy callback target. Transient Logic
+    // owners are retained while this identity is live; actors rebuilt at a
+    // car respawn detach the callback before replacing their behavior graph.
     source::EventEffect* sourceEventOwner = nullptr;
     source::EventEffect::EffectId sourceEventId =
         source::EventEffect::invalidEffect;

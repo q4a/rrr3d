@@ -614,6 +614,20 @@ Logic::GameObjectProgress Logic::ProgressGameObjs(
                 !projectile->IsExternalLifetimeManaged());
         if (object->GetLiveState() == GameObject::LiveState::Death)
         {
+            const auto* deathEffect = dynamic_cast<
+                const DeathEffectBehavior*>(
+                    object->GetBehaviors().Find(
+                        BehaviorType::DeathEffect));
+            if (deathEffect != nullptr &&
+                deathEffect->HasLiveEffects())
+            {
+                // EventEffect owns every created MapObj until its listener
+                // reports destruction. Keep the portable transient owner
+                // alive so RaceEffect's exact owner/handle callback cannot
+                // dangle between the Logic pass and effect pass.
+                ++iterator;
+                continue;
+            }
             object->SetLogic(nullptr);
             iterator = gameObjects_.erase(iterator);
             ++result.removed;

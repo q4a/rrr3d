@@ -1851,6 +1851,8 @@ DeathEffect::SpawnResult DeathEffect::OnDeath(
     result.targetChild = targetChild_ && hasTarget;
     result.ignoreSenderCar =
         effectPhysicsIgnoreSenderCar_ && senderIsWeaponProjectile;
+    result.owner = this;
+    result.effectId = GetMakeEffectId();
     return result;
 }
 
@@ -1924,6 +1926,11 @@ DeathEffectBehavior::ConsumeSpawnResult() noexcept
 bool DeathEffectBehavior::IsEffectMaked() const noexcept
 {
     return state_.IsEffectMaked();
+}
+
+bool DeathEffectBehavior::HasLiveEffects() const noexcept
+{
+    return state_.GetEffectCount() != 0U;
 }
 
 bool DeathEffectBehavior::GetEffectPxIgnoreSenderCar() const noexcept

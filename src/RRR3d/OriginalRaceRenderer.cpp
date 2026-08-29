@@ -4994,7 +4994,8 @@ void OriginalRaceRenderer::draw(
                 r3d::game::originalrace::RaceEventKind::
                     VehicleDestroyed &&
             effect.racer < race.racers.size() &&
-            effect.racer < vehicleDeathEffects_.size())
+            effect.racer < vehicleDeathEffects_.size() &&
+            effect.sourceDefinition != nullptr)
         {
             const auto& vehicle = activeVehicleDefinition(
                 race, racerRuntime, effect.racer);
@@ -5002,8 +5003,7 @@ void OriginalRaceRenderer::draw(
                 effect.vehicleEffect >=
                     vehicleDeathEffects_[effect.racer].size())
                 continue;
-            const auto& definition =
-                vehicle.deathEffects[effect.vehicleEffect].visual;
+            const auto& definition = *effect.sourceDefinition;
             auto parent = effect.transform;
             if (definition.dynamicBody)
             {
@@ -5028,9 +5028,10 @@ void OriginalRaceRenderer::draw(
             continue;
         }
         if (effect.kind ==
-                r3d::game::originalrace::RaceEventKind::ProjectileImpact &&
+            r3d::game::originalrace::RaceEventKind::ProjectileImpact &&
             effect.bonus < race.bonuses.size() &&
-            effect.bonus < bonusDeathEffects_.size())
+            effect.bonus < bonusDeathEffects_.size() &&
+            effect.sourceDefinition != nullptr)
         {
             r3d::physics::Transform parent;
             parent.position = effect.origin;
@@ -5043,7 +5044,7 @@ void OriginalRaceRenderer::draw(
             }
             drawDefinition(
                 bonusDeathEffects_[effect.bonus],
-                race.bonuses[effect.bonus].deathEffect.visual, parent,
+                *effect.sourceDefinition, parent,
                 effect.totalSeconds - effect.seconds,
                 r3d::physics::Vec3{}, nullptr, 1.0F,
                 effectEmissionEnd);
@@ -5097,8 +5098,9 @@ void OriginalRaceRenderer::draw(
                 r3d::game::originalrace::RaceEventKind::
                     ProjectileImpact)
             {
-                const auto* definition =
-                    effect.visualVariant == 6U
+                const auto* definition = effect.sourceDefinition != nullptr
+                    ? effect.sourceDefinition
+                    : (effect.visualVariant == 6U
                         ? &projectileDefinition.tertiaryProjectile
                                .deathEffect.visual
                     : (effect.visualVariant == 5U
@@ -5110,7 +5112,7 @@ void OriginalRaceRenderer::draw(
                         ? &projectileDefinition.deathEffect.visual
                         : (effect.visualVariant == 2U
                                ? &projectileDefinition.tertiaryVisual
-                               : &projectileDefinition.secondaryVisual))));
+                               : &projectileDefinition.secondaryVisual)))));
                 const auto* asset =
                     effect.visualVariant == 6U
                         ? &projectileAssets.tertiaryDeathVisual

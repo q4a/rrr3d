@@ -1982,8 +1982,19 @@ Base `EventEffect` владеет полным набором live effect handle
 owner/handle и возвращает её через общий destroy bridge. Weapon-copy очищает
 runtime handles и pending requests, сохраняя только source configuration и
 shot counter. Renderer потребляет live owner definition вместо повторного
-`Race::weapons` lookup. Unit/session regressions проверяют независимое удаление и
-равенство source/backend live sets.
+`Race::weapons` lookup. Unit/session regressions проверяют независимое
+удаление и равенство source/backend live sets.
+
+### B8an — DeathEffect owner identity/lifetime — выполнено
+
+Каждый materialized type-6 effect хранит owner/handle и exact live
+definition. Transient `Proj` в состоянии Death удерживается `Logic`, пока
+его DeathEffect-list не опустеет, затем удаляется обычным progress pass.
+Car respawn отсоединяет identities старого behavior graph до дальнейшего
+effect teardown, исключая dangling callback. Renderer больше не выбирает
+vehicle/bonus/projectile death definition повторно из глобальных
+descriptors. Unit/session regression покрывает callback, retention,
+targetChild, mine/mortar и respawn detach.
 
 ## Воспроизведение проверки
 

@@ -5533,6 +5533,26 @@ visual `ShotEffect::OnShot` регистрирует собственный hand
 выстрела, независимое удаление, copy boundary и равенство source-list с
 живыми backend objects в полном session smoke.
 
+### P2.242 — `DeathEffect` owner identity и lifetime boundary возвращены — выполнено
+
+После восстановления общего `_effObjList` выяснилось, что type-6
+`DeathEffect` всё ещё терял identity при передаче в backend. Особенно опасен
+был portable порядок: погибший `Proj` удалялся из `Logic` до окончания
+созданного им взрыва, а будущий callback неизбежно ссылался бы на уже
+уничтоженный behavior. У автомобиля, наоборот, behavior graph заменяется
+при `CreateCar(false)` во время respawn.
+
+`DeathEffect::SpawnResult` теперь несёт exact owner/handle. Vehicle,
+projectile, mine и bonus death visuals сохраняют эту пару вместе с точной
+live visual-definition. `Logic::ProgressGameObjs` удерживает погибший
+transient `Proj`, пока его `DeathEffect` имеет live handles, и освобождает
+после callback. При car respawn старые callback identities отсоединяются в
+тот же переход, где Windows destructor снимает listener; detached particle
+visual может закончить жизнь без ссылки на уничтоженный behavior. Renderer
+использует переданную owner-definition вместо повторного descriptor lookup.
+Regression покрывает type-6 car graph, targetChild projectile, mine/mortar,
+owner retention/release и отсутствие stale owner после respawn.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

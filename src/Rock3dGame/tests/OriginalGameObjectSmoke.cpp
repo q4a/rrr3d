@@ -717,11 +717,17 @@ int main()
     const auto attachedDeath = deathEffect.OnDeath(true, true, true);
     if (!attachedDeath.createEffect || !attachedDeath.targetChild ||
         !attachedDeath.ignoreSenderCar ||
+        attachedDeath.owner != &deathEffect ||
+        attachedDeath.effectId == source::EventEffect::invalidEffect ||
+        !deathEffect.HasEffect(attachedDeath.effectId) ||
         !deathEffect.IsEffectMaked())
         return 41;
     if (deathEffect.OnDeath(true, true, true).createEffect)
         return 42;
-    deathEffect.OnDestroyEffect();
+    if (!attachedDeath.owner->OnDestroyEffect(
+            attachedDeath.effectId) ||
+        deathEffect.GetEffectCount() != 0U)
+        return 100;
     const auto worldDeath = deathEffect.OnDeath(true, false, false);
     if (!worldDeath.createEffect || worldDeath.targetChild ||
         worldDeath.ignoreSenderCar)

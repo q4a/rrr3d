@@ -493,10 +493,20 @@ int main()
         !projectileDeath.createEffect ||
         !projectileDeath.targetChild ||
         !projectileDeath.ignoreSenderCar ||
+        projectileDeath.owner == nullptr ||
+        projectileDeath.effectId ==
+            source::EventEffect::invalidEffect ||
+        !projectileDeath.owner->HasEffect(
+            projectileDeath.effectId) ||
+        !projectileDeathBehavior->HasLiveEffects() ||
         !projectileDeathBehavior->IsEffectMaked() ||
         projectileObject.DestroyWithEffect(
             &projectileTarget, true, true).createEffect)
         return 6;
+    if (!projectileDeath.owner->OnDestroyEffect(
+            projectileDeath.effectId) ||
+        projectileDeathBehavior->HasLiveEffects())
+        return 196;
 
     source::RockCar rackCar;
     auto& rack = rackCar.GetWeapons();
@@ -952,6 +962,23 @@ int main()
     if (autoOil.IsPrepared())
         return 62;
     source::Logic autoProjectileLogic;
+    auto* retainedDeathOwner = new source::Proj;
+    retainedDeathOwner->ConfigureDeathEffect(false, false);
+    autoProjectileLogic.RegGameObj(retainedDeathOwner);
+    const auto retainedDeath = retainedDeathOwner->DestroyWithEffect(
+        nullptr, true, true);
+    const auto retainedProgress =
+        autoProjectileLogic.ProgressGameObjs(0.0F);
+    if (!retainedDeath.createEffect ||
+        retainedDeath.owner == nullptr ||
+        retainedProgress.removed != 0U ||
+        !autoProjectileLogic.HasGameObj(retainedDeathOwner))
+        return 197;
+    if (!retainedDeath.owner->OnDestroyEffect(
+            retainedDeath.effectId) ||
+        autoProjectileLogic.ProgressGameObjs(0.0F).removed != 1U ||
+        autoProjectileLogic.HasGameObj(retainedDeathOwner))
+        return 198;
     autoOil.SetLogic(&autoProjectileLogic);
     if (!autoOil.IsPrepared() || !autoOil.IsArming() ||
         autoOil.GetModelScale() != 0.0F ||
