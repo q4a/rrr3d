@@ -15984,6 +15984,20 @@ int main(int argc, char** argv)
                             }
                             continue;
                         }
+                        // DataBase::LoadCar assigns SkidAsphalt only to the
+                        // trail behavior of source wheel zero.  Silent
+                        // PxWheelSlipEffect owners must never allocate a
+                        // backend loop merely because their visual is live.
+                        if (slip.soundPath == nullptr)
+                        {
+                            if (voice.voice !=
+                                r3d::audio::invalidVoice)
+                            {
+                                stopRaceLoopVoice(voice.voice);
+                                voice = {};
+                            }
+                            continue;
+                        }
                         // PxWheelSlipEffect places its visual child at the
                         // PhysX contact point, but EventEffect::OnProgress
                         // moves the Source3d to the owner CarWheel GameObject.

@@ -1,4 +1,5 @@
 #include "OriginalGameCar.h"
+#include "OriginalRace.h"
 
 #include <algorithm>
 #include <cmath>
@@ -1161,6 +1162,33 @@ void GameCar::BindWheels(
     }
 }
 
+void GameCar::BindWheels(
+    const std::vector<std::vector<WheelSlipEffectDefinition>>&
+        slipBehaviors,
+    const std::vector<bool>& enabled,
+    const ObjectDefinition* trailDefinition,
+    const ObjectDefinition* smokeDefinition)
+{
+    ReleaseWheels();
+    const std::size_t count = std::max(
+        slipBehaviors.size(), enabled.size());
+    wheels_.reserve(count);
+    for (std::size_t index = 0U; index < count; ++index)
+    {
+        static const std::vector<WheelSlipEffectDefinition> empty;
+        const auto& definitions =
+            index < slipBehaviors.size()
+                ? slipBehaviors[index]
+                : empty;
+        auto wheel = std::make_unique<CarWheel>(
+            definitions,
+            index < enabled.size() && enabled[index],
+            trailDefinition, smokeDefinition);
+        wheel->SetParent(this);
+        wheels_.push_back(std::move(wheel));
+    }
+}
+
 void GameCar::ReleaseWheels() noexcept
 {
     for (auto& wheel : wheels_)
@@ -1218,6 +1246,14 @@ WheelSlipProgress GameCar::GetWheelSlipResult(
     const auto* target = GetWheel(wheel);
     return target != nullptr ? target->GetSlipResult()
                              : WheelSlipProgress{};
+}
+
+const std::vector<WheelSlipProgress>&
+GameCar::GetWheelSlipResults(std::size_t wheel) const noexcept
+{
+    static const std::vector<WheelSlipProgress> empty;
+    const auto* target = GetWheel(wheel);
+    return target != nullptr ? target->GetSlipResults() : empty;
 }
 
 std::size_t GameCar::GetWheelCount() const noexcept
@@ -1492,7 +1528,19 @@ float SoundMotor::GetCurrentRpm() const noexcept
 
 void PxWheelSlipEffect::Reset() noexcept
 {
-    effectMaked_ = false;
+    eventEffect_.Reset();
+}
+
+void PxWheelSlipEffect::Configure(
+    const ObjectDefinition* definition,
+    const std::vector<std::string>& soundPaths,
+    std::array<float, 3U> position,
+    std::array<float, 3U> impulse,
+    bool ignoreRotation) noexcept
+{
+    eventEffect_.Configure(
+        definition, position, impulse, ignoreRotation);
+    soundPaths_ = soundPaths;
 }
 
 float PxWheelSlipEffect::SourceSlip(
@@ -1513,37 +1561,56 @@ PxWheelSlipEffect::ProgressResult PxWheelSlipEffect::OnProgress(
     bool hasSound) noexcept
 {
     ProgressResult result;
+    const auto* definition = eventEffect_.GetEffectDefinition();
+    result.definition = definition;
+    result.position = eventEffect_.GetPosition();
+    result.impulse = eventEffect_.GetImpulse();
+    result.ignoreRotation = eventEffect_.GetIgnoreRotation();
+    if (hasSound && !soundPaths_.empty())
+        result.soundPath = &soundPaths_.front();
     result.slip = SourceSlip(
         hasContact, longitudinalSlip, lateralSlip);
     result.volume = std::clamp(result.slip * volumeScale, 0.0F, 1.0F);
     result.active = result.slip > 0.0F;
     if (result.active)
     {
-        result.makeEffect = !effectMaked_;
-        effectMaked_ = true;
-        result.playSound = hasSound;
+        result.makeEffect = eventEffect_.MakeEffect();
+        result.playSound = result.soundPath != nullptr;
     }
     else
     {
-        result.freeEffect = effectMaked_;
-        effectMaked_ = false;
+        result.freeEffect = eventEffect_.FreeEffect();
         // PxWheelSlipEffect calls Source3d::Stop even when no visual actor
         // was active, provided this behavior owns a sound.
-        result.stopSound = hasSound;
+        result.stopSound = result.soundPath != nullptr;
     }
     return result;
 }
 
 bool PxWheelSlipEffect::IsEffectMaked() const noexcept
 {
-    return effectMaked_;
+    return eventEffect_.IsEffectMaked();
+}
+
+const ObjectDefinition*
+PxWheelSlipEffect::GetEffectDefinition() const noexcept
+{
+    return eventEffect_.GetEffectDefinition();
+}
+
+const std::vector<std::string>&
+PxWheelSlipEffect::GetSoundPaths() const noexcept
+{
+    return soundPaths_;
 }
 
 class CarWheel::WheelSlipBehavior final : public Behavior
 {
 public:
-    WheelSlipBehavior(Behaviors* owner, CarWheel* wheel) noexcept
-        : Behavior(owner), wheel_(wheel)
+    WheelSlipBehavior(
+        Behaviors* owner, CarWheel* wheel,
+        std::size_t effect) noexcept
+        : Behavior(owner), wheel_(wheel), effect_(effect)
     {
     }
 
@@ -1551,13 +1618,18 @@ public:
     {
         if (wheel_ == nullptr)
             return;
-        wheel_->slipResult_ = wheel_->slipEffect_.OnProgress(
+        if (effect_ >= wheel_->slipEffects_.size() ||
+            effect_ >= wheel_->slipResults_.size())
+            return;
+        wheel_->slipResults_[effect_] =
+            wheel_->slipEffects_[effect_].OnProgress(
             wheel_->hasContact_, wheel_->longitudinalSlip_,
-            wheel_->lateralSlip_, wheel_->slipSoundEnabled_);
+            wheel_->lateralSlip_);
     }
 
 private:
     CarWheel* wheel_ = nullptr;
+    std::size_t effect_ = 0U;
 };
 
 CarWheel::CarWheel() = default;
@@ -1565,6 +1637,16 @@ CarWheel::CarWheel() = default;
 CarWheel::CarWheel(bool slipEffect, bool slipSound)
 {
     Configure(slipEffect, slipSound);
+}
+
+CarWheel::CarWheel(
+    const std::vector<WheelSlipEffectDefinition>& slipEffects,
+    bool enabled,
+    const ObjectDefinition* trailDefinition,
+    const ObjectDefinition* smokeDefinition)
+{
+    Configure(
+        slipEffects, enabled, trailDefinition, smokeDefinition);
 }
 
 CarWheel::CarWheel(const CarWheel& other) : GameObject(other)
@@ -1577,8 +1659,8 @@ CarWheel& CarWheel::operator=(const CarWheel& other) noexcept
     if (this == &other)
         return *this;
     GameObject::operator=(other);
-    slipEffect_ = other.slipEffect_;
-    slipResult_ = other.slipResult_;
+    slipEffects_ = other.slipEffects_;
+    slipResults_ = other.slipResults_;
     longitudinalSlip_ = other.longitudinalSlip_;
     lateralSlip_ = other.lateralSlip_;
     normalReaction_ = other.normalReaction_;
@@ -1596,10 +1678,11 @@ CarWheel& CarWheel::operator=(const CarWheel& other) noexcept
     driven_ = other.driven_;
     steering_ = other.steering_;
     inverted_ = other.inverted_;
-    if (slipEffectEnabled_)
+    for (std::size_t effect = 0U;
+         effect < slipEffects_.size(); ++effect)
     {
         GetBehaviors().Add<WheelSlipBehavior>(
-            BehaviorType::PxWheelSlipEffect, this);
+            BehaviorType::PxWheelSlipEffect, this, effect);
     }
     return *this;
 }
@@ -1620,8 +1703,8 @@ CarWheel::~CarWheel()
 void CarWheel::Configure(bool slipEffect, bool slipSound)
 {
     GetBehaviors().Clear();
-    slipEffect_.Reset();
-    slipResult_ = {};
+    slipEffects_.clear();
+    slipResults_.clear();
     hasContact_ = false;
     longitudinalSlip_ = 0.0F;
     lateralSlip_ = 0.0F;
@@ -1633,8 +1716,67 @@ void CarWheel::Configure(bool slipEffect, bool slipSound)
     ResetMotion();
     if (slipEffectEnabled_)
     {
+        slipEffects_.emplace_back();
+        slipEffects_.back().Configure(
+            nullptr,
+            slipSound ? std::vector<std::string>{"SkidAsphalt.ogg"}
+                      : std::vector<std::string>{});
+        slipResults_.resize(1U);
         GetBehaviors().Add<WheelSlipBehavior>(
-            BehaviorType::PxWheelSlipEffect, this);
+            BehaviorType::PxWheelSlipEffect, this, 0U);
+    }
+}
+
+void CarWheel::Configure(
+    const std::vector<WheelSlipEffectDefinition>& slipEffects,
+    bool enabled,
+    const ObjectDefinition* trailDefinition,
+    const ObjectDefinition* smokeDefinition)
+{
+    GetBehaviors().Clear();
+    slipEffects_.clear();
+    slipResults_.clear();
+    hasContact_ = false;
+    longitudinalSlip_ = 0.0F;
+    lateralSlip_ = 0.0F;
+    normalReaction_ = 0.0F;
+    normalImpulse_ = 0.0F;
+    slipEffectEnabled_ = enabled && !slipEffects.empty();
+    slipSoundEnabled_ = false;
+    pxSyncPose_ = {};
+    ResetMotion();
+    if (!slipEffectEnabled_)
+        return;
+    slipEffects_.reserve(slipEffects.size());
+    slipResults_.resize(slipEffects.size());
+    for (std::size_t effect = 0U;
+         effect < slipEffects.size(); ++effect)
+    {
+        const auto& definition = slipEffects[effect];
+        const ObjectDefinition* canonicalDefinition =
+            &definition.visual;
+        if (trailDefinition != nullptr &&
+            trailDefinition->record == definition.visual.record)
+        {
+            canonicalDefinition = trailDefinition;
+        }
+        else if (smokeDefinition != nullptr &&
+                 smokeDefinition->record == definition.visual.record)
+        {
+            canonicalDefinition = smokeDefinition;
+        }
+        auto& state = slipEffects_.emplace_back();
+        state.Configure(
+            canonicalDefinition, definition.soundPaths,
+            {definition.position.x, definition.position.y,
+             definition.position.z},
+            {definition.impulse.x, definition.impulse.y,
+             definition.impulse.z},
+            definition.ignoreRotation);
+        slipSoundEnabled_ =
+            slipSoundEnabled_ || !definition.soundPaths.empty();
+        GetBehaviors().Add<WheelSlipBehavior>(
+            BehaviorType::PxWheelSlipEffect, this, effect);
     }
 }
 
@@ -1838,14 +1980,36 @@ float CarWheel::GetNormalImpulse() const noexcept
 GameObject::ProgressResult CarWheel::OnProgress(
     float deltaTime) noexcept
 {
-    slipResult_ = {};
+    std::fill(
+        slipResults_.begin(), slipResults_.end(),
+        WheelSlipProgress{});
     summAngle_ += axleSpeed_ * std::max(deltaTime, 0.0F);
     return GameObject::OnProgress(deltaTime);
 }
 
 const WheelSlipProgress& CarWheel::GetSlipResult() const noexcept
 {
-    return slipResult_;
+    static const WheelSlipProgress empty;
+    return slipResults_.empty() ? empty : slipResults_.front();
+}
+
+const std::vector<WheelSlipProgress>&
+CarWheel::GetSlipResults() const noexcept
+{
+    return slipResults_;
+}
+
+std::size_t CarWheel::GetSlipEffectCount() const noexcept
+{
+    return slipEffects_.size();
+}
+
+const ObjectDefinition* CarWheel::GetSlipEffectDefinition(
+    std::size_t effect) const noexcept
+{
+    return effect < slipEffects_.size()
+               ? slipEffects_[effect].GetEffectDefinition()
+               : nullptr;
 }
 
 bool CarWheel::HasSlipEffect() const noexcept

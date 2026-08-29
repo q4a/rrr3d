@@ -3475,7 +3475,7 @@ Vehicle loadVehicle(const resource::ResourceFileSystem& resources,
             scalar(shape, "inverseWheelMass", source + "/wheel");
         wheel.driven = boolean(item, "lead", source + "/wheel");
         wheel.steering = boolean(item, "steer", source + "/wheel");
-        bool hasSlipEffect = false;
+        std::vector<WheelSlipEffectDefinition> slipBehaviors;
         if (auto* behaviors = child(item, "behaviors/items"))
         {
             for (auto* behavior = behaviors->FirstChildElement();
@@ -3485,18 +3485,54 @@ Vehicle loadVehicle(const resource::ResourceFileSystem& resources,
                 const char* type = behavior->Attribute("type");
                 if (type == nullptr || std::string_view(type) != "9")
                     continue;
-                hasSlipEffect = true;
+                auto* effect = child(behavior, "effect");
+                if (effect == nullptr || effect->GetText() == nullptr)
+                    continue;
+                WheelSlipEffectDefinition definition;
+                definition.visual = objectDefinition(
+                    resources, database, effect->GetText(),
+                    source + "/wheel/PxWheelSlipEffect");
+                if (auto* sounds = child(behavior, "sounds"))
+                {
+                    for (auto* sound = sounds->FirstChildElement();
+                         sound != nullptr;
+                         sound = sound->NextSiblingElement())
+                    {
+                        const char* path = sound->Attribute("item");
+                        if (path != nullptr)
+                        {
+                            definition.soundPaths.push_back(
+                                canonicalDataPath(resources, path));
+                        }
+                    }
+                }
+                if (child(behavior, "pos") != nullptr)
+                    definition.position = vector3(
+                        behavior, "pos", source + "/wheel");
+                if (child(behavior, "impulse") != nullptr)
+                    definition.impulse = vector3(
+                        behavior, "impulse", source + "/wheel");
+                definition.ignoreRotation = optionalBoolean(
+                    behavior, "ignoreRot", false);
+                slipBehaviors.push_back(std::move(definition));
             }
         }
+        const bool hasSlipEffect = !slipBehaviors.empty();
         vehicle.wheels.push_back(wheel);
         result.wheelInverted.push_back(
             boolean(item, "invertWheel", source + "/wheel"));
         result.wheelSlipEffects.push_back(hasSlipEffect);
-        // This sound assignment is not serialized in db.xml. LoadCar creates
-        // it procedurally only for source wheel index zero (DataBase.cpp),
-        // while the remaining PxWheelSlipEffect objects stay visual-only.
-        result.wheelSlipSounds.push_back(
-            hasSlipEffect && result.wheelSlipSounds.empty());
+        // DataBase::LoadCar creates the sound only for source wheel zero;
+        // the generated db.xml preserves that resulting Source3d reference.
+        // Read the artifact exactly instead of inferring sound ownership from
+        // the presence of a visual effect.
+        result.wheelSlipSounds.push_back(std::any_of(
+            slipBehaviors.begin(), slipBehaviors.end(),
+            [](const WheelSlipEffectDefinition& definition) {
+                return !definition.soundPaths.empty();
+            }));
+        result.wheelSlipBehaviors.push_back(
+            std::move(slipBehaviors));
         result.wheelVisualOffsets.push_back(
             vector3(item, "offset", source + "/wheel"));
         auto wheelNodes = visualNodes(
@@ -6936,6 +6972,7 @@ bool runOriginalRaceResourceSmokeTest(
                    std::count(vehicle->wheelSlipEffects.begin(),
                               vehicle->wheelSlipEffects.end(), true) == 2;
         };
+        std::string slipBehaviorMismatch;
         const bool motorRangesMatchSource = std::all_of(
             race.vehicles.begin(), race.vehicles.end(),
             [&](const Vehicle& vehicle) {
@@ -6943,10 +6980,74 @@ bool runOriginalRaceResourceSmokeTest(
                     vehicle.wheelSlipEffects.begin(),
                     vehicle.wheelSlipEffects.end(),
                     [](bool enabled) { return enabled; });
-                const auto slipSoundCount = std::count(
-                    vehicle.wheelSlipSounds.begin(),
-                    vehicle.wheelSlipSounds.end(), true);
-                return !vehicle.idleSoundPath.empty() &&
+                const auto slipSoundCount = static_cast<std::size_t>(
+                    std::count(
+                        vehicle.wheelSlipSounds.begin(),
+                        vehicle.wheelSlipSounds.end(), true));
+                bool exactSlipBehaviors =
+                    vehicle.wheelSlipBehaviors.size() ==
+                    vehicle.physics.wheels.size();
+                std::size_t sourceSlipSoundCount = 0U;
+                for (std::size_t wheel = 0U;
+                     wheel < vehicle.wheelSlipBehaviors.size(); ++wheel)
+                {
+                    const auto& behaviors =
+                        vehicle.wheelSlipBehaviors[wheel];
+                    const bool wheelHasSound = std::any_of(
+                        behaviors.begin(), behaviors.end(),
+                        [](const WheelSlipEffectDefinition& behavior) {
+                            return !behavior.soundPaths.empty();
+                        });
+                    sourceSlipSoundCount += wheelHasSound ? 1U : 0U;
+                    exactSlipBehaviors = exactSlipBehaviors &&
+                        wheel < vehicle.wheelSlipSounds.size() &&
+                        vehicle.wheelSlipSounds[wheel] == wheelHasSound;
+                    if (vehicle.wheelSlipEffects[wheel])
+                    {
+                        const bool hasTrail =
+                            behaviors.size() == 2U &&
+                            recordEndsWith(
+                                behaviors.front().visual.record, "trail");
+                        const bool hasSmoke =
+                            !behaviors.empty() &&
+                            recordEndsWith(
+                                behaviors.back().visual.record, "smoke7");
+                        const bool soundMatches = std::all_of(
+                            behaviors.begin(), behaviors.end(),
+                            [&](const WheelSlipEffectDefinition& behavior) {
+                                return behavior.soundPaths.empty() ||
+                                       (wheel == 0U &&
+                                        recordEndsWith(
+                                            behavior.visual.record,
+                                            "trail"));
+                            });
+                        exactSlipBehaviors = exactSlipBehaviors &&
+                            (behaviors.size() == 1U ||
+                             behaviors.size() == 2U) &&
+                            hasSmoke && soundMatches &&
+                            (!hasTrail ||
+                             near(behaviors.front().position.z, 0.01F));
+                    }
+                    else
+                    {
+                        exactSlipBehaviors =
+                            exactSlipBehaviors && behaviors.empty();
+                    }
+                }
+                if (!exactSlipBehaviors && slipBehaviorMismatch.empty())
+                {
+                    slipBehaviorMismatch = vehicle.record + ":" +
+                        std::to_string(vehicle.wheelSlipBehaviors.size()) +
+                        "/" +
+                        std::to_string(vehicle.physics.wheels.size());
+                    for (const auto& behaviors :
+                         vehicle.wheelSlipBehaviors)
+                    {
+                        slipBehaviorMismatch +=
+                            ":" + std::to_string(behaviors.size());
+                    }
+                }
+                const bool valid = !vehicle.idleSoundPath.empty() &&
                        !vehicle.rpmSoundPath.empty() &&
                        near(vehicle.rpmVolumeRange[0], 0.0F) &&
                        near(vehicle.rpmVolumeRange[1], 1.0F) &&
@@ -6956,10 +7057,31 @@ bool runOriginalRaceResourceSmokeTest(
                            vehicle.physics.wheels.size() &&
                        vehicle.wheelSlipSounds.size() ==
                            vehicle.physics.wheels.size() &&
-                       slipSoundCount == (hasSlipVisual ? 1 : 0) &&
-                       (!hasSlipVisual ||
-                        (!vehicle.wheelSlipSounds.empty() &&
-                         vehicle.wheelSlipSounds.front()));
+                       slipSoundCount == sourceSlipSoundCount &&
+                       exactSlipBehaviors;
+                if (!valid && slipBehaviorMismatch.empty())
+                {
+                    slipBehaviorMismatch = vehicle.record +
+                        ": effects=" +
+                        std::to_string(vehicle.wheelSlipEffects.size()) +
+                        ", behaviors=" +
+                        std::to_string(vehicle.wheelSlipBehaviors.size()) +
+                        ", physics=" +
+                        std::to_string(vehicle.physics.wheels.size()) +
+                        ", soundFlags=" +
+                        std::to_string(vehicle.wheelSlipSounds.size()) +
+                        ", soundCount=" +
+                        std::to_string(slipSoundCount) +
+                        ", hasVisual=" +
+                        std::to_string(hasSlipVisual) +
+                        ", firstSound=" +
+                        std::to_string(
+                            !vehicle.wheelSlipSounds.empty() &&
+                            vehicle.wheelSlipSounds.front()) +
+                        ", exact=" +
+                        std::to_string(exactSlipBehaviors);
+                }
+                return valid;
             });
         const bool colorMaterialMatchesSource = std::all_of(
             race.vehicles.begin(), race.vehicles.end(),
@@ -7029,7 +7151,9 @@ bool runOriginalRaceResourceSmokeTest(
                 "source GusenizaAnim/PodushkaAnim/SoundMotor/"
                 "Player::ApplyColorMat/PxWheelSlipEffect/FxTrailManager/"
                 "GraphManager texDiffK "
-                "provenance mismatch";
+                "provenance mismatch: motor=" +
+                std::to_string(motorRangesMatchSource) +
+                ", slip=" + slipBehaviorMismatch;
             return false;
         }
         if (race.levelPath != "Data/Map/World1/map1.r3dMap" ||

@@ -370,6 +370,9 @@ public:
     bool GetReflScene() const noexcept;
     void SetReflScene(bool value) noexcept;
     const Vehicle* GetCarRecord() const noexcept;
+    void BindWheelSlipCatalog(
+        const ObjectDefinition* trailEffect,
+        const ObjectDefinition* smokeEffect) noexcept;
     void SetCar(const Vehicle* record) noexcept;
     void CreateCar(bool newRace) noexcept;
     void FreeCar(bool freeState) noexcept;
@@ -589,6 +592,8 @@ private:
     // selected HeadLightMode; CreateCar attaches them again.
     bool carPresent_ = false;
     const Vehicle* carRecord_ = nullptr;
+    const ObjectDefinition* wheelTrailEffect_ = nullptr;
+    const ObjectDefinition* wheelSmokeEffect_ = nullptr;
     bool reflScene_ = true;
     PresentationState presentation_;
     std::optional<EventEffect::SpawnResult> energyDamageEffectSpawn_;

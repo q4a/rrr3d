@@ -921,6 +921,14 @@ const Vehicle* Player::GetCarRecord() const noexcept
     return carRecord_;
 }
 
+void Player::BindWheelSlipCatalog(
+    const ObjectDefinition* trailEffect,
+    const ObjectDefinition* smokeEffect) noexcept
+{
+    wheelTrailEffect_ = trailEffect;
+    wheelSmokeEffect_ = smokeEffect;
+}
+
 void Player::SetCar(const Vehicle* record) noexcept
 {
     if (carRecord_ == record)
@@ -984,8 +992,9 @@ void Player::CreateCar(bool newRace) noexcept
                 carRecord_->rpmVolumeRange,
                 carRecord_->rpmFrequencyRange);
             gameCar.BindWheels(
+                carRecord_->wheelSlipBehaviors,
                 carRecord_->wheelSlipEffects,
-                carRecord_->wheelSlipSounds);
+                wheelTrailEffect_, wheelSmokeEffect_);
             std::vector<GameCar::WheelDynamics> wheelDynamics;
             wheelDynamics.reserve(carRecord_->physics.wheels.size());
             for (std::size_t wheelIndex = 0U;

@@ -1291,6 +1291,8 @@ void OriginalRaceSession::reset()
             playerId, static_cast<int>(sourceRacer.gamerId),
             sourceRacer.netSlot, sourceRacer.name,
             sourceRacer.netName, sourceRacer.color);
+        racers_[index].BindWheelSlipCatalog(
+            &race_.wheelTrailEffect, &race_.wheelSmokeEffect);
         racers_[index].SetCar(&vehicle);
         createRacerMapObject(index);
         for (std::size_t weaponIndex = 0;
@@ -8642,22 +8644,54 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
         for (std::size_t racer = 0U;
              racer < session.racers().size(); ++racer)
         {
-            const auto* vehicle =
-                session.racers()[racer].GetCarRecord();
+            auto& sourcePlayer = session.racers()[racer];
+            const auto* vehicle = sourcePlayer.GetCarRecord();
             if (vehicle == nullptr)
             {
                 throw std::runtime_error(
                     "Player::SetCar active vehicle record was not bound");
             }
             if (std::abs(
-                    session.racers()[racer].car.GetSize() -
+                    sourcePlayer.car.GetSize() -
                     vehicle->boundingSize) > 0.001F ||
                 std::abs(
-                    session.racers()[racer].car.GetRadius() -
+                    sourcePlayer.car.GetRadius() -
                     vehicle->boundingRadius) > 0.001F)
             {
                 throw std::runtime_error(
                     "Player::ComputeCarBBSize visual bounds owner mismatch");
+            }
+            for (std::size_t wheel = 0U;
+                 wheel < vehicle->wheelSlipBehaviors.size(); ++wheel)
+            {
+                const auto& definitions =
+                    vehicle->wheelSlipBehaviors[wheel];
+                const auto* sourceWheel =
+                    sourcePlayer.gameCar.GetWheel(wheel);
+                if (sourceWheel == nullptr ||
+                    definitions.size() !=
+                        sourceWheel->GetSlipEffectCount())
+                {
+                    throw std::runtime_error(
+                        "Player wheel slip behavior count lost during "
+                        "CreateCar");
+                }
+                for (std::size_t behavior = 0U;
+                     behavior < definitions.size(); ++behavior)
+                {
+                    const auto* expected =
+                        definitions[behavior].visual.record ==
+                                race.wheelTrailEffect.record
+                            ? &race.wheelTrailEffect
+                            : &race.wheelSmokeEffect;
+                    if (sourceWheel->GetSlipEffectDefinition(behavior) !=
+                        expected)
+                    {
+                        throw std::runtime_error(
+                            "Player wheel slip behavior lost canonical "
+                            "DataBase record identity");
+                    }
+                }
             }
         }
         auto point = [&](std::size_t pathNode) -> const TracePoint& {

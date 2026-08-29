@@ -810,6 +810,11 @@ actor, `damageEnergy*` выдаётся через one-live owner plan, а shiel
 owner spawn-plan в backend object, а bgfx рисует этот actor; прямой renderer
 lookup по weapon/projectile индексам удалён.
 
+Результат B8aj: serialized wheel graph больше не схлопывается. Каждый
+`CarWheel` владеет ordered type-9 `trail`/`smoke7` behaviors с точными
+record/pos/sound полями. bgfx/SDL потребляют отдельные owner states; ложный
+SkidAsphalt на беззвучных колёсах удалён.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:

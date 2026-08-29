@@ -5457,6 +5457,26 @@ Portable `SlowEffect` теперь хранит точный `ObjectDefinition*`
 identity, one-shot consumption, child attachment, отсутствие refresh при
 повторном луче и совместное завершение behavior/model.
 
+### P2.238 — wheel `PxWheelSlipEffect` records/lifecycle восстановлены — выполнено
+
+Прямая сверка `DataBase::LoadCar` и `GameBase.cpp::PxWheelSlipEffect`
+подтвердила, что portable graph схлопывал до одного boolean/state две
+отдельные type-9 записи каждого колеса: `trail` с local Z=0.01 и `smoke7`.
+Кроме того, SDL создавал SkidAsphalt loop для любого активного колеса, хотя
+Windows назначает этот Source3d только serialized trail behavior первого
+колеса и некоторые машины (например `devildriver`) вообще имеют лишь
+беззвучный smoke behavior.
+
+Parser теперь сохраняет ordered `WheelSlipEffectDefinition` прямо из
+`db.xml`; каждый `CarWheel` создаёт столько concrete behaviors/listeners,
+сколько записано в source. Каждый owner отдельно хранит EventEffect record,
+position, impulse, ignoreRot, sound catalog и Make/Free state. Renderer
+различает trail/smoke по owner record, применяет исходный +0.01 world-Z и
+оставляет fading smoke в последней точке контакта. Audio выделяет voice
+только behavior с реальным sound reference. Regression проверяет два owner,
+identity, порядок, звук только trail, независимый release и реальные
+одно-/двух-behavior варианты всего car catalog.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

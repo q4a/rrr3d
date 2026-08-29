@@ -2624,3 +2624,12 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   последующие контакты не заменяют record и не продлевают lifetime.
 - Session отвечает только за bgfx/SDL object boundary; удаление model и
   снятие ограничения скорости происходят из одного source lifetime.
+
+### Source PxWheelSlipEffect ownership follow-up
+
+- `db.xml` type-9 items сохраняются по два независимых owner-а на колесо
+  (`trail`, затем `smoke7`) либо как единственный smoke там, где так записано.
+- Trail local Z=0.01, record identity, sound catalog и Make/Free переходы
+  принадлежат concrete `CarWheel` behaviors.
+- SDL больше не создаёт SkidAsphalt для silent behaviors; fading smoke
+  отсоединяется в последней contact position и не едет вслед за колесом.

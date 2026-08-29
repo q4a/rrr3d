@@ -5,7 +5,13 @@
 #include <array>
 #include <limits>
 #include <memory>
+#include <string>
 #include <vector>
+
+namespace r3d::game::originalrace
+{
+struct WheelSlipEffectDefinition;
+}
 
 namespace r3d::game::originalrace::source
 {
@@ -31,6 +37,11 @@ struct WheelSlipProgress
     bool freeEffect = false;
     bool playSound = false;
     bool stopSound = false;
+    const ObjectDefinition* definition = nullptr;
+    const std::string* soundPath = nullptr;
+    std::array<float, 3U> position{};
+    std::array<float, 3U> impulse{};
+    bool ignoreRotation = false;
 };
 
 // Gameplay-owned lock state from GameCar. Wheel/actor operations are Jolt
@@ -335,6 +346,12 @@ public:
     void BindWheels(
         const std::vector<bool>& slipEffects,
         const std::vector<bool>& slipSounds);
+    void BindWheels(
+        const std::vector<std::vector<WheelSlipEffectDefinition>>&
+            slipBehaviors,
+        const std::vector<bool>& enabled,
+        const ObjectDefinition* trailDefinition = nullptr,
+        const ObjectDefinition* smokeDefinition = nullptr);
     void ReleaseWheels() noexcept;
     bool SetWheelContact(
         std::size_t wheel, bool hasContact,
@@ -346,6 +363,8 @@ public:
     bool IsWheelsContact() const noexcept;
     bool IsBodyContact() const noexcept;
     WheelSlipProgress GetWheelSlipResult(
+        std::size_t wheel) const noexcept;
+    const std::vector<WheelSlipProgress>& GetWheelSlipResults(
         std::size_t wheel) const noexcept;
     std::size_t GetWheelCount() const noexcept;
     CarWheel* GetWheel(std::size_t wheel) noexcept;
@@ -461,16 +480,25 @@ public:
     using ProgressResult = WheelSlipProgress;
 
     void Reset() noexcept;
+    void Configure(
+        const ObjectDefinition* definition,
+        const std::vector<std::string>& soundPaths,
+        std::array<float, 3U> position = {},
+        std::array<float, 3U> impulse = {},
+        bool ignoreRotation = false) noexcept;
     ProgressResult OnProgress(
         bool hasContact, float longitudinalSlip, float lateralSlip,
-        bool hasSound) noexcept;
+        bool hasSound = true) noexcept;
     static float SourceSlip(
         bool hasContact, float longitudinalSlip,
         float lateralSlip) noexcept;
     bool IsEffectMaked() const noexcept;
+    const ObjectDefinition* GetEffectDefinition() const noexcept;
+    const std::vector<std::string>& GetSoundPaths() const noexcept;
 
 private:
-    bool effectMaked_ = false;
+    EventEffect eventEffect_;
+    std::vector<std::string> soundPaths_;
 };
 
 // GameCar owns one source CarWheel GameObject per serialized wheel. The Jolt
@@ -481,6 +509,11 @@ class CarWheel : public GameObject
 public:
     CarWheel();
     CarWheel(bool slipEffect, bool slipSound);
+    CarWheel(
+        const std::vector<WheelSlipEffectDefinition>& slipEffects,
+        bool enabled,
+        const ObjectDefinition* trailDefinition = nullptr,
+        const ObjectDefinition* smokeDefinition = nullptr);
     CarWheel(const CarWheel& other);
     CarWheel& operator=(const CarWheel& other) noexcept;
     CarWheel(CarWheel&& other);
@@ -488,6 +521,11 @@ public:
     ~CarWheel() override;
 
     void Configure(bool slipEffect, bool slipSound);
+    void Configure(
+        const std::vector<WheelSlipEffectDefinition>& slipEffects,
+        bool enabled,
+        const ObjectDefinition* trailDefinition = nullptr,
+        const ObjectDefinition* smokeDefinition = nullptr);
     const GameObjectFrameSync::Pose& PxSyncWheel(
         GameObjectFrameSync::Pose physicalBody,
         GameObjectFrameSync::Pose graphBody,
@@ -525,14 +563,18 @@ public:
     float GetNormalImpulse() const noexcept;
     GameObject::ProgressResult OnProgress(float deltaTime) noexcept;
     const WheelSlipProgress& GetSlipResult() const noexcept;
+    const std::vector<WheelSlipProgress>& GetSlipResults() const noexcept;
+    std::size_t GetSlipEffectCount() const noexcept;
+    const ObjectDefinition* GetSlipEffectDefinition(
+        std::size_t effect) const noexcept;
     bool HasSlipEffect() const noexcept;
     bool HasSlipSound() const noexcept;
 
 private:
     class WheelSlipBehavior;
 
-    PxWheelSlipEffect slipEffect_;
-    WheelSlipProgress slipResult_;
+    std::vector<PxWheelSlipEffect> slipEffects_;
+    std::vector<WheelSlipProgress> slipResults_;
     float longitudinalSlip_ = 0.0F;
     float lateralSlip_ = 0.0F;
     // Windows CarWheel::_nReac is written by MyContactModify before the

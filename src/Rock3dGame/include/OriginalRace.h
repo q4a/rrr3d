@@ -461,6 +461,19 @@ struct VehicleNightLight
     std::array<float, 2> size{1.0F, 1.0F};
 };
 
+// DataBase::LoadCar serializes two independent type-9 behaviors on every
+// enabled CarWheel: trail (+0.01 Z, and sound only on wheel zero) followed
+// by smoke7.  Keep the complete records per wheel so the source behavior
+// graph is not collapsed to one renderer flag.
+struct WheelSlipEffectDefinition
+{
+    ObjectDefinition visual;
+    std::vector<std::string> soundPaths;
+    Vec3 position;
+    Vec3 impulse;
+    bool ignoreRotation = false;
+};
+
 struct Vehicle
 {
     std::string record;
@@ -493,6 +506,8 @@ struct Vehicle
     // PxWheelSlipEffect instances still own trail/smoke visuals, but are
     // intentionally silent.
     std::vector<bool> wheelSlipSounds;
+    std::vector<std::vector<WheelSlipEffectDefinition>>
+        wheelSlipBehaviors;
     // Exact Garage::Car::_slot[Player::cSlotTypeEnd] layout. Hyper/Mine
     // transforms are gameplay state too: their projectiles originate from
     // the installed WeaponItem actor, not from the car origin.

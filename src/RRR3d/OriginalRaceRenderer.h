@@ -257,6 +257,8 @@ private:
     std::vector<std::uint32_t> wheelTrailResetCounts_;
     std::vector<std::vector<float>> wheelSmokeStartTimes_;
     std::vector<std::vector<float>> wheelSmokeEndTimes_;
+    std::vector<std::vector<r3d::physics::Vec3>>
+        wheelSmokePositions_;
     // ActorManager::RayUser fade timers for original gpCullOpacity actors.
     std::vector<float> trackCullOpacityTimes_;
     std::vector<float> decorationCullOpacityTimes_;

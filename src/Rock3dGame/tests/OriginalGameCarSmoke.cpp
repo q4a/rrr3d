@@ -1,5 +1,6 @@
 #include "OriginalGameCar.h"
 #include "OriginalLogic.h"
+#include "OriginalRace.h"
 
 #include <cmath>
 #include <iostream>
@@ -512,6 +513,45 @@ int main()
         !ownedSlip.playSound || ownedSlip.volume != 1.0F ||
         car.GetWheelSlipResult(1U).active)
         return 27;
+    r3d::game::originalrace::WheelSlipEffectDefinition trailDefinition;
+    trailDefinition.visual.record = "trail";
+    trailDefinition.soundPaths.push_back("Sounds/SkidAsphalt.ogg");
+    trailDefinition.position.z = 0.01F;
+    r3d::game::originalrace::WheelSlipEffectDefinition smokeDefinition;
+    smokeDefinition.visual.record = "smoke7";
+    const std::vector<std::vector<
+        r3d::game::originalrace::WheelSlipEffectDefinition>>
+        exactDefinitions{{trailDefinition, smokeDefinition}};
+    source::GameCar exactSlipCar;
+    exactSlipCar.BindWheels(
+        exactDefinitions, {true}, &trailDefinition.visual,
+        &smokeDefinition.visual);
+    exactSlipCar.SetWheelContact(0U, true, 1.0F, 1.0F);
+    const auto exactProgress = exactSlipCar.OnProgress(1.0F / 60.0F);
+    const auto& exactResults = exactSlipCar.GetWheelSlipResults(0U);
+    if (exactProgress.wheelBehaviorsProgressed != 2U ||
+        exactSlipCar.GetWheel(0U) == nullptr ||
+        exactSlipCar.GetWheel(0U)->GetListenerCount() != 2U ||
+        exactSlipCar.GetWheel(0U)->GetSlipEffectCount() != 2U ||
+        exactResults.size() != 2U ||
+        exactResults[0U].definition !=
+            &trailDefinition.visual ||
+        exactResults[1U].definition !=
+            &smokeDefinition.visual ||
+        exactResults[0U].soundPath == nullptr ||
+        exactResults[1U].soundPath != nullptr ||
+        exactResults[0U].position[2U] != 0.01F ||
+        !exactResults[0U].makeEffect ||
+        !exactResults[1U].makeEffect)
+        return 81;
+    exactSlipCar.SetWheelContact(0U, false, 0.0F, 0.0F);
+    exactSlipCar.OnProgress(1.0F / 60.0F);
+    const auto& exactReleased = exactSlipCar.GetWheelSlipResults(0U);
+    if (!exactReleased[0U].freeEffect ||
+        !exactReleased[1U].freeEffect ||
+        !exactReleased[0U].stopSound ||
+        exactReleased[1U].stopSound)
+        return 82;
     source::GameCar copiedWheelCar = car;
     if (copiedWheelCar.GetWheelCount() != 2U ||
         copiedWheelCar.GetWheel(0U) == nullptr ||
@@ -654,6 +694,9 @@ int main()
         return 34;
 
     source::PxWheelSlipEffect slip;
+    r3d::game::originalrace::ObjectDefinition standaloneSlip;
+    slip.Configure(
+        &standaloneSlip, {"Sounds/SkidAsphalt.ogg"});
     const auto quiet = slip.OnProgress(true, 0.4F, 0.7F, true);
     if (quiet.active || quiet.makeEffect || !quiet.stopSound)
         return 11;
