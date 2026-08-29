@@ -105,6 +105,13 @@ int main()
     // physical car instead of retaining EventEffect::_makeEffect state.
     r3d::game::originalrace::Vehicle deathBehaviorVehicle;
     deathBehaviorVehicle.deathEffects.resize(2U);
+    deathBehaviorVehicle.deathEffects[0].visual.record =
+        "Effects\\carDeath0";
+    deathBehaviorVehicle.deathEffects[0].position =
+        {1.0F, 2.0F, 3.0F};
+    deathBehaviorVehicle.deathEffects[0].impulse =
+        {4.0F, 5.0F, 6.0F};
+    deathBehaviorVehicle.deathEffects[0].ignoreRotation = true;
     deathBehaviorVehicle.deathEffects[1].targetChild = true;
     deathBehaviorVehicle.deathEffects[1]
         .effectPhysicsIgnoreSenderCar = true;
@@ -132,6 +139,13 @@ int main()
         firstDeathPlans[0].owner == nullptr ||
         firstDeathPlans[0].effectId ==
             source::EventEffect::invalidEffect ||
+        firstDeathPlans[0].definition !=
+            &deathBehaviorVehicle.deathEffects[0].visual ||
+        firstDeathPlans[0].position !=
+            std::array<float, 3U>{1.0F, 2.0F, 3.0F} ||
+        firstDeathPlans[0].impulse !=
+            std::array<float, 3U>{4.0F, 5.0F, 6.0F} ||
+        !firstDeathPlans[0].ignoreRotation ||
         !firstDeathPlans[1].createEffect ||
         !firstDeathPlans[1].targetChild ||
         firstDeathPlans[1].owner == nullptr ||

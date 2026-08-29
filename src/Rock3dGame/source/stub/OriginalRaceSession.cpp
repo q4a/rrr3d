@@ -4502,25 +4502,34 @@ void OriginalRaceSession::destroyRacer(
         if (index >= sourceDeathPlans.size() ||
             !sourceDeathPlans[index].createEffect)
             continue;
-        const auto& source = definition.deathEffects[index];
-        const auto timing = sourceEffectTiming(source.visual, 0.7F);
+        const auto& sourcePlan = sourceDeathPlans[index];
+        if (sourcePlan.definition == nullptr)
+            continue;
+        const auto& source = *sourcePlan.definition;
+        const Vec3 sourcePosition{
+            sourcePlan.position[0], sourcePlan.position[1],
+            sourcePlan.position[2]};
+        const auto timing = sourceEffectTiming(source, 0.7F);
         RaceEffect effect;
         effect.kind = RaceEventKind::VehicleDestroyed;
-        effect.origin = add(vehicle.body.position, source.position);
+        effect.origin = add(vehicle.body.position, sourcePosition);
         effect.target = add(effect.origin, {1.0F, 0.0F, 0.0F});
-        applySourceEffectTiming(effect, timing, source.visual);
-        effect.ignoreRotation = source.ignoreRotation;
+        applySourceEffectTiming(effect, timing, source);
+        effect.ignoreRotation = sourcePlan.ignoreRotation;
         effect.racer = racer;
         effect.vehicleEffect = index;
-        effect.sourceDefinition = &source.visual;
-        effect.sourceEventOwner = sourceDeathPlans[index].owner;
-        effect.sourceEventId = sourceDeathPlans[index].effectId;
+        effect.sourceDefinition = sourcePlan.definition;
+        effect.sourceEventOwner = sourcePlan.owner;
+        effect.sourceEventId = sourcePlan.effectId;
+        effect.sourceImpulse = {
+            sourcePlan.impulse[0], sourcePlan.impulse[1],
+            sourcePlan.impulse[2]};
         effect.transform = vehicle.body;
         effect.transform.position = effect.origin;
         effect.sourceVelocity = vehicle.linearVelocity;
-        if (source.ignoreRotation)
+        if (sourcePlan.ignoreRotation)
             effect.transform.rotation = {};
-        attachSourceLifeEffect(effect, source.visual.soundPaths, racer);
+        attachSourceLifeEffect(effect, source.soundPaths, racer);
         effects_.push_back(std::move(effect));
     }
 }
@@ -5010,6 +5019,7 @@ void OriginalRaceSession::updateGameplay(
             auto addVisual =
                 [&](const ObjectDefinition& visual,
                     std::uint8_t variant, Vec3 offset = {},
+                    Vec3 impulse = {},
                     bool ignoreRotation = false,
                     bool targetChild = false,
                     source::EventEffect* eventOwner = nullptr,
@@ -5059,6 +5069,7 @@ void OriginalRaceSession::updateGameplay(
                     impact.projectile = projectile.projectile;
                     impact.visualVariant = variant;
                     impact.ignoreRotation = ignoreRotation;
+                    impact.sourceImpulse = impulse;
                     impact.sourceVelocity = projectile.velocity;
                     if (eventOwner != nullptr)
                     {
@@ -5081,12 +5092,16 @@ void OriginalRaceSession::updateGameplay(
                 };
             addVisual(definition->secondaryVisual, 1U);
             addVisual(definition->tertiaryVisual, 2U);
-            if (deathPlan.createEffect)
+            if (deathPlan.createEffect &&
+                deathPlan.definition != nullptr)
             {
                 if (!addVisual(
-                        definition->deathEffect.visual, 3U,
-                        definition->deathEffect.position,
-                        definition->deathEffect.ignoreRotation,
+                        *deathPlan.definition, 3U,
+                        {deathPlan.position[0], deathPlan.position[1],
+                         deathPlan.position[2]},
+                        {deathPlan.impulse[0], deathPlan.impulse[1],
+                         deathPlan.impulse[2]},
+                        deathPlan.ignoreRotation,
                         deathPlan.targetChild, deathPlan.owner,
                         deathPlan.effectId) &&
                     deathPlan.owner != nullptr)
@@ -7051,10 +7066,15 @@ void OriginalRaceSession::updateGameplay(
             mine.sourceObject->Death();
         if (!deathPlan.createEffect)
             return;
-        const auto timing =
-            sourceEffectTiming(death->visual, 0.7F);
+        if (deathPlan.definition == nullptr)
+            return;
+        const auto& visual = *deathPlan.definition;
+        const Vec3 positionOffset{
+            deathPlan.position[0], deathPlan.position[1],
+            deathPlan.position[2]};
+        const auto timing = sourceEffectTiming(visual, 0.7F);
         Transform effectTransform;
-        Vec3 effectOrigin = add(mine.position, death->position);
+        Vec3 effectOrigin = add(mine.position, positionOffset);
         if (deathPlan.targetChild && targetRacer < vehicles.size())
         {
             const Transform& parent = vehicles[targetRacer].body;
@@ -7071,24 +7091,27 @@ void OriginalRaceSession::updateGameplay(
             };
             effectTransform.position = {
                 removeScale(unscaled.x, parent.scale.x) +
-                    death->position.x,
+                    positionOffset.x,
                 removeScale(unscaled.y, parent.scale.y) +
-                    death->position.y,
+                    positionOffset.y,
                 removeScale(unscaled.z, parent.scale.z) +
-                    death->position.z};
+                    positionOffset.z};
             effectOrigin = compose(parent, effectTransform).position;
         }
         RaceEffect impact;
         impact.kind = RaceEventKind::ProjectileImpact;
         impact.origin = effectOrigin;
         impact.target = add(impact.origin, {0.0F, 0.0F, 1.0F});
-        applySourceEffectTiming(impact, timing, death->visual);
+        applySourceEffectTiming(impact, timing, visual);
         impact.weapon = mine.weapon;
         impact.projectile = mine.projectile;
         impact.visualVariant = deathVariant;
-        impact.ignoreRotation = death->ignoreRotation;
+        impact.ignoreRotation = deathPlan.ignoreRotation;
+        impact.sourceImpulse = {
+            deathPlan.impulse[0], deathPlan.impulse[1],
+            deathPlan.impulse[2]};
         impact.sourceVelocity = mine.velocity;
-        impact.sourceDefinition = &death->visual;
+        impact.sourceDefinition = deathPlan.definition;
         impact.sourceEventOwner = deathPlan.owner;
         impact.sourceEventId = deathPlan.effectId;
         if (deathPlan.targetChild && targetRacer < vehicles.size())
@@ -7097,7 +7120,7 @@ void OriginalRaceSession::updateGameplay(
             impact.transform = effectTransform;
         }
         attachSourceLifeEffect(
-            impact, death->visual.soundPaths, mine.owner,
+            impact, visual.soundPaths, mine.owner,
             deathPlan.targetChild && targetRacer < vehicles.size()
                 ? targetRacer
                 : RacerRuntime::invalidWeapon);
@@ -7472,13 +7495,18 @@ void OriginalRaceSession::updateGameplay(
         if (!deathPlan.createEffect ||
             bonusIndex >= race_.bonuses.size())
             return;
+        if (deathPlan.definition == nullptr)
+            return;
         const auto& bonus = race_.bonuses[bonusIndex];
-        const auto& visual = bonus.deathEffect.visual;
+        const auto& visual = *deathPlan.definition;
+        const Vec3 positionOffset{
+            deathPlan.position[0], deathPlan.position[1],
+            deathPlan.position[2]};
         const auto timing = sourceEffectTiming(visual, 0.7F);
         Transform effectTransform;
         Vec3 effectOrigin = add(
             bonus.transform.position,
-            bonus.deathEffect.position);
+            positionOffset);
         if (deathPlan.targetChild && targetRacer < vehicles.size())
         {
             const Transform& parent = vehicles[targetRacer].body;
@@ -7495,11 +7523,11 @@ void OriginalRaceSession::updateGameplay(
             };
             effectTransform.position = {
                 removeScale(unscaled.x, parent.scale.x) +
-                    bonus.deathEffect.position.x,
+                    positionOffset.x,
                 removeScale(unscaled.y, parent.scale.y) +
-                    bonus.deathEffect.position.y,
+                    positionOffset.y,
                 removeScale(unscaled.z, parent.scale.z) +
-                    bonus.deathEffect.position.z};
+                    positionOffset.z};
             effectOrigin = compose(parent, effectTransform).position;
         }
         RaceEffect impact;
@@ -7510,9 +7538,11 @@ void OriginalRaceSession::updateGameplay(
         applySourceEffectTiming(impact, timing, visual);
         impact.weapon = race_.weapons.size();
         impact.bonus = bonusIndex;
-        impact.ignoreRotation =
-            bonus.deathEffect.ignoreRotation;
-        impact.sourceDefinition = &visual;
+        impact.ignoreRotation = deathPlan.ignoreRotation;
+        impact.sourceImpulse = {
+            deathPlan.impulse[0], deathPlan.impulse[1],
+            deathPlan.impulse[2]};
+        impact.sourceDefinition = deathPlan.definition;
         impact.sourceEventOwner = deathPlan.owner;
         impact.sourceEventId = deathPlan.effectId;
         if (deathPlan.targetChild && targetRacer < vehicles.size())
@@ -11725,6 +11755,23 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     [](const DeathEffectDefinition& effect) {
                         return !effect.visual.soundPaths.empty();
                     }));
+            const bool sourceDeathMetadata = std::all_of(
+                deathSession.effects().begin(),
+                deathSession.effects().end(),
+                [&](const RaceEffect& effect) {
+                    if (effect.kind != RaceEventKind::VehicleDestroyed)
+                        return true;
+                    if (effect.vehicleEffect >=
+                        sourceVehicle.deathEffects.size())
+                        return false;
+                    const auto& expected =
+                        sourceVehicle.deathEffects[effect.vehicleEffect];
+                    return effect.sourceDefinition == &expected.visual &&
+                        effect.sourceImpulse.x == expected.impulse.x &&
+                        effect.sourceImpulse.y == expected.impulse.y &&
+                        effect.sourceImpulse.z == expected.impulse.z &&
+                        effect.ignoreRotation == expected.ignoreRotation;
+                });
             if (!deathSession.racers().front().IsDestroyed() ||
                 deathSession.racers().front().GetLife() != 0.0F ||
                 deathSession.racers().front()
@@ -11741,7 +11788,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     sourceVehicle.deathEffects.size() ||
                 sourceDeathEffectCount !=
                     sourceVehicle.deathEffects.size() ||
-                sourceDeathSoundCount != expectedDeathSoundCount)
+                sourceDeathSoundCount != expectedDeathSoundCount ||
+                !sourceDeathMetadata)
             {
                 throw std::runtime_error(
                     "source vehicle death effects/sounds/immediate removal failed");

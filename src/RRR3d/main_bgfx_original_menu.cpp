@@ -15199,10 +15199,6 @@ int main(int argc, char** argv)
                          effectIndex < vehicle.deathEffects.size();
                          ++effectIndex)
                     {
-                        const auto& effect =
-                            vehicle.deathEffects[effectIndex];
-                        if (!effect.visual.dynamicBody)
-                            continue;
                         const auto runtimeEffect = std::find_if(
                             raceSession.effects().begin(),
                             raceSession.effects().end(),
@@ -15214,21 +15210,24 @@ int main(int argc, char** argv)
                                        value.racer == event.target &&
                                        value.vehicleEffect == effectIndex;
                             });
+                        if (runtimeEffect == raceSession.effects().end() ||
+                            runtimeEffect->sourceDefinition == nullptr ||
+                            !runtimeEffect->sourceDefinition->dynamicBody)
+                            continue;
+                        const auto& effect =
+                            *runtimeEffect->sourceDefinition;
                         r3d::physics::DebrisDescription debris;
-                        debris.transform =
-                            runtimeEffect != raceSession.effects().end()
-                                ? runtimeEffect->transform
-                                : raceVehicles[event.target].body;
+                        debris.transform = runtimeEffect->transform;
                         debris.shapePosition =
-                            effect.visual.bodyShapePosition;
+                            effect.bodyShapePosition;
                         debris.shapeRotation =
-                            effect.visual.bodyShapeRotation;
+                            effect.bodyShapeRotation;
                         debris.halfExtents =
-                            effect.visual.bodyHalfExtents;
-                        debris.localImpulse = effect.impulse;
-                        debris.mass = effect.visual.bodyMass;
-                        debris.lifetime =
-                            effect.visual.maximumTimeLife;
+                            effect.bodyHalfExtents;
+                        debris.localImpulse =
+                            runtimeEffect->sourceImpulse;
+                        debris.mass = effect.bodyMass;
+                        debris.lifetime = effect.maximumTimeLife;
                         const auto debrisIndex =
                             physicsWorld->addDebris(debris);
                         if (debrisIndex ==

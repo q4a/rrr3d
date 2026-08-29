@@ -2671,3 +2671,13 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   handle жив, поэтому backend callback не обращается к освобождённой памяти.
 - Respawn заменяет car behavior graph и одновременно отсоединяет callbacks
   старых vehicle-death visuals; detached particle tails остаются безопасны.
+
+### Source DeathEffect configuration/impulse follow-up
+
+- Type-6 behavior теперь владеет всеми полями базового `EventEffect`:
+  visual record, local position, local impulse, `ignoreRot` и sounds.
+- Vehicle/projectile/mine/bonus materialization использует единый snapshot
+  владельца; session descriptor больше не является вторым источником этих
+  параметров.
+- Dynamic car fragments получают source local impulse через Jolt один раз;
+  backend только поворачивает его transform-ом созданного body.

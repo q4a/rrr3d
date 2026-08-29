@@ -242,6 +242,16 @@ void Proj::PrepareSource(
         ConfigureDeathEffect(
             description_.deathEffect.effectPhysicsIgnoreSenderCar,
             description_.deathEffect.targetChild);
+        deathEffect_->ConfigureSource(
+            &description_.deathEffect.visual,
+            {description_.deathEffect.position.x,
+             description_.deathEffect.position.y,
+             description_.deathEffect.position.z},
+            {description_.deathEffect.impulse.x,
+             description_.deathEffect.impulse.y,
+             description_.deathEffect.impulse.z},
+            description_.deathEffect.ignoreRotation,
+            description_.deathEffect.visual.soundPaths);
     }
     prepared_ = true;
 }

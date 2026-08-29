@@ -1996,6 +1996,16 @@ vehicle/bonus/projectile death definition повторно из глобальн
 descriptors. Unit/session regression покрывает callback, retention,
 targetChild, mine/mortar и respawn detach.
 
+### B8ao — DeathEffect source configuration/impulse — выполнено
+
+Type-6 `DeathEffect` хранит inherited visual record, position, impulse,
+`ignoreRot` и sounds вместе с owner/handle. Все четыре materialization path
+потребляют этот snapshot, поэтому изменение или рассинхронизация
+параллельного session descriptor больше не меняет уже созданный actor.
+Vehicle debris передаёт owner impulse в Jolt как local impulse ровно один
+раз. Unit/session regressions проверяют поля concrete behavior, projectile
+PrepareSource, car respawn и active effect identity.
+
 ## Воспроизведение проверки
 
 ```sh

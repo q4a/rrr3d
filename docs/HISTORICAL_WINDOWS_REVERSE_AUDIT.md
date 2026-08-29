@@ -5553,6 +5553,24 @@ visual может закончить жизнь без ссылки на уни�
 Regression покрывает type-6 car graph, targetChild projectile, mine/mortar,
 owner retention/release и отсутствие stale owner после respawn.
 
+### P2.243 — полная source-конфигурация `DeathEffect` возвращена owner-у — выполнено
+
+Прямая сверка `EventEffect::LoadSource/CreateEffect` и
+`DeathEffect::OnDeath` выявила оставшееся расхождение: type-6 behavior уже
+выдавал точный owner/handle, но visual record, local position/impulse и
+`ignoreRot` сессия повторно брала из `Race` descriptor. В Windows все эти
+поля загружаются в унаследованный `EventEffect` и создаваемый `MapObj`
+получает их от behavior-а.
+
+`DeathEffect` и concrete `DeathEffectBehavior` теперь сохраняют полный
+source record, position, impulse, rotation flag и sound catalog.
+`SpawnResult` переносит один согласованный snapshot для vehicle,
+projectile, mine и bonus paths. Session больше не реконструирует эти поля
+из параллельного descriptor-а; Jolt debris использует тот же local impulse
+ровно один раз. Regression проверяет owner metadata, сохранение после
+respawn/PrepareSource и соответствие active vehicle-death actors исходным
+записям.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

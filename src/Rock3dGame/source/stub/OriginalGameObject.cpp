@@ -1840,6 +1840,18 @@ void DeathEffect::Reset(bool effectPhysicsIgnoreSenderCar,
     targetChild_ = targetChild;
 }
 
+void DeathEffect::ConfigureSource(
+    const ObjectDefinition* definition,
+    std::array<float, 3U> position,
+    std::array<float, 3U> impulse,
+    bool ignoreRotation,
+    std::vector<std::string> soundPaths)
+{
+    EventEffect::Configure(
+        definition, position, impulse, ignoreRotation);
+    EventEffect::ConfigureSounds(std::move(soundPaths));
+}
+
 DeathEffect::SpawnResult DeathEffect::OnDeath(
     bool logicAvailable, bool hasTarget,
     bool senderIsWeaponProjectile) noexcept
@@ -1853,6 +1865,10 @@ DeathEffect::SpawnResult DeathEffect::OnDeath(
         effectPhysicsIgnoreSenderCar_ && senderIsWeaponProjectile;
     result.owner = this;
     result.effectId = GetMakeEffectId();
+    result.definition = GetEffectDefinition();
+    result.position = GetPosition();
+    result.impulse = GetImpulse();
+    result.ignoreRotation = GetIgnoreRotation();
     return result;
 }
 
@@ -1905,6 +1921,19 @@ void DeathEffectBehavior::Reset(
     pending_ = {};
     logicAvailable_ = false;
     senderIsWeaponProjectile_ = false;
+}
+
+void DeathEffectBehavior::ConfigureSource(
+    const ObjectDefinition* definition,
+    std::array<float, 3U> position,
+    std::array<float, 3U> impulse,
+    bool ignoreRotation,
+    std::vector<std::string> soundPaths)
+{
+    state_.ConfigureSource(
+        definition, position, impulse, ignoreRotation,
+        std::move(soundPaths));
+    pending_ = {};
 }
 
 void DeathEffectBehavior::SetSpawnContext(

@@ -725,6 +725,10 @@ public:
         bool ignoreSenderCar = false;
         EventEffect* owner = nullptr;
         EffectId effectId = invalidEffect;
+        const ObjectDefinition* definition = nullptr;
+        std::array<float, 3U> position{};
+        std::array<float, 3U> impulse{};
+        bool ignoreRotation = false;
     };
 
     DeathEffect() = default;
@@ -733,6 +737,12 @@ public:
 
     void Reset(bool effectPhysicsIgnoreSenderCar = false,
                bool targetChild = false) noexcept;
+    void ConfigureSource(
+        const ObjectDefinition* definition,
+        std::array<float, 3U> position,
+        std::array<float, 3U> impulse,
+        bool ignoreRotation,
+        std::vector<std::string> soundPaths);
     SpawnResult OnDeath(bool logicAvailable, bool hasTarget,
                         bool senderIsWeaponProjectile) noexcept;
 
@@ -763,6 +773,12 @@ public:
 
     void Reset(bool effectPhysicsIgnoreSenderCar = false,
                bool targetChild = false) noexcept;
+    void ConfigureSource(
+        const ObjectDefinition* definition,
+        std::array<float, 3U> position,
+        std::array<float, 3U> impulse,
+        bool ignoreRotation,
+        std::vector<std::string> soundPaths);
     void SetSpawnContext(bool logicAvailable,
                          bool senderIsWeaponProjectile) noexcept;
     DeathEffect::SpawnResult ConsumeSpawnResult() noexcept;

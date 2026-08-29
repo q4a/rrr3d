@@ -839,6 +839,13 @@ vehicle/projectile/mine/bonus actors. Погибший transient `Proj` оста
 `Logic` до callback последнего death-effect; car respawn отсоединяет ссылки
 старого behavior graph. Renderer читает live owner-definition.
 
+Результат B8ao: унаследованные поля `EventEffect` для type-6 больше не
+остаются session-owned. `DeathEffect` хранит exact visual record, local
+position/impulse, `ignoreRot` и sound catalog, а единый spawn snapshot
+обслуживает car/projectile/mine/bonus. Jolt dynamic debris получает
+локальный импульс из этого snapshot один раз, после поворота body, как
+PhysX `addLocalForce(..., NX_IMPULSE)`.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:

@@ -710,7 +710,13 @@ int main()
         lifeBehavior.ConsumePlayRequest())
         return 97;
 
+    r3d::game::originalrace::ObjectDefinition deathVisual;
+    deathVisual.record = "Effects\\death";
     source::DeathEffect deathEffect(true, true);
+    deathEffect.ConfigureSource(
+        &deathVisual, {1.0F, 2.0F, 3.0F},
+        {4.0F, 5.0F, 6.0F}, true,
+        {"death0.ogg", "death1.ogg"});
     if (deathEffect.OnDeath(false, true, true).createEffect ||
         deathEffect.IsEffectMaked())
         return 40;
@@ -719,6 +725,12 @@ int main()
         !attachedDeath.ignoreSenderCar ||
         attachedDeath.owner != &deathEffect ||
         attachedDeath.effectId == source::EventEffect::invalidEffect ||
+        attachedDeath.definition != &deathVisual ||
+        attachedDeath.position !=
+            std::array<float, 3U>{1.0F, 2.0F, 3.0F} ||
+        attachedDeath.impulse !=
+            std::array<float, 3U>{4.0F, 5.0F, 6.0F} ||
+        !attachedDeath.ignoreRotation ||
         !deathEffect.HasEffect(attachedDeath.effectId) ||
         !deathEffect.IsEffectMaked())
         return 41;

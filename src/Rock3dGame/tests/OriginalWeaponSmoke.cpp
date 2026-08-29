@@ -951,6 +951,9 @@ int main()
     autoOilDescription.visual.record = "Bonus\\maslo";
     autoOilDescription.deathEffect.visual.record =
         "Effect\\bonusDeath";
+    autoOilDescription.deathEffect.position = {1.0F, 2.0F, 3.0F};
+    autoOilDescription.deathEffect.impulse = {4.0F, 5.0F, 6.0F};
+    autoOilDescription.deathEffect.ignoreRotation = true;
     autoOilDescription.deathEffect.targetChild = true;
     autoOilDescription.deathEffect.effectPhysicsIgnoreSenderCar = true;
     autoOil.Reset(autoOilDescription);
@@ -1008,6 +1011,19 @@ int main()
     if (autoOil.IsArming() ||
         std::abs(autoOil.GetModelScale() - 1.0F) > 0.001F)
         return 65;
+    const auto autoOilDeath = autoOil.DestroyWithEffect(
+        nullptr, true, true);
+    if (!autoOilDeath.createEffect ||
+        autoOilDeath.definition !=
+            &autoOil.GetDesc().deathEffect.visual ||
+        autoOilDeath.position !=
+            std::array<float, 3U>{1.0F, 2.0F, 3.0F} ||
+        autoOilDeath.impulse !=
+            std::array<float, 3U>{4.0F, 5.0F, 6.0F} ||
+        !autoOilDeath.ignoreRotation)
+        return 199;
+    if (!autoOilDeath.owner->OnDestroyEffect(autoOilDeath.effectId))
+        return 200;
     autoOil.SetLogic(nullptr);
     if (autoOil.IsPrepared() || autoOil.GetLogic() != nullptr)
         return 66;

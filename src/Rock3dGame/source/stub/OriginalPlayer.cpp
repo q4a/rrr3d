@@ -183,11 +183,19 @@ void Player::BindSourceBehaviors()
             carRecord_->deathEffects.size());
         for (const auto& effect : carRecord_->deathEffects)
         {
-            vehicleDeathEffects_.push_back(
-                &behaviors.Add<DeathEffectBehavior>(
-                    BehaviorType::DeathEffect,
-                    effect.effectPhysicsIgnoreSenderCar,
-                    effect.targetChild));
+            auto& behavior = behaviors.Add<DeathEffectBehavior>(
+                BehaviorType::DeathEffect,
+                effect.effectPhysicsIgnoreSenderCar,
+                effect.targetChild);
+            behavior.ConfigureSource(
+                &effect.visual,
+                {effect.position.x, effect.position.y,
+                 effect.position.z},
+                {effect.impulse.x, effect.impulse.y,
+                 effect.impulse.z},
+                effect.ignoreRotation,
+                effect.visual.soundPaths);
+            vehicleDeathEffects_.push_back(&behavior);
         }
     }
     // DataBase::LoadCar inserts ImmortalEffect before DamageEffect.
