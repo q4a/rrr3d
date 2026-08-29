@@ -846,6 +846,13 @@ position/impulse, `ignoreRot` и sound catalog, а единый spawn snapshot
 локальный импульс из этого snapshot один раз, после поворота body, как
 PhysX `addLocalForce(..., NX_IMPULSE)`.
 
+Результат B8ap: `Proj::_model/_model2` снова являются concrete include
+objects, а не именами, заново материализуемыми session. При смерти только
+реально созданный child с `FxSystemWaitingEnd` отсоединяется в своём точном
+world transform и удерживает копию source record до конца частиц. Generic
+impact больше не создаёт `model3`: Frost использует его исключительно как
+car-owned `SlowEffect`, MineRip — через исходный explicit nested spawn.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:

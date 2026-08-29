@@ -5571,6 +5571,26 @@ projectile, mine и bonus paths. Session больше не реконструи�
 respawn/PrepareSource и соответствие active vehicle-death actors исходным
 записям.
 
+### P2.244 — lifecycle вложенных `Proj::_model/_model2` возвращён — выполнено
+
+Сверка `Proj::InitProj`, `Proj::ProgressLaser` и `Proj::OnDeath` выявила
+ложную реконструкцию: portable session создавал `model2` и `model3` при
+каждом impact/expiry по глобальному projectile descriptor. В Windows
+include-объектами `Proj` являются только реально инициализированные
+`_model/_model2`; `FxSystemWaitingEnd` отсоединяется в точном последнем
+world transform. Поле `model3` для Frost устанавливается на машине только
+как `SlowEffect`, а MineRip создаёт свои model2/model3 явно как новые
+автономные `MapObj`.
+
+`Proj` теперь формирует release plan только из существующих include models
+с waiting-end emitters и сохраняет их точные position/rotation/scale.
+Session копирует конкретный `MapObjRec` в shared owner, поэтому record живёт
+до окончания backend effect даже после удаления `Proj`. Универсальное
+создание descriptor `model2/model3` удалено: хвосты laser/frost остаются в
+точке попадания, Frost model3 больше не возникает в мире при expiry.
+Unit/session regression проверяет endpoint transform, lifetime ownership и
+исключение никогда не инициализированного model3.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

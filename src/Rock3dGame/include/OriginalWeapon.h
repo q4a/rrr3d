@@ -189,6 +189,19 @@ public:
         bool spawn = false;
     };
 
+    // GameObject::DoDeath propagates Death to both initialized include
+    // models. Only children with FxSystemWaitingEnd resurrect into the
+    // world; model3 is never an initialized Proj child (Frost installs it
+    // on the contacted car instead).
+    struct SourceModelRelease
+    {
+        ObjectDefinition definition;
+        Vec3 position;
+        Quat rotation;
+        Vec3 scale{1.0F, 1.0F, 1.0F};
+        bool secondary = false;
+    };
+
     struct ImpulseContactResult
     {
         float damage = 0.0F;
@@ -539,6 +552,8 @@ public:
         std::span<const ProjectileDefinition> weaponProjectiles,
         const DeathEffect::SpawnResult& deathEffect,
         const RandomUnitSource& randomUnit) const;
+    std::vector<SourceModelRelease>
+        BuildSourceModelReleasePlan() const;
     LaunchResult PrepareLaunch(
         Vec3 worldDirection, Vec3 weaponVelocity) noexcept;
     float PrepareMaximumLife(

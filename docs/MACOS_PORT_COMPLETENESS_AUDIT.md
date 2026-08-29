@@ -2006,6 +2006,18 @@ Vehicle debris передаёт owner impulse в Jolt как local impulse ро�
 раз. Unit/session regressions проверяют поля concrete behavior, projectile
 PrepareSource, car respawn и active effect identity.
 
+### B8ap — Proj include-model release ownership — выполнено
+
+Portable session больше не создаёт projectile `model2/model3` безусловно
+из descriptor при impact. `Proj` возвращает release plan только для
+действительно инициализированных `_model/_model2` с
+`FxSystemWaitingEnd`, включая их точный world position/rotation/scale.
+`RaceEffect` удерживает shared concrete definition после удаления owner.
+Frost model3 исключён из generic death path и остаётся только динамическим
+`SlowEffect`; MineRip nested models по-прежнему создаёт явный source split.
+Regression покрывает laser endpoint, strict lifetime expiry и отсутствие
+ложного tertiary actor.
+
 ## Воспроизведение проверки
 
 ```sh

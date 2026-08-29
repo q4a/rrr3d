@@ -2681,3 +2681,13 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   параметров.
 - Dynamic car fragments получают source local impulse через Jolt один раз;
   backend только поворачивает его transform-ом созданного body.
+
+### Source projectile include-model release follow-up
+
+- `Proj` освобождает только реально созданные `_model/_model2`, если их
+  particle behavior имеет исходный `FxSystemWaitingEnd`.
+- Released child сохраняет точный последний world transform и shared-копию
+  своего source definition после уничтожения владельца-снаряда.
+- Универсальный impact больше не создаёт descriptor `model3`: Frost model3
+  остаётся `SlowEffect` цели, а MineRip model2/model3 появляются только в
+  исходном explicit split path.

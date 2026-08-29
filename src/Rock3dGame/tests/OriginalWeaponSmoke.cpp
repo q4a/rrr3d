@@ -171,6 +171,13 @@ int main()
         {0.0F, 0.0F, 0.70710677F, 0.70710677F};
     sourceDescription.visual.record = "Effect\\laserModel";
     sourceDescription.secondaryVisual.record = "Effect\\laserModel2";
+    sourceDescription.secondaryVisual.particleEmitters.emplace_back();
+    sourceDescription.secondaryVisual.particleEmitters.back()
+        .waitForParticleEnd = true;
+    sourceDescription.tertiaryVisual.record = "Effect\\slowOnlyModel3";
+    sourceDescription.tertiaryVisual.particleEmitters.emplace_back();
+    sourceDescription.tertiaryVisual.particleEmitters.back()
+        .waitForParticleEnd = true;
     source::GameObject sourceCar;
     source::Weapon sourceWeapon;
     sourceWeapon.SetParent(&sourceCar);
@@ -231,6 +238,18 @@ int main()
         std::abs(concreteLaser.damage - 0.9F) > 0.001F ||
         std::abs(concreteLaser.beamWidthScale - 0.5F) > 0.001F)
         return 120;
+    const auto sourceModelReleasePlan =
+        linkedProjectile.BuildSourceModelReleasePlan();
+    if (sourceModelReleasePlan.size() != 1U ||
+        !sourceModelReleasePlan.front().secondary ||
+        sourceModelReleasePlan.front().definition.record !=
+            sourceDescription.secondaryVisual.record ||
+        !nearVector(
+            {sourceModelReleasePlan.front().position.x,
+             sourceModelReleasePlan.front().position.y,
+             sourceModelReleasePlan.front().position.z},
+            {54.0F, 15.0F, 16.0F}))
+        return 201;
     linkedProjectile.ProgressLaser(
         100.0F, false, 0.0F, 0.1F, true,
         {1.0F, 0.0F, 0.0F});

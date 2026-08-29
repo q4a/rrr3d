@@ -1019,6 +1019,42 @@ Proj::MineRipSplitPlan Proj::BuildMineRipSplitPlan(
     return result;
 }
 
+std::vector<Proj::SourceModelRelease>
+Proj::BuildSourceModelReleasePlan() const
+{
+    std::vector<SourceModelRelease> result;
+    const auto append = [&](const MapObj* model,
+                            const ObjectDefinition& definition,
+                            bool secondary) {
+        if (model == nullptr ||
+            std::none_of(
+                definition.particleEmitters.begin(),
+                definition.particleEmitters.end(),
+                [](const ParticleEmitterDefinition& emitter) {
+                    return emitter.waitForParticleEnd;
+                }))
+        {
+            return;
+        }
+        const auto& object = model->GetGameObj();
+        const auto position = object.GetWorldPos();
+        const auto rotation = object.GetWorldRot();
+        const auto scale = object.GetWorldScale();
+        SourceModelRelease release;
+        release.definition = definition;
+        release.position = {
+            position[0], position[1], position[2]};
+        release.rotation = {
+            rotation[0], rotation[1], rotation[2], rotation[3]};
+        release.scale = {scale[0], scale[1], scale[2]};
+        release.secondary = secondary;
+        result.push_back(std::move(release));
+    };
+    append(sourceModel_, description_.visual, false);
+    append(sourceModel2_, description_.secondaryVisual, true);
+    return result;
+}
+
 Proj::DeathProjectileSpawnPlan
 Proj::BuildDeathProjectileSpawnPlan(
     std::span<const ProjectileDefinition> weaponProjectiles,

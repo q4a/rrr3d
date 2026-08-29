@@ -269,6 +269,10 @@ struct RaceEffect
     // is a non-owning source record reference; Race owns the catalog for the
     // complete session just as MapObjRec::Object did on Windows.
     const ObjectDefinition* sourceDefinition = nullptr;
+    // Resurrected Proj include models outlive their concrete Proj owner.
+    // Windows MapObjRec is reference-counted; retain the equivalent parsed
+    // record when the portable source owner is about to be released.
+    std::shared_ptr<const ObjectDefinition> sourceDefinitionOwner;
     // EventEffect::GameObjEvent::OnDestroy callback target. Transient Logic
     // owners are retained while this identity is live; actors rebuilt at a
     // car respawn detach the callback before replacing their behavior graph.

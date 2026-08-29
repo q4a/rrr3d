@@ -5001,6 +5001,8 @@ void OriginalRaceSession::updateGameplay(
             const auto* definition =
                 &projectile.sourceObject->GetDesc();
             const bool hasSourceDeathEffect = hasDeathEffect(*definition);
+            const auto sourceModelReleases =
+                projectile.sourceObject->BuildSourceModelReleasePlan();
             source::GameObject* targetObject = nullptr;
             if (targetRacer < racerMapObjects_.size() &&
                 racerMapObjects_[targetRacer] != nullptr)
@@ -5024,9 +5026,14 @@ void OriginalRaceSession::updateGameplay(
                     bool targetChild = false,
                     source::EventEffect* eventOwner = nullptr,
                     source::EventEffect::EffectId eventId =
-                        source::EventEffect::invalidEffect) {
+                        source::EventEffect::invalidEffect,
+                    std::shared_ptr<const ObjectDefinition>
+                        definitionOwner = nullptr,
+                    const Transform* exactTransform = nullptr) {
                     Transform effectTransform;
-                    Vec3 effectOrigin = add(position, offset);
+                    Vec3 effectOrigin = exactTransform != nullptr
+                        ? exactTransform->position
+                        : add(position, offset);
                     if (targetChild && targetRacer < vehicles.size())
                     {
                         const Transform& parent =
@@ -5062,8 +5069,13 @@ void OriginalRaceSession::updateGameplay(
                     RaceEffect impact;
                     impact.kind = RaceEventKind::ProjectileImpact;
                     impact.origin = effectOrigin;
-                    impact.target =
-                        add(impact.origin, projectile.direction);
+                    impact.target = exactTransform != nullptr
+                        ? add(
+                              impact.origin,
+                              rotate(
+                                  exactTransform->rotation,
+                                  {1.0F, 0.0F, 0.0F}))
+                        : add(impact.origin, projectile.direction);
                     applySourceEffectTiming(impact, timing, visual);
                     impact.weapon = projectile.weapon;
                     impact.projectile = projectile.projectile;
@@ -5071,12 +5083,16 @@ void OriginalRaceSession::updateGameplay(
                     impact.ignoreRotation = ignoreRotation;
                     impact.sourceImpulse = impulse;
                     impact.sourceVelocity = projectile.velocity;
-                    if (eventOwner != nullptr)
-                    {
-                        impact.sourceDefinition = &visual;
-                        impact.sourceEventOwner = eventOwner;
-                        impact.sourceEventId = eventId;
-                    }
+                    impact.sourceDefinitionOwner =
+                        std::move(definitionOwner);
+                    impact.sourceDefinition =
+                        impact.sourceDefinitionOwner != nullptr
+                            ? impact.sourceDefinitionOwner.get()
+                            : &visual;
+                    impact.sourceEventOwner = eventOwner;
+                    impact.sourceEventId = eventId;
+                    if (exactTransform != nullptr)
+                        impact.transform = *exactTransform;
                     if (targetChild && targetRacer < vehicles.size())
                     {
                         impact.parentRacer = targetRacer;
@@ -5090,8 +5106,30 @@ void OriginalRaceSession::updateGameplay(
                     effects_.push_back(std::move(impact));
                     return true;
                 };
-            addVisual(definition->secondaryVisual, 1U);
-            addVisual(definition->tertiaryVisual, 2U);
+            for (const auto& release : sourceModelReleases)
+            {
+                auto ownedDefinition =
+                    std::make_shared<ObjectDefinition>(
+                        release.definition);
+                Transform exactTransform;
+                exactTransform.position = {
+                    release.position.x, release.position.y,
+                    release.position.z};
+                exactTransform.rotation = {
+                    release.rotation.x, release.rotation.y,
+                    release.rotation.z, release.rotation.w};
+                exactTransform.scale = {
+                    release.scale.x, release.scale.y,
+                    release.scale.z};
+                const auto& ownedVisual = *ownedDefinition;
+                addVisual(
+                    ownedVisual,
+                    release.secondary ? 1U : 4U,
+                    {}, {}, false, false, nullptr,
+                    source::EventEffect::invalidEffect,
+                    ownedDefinition,
+                    &exactTransform);
+            }
             if (deathPlan.createEffect &&
                 deathPlan.definition != nullptr)
             {
@@ -14175,6 +14213,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 lifetimeSession.projectiles().end(), isLifetimeRay);
             if (lifetimeRay == lifetimeSession.projectiles().end() ||
                 lifetimeRay->sourceObject == nullptr ||
+                lifetimeRay->sourceObject->GetSourceModel2() == nullptr ||
                 lifetimeRay->sourceObject->GetMaxTimeLife() <= 0.0F)
             {
                 throw std::runtime_error(
@@ -14202,6 +14241,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     "source GameObject lifetime/laser sampler state "
                     "failed at equality");
             }
+            const auto sourceModel2Position =
+                lifetimeRay->sourceObject->GetSourceModel2()
+                    ->GetGameObj().GetWorldPos();
             lifetimeSession.update(
                 0.001F, lifetimeVehicles, lifetimeInput);
             lifetimeRay = std::find_if(
@@ -14212,6 +14254,46 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 throw std::runtime_error(
                     "source GameObject strict lifetime did not expire "
                     "after crossing the limit");
+            }
+            const auto releasedModel2 = std::find_if(
+                lifetimeSession.effects().begin(),
+                lifetimeSession.effects().end(),
+                [&](const RaceEffect& effect) {
+                    return effect.kind ==
+                               RaceEventKind::ProjectileImpact &&
+                           effect.weapon == lifetimeWeapon &&
+                           effect.projectile == 0U &&
+                           effect.visualVariant == 1U &&
+                           effect.sourceDefinitionOwner != nullptr &&
+                           effect.sourceDefinition ==
+                               effect.sourceDefinitionOwner.get() &&
+                           effect.sourceDefinition->record ==
+                               lifetimeDefinition.secondaryVisual.record;
+                });
+            const bool releasedUnexpectedModel3 = std::any_of(
+                lifetimeSession.effects().begin(),
+                lifetimeSession.effects().end(),
+                [&](const RaceEffect& effect) {
+                    return effect.kind ==
+                               RaceEventKind::ProjectileImpact &&
+                           effect.weapon == lifetimeWeapon &&
+                           effect.projectile == 0U &&
+                           effect.visualVariant == 2U;
+                });
+            if (releasedModel2 == lifetimeSession.effects().end() ||
+                releasedUnexpectedModel3 ||
+                std::abs(
+                    releasedModel2->origin.x -
+                    sourceModel2Position[0]) > 0.001F ||
+                std::abs(
+                    releasedModel2->origin.y -
+                    sourceModel2Position[1]) > 0.001F ||
+                std::abs(
+                    releasedModel2->origin.z -
+                    sourceModel2Position[2]) > 0.001F)
+            {
+                throw std::runtime_error(
+                    "source Proj model2 release/model3 exclusion failed");
             }
 
             OriginalRaceSession destroySession(lifetimeRace);
