@@ -675,6 +675,7 @@ public:
         std::array<float, 3U> position = {},
         std::array<float, 3U> impulse = {},
         bool ignoreRotation = false) noexcept;
+    void ConfigureSounds(std::vector<std::string> soundPaths);
     void Reset() noexcept;
     bool MakeEffect() noexcept;
     bool FreeEffect() noexcept;
@@ -685,6 +686,8 @@ public:
     const std::array<float, 3U>& GetPosition() const noexcept;
     const std::array<float, 3U>& GetImpulse() const noexcept;
     bool GetIgnoreRotation() const noexcept;
+    const std::vector<std::string>& GetSoundPaths() const noexcept;
+    const std::string* SelectSoundPath(float randomUnit) const noexcept;
 
 private:
     const ObjectDefinition* definition_ = nullptr;
@@ -692,6 +695,7 @@ private:
     std::array<float, 3U> impulse_{};
     bool ignoreRotation_ = false;
     bool effectMaked_ = false;
+    std::vector<std::string> soundPaths_;
 };
 
 // Backend-neutral transcription of GameBase::DeathEffect.  The caller owns
@@ -779,14 +783,18 @@ public:
     explicit LifeEffectBehavior(Behaviors* owner) noexcept;
 
     void OnProgress(float deltaTime) noexcept override;
+    void ConfigureSounds(std::vector<std::string> soundPaths);
     void SetSourceAvailable(bool value) noexcept;
+    void SetSoundSelectionUnit(float value) noexcept;
     bool HasPlayed() const noexcept;
-    bool ConsumePlayRequest() noexcept;
+    const std::vector<std::string>& GetSoundPaths() const noexcept;
+    const std::string* ConsumePlayRequest() noexcept;
 
 private:
     LifeEffect state_;
     bool sourceAvailable_ = false;
-    bool playRequested_ = false;
+    float soundSelectionUnit_ = 0.0F;
+    const std::string* playRequest_ = nullptr;
 };
 
 // Backend-neutral state owned by the original GameBase behavior classes.

@@ -553,12 +553,15 @@ int main()
         exactReleased[1U].stopSound)
         return 82;
     source::GameCar copiedWheelCar = car;
+    const auto copiedSlip = copiedWheelCar.GetWheelSlipResult(0U);
     if (copiedWheelCar.GetWheelCount() != 2U ||
         copiedWheelCar.GetWheel(0U) == nullptr ||
         copiedWheelCar.GetWheel(0U)->GetParent() != &copiedWheelCar ||
         !copiedWheelCar.GetWheel(0U)->HasSlipEffect() ||
         copiedWheelCar.GetWheel(0U)->GetListenerCount() != 1U ||
-        !copiedWheelCar.GetWheelSlipResult(0U).active ||
+        !copiedSlip.active || copiedSlip.soundPath == nullptr ||
+        copiedSlip.soundPath == ownedSlip.soundPath ||
+        *copiedSlip.soundPath != *ownedSlip.soundPath ||
         copiedWheelCar.GetKSteerControl() != 0.12F ||
         copiedWheelCar.GetTireSpring() != 2.5F ||
         !copiedWheelCar.GetDisableColor() ||

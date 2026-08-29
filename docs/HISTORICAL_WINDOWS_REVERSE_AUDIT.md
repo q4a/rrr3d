@@ -5477,6 +5477,23 @@ position, impulse, ignoreRot, sound catalog и Make/Free state. Renderer
 identity, порядок, звук только trail, независимый release и реальные
 одно-/двух-behavior варианты всего car catalog.
 
+### P2.239 — `EventEffect/LifeEffect` sound catalog возвращён owner-у — выполнено
+
+Сверка `EventEffect::AddSound/GiveSource3d` и `LifeEffect::OnProgress`
+подтвердила ещё одно раздвоение состояния: portable `RaceEffect` хранил
+`lifeSoundPaths` рядом с concrete type-7 behavior и сам выбирал случайный
+звук. В исходнике каталог `_sounds`, ленивый выбор Source3d и one-shot
+`_play` принадлежат одному behavior graph.
+
+`EventEffect` теперь владеет serialized sound catalog и исходным
+равномерным выбором. `LifeEffectBehavior` хранит каталог, выбранный sound
+reference и одноразовый Play request; session только сообщает backend
+availability/position/lifetime и переводит request в SDL. Параллельный
+`RaceEffect::lifeSoundPaths` удалён. Тем же общим владельцем теперь
+пользуются `ShotEffect` и `PxWheelSlipEffect`, а копирование колеса
+перепривязывает sound reference к каталогу новой копии. В `db.xml`
+подтверждены все 6 type-7 записей: каждая имеет ровно один sound.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

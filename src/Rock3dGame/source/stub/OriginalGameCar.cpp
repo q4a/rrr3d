@@ -1540,7 +1540,7 @@ void PxWheelSlipEffect::Configure(
 {
     eventEffect_.Configure(
         definition, position, impulse, ignoreRotation);
-    soundPaths_ = soundPaths;
+    eventEffect_.ConfigureSounds(soundPaths);
 }
 
 float PxWheelSlipEffect::SourceSlip(
@@ -1566,8 +1566,8 @@ PxWheelSlipEffect::ProgressResult PxWheelSlipEffect::OnProgress(
     result.position = eventEffect_.GetPosition();
     result.impulse = eventEffect_.GetImpulse();
     result.ignoreRotation = eventEffect_.GetIgnoreRotation();
-    if (hasSound && !soundPaths_.empty())
-        result.soundPath = &soundPaths_.front();
+    if (hasSound && !eventEffect_.GetSoundPaths().empty())
+        result.soundPath = &eventEffect_.GetSoundPaths().front();
     result.slip = SourceSlip(
         hasContact, longitudinalSlip, lateralSlip);
     result.volume = std::clamp(result.slip * volumeScale, 0.0F, 1.0F);
@@ -1601,7 +1601,7 @@ PxWheelSlipEffect::GetEffectDefinition() const noexcept
 const std::vector<std::string>&
 PxWheelSlipEffect::GetSoundPaths() const noexcept
 {
-    return soundPaths_;
+    return eventEffect_.GetSoundPaths();
 }
 
 class CarWheel::WheelSlipBehavior final : public Behavior
@@ -1661,6 +1661,17 @@ CarWheel& CarWheel::operator=(const CarWheel& other) noexcept
     GameObject::operator=(other);
     slipEffects_ = other.slipEffects_;
     slipResults_ = other.slipResults_;
+    for (std::size_t effect = 0U;
+         effect < slipEffects_.size() &&
+         effect < slipResults_.size(); ++effect)
+    {
+        if (slipResults_[effect].soundPath != nullptr &&
+            !slipEffects_[effect].GetSoundPaths().empty())
+        {
+            slipResults_[effect].soundPath =
+                &slipEffects_[effect].GetSoundPaths().front();
+        }
+    }
     longitudinalSlip_ = other.longitudinalSlip_;
     lateralSlip_ = other.lateralSlip_;
     normalReaction_ = other.normalReaction_;

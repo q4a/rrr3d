@@ -815,6 +815,12 @@ lookup по weapon/projectile индексам удалён.
 record/pos/sound полями. bgfx/SDL потребляют отдельные owner states; ложный
 SkidAsphalt на беззвучных колёсах удалён.
 
+Результат B8ak: `EventEffect::_sounds` восстановлен как общий каталог
+concrete behavior. `LifeEffect` сам выбирает свой Source3d reference и
+выдаёт один Play request; `RaceEffect` больше не хранит параллельный список.
+`ShotEffect` и `PxWheelSlipEffect` используют тот же owner API, SDL остаётся
+только backend источника/позиционирования.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:

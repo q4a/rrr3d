@@ -198,7 +198,6 @@ void attachSourceLifeEffect(
     std::size_t racer = RacerRuntime::invalidWeapon,
     std::size_t followRacer = RacerRuntime::invalidWeapon)
 {
-    effect.lifeSoundPaths = sounds;
     effect.lifeSoundRacer = racer;
     effect.lifeSoundFollowRacer = followRacer;
     if (!sounds.empty())
@@ -206,6 +205,7 @@ void attachSourceLifeEffect(
         effect.lifeEffect = &effect.effectOwner->GetBehaviors()
             .Add<source::LifeEffectBehavior>(
                 source::BehaviorType::LifeEffect);
+        effect.lifeEffect->ConfigureSounds(sounds);
     }
 }
 
@@ -8375,7 +8375,12 @@ void OriginalRaceSession::update(
         if (effect.lifeEffect != nullptr)
         {
             effect.lifeEffect->SetSourceAvailable(
-                !effect.lifeSoundPaths.empty());
+                !effect.lifeEffect->GetSoundPaths().empty());
+            if (!effect.lifeEffect->HasPlayed())
+            {
+                effect.lifeEffect->SetSoundSelectionUnit(
+                    sourceUniformRandomUnit());
+            }
         }
         if (effect.sourceSpeed != nullptr)
         {
@@ -8404,8 +8409,10 @@ void OriginalRaceSession::update(
             effect.sourceVelocity = {
                 velocity.x, velocity.y, velocity.z};
         }
-        if (effect.lifeEffect != nullptr &&
-            effect.lifeEffect->ConsumePlayRequest())
+        const auto* lifeSound = effect.lifeEffect != nullptr
+            ? effect.lifeEffect->ConsumePlayRequest()
+            : nullptr;
+        if (lifeSound != nullptr)
         {
             RaceEvent sound;
             sound.kind = RaceEventKind::EffectSound;
@@ -8417,10 +8424,7 @@ void OriginalRaceSession::update(
                     vehicles[effect.parentRacer].body,
                     effect.transform).position;
             }
-            sound.soundPath = effect.lifeSoundPaths[
-                sourceUniformRandomIndex(
-                    effect.lifeSoundPaths.size(),
-                    sourceUniformRandomUnit())];
+            sound.soundPath = *lifeSound;
             sound.soundLifetimeSeconds =
                 std::max(effect.seconds, 0.001F);
             sound.soundFollowRacer =

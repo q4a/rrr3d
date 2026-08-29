@@ -2260,6 +2260,7 @@ std::uint32_t AutoProj::GetType() const noexcept
 void ShotEffect::Configure(ShotEffectDefinition definition)
 {
     definition_ = std::move(definition);
+    ConfigureSounds(definition_.soundPaths);
     Reset();
 }
 
@@ -2275,7 +2276,7 @@ ShotEffect::SpawnResult ShotEffect::OnShot(
     ++shotCount_;
     SpawnResult result;
     result.createEffect = !definition_.visual.record.empty();
-    result.playSound = !definition_.soundPaths.empty();
+    result.playSound = !GetSoundPaths().empty();
     result.position = {
         definition_.position.x + position[0],
         definition_.position.y + position[1],
@@ -2301,14 +2302,9 @@ const ShotEffectDefinition& ShotEffect::GetDefinition() const noexcept
 std::string_view ShotEffect::SelectSound(
     float randomUnit) const noexcept
 {
-    if (definition_.soundPaths.empty())
-        return {};
-    const float unit = std::clamp(randomUnit, 0.0F, 1.0F);
-    const auto index = std::min(
-        static_cast<std::size_t>(
-            static_cast<float>(definition_.soundPaths.size()) * unit),
-        definition_.soundPaths.size() - 1U);
-    return definition_.soundPaths[index];
+    const auto* sound = SelectSoundPath(randomUnit);
+    return sound != nullptr ? std::string_view{*sound}
+                            : std::string_view{};
 }
 
 ShotEffectBehavior::ShotEffectBehavior(Behaviors* owner) noexcept

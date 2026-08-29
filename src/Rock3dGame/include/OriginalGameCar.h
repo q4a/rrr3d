@@ -498,7 +498,6 @@ public:
 
 private:
     EventEffect eventEffect_;
-    std::vector<std::string> soundPaths_;
 };
 
 // GameCar owns one source CarWheel GameObject per serialized wheel. The Jolt

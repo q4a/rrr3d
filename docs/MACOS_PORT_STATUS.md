@@ -2633,3 +2633,12 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   принадлежат concrete `CarWheel` behaviors.
 - SDL больше не создаёт SkidAsphalt для silent behaviors; fading smoke
   отсоединяется в последней contact position и не едет вслед за колесом.
+
+### Source EventEffect/LifeEffect sound ownership follow-up
+
+- Serialized `sounds` теперь принадлежат portable `EventEffect`, как
+  `_sounds` в Windows, а не соседнему session DTO.
+- `LifeEffectBehavior` выполняет one-shot выбор/Play transition; session
+  передаёт SDL только уже выбранный path, world position и lifetime.
+- Type-7 catalog проверен целиком (6 behaviors/6 sounds); ShotEffect и
+  PxWheelSlipEffect переведены на тот же общий owner API.

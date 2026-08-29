@@ -625,9 +625,15 @@ int main()
         return 33;
 
     source::EventEffect eventEffect;
+    eventEffect.ConfigureSounds({"sound0.ogg", "sound1.ogg", "sound2.ogg"});
     if (!eventEffect.MakeEffect() || eventEffect.MakeEffect() ||
         !eventEffect.IsEffectMaked() || !eventEffect.FreeEffect() ||
-        eventEffect.FreeEffect() || eventEffect.IsEffectMaked())
+        eventEffect.FreeEffect() || eventEffect.IsEffectMaked() ||
+        eventEffect.GetSoundPaths().size() != 3U ||
+        eventEffect.SelectSoundPath(0.0F) == nullptr ||
+        *eventEffect.SelectSoundPath(0.0F) != "sound0.ogg" ||
+        *eventEffect.SelectSoundPath(1.0F / 3.0F) != "sound1.ogg" ||
+        *eventEffect.SelectSoundPath(1.0F) != "sound2.ogg")
         return 36;
     eventEffect.MakeEffect();
     if (!eventEffect.OnDestroyEffect() ||
@@ -674,13 +680,17 @@ int main()
         behaviorSoundOwner.GetBehaviors()
             .Add<source::LifeEffectBehavior>(
                 source::BehaviorType::LifeEffect);
+    lifeBehavior.ConfigureSounds({"life0.ogg", "life1.ogg"});
+    lifeBehavior.SetSourceAvailable(false);
     behaviorSoundOwner.OnProgress(0.1F);
     if (lifeBehavior.HasPlayed() || lifeBehavior.ConsumePlayRequest())
         return 96;
     lifeBehavior.SetSourceAvailable(true);
+    lifeBehavior.SetSoundSelectionUnit(0.75F);
     behaviorSoundOwner.OnProgress(0.1F);
-    if (!lifeBehavior.HasPlayed() ||
-        !lifeBehavior.ConsumePlayRequest() ||
+    const auto* selectedLifeSound = lifeBehavior.ConsumePlayRequest();
+    if (!lifeBehavior.HasPlayed() || selectedLifeSound == nullptr ||
+        *selectedLifeSound != "life1.ogg" ||
         lifeBehavior.ConsumePlayRequest())
         return 97;
 

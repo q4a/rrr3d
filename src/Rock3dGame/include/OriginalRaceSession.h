@@ -303,7 +303,6 @@ struct RaceEffect
     // to the event which spawned it. They start from the first progress
     // callback and share the spawned object's lifetime/attachment.
     source::LifeEffectBehavior* lifeEffect = nullptr;
-    std::vector<std::string> lifeSoundPaths;
     std::size_t lifeSoundRacer = RacerRuntime::invalidWeapon;
     std::size_t lifeSoundFollowRacer = RacerRuntime::invalidWeapon;
 };

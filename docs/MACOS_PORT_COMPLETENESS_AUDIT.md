@@ -1956,6 +1956,15 @@ type-9 записи из `db.xml`, включая варианты только 
 SDL не запускает звук для silent owner, а renderer использует отдельные
 active/release состояния и последнюю world contact position.
 
+### B8ak — EventEffect/LifeEffect sound owner — выполнено
+
+Общий `EventEffect` хранит serialized sound catalog и выбирает запись по
+source RandomRange mapping. `LifeEffectBehavior` владеет каталогом и
+одноразовым Play request, поэтому `RaceEffect::lifeSoundPaths` удалён.
+Session/SDL отвечают только за доступность voice, 3D position и lifetime.
+ShotEffect/PxWheelSlipEffect используют этот же каталог; copy regression
+исключает ссылку колеса на sound vector исходного объекта.
+
 ## Воспроизведение проверки
 
 ```sh

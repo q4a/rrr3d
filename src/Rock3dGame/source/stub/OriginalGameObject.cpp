@@ -1692,6 +1692,12 @@ void EventEffect::Configure(
     Reset();
 }
 
+void EventEffect::ConfigureSounds(
+    std::vector<std::string> soundPaths)
+{
+    soundPaths_ = std::move(soundPaths);
+}
+
 void EventEffect::Reset() noexcept
 {
     effectMaked_ = false;
@@ -1753,6 +1759,29 @@ const std::array<float, 3U>& EventEffect::GetImpulse() const noexcept
 bool EventEffect::GetIgnoreRotation() const noexcept
 {
     return ignoreRotation_;
+}
+
+const std::vector<std::string>&
+EventEffect::GetSoundPaths() const noexcept
+{
+    return soundPaths_;
+}
+
+const std::string* EventEffect::SelectSoundPath(
+    float randomUnit) const noexcept
+{
+    if (soundPaths_.empty())
+        return nullptr;
+    const float normalized = std::isfinite(randomUnit)
+        ? std::clamp(
+              randomUnit, 0.0F,
+              std::nextafter(1.0F, 0.0F))
+        : 0.0F;
+    const auto index = std::min(
+        soundPaths_.size() - 1U,
+        static_cast<std::size_t>(
+            normalized * static_cast<float>(soundPaths_.size())));
+    return &soundPaths_[index];
 }
 
 DeathEffect::DeathEffect(bool effectPhysicsIgnoreSenderCar,
@@ -1891,8 +1920,17 @@ LifeEffectBehavior::LifeEffectBehavior(Behaviors* owner) noexcept
 
 void LifeEffectBehavior::OnProgress(float) noexcept
 {
-    playRequested_ =
-        state_.OnProgress(sourceAvailable_) || playRequested_;
+    if (state_.OnProgress(sourceAvailable_))
+        playRequest_ = state_.SelectSoundPath(soundSelectionUnit_);
+}
+
+void LifeEffectBehavior::ConfigureSounds(
+    std::vector<std::string> soundPaths)
+{
+    state_.Reset();
+    state_.ConfigureSounds(std::move(soundPaths));
+    sourceAvailable_ = !state_.GetSoundPaths().empty();
+    playRequest_ = nullptr;
 }
 
 void LifeEffectBehavior::SetSourceAvailable(bool value) noexcept
@@ -1900,15 +1938,26 @@ void LifeEffectBehavior::SetSourceAvailable(bool value) noexcept
     sourceAvailable_ = value;
 }
 
+void LifeEffectBehavior::SetSoundSelectionUnit(float value) noexcept
+{
+    soundSelectionUnit_ = value;
+}
+
 bool LifeEffectBehavior::HasPlayed() const noexcept
 {
     return state_.HasPlayed();
 }
 
-bool LifeEffectBehavior::ConsumePlayRequest() noexcept
+const std::vector<std::string>&
+LifeEffectBehavior::GetSoundPaths() const noexcept
 {
-    const bool result = playRequested_;
-    playRequested_ = false;
+    return state_.GetSoundPaths();
+}
+
+const std::string* LifeEffectBehavior::ConsumePlayRequest() noexcept
+{
+    const auto* result = playRequest_;
+    playRequest_ = nullptr;
     return result;
 }
 
