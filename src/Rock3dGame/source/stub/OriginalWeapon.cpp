@@ -2270,6 +2270,16 @@ void ShotEffect::Reset() noexcept
     shotCount_ = 0U;
 }
 
+void ShotEffect::CopyStateFrom(const ShotEffect& value)
+{
+    // MapObj children and the listener-backed _effObjList are runtime
+    // identities, not copyable Weapon configuration. A copied weapon keeps
+    // the serialized behavior and diagnostic shot counter, then starts with
+    // an empty effect-object list just like a newly cloned source MapObj.
+    Configure(value.definition_);
+    shotCount_ = value.shotCount_;
+}
+
 ShotEffect::SpawnResult ShotEffect::OnShot(
     const std::array<float, 3U>& position) noexcept
 {
@@ -2277,6 +2287,11 @@ ShotEffect::SpawnResult ShotEffect::OnShot(
     SpawnResult result;
     result.createEffect = !definition_.visual.record.empty();
     result.playSound = !GetSoundPaths().empty();
+    if (result.createEffect)
+    {
+        result.owner = this;
+        result.effectId = CreateEffect();
+    }
     result.position = {
         definition_.position.x + position[0],
         definition_.position.y + position[1],
@@ -2355,11 +2370,13 @@ ShotEffectBehavior::GetLastShotPosition() const noexcept
 }
 
 void ShotEffectBehavior::CopyStateFrom(
-    const ShotEffectBehavior& value) noexcept
+    const ShotEffectBehavior& value)
 {
-    state_ = value.state_;
+    state_.CopyStateFrom(value.state_);
     lastShotPosition_ = value.lastShotPosition_;
-    pendingSpawns_ = value.pendingSpawns_;
+    // Pending results contain owner pointers and effect identities belonging
+    // to value.state_. They cannot be replayed by the copied behavior.
+    pendingSpawns_.clear();
 }
 
 void ShotEffectBehavior::OnShot(

@@ -827,6 +827,13 @@ reset, finish, respawn и disconnect используют один callback path
 доставляются до уничтожения Player/Logic owners. Frost model3 дополнительно
 запускает source `SlowEffect::OnDestroyEffect` deferred removal.
 
+Результат B8am: общий `EventEffect::_effObjList` больше не схлопнут в один
+boolean `_makeEffect`. Каждый transient `ShotEffect::CreateEffect` получает
+свой owner handle, backend возвращает тот же handle при уничтожении, а
+копирование `Weapon` не переносит live actors и pending owner pointers.
+bgfx получает visual-definition от этого же live owner, без повторного
+lookup в `Race::weapons`.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:

@@ -5052,11 +5052,11 @@ void OriginalRaceRenderer::draw(
         if (effect.kind ==
             r3d::game::originalrace::RaceEventKind::WeaponShotEffect)
         {
-            if (effect.weapon < race.weapons.size() &&
-                effect.weapon < weaponShotEffects_.size())
+            if (effect.weapon < weaponShotEffects_.size() &&
+                effect.sourceDefinition != nullptr)
             {
                 const auto& definition =
-                    race.weapons[effect.weapon].shotEffect.visual;
+                    *effect.sourceDefinition;
                 if (!definition.visualNodes.empty() ||
                     !definition.particleEmitters.empty())
                 {

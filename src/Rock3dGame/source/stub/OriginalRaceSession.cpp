@@ -1108,8 +1108,13 @@ void OriginalRaceSession::notifyEffectDestroyed(
         // GameObjEvent::OnDestroy first tells its EventEffect owner that the
         // distinguished child died. Type-specific owner teardown follows
         // this base transition, matching the virtual Windows callback order.
-        effect.sourceEventOwner->OnDestroyEffect();
+        if (effect.sourceEventId != source::EventEffect::invalidEffect)
+            effect.sourceEventOwner->OnDestroyEffect(
+                effect.sourceEventId);
+        else
+            effect.sourceEventOwner->OnDestroyEffect();
         effect.sourceEventOwner = nullptr;
+        effect.sourceEventId = source::EventEffect::invalidEffect;
     }
     if (effect.kind == RaceEventKind::VehicleSlowEffect &&
         effect.racer < racers_.size())
@@ -2007,6 +2012,7 @@ bool OriginalRaceSession::applyRacerDamageInternal(
             effect.parentRacer = target;
             effect.sourceDefinition = energySpawn->definition;
             effect.sourceEventOwner = energySpawn->owner;
+            effect.sourceEventId = energySpawn->effectId;
             effect.transform.position = {
                 energySpawn->position[0], energySpawn->position[1],
                 energySpawn->position[2]};
@@ -4808,6 +4814,7 @@ void OriginalRaceSession::updateGameplay(
                 effect.parentRacer = racer;
                 effect.sourceDefinition = spawn.definition;
                 effect.sourceEventOwner = spawn.owner;
+                effect.sourceEventId = spawn.effectId;
                 effect.transform.position = {
                     spawn.position[0], spawn.position[1],
                     spawn.position[2]};
@@ -5240,6 +5247,7 @@ void OriginalRaceSession::updateGameplay(
                         effect.projectile = projectile.projectile;
                         effect.sourceDefinition = spawn->definition;
                         effect.sourceEventOwner = spawn->owner;
+                        effect.sourceEventId = spawn->effectId;
                         effect.transform.position = {
                             spawn->position[0], spawn->position[1],
                             spawn->position[2]};
@@ -6058,6 +6066,9 @@ void OriginalRaceSession::updateGameplay(
                 source.visual, source.duration);
             applySourceEffectTiming(effect, timing, source.visual);
             effect.weapon = weapon;
+            effect.sourceEventOwner = spawn->owner;
+            effect.sourceEventId = spawn->effectId;
+            effect.sourceDefinition = &source.visual;
             effect.ignoreRotation = spawn->ignoreRotation;
             effect.sourceImpulse = {
                 spawn->impulse[0], spawn->impulse[1],
@@ -12549,6 +12560,14 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                         return effect.kind ==
                                    RaceEventKind::WeaponShotEffect &&
                                effect.weapon == weaponIndex &&
+                               effect.sourceEventOwner != nullptr &&
+                               effect.sourceEventId !=
+                                   source::EventEffect::invalidEffect &&
+                               effect.sourceEventOwner->HasEffect(
+                                   effect.sourceEventId) &&
+                               effect.sourceDefinition != nullptr &&
+                               effect.sourceDefinition->record ==
+                                   sourceWeapon->shotEffect.visual.record &&
                                std::abs(
                                effect.totalSeconds -
                                    sourceEffectTiming(
@@ -12567,6 +12586,31 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             for (int frame = 0; frame < 60; ++frame)
                 weaponSession.update(
                     1.0F / 60.0F, vehicles, weaponInput);
+            for (const auto* item : installedItems)
+            {
+                if (item == nullptr || item->GetWeapon() == nullptr)
+                    continue;
+                const auto& shotOwner =
+                    item->GetWeapon()->GetShotEffect();
+                const auto backendCount =
+                    static_cast<std::size_t>(std::count_if(
+                        weaponSession.effects().begin(),
+                        weaponSession.effects().end(),
+                        [&](const RaceEffect& effect) {
+                            return effect.kind ==
+                                       RaceEventKind::WeaponShotEffect &&
+                                   effect.sourceEventOwner ==
+                                       &shotOwner &&
+                                   shotOwner.HasEffect(
+                                       effect.sourceEventId);
+                        }));
+                if (shotOwner.GetEffectCount() != backendCount)
+                {
+                    throw std::runtime_error(
+                        "source ShotEffect _effObjList/backend identity "
+                        "diverged");
+                }
+            }
             const auto beforeDirect =
                 readPrimaryCharges(weaponSession.racers().front());
             weaponInput.fireWeaponSlot = 1;

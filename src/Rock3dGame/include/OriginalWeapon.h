@@ -744,6 +744,8 @@ public:
         bool createEffect = false;
         bool playSound = false;
         bool child = true;
+        EventEffect* owner = nullptr;
+        EffectId effectId = invalidEffect;
         std::array<float, 3U> position{};
         std::array<float, 3U> impulse{};
         bool ignoreRotation = false;
@@ -751,6 +753,7 @@ public:
 
     void Configure(ShotEffectDefinition definition);
     void Reset() noexcept;
+    void CopyStateFrom(const ShotEffect& value);
     SpawnResult OnShot(
         const std::array<float, 3U>& position) noexcept;
     std::uint64_t GetShotCount() const noexcept;
@@ -774,7 +777,7 @@ public:
     void Configure(ShotEffectDefinition definition);
     std::optional<ShotEffect::SpawnResult> ConsumeSpawnResult();
     std::size_t GetPendingSpawnCount() const noexcept;
-    void CopyStateFrom(const ShotEffectBehavior& value) noexcept;
+    void CopyStateFrom(const ShotEffectBehavior& value);
 
 protected:
     void OnShot(

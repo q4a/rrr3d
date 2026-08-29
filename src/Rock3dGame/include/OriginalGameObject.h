@@ -660,11 +660,15 @@ private:
 class EventEffect
 {
 public:
+    using EffectId = std::uint64_t;
+    static constexpr EffectId invalidEffect = 0U;
+
     struct SpawnResult
     {
         bool createEffect = false;
         bool child = true;
         EventEffect* owner = nullptr;
+        EffectId effectId = invalidEffect;
         const ObjectDefinition* definition = nullptr;
         std::array<float, 3U> position{};
         std::array<float, 3U> impulse{};
@@ -681,7 +685,11 @@ public:
     bool MakeEffect() noexcept;
     bool FreeEffect() noexcept;
     bool OnDestroyEffect() noexcept;
+    bool OnDestroyEffect(EffectId effect) noexcept;
     bool IsEffectMaked() const noexcept;
+    EffectId GetMakeEffectId() const noexcept;
+    std::size_t GetEffectCount() const noexcept;
+    bool HasEffect(EffectId effect) const noexcept;
     SpawnResult GetSpawnResult(bool created) noexcept;
     const ObjectDefinition* GetEffectDefinition() const noexcept;
     const std::array<float, 3U>& GetPosition() const noexcept;
@@ -690,12 +698,17 @@ public:
     const std::vector<std::string>& GetSoundPaths() const noexcept;
     const std::string* SelectSoundPath(float randomUnit) const noexcept;
 
+protected:
+    EffectId CreateEffect() noexcept;
+
 private:
     const ObjectDefinition* definition_ = nullptr;
     std::array<float, 3U> position_{};
     std::array<float, 3U> impulse_{};
     bool ignoreRotation_ = false;
-    bool effectMaked_ = false;
+    std::vector<EffectId> effectIds_;
+    EffectId makeEffectId_ = invalidEffect;
+    EffectId nextEffectId_ = 1U;
     std::vector<std::string> soundPaths_;
 };
 

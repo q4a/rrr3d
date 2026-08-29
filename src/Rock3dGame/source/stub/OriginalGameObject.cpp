@@ -1700,33 +1700,73 @@ void EventEffect::ConfigureSounds(
 
 void EventEffect::Reset() noexcept
 {
-    effectMaked_ = false;
+    effectIds_.clear();
+    makeEffectId_ = invalidEffect;
+}
+
+EventEffect::EffectId EventEffect::CreateEffect() noexcept
+{
+    EffectId effect = nextEffectId_++;
+    if (effect == invalidEffect)
+        effect = nextEffectId_++;
+    effectIds_.push_back(effect);
+    return effect;
 }
 
 bool EventEffect::MakeEffect() noexcept
 {
-    if (effectMaked_)
+    if (makeEffectId_ != invalidEffect)
         return false;
-    effectMaked_ = true;
+    makeEffectId_ = CreateEffect();
     return true;
 }
 
 bool EventEffect::FreeEffect() noexcept
 {
-    if (!effectMaked_)
+    if (makeEffectId_ == invalidEffect)
         return false;
-    effectMaked_ = false;
-    return true;
+    return OnDestroyEffect(makeEffectId_);
 }
 
 bool EventEffect::OnDestroyEffect() noexcept
 {
-    return FreeEffect();
+    return makeEffectId_ != invalidEffect &&
+        OnDestroyEffect(makeEffectId_);
+}
+
+bool EventEffect::OnDestroyEffect(EffectId effect) noexcept
+{
+    if (effect == invalidEffect)
+        return false;
+    const auto found = std::find(
+        effectIds_.begin(), effectIds_.end(), effect);
+    if (found == effectIds_.end())
+        return false;
+    if (makeEffectId_ == effect)
+        makeEffectId_ = invalidEffect;
+    effectIds_.erase(found);
+    return true;
 }
 
 bool EventEffect::IsEffectMaked() const noexcept
 {
-    return effectMaked_;
+    return makeEffectId_ != invalidEffect;
+}
+
+EventEffect::EffectId EventEffect::GetMakeEffectId() const noexcept
+{
+    return makeEffectId_;
+}
+
+std::size_t EventEffect::GetEffectCount() const noexcept
+{
+    return effectIds_.size();
+}
+
+bool EventEffect::HasEffect(EffectId effect) const noexcept
+{
+    return std::find(effectIds_.begin(), effectIds_.end(), effect) !=
+        effectIds_.end();
 }
 
 EventEffect::SpawnResult EventEffect::GetSpawnResult(
@@ -1736,6 +1776,7 @@ EventEffect::SpawnResult EventEffect::GetSpawnResult(
         created && definition_ != nullptr,
         true,
         this,
+        created ? makeEffectId_ : invalidEffect,
         definition_,
         position_,
         impulse_,

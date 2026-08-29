@@ -632,9 +632,17 @@ int main()
 
     source::EventEffect eventEffect;
     eventEffect.ConfigureSounds({"sound0.ogg", "sound1.ogg", "sound2.ogg"});
-    if (!eventEffect.MakeEffect() || eventEffect.MakeEffect() ||
-        !eventEffect.IsEffectMaked() || !eventEffect.FreeEffect() ||
+    if (!eventEffect.MakeEffect())
+        return 36;
+    const auto makeEffectId = eventEffect.GetMakeEffectId();
+    if (makeEffectId == source::EventEffect::invalidEffect ||
+        eventEffect.GetEffectCount() != 1U ||
+        !eventEffect.HasEffect(makeEffectId) ||
+        eventEffect.MakeEffect() || !eventEffect.IsEffectMaked() ||
+        !eventEffect.FreeEffect() ||
         eventEffect.FreeEffect() || eventEffect.IsEffectMaked() ||
+        eventEffect.GetEffectCount() != 0U ||
+        eventEffect.HasEffect(makeEffectId) ||
         eventEffect.GetSoundPaths().size() != 3U ||
         eventEffect.SelectSoundPath(0.0F) == nullptr ||
         *eventEffect.SelectSoundPath(0.0F) != "sound0.ogg" ||
@@ -642,7 +650,9 @@ int main()
         *eventEffect.SelectSoundPath(1.0F) != "sound2.ogg")
         return 36;
     eventEffect.MakeEffect();
-    if (!eventEffect.OnDestroyEffect() ||
+    const auto destroyedEffectId = eventEffect.GetMakeEffectId();
+    if (!eventEffect.OnDestroyEffect(destroyedEffectId) ||
+        eventEffect.GetEffectCount() != 0U ||
         eventEffect.OnDestroyEffect())
         return 37;
 

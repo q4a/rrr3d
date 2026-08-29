@@ -5513,6 +5513,26 @@ owners. Для dynamic Frost отдельно восстановлена вет�
 DamageEffect после callback, SlowEffect removal и live owner identity в
 полном session smoke.
 
+### P2.241 — `EventEffect::_effObjList` и transient `ShotEffect` identities возвращены — выполнено
+
+Windows `EventEffect::CreateEffect` добавляет каждый созданный `MapObj` в
+`_effObjList`, даже если он не является единственным `_makeEffect`.
+Portable `ShotEffect` до этого выдавал несколько backend visuals, но base
+owner не знал ни одного из них: уничтожение нельзя было сопоставить с
+конкретным выстрелом, а копирование pending spawn переносило указатели на
+чужой behavior.
+
+`EventEffect` теперь выдаёт монотонный `EffectId`, хранит полный список
+живых identities и отдельно отмечает distinguished make-effect. Каждый
+visual `ShotEffect::OnShot` регистрирует собственный handle; `RaceEffect`
+возвращает владельцу именно этот handle при natural или forced teardown.
+Тот же объект передаёт renderer точную live visual-definition, поэтому
+повторный выбор из глобального `Race::weapons` удалён.
+Копия `Weapon` сохраняет serialized ShotEffect и shot counter, но начинает
+с пустыми live/pending identities. Regression проверяет два одновременных
+выстрела, независимое удаление, copy boundary и равенство source-list с
+живыми backend objects в полном session smoke.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

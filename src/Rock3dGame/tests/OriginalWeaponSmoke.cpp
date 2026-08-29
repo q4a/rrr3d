@@ -109,6 +109,14 @@ int main()
         weapon.ConsumeShotEffectSpawn().has_value() ||
         !firstShotSpawn->createEffect ||
         !firstShotSpawn->playSound || !firstShotSpawn->child ||
+        firstShotSpawn->owner != &weapon.GetShotEffect() ||
+        secondShotSpawn->owner != &weapon.GetShotEffect() ||
+        firstShotSpawn->effectId == source::EventEffect::invalidEffect ||
+        secondShotSpawn->effectId == source::EventEffect::invalidEffect ||
+        firstShotSpawn->effectId == secondShotSpawn->effectId ||
+        weapon.GetShotEffect().GetEffectCount() != 2U ||
+        !weapon.GetShotEffect().HasEffect(firstShotSpawn->effectId) ||
+        !weapon.GetShotEffect().HasEffect(secondShotSpawn->effectId) ||
         firstShotSpawn->position !=
             std::array<float, 3U>{0.5F, 1.0F, 1.5F} ||
         secondShotSpawn->position !=
@@ -123,6 +131,23 @@ int main()
         weapon.GetShotEffectDefinition().visual.record !=
             shotDefinition.visual.record)
         return 194;
+    source::Weapon copiedWithLiveEffects = weapon;
+    const auto* copiedLiveBehavior =
+        dynamic_cast<const source::ShotEffectBehavior*>(
+            copiedWithLiveEffects.GetBehaviors().Find(
+                source::BehaviorType::ShotEffect));
+    if (copiedWithLiveEffects.GetShotEffect().GetEffectCount() != 0U ||
+        copiedLiveBehavior == nullptr ||
+        copiedLiveBehavior->GetPendingSpawnCount() != 0U ||
+        !firstShotSpawn->owner->OnDestroyEffect(
+            firstShotSpawn->effectId) ||
+        weapon.GetShotEffect().GetEffectCount() != 1U ||
+        weapon.GetShotEffect().HasEffect(firstShotSpawn->effectId) ||
+        !weapon.GetShotEffect().HasEffect(secondShotSpawn->effectId) ||
+        !secondShotSpawn->owner->OnDestroyEffect(
+            secondShotSpawn->effectId) ||
+        weapon.GetShotEffect().GetEffectCount() != 0U)
+        return 195;
     source::Weapon copiedWeapon = weapon;
     const auto* copiedShotBehavior =
         dynamic_cast<const source::ShotEffectBehavior*>(

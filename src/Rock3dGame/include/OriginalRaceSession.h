@@ -273,6 +273,8 @@ struct RaceEffect
     // outlives this backend object and clears its distinguished _makeEffect
     // identity exactly when the portable effect GameObject dies.
     source::EventEffect* sourceEventOwner = nullptr;
+    source::EventEffect::EffectId sourceEventId =
+        source::EventEffect::invalidEffect;
     std::size_t racer = RacerRuntime::invalidWeapon;
     std::size_t vehicleEffect = RacerRuntime::invalidWeapon;
     Transform transform;

@@ -2651,3 +2651,14 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   проходят через единый callback до teardown Player/Logic.
 - У Frost model3 callback также помечает concrete `SlowEffect` behavior на
   удаление, как Windows `SlowEffect::OnDestroyEffect`.
+
+### Source EventEffect effect-object-list follow-up
+
+- `EventEffect` хранит полный список уникальных effect handles и отдельную
+  identity distinguished `_makeEffect`, как source `_effObjList`.
+- Каждый visual `ShotEffect::OnShot` регистрирует отдельный child handle;
+  natural expiry/reset/finish удаляет именно соответствующий handle.
+- Renderer читает exact live ShotEffect visual из `RaceEffect`, а не
+  повторно выбирает его из глобального weapon descriptor.
+- Копия `Weapon` переносит конфигурацию и shot counter, но не live handles и
+  не pending spawn requests с указателями на исходный behavior.

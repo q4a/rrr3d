@@ -1974,6 +1974,17 @@ forced teardown. Reset сначала доставляет callbacks стары�
 deferred behavior removal; DamageEffect может создать новый child после
 уничтожения предыдущего.
 
+### B8am — EventEffect `_effObjList`/ShotEffect identities — выполнено
+
+Base `EventEffect` владеет полным набором live effect handles, а не только
+флагом distinguished effect. `ShotEffect` регистрирует новый handle для
+каждого successful projectile visual, `RaceEffect` сохраняет пару
+owner/handle и возвращает её через общий destroy bridge. Weapon-copy очищает
+runtime handles и pending requests, сохраняя только source configuration и
+shot counter. Renderer потребляет live owner definition вместо повторного
+`Race::weapons` lookup. Unit/session regressions проверяют независимое удаление и
+равенство source/backend live sets.
+
 ## Воспроизведение проверки
 
 ```sh
