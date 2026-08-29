@@ -2642,3 +2642,12 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   передаёт SDL только уже выбранный path, world position и lifetime.
 - Type-7 catalog проверен целиком (6 behaviors/6 sounds); ShotEffect и
   PxWheelSlipEffect переведены на тот же общий owner API.
+
+### Source EventEffect destroy-listener follow-up
+
+- One-live spawn-plan сохраняет exact `EventEffect*`, создавший backend
+  object; уничтожение `RaceEffect` очищает именно этого owner-а.
+- Все clear paths (natural lifetime, reset, finish, respawn, disconnect)
+  проходят через единый callback до teardown Player/Logic.
+- У Frost model3 callback также помечает concrete `SlowEffect` behavior на
+  удаление, как Windows `SlowEffect::OnDestroyEffect`.

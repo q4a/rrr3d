@@ -269,6 +269,10 @@ struct RaceEffect
     // is a non-owning source record reference; Race owns the catalog for the
     // complete session just as MapObjRec::Object did on Windows.
     const ObjectDefinition* sourceDefinition = nullptr;
+    // EventEffect::GameObjEvent::OnDestroy callback target. The source owner
+    // outlives this backend object and clears its distinguished _makeEffect
+    // identity exactly when the portable effect GameObject dies.
+    source::EventEffect* sourceEventOwner = nullptr;
     std::size_t racer = RacerRuntime::invalidWeapon;
     std::size_t vehicleEffect = RacerRuntime::invalidWeapon;
     Transform transform;
@@ -713,6 +717,8 @@ private:
     void completeRacer(const source::RaceResult& result,
                        float finishTime) noexcept;
     void applyCampaignRewards() noexcept;
+    void notifyEffectDestroyed(RaceEffect& effect) noexcept;
+    void clearEffects() noexcept;
 
     const Race& race_;
     // Declared before Logic so Logic can unregister its ProgressEvent while

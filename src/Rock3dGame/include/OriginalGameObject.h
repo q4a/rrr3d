@@ -664,6 +664,7 @@ public:
     {
         bool createEffect = false;
         bool child = true;
+        EventEffect* owner = nullptr;
         const ObjectDefinition* definition = nullptr;
         std::array<float, 3U> position{};
         std::array<float, 3U> impulse{};
@@ -681,7 +682,7 @@ public:
     bool FreeEffect() noexcept;
     bool OnDestroyEffect() noexcept;
     bool IsEffectMaked() const noexcept;
-    SpawnResult GetSpawnResult(bool created) const noexcept;
+    SpawnResult GetSpawnResult(bool created) noexcept;
     const ObjectDefinition* GetEffectDefinition() const noexcept;
     const std::array<float, 3U>& GetPosition() const noexcept;
     const std::array<float, 3U>& GetImpulse() const noexcept;
@@ -851,7 +852,7 @@ public:
     void SetDamageType(DamageType value) noexcept;
     bool IsEffectMaked() const noexcept;
     float GetEffectSeconds() const noexcept;
-    EventEffect::SpawnResult GetSpawnResult(bool created) const noexcept;
+    EventEffect::SpawnResult GetSpawnResult(bool created) noexcept;
     const ObjectDefinition* GetEffectDefinition() const noexcept;
 
 private:
@@ -919,7 +920,7 @@ public:
     std::size_t GetWeapon() const noexcept;
     std::size_t GetProjectile() const noexcept;
     const ObjectDefinition* GetEffectDefinition() const noexcept;
-    EventEffect::SpawnResult GetSpawnResult(bool created) const noexcept;
+    EventEffect::SpawnResult GetSpawnResult(bool created) noexcept;
 
 private:
     float maximumTimeLife_ = -1.0F;

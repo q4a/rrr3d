@@ -1965,6 +1965,15 @@ Session/SDL отвечают только за доступность voice, 3D 
 ShotEffect/PxWheelSlipEffect используют этот же каталог; copy regression
 исключает ссылку колеса на sound vector исходного объекта.
 
+### B8al — EventEffect spawned-object destroy callback — выполнено
+
+`EventEffect::SpawnResult` передаёт exact owner в `RaceEffect`, а единый
+session destroy bridge реализует `GameObjEvent::OnDestroy` для natural и
+forced teardown. Reset сначала доставляет callbacks старым Player/Logic и
+лишь потом перестраивает их storage. `SlowEffect` получает отдельный
+deferred behavior removal; DamageEffect может создать новый child после
+уничтожения предыдущего.
+
 ## Воспроизведение проверки
 
 ```sh

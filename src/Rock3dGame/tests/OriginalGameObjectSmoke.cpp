@@ -535,9 +535,15 @@ int main()
 
     source::DamageEffect energyDamage(original::DamageType::Energy);
     if (energyDamage.OnDamage(original::DamageType::Simple) ||
+        !energyDamage.OnDamage(original::DamageType::Energy))
+        return 19;
+    const auto damageSpawn = energyDamage.GetSpawnResult(true);
+    if (damageSpawn.owner == nullptr ||
+        !damageSpawn.owner->OnDestroyEffect() ||
+        energyDamage.IsEffectMaked() ||
         !energyDamage.OnDamage(original::DamageType::Energy) ||
         energyDamage.OnDamage(original::DamageType::Energy))
-        return 19;
+        return 98;
     energyDamage.OnProgress(0.5F);
     if (!energyDamage.IsEffectMaked())
         return 20;

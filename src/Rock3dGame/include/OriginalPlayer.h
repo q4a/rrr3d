@@ -457,6 +457,7 @@ public:
         std::size_t projectile) noexcept;
     std::optional<EventEffect::SpawnResult>
         ConsumeSlowEffectSpawn() noexcept;
+    void NotifySlowEffectDestroyed() noexcept;
     CheatResult CheatUpdate(
         std::uint32_t cheatMask, std::size_t playerId,
         std::size_t difficulty,

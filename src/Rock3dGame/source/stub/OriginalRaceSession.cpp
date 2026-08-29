@@ -1096,7 +1096,44 @@ OriginalRaceSession::OriginalRaceSession(
 
 OriginalRaceSession::~OriginalRaceSession()
 {
+    clearEffects();
     gameplayWorld_.UnregLateProgressEvent(&racePlaceModel_);
+}
+
+void OriginalRaceSession::notifyEffectDestroyed(
+    RaceEffect& effect) noexcept
+{
+    if (effect.sourceEventOwner != nullptr)
+    {
+        // GameObjEvent::OnDestroy first tells its EventEffect owner that the
+        // distinguished child died. Type-specific owner teardown follows
+        // this base transition, matching the virtual Windows callback order.
+        effect.sourceEventOwner->OnDestroyEffect();
+        effect.sourceEventOwner = nullptr;
+    }
+    if (effect.kind == RaceEventKind::VehicleSlowEffect &&
+        effect.racer < racers_.size())
+    {
+        // SlowEffect::OnDestroyEffect clears damping and calls Remove on the
+        // behavior whose model3 MapObj just died. Jolt owns damping, while
+        // the portable Player owns the matching deferred behavior removal.
+        racers_[effect.racer].NotifySlowEffectDestroyed();
+    }
+    if (effect.logicEffectId !=
+        source::LogicEventEffect::invalidEffect)
+    {
+        logic_.GetPairPxContactEffect().NotifyEffectDestroyed(
+            effect.logicEffectId);
+        effect.logicEffectId =
+            source::LogicEventEffect::invalidEffect;
+    }
+}
+
+void OriginalRaceSession::clearEffects() noexcept
+{
+    for (auto& effect : effects_)
+        notifyEffectDestroyed(effect);
+    effects_.clear();
 }
 
 source::MapObjects& OriginalRaceSession::decorationObjects() noexcept
@@ -1128,6 +1165,10 @@ void OriginalRaceSession::reset()
     // AIPlayer::~AIPlayer writes the source-owned cheat flag back to its
     // Player. Release these owners before replacing the Player vector.
     aiPlayers_.clear();
+    // EventEffect::GameObjEvent callbacks target behaviors owned by the old
+    // Player vector and Logic pair graph. Deliver them before either owner
+    // is cleared or rebuilt.
+    clearEffects();
     // Logic owns every transient Proj created by the previous run. Release
     // them while their weapon/target MapObjs are still alive so listener
     // teardown follows the Windows destruction order.
@@ -1240,7 +1281,6 @@ void OriginalRaceSession::reset()
     bonusNetworkPendingContact_.assign(
         race_.bonuses.size(), RacerRuntime::invalidWeapon);
     events_.clear();
-    effects_.clear();
     logic_.SetTouchBorderDamage(race_.touchBorderDamage);
     logic_.SetTouchBorderDamageForce(race_.touchBorderDamageForce);
     logic_.SetTouchCarDamage(race_.touchCarDamage);
@@ -1802,9 +1842,17 @@ bool OriginalRaceSession::disconnectNetworkRacer(
     });
     // FreeCar removes car-owned listener/effect objects. Independent fired
     // projectiles and mines remain world objects in the source.
-    std::erase_if(effects_, [racer](const RaceEffect& effect) {
-        return effect.racer == racer || effect.parentRacer == racer;
-    });
+    effects_.erase(
+        std::remove_if(
+            effects_.begin(), effects_.end(),
+            [&](RaceEffect& effect) {
+                const bool remove = effect.racer == racer ||
+                    effect.parentRacer == racer;
+                if (remove)
+                    notifyEffectDestroyed(effect);
+                return remove;
+            }),
+        effects_.end());
     return true;
 }
 
@@ -1958,6 +2006,7 @@ bool OriginalRaceSession::applyRacerDamageInternal(
             effect.racer = target;
             effect.parentRacer = target;
             effect.sourceDefinition = energySpawn->definition;
+            effect.sourceEventOwner = energySpawn->owner;
             effect.transform.position = {
                 energySpawn->position[0], energySpawn->position[1],
                 energySpawn->position[2]};
@@ -4410,12 +4459,19 @@ void OriginalRaceSession::destroyRacer(
     // LowLifePoints::FreeEffect and destruction of the owning car's include
     // list delete its persistent smoke and any live energy-damage child
     // immediately. They must not outlive the source car during restore.
-    std::erase_if(effects_, [racer](const RaceEffect& effect) {
-        return effect.racer == racer &&
-               (effect.kind == RaceEventKind::VehicleLowLife ||
-                effect.kind == RaceEventKind::VehicleEnergyDamage ||
-                effect.kind == RaceEventKind::VehicleSlowEffect);
-    });
+    effects_.erase(
+        std::remove_if(
+            effects_.begin(), effects_.end(),
+            [&](RaceEffect& effect) {
+                const bool remove = effect.racer == racer &&
+                    (effect.kind == RaceEventKind::VehicleLowLife ||
+                     effect.kind == RaceEventKind::VehicleEnergyDamage ||
+                     effect.kind == RaceEventKind::VehicleSlowEffect);
+                if (remove)
+                    notifyEffectDestroyed(effect);
+                return remove;
+            }),
+        effects_.end());
     if (racer < vehicleInputs_.size())
         vehicleInputs_[racer] = {};
     const auto& definition = vehicleForRacer(racer);
@@ -4751,6 +4807,7 @@ void OriginalRaceSession::updateGameplay(
                 effect.racer = racer;
                 effect.parentRacer = racer;
                 effect.sourceDefinition = spawn.definition;
+                effect.sourceEventOwner = spawn.owner;
                 effect.transform.position = {
                     spawn.position[0], spawn.position[1],
                     spawn.position[2]};
@@ -4779,10 +4836,19 @@ void OriginalRaceSession::updateGameplay(
         {
             // EventEffect::FreeEffect(false) removes the child MapObj at
             // once; it does not leave a particle tail in the world.
-            std::erase_if(effects_, [racer](const RaceEffect& effect) {
-                return effect.kind == RaceEventKind::VehicleLowLife &&
-                       effect.racer == racer;
-            });
+            effects_.erase(
+                std::remove_if(
+                    effects_.begin(), effects_.end(),
+                    [&](RaceEffect& effect) {
+                        const bool remove =
+                            effect.kind ==
+                                RaceEventKind::VehicleLowLife &&
+                            effect.racer == racer;
+                        if (remove)
+                            notifyEffectDestroyed(effect);
+                        return remove;
+                    }),
+                effects_.end());
         }
     }
 
@@ -5173,6 +5239,7 @@ void OriginalRaceSession::updateGameplay(
                         effect.weapon = projectile.weapon;
                         effect.projectile = projectile.projectile;
                         effect.sourceDefinition = spawn->definition;
+                        effect.sourceEventOwner = spawn->owner;
                         effect.transform.position = {
                             spawn->position[0], spawn->position[1],
                             spawn->position[2]};
@@ -8286,7 +8353,7 @@ void OriginalRaceSession::completeRaceForExit(
         // objects on Windows. Keeping them in the portable session allowed
         // stale effects and sound owners to survive behind FinishMenu.
         logic_.CleanGameObjs();
-        effects_.clear();
+        clearEffects();
         mines_.clear();
         projectiles_.clear();
         projectileBodyCommands_.clear();
@@ -8456,16 +8523,10 @@ void OriginalRaceSession::update(
     }
     effects_.erase(
         std::remove_if(effects_.begin(), effects_.end(),
-                       [&](const RaceEffect& effect) {
+                       [&](RaceEffect& effect) {
                            if (!effect.effectOwner->destroyed)
                                return false;
-                           if (effect.logicEffectId !=
-                               source::LogicEventEffect::invalidEffect)
-                           {
-                               logic_.GetPairPxContactEffect()
-                                   .NotifyEffectDestroyed(
-                                       effect.logicEffectId);
-                           }
+                           notifyEffectDestroyed(effect);
                            return true;
                        }),
         effects_.end());
@@ -13845,6 +13906,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                                effect.parentRacer == 1U &&
                                effect.weapon == frostWeapon &&
                                effect.projectile == 0U &&
+                               effect.sourceEventOwner != nullptr &&
+                               effect.sourceEventOwner->IsEffectMaked() &&
                                effect.sourceDefinition ==
                                    &race.weapons[frostWeapon]
                                         .projectiles[0U]
@@ -13865,6 +13928,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                                    RaceEventKind::VehicleEnergyDamage &&
                                effect.racer == 1U &&
                                effect.parentRacer == 1U &&
+                               effect.sourceEventOwner != nullptr &&
+                               effect.sourceEventOwner->IsEffectMaked() &&
                                effect.sourceDefinition ==
                                    frostSession.racers()[1]
                                        .energyDamageEffect
@@ -13902,6 +13967,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 frostSession.racers()[1]
                         .slowEffect.GetProjectile() !=
                     RacerRuntime::invalidWeapon ||
+                frostSession.racers()[1]
+                    .energyDamageEffect.IsEffectMaked() ||
                 energyDamageCount() != 0 || slowEffectCount() != 0)
             {
                 throw std::runtime_error(

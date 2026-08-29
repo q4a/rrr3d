@@ -5494,6 +5494,25 @@ availability/position/lifetime и переводит request в SDL. Парал�
 перепривязывает sound reference к каталогу новой копии. В `db.xml`
 подтверждены все 6 type-7 записей: каждая имеет ровно один sound.
 
+### P2.240 — `EventEffect::GameObjEvent::OnDestroy` возвращён — выполнено
+
+Portable `EventEffect::_makeEffect` не получал обратного уведомления, когда
+его материализованный `RaceEffect::effectOwner` умирал или принудительно
+удалялся при reset/finish/respawn/disconnect. Это расходилось с Windows
+`GameObjEvent::OnDestroy`, который сначала вызывает virtual
+`OnDestroyEffect`, затем удаляет MapObj из `_effObjList` и очищает
+`_makeEffect`.
+
+Каждый one-live spawn-plan теперь несёт точную ссылку на создавший его
+`EventEffect`. `RaceEffect` сохраняет её, а единый
+`notifyEffectDestroyed` доставляет callback для natural lifetime и всех
+явных erase/clear paths. Callback выполняется до перестройки Player/Logic
+owners. Для dynamic Frost отдельно восстановлена ветка
+`SlowEffect::OnDestroyEffect`: состояние сбрасывается, concrete behavior
+помечается на deferred removal. Regression проверяет повторное создание
+DamageEffect после callback, SlowEffect removal и live owner identity в
+полном session smoke.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

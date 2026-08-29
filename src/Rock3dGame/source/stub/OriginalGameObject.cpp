@@ -1730,11 +1730,12 @@ bool EventEffect::IsEffectMaked() const noexcept
 }
 
 EventEffect::SpawnResult EventEffect::GetSpawnResult(
-    bool created) const noexcept
+    bool created) noexcept
 {
     return {
         created && definition_ != nullptr,
         true,
+        this,
         definition_,
         position_,
         impulse_,
@@ -2112,7 +2113,7 @@ float DamageEffect::GetEffectSeconds() const noexcept
 }
 
 EventEffect::SpawnResult DamageEffect::GetSpawnResult(
-    bool created) const noexcept
+    bool created) noexcept
 {
     return eventEffect_.GetSpawnResult(created);
 }
@@ -2337,7 +2338,7 @@ const ObjectDefinition* SlowEffect::GetEffectDefinition() const noexcept
 }
 
 EventEffect::SpawnResult SlowEffect::GetSpawnResult(
-    bool created) const noexcept
+    bool created) noexcept
 {
     return eventEffect_.GetSpawnResult(created);
 }

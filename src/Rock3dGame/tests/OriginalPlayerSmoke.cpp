@@ -76,6 +76,21 @@ int main()
     if (!slowPlayer.AttachSlowEffect(
             &slowDefinition, 1.0F, 1U, 1U))
         return 76;
+    slowPlayer.ConsumeSlowEffectSpawn();
+    slowPlayer.NotifySlowEffectDestroyed();
+    if (slowPlayer.slowEffect.IsEffectMaked() ||
+        slowPlayer.gameCar.GetBehaviors().Find(
+            source::BehaviorType::SlowEffect) == nullptr)
+        return 96;
+    const auto destroyedSlowRemoved = slowPlayer.ProgressBehaviors(
+        0.0F, 0.35F, 0.0F);
+    if (destroyedSlowRemoved.gameObject.behaviorsRemoved != 1U ||
+        slowPlayer.gameCar.GetBehaviors().Find(
+            source::BehaviorType::SlowEffect) != nullptr)
+        return 97;
+    if (!slowPlayer.AttachSlowEffect(
+            &slowDefinition, 1.0F, 1U, 1U))
+        return 98;
     slowPlayer.Destroy();
     if (slowPlayer.gameCar.GetBehaviors().Find(
             source::BehaviorType::SlowEffect) != nullptr)

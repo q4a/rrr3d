@@ -821,6 +821,12 @@ concrete behavior. `LifeEffect` сам выбирает свой Source3d refere
 `ShotEffect` и `PxWheelSlipEffect` используют тот же owner API, SDL остаётся
 только backend источника/позиционирования.
 
+Результат B8al: backend effect-object снова уведомляет конкретный
+`EventEffect` через эквивалент `GameObjEvent::OnDestroy`. Natural expiry,
+reset, finish, respawn и disconnect используют один callback path; ссылки
+доставляются до уничтожения Player/Logic owners. Frost model3 дополнительно
+запускает source `SlowEffect::OnDestroyEffect` deferred removal.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:

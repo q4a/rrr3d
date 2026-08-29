@@ -1690,6 +1690,19 @@ Player::ConsumeSlowEffectSpawn() noexcept
     return result;
 }
 
+void Player::NotifySlowEffectDestroyed() noexcept
+{
+    slowEffect.Reset();
+    slowEffectSpawn_.reset();
+    slowSpeedLimited_ = false;
+    slowReleased_ = true;
+    if (auto* behavior =
+            gameCar.GetBehaviors().Find(BehaviorType::SlowEffect))
+    {
+        behavior->Remove();
+    }
+}
+
 Player::CheatResult Player::CheatUpdate(
     std::uint32_t cheatMask, std::size_t playerId,
     std::size_t difficulty,
