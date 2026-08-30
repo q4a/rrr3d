@@ -445,6 +445,16 @@ void OriginalResourceManager::Load()
     {
         RegisterMaterial(material);
     }
+    RegisterSourceSoundCatalog();
+    if (audio_ != nullptr)
+    {
+        for (auto& [key, sound] : sounds_)
+        {
+            static_cast<void>(key);
+            if (sound.load)
+                LoadSoundPayload(sound);
+        }
+    }
     loaded_ = true;
 }
 
@@ -503,13 +513,78 @@ int OriginalResourceManager::GetWorldType() const noexcept
     return worldType_;
 }
 
+void OriginalResourceManager::RegisterSourceSoundCatalog()
+{
+    for (const auto& declaration :
+         r3d::game::originalresources::originalSoundResourceCatalog())
+    {
+        const auto key = ResolveKey(declaration.path);
+        auto [record, created] = sounds_.try_emplace(
+            key,
+            SoundResource{
+                std::string(declaration.path),
+                r3d::audio::invalidSound, {}, declaration.volume,
+                declaration.distanceScaler, declaration.load,
+                declaration.loadCheckExists});
+        if (!created)
+        {
+            // LoadSound always applies the newest source descriptor even if
+            // SoundLib::Find returned a pre-existing named record.
+            record->second.name = declaration.path;
+            record->second.volume = declaration.volume;
+            record->second.distanceScaler = declaration.distanceScaler;
+            record->second.load = declaration.load;
+            record->second.loadCheckExists =
+                declaration.loadCheckExists;
+        }
+    }
+}
+
+void OriginalResourceManager::LoadSoundPayload(SoundResource& resource)
+{
+    if (resource.sound != r3d::audio::invalidSound)
+        return;
+    if (audio_ == nullptr)
+        throw r3d::resource::ResourceError(
+            "Original ResourceManager SoundLib is not attached");
+    if (resource.loadCheckExists && !resources_->exists(resource.name))
+        return;
+
+    std::string error;
+    resource.sound = audio_->loadOgg(
+        resources_->resolve(resource.name), resource.info, error);
+    if (resource.sound == r3d::audio::invalidSound)
+    {
+        throw r3d::resource::ResourceError(
+            "Unable to load original sound " + resource.name +
+            (error.empty() ? std::string{} : ": " + error));
+    }
+}
+
 void OriginalResourceManager::AttachAudio(
-    r3d::audio::AudioBackend& audio) noexcept
+    r3d::audio::AudioBackend& audio)
 {
     if (audio_ == &audio)
         return;
     ShutdownSounds();
     audio_ = &audio;
+    if (!loaded_)
+        return;
+    try
+    {
+        RegisterSourceSoundCatalog();
+        for (auto& [key, sound] : sounds_)
+        {
+            static_cast<void>(key);
+            if (sound.load)
+                LoadSoundPayload(sound);
+        }
+    }
+    catch (...)
+    {
+        ShutdownSounds();
+        throw;
+    }
 }
 
 const OriginalResourceManager::SoundResource&
@@ -524,28 +599,16 @@ OriginalResourceManager::GetSound(
         // ResourceManager::LoadSound calls SetVolume after SoundLib::Find,
         // so the shared resource always receives the latest descriptor.
         found->second.volume = volume;
+        found->second.load = true;
+        LoadSoundPayload(found->second);
         return found->second;
-    }
-    if (audio_ == nullptr)
-        throw r3d::resource::ResourceError(
-            "Original ResourceManager SoundLib is not attached");
-
-    r3d::audio::SoundInfo info;
-    std::string error;
-    // SoundBackend consumes a physical filesystem path, whereas Mesh/Image
-    // retain their logical Complex*Lib identity until materialization.
-    const auto sound =
-        audio_->loadOgg(resources_->resolve(sourceName), info, error);
-    if (sound == r3d::audio::invalidSound)
-    {
-        throw r3d::resource::ResourceError(
-            "Unable to load original sound " + std::string(sourceName) +
-            (error.empty() ? std::string{} : ": " + error));
     }
     auto [inserted, created] = sounds_.emplace(
         key, SoundResource{
-                 std::string(sourceName), sound, info, volume});
+                 std::string(sourceName), r3d::audio::invalidSound, {},
+                 volume, 0.0F, true, false});
     static_cast<void>(created);
+    LoadSoundPayload(inserted->second);
     return inserted->second;
 }
 
@@ -594,6 +657,14 @@ std::size_t OriginalResourceManager::GetCacheHitCount() const noexcept
 std::size_t OriginalResourceManager::GetSoundCount() const noexcept
 {
     return sounds_.size();
+}
+
+std::size_t OriginalResourceManager::GetLoadedSoundCount() const noexcept
+{
+    return static_cast<std::size_t>(std::count_if(
+        sounds_.begin(), sounds_.end(), [](const auto& item) {
+            return item.second.sound != r3d::audio::invalidSound;
+        }));
 }
 
 std::size_t OriginalResourceManager::GetTextFontCount() const noexcept

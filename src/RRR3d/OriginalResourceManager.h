@@ -58,6 +58,9 @@ public:
         r3d::audio::SoundHandle sound = r3d::audio::invalidSound;
         r3d::audio::SoundInfo info;
         float volume = 1.0F;
+        float distanceScaler = 0.0F;
+        bool load = false;
+        bool loadCheckExists = false;
     };
 
     struct TextFontResource
@@ -102,7 +105,7 @@ public:
     void LoadWorld(int worldType);
     void LoadWorld(std::string_view worldType);
     int GetWorldType() const noexcept;
-    void AttachAudio(r3d::audio::AudioBackend& audio) noexcept;
+    void AttachAudio(r3d::audio::AudioBackend& audio);
     const SoundResource& GetSound(
         std::string_view sourceName, float volume = 1.0F);
     const r3d::resource::ResourceFileSystem& GetFileSystem() const;
@@ -114,6 +117,7 @@ public:
     std::size_t GetRequestCount() const noexcept;
     std::size_t GetCacheHitCount() const noexcept;
     std::size_t GetSoundCount() const noexcept;
+    std::size_t GetLoadedSoundCount() const noexcept;
     std::size_t GetTextFontCount() const noexcept;
     std::size_t GetMaterialCount() const noexcept;
     std::size_t GetSoundRequestCount() const noexcept;
@@ -130,6 +134,8 @@ public:
 
 private:
     std::string ResolveKey(std::string_view sourceName) const;
+    void RegisterSourceSoundCatalog();
+    void LoadSoundPayload(SoundResource& resource);
 
     r3d::renderer::GraphicsDevice* device_ = nullptr;
     const r3d::resource::ResourceFileSystem* resources_ = nullptr;

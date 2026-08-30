@@ -6138,8 +6138,11 @@ bool runOriginalRaceResourceSmokeTest(
             originalresources::originalMeshResourceCatalog();
         const auto& imageResourceCatalog =
             originalresources::originalImageResourceCatalog();
+        const auto& soundResourceCatalog =
+            originalresources::originalSoundResourceCatalog();
         std::unordered_set<std::string> meshResourceNames;
         std::unordered_set<std::string> imageResourceNames;
+        std::unordered_set<std::string> soundResourceNames;
         std::vector<std::string> missingDeclaredResources;
         const auto windowsResourceName = [](std::string value) {
             std::transform(
@@ -6188,6 +6191,13 @@ bool runOriginalRaceResourceSmokeTest(
                     windowsResourceName(std::string(image.path))) == 0U)
                 missingDeclaredResources.emplace_back(image.path);
         }
+        for (const auto& sound : soundResourceCatalog)
+        {
+            soundResourceNames.emplace(sound.path);
+            if (availableResourceNames.count(
+                    windowsResourceName(std::string(sound.path))) == 0U)
+                missingDeclaredResources.emplace_back(sound.path);
+        }
         std::sort(
             missingDeclaredResources.begin(),
             missingDeclaredResources.end());
@@ -6204,6 +6214,8 @@ bool runOriginalRaceResourceSmokeTest(
             meshResourceNames.size() != 322U ||
             imageResourceCatalog.size() != 490U ||
             imageResourceNames.size() != 489U ||
+            soundResourceCatalog.size() != 46U ||
+            soundResourceNames.size() != 46U ||
             missingDeclaredResources != expectedMissingResources)
         {
             std::ostringstream missingList;
@@ -6214,6 +6226,8 @@ bool runOriginalRaceResourceSmokeTest(
                     std::to_string(meshResourceNames.size()) + " meshes, " +
                     std::to_string(imageResourceCatalog.size()) + "/" +
                     std::to_string(imageResourceNames.size()) + " images, " +
+                    std::to_string(soundResourceCatalog.size()) + "/" +
+                    std::to_string(soundResourceNames.size()) + " sounds, " +
                     std::to_string(missingDeclaredResources.size()) +
                     " missing" + missingList.str();
             return false;

@@ -820,3 +820,52 @@ const std::vector<ImageResourceDeclaration> sourceImageResourceCatalog{
     {"Data/GUI/Slides/slide8.dds", 1U, false, false, -1, false, false, false}, // source:2680
     {"Data/GUI/Slides/slide9.dds", 1U, false, false, -1, false, false, false}, // source:2681
 };
+
+const std::vector<SoundResourceDeclaration> sourceSoundResourceCatalog{
+    {"Data/Sounds/light_impact01.ogg", 1.0F, 0.0F, true, false}, // source:2770
+    {"Data/Sounds/light_impact02.ogg", 1.0F, 0.0F, true, false}, // source:2771
+    {"Data/Sounds/light_impact03.ogg", 1.0F, 0.0F, true, false}, // source:2772
+    {"Data/Sounds/light_impact04.ogg", 1.0F, 0.0F, true, false}, // source:2773
+    {"Data/Sounds/light_impact05.ogg", 1.0F, 0.0F, true, false}, // source:2774
+    {"Data/Sounds/SkidAsphalt.ogg", 1.0F, 0.0F, true, false}, // source:2776
+    {"Data/Sounds/engine_player_heavy_mot.ogg", 1.0F, 0.0F, true, false}, // source:2778
+    {"Data/Sounds/engine_player_heavy_tom.ogg", 1.0F, 0.0F, true, false}, // source:2779
+    {"Data/Sounds/Motor_high02.ogg", 1.0F, 0.0F, true, false}, // source:2780
+    {"Data/Sounds/podushka_move.ogg", 1.0F, 0.0F, true, false}, // source:2781
+    {"Data/Sounds/podushka_stop.ogg", 1.0F, 0.0F, true, false}, // source:2782
+    {"Data/Sounds/monstertruckstop.ogg", 1.0F, 0.0F, true, false}, // source:2783
+    {"Data/Sounds/guseniza_stop.ogg", 1.0F, 0.0F, true, false}, // source:2784
+    {"Data/Sounds/guseniza_move.ogg", 1.0F, 0.0F, true, false}, // source:2785
+    {"Data/Sounds/fazowij_izluchatel.ogg", 1.0F, 0.0F, true, false}, // source:2786
+    {"Data/Sounds/spherePulseDeath.ogg", 1.0F, 0.0F, true, false}, // source:2787
+    {"Data/Sounds/gun_podushkat.ogg", 1.0F, 0.0F, true, false}, // source:2788
+    {"Data/Sounds/laserGuseniza.ogg", 1.0F, 0.0F, true, false}, // source:2789
+    {"Data/Sounds/mortira.ogg", 1.0F, 0.0F, true, false}, // source:2790
+    {"Data/Sounds/pulsator.ogg", 1.0F, 0.0F, true, false}, // source:2791
+    {"Data/Sounds/turel.ogg", 1.0F, 0.0F, true, false}, // source:2792
+    {"Data/Sounds/ultrazwukovoi_blaser.ogg", 1.0F, 0.0F, true, false}, // source:2793
+    {"Data/Sounds/frost_ray.ogg", 1.0F, 0.0F, true, false}, // source:2794
+    {"Data/Sounds/carcrash05.ogg", 2.0F, 0.0F, true, false}, // source:2796
+    {"Data/Sounds/cluster_rocket.ogg", 1.0F, 0.0F, true, false}, // source:2797
+    {"Data/Sounds/missile_launch.ogg", 2.0F, 0.0F, true, false}, // source:2798
+    {"Data/Sounds/shredder.ogg", 2.0F, 0.0F, true, false}, // source:2799
+    {"Data/Sounds/icon_rail.ogg", 1.0F, 0.0F, true, false}, // source:2800
+    {"Data/Sounds/phalanx_shot_a.ogg", 1.0F, 0.0F, true, false}, // source:2801
+    {"Data/Sounds/klicka5.ogg", 2.0F, 0.0F, true, false}, // source:2802
+    {"Data/Sounds/exhaust_b_heavy.ogg", 2.0F, 0.0F, true, false}, // source:2803
+    {"Data/Sounds/fireGun.ogg", 2.0F, 0.0F, true, false}, // source:2804
+    {"Data/Sounds/sonar.ogg", 1.0F, 0.0F, true, false}, // source:2805
+    {"Data/Sounds/shieldOn.ogg", 2.0F, 0.0F, true, false}, // source:2806
+    {"Data/Sounds/airBladeRocket.ogg", 1.0F, 0.0F, true, false}, // source:2810
+    {"Data/Sounds/maslo.ogg", 1.0F, 0.0F, true, false}, // source:2811
+    {"Data/Sounds/rezonator.ogg", 1.0F, 0.0F, true, false}, // source:2812
+    {"Data/Sounds/UI/changeOption.ogg", 1.0F, 0.0F, true, false}, // source:2814
+    {"Data/Sounds/UI/click.ogg", 1.0F, 0.0F, true, false}, // source:2815
+    {"Data/Sounds/UI/navedenie.ogg", 1.0F, 0.0F, true, false}, // source:2816
+    {"Data/Sounds/UI/warning.ogg", 1.0F, 0.0F, true, false}, // source:2817
+    {"Data/Sounds/UI/pickup_down.ogg", 1.0F, 0.0F, true, false}, // source:2818
+    {"Data/Sounds/UI/pickup_up.ogg", 1.0F, 0.0F, true, false}, // source:2819
+    {"Data/Sounds/UI/repaint.ogg", 1.0F, 0.0F, true, false}, // source:2820
+    {"Data/Sounds/UI/acception.ogg", 1.0F, 0.0F, true, false}, // source:2821
+    {"Data/Sounds/UI/showPlanet.ogg", 1.0F, 0.0F, true, false}, // source:2822
+};

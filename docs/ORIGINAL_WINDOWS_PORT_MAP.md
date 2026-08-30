@@ -71,7 +71,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `Race` | `OriginalRace`, `OriginalRaceSession`, lifecycle/place/tournament on shared World | Source owner, active fixed/late lifecycle, partial orchestration | Продолжить вынос gameplay transactions из session; place sorting уже выполняется после Jolt solver через единственный World late-progress |
 | `RaceMenu2` | `originalracemenu::{RaceMenuState,RaceMainFrameState,GamersFrameState,GarageFrameState,WorkshopFrameState,SpaceshipFrameState,AngarFrameState,AchievementFrameState}` | Source owner, all six offline frame paths | Проверить оставшиеся network callbacks и оставить bgfx/CoreText backend boundary |
 | `RecordLib` | `source::{MapObjRecordLibrary,MapObjRecordNode,MapObjRecord}` | Source owner, active hierarchy | Editor-only mutation/serialization API не входит в пользовательский runtime |
-| `ResourceManager` | `OriginalResourceManager` + native readers/uploaders | Source owner, active GUI/graph/sound/font/material path | GUI/HUD/3D mesh/image/sound/TextFont и полный 257-record ComplexMat catalog имеют общие identity, charset, world tags и lifetime; bgfx payload остаётся backend boundary |
+| `ResourceManager` | `OriginalResourceManager` + native readers/uploaders | Source owner, active GUI/graph/sound/font/material path | Полные 322 Mesh/489 Image/257 Mat/46 eager Sound и 5 TextFont libraries имеют общие identity, descriptors, charset, world tags и lifetime; bgfx/SDL payload остаётся backend boundary |
 | `RockCar` | `source::RockCar`, dynamic `Weapons`, Player listener/contact sink | Source owner, active gameplay graph | PhysX actor/solver calls заменены Jolt; editor/legacy serializer остаётся parser boundary |
 | `Trace` | `source::{Trace,WayPath,WayNode,WayPoint}` | Source owner, active race/debug path | Editor serialization остаётся вне пользовательской игры; gameplay geometry и TraceGfx используют один owner |
 | `TraceGfx` | `source::TraceGfx` + transient bgfx submission | Source owner, active F6 path | Selection/link/geometry/material policy source-owned; D3D9 Box/Sprite/DrawPrimitiveUP заменены backend triangles |
@@ -285,6 +285,16 @@ Descriptor records создаются сразу, но ImageLib/bgfx payload о�
 ленивой backend-границей. Единственный объявленный, но отсутствующий в
 оригинальном game-data `GUI/wndLight6.png` остаётся допустимой неиспользуемой
 записью, как в Windows; активный `RaceMenu2` использует `wndLight4.png`.
+
+Результат B5i/B8bc: восстановлен вызываемый в конце `ResourceManager::Load`
+`LoadSounds`. Все 46 именованных gameplay/UI SFX records существуют до
+создания menu SoundSheme; сохранены семь source volume=2, остальные volume=1,
+нулевой distanceScaler и eager-load. Так как SDL audio backend создаётся
+позже графических библиотек, descriptors регистрируются при `Load`, а Ogg
+payload материализуется одной стадией `AttachAudio` до menu initialization.
+Music остаётся в уже перенесённом потоковом `MusicCat`, а commentator
+добавляет style-dependent optional records при выборе языка, как отдельные
+исходные `LoadMusic/LoadCommentator` lifetimes.
 
 ### B6 — Menu/MenuSystem и исходные frames (B6a–B6e.5 выполнены)
 

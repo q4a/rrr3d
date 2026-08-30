@@ -66,7 +66,7 @@ Windows target не компилируется.
 |---|---|---|---|---|
 | CMake, arm64 `.app`, bundle, signing | VS projects/resources | CMake presets, bundle scripts | Перенесено | Notarization/Developer ID не входят в текущую локальную сборку |
 | Platform filesystem/logging | Win32/XPlatform | XPlatform + macOS directories | Замена платформы | Игровой логике это не должно давать различий |
-| Resource filesystem | `ResourceManager`, Windows paths | `ResourceFileSystem` + `OriginalResourceManager`, exact-case catalog | Перенесено | Mesh/Image/Sound/TextFont/ComplexMat identity, charset, world-tag unload/reload и release order активны; GPU payload остаётся backend boundary |
+| Resource filesystem | `ResourceManager`, Windows paths | `ResourceFileSystem` + `OriginalResourceManager`, exact-case catalog | Перенесено | Полные 322 Mesh/489 Image/257 Mat/46 eager Sound/5 TextFont libraries, identity, descriptors, charset, world-tag unload/reload и release order активны; GPU/audio payload остаётся backend boundary |
 | `.r3d`, DDS/PNG, XML | Исходные loaders | portable decoders + TinyXML | Перенесено | Поддержаны используемые форматы; это не перенос всего legacy resource object graph |
 | Окно и event loop | Win32/D3D window | SDL3/Cocoa | Замена платформы | Нативный путь работает |
 | Keyboard/mouse/gamepad | XInput/Win32 `ControlManager` | source `VirtualKey`/action state поверх SDL3 | Перенесено с backend-адаптацией | Точные constructor/user bindings, raw menu keys, repeat, focus release, `XUSER_INDEX_ANY` event delivery, hot-plug, 30/255 и 7849/8689 thresholds перенесены; Win32/XInput polling API заменён SDL3 events |
@@ -2213,6 +2213,30 @@ Windows case-insensitive semantics и подтверждает единстве�
 мертвую декларацию `GUI/wndLight6.png`; `RaceMenu2` реально запрашивает
 существующий `wndLight4.png`. Manager diagnostics теперь различает records и
 загруженные handles.
+
+### B8bc — `ResourceManager::LoadSounds` catalog — выполнено
+
+Оставшаяся стадия общего `ResourceManager::Load()` действительно была
+пропущена: Windows в `LoadSounds` создаёт и немедленно загружает 46
+`Sounds/...` records, а portable manager до этого видел только те SFX,
+которые уже запросили menu, текущая машина или текущие weapon/effect records.
+Это делало состав SoundLib зависимым от выбранной гонки.
+
+Точный generated catalog теперь содержит все 46 calls, включая девять UI
+cue и семь ресурсов с volume 2.0. `Load()` создаёт records вместе с остальными
+библиотеками; после появления SDL/CoreAudio `AttachAudio` загружает все 46 до
+создания `OriginalMenuSounds`. `GetSound` умеет материализовать существующий
+descriptor, обновляет volume после lookup как source `LoadSound`, а
+SoundLib diagnostics отдельно показывают record и loaded counts. Ошибка
+любого обязательного Ogg теперь останавливает startup, как release Windows.
+
+Музыкальные Ogg не загружаются этим блоком намеренно: оригинальный
+`GameMode::LoadMusic` имеет отдельный lifetime, а уже перенесённый MusicCat
+потоково декодирует только текущий/следующий track, чтобы не возвращать
+исправленное зависание UI. `LoadCommentator` также остаётся style-dependent и
+создаёт только существующие optional voices. Catalog regression проверяет
+46 unique paths, 46 eager flags, 9 UI и 7 doubled-volume records; Metal/audio
+smoke подтверждает загрузку каталога до последующих menu/commentator requests.
 
 ## Воспроизведение проверки
 

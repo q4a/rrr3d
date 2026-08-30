@@ -2839,3 +2839,16 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   shipped assets и исходно отсутствующий неиспользуемый `wndLight6.png`.
 - Startup diagnostics раздельно показывают количество records и фактически
   материализованных Metal payload, поэтому ленивость не выглядит загрузкой.
+
+### Source ResourceManager LoadSounds follow-up
+
+- `ResourceManager::Load()` регистрирует точные 46 gameplay/UI SFX records
+  из Windows `LoadSounds`, а не только звуки уже посещённой гонки.
+- Сохранены все eager flags, нулевой distance scaler, 9 UI cue и 7 ресурсов
+  с volume 2.0; остальные 39 имеют source volume 1.0.
+- `AttachAudio` декодирует обязательные 46 Ogg до Menu SoundSheme; невалидный
+  source завершает startup с явной ошибкой вместо пустого handle.
+- `GetSound` materialize-ит предварительно зарегистрированный record и
+  применяет последний volume после cache lookup, как Windows SoundLib.
+- MusicCat и commentator сохраняют отдельные source lifetimes: музыка
+  потоковая, optional style voices создаются после выбора языка.

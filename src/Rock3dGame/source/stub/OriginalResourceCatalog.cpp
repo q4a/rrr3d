@@ -21,4 +21,9 @@ const std::vector<ImageResourceDeclaration>& originalImageResourceCatalog()
     return sourceImageResourceCatalog;
 }
 
+const std::vector<SoundResourceDeclaration>& originalSoundResourceCatalog()
+{
+    return sourceSoundResourceCatalog;
+}
+
 } // namespace r3d::game::originalresources

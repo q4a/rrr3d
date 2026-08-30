@@ -3990,7 +3990,44 @@ int main(int argc, char** argv)
         return EXIT_FAILURE;
     }
 
-    originalResourceManager.AttachAudio(audio);
+    try
+    {
+        originalResourceManager.AttachAudio(audio);
+    }
+    catch (const std::exception& exception)
+    {
+        std::cerr << "Original ResourceManager LoadSounds failed: "
+                  << exception.what() << '\n';
+        originalResourceManager.ShutdownSounds();
+        audio.shutdown();
+        releaseResources();
+        originalResourceManager.Shutdown();
+        device.reset();
+        SDL_DestroyWindow(window);
+#ifdef RRR3D_GAMEPAD_INPUT
+        input.shutdown();
+#endif
+        SDL_Quit();
+        return EXIT_FAILURE;
+    }
+    if (originalResourceManager.GetSoundCount() != 46U ||
+        originalResourceManager.GetLoadedSoundCount() != 46U)
+    {
+        std::cerr << "Original ResourceManager LoadSounds catalog differs: "
+                  << originalResourceManager.GetSoundCount() << "/"
+                  << originalResourceManager.GetLoadedSoundCount() << '\n';
+        originalResourceManager.ShutdownSounds();
+        audio.shutdown();
+        releaseResources();
+        originalResourceManager.Shutdown();
+        device.reset();
+        SDL_DestroyWindow(window);
+#ifdef RRR3D_GAMEPAD_INPUT
+        input.shutdown();
+#endif
+        SDL_Quit();
+        return EXIT_FAILURE;
+    }
     rrr3d::audio::OriginalMenuSounds menuSounds(
         audio, originalResourceManager);
     if (!menuSounds.initialize(audioError))
@@ -4415,7 +4452,10 @@ int main(int argc, char** argv)
                 commentator.loadedVoiceCount() &&
         originalResourceManager.GetSoundCacheHitCount() != 0U;
     std::cout << "Original ResourceManager SoundLib: "
-              << originalResourceManager.GetSoundCount() << " sounds, "
+              << originalResourceManager.GetSoundCount()
+              << " records ("
+              << originalResourceManager.GetLoadedSoundCount()
+              << " loaded), "
               << originalResourceManager.GetSoundCacheHitCount() << '/'
               << originalResourceManager.GetSoundRequestCount()
               << " shared requests reused\n";

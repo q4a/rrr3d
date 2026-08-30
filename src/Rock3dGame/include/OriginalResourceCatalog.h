@@ -33,9 +33,19 @@ struct ImageResourceDeclaration
     bool gui = false;
 };
 
+struct SoundResourceDeclaration
+{
+    std::string_view path;
+    float volume = 1.0F;
+    float distanceScaler = 0.0F;
+    bool load = false;
+    bool loadCheckExists = false;
+};
+
 // These vectors preserve every call and its order in the original Windows
 // ResourceManager::Load* methods, including three repeated declarations.
 const std::vector<MeshResourceDeclaration>& originalMeshResourceCatalog();
 const std::vector<ImageResourceDeclaration>& originalImageResourceCatalog();
+const std::vector<SoundResourceDeclaration>& originalSoundResourceCatalog();
 
 } // namespace r3d::game::originalresources

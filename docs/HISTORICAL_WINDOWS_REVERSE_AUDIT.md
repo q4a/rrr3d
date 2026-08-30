@@ -5810,6 +5810,31 @@ Shipped data подтверждает единственное расхожде�
 case-insensitive Windows identity, тогда как реальное открытие продолжает
 проходить через защищённый canonical data path и backend filesystem.
 
+### P2.257 — `ResourceManager::LoadSounds` возвращён — выполнено
+
+После Mesh/Image/Mat/TextFont оставалась одна подтверждённая потеря внутри
+самого `ResourceManager::Load`: последний вызов `LoadSounds()` отсутствовал.
+Из-за этого source SoundLib не имел заранее созданной библиотеки, а host
+лениво добавлял только UI, motor и эффекты, встретившиеся в active race.
+
+Из того же `eff9338` generated catalog перенёс ровно 46 активных вызовов
+`LoadSound("Sounds\\...")`; три закомментированных bullet sounds не добавлены.
+Все пути уникальны и присутствуют в shipped data. Сохранены eager load,
+нулевой distance scaler, 39 volume=1 и семь volume=2 resources. Descriptors
+создаются в исходной `Load` стадии; разрешённая platform-адаптация откладывает
+только Ogg decode до `AttachAudio`, потому что SDL/CoreAudio поднимается после
+Metal resources. До создания Menu SoundSheme загружены все 46 handles.
+
+`GetSound` больше не возвращает пустой handle для заранее существующего
+record: он materialize-ит payload, затем применяет последнюю volume, как
+Windows `SoundLib::Find` + `SetVolume`. Обязательная ошибка decode завершает
+startup, optional commentator voices по-прежнему проверяются до загрузки.
+`MusicCat` остаётся потоковой адаптацией отдельного `GameMode::LoadMusic`,
+поэтому возвращать eager decode шестнадцати больших треков и прежнее
+зависание меню было бы неверно. Regression проверяет весь SFX catalog;
+dummy/Metal race smoke показывает 126 loaded SoundLib records после
+добавления доступных голосов.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

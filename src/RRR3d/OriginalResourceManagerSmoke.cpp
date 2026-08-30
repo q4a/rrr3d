@@ -395,13 +395,15 @@ int main()
         const auto& cachedSound = resources.GetSound("tone.ogg", 1.75F);
         if (cachedSound.sound != firstSound || cachedSound.volume != 1.75F ||
             resources.GetSoundCount() != 1U ||
+            resources.GetLoadedSoundCount() != 1U ||
             resources.GetSoundCacheHitCount() != 1U)
             return fail("SoundLib cache/SetVolume semantics differ");
 
         resources.AttachAudio(secondAudio);
         if (firstAudio.unloaded !=
-                std::vector<r3d::audio::SoundHandle>{firstSound} ||
-            resources.GetSoundCount() != 0U)
+            std::vector<r3d::audio::SoundHandle>{firstSound} ||
+            resources.GetSoundCount() != 0U ||
+            resources.GetLoadedSoundCount() != 0U)
             return fail("SoundLib did not unload before backend rebind");
         const auto secondSound = resources.GetSound("tone.ogg", 0.8F).sound;
 

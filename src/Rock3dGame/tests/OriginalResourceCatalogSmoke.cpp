@@ -26,8 +26,10 @@ int main()
     using namespace r3d::game::originalresources;
     const auto& meshes = originalMeshResourceCatalog();
     const auto& images = originalImageResourceCatalog();
+    const auto& sounds = originalSoundResourceCatalog();
     const auto meshPaths = pathCounts(meshes);
     const auto imagePaths = pathCounts(images);
+    const auto soundPaths = pathCounts(sounds);
 
     const auto countMeshFlag = [&](auto member) {
         std::size_t result = 0U;
@@ -73,6 +75,17 @@ int main()
         31U, 47U, 20U, 29U, 22U, 24U};
     const std::array<std::size_t, 6> expectedImageInitializeWorlds{
         12U, 29U, 10U, 16U, 14U, 10U};
+    std::size_t doubledSounds = 0U;
+    std::size_t uiSounds = 0U;
+    std::size_t eagerSounds = 0U;
+    std::size_t checkedSounds = 0U;
+    for (const auto& sound : sounds)
+    {
+        doubledSounds += sound.volume == 2.0F ? 1U : 0U;
+        uiSounds += sound.path.find("Data/Sounds/UI/") == 0U ? 1U : 0U;
+        eagerSounds += sound.load ? 1U : 0U;
+        checkedSounds += sound.loadCheckExists ? 1U : 0U;
+    }
 
     if (meshes.size() != 324U || meshPaths.size() != 322U ||
         images.size() != 490U || imagePaths.size() != 489U ||
@@ -102,16 +115,20 @@ int main()
             &ImageResourceDeclaration::initializeCubeTextureOnWorldLoad) !=
             0U ||
         countImageFlag(&ImageResourceDeclaration::gui) != 205U ||
-        imageInitializeWorlds != expectedImageInitializeWorlds)
+        imageInitializeWorlds != expectedImageInitializeWorlds ||
+        sounds.size() != 46U || soundPaths.size() != 46U ||
+        doubledSounds != 7U || uiSounds != 9U || eagerSounds != 46U ||
+        checkedSounds != 0U)
     {
         std::cerr << "original ComplexMesh/Image catalog mismatch: "
                   << meshes.size() << '/' << meshPaths.size() << " meshes, "
                   << images.size() << '/' << imagePaths.size()
-                  << " images\n";
+                  << " images, " << sounds.size() << '/'
+                  << soundPaths.size() << " sounds\n";
         return 1;
     }
 
     std::cout << "original resource catalog smoke passed: 324/322 meshes, "
-                 "490/489 images\n";
+                 "490/489 images, 46 sounds\n";
     return 0;
 }
