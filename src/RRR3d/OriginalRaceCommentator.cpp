@@ -36,8 +36,10 @@ OriginalRaceCommentator::OriginalRaceCommentator(
     r3d::audio::AudioBackend& audio,
     rrr3d::race::OriginalResourceManager& resources,
     const r3d::game::originalgamedata::Catalog& gameData)
-    : audio_(audio), resources_(resources), gameData_(gameData)
+    : resources_(resources), gameData_(gameData)
 {
+    source_.Attach(audio);
+    source_.SetBus(r3d::audio::Bus::Voice);
 }
 
 OriginalRaceCommentator::~OriginalRaceCommentator()
@@ -98,10 +100,11 @@ bool OriginalRaceCommentator::initialize(
                     }
                     else
                     {
-                        const auto sound =
-                            resources_.GetSound(path).sound;
-                        loadedSounds_.emplace(path, sound);
-                        loadedVoice.sound = sound;
+                        const auto& resource = resources_.GetSound(path);
+                        loadedSounds_.emplace(path, resource.sound);
+                        soundVolumes_.try_emplace(
+                            resource.sound, resource.volume);
+                        loadedVoice.sound = resource.sound;
                     }
                 }
                 // ResourceManager::LoadCommentator preserves unavailable
@@ -143,6 +146,7 @@ void OriginalRaceCommentator::shutdown() noexcept
     stop();
     comments_.clear();
     loadedSounds_.clear();
+    soundVolumes_.clear();
     globalDelaySeconds_ = 0.0F;
     timeSeconds_ = 0.0F;
     silenceSeconds_ = 0.0F;
@@ -152,9 +156,7 @@ void OriginalRaceCommentator::shutdown() noexcept
 
 void OriginalRaceCommentator::stop() noexcept
 {
-    if (voice_ != r3d::audio::invalidVoice)
-        audio_.stop(voice_);
-    voice_ = r3d::audio::invalidVoice;
+    source_.Stop();
     queue_.clear();
 }
 
@@ -217,9 +219,7 @@ OriginalRaceCommentator::generate(Comment& comment, int playerId)
 
 bool OriginalRaceCommentator::isSpeaking() const noexcept
 {
-    return (voice_ != r3d::audio::invalidVoice &&
-            audio_.isVoiceActive(voice_)) ||
-           !queue_.empty();
+    return source_.IsPlaying() || !queue_.empty();
 }
 
 void OriginalRaceCommentator::enqueue(
@@ -271,9 +271,7 @@ void OriginalRaceCommentator::enqueue(
                          comment.busy == BusyAction::Skip;
     if (replace)
     {
-        if (voice_ != r3d::audio::invalidVoice)
-            audio_.stop(voice_);
-        voice_ = r3d::audio::invalidVoice;
+        source_.Stop();
         queue_.clear();
     }
     queue_.insert(queue_.end(), utterance.begin(), utterance.end());
@@ -288,15 +286,16 @@ void OriginalRaceCommentator::playNext(std::string& error)
 {
     if (paused_ || queue_.empty())
         return;
-    if (voice_ != r3d::audio::invalidVoice &&
-        audio_.isVoiceActive(voice_))
+    if (source_.IsPlaying())
         return;
-    voice_ = r3d::audio::invalidVoice;
     const auto sound = queue_.front();
     queue_.pop_front();
-    r3d::audio::PlayOptions options;
-    options.bus = r3d::audio::Bus::Voice;
-    voice_ = audio_.play(sound, options, error);
+    const auto volume = soundVolumes_.find(sound);
+    source_.SetSound(
+        sound, volume != soundVolumes_.end() ? volume->second : 1.0F);
+    source_.SetLoop(false);
+    source_.SetPlaybackPositionFrames(0U);
+    source_.Play(error, paused_);
 }
 
 void OriginalRaceCommentator::progress(
@@ -432,8 +431,7 @@ void OriginalRaceCommentator::finishPlace(
 void OriginalRaceCommentator::pause(bool paused) noexcept
 {
     paused_ = paused;
-    if (voice_ != r3d::audio::invalidVoice)
-        audio_.setVoicePaused(voice_, paused);
+    source_.SetPaused(paused);
 }
 
 bool OriginalRaceCommentator::speaking() const noexcept

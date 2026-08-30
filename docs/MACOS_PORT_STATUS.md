@@ -1270,9 +1270,9 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   теперь выполняется для каждого успешно созданного projectile и выбирает
   один из всех сериализованных sound refs по исходному `RandomRange`.
 - Для каждой машины, установленного weapon-slot и sound variant хранится
-  собственный ShotEffect Source3d: повторный `Play` во время активности
-  игнорируется, далёкий запрос ждёт входа в радиус 30 м, после выхода за 45 м
-  PCM cursor приостанавливается и затем продолжается без перемотки.
+  собственный ShotEffect Source3d: каждый shot выполняет source `SetPos(0)`
+  перед idempotent `Play`, далёкий запрос ждёт входа в радиус 30 м, а после
+  выхода за 45 м PCM cursor сохраняется и продолжается без перемотки.
 - Spatial smoke фиксирует итоговые коэффициенты master/category/resource и
   30/45-метровую state machine; race-session smoke требует реального
   сериализованного ShotEffect sound event вместе с визуальным эффектом.
@@ -2891,3 +2891,15 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   Life живёт до своего effect, Contact — до 0.1-second pair release после EOF.
 - Race transitions и network disconnect больше не вызывают ручной Stop для
   этих records; destructors освобождают каждый активный backend voice один раз.
+
+### Source Menu/Commentator owner follow-up
+
+- Добавлен обычный `OriginalSource`: bus, sound/resource gain, source
+  gain/pitch, loop/once, pause, PCM cursor и backend voice имеют один owner.
+- Девять Menu SoundSheme cues используют один Effects source и точный
+  Stop→SetSound→SetPos(0)→Play, поэтому быстрые hover/click не накладываются.
+- Commentator queue/replace/stream-end Next и pause переведены с raw handle на
+  один Voice source; resource volume сохраняется при выборе реплики.
+- Fake backend проверяет gain/pitch/category и cursor 33→77→0 без double-stop.
+- Последний direct `audio.play` удалён из active game host: все создаваемые
+  race EffectSound разделены на Shot/Life/PairContact owners.

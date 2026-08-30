@@ -5903,6 +5903,30 @@ contact source после `pmOnce` EOF остаётся молчащим в node
 Regression закрепляет resume с кадров 123 и 222, explicit seek 0, EOF и
 точное число backend Stop.
 
+### P2.261 — обычный `snd::Source` возвращён Menu и Commentator — выполнено
+
+Прямая сверка `Source::{SetSound,SetPos,Play,Stop,IsPlaying}`,
+`Menu::{PlaySound,StopSound}` и `GameMode::Commentator::{Play,Next,
+OnStreamEnd}` подтвердила два последних raw voice owner вне MusicCat.
+Menu вручную держал один SDL handle, а Commentator — другой handle и очередь;
+общего source lifecycle между ними не существовало.
+
+Backend-neutral `OriginalSource` теперь владеет category, sound/resource
+volume, source gain/frequency, mode, pause, cursor и Proxy handle. Stop
+сохраняет frame, SetPos освобождает текущий voice и задаёт точный cursor,
+SetSound применяет resource volume, Play idempotent для active proxy и RAII
+не допускает double-stop. Regression проверяет Effects/Voice-independent
+fields, gain 2×0.25, pitch 1.5 и cursor 33→77→0.
+
+Menu SoundSheme использует один Effects owner для всех девяти cues с точной
+цепочкой Stop/SetSound/SetPos(0)/Play. Commentator использует один Voice owner
+для replace, queued natural Next и pause; все 37 comment descriptors и 80
+доступных файлов остаются прежними. Последняя direct `audio.play` ветка в
+active game host удалена после доказательства, что все три создаваемых
+`EffectSound` имеют Shot, Life либо PairContact identity. MusicCat не
+схлопывается в Source: его отдельная очередь и background decode соответствуют
+исходному вложенному классу и остаются специализированным adapter owner.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

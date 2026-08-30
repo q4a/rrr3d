@@ -1,7 +1,7 @@
 #pragma once
 
+#include "OriginalSpatialAudio.h"
 #include "OriginalResourceManager.h"
-#include "audio/AudioBackend.h"
 
 #include <array>
 #include <cstddef>
@@ -44,12 +44,14 @@ public:
     [[nodiscard]] std::size_t loadedSoundCount() const noexcept;
 
 private:
-    r3d::audio::AudioBackend& audio_;
     rrr3d::race::OriginalResourceManager& resources_;
     std::array<r3d::audio::SoundHandle,
                static_cast<std::size_t>(OriginalMenuSound::Count)>
         sounds_{};
-    r3d::audio::VoiceHandle voice_ = r3d::audio::invalidVoice;
+    std::array<float,
+               static_cast<std::size_t>(OriginalMenuSound::Count)>
+        resourceVolumes_{};
+    OriginalSource source_;
     bool initialized_ = false;
 };
 

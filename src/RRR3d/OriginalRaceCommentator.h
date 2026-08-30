@@ -3,7 +3,7 @@
 #include "OriginalGameData.h"
 #include "OriginalRaceSession.h"
 #include "OriginalResourceManager.h"
-#include "audio/AudioBackend.h"
+#include "OriginalSpatialAudio.h"
 
 #include <cstddef>
 #include <deque>
@@ -91,13 +91,13 @@ private:
     [[nodiscard]] bool isSpeaking() const noexcept;
     void playNext(std::string& error);
 
-    r3d::audio::AudioBackend& audio_;
     rrr3d::race::OriginalResourceManager& resources_;
     const r3d::game::originalgamedata::Catalog& gameData_;
     std::map<std::string, Comment> comments_;
     std::map<std::string, r3d::audio::SoundHandle> loadedSounds_;
+    std::map<r3d::audio::SoundHandle, float> soundVolumes_;
     std::deque<r3d::audio::SoundHandle> queue_;
-    r3d::audio::VoiceHandle voice_ = r3d::audio::invalidVoice;
+    OriginalSource source_;
     float globalDelaySeconds_ = 0.0F;
     float timeSeconds_ = 0.0F;
     float silenceSeconds_ = 0.0F;

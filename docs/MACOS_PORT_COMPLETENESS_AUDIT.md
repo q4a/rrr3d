@@ -70,11 +70,11 @@ Windows target не компилируется.
 | `.r3d`, DDS/PNG, XML | Исходные loaders | portable decoders + TinyXML | Перенесено | Поддержаны используемые форматы; это не перенос всего legacy resource object graph |
 | Окно и event loop | Win32/D3D window | SDL3/Cocoa | Замена платформы | Нативный путь работает |
 | Keyboard/mouse/gamepad | XInput/Win32 `ControlManager` | source `VirtualKey`/action state поверх SDL3 | Перенесено с backend-адаптацией | Точные constructor/user bindings, raw menu keys, repeat, focus release, `XUSER_INDEX_ANY` event delivery, hot-plug, 30/255 и 7849/8689 thresholds перенесены; Win32/XInput polling API заменён SDL3 events |
-| Audio device/mixer | XAudio2/X3DAudio | SDL3/CoreAudio | Замена платформы | Backend полноценный, но весь исходный game-side `Audio.cpp` object graph не перенесён |
+| Audio device/mixer | XAudio2/X3DAudio | SDL3/CoreAudio | Замена платформы | Backend полноценный; общие game-side `Source` и `Source3d` owners активны для menu, commentator и spatial race audio, но legacy engine Proxy priority/pool/streaming threads закономерно остаются заменённым backend graph |
 | MusicCat/menu music | `MusicCat`, `DialogMenu2::MusicDialog`, три menu Ogg и 11 game Ogg | `game.xml` catalog, background decode, source shuffle/Play/Stop/Next, in-process pause cursor, `user.xml` playlist + source music popup | Перенесено | Clean profile начинает с пустых очередей; дубликаты/invalid user indices сохраняются до `Play`; Pause выполняет source `StopMusic` и recreation с PCM cursor. Game track извлекается только в `DoStartRace` с кадра 0; `ExitRace` не продвигает очередь, PCM cursor между запусками не сохраняется; MusicDialog использует исходный `dlgFrame2`, serialized metadata, layout и timing |
-| Menu SoundSheme | `Menu::SoundSheme`, один Effects source | девять source UI cues и один interrupting SDL voice | Перенесено | `ssButton1..5`, `ssStepper`, Accept/Info и Workshop drag используют исходные click/hover/pickup/repaint/planet/option/accept/warning события без наложения |
+| Menu SoundSheme | `Menu::SoundSheme`, один Effects source | девять source UI cues и один `OriginalSource` owner | Перенесено | `ssButton1..5`, `ssStepper`, Accept/Info и Workshop drag используют исходные click/hover/pickup/repaint/planet/option/accept/warning события; каждый вызов делает Stop→SetSound→SetPos(0)→Play на одном source без наложения |
 | Spatial race audio | X3DAudio game integration | source-derived `m3dFlat` voices поверх SDL | Частично | Общий `OriginalSource3d` владеет play intent, PCM cursor, backend voice, resource/source gain, pitch, loop/once и 30/45 м stop/resume для `SoundMotor`, `PxWheelSlipEffect`, `ShotEffect`, pair-owned `PairPxContactEffect` и lifetime/target-child `LifeEffect`; раздельные raw voice/proxy host state удалены, legacy XAudio2 priority/pool и ещё не классифицированные non-3d `Source` cues остаются следующей границей аудита |
-| Commentator | `GameMode::Commentator`, serialized `game.xml/commentator/comments` | единый `OriginalGameData` descriptor + source state machine поверх SDL Voice bus | Перенесено | Все 37 comments и voices читаются общим `GameMode::LoadGameData`-совместимым loader; доступные файлы выбранного style связываются с descriptors, а chance/delay/busy/repeatPlayer, weighted choice, prefix/suffix, настоящий битовый `playerId` и все offline race events повторяют source semantics |
+| Commentator | `GameMode::Commentator`, serialized `game.xml/commentator/comments` | единый `OriginalGameData` descriptor + `OriginalSource` поверх SDL Voice bus | Перенесено | Все 37 comments и voices читаются общим loader; chance/delay/busy/repeatPlayer, weighted choice, prefix/suffix, настоящий битовый `playerId`, queue/replace, SetSound→SetPos(0)→Play, pause и stream-end Next повторяют source semantics |
 | Главное меню, внешний вид | `MainMenu2.cpp` | source-owned `FrameController` поверх bgfx | Частично | Фон/панели/selection и source layout Main/GameMode/Tournament/Difficulty/Profile активны; полный network/credits widget object graph ещё не завершён |
 | Навигация меню | `Menu`, `MenuSystem`, `MainMenu2`, `OptionsMenu`, `RaceMenu2`, `FinishMenu`, `FinalMenu`, `GameMode` | source-owned stack, frame policy, Profile/Options/RaceMenu/Finish/Final graphs | Частично | Main/GameMode/Tournament/Difficulty/Profile, Options/StartOptions, RaceMain/Gamers/Garage/Workshop/Angar/Achievment, Finish и Final имеют source availability, navigation, lifecycle, layout и команды; остаются concrete network callbacks и legacy Widget backend graph |
 | Dialog/Profile UI | `DialogMenu2.cpp`, `MainMenu2.cpp`, `RaceMenu2.cpp` | source-owned `DialogSystem` + `ProfileFrameState` и backend visuals | Частично | ProfileFrame владеет четырьмя rows, scroll/item-close focus и select/delete; common dialogs source-owned. RaceMenu-specific dialog/widget graph ещё не завершён |
@@ -2308,6 +2308,30 @@ Shot records теперь живут весь lifetime slot/sound owner и вы�
 reload полагаются на RAII owner вместо ручных `audio.stop` ветвей. Fake
 backend regression дополнительно проверяет cursor 123→Stop→resume, explicit
 Stop/seek и отсутствие double-stop.
+
+### B8bg — обычный `snd::Source` owner для Menu/Commentator — выполнено
+
+После spatial migration обычный source всё ещё был представлен двумя
+ручными raw handles: `OriginalMenuSounds::voice_` и
+`OriginalRaceCommentator::voice_`. Первый вручную останавливал предыдущий UI
+cue, второй отдельно управлял queue/replace/pause/EOF. Это повторяло
+`Source` поверх SDL, а не переносило его.
+
+Добавлен movable RAII `OriginalSource` с исходными sound/resource volume,
+Source volume/frequency, category bus, loop/once, PCM position, Play/Stop,
+pause и backend Proxy lifetime. `SetSound`, `SetPos(0)` и `Stop` имеют один
+owner; Stop сохраняет cursor, а SetPos явно перематывает и освобождает текущий
+voice. Fake backend проверяет Voice bus, resource×source gain, pitch,
+start frame 33, stop/resume 77, rewind 0 и single-owner teardown.
+
+Все девять Menu SoundSheme cues теперь используют один Effects
+`OriginalSource` и точный Stop→SetSound→SetPos(0)→Play. Commentator использует
+один Voice source: replace вызывает Stop, queue ждёт natural EOF, `playNext`
+делает SetSound→SetPos(0)→Play, pause применяется к тому же owner. Resource
+volume больше не теряется. Последний прямой `audio.play` из active game host
+удалён: serialized EffectSound producers полностью классифицированы как
+Shot, Life или PairContact. MusicCat сохраняет специализированный streaming
+owner, потому что его playlist/persistence является отдельным source классом.
 
 ## Воспроизведение проверки
 

@@ -29,6 +29,57 @@ struct OriginalAudioPosition
     float z = 0.0F;
 };
 
+// Backend-neutral counterpart of snd::Source. It owns the current Proxy
+// voice and preserves Source fields independently from SDL/CoreAudio.
+class OriginalSource
+{
+public:
+    OriginalSource() noexcept = default;
+    ~OriginalSource();
+    OriginalSource(const OriginalSource&) = delete;
+    OriginalSource& operator=(const OriginalSource&) = delete;
+    OriginalSource(OriginalSource&& other) noexcept;
+    OriginalSource& operator=(OriginalSource&& other) noexcept;
+
+    void Attach(r3d::audio::AudioBackend& backend) noexcept;
+    void Detach() noexcept;
+    void SetBus(r3d::audio::Bus value) noexcept;
+    r3d::audio::Bus GetBus() const noexcept;
+    void SetSound(
+        r3d::audio::SoundHandle sound,
+        float resourceVolume = 1.0F) noexcept;
+    r3d::audio::SoundHandle GetSound() const noexcept;
+    r3d::audio::VoiceHandle GetVoice() const noexcept;
+    void SetLoop(bool value) noexcept;
+    bool GetLoop() const noexcept;
+    void SetVolume(float value) noexcept;
+    float GetVolume() const noexcept;
+    void SetFrequencyRatio(float value) noexcept;
+    float GetFrequencyRatio() const noexcept;
+    void SetPlaybackPositionFrames(std::uint64_t value) noexcept;
+    std::uint64_t GetPlaybackPositionFrames() const noexcept;
+    bool Play(std::string& error, bool paused = false);
+    void Stop() noexcept;
+    bool IsPlaying() const noexcept;
+    void SetPaused(bool value) noexcept;
+    bool GetPaused() const noexcept;
+
+private:
+    void MoveFrom(OriginalSource&& other) noexcept;
+    void ApplyVoice() noexcept;
+
+    r3d::audio::AudioBackend* backend_ = nullptr;
+    r3d::audio::SoundHandle sound_ = r3d::audio::invalidSound;
+    r3d::audio::VoiceHandle voice_ = r3d::audio::invalidVoice;
+    r3d::audio::Bus bus_ = r3d::audio::Bus::Effects;
+    float resourceVolume_ = 1.0F;
+    float volume_ = 1.0F;
+    float frequencyRatio_ = 1.0F;
+    std::uint64_t playbackPositionFrames_ = 0U;
+    bool loop_ = false;
+    bool paused_ = false;
+};
+
 // Native-backend counterpart of snd::Source3d.  Game code owns this source;
 // SDL owns only the current voice proxy.  Play intent, proxy hysteresis,
 // source/resource gain, pitch, loop mode and stop/restart lifetime remain

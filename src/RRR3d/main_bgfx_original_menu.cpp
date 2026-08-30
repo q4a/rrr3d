@@ -4267,7 +4267,7 @@ int main(int argc, char** argv)
                   << ": Data/" << track.path << ']';
     std::cout << "\nOriginal Menu SoundSheme: "
               << menuSounds.loadedSoundCount()
-              << " source UI sounds, one interrupting Effects voice\n";
+              << " source UI sounds, one interrupting Effects Source\n";
 
     auto playOriginalMenuSound =
         [&](rrr3d::audio::OriginalMenuSound sound) {
@@ -4456,7 +4456,7 @@ int main(int argc, char** argv)
                   << commentator.commentCount()
                   << " serialized comments, "
                   << commentator.loadedVoiceCount()
-                  << " available voice files\n";
+                  << " available voice files, one queued Voice Source\n";
     }
     engineAudioValid =
         engineAudioValid &&
@@ -15273,40 +15273,6 @@ int main(int argc, char** argv)
             {
                 const auto listener =
                     raceVehicles[humanRacer].body.position;
-                auto playSpatial =
-                    [&](r3d::audio::SoundHandle sound,
-                        const r3d::physics::Vec3& source) {
-                    if (sound == r3d::audio::invalidSound)
-                        return;
-                    const float dx = source.x - listener.x;
-                    const float dy = source.y - listener.y;
-                    const float dz = source.z - listener.z;
-                    const float distance =
-                        std::sqrt(dx * dx + dy * dy + dz * dz);
-                    // snd::Engine defaults to m3dFlat. A newly created
-                    // Source3d starts only inside CurveDistanceScaler and
-                    // has neither stereo pan nor Doppler in this mode.
-                    const auto spatial =
-                        rrr3d::audio::originalSource3dFlatMix(
-                            distance, false);
-                    if (!spatial.proxyPlaying)
-                        return;
-                    const auto sourceVolume =
-                        engineSoundVolumes.find(sound);
-                    const float volume =
-                        spatial.gain *
-                        (sourceVolume != engineSoundVolumes.end()
-                             ? sourceVolume->second
-                             : 1.0F);
-                    r3d::audio::PlayOptions playOptions;
-                    playOptions.bus = r3d::audio::Bus::Effects;
-                    playOptions.volume = volume;
-                    const auto voice =
-                        audio.play(sound, playOptions, audioError);
-                    if (voice != r3d::audio::invalidVoice)
-                        audio.setVoiceParameters(
-                            voice, volume, 1.0F, 0.0F);
-                };
                 for (const auto& event : raceSession.events())
                 {
                     if (event.kind ==
@@ -15455,10 +15421,6 @@ int main(int argc, char** argv)
                                 timedEffectAudio.push_back(
                                     std::move(source));
                             }
-                        }
-                        else
-                        {
-                            playSpatial(sound, event.position);
                         }
                     }
                 }

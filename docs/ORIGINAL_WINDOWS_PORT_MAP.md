@@ -995,6 +995,17 @@ slot/sound, Life — до effect death, Contact — до pair release через
 race transition/disconnect; CoreAudio остаётся mixer boundary. Regression
 проверяет два сохранённых cursor, seek 0, EOF и single-owner teardown.
 
+Результат B8ay: возвращён обычный `snd::Source` owner. `OriginalSource`
+хранит category, sound/resource/source gain, frequency, loop/once, pause,
+PCM cursor и SDL Proxy handle. Menu SoundSheme больше не управляет raw voice:
+все девять cues проходят один Effects owner через
+Stop→SetSound→SetPos(0)→Play. Commentator queue/replace/EOF Next использует
+один Voice owner и тот же pause/rewind lifecycle. Regression проверяет
+category, gain/pitch, 33→77 resume, rewind 0 и teardown. Последняя direct
+`audio.play` ветка удалена из active host после классификации всех текущих
+EffectSound как Shot/Life/PairContact; MusicCat остаётся отдельным source
+playlist/streaming классом, SDL/CoreAudio — mixer boundary.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:

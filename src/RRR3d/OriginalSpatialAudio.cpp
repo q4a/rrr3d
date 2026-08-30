@@ -47,6 +47,200 @@ bool nearlyEqual(float left, float right) noexcept
 
 } // namespace
 
+OriginalSource::~OriginalSource()
+{
+    Detach();
+}
+
+OriginalSource::OriginalSource(OriginalSource&& other) noexcept
+{
+    MoveFrom(std::move(other));
+}
+
+OriginalSource& OriginalSource::operator=(
+    OriginalSource&& other) noexcept
+{
+    if (this != &other)
+    {
+        Detach();
+        MoveFrom(std::move(other));
+    }
+    return *this;
+}
+
+void OriginalSource::MoveFrom(OriginalSource&& other) noexcept
+{
+    backend_ = std::exchange(other.backend_, nullptr);
+    sound_ = std::exchange(other.sound_, invalidSound);
+    voice_ = std::exchange(other.voice_, invalidVoice);
+    bus_ = other.bus_;
+    resourceVolume_ = other.resourceVolume_;
+    volume_ = other.volume_;
+    frequencyRatio_ = other.frequencyRatio_;
+    playbackPositionFrames_ = other.playbackPositionFrames_;
+    loop_ = other.loop_;
+    paused_ = other.paused_;
+}
+
+void OriginalSource::Attach(AudioBackend& backend) noexcept
+{
+    if (backend_ == &backend)
+        return;
+    Detach();
+    backend_ = &backend;
+}
+
+void OriginalSource::Detach() noexcept
+{
+    Stop();
+    backend_ = nullptr;
+}
+
+void OriginalSource::SetBus(Bus value) noexcept
+{
+    if (bus_ == value)
+        return;
+    Stop();
+    bus_ = value;
+}
+
+Bus OriginalSource::GetBus() const noexcept { return bus_; }
+
+void OriginalSource::SetSound(
+    SoundHandle sound, float resourceVolume) noexcept
+{
+    if (sound_ != sound)
+    {
+        Stop();
+        sound_ = sound;
+    }
+    resourceVolume_ = resourceVolume;
+    ApplyVoice();
+}
+
+SoundHandle OriginalSource::GetSound() const noexcept { return sound_; }
+VoiceHandle OriginalSource::GetVoice() const noexcept { return voice_; }
+
+void OriginalSource::SetLoop(bool value) noexcept
+{
+    if (loop_ == value)
+        return;
+    Stop();
+    loop_ = value;
+}
+
+bool OriginalSource::GetLoop() const noexcept { return loop_; }
+
+void OriginalSource::SetVolume(float value) noexcept
+{
+    volume_ = value;
+    ApplyVoice();
+}
+
+float OriginalSource::GetVolume() const noexcept { return volume_; }
+
+void OriginalSource::SetFrequencyRatio(float value) noexcept
+{
+    frequencyRatio_ = value;
+    ApplyVoice();
+}
+
+float OriginalSource::GetFrequencyRatio() const noexcept
+{
+    return frequencyRatio_;
+}
+
+void OriginalSource::SetPlaybackPositionFrames(
+    std::uint64_t value) noexcept
+{
+    playbackPositionFrames_ = value;
+    if (backend_ != nullptr && voice_ != invalidVoice)
+    {
+        backend_->stop(voice_);
+        voice_ = invalidVoice;
+    }
+}
+
+std::uint64_t OriginalSource::GetPlaybackPositionFrames() const noexcept
+{
+    if (backend_ != nullptr && voice_ != invalidVoice &&
+        backend_->isVoiceActive(voice_))
+    {
+        return backend_->voicePositionFrames(voice_);
+    }
+    return playbackPositionFrames_;
+}
+
+bool OriginalSource::Play(std::string& error, bool paused)
+{
+    if (backend_ == nullptr || sound_ == invalidSound)
+    {
+        error = "Original Source has no backend sound";
+        return false;
+    }
+    paused_ = paused;
+    if (voice_ != invalidVoice && backend_->isVoiceActive(voice_))
+    {
+        ApplyVoice();
+        error.clear();
+        return true;
+    }
+    voice_ = invalidVoice;
+    PlayOptions options;
+    options.bus = bus_;
+    options.volume = resourceVolume_ * volume_;
+    options.loop = loop_;
+    options.paused = paused_;
+    options.startFrame = playbackPositionFrames_;
+    voice_ = backend_->play(sound_, options, error);
+    if (voice_ == invalidVoice)
+        return false;
+    ApplyVoice();
+    error.clear();
+    return true;
+}
+
+void OriginalSource::Stop() noexcept
+{
+    if (backend_ != nullptr && voice_ != invalidVoice)
+    {
+        if (backend_->isVoiceActive(voice_))
+        {
+            playbackPositionFrames_ =
+                backend_->voicePositionFrames(voice_);
+        }
+        backend_->stop(voice_);
+    }
+    voice_ = invalidVoice;
+}
+
+bool OriginalSource::IsPlaying() const noexcept
+{
+    return backend_ != nullptr && voice_ != invalidVoice &&
+           backend_->isVoiceActive(voice_);
+}
+
+void OriginalSource::SetPaused(bool value) noexcept
+{
+    paused_ = value;
+    if (backend_ != nullptr && voice_ != invalidVoice)
+        backend_->setVoicePaused(voice_, value);
+}
+
+bool OriginalSource::GetPaused() const noexcept { return paused_; }
+
+void OriginalSource::ApplyVoice() noexcept
+{
+    if (backend_ == nullptr || voice_ == invalidVoice ||
+        !backend_->isVoiceActive(voice_))
+    {
+        return;
+    }
+    backend_->setVoiceParameters(
+        voice_, resourceVolume_ * volume_, frequencyRatio_, 0.0F);
+    backend_->setVoicePaused(voice_, paused_);
+}
+
 OriginalSource3d::~OriginalSource3d()
 {
     Detach();
@@ -344,6 +538,7 @@ bool runOriginalSpatialAudioSmokeTest() noexcept
             const auto voice = next_++;
             active_[voice] = true;
             positions_[voice] = options.startFrame;
+            bus = options.bus;
             volume = options.volume;
             voicePaused = options.paused;
             startFrame = options.startFrame;
@@ -404,12 +599,39 @@ bool runOriginalSpatialAudioSmokeTest() noexcept
         bool voicePaused = false;
         std::size_t stops = 0U;
         std::uint64_t startFrame = 0U;
+        Bus bus = Bus::Effects;
 
     private:
         VoiceHandle next_ = 1U;
         std::unordered_map<VoiceHandle, bool> active_;
         std::unordered_map<VoiceHandle, std::uint64_t> positions_;
     };
+
+    FakeAudio ordinaryFake;
+    OriginalSource ordinary;
+    ordinary.Attach(ordinaryFake);
+    ordinary.SetBus(Bus::Voice);
+    ordinary.SetSound(9U, 2.0F);
+    ordinary.SetVolume(0.25F);
+    ordinary.SetFrequencyRatio(1.5F);
+    ordinary.SetPlaybackPositionFrames(33U);
+    std::string ordinaryError;
+    const bool ordinaryStarted = ordinary.Play(ordinaryError);
+    const auto ordinaryVoice = ordinary.GetVoice();
+    const bool ordinaryMix =
+        nearlyEqual(ordinaryFake.volume, 0.5F) &&
+        nearlyEqual(ordinaryFake.pitch, 1.5F) &&
+        ordinaryFake.bus == Bus::Voice && ordinaryFake.startFrame == 33U;
+    ordinaryFake.setPosition(ordinaryVoice, 77U);
+    ordinary.Stop();
+    const bool ordinaryResumed =
+        ordinary.GetPlaybackPositionFrames() == 77U &&
+        ordinary.Play(ordinaryError) && ordinaryFake.startFrame == 77U;
+    ordinary.SetPlaybackPositionFrames(0U);
+    const bool ordinaryRewound =
+        ordinary.Play(ordinaryError, true) &&
+        ordinaryFake.startFrame == 0U && ordinaryFake.voicePaused;
+    ordinary.Stop();
 
     FakeAudio fake;
     OriginalSource3d source;
@@ -494,6 +716,9 @@ bool runOriginalSpatialAudioSmokeTest() noexcept
                r3d::game::originalaudio::masteringVoiceVolume *
                    r3d::game::originalaudio::defaultVoiceVolume,
                0.12F) &&
+           ordinaryStarted && ordinaryVoice != invalidVoice &&
+           ordinaryMix && ordinaryResumed && ordinaryRewound &&
+           ordinaryFake.stops == 3U &&
            sourceStarted && sourceVoice != invalidVoice &&
            nearlyEqual(sourceStartVolume, 1.0F) &&
            nearlyEqual(sourceStartPitch, 1.25F) &&

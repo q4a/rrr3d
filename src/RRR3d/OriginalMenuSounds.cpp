@@ -37,9 +37,12 @@ constexpr std::array<SourceSound, 9> sourceSounds{{
 OriginalMenuSounds::OriginalMenuSounds(
     r3d::audio::AudioBackend& audio,
     rrr3d::race::OriginalResourceManager& resources)
-    : audio_(audio), resources_(resources)
+    : resources_(resources)
 {
     sounds_.fill(r3d::audio::invalidSound);
+    resourceVolumes_.fill(1.0F);
+    source_.Attach(audio);
+    source_.SetBus(r3d::audio::Bus::Effects);
 }
 
 OriginalMenuSounds::~OriginalMenuSounds()
@@ -55,8 +58,10 @@ bool OriginalMenuSounds::initialize(std::string& error)
         for (const auto& source : sourceSounds)
         {
             const std::string path = "Data/" + std::string(source.path);
-            sounds_[static_cast<std::size_t>(source.sound)] =
-                resources_.GetSound(path).sound;
+            const auto& resource = resources_.GetSound(path);
+            const auto index = static_cast<std::size_t>(source.sound);
+            sounds_[index] = resource.sound;
+            resourceVolumes_[index] = resource.volume;
         }
     }
     catch (const std::exception& exception)
@@ -72,10 +77,9 @@ bool OriginalMenuSounds::initialize(std::string& error)
 
 void OriginalMenuSounds::shutdown() noexcept
 {
-    if (voice_ != r3d::audio::invalidVoice)
-        audio_.stop(voice_);
-    voice_ = r3d::audio::invalidVoice;
+    source_.Stop();
     sounds_.fill(r3d::audio::invalidSound);
+    resourceVolumes_.fill(1.0F);
     initialized_ = false;
 }
 
@@ -91,13 +95,11 @@ bool OriginalMenuSounds::play(
     }
     // Menu::PlaySound calls StopSound before assigning and rewinding the one
     // shared source, so fast focus/click sequences never overlap.
-    if (voice_ != r3d::audio::invalidVoice)
-        audio_.stop(voice_);
-    voice_ = r3d::audio::invalidVoice;
-    r3d::audio::PlayOptions options;
-    options.bus = r3d::audio::Bus::Effects;
-    voice_ = audio_.play(sounds_[index], options, error);
-    return voice_ != r3d::audio::invalidVoice;
+    source_.Stop();
+    source_.SetSound(sounds_[index], resourceVolumes_[index]);
+    source_.SetLoop(false);
+    source_.SetPlaybackPositionFrames(0U);
+    return source_.Play(error);
 }
 
 std::size_t OriginalMenuSounds::loadedSoundCount() const noexcept
