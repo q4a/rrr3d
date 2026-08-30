@@ -1336,7 +1336,7 @@ int main(int argc, char** argv)
     // player selected a camera: an absent prefCamera field opens the
     // mandatory StartOptionsMenu.  Other regression fixtures intentionally
     // start at their target screen; the dedicated fixture forces this path.
-    bool sourcePreferredCameraAutodetect =
+    const bool sourcePreferredCameraAutodetectAtLoad =
         options->startOptionsSmokeTest ||
         (sourceNormalInteractiveLaunch &&
          !profileState.preferredCameraSerialized);
@@ -1344,11 +1344,16 @@ int main(int argc, char** argv)
     // the source's "discrete" compatibility bit so CheckStartupMenu keeps
     // sfrFixed without showing a misleading Windows hybrid-GPU warning.
     constexpr bool sourceCurrentDiscreteVideoCard = true;
-    bool sourceDiscreteVideoChanged =
+    const bool sourceDiscreteVideoChangedAtLoad =
         sourceNormalInteractiveLaunch &&
         (!profileState.discreteVideoCardSerialized ||
          profileState.config.discreteVideoCard !=
              sourceCurrentDiscreteVideoCard);
+    r3d::game::originalrace::source::GameModeStartupMenuState
+        sourceStartupMenuState(
+            sourcePreferredCameraAutodetectAtLoad,
+            sourceDiscreteVideoChangedAtLoad,
+            sourceCurrentDiscreteVideoCard);
     if (options->languageSelected)
     {
         profileState.config.language = options->language;
@@ -4288,13 +4293,6 @@ int main(int argc, char** argv)
                 {static_cast<float>(musicDialogFrameImage.width),
                  static_cast<float>(musicDialogFrameImage.height)});
         };
-    // GameMode::StartGame shows the current track only after FreeIntro.
-    if (!sourceStartupRequested)
-    {
-        showOriginalMusicInfo(
-            OriginalMusicDialogSource::Menu, lastMenuMusicTrack);
-    }
-
     std::cout << "Original MusicCat: background decode, source playlist, "
                  "auto Next and in-process pause/resume";
     if (options->audioSmokeTest)
@@ -4715,14 +4713,13 @@ int main(int argc, char** argv)
     bool startupInitialBlankObserved = !options->startupSmokeTest;
     bool startupInterlogoBlankObserved = !options->startupSmokeTest;
     bool startupLoadFrameObserved = !options->startupSmokeTest;
+    bool startupPrepareGameObserved = !options->startupSmokeTest;
+    bool startupFreeIntroObserved = !options->startupSmokeTest;
     bool startupMenuTransitionObserved = !options->startupSmokeTest;
     bool startupEscapeQueued = false;
     bool startupEscapeObserved = !options->startupSmokeTest;
 #ifdef RRR3D_PHYSICS
-    bool sourceStartOptionsActive =
-        !sourceStartupRequested && sourcePreferredCameraAutodetect;
-    if (sourceStartOptionsActive)
-        sourcePreferredCameraAutodetect = false;
+    bool sourceStartOptionsActive = false;
     const auto startOptionsConfigBefore = profileState.config;
     bool startOptionsFrameObserved =
         !options->startOptionsSmokeTest;
@@ -9362,17 +9359,35 @@ int main(int argc, char** argv)
             return;
         refreshStartOptionsValues();
     };
+    auto checkSourceStartupMenu = [&]() {
+        using Command = r3d::game::originalrace::source::
+            GameModeStartupMenuCommand;
+        switch (sourceStartupMenuState.Check())
+        {
+        case Command::ShowStartOptions:
+            sourceStartOptionsActive = true;
+            break;
+        case Command::UseFixedFrameRate:
+            profileState.config.quality.frameRateMode = "sfrFixed";
+            break;
+        case Command::ShowDiscreteVideoMessage:
+            showInfoDialog(
+                localized("svWarning"),
+                localized("svDiscreteVideoDetection"),
+                localized("svOk"), menu::virtualWidth * 0.5F,
+                menu::virtualHeight * 0.5F);
+            break;
+        case Command::None:
+            break;
+        }
+    };
     auto finishStartOptions = [&]() {
         sourceStartOptionsActive = false;
         startOptionsReloadDialogPending = false;
         startOptionsMainTransitionObserved = true;
-        if (sourceDiscreteVideoChanged)
-        {
-            // CheckStartupMenu's Apple-Silicon branch: a capable current GPU
-            // retains the original fixed-frame scheduling mode.
-            profileState.config.quality.frameRateMode = "sfrFixed";
-            sourceDiscreteVideoChanged = false;
-        }
+        // StartOptionsMenu::OnClick closes itself and invokes the same
+        // GameMode::CheckStartupMenu again, consuming a pending GPU change.
+        checkSourceStartupMenu();
         const auto& resolution = sourceStartOptionsMenu.resolution();
         std::cout
             << "Original StartOptionsMenu -> MainMenu2: camera="
@@ -10150,23 +10165,9 @@ int main(int argc, char** argv)
             1.0F, transparent);
     };
 #if defined(RRR3D_AUDIO) && defined(RRR3D_GAMEPAD_INPUT)
-    if (options->audioSmokeTest)
-    {
-        SDL_Event down{};
-        down.key.type = SDL_EVENT_KEY_DOWN;
-        down.key.down = true;
-        down.key.scancode = SDL_SCANCODE_DOWN;
-        SDL_Event confirm{};
-        confirm.key.type = SDL_EVENT_KEY_DOWN;
-        confirm.key.down = true;
-        confirm.key.scancode = SDL_SCANCODE_RETURN;
-        if (!SDL_PushEvent(&down) || !SDL_PushEvent(&confirm))
-        {
-            std::cerr << "Unable to queue integrated M8 menu/audio events: "
-                      << SDL_GetError() << '\n';
-            runtimeSmokeFailed = true;
-        }
-    }
+    bool integratedAudioMenuEventsQueued = !options->audioSmokeTest;
+    std::uint8_t integratedAudioMenuEventStep = 0U;
+    std::uint32_t integratedAudioMenuEventNextFrame = 0U;
 #endif
     while (running)
     {
@@ -10218,7 +10219,7 @@ int main(int argc, char** argv)
             }
 #endif
         }
-        if (options->networkMenuSmokeTest &&
+        if (options->networkMenuSmokeTest && !sourceStartupActive &&
             renderedFrames >= networkSmokeNextFrame &&
             networkSmokeStep < 10U)
         {
@@ -10377,7 +10378,8 @@ int main(int argc, char** argv)
             ++startOptionsSmokeStep;
             startOptionsSmokeNextFrame = renderedFrames + 2U;
         }
-        if (options->gamersFrameSmokeTest && !inRace &&
+        if (options->gamersFrameSmokeTest && !sourceStartupActive &&
+            !inRace &&
             menuStack.back() == MenuScreen::Gamers &&
             gamersSmokeStep < 4U &&
             renderedFrames >= gamersSmokeNextFrame)
@@ -10413,7 +10415,8 @@ int main(int argc, char** argv)
         // Tournament -> Continue -> RaceMenu -> WorkshopFrame ->
         // GarageFrame -> AngarFrame -> AchievmentFrame -> Race.
         // Advance one real press/release pair per rendered menu frame.
-        if (options->raceRenderSmokeTest && !inRace &&
+        if (options->raceRenderSmokeTest && !sourceStartupActive &&
+            !inRace &&
             menuStack.back() == MenuScreen::Workshop &&
             raceWorkshopWeaponDialogObserved &&
             !raceInfoDialogSmokeShown)
@@ -10436,7 +10439,7 @@ int main(int argc, char** argv)
                         0.5F);
             raceInfoDialogSmokeShown = true;
         }
-        if (options->raceRenderSmokeTest &&
+        if (options->raceRenderSmokeTest && !sourceStartupActive &&
             sourceDialogs.Info().visible &&
             raceInfoDialogObserved && !raceInfoDialogCloseQueued)
         {
@@ -10462,7 +10465,8 @@ int main(int argc, char** argv)
             menuStack.back() == MenuScreen::Workshop &&
             (!raceWorkshopWeaponDialogObserved ||
              !raceInfoDialogObserved || sourceDialogs.Info().visible);
-        if (options->raceRenderSmokeTest && !inRace &&
+        if (options->raceRenderSmokeTest && !sourceStartupActive &&
+            !inRace &&
             !waitingForWorkshopDialogs &&
             raceSmokeMenuStep < 33U &&
             renderedFrames >= raceSmokeNextMenuFrame)
@@ -10821,6 +10825,42 @@ int main(int argc, char** argv)
             input.resetInput();
 #else
         static_cast<void>(sourceMenuSystem.ConsumeInputReset());
+#endif
+#if defined(RRR3D_AUDIO) && defined(RRR3D_GAMEPAD_INPUT)
+        if (!integratedAudioMenuEventsQueued && !sourceStartupActive &&
+            renderedFrames >= integratedAudioMenuEventNextFrame)
+        {
+            // The standalone SDL input regression intentionally ends on a
+            // pressed key snapshot. GameMode::StartGame calls ResetInput
+            // before the real MainMenu receives its first command.
+            if (integratedAudioMenuEventStep == 0U)
+                input.resetInput();
+            auto queueKey = [&](SDL_Scancode scancode) {
+                SDL_Event press{};
+                press.key.type = SDL_EVENT_KEY_DOWN;
+                press.key.down = true;
+                press.key.scancode = scancode;
+                SDL_Event release = press;
+                release.key.type = SDL_EVENT_KEY_UP;
+                release.key.down = false;
+                return SDL_PushEvent(&press) && SDL_PushEvent(&release);
+            };
+            const SDL_Scancode scancode =
+                integratedAudioMenuEventStep == 0U
+                    ? SDL_SCANCODE_DOWN
+                    : SDL_SCANCODE_RETURN;
+            if (!queueKey(scancode))
+            {
+                std::cerr
+                    << "Unable to queue integrated M8 menu/audio events: "
+                    << SDL_GetError() << '\n';
+                runtimeSmokeFailed = true;
+            }
+            ++integratedAudioMenuEventStep;
+            integratedAudioMenuEventNextFrame = renderedFrames + 1U;
+            integratedAudioMenuEventsQueued =
+                integratedAudioMenuEventStep >= 2U;
+        }
 #endif
         SDL_Event event;
         while (SDL_PollEvent(&event))
@@ -13584,6 +13624,20 @@ int main(int argc, char** argv)
                         closeOriginalFinalMenu();
                     continue;
                 }
+                // Menu::OnHandleInput consumes navigation only for ksDown.
+                // SDL emits a second ActionEvent on key/button release; do
+                // not move twice or apply an option step twice.
+                const bool directionalMenuAction =
+                    inputEvent.action ==
+                        rrr3d::input::Action::MenuUp ||
+                    inputEvent.action ==
+                        rrr3d::input::Action::MenuDown ||
+                    inputEvent.action ==
+                        rrr3d::input::Action::TurnLeft ||
+                    inputEvent.action ==
+                        rrr3d::input::Action::TurnRight;
+                if (directionalMenuAction && !inputEvent.active)
+                    continue;
                 auto& page = activeMenuPage();
                 if (menuStack.back() == MenuScreen::RaceMenu &&
                     (inputEvent.action ==
@@ -16383,19 +16437,24 @@ int main(int argc, char** argv)
 
         if (sourceStartupFrame.startGame)
         {
+            startupPrepareGameObserved =
+                startupPrepareGameObserved ||
+                sourceStartupFrame.prepareGame;
+            startupFreeIntroObserved =
+                startupFreeIntroObserved ||
+                sourceStartupFrame.freeIntro;
             startupMenuTransitionObserved = true;
+            // GameMode::StartGame constructs Menu, then SetState(msMain2)
+            // before it accepts any input. The portable view already owns
+            // its pages, so publish the equivalent source frame here.
+            refreshSharedMenuAvailability(MenuScreen::Main);
+#if defined(RRR3D_AUDIO) && defined(RRR3D_GAMEPAD_INPUT)
+            // Let MainMenu2 publish its source frame/availability once before
+            // the integrated audio fixture sends the first navigation key.
+            integratedAudioMenuEventNextFrame = renderedFrames + 1U;
+#endif
 #ifdef RRR3D_PHYSICS
-            if (sourcePreferredCameraAutodetect)
-            {
-                sourceStartOptionsActive = true;
-                sourcePreferredCameraAutodetect = false;
-            }
-            else if (sourceDiscreteVideoChanged)
-            {
-                profileState.config.quality.frameRateMode =
-                    "sfrFixed";
-                sourceDiscreteVideoChanged = false;
-            }
+            checkSourceStartupMenu();
 #endif
 #ifdef RRR3D_AUDIO
             showOriginalMusicInfo(
@@ -20287,6 +20346,8 @@ int main(int argc, char** argv)
                     !startupInitialBlankObserved ||
                     !startupInterlogoBlankObserved ||
                     !startupLoadFrameObserved ||
+                    !startupPrepareGameObserved ||
+                    !startupFreeIntroObserved ||
                     !startupMenuTransitionObserved ||
                     !startupEscapeObserved ||
                     menuStack.back() != MenuScreen::Main)
@@ -20302,6 +20363,9 @@ int main(int argc, char** argv)
                         << startupInitialBlankObserved << '/'
                         << startupInterlogoBlankObserved
                         << ", load=" << startupLoadFrameObserved
+                        << ", prepare/free="
+                        << startupPrepareGameObserved << '/'
+                        << startupFreeIntroObserved
                         << ", escape=" << startupEscapeObserved
                         << ", menu="
                         << startupMenuTransitionObserved << '/'

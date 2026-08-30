@@ -2400,6 +2400,26 @@ menu→game replacement, cursor, natural EOF/release и глобальный Sto
 active race smoke — shared identity и отсутствие двух music voices;
 SDL/CoreAudio остаётся только decoder/mixer boundary.
 
+### B8bm — полный startup без intro и `CheckStartupMenu` — выполнено
+
+Исправлена формальная неполнота B8at: `GameModeStartupState::Run(false)`
+больше не пропускает startup, а воспроизводит исходные три кадра —
+прозрачный startLogo, `-2` loading, `-3` PrepareGame→StartGame→FreeIntro.
+Owner хранит prepared/started guards, поэтому повторный Run ничего не
+перезапускает. `Run(true)` выдаёт те же Prepare/Free edges после логотипов.
+
+`GameModeStartupMenuState` заменил два host boolean и выполняет точный
+`CheckStartupMenu`: camera sentinel имеет приоритет и очищается первым,
+pending GPU change остаётся до закрытия StartOptions; discrete GPU включает
+fixed-frame policy, integrated GPU выдаёт отдельную warning-команду.
+Renderer/UI только исполняют результат.
+
+Одновременно восстановлен общий `InputMessage::ksDown` gate: release
+Up/Down/Left/Right больше не делает второй menu/stepper шаг. Это исправляет
+наблюдавшееся скачкообразное изменение resolution и selection. Startup,
+StartOptions и полный M8 audio/input/MusicCat smoke проходят; unit regression
+проверяет обе startup ветви и все CheckStartupMenu one-shot transitions.
+
 ## Воспроизведение проверки
 
 ```sh

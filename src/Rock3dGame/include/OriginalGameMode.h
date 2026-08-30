@@ -22,6 +22,8 @@ struct GameModeStartupFrame
     float firstLogoAlpha = 0.0F;
     float secondLogoAlpha = 0.0F;
     bool loadFrame = false;
+    bool prepareGame = false;
+    bool freeIntro = false;
     bool startGame = false;
     bool active = false;
 };
@@ -37,12 +39,15 @@ public:
     GameModeStartupFrame OnFrame(float deltaTime) noexcept;
 
     bool IsActive() const noexcept;
+    bool IsPrepared() const noexcept;
+    bool IsStarted() const noexcept;
     float ElapsedSeconds() const noexcept;
 
 private:
     enum class Phase : std::uint8_t
     {
         Inactive,
+        NoLogoBlank,
         Logos,
         Loading,
         StartGame,
@@ -50,6 +55,37 @@ private:
 
     Phase phase_ = Phase::Inactive;
     float elapsedSeconds_ = 0.0F;
+    bool prepared_ = false;
+    bool started_ = false;
+};
+
+enum class GameModeStartupMenuCommand : std::uint8_t
+{
+    None,
+    ShowStartOptions,
+    UseFixedFrameRate,
+    ShowDiscreteVideoMessage,
+};
+
+// Exact one-shot precedence of GameMode::CheckStartupMenu.  The first-run
+// camera sentinel is handled before the display-adapter change; closing the
+// StartOptions frame calls Check again and consumes the remaining GPU action.
+class GameModeStartupMenuState
+{
+public:
+    GameModeStartupMenuState(
+        bool preferredCameraAutodetect = false,
+        bool discreteVideoChanged = false,
+        bool currentDiscreteVideoCard = true) noexcept;
+
+    GameModeStartupMenuCommand Check() noexcept;
+    bool PreferredCameraAutodetectPending() const noexcept;
+    bool DiscreteVideoChangePending() const noexcept;
+
+private:
+    bool preferredCameraAutodetect_ = false;
+    bool discreteVideoChanged_ = false;
+    bool currentDiscreteVideoCard_ = true;
 };
 
 struct GameModeMovieFrame

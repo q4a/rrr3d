@@ -56,7 +56,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `FinishMenu` | `originalracemenu::FinishMenuFrameState` + bgfx/CoreText view | Source owner, active frame | Legacy Widget API заменён backend draw/input; result order, timing, events и layout принадлежат source owner |
 | `GameBase` | `OriginalGameObject`, all serialized behaviors, effects, motor sound state | Source owner, active behavior graph | Все shipped type 0–14 имеют concrete owner/runtime; bgfx/Jolt/SDL исполняют только graph/physics/audio commands |
 | `GameCar` | `source::GameCar::{OnFixedStepDrive,OnContact,OnPxSync}` + Jolt vehicle adapter | Source owner, active drive/contact frame | Оставшиеся PhysX solver queries и actor operations являются Jolt boundary; продолжить аудит public serialization/editor-only методов |
-| `GameMode` | source startup/movie/race/music-fade states + one shared menu/game music source on shared World | Source owner, active startup/movie/race/audio-policy path | Config и dispatch menu/audio команд ещё находятся в host; SDL/CoreAudio декодирует и исполняет готовые source/category commands |
+| `GameMode` | source startup/startup-menu/movie/race/music-fade states + one shared menu/game music source on shared World | Source owner, active startup/menu/race/audio-policy path | Config serialization и backend dispatch остаются adapters; bgfx/SDL/CoreAudio исполняют готовые source commands |
 | `GameObject` | `source::GameObject`, event counters, frame sync, listener/contact graph | Source owner, active core | Jolt/bgfx snapshots остаются backend boundary; source fixed/frame registration подключена |
 | `HudMenu` | `source::{HudMenu,MiniMapFrame,PlayerStateFrame}` + `OriginalRaceHud` | Source owner, active HUD/minimap/player-state policy | State/Escape/layout/countdown, MiniMap, weapon/place/life, OnProcessEvent, notifications, car-life и opponents source-owned; FinishMenu не дублируется, bgfx/CoreText payload и camera projection остаются backend boundary |
 | `HumanPlayer` | `source::HumanPlayer` | Source owner | Полный input message order, driving/progress gates и weapon selection перенесены; SDL только переводит source-сообщения |
@@ -1054,6 +1054,19 @@ Menu pause/resume сохраняет PCM frame на общем source, race Play
 smoke закрепляет shared identity и mutual exclusion voices, а fake backend
 regression — owner A→B, cursor, natural EOF и global Stop. SDL/CoreAudio
 остаётся decode/mixer boundary.
+
+Результат B8bm: исправлена пропущенная ветвь `GameMode::Run(false)`. Даже без
+Yard/Laboratoria owner выдаёт исходный пустой `_startUpTime=0` кадр, затем
+`-2/startLogo` и `-3/PrepareGame→StartGame→FreeIntro`; повторный Run после
+start guard не действует. Полная intro-ветвь выдаёт те же prepare/free edges.
+
+`GameModeStartupMenuState` владеет `_prefCameraAutodetect` и
+`_discreteVideoChanged`, их строгим else-if приоритетом и повторным Check
+после закрытия StartOptions. Host больше не очищает эти flags вручную.
+Дополнительно menu dispatch принимает directional actions только при
+`InputMessage::ksDown`: SDL key-up не двигает selection/stepper второй раз.
+Unit и active startup/StartOptions/audio smokes закрепляют оба Run пути,
+one-shot GPU commands и реальный одинарный Multiplayer navigation.
 
 ## Правило обновления карты
 

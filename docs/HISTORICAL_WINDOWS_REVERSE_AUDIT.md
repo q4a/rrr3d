@@ -6003,6 +6003,28 @@ FinalMenu намеренно оставлен на отдельном source. Д
 backend regression проверяет identity, owner A→B, cursor, natural EOF и
 global Stop; integrated smoke закрепляет невозможность двух voices.
 
+### P2.266 — `Run(false)` и `CheckStartupMenu` исправлены — выполнено
+
+Повторная сверка `GameMode::{Run,PrepareGame,StartGame,FreeIntro,
+CheckStartupMenu}` обнаружила ошибку в ранее закрытом P2.248: portable
+`Run(false)` делал startup owner сразу inactive. Windows при отсутствии двух
+логотипов всё равно проводит `_startUpTime=0` blank, затем `-2` с
+`startLogo.dds`, затем `-3`, где последовательно исполняются PrepareGame и
+StartGame/FreeIntro. Повторный Run после StartGame игнорируется.
+
+`GameModeStartupState` теперь хранит prepared/started guards и выдаёт обе
+ветви `Run(true/false)` с точными blank/loading/prepare/free/start edges.
+Отдельный `GameModeStartupMenuState` переносит one-shot приоритет
+`_prefCameraAutodetect` перед `_discreteVideoChanged`: закрытие обязательного
+StartOptions вызывает Check повторно и только тогда потребляет GPU action.
+
+Связанный integrated smoke выявил ещё один active дефект: SDL release-event
+обрабатывался host-меню как второй Up/Down/Left/Right, хотя Windows
+`OnHandleInput` принимает навигацию только при `ksDown`. Release теперь не
+двигает selection и не меняет option второй раз; audio smoke выбирает
+Multiplayer одним нажатием. Unit regression проверяет обе Run-ветви,
+idempotency, Prepare/Free и оба результата integrated/discrete GPU.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

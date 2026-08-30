@@ -9,8 +9,10 @@ namespace r3d::game::originalrace::source
 
 void GameModeStartupState::Run(bool playIntro) noexcept
 {
+    if (started_ || phase_ != Phase::Inactive)
+        return;
     elapsedSeconds_ = 0.0F;
-    phase_ = playIntro ? Phase::Logos : Phase::Inactive;
+    phase_ = playIntro ? Phase::Logos : Phase::NoLogoBlank;
 }
 
 void GameModeStartupState::SkipIntro() noexcept
@@ -30,13 +32,23 @@ GameModeStartupFrame GameModeStartupState::OnFrame(
     {
     case Phase::Inactive:
         return frame;
+    case Phase::NoLogoBlank:
+        // Run(false) still spends the source _startUpTime=0 frame with the
+        // transparent startLogo before entering the -2 loading frame.
+        frame.active = true;
+        phase_ = Phase::Loading;
+        return frame;
     case Phase::Loading:
         frame.active = true;
         frame.loadFrame = true;
         phase_ = Phase::StartGame;
         return frame;
     case Phase::StartGame:
+        frame.prepareGame = !prepared_;
+        prepared_ = true;
+        frame.freeIntro = !started_;
         frame.startGame = true;
+        started_ = true;
         phase_ = Phase::Inactive;
         return frame;
     case Phase::Logos:
@@ -79,9 +91,53 @@ bool GameModeStartupState::IsActive() const noexcept
     return phase_ != Phase::Inactive;
 }
 
+bool GameModeStartupState::IsPrepared() const noexcept
+{
+    return prepared_;
+}
+
+bool GameModeStartupState::IsStarted() const noexcept
+{
+    return started_;
+}
+
 float GameModeStartupState::ElapsedSeconds() const noexcept
 {
     return elapsedSeconds_;
+}
+
+GameModeStartupMenuState::GameModeStartupMenuState(
+    bool preferredCameraAutodetect, bool discreteVideoChanged,
+    bool currentDiscreteVideoCard) noexcept
+    : preferredCameraAutodetect_(preferredCameraAutodetect),
+      discreteVideoChanged_(discreteVideoChanged),
+      currentDiscreteVideoCard_(currentDiscreteVideoCard)
+{
+}
+
+GameModeStartupMenuCommand GameModeStartupMenuState::Check() noexcept
+{
+    if (preferredCameraAutodetect_)
+    {
+        preferredCameraAutodetect_ = false;
+        return GameModeStartupMenuCommand::ShowStartOptions;
+    }
+    if (!discreteVideoChanged_)
+        return GameModeStartupMenuCommand::None;
+    discreteVideoChanged_ = false;
+    return currentDiscreteVideoCard_
+               ? GameModeStartupMenuCommand::UseFixedFrameRate
+               : GameModeStartupMenuCommand::ShowDiscreteVideoMessage;
+}
+
+bool GameModeStartupMenuState::PreferredCameraAutodetectPending() const noexcept
+{
+    return preferredCameraAutodetect_;
+}
+
+bool GameModeStartupMenuState::DiscreteVideoChangePending() const noexcept
+{
+    return discreteVideoChanged_;
 }
 
 void GameModeMovieState::Play() noexcept

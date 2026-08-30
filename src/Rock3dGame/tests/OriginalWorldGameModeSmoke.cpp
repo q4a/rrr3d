@@ -133,8 +133,47 @@ int main()
         return fail("source -2 startup loading frame differs");
     startupFrame = startup.OnFrame(0.0F);
     if (startupFrame.active || startupFrame.loadFrame ||
-        !startupFrame.startGame || startup.IsActive())
+        !startupFrame.prepareGame || !startupFrame.freeIntro ||
+        !startupFrame.startGame || startup.IsActive() ||
+        !startup.IsPrepared() || !startup.IsStarted())
         return fail("source -3 StartGame transition differs");
+    startup.Run(true);
+    if (startup.IsActive())
+        return fail("source Run restarted an already started GameMode");
+
+    source::GameModeStartupState noIntroStartup;
+    noIntroStartup.Run(false);
+    if (!noIntroStartup.IsActive())
+        return fail("source Run(false) skipped the startup state");
+    auto noIntroFrame = noIntroStartup.OnFrame(0.0F);
+    if (!noIntroFrame.active || noIntroFrame.loadFrame ||
+        noIntroFrame.startGame)
+        return fail("source Run(false) blank frame differs");
+    noIntroFrame = noIntroStartup.OnFrame(0.0F);
+    if (!noIntroFrame.active || !noIntroFrame.loadFrame ||
+        noIntroFrame.startGame)
+        return fail("source Run(false) -2 loading frame differs");
+    noIntroFrame = noIntroStartup.OnFrame(0.0F);
+    if (noIntroFrame.active || !noIntroFrame.prepareGame ||
+        !noIntroFrame.freeIntro || !noIntroFrame.startGame ||
+        !noIntroStartup.IsPrepared() || !noIntroStartup.IsStarted())
+        return fail("source Run(false) -3 Prepare/Start differs");
+
+    source::GameModeStartupMenuState startupMenu(true, true, true);
+    if (startupMenu.Check() !=
+            source::GameModeStartupMenuCommand::ShowStartOptions ||
+        startupMenu.PreferredCameraAutodetectPending() ||
+        !startupMenu.DiscreteVideoChangePending() ||
+        startupMenu.Check() !=
+            source::GameModeStartupMenuCommand::UseFixedFrameRate ||
+        startupMenu.DiscreteVideoChangePending() ||
+        startupMenu.Check() != source::GameModeStartupMenuCommand::None)
+        return fail("source CheckStartupMenu precedence differs");
+    source::GameModeStartupMenuState integratedGpu(false, true, false);
+    if (integratedGpu.Check() !=
+            source::GameModeStartupMenuCommand::ShowDiscreteVideoMessage ||
+        integratedGpu.Check() != source::GameModeStartupMenuCommand::None)
+        return fail("source integrated-GPU startup warning differs");
 
     source::GameModeMovieState movie;
     movie.Play();
