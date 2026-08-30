@@ -2865,3 +2865,16 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   нового языка с text textures старого интерфейса.
 - Smoke проверяет Get/Has/fallback/newline, reload двух языков, стабильную
   identity и release order Sound→String→TextFont→Mat→Image→Mesh.
+
+### Source3d persistent emitter follow-up
+
+- Добавлен единый `OriginalSource3d` owner с source/resource gain, pitch,
+  loop/once, play intent, позицией и текущим SDL backend voice.
+- Точно восстановлен `Source3d::ApplyX3dEffect`: start `<30 м`, сохранение
+  состояния в 30..45 м, proxy Stop `>45 м` и restart при возврате.
+- `SoundMotor` (idle/rpm) и звучащие `PxWheelSlipEffect` больше не используют
+  raw handles/boolean state или глобальный registry loop voices.
+- Race exit, world reload и disconnect уничтожают voice через самого owner;
+  wheel visual остаётся на contact point, звук следует за объектом колеса.
+- Regression проверяет source/resource multiplication, RPM pitch,
+  hysteresis, move ownership, точное число Stop и natural `pmOnce` EOF.

@@ -73,7 +73,7 @@ Windows target не компилируется.
 | Audio device/mixer | XAudio2/X3DAudio | SDL3/CoreAudio | Замена платформы | Backend полноценный, но весь исходный game-side `Audio.cpp` object graph не перенесён |
 | MusicCat/menu music | `MusicCat`, `DialogMenu2::MusicDialog`, три menu Ogg и 11 game Ogg | `game.xml` catalog, background decode, source shuffle/Play/Stop/Next, in-process pause cursor, `user.xml` playlist + source music popup | Перенесено | Clean profile начинает с пустых очередей; дубликаты/invalid user indices сохраняются до `Play`; Pause выполняет source `StopMusic` и recreation с PCM cursor. Game track извлекается только в `DoStartRace` с кадра 0; `ExitRace` не продвигает очередь, PCM cursor между запусками не сохраняется; MusicDialog использует исходный `dlgFrame2`, serialized metadata, layout и timing |
 | Menu SoundSheme | `Menu::SoundSheme`, один Effects source | девять source UI cues и один interrupting SDL voice | Перенесено | `ssButton1..5`, `ssStepper`, Accept/Info и Workshop drag используют исходные click/hover/pickup/repaint/planet/option/accept/warning события без наложения |
-| Spatial race audio | X3DAudio game integration | source-derived `m3dFlat` voices поверх SDL | Частично | Перенесены fixed master 0.1, category/source/resource multiplication, 30/45 м, отсутствие pan/Doppler, motor/wheel/ShotEffect, pair-owned `PairPxContactEffect` и lifetime/target-child `LifeEffect` Source3d; общий legacy emitter/priority object graph ещё не компилируется |
+| Spatial race audio | X3DAudio game integration | source-derived `m3dFlat` voices поверх SDL | Частично | Общий `OriginalSource3d` теперь владеет play intent, backend voice, resource/source gain, pitch, loop/once и 30/45 м stop/restart для постоянных `SoundMotor`/`PxWheelSlipEffect`; ShotEffect, pair-owned `PairPxContactEffect` и lifetime/target-child `LifeEffect` пока функционально сопоставлены отдельными host records и переводятся на того же owner следующим блоком; legacy XAudio2 priority/pool остаётся backend boundary |
 | Commentator | `GameMode::Commentator`, serialized `game.xml/commentator/comments` | единый `OriginalGameData` descriptor + source state machine поверх SDL Voice bus | Перенесено | Все 37 comments и voices читаются общим `GameMode::LoadGameData`-совместимым loader; доступные файлы выбранного style связываются с descriptors, а chance/delay/busy/repeatPlayer, weighted choice, prefix/suffix, настоящий битовый `playerId` и все offline race events повторяют source semantics |
 | Главное меню, внешний вид | `MainMenu2.cpp` | source-owned `FrameController` поверх bgfx | Частично | Фон/панели/selection и source layout Main/GameMode/Tournament/Difficulty/Profile активны; полный network/credits widget object graph ещё не завершён |
 | Навигация меню | `Menu`, `MenuSystem`, `MainMenu2`, `OptionsMenu`, `RaceMenu2`, `FinishMenu`, `FinalMenu`, `GameMode` | source-owned stack, frame policy, Profile/Options/RaceMenu/Finish/Final graphs | Частично | Main/GameMode/Tournament/Difficulty/Profile, Options/StartOptions, RaceMain/Gamers/Garage/Workshop/Angar/Achievment, Finish и Final имеют source availability, navigation, lifecycle, layout и команды; остаются concrete network callbacks и legacy Widget backend graph |
@@ -2260,6 +2260,29 @@ Regression применяет два языка к одному manager, про�
 owner, replacement, empty/missing fallback, escaped newline, charset и
 очистку в точном SoundLib→StringLib→TextFontLib порядке. Metal startup
 diagnostics показывает число strings и выбранный язык рядом с records.
+
+### B8be — постоянный `snd::Source3d` owner — выполнено
+
+Прямая сверка `Source`, `Source3d`, `SoundMotor` и `PxWheelSlipEffect`
+показала, что пространственная формула была перенесена, но lifecycle всё ещё
+жил в host-переменных: два raw voice двигателя, отдельный wheel voice,
+`spatialProxyPlaying` и общий набор handles. Это позволяло backend-состоянию
+расходиться с исходным `_play` intent при выходе из слышимой зоны и teardown.
+
+Добавлен единый backend-neutral `OriginalSource3d`. Он хранит sound identity,
+resource/source volume, frequency ratio, loop/once mode, позицию, play intent
+и текущий SDL voice. Как исходный `ApplyX3dEffect`, источник запускается
+строго внутри 30 м, продолжает играть с нулевой матрицей в полосе 30..45 м,
+останавливает proxy дальше 45 м и может снова начать внутри 30 м. Для `pmOnce`
+естественное завершение очищает intent как `MyReport::OnStreamEnd`.
+
+Оба источника `SoundMotor` и каждый реально звучащий `PxWheelSlipEffect`
+теперь являются такими owners; wheel sound следует за `CarWheel`, а визуал —
+за contact point. Race exit, reload, disconnect и smoke teardown вызывают
+`Stop` самого owner, без параллельного authoritative handle registry. Fake
+backend regression проверяет gain/pitch, обе границы гистерезиса, повторный
+start, move ownership, ровно один stop каждого активного proxy и `pmOnce` EOF.
+SDL/CoreAudio остаётся только декодером/микшером backend voice.
 
 ## Воспроизведение проверки
 

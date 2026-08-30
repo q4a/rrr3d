@@ -5857,6 +5857,29 @@ identity, replacement старых keys, пустое значение, fallback
 newline, charset и idempotent cleanup. Shipped verification и Metal race
 smoke проходят на общей русской StringLib.
 
+### P2.259 — общий `snd::Source3d` lifecycle возвращён постоянным emitters — выполнено
+
+Повторная сверка `snd::Source::{Init,Free,Play,Stop}`, `Source3d::{Play,Stop,
+ApplyX3dEffect,MyReport::OnStreamEnd}`, `SoundMotor` и `PxWheelSlipEffect`
+подтвердила оставшуюся архитектурную потерю. Формулы громкости и 30/45 м уже
+совпадали, но active race держал raw SDL voice handles и отдельные boolean
+proxy states. Поэтому game-side play intent, natural EOF и backend voice не
+имели одного владельца, как исходный `Source3d`.
+
+`OriginalSource3d` теперь является movable RAII owner над SDL/CoreAudio:
+sound/resource volume, source volume, frequency, position, loop/once, `_play`
+intent и proxy voice живут вместе. На расстоянии больше 45 м backend voice
+именно останавливается, внутри 30 м создаётся заново, а полоса 30..45 м не
+меняет предыдущее состояние. Natural EOF одноразового source очищает intent;
+повторный `Play` активного source остаётся idempotent.
+
+Два motor source каждой машины и wheel-slip source каждого звучащего колеса
+переведены на этот owner. Race exit/reload/disconnect больше не поддерживают
+второй глобальный registry handles. Fake backend закрепляет gain/pitch,
+stop-lag, restart, move без double-stop и `pmOnce` completion. XAudio2 proxy,
+priority allocator и streaming заменены разрешённой SDL/CoreAudio backend
+границей; transient Shot/Life/Contact records переводятся следующим блоком.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

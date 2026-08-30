@@ -975,6 +975,16 @@ camera style и позиции; этот snapshot обрабатывается W
 локальный owner, поскольку не входят в active race World. Regression
 проверяет World-owned rain follow и pause gate.
 
+Результат B8aw: общий `snd::Source3d` восстановлен как backend-neutral
+`OriginalSource3d`, владеющий play intent и текущим SDL voice. Постоянные
+`SoundMotor` idle/rpm и `PxWheelSlipEffect` больше не разделены между raw
+handle, boolean proxy state и глобальным teardown registry. Source owner
+повторяет `<30` start, 30..45 retain, `>45` Stop/restart, source×resource
+gain, RPM pitch, loop/once и natural `pmOnce` completion; CoreAudio/SDL
+остаётся decoder/mixer boundary. Regression проверяет lifecycle и move без
+double-stop. Transient Shot/Life/Contact emitters остаются следующим
+крупным блоком того же owner migration.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:
