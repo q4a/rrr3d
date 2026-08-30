@@ -1035,12 +1035,17 @@ Texture createImageTextureWithAlpha(
         image.width, image.height, bytes.data(), bytes.size());
 }
 
-TextVisual createText(GraphicsDevice& device, std::string_view text,
-                      float pointSize, bool bold, menu::Rgba8 color,
-                      std::string& resolvedFont)
+rrr3d::macos::TextBitmap rasterizeSourceText(rrr3d::race::OriginalResourceManager &resources, std::string_view text,
+                                             float pointSize, bool bold, menu::Rgba8 color)
 {
-    auto bitmap = rrr3d::macos::rasterizeText(
-        text, menu::fontFace, pointSize, bold, color);
+    const auto font = resources.ResolveTextFont(pointSize, bold);
+    return rrr3d::macos::rasterizeText(text, font.faceName, static_cast<float>(font.height), font.bold(), color);
+}
+
+TextVisual createText(GraphicsDevice &device, rrr3d::race::OriginalResourceManager &resources, std::string_view text,
+                      float pointSize, bool bold, menu::Rgba8 color, std::string &resolvedFont)
+{
+    auto bitmap = rasterizeSourceText(resources, text, pointSize, bold, color);
     if (resolvedFont.empty())
         resolvedFont = bitmap.resolvedFontName;
     const Texture texture = device.createTextureRgba8(
@@ -1922,6 +1927,8 @@ int main(int argc, char** argv)
 #endif
     rrr3d::race::OriginalResourceManager originalResourceManager(
         *device, *resources);
+    originalResourceManager.SetFontCharset(
+        originalgamedata::findLanguage(originalGameDataCatalog, activeLanguage)->charset);
 
     constexpr std::array<Vertex, 4> quadVertices{{
         {-0.5F, -0.5F, 0.0F, 0xffffffffU, 0.0F, 0.0F},
@@ -2598,16 +2605,19 @@ int main(int argc, char** argv)
         for (const auto& item : page.labels)
         {
             page.normal.push_back(createText(
-                *device, item, menu::headerFontHeight, false,
+                *device, originalResourceManager, item,
+                menu::headerFontHeight, false,
                 menu::normalTextColor, resolvedFont));
             page.selected.push_back(createText(
-                *device, item, menu::headerFontHeight, false,
+                *device, originalResourceManager, item,
+                menu::headerFontHeight, false,
                 menu::selectedTextColor, resolvedFont));
             auto disabledColor = menu::normalTextColor;
             disabledColor.alpha =
                 static_cast<std::uint8_t>(disabledColor.alpha / 4U);
             page.disabled.push_back(createText(
-                *device, item, menu::headerFontHeight, false,
+                *device, originalResourceManager, item,
+                menu::headerFontHeight, false,
                 disabledColor, resolvedFont));
         }
         return page;
@@ -2621,18 +2631,18 @@ int main(int argc, char** argv)
             for (const auto& item : page.labels)
             {
                 page.normal.push_back(createText(
-                    *device, item, pointSize, false, normalColor,
-                    resolvedFont));
+                    *device, originalResourceManager, item,
+                    pointSize, false, normalColor, resolvedFont));
                 page.selected.push_back(createText(
-                    *device, item, pointSize, false, selectedColor,
-                    resolvedFont));
+                    *device, originalResourceManager, item,
+                    pointSize, false, selectedColor, resolvedFont));
                 auto disabledColor = normalColor;
                 disabledColor.alpha =
                     static_cast<std::uint8_t>(
                         disabledColor.alpha / 4U);
                 page.disabled.push_back(createText(
-                    *device, item, pointSize, false, disabledColor,
-                    resolvedFont));
+                    *device, originalResourceManager, item,
+                    pointSize, false, disabledColor, resolvedFont));
             }
             return page;
         };
@@ -3021,46 +3031,27 @@ int main(int argc, char** argv)
             menu::smallFontHeight,
             menu::Rgba8{195, 194, 192, 255},
             menu::Rgba8{195, 194, 192, 255});
-        gameOptionsPage = createStyledPage(
-            gameOptionsLabels(), menu::smallFontHeight,
-            optionsTextColor, menu::selectedTextColor);
-        graphicsOptionsPage = createStyledPage(
-            graphicsOptionsLabels(), menu::smallFontHeight,
-            optionsTextColor, menu::selectedTextColor);
-        soundOptionsPage = createStyledPage(
-            soundOptionsLabels(), menu::smallFontHeight,
-            optionsTextColor, menu::selectedTextColor);
-        controlsOptionsPage = createStyledPage(
-            controlsOptionsLabels(), menu::smallFontHeight,
-            optionsTextColor, menu::selectedTextColor);
-        gameOptionNamesPage = createStyledPage(
-            labels(
-                {"svCamera", "svCameraDist", "svEnableHUD",
-                 "svDifficulty", "svSpringBorders",
-                 "svUpgradeMaxLevel", "svWeaponMaxLevel",
-                 "svMaxPlayers", "svMaxComputers", "svLapsCount",
-                 "svEnableMineBug", "svDisableVideo"}),
-            menu::smallFontHeight, optionsTextColor,
-            menu::selectedTextColor);
-        graphicsOptionNamesPage = createStyledPage(
-            labels(
-                {"svResolution", "svFiltering", "svMultisampling",
-                 "svShadow", "svEnv", "svLight", "svPostProcess",
-                 "svWindowMode"}),
-            menu::smallFontHeight, optionsTextColor,
-            menu::selectedTextColor);
-        soundOptionNamesPage = createStyledPage(
-            labels(
-                {"svLanguage", "svCommentator", "svMusic",
-                 "svSound", "svSoundDicter"}),
-            menu::smallFontHeight, optionsTextColor,
-            menu::selectedTextColor);
-        controlsKeyboardValuesPage = createStyledPage(
-            controlValues(false), menu::smallFontHeight,
-            optionsTextColor, menu::selectedTextColor);
-        controlsGamepadValuesPage = createStyledPage(
-            controlValues(true), menu::smallFontHeight,
-            optionsTextColor, menu::selectedTextColor);
+        gameOptionsPage = createStyledPage(gameOptionsLabels(), 24.0F, optionsTextColor, menu::selectedTextColor);
+        graphicsOptionsPage =
+            createStyledPage(graphicsOptionsLabels(), 24.0F, optionsTextColor, menu::selectedTextColor);
+        soundOptionsPage = createStyledPage(soundOptionsLabels(), 24.0F, optionsTextColor, menu::selectedTextColor);
+        controlsOptionsPage =
+            createStyledPage(controlsOptionsLabels(), 24.0F, optionsTextColor, menu::selectedTextColor);
+        gameOptionNamesPage =
+            createStyledPage(labels({"svCamera", "svCameraDist", "svEnableHUD", "svDifficulty", "svSpringBorders",
+                                     "svUpgradeMaxLevel", "svWeaponMaxLevel", "svMaxPlayers", "svMaxComputers",
+                                     "svLapsCount", "svEnableMineBug", "svDisableVideo"}),
+                             24.0F, optionsTextColor, menu::selectedTextColor);
+        graphicsOptionNamesPage = createStyledPage(labels({"svResolution", "svFiltering", "svMultisampling", "svShadow",
+                                                           "svEnv", "svLight", "svPostProcess", "svWindowMode"}),
+                                                   24.0F, optionsTextColor, menu::selectedTextColor);
+        soundOptionNamesPage =
+            createStyledPage(labels({"svLanguage", "svCommentator", "svMusic", "svSound", "svSoundDicter"}), 24.0F,
+                             optionsTextColor, menu::selectedTextColor);
+        controlsKeyboardValuesPage =
+            createStyledPage(controlValues(false), 24.0F, optionsTextColor, menu::selectedTextColor);
+        controlsGamepadValuesPage =
+            createStyledPage(controlValues(true), 24.0F, optionsTextColor, menu::selectedTextColor);
         optionsHeaderPage = createStyledPage(
             labels({"svOptions"}), menu::headerFontHeight,
             optionsTextColor, menu::selectedTextColor);
@@ -3071,15 +3062,10 @@ int main(int argc, char** argv)
         optionsActionPage = createStyledPage(
             labels({"svBack", "svApply"}), menu::headerFontHeight,
             optionsTextColor, menu::selectedTextColor);
-        startOptionsLabelPage = createStyledPage(
-            labels(
-                {"svCamera", "svResolution", "svLanguage",
-                 "svCommentator"}),
-            menu::smallFontHeight, optionsTextColor,
-            menu::selectedTextColor);
-        startOptionsValuePage = createStyledPage(
-            startOptionsValues(), menu::smallFontHeight,
-            optionsTextColor, menu::selectedTextColor);
+        startOptionsLabelPage = createStyledPage(labels({"svCamera", "svResolution", "svLanguage", "svCommentator"}),
+                                                 24.0F, optionsTextColor, menu::selectedTextColor);
+        startOptionsValuePage =
+            createStyledPage(startOptionsValues(), 24.0F, optionsTextColor, menu::selectedTextColor);
         startOptionsActionPage = createStyledPage(
             labels({"svApply"}), menu::headerFontHeight,
             optionsTextColor, menu::selectedTextColor);
@@ -3093,10 +3079,8 @@ int main(int argc, char** argv)
             {
                 const std::string candidate =
                     line.empty() ? word : line + " " + word;
-                const auto measured = rrr3d::macos::rasterizeText(
-                    candidate, menu::fontFace,
-                    menu::smallFontHeight, false,
-                    optionsTextColor);
+                const auto measured =
+                    rasterizeSourceText(originalResourceManager, candidate, 24.0F, false, optionsTextColor);
                 if (!line.empty() && measured.width > 750U)
                 {
                     wrapped.push_back(line);
@@ -3111,9 +3095,8 @@ int main(int argc, char** argv)
                 wrapped.push_back(line);
             for (const auto& infoLine : wrapped)
             {
-                startOptionsInfoLines.push_back(createText(
-                    *device, infoLine, menu::smallFontHeight,
-                    false, optionsTextColor, resolvedFont));
+                startOptionsInfoLines.push_back(createText(*device, originalResourceManager, infoLine, 24.0F, false,
+                                                           optionsTextColor, resolvedFont));
             }
         }
 #endif
@@ -3123,24 +3106,18 @@ int main(int argc, char** argv)
         std::cerr << "Original MainMenu2 font creation failed: "
                   << exception.what() << '\n';
     }
-    const TextVisual version = createText(
-        *device, model->versionText, menu::smallFontHeight, true,
-        menu::selectedTextColor, resolvedFont);
+    const TextVisual version = createText(*device, originalResourceManager, model->versionText, menu::smallFontHeight,
+                                          true, menu::selectedTextColor, resolvedFont);
 #ifdef RRR3D_AUDIO
     auto createMusicDialogVisuals = [&](const auto& tracks) {
         std::vector<MusicDialogVisual> result;
         result.reserve(tracks.size());
         for (const auto& track : tracks)
         {
-            result.push_back(
-                {createText(
-                     *device, track.band, 32.0F, false,
-                     menu::Rgba8{255U, 255U, 255U, 255U},
-                     resolvedFont),
-                 createText(
-                     *device, track.name, 24.0F, false,
-                     menu::Rgba8{175U, 175U, 175U, 255U},
-                     resolvedFont)});
+            result.push_back({createText(*device, originalResourceManager, track.band, 32.0F, false,
+                                         menu::Rgba8{255U, 255U, 255U, 255U}, resolvedFont),
+                              createText(*device, originalResourceManager, track.name, 24.0F, false,
+                                         menu::Rgba8{175U, 175U, 175U, 255U}, resolvedFont)});
         }
         return result;
     };
@@ -3151,9 +3128,9 @@ int main(int argc, char** argv)
         createMusicDialogVisuals(originalMusicCatalog.game);
 #endif
 #endif
-    const TextVisual finalBackText = createText(
-        *device, localized("svBack"), menu::headerFontHeight, false,
-        menu::Rgba8{214U, 214U, 214U, 255U}, resolvedFont);
+    const TextVisual finalBackText =
+        createText(*device, originalResourceManager, localized("svBack"), menu::headerFontHeight, false,
+                   menu::Rgba8{214U, 214U, 214U, 255U}, resolvedFont);
     r3d::game::mainmenu2::FinalMenuFrameState sourceFinalFrame;
     sourceFinalFrame.invalidate(localized("svCredits"));
     struct FinalCreditSection
@@ -3168,10 +3145,8 @@ int main(int argc, char** argv)
     for (const auto& sourceSection : sourceFinalFrame.credits())
     {
         FinalCreditSection section;
-        section.caption = createText(
-            *device, sourceSection.caption,
-            menu::smallFontHeight, false,
-            menu::Rgba8{220U, 0U, 0U, 255U}, resolvedFont);
+        section.caption = createText(*device, originalResourceManager, sourceSection.caption, menu::smallFontHeight,
+                                     false, menu::Rgba8{220U, 0U, 0U, 255U}, resolvedFont);
         if (!sourceSection.text.empty())
         {
             std::size_t lineBegin = 0U;
@@ -3189,10 +3164,8 @@ int main(int argc, char** argv)
                     line.pop_back();
                 if (!line.empty())
                 {
-                    section.lines.push_back(createText(
-                        *device, line, menu::smallFontHeight, false,
-                        menu::Rgba8{255U, 214U, 205U, 255U},
-                        resolvedFont));
+                    section.lines.push_back(createText(*device, originalResourceManager, line, menu::smallFontHeight,
+                                                       false, menu::Rgba8{255U, 214U, 205U, 255U}, resolvedFont));
                 }
                 if (lineEnd == std::string::npos)
                     break;
@@ -3206,13 +3179,12 @@ int main(int argc, char** argv)
         finalCredits.push_back(std::move(section));
     }
 #ifdef RRR3D_PHYSICS
-    const TextVisual finishRewardTitle = createText(
-        *device, localized("svPrice"), menu::headerFontHeight, false,
-        menu::Rgba8{233U, 167U, 63U, 255U}, resolvedFont);
-    const TextVisual finishPriceInfo = createText(
-        *device, localized("svMoney") + "\n" + localized("svPoints"),
-        menu::headerFontHeight, false,
-        menu::Rgba8{225U, 225U, 225U, 255U}, resolvedFont);
+    const TextVisual finishRewardTitle =
+        createText(*device, originalResourceManager, localized("svPrice"), menu::headerFontHeight, false,
+                   menu::Rgba8{233U, 167U, 63U, 255U}, resolvedFont);
+    const TextVisual finishPriceInfo =
+        createText(*device, originalResourceManager, localized("svMoney") + "\n" + localized("svPoints"),
+                   menu::headerFontHeight, false, menu::Rgba8{225U, 225U, 225U, 255U}, resolvedFont);
     struct FinishRowVisual
     {
         std::size_t racer = 0U;
@@ -3232,15 +3204,12 @@ int main(int argc, char** argv)
         }
         finishRows.clear();
     };
-    const TextVisual achievementRewards = createText(
-        *device, localized("svRewards"), menu::headerFontHeight,
-        false, menu::normalTextColor, resolvedFont);
+    const TextVisual achievementRewards =
+        createText(*device, originalResourceManager, localized("svRewards"), menu::headerFontHeight, false,
+                   menu::normalTextColor, resolvedFont);
     TextVisual achievementPoints = createText(
-        *device,
-        localized("svPoints") + " " +
-            std::to_string(profileState.achievementPoints),
-        menu::headerFontHeight, false,
-        menu::Rgba8{250, 88, 0, 255}, resolvedFont);
+        *device, originalResourceManager, localized("svPoints") + " " + std::to_string(profileState.achievementPoints),
+        menu::headerFontHeight, false, menu::Rgba8{250, 88, 0, 255}, resolvedFont);
 #endif
 
     auto pageValid = [](const MenuPageVisual& page) {
@@ -5560,10 +5529,7 @@ int main(int argc, char** argv)
                 if (!candidate.empty())
                     candidate.push_back(' ');
                 candidate += word;
-                const auto measured =
-                    rrr3d::macos::rasterizeText(
-                        candidate, menu::fontFace, fontHeight,
-                        false, color);
+                const auto measured = rasterizeSourceText(originalResourceManager, candidate, fontHeight, false, color);
                 if (!line.empty() &&
                     static_cast<float>(measured.width) >
                         maximumWidth)
@@ -5704,9 +5670,8 @@ int main(int argc, char** argv)
                 name = localized("svPlayer");
                 name += " " + std::to_string(player.netSlot);
             }
-            visual.name = createText(
-                *device, name, 18.0F, false,
-                menu::Rgba8{255, 255, 255, 255}, resolvedFont);
+            visual.name = createText(*device, originalResourceManager, name, 18.0F, false,
+                                     menu::Rgba8{255, 255, 255, 255}, resolvedFont);
             const auto readyLabel =
                 player.ownerId ==
                         r3d::game::originalnetwork::serverOwnerId
@@ -5714,9 +5679,8 @@ int main(int argc, char** argv)
                     : localized(
                           player.raceReady ? "svReadyRace"
                                            : "svCancelReadyRace");
-            visual.readyLabel = createText(
-                *device, readyLabel, 18.0F, false,
-                menu::Rgba8{255, 255, 255, 255}, resolvedFont);
+            visual.readyLabel = createText(*device, originalResourceManager, readyLabel, 18.0F, false,
+                                           menu::Rgba8{255, 255, 255, 255}, resolvedFont);
             const auto gamer = std::find_if(
                 originalGarage->gamers.begin(),
                 originalGarage->gamers.end(), [&](const auto& value) {
@@ -5753,9 +5717,8 @@ int main(int argc, char** argv)
             if (!candidate.empty())
                 candidate.push_back(' ');
             candidate += word;
-            const auto measured = rrr3d::macos::rasterizeText(
-                candidate, menu::fontFace, menu::smallFontHeight,
-                false, white);
+            const auto measured =
+                rasterizeSourceText(originalResourceManager, candidate, menu::smallFontHeight, false, white);
             if (!line.empty() &&
                 static_cast<float>(measured.width) > maximumWidth)
             {
@@ -5782,33 +5745,28 @@ int main(int argc, char** argv)
         for (const auto& line : userChat.lines())
         {
             UserChatLineVisual visual;
-            visual.name = createText(
-                *device, line.name, menu::smallFontHeight, false,
-                chatColor(line.nameColor), resolvedFont);
+            visual.name = createText(*device, originalResourceManager, line.name, menu::smallFontHeight, false,
+                                     chatColor(line.nameColor), resolvedFont);
             const float maximumTextWidth = std::max(
                 menu::virtualWidth / 3.0F - visual.name.width,
                 menu::smallFontHeight * 4.0F);
             for (const auto& text :
                  wrapChatText(line.text, maximumTextWidth))
             {
-                visual.text.push_back(createText(
-                    *device, text, menu::smallFontHeight, false,
-                    white, resolvedFont));
+                visual.text.push_back(createText(*device, originalResourceManager, text, menu::smallFontHeight, false,
+                                                 white, resolvedFont));
             }
             userChatVisual.lines.push_back(std::move(visual));
         }
         if (userChat.inputVisible())
         {
-            userChatVisual.inputName = createText(
-                *device, userChat.inputName(), menu::smallFontHeight,
-                false, chatColor(userChat.inputNameColor()),
-                resolvedFont);
+            userChatVisual.inputName =
+                createText(*device, originalResourceManager, userChat.inputName(), menu::smallFontHeight, false,
+                           chatColor(userChat.inputNameColor()), resolvedFont);
             if (!userChat.inputText().empty())
             {
-                userChatVisual.inputText = createText(
-                    *device, userChat.inputText(),
-                    menu::smallFontHeight, false, white,
-                    resolvedFont);
+                userChatVisual.inputText = createText(*device, originalResourceManager, userChat.inputText(),
+                                                      menu::smallFontHeight, false, white, resolvedFont);
             }
         }
         userChatVisual.revision = userChat.revision();
@@ -5957,17 +5915,13 @@ int main(int argc, char** argv)
                      sourceDialog.layout.infoSize.x,
                      fontHeight, maximumLines))
             {
-                acceptDialog.info.push_back(createText(
-                    *device, line, fontHeight, false,
-                    menu::Rgba8{175, 175, 175, 255},
-                    resolvedFont));
+                acceptDialog.info.push_back(createText(*device, originalResourceManager, line, fontHeight, false,
+                                                       menu::Rgba8{175, 175, 175, 255}, resolvedFont));
             }
-            acceptDialog.yes = createText(
-                *device, sourceDialog.yesText, 32.0F, false,
-                menu::Rgba8{175, 175, 175, 255}, resolvedFont);
-            acceptDialog.no = createText(
-                *device, sourceDialog.noText, 32.0F, false,
-                menu::Rgba8{175, 175, 175, 255}, resolvedFont);
+            acceptDialog.yes = createText(*device, originalResourceManager, sourceDialog.yesText, 32.0F, false,
+                                          menu::Rgba8{175, 175, 175, 255}, resolvedFont);
+            acceptDialog.no = createText(*device, originalResourceManager, sourceDialog.noText, 32.0F, false,
+                                         menu::Rgba8{175, 175, 175, 255}, resolvedFont);
 #ifdef RRR3D_AUDIO
             playOriginalMenuSound(
                 rrr3d::audio::OriginalMenuSound::Acceptance);
@@ -7076,8 +7030,7 @@ int main(int argc, char** argv)
             if (!candidate.empty())
                 candidate.push_back(' ');
             candidate += word;
-            const auto measured = rrr3d::macos::rasterizeText(
-                candidate, menu::fontFace, 18.0F, true, infoColor);
+            const auto measured = rasterizeSourceText(originalResourceManager, candidate, 18.0F, true, infoColor);
             if (!line.empty() &&
                 static_cast<float>(measured.width) > maximumWidth)
             {
@@ -7132,28 +7085,23 @@ int main(int argc, char** argv)
 
             destroyWorkshopWeaponDialog(
                 *device, workshopWeaponDialog);
-            workshopWeaponDialog.name = createText(
-                *device, localized(item.name), 24.0F, false,
-                menu::Rgba8{255, 255, 255, 255}, resolvedFont);
+            workshopWeaponDialog.name = createText(*device, originalResourceManager, localized(item.name), 24.0F, false,
+                                                   menu::Rgba8{255, 255, 255, 255}, resolvedFont);
             for (const auto& line :
                  wrapWorkshopWeaponInfo(localized(item.info)))
             {
-                workshopWeaponDialog.info.push_back(createText(
-                    *device, line, 18.0F, true,
-                    menu::Rgba8{175, 175, 175, 255},
-                    resolvedFont));
+                workshopWeaponDialog.info.push_back(createText(*device, originalResourceManager, line, 18.0F, true,
+                                                               menu::Rgba8{175, 175, 175, 255}, resolvedFont));
             }
-            workshopWeaponDialog.money = createText(
-                *device, originalCurrency(cost), 24.0F, false,
-                menu::Rgba8{255, 255, 255, 255}, resolvedFont);
+            workshopWeaponDialog.money = createText(*device, originalResourceManager, originalCurrency(cost), 24.0F,
+                                                    false, menu::Rgba8{255, 255, 255, 255}, resolvedFont);
             const std::string damage =
                 item.type > 4U
                     ? std::to_string(static_cast<int>(
                           std::lround(item.projectileDamage)))
                     : "-";
-            workshopWeaponDialog.damage = createText(
-                *device, damage, 24.0F, false,
-                menu::Rgba8{255, 255, 255, 255}, resolvedFont);
+            workshopWeaponDialog.damage = createText(*device, originalResourceManager, damage, 24.0F, false,
+                                                     menu::Rgba8{255, 255, 255, 255}, resolvedFont);
             workshopWeaponDialog.itemRecord = item.record;
             workshopWeaponDialog.cost = cost;
             sourceDialogs.ShowWeapon(
@@ -7176,8 +7124,7 @@ int main(int argc, char** argv)
             if (!candidate.empty())
                 candidate.push_back(' ');
             candidate += word;
-            const auto measured = rrr3d::macos::rasterizeText(
-                candidate, menu::fontFace, 24.0F, false, infoColor);
+            const auto measured = rasterizeSourceText(originalResourceManager, candidate, 24.0F, false, infoColor);
             if (!line.empty() &&
                 static_cast<float>(measured.width) > maximumWidth)
             {
@@ -7213,20 +7160,16 @@ int main(int argc, char** argv)
                 originalmenu::Anchor::Center,
                 {frameWidth, frameHeight});
             destroyInfoDialog(*device, infoDialog);
-            infoDialog.title = createText(
-                *device, sourceDialog.title, 44.0F, false,
-                menu::Rgba8{175, 175, 175, 255}, resolvedFont);
+            infoDialog.title = createText(*device, originalResourceManager, sourceDialog.title, 44.0F, false,
+                                          menu::Rgba8{175, 175, 175, 255}, resolvedFont);
             for (const auto& line :
                  wrapInfoDialogMessage(sourceDialog.message))
             {
-                infoDialog.info.push_back(createText(
-                    *device, line, 24.0F, false,
-                    menu::Rgba8{255, 255, 255, 255},
-                    resolvedFont));
+                infoDialog.info.push_back(createText(*device, originalResourceManager, line, 24.0F, false,
+                                                     menu::Rgba8{255, 255, 255, 255}, resolvedFont));
             }
-            infoDialog.ok = createText(
-                *device, sourceDialog.okText, 32.0F, false,
-                menu::Rgba8{255, 255, 255, 255}, resolvedFont);
+            infoDialog.ok = createText(*device, originalResourceManager, sourceDialog.okText, 32.0F, false,
+                                       menu::Rgba8{255, 255, 255, 255}, resolvedFont);
             hideWorkshopWeaponDialog();
 #ifdef RRR3D_AUDIO
             playOriginalMenuSound(
@@ -7752,9 +7695,8 @@ int main(int argc, char** argv)
             if (!candidate.empty())
                 candidate.push_back(' ');
             candidate += word;
-            const auto measured = rrr3d::macos::rasterizeText(
-                candidate, menu::fontFace, menu::smallFontHeight,
-                false, color);
+            const auto measured =
+                rasterizeSourceText(originalResourceManager, candidate, menu::smallFontHeight, false, color);
             if (!line.empty() &&
                 static_cast<float>(measured.width) > maximumWidth)
             {
@@ -8882,12 +8824,10 @@ int main(int argc, char** argv)
             menu::Rgba8{195, 194, 192, 255});
         destroyPage(achievementPricePage);
         achievementPricePage = std::move(replacement);
-        auto pointsReplacement = createText(
-            *device,
-            localized("svPoints") + " " +
-                originalCurrency(raceSession.achievementPoints()),
-            menu::headerFontHeight, false,
-            menu::Rgba8{250, 88, 0, 255}, resolvedFont);
+        auto pointsReplacement =
+            createText(*device, originalResourceManager,
+                       localized("svPoints") + " " + originalCurrency(raceSession.achievementPoints()),
+                       menu::headerFontHeight, false, menu::Rgba8{250, 88, 0, 255}, resolvedFont);
         originalResourceManager.Release(achievementPoints.texture);
         achievementPoints = pointsReplacement;
         menuSelection = sourceAchievementFrame.focus();
@@ -9445,6 +9385,11 @@ int main(int argc, char** argv)
         if (!options->startOptionsSmokeTest &&
             profileState.config.language != previous.language)
         {
+            if (const auto *language =
+                    originalgamedata::findLanguage(originalGameDataCatalog, profileState.config.language))
+            {
+                originalResourceManager.SetFontCharset(language->charset);
+            }
             // StartOptionsMenu::OnClick keeps the modal frame alive until
             // the original reload warning is acknowledged.
             showInfoDialog(
@@ -9642,6 +9587,11 @@ int main(int argc, char** argv)
         bindingCaptureAction.reset();
         if (profileState.config.language != previousConfig.language)
         {
+            if (const auto *language =
+                    originalgamedata::findLanguage(originalGameDataCatalog, profileState.config.language))
+            {
+                originalResourceManager.SetFontCharset(language->charset);
+            }
             showInfoDialog(
                 localized("svWarning"),
                 localized("svHintNeedReload"),
@@ -9765,11 +9715,8 @@ int main(int argc, char** argv)
                                         ? identity->name
                                         : result.GetName())
                         : result.GetNetName();
-                row.name = createText(
-                    *device, displayName,
-                    menu::headerFontHeight, false,
-                    menu::Rgba8{233U, 167U, 63U, 255U},
-                    resolvedFont);
+                row.name = createText(*device, originalResourceManager, displayName, menu::headerFontHeight, false,
+                                      menu::Rgba8{233U, 167U, 63U, 255U}, resolvedFont);
                 std::string rewardMoney =
                     std::to_string(sourceResult.money);
                 const auto pickedMoney = sourceResult.pickedMoney;
@@ -9779,12 +9726,8 @@ int main(int argc, char** argv)
                         " + " + std::to_string(pickedMoney);
                 }
                 row.rewardValue = createText(
-                    *device,
-                    rewardMoney + "\n" +
-                        std::to_string(sourceResult.points),
-                    menu::headerFontHeight, false,
-                    menu::Rgba8{132U, 188U, 67U, 255U},
-                    resolvedFont);
+                    *device, originalResourceManager, rewardMoney + "\n" + std::to_string(sourceResult.points),
+                    menu::headerFontHeight, false, menu::Rgba8{132U, 188U, 67U, 255U}, resolvedFont);
                 const std::string& photoPath =
                     identity != nullptr && !identity->photoPath.empty()
                         ? identity->photoPath
@@ -16621,10 +16564,8 @@ int main(int argc, char** argv)
                 gameDebugVisual.reserve(sourceLines.size());
                 for (const auto& line : sourceLines)
                 {
-                    gameDebugVisual.push_back(createText(
-                        *device, line, 17.0F, true,
-                        menu::Rgba8{222U, 255U, 212U, 255U},
-                        resolvedFont));
+                    gameDebugVisual.push_back(createText(*device, originalResourceManager, line, 17.0F, true,
+                                                         menu::Rgba8{222U, 255U, 212U, 255U}, resolvedFont));
                 }
             }
             if (gameDebug.overlayVisible() &&

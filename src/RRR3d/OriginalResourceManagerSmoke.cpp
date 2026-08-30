@@ -242,6 +242,24 @@ int main()
 
     {
         rrr3d::race::OriginalResourceManager resources(device, fileSystem);
+        if (resources.GetTextFontCount() != 5U)
+            return fail("TextFontLib does not contain five source fonts");
+        const auto &header = resources.GetTextFont("Header");
+        const auto &item = resources.GetTextFont("Item");
+        const auto &small = resources.GetTextFont("Small");
+        const auto &verySmall = resources.GetTextFont("VerySmall");
+        const auto &verySmallThink = resources.GetTextFont("VerySmallThink");
+        if (header.height != 44 || item.height != 32 || small.height != 24 || verySmall.height != 18 ||
+            !verySmall.bold() || verySmallThink.height != 18 || verySmallThink.bold() || header.faceName != "Verdana")
+            return fail("TextFontLib source descriptors differ");
+        resources.SetFontCharset(r3d::game::originalgamedata::LanguageCharset::Russian);
+        if (resources.GetFontCharset() != r3d::game::originalgamedata::LanguageCharset::Russian ||
+            resources.GetTextFont("Header").charset != r3d::game::originalgamedata::LanguageCharset::Russian ||
+            resources.ResolveTextFont(18.0F, true).name != "VerySmall" ||
+            resources.ResolveTextFont(18.0F, false).name != "VerySmallThink" ||
+            resources.ResolveTextFont(17.0F, false).name != "<dynamic>" ||
+            resources.ResolveTextFont(17.0F, false).charset != r3d::game::originalgamedata::LanguageCharset::Russian)
+            return fail("TextFontLib charset/lookup semantics differ");
         r3d::game::mainmenu2::Image image;
         image.virtualPath = "panel.rgba";
         image.width = 1U;

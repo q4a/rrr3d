@@ -71,7 +71,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `Race` | `OriginalRace`, `OriginalRaceSession`, lifecycle/place/tournament on shared World | Source owner, active fixed/late lifecycle, partial orchestration | Продолжить вынос gameplay transactions из session; place sorting уже выполняется после Jolt solver через единственный World late-progress |
 | `RaceMenu2` | `originalracemenu::{RaceMenuState,RaceMainFrameState,GamersFrameState,GarageFrameState,WorkshopFrameState,SpaceshipFrameState,AngarFrameState,AchievementFrameState}` | Source owner, all six offline frame paths | Проверить оставшиеся network callbacks и оставить bgfx/CoreText backend boundary |
 | `RecordLib` | `source::{MapObjRecordLibrary,MapObjRecordNode,MapObjRecord}` | Source owner, active hierarchy | Editor-only mutation/serialization API не входит в пользовательский runtime |
-| `ResourceManager` | `OriginalResourceManager` + native readers/uploaders | Source owner, active GUI/graph/sound path | GUI/HUD/3D mesh/image/sound identity и ordered lifetime общие; TextFont/ComplexMat descriptors ещё нужно завершить |
+| `ResourceManager` | `OriginalResourceManager` + native readers/uploaders | Source owner, active GUI/graph/sound/font path | GUI/HUD/3D mesh/image/sound/TextFont identity, charset и lifetime общие; ComplexMat descriptors ещё нужно завершить |
 | `RockCar` | `source::RockCar`, dynamic `Weapons`, Player listener/contact sink | Source owner, active gameplay graph | PhysX actor/solver calls заменены Jolt; editor/legacy serializer остаётся parser boundary |
 | `Trace` | `source::{Trace,WayPath,WayNode,WayPoint}` | Source owner, active race/debug path | Editor serialization остаётся вне пользовательской игры; gameplay geometry и TraceGfx используют один owner |
 | `TraceGfx` | `source::TraceGfx` + transient bgfx submission | Source owner, active F6 path | Selection/link/geometry/material policy source-owned; D3D9 Box/Sprite/DrawPrimitiveUP заменены backend triangles |
@@ -246,8 +246,15 @@ Windows-каталог `LoadMusic` был декларацией имён. Пр�
 всех tracks в PCM SoundLib вернуло бы задержки и расход памяти, устранённые в
 Milestone 8.
 
-Открытая B5d: вернуть source identity для TextFontLib и ComplexMatLib
-descriptors/samplers. Их backend payload останется CoreText и bgfx/Metal.
+Результат B5d/B8ax: `TextFontLib` владеет точными пятью descriptor records
+из `LoadGUI`, а `SetFontCharset` обновляет их вместе при смене языка. Menu и
+HUD больше не выбирают Verdana/size/weight напрямую: CoreText растеризует
+полученный source descriptor. Исправлены source font roles для HUD и все
+Options/StartOptions labels возвращены к Small 24. Regression проверяет
+имена, размеры, bold и charset propagation.
+
+Открытая B5e: вернуть source identity для ComplexMatLib descriptors/samplers.
+Их backend payload останется bgfx/Metal.
 
 ### B6 — Menu/MenuSystem и исходные frames (B6a–B6e.5 выполнены)
 

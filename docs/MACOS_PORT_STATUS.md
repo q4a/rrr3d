@@ -2775,3 +2775,16 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   rebind сначала выгружает все handles прежнего backend.
 - `rrr3d_original_resource_manager_smoke` проверяет cache, borrow/release,
   rebind и destructor idempotence на независимых fake backends.
+
+### Source ResourceManager TextFontLib follow-up
+
+- Общий manager содержит точные Header/Item/Small/VerySmall/VerySmallThink
+  records из `LoadGUI`: 44/32/24/18/18, Verdana, source weight/italic.
+- `SetFontCharset` обновляет весь уже созданный каталог при выборе языка;
+  CoreText остаётся только UTF-8 shaping/raster backend.
+- Все активные menu text uploads и динамический HUD запрашивают descriptor у
+  TextFontLib, прямой выбор face/weight из этих call sites удалён.
+- HUD place/lap/ammo/opponent labels возвращены к исходным font roles;
+  Options и StartOptions используют Small 24 вместо reconstructed 18.
+- ResourceManager smoke теперь проверяет каталог, named lookup, bold и
+  propagation Russian charset. Следующий ресурсный owner — ComplexMatLib.

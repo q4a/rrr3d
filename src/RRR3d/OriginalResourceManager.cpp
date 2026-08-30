@@ -12,6 +12,7 @@ namespace
 {
 
 constexpr std::string_view whiteResourceKey = "<source-white>";
+constexpr unsigned boldFontWeight = 700U;
 
 bool valid(r3d::renderer::Mesh value) noexcept
 {
@@ -48,6 +49,21 @@ OriginalResourceManager::OriginalResourceManager(
     const r3d::resource::ResourceFileSystem& resources) noexcept
     : device_(&device), resources_(&resources)
 {
+    const auto addFont = [&](std::string name, int height,
+                             unsigned weight) {
+        auto key = name;
+        textFonts_.emplace(
+            std::move(key),
+            TextFontResource{
+                std::move(name), height, weight, false,
+                fontCharset_, "Verdana"});
+    };
+    // ResourceManager::LoadGUI creates this exact TextFontLib catalog.
+    addFont("Header", 44, 0U);
+    addFont("Item", 32, 0U);
+    addFont("Small", 24, 0U);
+    addFont("VerySmall", 18, boldFontWeight);
+    addFont("VerySmallThink", 18, 0U);
 }
 
 OriginalResourceManager::~OriginalResourceManager()
@@ -219,6 +235,47 @@ OriginalResourceManager::GetWhiteTexture()
     return inserted->second;
 }
 
+const OriginalResourceManager::TextFontResource &OriginalResourceManager::GetTextFont(std::string_view name) const
+{
+    const auto found = textFonts_.find(std::string(name));
+    if (found == textFonts_.end())
+        throw r3d::resource::ResourceError("TextFont" + std::string(name) + " does not exist");
+    return found->second;
+}
+
+OriginalResourceManager::TextFontResource OriginalResourceManager::ResolveTextFont(float height, bool bold) const
+{
+    const auto roundedHeight = static_cast<int>(height + 0.5F);
+    for (const auto &[name, font] : textFonts_)
+    {
+        static_cast<void>(name);
+        if (font.height == roundedHeight && font.bold() == bold)
+            return font;
+    }
+
+    // A small number of backend diagnostics use non-library point sizes.
+    // Preserve those sizes while inheriting the active source charset/face;
+    // all game widgets resolve to one of the five records above.
+    return {"<dynamic>", roundedHeight, bold ? boldFontWeight : 0U, false, fontCharset_, "Verdana"};
+}
+
+void OriginalResourceManager::SetFontCharset(r3d::game::originalgamedata::LanguageCharset value) noexcept
+{
+    if (fontCharset_ == value)
+        return;
+    fontCharset_ = value;
+    for (auto &[name, font] : textFonts_)
+    {
+        static_cast<void>(name);
+        font.charset = value;
+    }
+}
+
+r3d::game::originalgamedata::LanguageCharset OriginalResourceManager::GetFontCharset() const noexcept
+{
+    return fontCharset_;
+}
+
 void OriginalResourceManager::AttachAudio(
     r3d::audio::AudioBackend& audio) noexcept
 {
@@ -291,6 +348,11 @@ std::size_t OriginalResourceManager::GetCacheHitCount() const noexcept
 std::size_t OriginalResourceManager::GetSoundCount() const noexcept
 {
     return sounds_.size();
+}
+
+std::size_t OriginalResourceManager::GetTextFontCount() const noexcept
+{
+    return textFonts_.size();
 }
 
 std::size_t OriginalResourceManager::GetSoundRequestCount() const noexcept
@@ -368,6 +430,7 @@ void OriginalResourceManager::ShutdownSounds() noexcept
 void OriginalResourceManager::Shutdown() noexcept
 {
     ShutdownSounds();
+    textFonts_.clear();
     if (device_ == nullptr)
         return;
     for (const auto& [key, resource] : textures_)

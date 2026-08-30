@@ -126,6 +126,7 @@ bool OriginalRaceHud::initialize(
     const originalrace::Race& race, std::string_view language,
     std::string_view difficulty, bool campaign, std::string& error)
 {
+    resources_ = &resources;
     campaign_ = campaign;
     hudMenuState_.Reset();
     playerStateFrame_.Reset();
@@ -436,6 +437,7 @@ void OriginalRaceHud::shutdown(GraphicsDevice& device) noexcept
     localizedGamerNames_.clear();
     uiSeconds_ = 0.0F;
     hudMenuState_.Reset();
+    resources_ = nullptr;
 }
 
 std::string_view OriginalRaceHud::localizedLapName() const noexcept
@@ -466,8 +468,12 @@ void OriginalRaceHud::setText(GraphicsDevice& device, TextAsset& output,
     output.value = std::move(value);
     if (output.value.empty())
         return;
+    if (resources_ == nullptr)
+        throw std::runtime_error("HUD TextFontLib is not attached");
+    const auto font = resources_->ResolveTextFont(pointSize, bold);
     const auto bitmap = rrr3d::macos::rasterizeText(
-        output.value, menu::fontFace, pointSize, bold, color);
+        output.value, font.faceName, static_cast<float>(font.height),
+        font.bold(), color);
     output.texture = device.createTextureRgba8(
         bitmap.width, bitmap.height, bitmap.rgba.data(),
         bitmap.rgba.size());
@@ -600,37 +606,29 @@ void OriginalRaceHud::update(
     const auto placeIndex = std::min<std::size_t>(
         raceState.place > 0U ? raceState.place - 1U : 0U,
         placeNames_.size() - 1U);
-    setText(device, place_, placeNames_[placeIndex],
-            30.0F, true, white);
+    setText(device, place_, placeNames_[placeIndex], 44.0F, false, white);
     setText(device, lap_,
-            lapName_ + " " +
-                std::to_string(miniMapState_.GetShownLap()) + "/" +
+            lapName_ + " " + std::to_string(miniMapState_.GetShownLap()) + "/" +
                 std::to_string(miniMapState_.GetTotalLaps()),
-            25.0F, true, white);
+            24.0F, false, white);
     for (std::size_t slot = 0; slot < weaponAmmo_.size(); ++slot)
     {
         const auto& weapon = raceState.weapons[slot + 2U];
         setText(device, weaponAmmo_[slot],
-                weapon.visible
-                    ? std::to_string(weapon.currentCharge) + "/" +
-                          std::to_string(weapon.totalCharge)
-                    : std::string{},
-                18.0F, true, white);
+                weapon.visible ? std::to_string(weapon.currentCharge) + "/" + std::to_string(weapon.totalCharge)
+                               : std::string{},
+                24.0F, false, white);
     }
     const auto& mineState = raceState.weapons[1];
     setText(device, mineAmmo_,
-            mineState.visible
-                ? std::to_string(mineState.currentCharge) + "/" +
-                      std::to_string(mineState.totalCharge)
-                : std::string{},
-            18.0F, true, white);
+            mineState.visible ? std::to_string(mineState.currentCharge) + "/" + std::to_string(mineState.totalCharge)
+                              : std::string{},
+            24.0F, false, white);
     const auto& hyperState = raceState.weapons[0];
     setText(device, hyperAmmo_,
-            hyperState.visible
-                ? std::to_string(hyperState.currentCharge) + "/" +
-                      std::to_string(hyperState.totalCharge)
-                : std::string{},
-            18.0F, true, white);
+            hyperState.visible ? std::to_string(hyperState.currentCharge) + "/" + std::to_string(hyperState.totalCharge)
+                               : std::string{},
+            24.0F, false, white);
 
     auto sourcePickSlot = [](originalrace::PickSlot slot) {
         switch (slot)
@@ -926,10 +924,7 @@ void OriginalRaceHud::update(
         }
         const auto name = racerName(race, session, racerIndex);
         const auto& runtime = session.racers()[racerIndex];
-        setText(device, label->name,
-                formatNamePlace(
-                    namePlaceFormat_, runtime.GetPlace(), name),
-                15.0F, true, white);
+        setText(device, label->name, formatNamePlace(namePlaceFormat_, runtime.GetPlace(), name), 18.0F, true, white);
         source::HudOpponentInput input;
         input.racer = racerIndex;
         input.place = static_cast<int>(runtime.GetPlace());

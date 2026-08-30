@@ -5706,7 +5706,24 @@ SoundLib→ImageLib→MeshLib. Cache hit `LoadSound` снова применяе
 volume, а AudioBackend rebind выгружает старую SoundLib до замены указателя.
 Новый regression с fake graphics/audio backends доказывает единственную
 texture identity, чужой/backend release, смену audio owner и отсутствие
-double destruction. TextFontLib/ComplexMatLib остаются отдельным B5d.
+double destruction. TextFontLib закрыт следующим блоком; ComplexMatLib открыт.
+
+### P2.252 — `ResourceManager::TextFontLib` возвращён — выполнено
+
+Прямая сверка `LoadGUI`, `LoadFont`, `ComplexTextFontLibrary::Get` и
+`SetFontCharset` показала, что active CoreText path всё ещё получал только
+произвольные face/pointSize/bold из executable. Перенесён точный каталог:
+Header=44 regular, Item=32 regular, Small=24 regular, VerySmall=18 bold,
+VerySmallThink=18 regular, Verdana. Descriptor содержит source charset;
+смена языка обновляет все пять существующих записей, как Windows цикл.
+
+Menu и динамический HUD теперь разрешают CoreText параметры через общий
+TextFontLib owner. Исправлены явные reconstructed HUD размеры: place 30/bold
+стал Header, lap 25/bold и ammo 18/bold стали Small, opponent 15 стал
+VerySmall. Options/StartOptions снова используют Small 24 вместо общего
+VerySmall 18, из-за которого строки были смещены. Regression проверяет пять
+имён, weight, lookup и Russian charset propagation. ComplexMatLib остаётся
+следующим resource-owner блоком.
 
 ## Итоговое решение
 

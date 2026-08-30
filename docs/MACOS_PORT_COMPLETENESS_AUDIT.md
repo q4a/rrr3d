@@ -66,7 +66,7 @@ Windows target не компилируется.
 |---|---|---|---|---|
 | CMake, arm64 `.app`, bundle, signing | VS projects/resources | CMake presets, bundle scripts | Перенесено | Notarization/Developer ID не входят в текущую локальную сборку |
 | Platform filesystem/logging | Win32/XPlatform | XPlatform + macOS directories | Замена платформы | Игровой логике это не должно давать различий |
-| Resource filesystem | `ResourceManager`, Windows paths | `ResourceFileSystem` + `OriginalResourceManager`, exact-case catalog | Перенесено | Mesh/Image/Sound library identity, cache и release order активны; открыты TextFont/ComplexMat descriptors |
+| Resource filesystem | `ResourceManager`, Windows paths | `ResourceFileSystem` + `OriginalResourceManager`, exact-case catalog | Перенесено | Mesh/Image/Sound/TextFont identity, charset и release order активны; открыт ComplexMat descriptor owner |
 | `.r3d`, DDS/PNG, XML | Исходные loaders | portable decoders + TinyXML | Перенесено | Поддержаны используемые форматы; это не перенос всего legacy resource object graph |
 | Окно и event loop | Win32/D3D window | SDL3/Cocoa | Замена платформы | Нативный путь работает |
 | Keyboard/mouse/gamepad | XInput/Win32 `ControlManager` | source `VirtualKey`/action state поверх SDL3 | Перенесено с backend-адаптацией | Точные constructor/user bindings, raw menu keys, repeat, focus release, `XUSER_INDEX_ANY` event delivery, hot-plug, 30/255 и 7849/8689 thresholds перенесены; Win32/XInput polling API заменён SDL3 events |
@@ -2114,7 +2114,23 @@ Manager стал RAII-owner и воспроизводит порядок SoundLi
 Windows `SetVolume`, а смена AudioBackend сначала выгружает прежний SoundLib.
 Отдельный fake-backend regression проверяет cache hit, borrowed release,
 backend rebind, idempotent shutdown и отсутствие double destroy. TextFontLib
-и ComplexMatLib остаются следующим B5d, CoreText/bgfx — backend payload.
+закрыт следующим блоком; ComplexMatLib остаётся открытым, bgfx — payload.
+
+### B8ax — source TextFontLib и HUD/Options font descriptors — выполнено
+
+Из `ResourceManager::LoadGUI`, `ComplexTextFontLibrary::LoadFont` и
+`SetFontCharset` перенесены все пять записей: Header 44, Item 32, Small 24,
+VerySmall 18 bold и VerySmallThink 18 normal, Verdana. Общий manager хранит
+имя/height/weight/italic/charset/face, lookup с исходной ошибкой и обновляет
+charset всех записей при смене языка. CoreText получает descriptor как
+разрешённый backend payload; прямой font-face/size выбор из menu/HUD удалён.
+
+Заодно устранены подтверждённые reconstructed размеры HUD: place теперь
+Header, lap и weapon ammo — Small, opponent label — VerySmall. Все поля
+Options/StartOptions возвращены с 18 на исходный Small 24; version остаётся
+VerySmall 18. ResourceManager regression проверяет каталог и переход charset,
+а полный app build подтверждает активные CoreText call sites. ComplexMatLib
+остаётся следующим отдельным resource block.
 
 ## Воспроизведение проверки
 

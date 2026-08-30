@@ -159,6 +159,7 @@ private:
     std::string priceName_ = "Reward";
     std::vector<std::string> localizedRacerNames_;
     std::map<int, std::string> localizedGamerNames_;
+    OriginalResourceManager *resources_ = nullptr;
     float uiSeconds_ = 0.0F;
     bool campaign_ = true;
 };
