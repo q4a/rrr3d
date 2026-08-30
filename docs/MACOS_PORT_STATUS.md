@@ -2691,3 +2691,14 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - Универсальный impact больше не создаёт descriptor `model3`: Frost model3
   остаётся `SlowEffect` цели, а MineRip model2/model3 появляются только в
   исходном explicit split path.
+
+### Source View coordinate/input lifecycle follow-up
+
+- `originalview::ViewState` переносит rounded `ScreenToView`, D3D-style
+  projection conversion и click/move snapshots из Windows `View.cpp`.
+- Все активные pointer hit tests и рисование source cursor используют один
+  owner вместо локальных logical/drawable формул.
+- SDL обновляет logical client и Metal drawable pair до pointer dispatch и
+  после coalesced resize, включая случай неизменившегося backbuffer.
+- Новый `rrr3d_original_view_smoke` проверяет Retina 2×, Y inversion,
+  projection round-trip, move delta/offset и Reset lifetime.

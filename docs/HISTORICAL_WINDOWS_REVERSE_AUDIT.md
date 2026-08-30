@@ -5591,6 +5591,23 @@ Session копирует конкретный `MapObjRec` в shared owner, по�
 Unit/session regression проверяет endpoint transform, lifetime ownership и
 исключение никогда не инициализированного model3.
 
+### P2.245 — source `View` lifecycle и единый Retina hit testing возвращены — выполнено
+
+Сверка `View::ScreenToView`, `ViewToProj`, `ProjToView`,
+`OnMouseClickEvent` и `OnMouseMoveEvent` выявила активный разрыв: SDL-host
+повторял пересчёт logical coordinates вручную в двенадцати menu branches,
+а состояние click/move из Windows вообще не имело владельца. После
+fullscreen или смены Retina drawable разные branches могли наблюдать
+разные пары window/backbuffer размеров.
+
+`originalview::ViewState` теперь владеет исходным округлением, D3D Y-flip,
+projection conversion, click snapshot, move delta и offset от последнего
+клика. SDL adapter обновляет размеры до pointer dispatch и при coalesced
+resize; все menu/dialog/garage/workshop/options hit tests и cursor используют
+этот owner. Отдельный regression фиксирует формулы на 2× Retina viewport и
+жизненный цикл Reset. Win32 window styles, D3D reset и screen-ray остаются
+платформенными adapter responsibilities.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

@@ -6,6 +6,7 @@
 #include "OriginalMenuSystem.h"
 #include "OriginalOptionsMenu.h"
 #include "OriginalRaceMenu.h"
+#include "OriginalView.h"
 #ifdef RRR3D_NETWORK
 #include "OriginalNetwork.h"
 #endif
@@ -87,6 +88,7 @@ namespace menu = r3d::game::mainmenu2;
 namespace originalaudio = r3d::game::originalaudio;
 namespace originalgamedata = r3d::game::originalgamedata;
 namespace originalmenu = r3d::game::originalmenu;
+namespace originalview = r3d::game::originalview;
 
 constexpr int initialWidth = 1280;
 constexpr int initialHeight = 733;
@@ -1141,21 +1143,17 @@ void drawQuadRotated(GraphicsDevice& device, Mesh quad, Shader shader,
 }
 
 #ifdef RRR3D_GAMEPAD_INPUT
-std::optional<std::size_t> hoveredItem(SDL_Window* window, float windowX,
-                                       float windowY, std::size_t itemCount,
-                                       float itemWidth, float itemHeight,
-                                       bool lastItemAtBackPosition)
+std::optional<std::size_t> hoveredItem(
+    const originalview::ViewState& view, float windowX, float windowY,
+    std::size_t itemCount, float itemWidth, float itemHeight,
+    bool lastItemAtBackPosition)
 {
-    int windowWidth = 0;
-    int windowHeight = 0;
-    if (!SDL_GetWindowSize(window, &windowWidth, &windowHeight) ||
-        windowWidth <= 0 || windowHeight <= 0)
+    if (!view.IsValid())
         return std::nullopt;
 
-    const float virtualX =
-        windowX * menu::virtualWidth / static_cast<float>(windowWidth);
-    const float virtualY =
-        windowY * menu::virtualHeight / static_cast<float>(windowHeight);
+    const auto viewCoord = view.ScreenToView({windowX, windowY});
+    const float virtualX = viewCoord.x;
+    const float virtualY = viewCoord.y;
     const float centerX =
         menu::virtualWidth * 0.5F + menu::itemCenterOffsetX;
     if (std::abs(virtualX - centerX) > itemWidth * 0.5F)
@@ -1872,6 +1870,11 @@ int main(int argc, char** argv)
     int logicalWindowWidth = 0;
     int logicalWindowHeight = 0;
     SDL_GetWindowSize(window, &logicalWindowWidth, &logicalWindowHeight);
+    originalview::ViewState sourceView;
+    sourceView.Reset(
+        {static_cast<float>(logicalWindowWidth),
+         static_cast<float>(logicalWindowHeight)},
+        {static_cast<float>(pixelWidth), static_cast<float>(pixelHeight)});
     std::cout << "GUI viewport: " << logicalWindowWidth << 'x'
               << logicalWindowHeight << " points, " << pixelWidth << 'x'
               << pixelHeight << " drawable pixels\n";
@@ -9019,6 +9022,13 @@ int main(int argc, char** argv)
         if (!drawableResizePending)
             return true;
         drawableResizePending = false;
+        SDL_GetWindowSize(
+            window, &logicalWindowWidth, &logicalWindowHeight);
+        sourceView.Reset(
+            {static_cast<float>(logicalWindowWidth),
+             static_cast<float>(logicalWindowHeight)},
+            {static_cast<float>(pendingPixelWidth),
+             static_cast<float>(pendingPixelHeight)});
         if (pendingPixelWidth == pixelWidth &&
             pendingPixelHeight == pixelHeight)
         {
@@ -10009,17 +10019,11 @@ int main(int argc, char** argv)
         float pointerX = 0.0F;
         float pointerY = 0.0F;
         SDL_GetMouseState(&pointerX, &pointerY);
-        int windowWidth = 0;
-        int windowHeight = 0;
-        if (!SDL_GetWindowSize(window, &windowWidth, &windowHeight) ||
-            windowWidth <= 0 || windowHeight <= 0)
-        {
+        if (!sourceView.IsValid())
             return;
-        }
-        const float virtualX = pointerX * menu::virtualWidth /
-            static_cast<float>(windowWidth);
-        const float virtualY = pointerY * menu::virtualHeight /
-            static_cast<float>(windowHeight);
+        const auto viewCoord = sourceView.ScreenToView({pointerX, pointerY});
+        const float virtualX = viewCoord.x;
+        const float virtualY = viewCoord.y;
         drawQuad(
             *device, quad, shader, cursor,
             static_cast<float>(model->cursorImage.width),
@@ -10704,6 +10708,44 @@ int main(int argc, char** argv)
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {
+            if (event.type == SDL_EVENT_MOUSE_MOTION ||
+                event.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
+                event.type == SDL_EVENT_MOUSE_BUTTON_UP)
+            {
+                // View::ScreenToView queried the live Win32 client rectangle
+                // for every pointer event. Do the same here so an input event
+                // interleaved with a Retina/fullscreen resize never observes
+                // the previous logical-to-drawable scale.
+                SDL_GetWindowSize(
+                    window, &logicalWindowWidth, &logicalWindowHeight);
+                sourceView.Reset(
+                    {static_cast<float>(logicalWindowWidth),
+                     static_cast<float>(logicalWindowHeight)},
+                    {static_cast<float>(pendingPixelWidth),
+                     static_cast<float>(pendingPixelHeight)});
+                const SDL_Keymod modifiers = SDL_GetModState();
+                const bool shift = (modifiers & SDL_KMOD_SHIFT) != 0;
+                const bool control = (modifiers & SDL_KMOD_CTRL) != 0;
+                if (event.type == SDL_EVENT_MOUSE_MOTION)
+                {
+                    sourceView.OnMouseMove(
+                        {event.motion.x, event.motion.y}, shift, control);
+                }
+                else
+                {
+                    originalview::MouseKey key =
+                        originalview::MouseKey::Other;
+                    if (event.button.button == SDL_BUTTON_LEFT)
+                        key = originalview::MouseKey::Left;
+                    else if (event.button.button == SDL_BUTTON_MIDDLE)
+                        key = originalview::MouseKey::Middle;
+                    else if (event.button.button == SDL_BUTTON_RIGHT)
+                        key = originalview::MouseKey::Right;
+                    sourceView.OnMouseClick(
+                        key, event.type == SDL_EVENT_MOUSE_BUTTON_DOWN,
+                        {event.button.x, event.button.y}, shift, control);
+                }
+            }
 #ifdef RRR3D_PHYSICS
             // Domain callbacks may close a dialog while more SDL events are
             // already queued. Keep the source modal root authoritative for
@@ -11003,8 +11045,6 @@ int main(int argc, char** argv)
                     (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
                      event.button.button == SDL_BUTTON_LEFT))
                 {
-                    int windowWidth = 0;
-                    int windowHeight = 0;
                     const float pointerX =
                         event.type == SDL_EVENT_MOUSE_MOTION
                             ? event.motion.x
@@ -11013,16 +11053,12 @@ int main(int argc, char** argv)
                         event.type == SDL_EVENT_MOUSE_MOTION
                             ? event.motion.y
                             : event.button.y;
-                    if (SDL_GetWindowSize(
-                            window, &windowWidth, &windowHeight) &&
-                        windowWidth > 0 && windowHeight > 0)
+                    if (sourceView.IsValid())
                     {
-                        const float virtualX =
-                            pointerX * menu::virtualWidth /
-                            static_cast<float>(windowWidth);
-                        const float virtualY =
-                            pointerY * menu::virtualHeight /
-                            static_cast<float>(windowHeight);
+                        const auto viewCoord =
+                            sourceView.ScreenToView({pointerX, pointerY});
+                        const float virtualX = viewCoord.x;
+                        const float virtualY = viewCoord.y;
                         const float centerX =
                             menu::virtualWidth * 0.5F;
                         const float centerY =
@@ -11200,8 +11236,6 @@ int main(int argc, char** argv)
                 (event.type == SDL_EVENT_MOUSE_MOTION ||
                  event.type == SDL_EVENT_MOUSE_BUTTON_DOWN))
             {
-                int windowWidth = 0;
-                int windowHeight = 0;
                 const float pointerX =
                     event.type == SDL_EVENT_MOUSE_MOTION
                         ? event.motion.x
@@ -11211,16 +11245,11 @@ int main(int argc, char** argv)
                         ? event.motion.y
                         : event.button.y;
                 bool hoveredOk = false;
-                if (SDL_GetWindowSize(
-                        window, &windowWidth, &windowHeight) &&
-                    windowWidth > 0 && windowHeight > 0)
+                if (sourceView.IsValid())
                 {
-                    const float virtualX =
-                        pointerX * menu::virtualWidth /
-                        static_cast<float>(windowWidth);
-                    const float virtualY =
-                        pointerY * menu::virtualHeight /
-                        static_cast<float>(windowHeight);
+                    const auto viewCoord = sourceView.ScreenToView({pointerX, pointerY});
+                    const float virtualX = viewCoord.x;
+                    const float virtualY = viewCoord.y;
                     hoveredOk =
                         std::abs(
                             virtualX - sourceDialogs.Info().center.x) <=
@@ -11244,8 +11273,6 @@ int main(int argc, char** argv)
                 (event.type == SDL_EVENT_MOUSE_MOTION ||
                  event.type == SDL_EVENT_MOUSE_BUTTON_DOWN))
             {
-                int windowWidth = 0;
-                int windowHeight = 0;
                 const float pointerX =
                     event.type == SDL_EVENT_MOUSE_MOTION
                         ? event.motion.x
@@ -11254,16 +11281,11 @@ int main(int argc, char** argv)
                     event.type == SDL_EVENT_MOUSE_MOTION
                         ? event.motion.y
                         : event.button.y;
-                if (SDL_GetWindowSize(
-                        window, &windowWidth, &windowHeight) &&
-                    windowWidth > 0 && windowHeight > 0)
+                if (sourceView.IsValid())
                 {
-                    const float virtualX =
-                        pointerX * menu::virtualWidth /
-                        static_cast<float>(windowWidth);
-                    const float virtualY =
-                        pointerY * menu::virtualHeight /
-                        static_cast<float>(windowHeight);
+                    const auto viewCoord = sourceView.ScreenToView({pointerX, pointerY});
+                    const float virtualX = viewCoord.x;
+                    const float virtualY = viewCoord.y;
                     const auto& sourceAccept =
                         sourceDialogs.Accept();
                     const auto& acceptLayout =
@@ -11306,8 +11328,6 @@ int main(int argc, char** argv)
                 (event.type == SDL_EVENT_MOUSE_MOTION ||
                  event.type == SDL_EVENT_MOUSE_BUTTON_DOWN))
             {
-                int windowWidth = 0;
-                int windowHeight = 0;
                 const float pointerX =
                     event.type == SDL_EVENT_MOUSE_MOTION
                         ? event.motion.x
@@ -11317,16 +11337,11 @@ int main(int argc, char** argv)
                         ? event.motion.y
                         : event.button.y;
                 bool hoveredGamerControl = false;
-                if (SDL_GetWindowSize(
-                        window, &windowWidth, &windowHeight) &&
-                    windowWidth > 0 && windowHeight > 0)
+                if (sourceView.IsValid())
                 {
-                    const float virtualX =
-                        pointerX * menu::virtualWidth /
-                        static_cast<float>(windowWidth);
-                    const float virtualY =
-                        pointerY * menu::virtualHeight /
-                        static_cast<float>(windowHeight);
+                    const auto viewCoord = sourceView.ScreenToView({pointerX, pointerY});
+                    const float virtualX = viewCoord.x;
+                    const float virtualY = viewCoord.y;
                     syncSourceGamers();
                     const auto gamersLayout =
                         sourceGamersFrame.layout(
@@ -11381,8 +11396,6 @@ int main(int argc, char** argv)
                 (event.type == SDL_EVENT_MOUSE_MOTION ||
                  event.type == SDL_EVENT_MOUSE_BUTTON_DOWN))
             {
-                int windowWidth = 0;
-                int windowHeight = 0;
                 const float pointerX =
                     event.type == SDL_EVENT_MOUSE_MOTION
                         ? event.motion.x
@@ -11392,16 +11405,11 @@ int main(int argc, char** argv)
                         ? event.motion.y
                         : event.button.y;
                 bool hoveredProfileControl = false;
-                if (SDL_GetWindowSize(
-                        window, &windowWidth, &windowHeight) &&
-                    windowWidth > 0 && windowHeight > 0)
+                if (sourceView.IsValid())
                 {
-                    const float virtualX =
-                        pointerX * menu::virtualWidth /
-                        static_cast<float>(windowWidth);
-                    const float virtualY =
-                        pointerY * menu::virtualHeight /
-                        static_cast<float>(windowHeight);
+                    const auto viewCoord = sourceView.ScreenToView({pointerX, pointerY});
+                    const float virtualX = viewCoord.x;
+                    const float virtualY = viewCoord.y;
                     const float centerX =
                         menu::virtualWidth * 0.5F;
                     const auto visibleEnd =
@@ -11482,8 +11490,6 @@ int main(int argc, char** argv)
                  event.type == SDL_EVENT_MOUSE_BUTTON_DOWN))
             {
                 sourceGarageFrame.updateColors(sourceGarageColors());
-                int windowWidth = 0;
-                int windowHeight = 0;
                 const float pointerX =
                     event.type == SDL_EVENT_MOUSE_MOTION
                         ? event.motion.x
@@ -11493,16 +11499,11 @@ int main(int argc, char** argv)
                         ? event.motion.y
                         : event.button.y;
                 std::optional<std::size_t> hoveredGarageItem;
-                if (SDL_GetWindowSize(
-                        window, &windowWidth, &windowHeight) &&
-                    windowWidth > 0 && windowHeight > 0)
+                if (sourceView.IsValid())
                 {
-                    const float virtualX =
-                        pointerX * menu::virtualWidth /
-                        static_cast<float>(windowWidth);
-                    const float virtualY =
-                        pointerY * menu::virtualHeight /
-                        static_cast<float>(windowHeight);
+                    const auto viewCoord = sourceView.ScreenToView({pointerX, pointerY});
+                    const float virtualX = viewCoord.x;
+                    const float virtualY = viewCoord.y;
                         const float bottomCenterY =
                             menu::virtualHeight -
                             static_cast<float>(
@@ -11604,8 +11605,6 @@ int main(int argc, char** argv)
                 (event.type == SDL_EVENT_MOUSE_MOTION ||
                  event.type == SDL_EVENT_MOUSE_BUTTON_DOWN))
             {
-                int windowWidth = 0;
-                int windowHeight = 0;
                 const float pointerX =
                     event.type == SDL_EVENT_MOUSE_MOTION
                         ? event.motion.x
@@ -11616,16 +11615,11 @@ int main(int argc, char** argv)
                         : event.button.y;
                 std::optional<std::size_t> hoveredWorkshopItem;
                 bool workshopDialogShown = false;
-                if (SDL_GetWindowSize(
-                        window, &windowWidth, &windowHeight) &&
-                    windowWidth > 0 && windowHeight > 0)
+                if (sourceView.IsValid())
                 {
-                    const float virtualX =
-                        pointerX * menu::virtualWidth /
-                        static_cast<float>(windowWidth);
-                    const float virtualY =
-                        pointerY * menu::virtualHeight /
-                        static_cast<float>(windowHeight);
+                    const auto viewCoord = sourceView.ScreenToView({pointerX, pointerY});
+                    const float virtualX = viewCoord.x;
+                    const float virtualY = viewCoord.y;
                     workshopDragX = virtualX;
                     workshopDragY = virtualY;
                     const float backY =
@@ -11865,8 +11859,6 @@ int main(int argc, char** argv)
                 (event.type == SDL_EVENT_MOUSE_MOTION ||
                  event.type == SDL_EVENT_MOUSE_BUTTON_DOWN))
             {
-                int windowWidth = 0;
-                int windowHeight = 0;
                 const float pointerX =
                     event.type == SDL_EVENT_MOUSE_MOTION
                         ? event.motion.x
@@ -11876,16 +11868,11 @@ int main(int argc, char** argv)
                         ? event.motion.y
                         : event.button.y;
                 std::optional<std::size_t> hoveredAngarItem;
-                if (SDL_GetWindowSize(
-                        window, &windowWidth, &windowHeight) &&
-                    windowWidth > 0 && windowHeight > 0)
+                if (sourceView.IsValid())
                 {
-                    const float virtualX =
-                        pointerX * menu::virtualWidth /
-                        static_cast<float>(windowWidth);
-                    const float virtualY =
-                        pointerY * menu::virtualHeight /
-                        static_cast<float>(windowHeight);
+                    const auto viewCoord = sourceView.ScreenToView({pointerX, pointerY});
+                    const float virtualX = viewCoord.x;
+                    const float virtualY = viewCoord.y;
                     const auto planetCount = std::min(
                         originalGarage->planets.size(),
                         profileState.player.planets.size());
@@ -11985,8 +11972,6 @@ int main(int argc, char** argv)
                 (event.type == SDL_EVENT_MOUSE_MOTION ||
                  event.type == SDL_EVENT_MOUSE_BUTTON_DOWN))
             {
-                int windowWidth = 0;
-                int windowHeight = 0;
                 const float pointerX =
                     event.type == SDL_EVENT_MOUSE_MOTION
                         ? event.motion.x
@@ -11996,16 +11981,11 @@ int main(int argc, char** argv)
                         ? event.motion.y
                         : event.button.y;
                 std::optional<std::size_t> hoveredAchievement;
-                if (SDL_GetWindowSize(
-                        window, &windowWidth, &windowHeight) &&
-                    windowWidth > 0 && windowHeight > 0)
+                if (sourceView.IsValid())
                 {
-                    const float virtualX =
-                        pointerX * menu::virtualWidth /
-                        static_cast<float>(windowWidth);
-                    const float virtualY =
-                        pointerY * menu::virtualHeight /
-                        static_cast<float>(windowHeight);
+                    const auto viewCoord = sourceView.ScreenToView({pointerX, pointerY});
+                    const float virtualX = viewCoord.x;
+                    const float virtualY = viewCoord.y;
                         const auto achievementLayout =
                             sourceAchievementFrame.layout(
                                 menu::virtualWidth,
@@ -12075,8 +12055,6 @@ int main(int argc, char** argv)
                 (event.type == SDL_EVENT_MOUSE_MOTION ||
                  event.type == SDL_EVENT_MOUSE_BUTTON_DOWN))
             {
-                int windowWidth = 0;
-                int windowHeight = 0;
                 const float pointerX =
                     event.type == SDL_EVENT_MOUSE_MOTION
                         ? event.motion.x
@@ -12087,16 +12065,11 @@ int main(int argc, char** argv)
                         : event.button.y;
                 std::optional<std::size_t> hoveredRaceMenuItem;
                 bool pointerHandledNetworkKick = false;
-                if (SDL_GetWindowSize(
-                        window, &windowWidth, &windowHeight) &&
-                    windowWidth > 0 && windowHeight > 0)
+                if (sourceView.IsValid())
                 {
-                    const float virtualX =
-                        pointerX * menu::virtualWidth /
-                        static_cast<float>(windowWidth);
-                    const float virtualY =
-                        pointerY * menu::virtualHeight /
-                        static_cast<float>(windowHeight);
+                    const auto viewCoord = sourceView.ScreenToView({pointerX, pointerY});
+                    const float virtualX = viewCoord.x;
+                    const float virtualY = viewCoord.y;
 #ifdef RRR3D_NETWORK
                     networkKickHoverOwner.reset();
                     if (networkHostRequested)
@@ -12194,8 +12167,6 @@ int main(int argc, char** argv)
                 (event.type == SDL_EVENT_MOUSE_MOTION ||
                  event.type == SDL_EVENT_MOUSE_BUTTON_DOWN))
             {
-                int windowWidth = 0;
-                int windowHeight = 0;
                 const float pointerX =
                     event.type == SDL_EVENT_MOUSE_MOTION
                         ? event.motion.x
@@ -12206,16 +12177,11 @@ int main(int argc, char** argv)
                         : event.button.y;
                 std::optional<std::size_t> hoveredOption;
                 std::optional<std::size_t> hoveredState;
-                if (SDL_GetWindowSize(
-                        window, &windowWidth, &windowHeight) &&
-                    windowWidth > 0 && windowHeight > 0)
+                if (sourceView.IsValid())
                 {
-                    const float virtualX =
-                        pointerX * menu::virtualWidth /
-                        static_cast<float>(windowWidth);
-                    const float virtualY =
-                        pointerY * menu::virtualHeight /
-                        static_cast<float>(windowHeight);
+                    const auto viewCoord = sourceView.ScreenToView({pointerX, pointerY});
+                    const float virtualX = viewCoord.x;
+                    const float virtualY = viewCoord.y;
                     const float centerX =
                         menu::virtualWidth * 0.5F;
                     const float centerY =
@@ -12370,8 +12336,6 @@ int main(int argc, char** argv)
                 (event.type == SDL_EVENT_MOUSE_MOTION ||
                  event.type == SDL_EVENT_MOUSE_BUTTON_DOWN))
             {
-                int windowWidth = 0;
-                int windowHeight = 0;
                 const float pointerX =
                     event.type == SDL_EVENT_MOUSE_MOTION
                         ? event.motion.x
@@ -12381,16 +12345,11 @@ int main(int argc, char** argv)
                         ? event.motion.y
                         : event.button.y;
                 bool hoveredBack = false;
-                if (SDL_GetWindowSize(
-                        window, &windowWidth, &windowHeight) &&
-                    windowWidth > 0 && windowHeight > 0)
+                if (sourceView.IsValid())
                 {
-                    const float virtualX =
-                        pointerX * menu::virtualWidth /
-                        static_cast<float>(windowWidth);
-                    const float virtualY =
-                        pointerY * menu::virtualHeight /
-                        static_cast<float>(windowHeight);
+                    const auto viewCoord = sourceView.ScreenToView({pointerX, pointerY});
+                    const float virtualX = viewCoord.x;
+                    const float virtualY = viewCoord.y;
                     const auto finalLayout = sourceFinalFrame.layout(
                         menu::virtualWidth, menu::virtualHeight,
                         finalCreditsHeight,
@@ -12415,7 +12374,7 @@ int main(int argc, char** argv)
             {
                 const auto& hoverPage = activeMenuPage();
                 const auto hovered = hoveredItem(
-                    window, event.motion.x, event.motion.y,
+                    sourceView, event.motion.x, event.motion.y,
                     hoverPage.labels.size(),
                     static_cast<float>(model->selectionImage.width),
                     static_cast<float>(model->selectionImage.height),
@@ -12432,7 +12391,7 @@ int main(int argc, char** argv)
             {
                 const auto& hoverPage = activeMenuPage();
                 const auto hovered = hoveredItem(
-                    window, event.button.x, event.button.y,
+                    sourceView, event.button.x, event.button.y,
                     hoverPage.labels.size(),
                     static_cast<float>(model->selectionImage.width),
                     static_cast<float>(model->selectionImage.height),
@@ -14268,6 +14227,16 @@ int main(int argc, char** argv)
                 event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED)
             {
                 running = false;
+            }
+            else if (event.type == SDL_EVENT_WINDOW_RESIZED)
+            {
+                logicalWindowWidth = std::max(event.window.data1, 1);
+                logicalWindowHeight = std::max(event.window.data2, 1);
+                sourceView.Reset(
+                    {static_cast<float>(logicalWindowWidth),
+                     static_cast<float>(logicalWindowHeight)},
+                    {static_cast<float>(pendingPixelWidth),
+                     static_cast<float>(pendingPixelHeight)});
             }
             else if (event.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED ||
                      event.type == SDL_EVENT_WINDOW_METAL_VIEW_RESIZED)

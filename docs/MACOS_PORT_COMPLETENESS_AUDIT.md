@@ -106,7 +106,7 @@ Windows target не компилируется.
 | HUD | `PlayerStateFrame`, `MiniMapFrame`, `HudMenu` | `OriginalRaceHud.cpp` с исходными images/strings | Перенесено для offline race | Сопоставлены единственное активное состояние `msMain`, slots/life/place/lap, точная последовательность countdown `tablo0..tablo4`, pick/kill/achievement, opponent/life overlays и finish. `enableHUD` скрывает только `_raceState` и lap, сохраняя map/event siblings как Windows |
 | Mini-map | `MiniMapFrame`, `Trace` | source trace-path geometry | Перенесено | Перенесены все pathes, Align/ComputeNode/smoothing, 320×320 align, start marker, 20×20 car markers/colors и `CarState::GetMapPos`-совместимая удерживаемая trace projection |
 | Debug trace visualization | `TraceGfx` | `source::TraceGfx` + transient bgfx triangles | Перенесено с backend-адаптацией | Source owner владеет waypoint boxes, path grayscale, selected point/path/tile/link и alpha/material flags. D3D9 Box/Sprite/DrawPrimitiveUP заменены transient Metal triangles; упрощённая зелёная ribbon-заглушка удалена |
-| Camera | `CameraManager.cpp`, `View.cpp`, `ActorManager::PullInRayTargetGroup` | `source::CameraManager`, `source::AutoObserver` и cull-opacity backend | Перенесено для offline race/presentation | Перенесены все пять release/debug styles, velocity pose, pull-back, ortho lead/teleport compensation, FlyTo, Garage/Angar AutoObserver, screen/world/ray/XY-plane policy и 0.25 s `gpCullOpacity`; bgfx оставляет matrices, SDL — pointer translation |
+| Camera/View | `CameraManager.cpp`, `View.cpp`, `ActorManager::PullInRayTargetGroup` | `source::{CameraManager,AutoObserver}` + `originalview::ViewState` и cull-opacity backend | Перенесено для offline race/presentation | Перенесены все пять release/debug styles, velocity pose, pull-back, ortho lead/teleport compensation, FlyTo, Garage/Angar AutoObserver, screen/world/ray/XY-plane policy, rounded `ScreenToView`, projection conversion, click/move state и 0.25 s `gpCullOpacity`; bgfx оставляет matrices, SDL — window/drawable events и pointer payload |
 | Scene graph/render queues | `GraphManager`, `Actor`, `SceneManager` | custom queues в `OriginalRaceRenderer` | Частично | Основные order buckets есть; generic actor/proxy/octree graph не перенесён |
 | Materials | `MaterialLibrary`, `MappingShaders`, `DataBase` | source-derived material catalog + bgfx mappings | Перенесено с renderer-адаптацией | Проверены все 238 активных `Load*LibMat` records; два отсутствующих texture records являются source no-texture projectiles, ещё два — закомментированные `World2/track2` calls. Opaque/alpha/additive/bump/reflection/refraction и material flags сопоставлены без active name fallback; `refract.fx` использует исходные LINEAR/WRAP/MIRROR samplers |
 | Lighting/shadows/HDR | D3D9 graph effects | bgfx/Metal passes + active `Player` light attachment | Частично | Реализованы directional race passes, source Player spot/night flare lifecycle, shadow maps Garage/Angar, HDR/bloom/tone map, Middle+ `goRefr` clean-scene/refraction и High-quality perspective SunShaft; flare без `gpReflScene/gpReflWater` исключён из reflection passes. Bit-for-bit и полное graph state parity не доказаны |
@@ -2017,6 +2017,17 @@ Frost model3 исключён из generic death path и остаётся тол
 `SlowEffect`; MineRip nested models по-прежнему создаёт явный source split.
 Regression покрывает laser endpoint, strict lifetime expiry и отсутствие
 ложного tertiary actor.
+
+### B8aq — source View coordinate/input lifecycle — выполнено
+
+`View::ScreenToView`, `ViewToProj`, `ProjToView`, `OnMouseClickEvent` и
+`OnMouseMoveEvent` получили backend-neutral owner. Координаты SDL logical
+client округляются в пиксели Metal drawable точно перед hit test; все
+активные menu/dialog/profile/garage/workshop/options/credits paths и
+оригинальный курсор потребляют один owner. Resize/fullscreen обновляет обе
+размерности даже когда bgfx backbuffer не требует пересоздания. Regression
+проверяет Retina scale, D3D Y inversion, projection round-trip, click
+snapshot, move delta/offset и сохранение pointer state через Reset.
 
 ## Воспроизведение проверки
 

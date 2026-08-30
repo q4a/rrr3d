@@ -75,7 +75,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `RockCar` | `source::RockCar`, event sink | Source owner, partial | Проверить attachment/listener lifetime вместе с Player/GameCar |
 | `Trace` | `source::{Trace,WayPath,WayNode,WayPoint}` | Source owner, active race/debug path | Editor serialization остаётся вне пользовательской игры; gameplay geometry и TraceGfx используют один owner |
 | `TraceGfx` | `source::TraceGfx` + transient bgfx submission | Source owner, active F6 path | Selection/link/geometry/material policy source-owned; D3D9 Box/Sprite/DrawPrimitiveUP заменены backend triangles |
-| `View` | SDL window/input + bgfx device | Backend boundary | Перенести source view policy: reset/display/input coordinate lifecycle |
+| `View` | `originalview::ViewState` + SDL/bgfx adapters | Source owner, active input/display path | `ScreenToView`, projection conversion и mouse click/move snapshots source-owned; SDL сообщает logical client/drawable sizes, bgfx исполняет resize |
 | `Weapon` | `source::{Weapon,Proj,AutoProj,WeaponItem...}` | Source owner, active shot/contact/progress core | Shot preparation и все active Proj progress dispatch выполнены; остались Jolt actor integration/query, nested spawning и network authority adapters |
 | `World` | `source::WorldEventPump` + native `WorldHost` | Source owner, event core | Подключить к спискам все race objects/environment/network adapters вместо оставшихся session loops |
 
@@ -852,6 +852,15 @@ objects, а не именами, заново материализуемыми s
 world transform и удерживает копию source record до конца частиц. Generic
 impact больше не создаёт `model3`: Frost использует его исключительно как
 car-owned `SlowEffect`, MineRip — через исходный explicit nested spawn.
+
+Результат B8aq: формулы и pointer-state из `View.cpp` перенесены в
+`originalview::ViewState`. Все активные menu/dialog/garage/workshop/options
+hit tests и исходный курсор используют единый rounded `ScreenToView`, а
+click/move snapshots сохраняют projection, delta и offset от последнего
+клика. SDL adapter обновляет logical client и Metal drawable размеры на
+каждом resize и перед pointer dispatch, поэтому Retina/fullscreen transition
+больше не оставляет разные масштабы у отрисовки и input. Win32 window style,
+D3D reset и camera ray construction остаются разрешёнными backend-границами.
 
 ## Правило обновления карты
 

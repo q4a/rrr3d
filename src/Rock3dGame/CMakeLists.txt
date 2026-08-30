@@ -34,6 +34,7 @@ else()
             source/stub/OriginalControlManager.cpp
             source/stub/OriginalDialogMenu.cpp
         source/stub/OriginalGameData.cpp
+        source/stub/OriginalView.cpp
         source/stub/PortableGame.cpp
         include/InputActions.h
         include/MusicCat.h
@@ -44,6 +45,7 @@ else()
             include/OriginalControlManager.h
             include/OriginalDialogMenu.h
         include/OriginalGameData.h
+        include/OriginalView.h
         include/MainMenu2Spec.h
         include/Rock3dGame.h
         include/IWorld.h
@@ -153,6 +155,18 @@ if(NOT WIN32)
     add_test(
         NAME rrr3d_original_control_manager_smoke
         COMMAND rrr3d_original_control_manager_smoke
+    )
+
+    add_executable(rrr3d_original_view_smoke
+        tests/OriginalViewSmoke.cpp
+    )
+    target_link_libraries(rrr3d_original_view_smoke PRIVATE
+        ${PROJECT_NAME}
+    )
+    rrr3d_set_common_target_options(rrr3d_original_view_smoke)
+    add_test(
+        NAME rrr3d_original_view_smoke
+        COMMAND rrr3d_original_view_smoke
     )
 endif()
 
