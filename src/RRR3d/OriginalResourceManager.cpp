@@ -315,6 +315,31 @@ OriginalResourceManager::TextFontResource OriginalResourceManager::ResolveTextFo
     return {"<dynamic>", roundedHeight, bold ? boldFontWeight : 0U, false, fontCharset_, "Verdana"};
 }
 
+void OriginalResourceManager::ApplyLanguage(
+    const r3d::game::originalgamedata::Language& language)
+{
+    // GameMode::ApplyLanguage updates TextFontLib and loads StringLib as one
+    // operation. Parse first so a malformed language cannot leave the two
+    // source libraries describing different languages.
+    auto strings =
+        r3d::game::originalgamedata::loadOriginalStringLibrary(
+            GetFileSystem(), language);
+    SetFontCharset(language.charset);
+    strings_ = std::move(strings);
+    language_ = language.name;
+}
+
+const r3d::game::originalgamedata::StringLibrary&
+OriginalResourceManager::GetStringLibrary() const noexcept
+{
+    return strings_;
+}
+
+std::string_view OriginalResourceManager::GetLanguageName() const noexcept
+{
+    return language_;
+}
+
 void OriginalResourceManager::SetFontCharset(r3d::game::originalgamedata::LanguageCharset value) noexcept
 {
     if (fontCharset_ == value)
@@ -667,6 +692,11 @@ std::size_t OriginalResourceManager::GetLoadedSoundCount() const noexcept
         }));
 }
 
+std::size_t OriginalResourceManager::GetStringCount() const noexcept
+{
+    return strings_.size();
+}
+
 std::size_t OriginalResourceManager::GetTextFontCount() const noexcept
 {
     return textFonts_.size();
@@ -752,6 +782,8 @@ void OriginalResourceManager::ShutdownSounds() noexcept
 void OriginalResourceManager::Shutdown() noexcept
 {
     ShutdownSounds();
+    strings_ = {};
+    language_.clear();
     textFonts_.clear();
     materials_.clear();
     if (device_ == nullptr)

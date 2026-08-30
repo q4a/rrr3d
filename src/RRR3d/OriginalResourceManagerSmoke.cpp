@@ -260,6 +260,20 @@ void writeTriangleMesh(const std::filesystem::path& path)
     writeBinary(stream, groupFaceCount);
 }
 
+void writeUtf16Le(const std::filesystem::path& path,
+                  std::string_view ascii)
+{
+    std::ofstream stream(path, std::ios::binary);
+    const std::array<std::uint8_t, 2> bom{0xffU, 0xfeU};
+    stream.write(reinterpret_cast<const char*>(bom.data()),
+                 static_cast<std::streamsize>(bom.size()));
+    for (const unsigned char value : ascii)
+    {
+        stream.put(static_cast<char>(value));
+        stream.put('\0');
+    }
+}
+
 } // namespace
 
 int main()
@@ -285,6 +299,11 @@ int main()
     }
     writeTriangleMesh(root / "Data/World1/mesh.r3d");
     writeTriangleMesh(root / "Data/World2/mesh.r3d");
+    writeUtf16Le(
+        root / "strings-russian.txt",
+        "svPlayer \"Player\"\nsvNull \"\"\nsvEscaped \"Line\\nBreak\"\n");
+    writeUtf16Le(root / "strings-english.txt",
+                 "svPlayer \"Pilot\"\n");
 
     r3d::resource::ResourceFileSystem fileSystem(root);
     FakeGraphicsDevice device;
@@ -321,7 +340,32 @@ int main()
         if (header.height != 44 || item.height != 32 || small.height != 24 || verySmall.height != 18 ||
             !verySmall.bold() || verySmallThink.height != 18 || verySmallThink.bold() || header.faceName != "Verdana")
             return fail("TextFontLib source descriptors differ");
-        resources.SetFontCharset(r3d::game::originalgamedata::LanguageCharset::Russian);
+        const r3d::game::originalgamedata::Language russian{
+            "russian", "strings-russian.txt", "russian",
+            r3d::game::originalgamedata::LanguageCharset::Russian, 25};
+        const r3d::game::originalgamedata::Language english{
+            "english", "strings-english.txt", "english",
+            r3d::game::originalgamedata::LanguageCharset::EastEurope, 9};
+        resources.ApplyLanguage(russian);
+        const auto* stringOwner = &resources.GetStringLibrary();
+        if (resources.GetLanguageName() != "russian" ||
+            resources.GetStringCount() != 3U ||
+            !stringOwner->has("svPlayer") ||
+            stringOwner->get("svPlayer") != "Player" ||
+            stringOwner->has("svNull") ||
+            stringOwner->get("svNull") != "svNull" ||
+            stringOwner->get("svEscaped") != "Line\nBreak")
+            return fail("StringLib source load/Get/Has semantics differ");
+        resources.ApplyLanguage(english);
+        if (&resources.GetStringLibrary() != stringOwner ||
+            resources.GetLanguageName() != "english" ||
+            resources.GetStringCount() != 1U ||
+            resources.GetStringLibrary().get("svPlayer") != "Pilot" ||
+            resources.GetStringLibrary().has("svEscaped") ||
+            resources.GetFontCharset() !=
+                r3d::game::originalgamedata::LanguageCharset::EastEurope)
+            return fail("StringLib reload did not preserve owner identity");
+        resources.ApplyLanguage(russian);
         if (resources.GetFontCharset() != r3d::game::originalgamedata::LanguageCharset::Russian ||
             resources.GetTextFont("Header").charset != r3d::game::originalgamedata::LanguageCharset::Russian ||
             resources.ResolveTextFont(18.0F, true).name != "VerySmall" ||
@@ -432,7 +476,9 @@ int main()
                 device.destroyedMeshes.begin(),
                 device.destroyedMeshes.end(), world2Mesh.vertices.value) ==
                 device.destroyedMeshes.end() ||
-            resources.GetMaterialCount() != 0U)
+            resources.GetMaterialCount() != 0U ||
+            resources.GetStringCount() != 0U ||
+            !resources.GetLanguageName().empty())
             return fail("ResourceManager shutdown ownership order differs");
         resources.Shutdown();
     }

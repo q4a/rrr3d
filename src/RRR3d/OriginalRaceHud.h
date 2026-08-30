@@ -25,9 +25,8 @@ public:
     bool initialize(
         r3d::renderer::GraphicsDevice& device,
         OriginalResourceManager& resources,
-        const r3d::game::originalgamedata::Catalog& gameData,
         const r3d::game::originalrace::Race& race,
-        std::string_view language, std::string_view difficulty,
+        std::string_view difficulty,
         bool campaign, std::string& error);
     void shutdown(r3d::renderer::GraphicsDevice& device) noexcept;
     void update(r3d::renderer::GraphicsDevice& device,

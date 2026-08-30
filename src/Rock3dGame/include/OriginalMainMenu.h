@@ -55,7 +55,6 @@ struct Model
     Image selectionImage;
     Image cursorImage;
     ResourceAudit audit;
-    originalgamedata::StringLibrary localizedStrings;
 };
 
 class Controller

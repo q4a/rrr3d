@@ -5835,6 +5835,28 @@ startup, optional commentator voices по-прежнему проверяютс�
 dummy/Metal race smoke показывает 126 loaded SoundLib records после
 добавления доступных голосов.
 
+### P2.258 — `ResourceManager::StringLib` возвращён в общий owner — выполнено
+
+Предыдущие P2.50/P2.52 точно перенесли parser и lookup semantics, но
+разместили persistent результат не там: `MainMenu2::Model` владел одной
+копией, HUD при каждом initialize загружал вторую. В `eff9338`
+`ResourceManager` создаёт ровно один `_stringLib`, а
+`GameMode::ApplyLanguage` вызывает на нём `LoadFromFile` сразу после
+`SetFontCharset`.
+
+`OriginalResourceManager` теперь владеет StringLib вместе с остальными
+source libraries и предоставляет один lookup active menu и HUD.
+`ApplyLanguage` разбирает новый UTF-16LE файл до публикации, затем меняет
+TextFontLib charset, StringLib content и language name. Options не применяет
+половину новой локали к старым text textures: как Windows, он сохраняет
+config и выводит need-reload. Shutdown освобождает SoundLib, StringLib,
+TextFontLib, MatLib, ImageLib и MeshLib в исходном порядке.
+
+Fake-manager regression проверяет два последовательных языка, стабильную
+identity, replacement старых keys, пустое значение, fallback id, escaped
+newline, charset и idempotent cleanup. Shipped verification и Metal race
+smoke проходят на общей русской StringLib.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

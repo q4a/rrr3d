@@ -66,7 +66,7 @@ Windows target не компилируется.
 |---|---|---|---|---|
 | CMake, arm64 `.app`, bundle, signing | VS projects/resources | CMake presets, bundle scripts | Перенесено | Notarization/Developer ID не входят в текущую локальную сборку |
 | Platform filesystem/logging | Win32/XPlatform | XPlatform + macOS directories | Замена платформы | Игровой логике это не должно давать различий |
-| Resource filesystem | `ResourceManager`, Windows paths | `ResourceFileSystem` + `OriginalResourceManager`, exact-case catalog | Перенесено | Полные 322 Mesh/489 Image/257 Mat/46 eager Sound/5 TextFont libraries, identity, descriptors, charset, world-tag unload/reload и release order активны; GPU/audio payload остаётся backend boundary |
+| Resource filesystem | `ResourceManager`, Windows paths | `ResourceFileSystem` + `OriginalResourceManager`, exact-case catalog | Перенесено | Полные 322 Mesh/489 Image/257 Mat/46 eager Sound/5 TextFont и активная String library, identity, descriptors, language/charset, world-tag unload/reload и release order активны; GPU/audio payload остаётся backend boundary |
 | `.r3d`, DDS/PNG, XML | Исходные loaders | portable decoders + TinyXML | Перенесено | Поддержаны используемые форматы; это не перенос всего legacy resource object graph |
 | Окно и event loop | Win32/D3D window | SDL3/Cocoa | Замена платформы | Нативный путь работает |
 | Keyboard/mouse/gamepad | XInput/Win32 `ControlManager` | source `VirtualKey`/action state поверх SDL3 | Перенесено с backend-адаптацией | Точные constructor/user bindings, raw menu keys, repeat, focus release, `XUSER_INDEX_ANY` event delivery, hot-plug, 30/255 и 7849/8689 thresholds перенесены; Win32/XInput polling API заменён SDL3 events |
@@ -2237,6 +2237,29 @@ SoundLib diagnostics отдельно показывают record и loaded coun
 создаёт только существующие optional voices. Catalog regression проверяет
 46 unique paths, 46 eager flags, 9 UI и 7 doubled-volume records; Metal/audio
 smoke подтверждает загрузку каталога до последующих menu/commentator requests.
+
+### B8bd — единый `ResourceManager::StringLib` owner — выполнено
+
+Ранее точный parser и `Get/Has` уже существовали, но результат жил в
+`MainMenu2::Model`, а `OriginalRaceHud::initialize` независимо перечитывал
+тот же language file. Это не соответствовало Windows: там один
+`_stringLib` создаётся самим `ResourceManager`, после чего
+`GameMode::ApplyLanguage` одновременно меняет charset TextFontLib и
+загружает выбранный файл.
+
+Теперь persistent StringLib принадлежит только `OriginalResourceManager`.
+Main menu lookup и HUD lap/place/racer/gamer lookup используют одну identity;
+menu model оставляет лишь пять готовых bootstrap labels и audit, а его
+временный parser уничтожается после построения model. `ApplyLanguage`
+сначала полностью разбирает UTF-16LE, затем атомарно публикует charset,
+strings и language name, поэтому ошибка файла не оставляет разъехавшиеся
+libraries. Options/StartOptions сохраняют выбранный язык и показывают
+исходный `svHintNeedReload`, не меняя charset уже построенного старого UI.
+
+Regression применяет два языка к одному manager, проверяет стабильный адрес
+owner, replacement, empty/missing fallback, escaped newline, charset и
+очистку в точном SoundLib→StringLib→TextFontLib порядке. Metal startup
+diagnostics показывает число strings и выбранный язык рядом с records.
 
 ## Воспроизведение проверки
 

@@ -2852,3 +2852,16 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   применяет последний volume после cache lookup, как Windows SoundLib.
 - MusicCat и commentator сохраняют отдельные source lifetimes: музыка
   потоковая, optional style voices создаются после выбора языка.
+
+### Source ResourceManager StringLib follow-up
+
+- `OriginalResourceManager` владеет единственной persistent StringLib;
+  `MainMenu2::Model` и `OriginalRaceHud` больше не держат свои копии.
+- `ApplyLanguage` повторяет исходную транзакцию GameMode: UTF-16LE файл и
+  charset всех пяти TextFont records публикуются одной операцией.
+- Active menu lookup и все HUD lap/place/racer/gamer strings читают один
+  owner; bootstrap menu loader оставляет только пять labels и audit.
+- Смена языка в Options сохраняется до reload и больше не смешивает charset
+  нового языка с text textures старого интерфейса.
+- Smoke проверяет Get/Has/fallback/newline, reload двух языков, стабильную
+  identity и release order Sound→String→TextFont→Mat→Image→Mesh.

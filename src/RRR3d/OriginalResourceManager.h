@@ -94,6 +94,11 @@ public:
     const TextureResource& GetWhiteTexture();
     const TextFontResource &GetTextFont(std::string_view name) const;
     TextFontResource ResolveTextFont(float height, bool bold) const;
+    void ApplyLanguage(
+        const r3d::game::originalgamedata::Language& language);
+    const r3d::game::originalgamedata::StringLibrary&
+    GetStringLibrary() const noexcept;
+    std::string_view GetLanguageName() const noexcept;
     void SetFontCharset(r3d::game::originalgamedata::LanguageCharset value) noexcept;
     r3d::game::originalgamedata::LanguageCharset GetFontCharset() const noexcept;
     const r3d::game::originalrace::MaterialDefinition& RegisterMaterial(
@@ -118,6 +123,7 @@ public:
     std::size_t GetCacheHitCount() const noexcept;
     std::size_t GetSoundCount() const noexcept;
     std::size_t GetLoadedSoundCount() const noexcept;
+    std::size_t GetStringCount() const noexcept;
     std::size_t GetTextFontCount() const noexcept;
     std::size_t GetMaterialCount() const noexcept;
     std::size_t GetSoundRequestCount() const noexcept;
@@ -143,6 +149,8 @@ private:
     std::unordered_map<std::string, MeshResource> meshes_;
     std::unordered_map<std::string, TextureResource> textures_;
     std::unordered_map<std::string, SoundResource> sounds_;
+    r3d::game::originalgamedata::StringLibrary strings_;
+    std::string language_;
     std::unordered_map<std::string, TextFontResource> textFonts_;
     std::unordered_map<
         std::string, r3d::game::originalrace::MaterialDefinition>

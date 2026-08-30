@@ -1536,7 +1536,16 @@ int main(int argc, char** argv)
 
     if (options->verifyResources)
     {
-        const auto& sourceStrings = model->localizedStrings;
+        const auto* sourceLanguage = originalgamedata::findLanguage(
+            originalGameDataCatalog, activeLanguage);
+        if (sourceLanguage == nullptr)
+        {
+            std::cerr << "Active language is absent from game.xml\n";
+            return EXIT_FAILURE;
+        }
+        const auto sourceStrings =
+            originalgamedata::loadOriginalStringLibrary(
+                *resources, *sourceLanguage);
         const bool sourceStringLibraryValid =
             sourceStrings.has("svPlayer") &&
             sourceStrings.has("svStartMatch") &&
@@ -1927,8 +1936,9 @@ int main(int argc, char** argv)
 #endif
     rrr3d::race::OriginalResourceManager originalResourceManager(
         *device, *resources);
-    originalResourceManager.SetFontCharset(
-        originalgamedata::findLanguage(originalGameDataCatalog, activeLanguage)->charset);
+    originalResourceManager.ApplyLanguage(
+        *originalgamedata::findLanguage(
+            originalGameDataCatalog, activeLanguage));
     originalResourceManager.Load();
 #ifdef RRR3D_PHYSICS
     if (selectedTrack < originalRace->trackCatalog.size())
@@ -2537,7 +2547,7 @@ int main(int argc, char** argv)
         std::vector<bool> enabled;
     };
     auto localized = [&](std::string_view key) {
-        return model->localizedStrings.get(key);
+        return originalResourceManager.GetStringLibrary().get(key);
     };
     auto labels = [&](std::initializer_list<const char*> keys) {
         std::vector<std::string> output;
@@ -3819,8 +3829,7 @@ int main(int argc, char** argv)
             *originalRace,
             physicsError) ||
         !raceHud.initialize(*device, originalResourceManager,
-                            originalGameDataCatalog, *originalRace,
-                            activeLanguage,
+                            *originalRace,
                             profileState.player.difficulty,
                             true,
                             physicsError))
@@ -3850,6 +3859,10 @@ int main(int argc, char** argv)
               << " image records ("
               << originalResourceManager.GetLoadedTextureCount()
               << " loaded), "
+              << originalResourceManager.GetStringCount()
+              << " strings ("
+              << originalResourceManager.GetLanguageName()
+              << "), "
               << originalResourceManager.GetCacheHitCount() << '/'
               << originalResourceManager.GetRequestCount()
               << " shared requests reused\n";
@@ -6403,9 +6416,8 @@ int main(int argc, char** argv)
                     reloadError, &worldEnvironment) ||
                 !raceHud.initialize(
                     *device, originalResourceManager,
-                    originalGameDataCatalog,
                     *originalRace,
-                    activeLanguage, profileState.player.difficulty,
+                    profileState.player.difficulty,
                     championshipMode,
                     reloadError))
             {
@@ -9442,11 +9454,8 @@ int main(int argc, char** argv)
         if (!options->startOptionsSmokeTest &&
             profileState.config.language != previous.language)
         {
-            if (const auto *language =
-                    originalgamedata::findLanguage(originalGameDataCatalog, profileState.config.language))
-            {
-                originalResourceManager.SetFontCharset(language->charset);
-            }
+            // Windows persists this selection and keeps the current
+            // StringLib/TextFontLib pair alive until the requested reload.
             // StartOptionsMenu::OnClick keeps the modal frame alive until
             // the original reload warning is acknowledged.
             showInfoDialog(
@@ -9644,11 +9653,8 @@ int main(int argc, char** argv)
         bindingCaptureAction.reset();
         if (profileState.config.language != previousConfig.language)
         {
-            if (const auto *language =
-                    originalgamedata::findLanguage(originalGameDataCatalog, profileState.config.language))
-            {
-                originalResourceManager.SetFontCharset(language->charset);
-            }
+            // Keep the active StringLib and TextFontLib charset paired until
+            // restart, matching the original need-reload transaction.
             showInfoDialog(
                 localized("svWarning"),
                 localized("svHintNeedReload"),

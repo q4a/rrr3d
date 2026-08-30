@@ -71,7 +71,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `Race` | `OriginalRace`, `OriginalRaceSession`, lifecycle/place/tournament on shared World | Source owner, active fixed/late lifecycle, partial orchestration | Продолжить вынос gameplay transactions из session; place sorting уже выполняется после Jolt solver через единственный World late-progress |
 | `RaceMenu2` | `originalracemenu::{RaceMenuState,RaceMainFrameState,GamersFrameState,GarageFrameState,WorkshopFrameState,SpaceshipFrameState,AngarFrameState,AchievementFrameState}` | Source owner, all six offline frame paths | Проверить оставшиеся network callbacks и оставить bgfx/CoreText backend boundary |
 | `RecordLib` | `source::{MapObjRecordLibrary,MapObjRecordNode,MapObjRecord}` | Source owner, active hierarchy | Editor-only mutation/serialization API не входит в пользовательский runtime |
-| `ResourceManager` | `OriginalResourceManager` + native readers/uploaders | Source owner, active GUI/graph/sound/font/material path | Полные 322 Mesh/489 Image/257 Mat/46 eager Sound и 5 TextFont libraries имеют общие identity, descriptors, charset, world tags и lifetime; bgfx/SDL payload остаётся backend boundary |
+| `ResourceManager` | `OriginalResourceManager` + native readers/uploaders | Source owner, active GUI/graph/sound/font/material/string path | Полные 322 Mesh/489 Image/257 Mat/46 eager Sound, 5 TextFont и выбранная String library имеют общие identity, descriptors, language/charset, world tags и lifetime; bgfx/SDL payload остаётся backend boundary |
 | `RockCar` | `source::RockCar`, dynamic `Weapons`, Player listener/contact sink | Source owner, active gameplay graph | PhysX actor/solver calls заменены Jolt; editor/legacy serializer остаётся parser boundary |
 | `Trace` | `source::{Trace,WayPath,WayNode,WayPoint}` | Source owner, active race/debug path | Editor serialization остаётся вне пользовательской игры; gameplay geometry и TraceGfx используют один owner |
 | `TraceGfx` | `source::TraceGfx` + transient bgfx submission | Source owner, active F6 path | Selection/link/geometry/material policy source-owned; D3D9 Box/Sprite/DrawPrimitiveUP заменены backend triangles |
@@ -295,6 +295,17 @@ payload материализуется одной стадией `AttachAudio` �
 Music остаётся в уже перенесённом потоковом `MusicCat`, а commentator
 добавляет style-dependent optional records при выборе языка, как отдельные
 исходные `LoadMusic/LoadCommentator` lifetimes.
+
+Результат B5j/B8bd: `StringLibrary` больше не хранится отдельной копией в
+`MainMenu2::Model` и не перечитывается HUD-ом. Единственный persistent owner
+находится в `OriginalResourceManager`, а `GameMode::ApplyLanguage` перенесён
+как атомарная загрузка UTF-16LE StringLib и смена charset всего TextFontLib.
+Все active menu lookup и HUD lap/place/racer/gamer strings читают этот owner.
+Выбор другого языка в Options сохраняется вместе с исходным need-reload
+dialog, но не смешивает новый charset со старым уже построенным widget tree.
+Shutdown соблюдает Windows-порядок Sound→String→TextFont→Mat→Image→Mesh;
+regression проверяет Get/Has, empty/missing fallback, escaped newline,
+повторную загрузку с устойчивой identity и очистку.
 
 ### B6 — Menu/MenuSystem и исходные frames (B6a–B6e.5 выполнены)
 

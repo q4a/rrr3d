@@ -122,8 +122,7 @@ bool OriginalRaceHud::loadImage(
 bool OriginalRaceHud::initialize(
     GraphicsDevice& device,
     OriginalResourceManager& resources,
-    const r3d::game::originalgamedata::Catalog& gameData,
-    const originalrace::Race& race, std::string_view language,
+    const originalrace::Race& race,
     std::string_view difficulty, bool campaign, std::string& error)
 {
     resources_ = &resources;
@@ -318,18 +317,10 @@ bool OriginalRaceHud::initialize(
     }
     try
     {
-        const auto* selectedLanguage =
-            r3d::game::originalgamedata::findLanguage(
-                gameData, language);
-        if (selectedLanguage == nullptr)
-        {
+        const auto& localization = resources.GetStringLibrary();
+        if (resources.GetLanguageName().empty())
             throw r3d::resource::ResourceError(
-                "HUD language is absent from game.xml: " +
-                std::string(language));
-        }
-        const auto localization =
-            r3d::game::originalgamedata::loadOriginalStringLibrary(
-                resources.GetFileSystem(), *selectedLanguage);
+                "HUD StringLib language is not initialized");
         lapName_ = localization.get("svLap");
         namePlaceFormat_ = localization.get("svNamePlaceMarker");
         priceName_ = localization.get("svPrice");
