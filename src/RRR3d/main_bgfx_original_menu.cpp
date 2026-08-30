@@ -3843,9 +3843,13 @@ int main(int argc, char** argv)
         return EXIT_FAILURE;
     }
     std::cout << "Original ResourceManager: "
-              << originalResourceManager.GetMeshCount() << " meshes, "
+              << originalResourceManager.GetMeshCount() << " mesh records ("
+              << originalResourceManager.GetLoadedMeshCount()
+              << " loaded), "
               << originalResourceManager.GetTextureCount()
-              << " textures, "
+              << " image records ("
+              << originalResourceManager.GetLoadedTextureCount()
+              << " loaded), "
               << originalResourceManager.GetCacheHitCount() << '/'
               << originalResourceManager.GetRequestCount()
               << " shared requests reused\n";

@@ -274,6 +274,18 @@ source MatLib catalog: 251 уникальное имя из активных `Lo
 Parser больше не определяет доступность материала фактом посещения трассы.
 Descriptor records создаются сразу, но ImageLib/bgfx payload остаётся ленивым.
 
+Результат B5h/B8bb: перенесён декларативный каталог `ComplexMeshLib` и
+`ComplexImageLib` из всех оригинальных `Load*`-методов. Сохранены 324
+`LoadMesh`/490 `LoadImage` вызовов в исходном порядке, включая три повторные
+записи; manager объединяет их в 322 mesh и 489 image identity. Для каждой
+записи сохранены TBN, immediate load/init, mip count, GUI, world index и
+отдельные tag actions `LoadData/InitIVB/InitTex2d`. Это не filesystem scan:
+лишние копии ресурсов с суффиксом ` 2` в библиотеку не попадают. Записи
+создаются при `ResourceManager::Load`, а decoded/bgfx payload остаётся
+ленивой backend-границей. Единственный объявленный, но отсутствующий в
+оригинальном game-data `GUI/wndLight6.png` остаётся допустимой неиспользуемой
+записью, как в Windows; активный `RaceMenu2` использует `wndLight4.png`.
+
 ### B6 — Menu/MenuSystem и исходные frames (B6a–B6e.5 выполнены)
 
 Перенести widget tree крупными экранами: common dialog/frame primitives,

@@ -2190,6 +2190,30 @@ bonus/weapon/GUI loaders до начала игры, поэтому `MatLib::Get
 Physics resource regression проверяет размер 257 и уникальность имён; это
 также исправляет прежнее заниженное число 238 в карте аудита.
 
+### B8bb — полный ComplexMeshLib/ComplexImageLib catalog — выполнено
+
+Прямая сверка всех `ResourceManager::LoadEffects/LoadWorld1..6/LoadCrush/
+LoadCars/LoadBonus/LoadWeapons/LoadUpgrades/LoadGUI` показала, что portable
+manager всё ещё создавал mesh/image records только по запросу renderer-а.
+Из-за этого `Get` зависел от уже посещённых экранов и трасс, а исходные
+world-tag actions, TBN, mip/GUI и immediate init flags не существовали.
+
+Сгенерированный из `eff9338:prog/Rock3dGame/source/game/ResourceManager.cpp`
+checked-in catalog сохраняет все 324 mesh и 490 image вызовов и их порядок.
+Два mesh и один image вызов в Windows повторяются с теми же параметрами,
+поэтому physical identity library содержит 322/489 уникальных records. При
+`Load()` они регистрируются до экранов; D3D9 `MeshData/IVB/Tex2d` заменены
+разрешённой ленивой materialization bgfx/Metal, но все исходные descriptors
+и world actions сохранены. Каталог не сканирует game-data и не включает
+дубли с суффиксом ` 2`.
+
+Отдельный regression закрепляет размеры, дубликаты, все flag totals и
+распределение world tags. Physics smoke сверяет каталог с shipped assets по
+Windows case-insensitive semantics и подтверждает единственную исходную
+мертвую декларацию `GUI/wndLight6.png`; `RaceMenu2` реально запрашивает
+существующий `wndLight4.png`. Manager diagnostics теперь различает records и
+загруженные handles.
+
 ## Воспроизведение проверки
 
 ```sh

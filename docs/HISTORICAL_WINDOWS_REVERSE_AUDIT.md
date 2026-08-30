@@ -5782,6 +5782,34 @@ texture; два World2/track2 вызова остаются закомменти
 Полный physics resource regression проверяет 257 уникальных имён и existence
 всех declared texture paths; GPU payload по-прежнему загружается лениво.
 
+### P2.256 — полный `ComplexMeshLib/ComplexImageLib` catalog возвращён — выполнено
+
+После MatLib manager всё ещё не воспроизводил второй основной результат
+`ResourceManager::Load`: Windows заранее добавляет все `ComplexMesh` и
+`ComplexImage`, тогда как portable records появлялись только при первом draw.
+Так терялись не только имена, но и `buildTBN`, immediate `Load/Init`, mip/GUI,
+world tag и его отдельное действие `cTagLoadData/cTagInitIVB/
+cTagInitTex2d`.
+
+Из точного файла `eff9338:prog/Rock3dGame/source/game/ResourceManager.cpp`
+механически сформирован проверяемый catalog: 324 `LoadMesh` и 490
+`LoadImage`. Он намеренно сохраняет повторные вызовы `World6/Track/most`,
+`Car/monstertruckBossWheel` и `World5/Texture/piece`; canonical owner, как и
+lookup по имени, объединяет их в 322 mesh/489 image identities. Все flags и
+порядок записаны в backend-neutral descriptors, а `OriginalResourceManager`
+регистрирует их до GUI/race. Decoded R3D и Metal textures по-прежнему
+создаются только при первом потреблении, что является заменой D3D9 payload,
+а не заменой игровой библиотеки.
+
+Catalog не получен сканированием и поэтому не засасывает лишние assets,
+включая многочисленные файлы `* 2.*`. Regression проверяет call/identity
+counts, exact duplicates, mip/GUI/TBN и все шесть world distributions.
+Shipped data подтверждает единственное расхождение самого оригинала:
+неиспользуемый `GUI/wndLight6.png` объявлен, но отсутствует; рабочий
+`RaceMenu2` выбирает `wndLight4.png`. Logical record key повторяет
+case-insensitive Windows identity, тогда как реальное открытие продолжает
+проходить через защищённый canonical data path и backend filesystem.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

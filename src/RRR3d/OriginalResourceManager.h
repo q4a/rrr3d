@@ -30,6 +30,11 @@ public:
         std::shared_ptr<const r3d::resource::R3DMeshAsset> source;
         r3d::renderer::Mesh mesh;
         int tag = -1;
+        bool buildTangentSpace = false;
+        bool loadData = false;
+        bool initializeVertexBuffer = false;
+        bool loadDataOnWorldLoad = false;
+        bool initializeVertexBufferOnWorldLoad = false;
     };
 
     struct TextureResource
@@ -39,6 +44,12 @@ public:
         std::uint16_t width = 0U;
         std::uint16_t height = 0U;
         int tag = -1;
+        std::uint32_t levelCount = 1U;
+        bool initializeTexture2D = false;
+        bool initializeCubeTexture = false;
+        bool initializeTexture2DOnWorldLoad = false;
+        bool initializeCubeTextureOnWorldLoad = false;
+        bool gui = false;
     };
 
     struct SoundResource

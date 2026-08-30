@@ -2826,3 +2826,16 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - Image/bgfx payload остаётся ленивым, поэтому восстановление library lookup
   не загружает сотни неиспользуемых Metal textures при старте.
 - Physics resource smoke проверяет ровно 257 уникальных source names.
+
+### Source ComplexMesh/Image full catalog follow-up
+
+- Все 324 source `LoadMesh` и 490 `LoadImage` вызовов сохранены в checked-in
+  generated catalog вместе с исходным порядком и тремя дубликатами.
+- `ResourceManager::Load()` заранее создаёт 322 canonical mesh и 489 image
+  records; renderer больше не определяет состав библиотек фактом посещения.
+- Descriptor хранит TBN, immediate load/init, mip level, GUI, world index и
+  tagged LoadData/InitIVB/InitTex2d actions; bgfx handles остаются ленивыми.
+- Pure catalog smoke проверяет flag/world distributions, а physics smoke —
+  shipped assets и исходно отсутствующий неиспользуемый `wndLight6.png`.
+- Startup diagnostics раздельно показывают количество records и фактически
+  материализованных Metal payload, поэтому ленивость не выглядит загрузкой.

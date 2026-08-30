@@ -1,6 +1,7 @@
 #include "OriginalResourceManager.h"
 
 #include "OriginalMainMenu.h"
+#include "OriginalResourceCatalog.h"
 
 #include <algorithm>
 #include <array>
@@ -104,7 +105,23 @@ std::string OriginalResourceManager::ResolveKey(
     if (resources_ == nullptr)
         throw r3d::resource::ResourceError(
             "Original ResourceManager is shut down");
-    return resources_->resolve(sourceName).generic_string();
+    // Complex*Lib names records before their source files are opened.  Keep a
+    // case-insensitive logical key here too: the shipped Windows catalog even
+    // contains one unused GUI declaration whose image is absent.  Actual
+    // path validation still happens when a renderer/audio payload is asked
+    // for and ResourceFileSystem opens the source.
+    std::string key(sourceName);
+    std::transform(
+        key.begin(), key.end(), key.begin(), [](unsigned char value) {
+            if (value == '\\')
+                return '/';
+            return static_cast<char>(std::tolower(value));
+        });
+    while (key.find("//") != std::string::npos)
+        key.erase(key.find("//"), 1U);
+    while (key.starts_with("./"))
+        key.erase(0U, 2U);
+    return key;
 }
 
 const OriginalResourceManager::MeshResource&
@@ -347,6 +364,82 @@ void OriginalResourceManager::Load()
     if (resources_ == nullptr)
         throw r3d::resource::ResourceError(
             "Original ResourceManager is shut down");
+    const auto registerMesh = [this](
+                                  const auto& declaration) {
+        const auto key = ResolveKey(declaration.path);
+        auto [record, created] = meshes_.try_emplace(
+            key,
+            MeshResource{
+                std::string(declaration.path), {}, {},
+                declaration.worldType,
+                declaration.buildTangentSpace,
+                declaration.loadData,
+                declaration.initializeVertexBuffer,
+                declaration.loadDataOnWorldLoad,
+                declaration.initializeVertexBufferOnWorldLoad});
+        if (!created)
+        {
+            const auto& mesh = record->second;
+            if (mesh.tag != declaration.worldType ||
+                mesh.buildTangentSpace != declaration.buildTangentSpace ||
+                mesh.loadData != declaration.loadData ||
+                mesh.initializeVertexBuffer !=
+                    declaration.initializeVertexBuffer ||
+                mesh.loadDataOnWorldLoad !=
+                    declaration.loadDataOnWorldLoad ||
+                mesh.initializeVertexBufferOnWorldLoad !=
+                    declaration.initializeVertexBufferOnWorldLoad)
+            {
+                throw r3d::resource::ResourceError(
+                    "Conflicting source ComplexMesh declaration " +
+                    std::string(declaration.path));
+            }
+        }
+    };
+    const auto registerImage = [this](
+                                   const auto& declaration) {
+        const auto key = ResolveKey(declaration.path);
+        auto [record, created] = textures_.try_emplace(
+            key,
+            TextureResource{
+                std::string(declaration.path), {}, 0U, 0U,
+                declaration.worldType, declaration.levelCount,
+                declaration.initializeTexture2D,
+                declaration.initializeCubeTexture,
+                declaration.initializeTexture2DOnWorldLoad,
+                declaration.initializeCubeTextureOnWorldLoad,
+                declaration.gui});
+        if (!created)
+        {
+            const auto& image = record->second;
+            if (image.tag != declaration.worldType ||
+                image.levelCount != declaration.levelCount ||
+                image.initializeTexture2D !=
+                    declaration.initializeTexture2D ||
+                image.initializeCubeTexture !=
+                    declaration.initializeCubeTexture ||
+                image.initializeTexture2DOnWorldLoad !=
+                    declaration.initializeTexture2DOnWorldLoad ||
+                image.initializeCubeTextureOnWorldLoad !=
+                    declaration.initializeCubeTextureOnWorldLoad ||
+                image.gui != declaration.gui)
+            {
+                throw r3d::resource::ResourceError(
+                    "Conflicting source ComplexImage declaration " +
+                    std::string(declaration.path));
+            }
+        }
+    };
+    for (const auto& mesh :
+         r3d::game::originalresources::originalMeshResourceCatalog())
+    {
+        registerMesh(mesh);
+    }
+    for (const auto& image :
+         r3d::game::originalresources::originalImageResourceCatalog())
+    {
+        registerImage(image);
+    }
     for (const auto& material :
          r3d::game::originalrace::loadOriginalMaterialCatalog(*resources_))
     {
@@ -439,7 +532,10 @@ OriginalResourceManager::GetSound(
 
     r3d::audio::SoundInfo info;
     std::string error;
-    const auto sound = audio_->loadOgg(key, info, error);
+    // SoundBackend consumes a physical filesystem path, whereas Mesh/Image
+    // retain their logical Complex*Lib identity until materialization.
+    const auto sound =
+        audio_->loadOgg(resources_->resolve(sourceName), info, error);
     if (sound == r3d::audio::invalidSound)
     {
         throw r3d::resource::ResourceError(

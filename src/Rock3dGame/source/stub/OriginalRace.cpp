@@ -3,6 +3,7 @@
 #include "OriginalEnvironment.h"
 #include "OriginalPlayer.h"
 #include "OriginalProfile.h"
+#include "OriginalResourceCatalog.h"
 #include "OriginalSlot.h"
 #include "OriginalTournament.h"
 #include "OriginalWeapon.h"
@@ -6131,6 +6132,90 @@ bool runOriginalRaceResourceSmokeTest(
             error = "source ComplexMatLib catalog mismatch: " +
                     std::to_string(materialCatalog.size()) + "/" +
                     std::to_string(materialNames.size());
+            return false;
+        }
+        const auto& meshResourceCatalog =
+            originalresources::originalMeshResourceCatalog();
+        const auto& imageResourceCatalog =
+            originalresources::originalImageResourceCatalog();
+        std::unordered_set<std::string> meshResourceNames;
+        std::unordered_set<std::string> imageResourceNames;
+        std::vector<std::string> missingDeclaredResources;
+        const auto windowsResourceName = [](std::string value) {
+            std::transform(
+                value.begin(), value.end(), value.begin(),
+                [](unsigned char character) {
+                    if (character == '\\')
+                        return '/';
+                    return static_cast<char>(std::tolower(character));
+                });
+            return value;
+        };
+        std::unordered_set<std::string> availableResourceNames;
+        std::error_code catalogIterationError;
+        for (std::filesystem::recursive_directory_iterator iterator(
+                 resources.root(), catalogIterationError),
+             end;
+             !catalogIterationError && iterator != end;
+             iterator.increment(catalogIterationError))
+        {
+            if (!iterator->is_regular_file())
+                continue;
+            const auto relative = std::filesystem::relative(
+                iterator->path(), resources.root(), catalogIterationError);
+            if (catalogIterationError)
+                break;
+            availableResourceNames.emplace(
+                windowsResourceName(relative.generic_string()));
+        }
+        if (catalogIterationError)
+        {
+            error = "unable to enumerate source ComplexMesh/Image assets: " +
+                    catalogIterationError.message();
+            return false;
+        }
+        for (const auto& mesh : meshResourceCatalog)
+        {
+            meshResourceNames.emplace(mesh.path);
+            if (availableResourceNames.count(
+                    windowsResourceName(std::string(mesh.path))) == 0U)
+                missingDeclaredResources.emplace_back(mesh.path);
+        }
+        for (const auto& image : imageResourceCatalog)
+        {
+            imageResourceNames.emplace(image.path);
+            if (availableResourceNames.count(
+                    windowsResourceName(std::string(image.path))) == 0U)
+                missingDeclaredResources.emplace_back(image.path);
+        }
+        std::sort(
+            missingDeclaredResources.begin(),
+            missingDeclaredResources.end());
+        missingDeclaredResources.erase(
+            std::unique(
+                missingDeclaredResources.begin(),
+                missingDeclaredResources.end()),
+            missingDeclaredResources.end());
+        // wndLight6 is declared by LoadGUI but is absent from the original
+        // shipped data and never selected by RaceMenu2 (which uses wndLight4).
+        const std::vector<std::string> expectedMissingResources{
+            "Data/GUI/wndLight6.png"};
+        if (meshResourceCatalog.size() != 324U ||
+            meshResourceNames.size() != 322U ||
+            imageResourceCatalog.size() != 490U ||
+            imageResourceNames.size() != 489U ||
+            missingDeclaredResources != expectedMissingResources)
+        {
+            std::ostringstream missingList;
+            for (const auto& path : missingDeclaredResources)
+                missingList << " [" << path << ']';
+            error = "source ComplexMesh/Image catalog mismatch: " +
+                    std::to_string(meshResourceCatalog.size()) + "/" +
+                    std::to_string(meshResourceNames.size()) + " meshes, " +
+                    std::to_string(imageResourceCatalog.size()) + "/" +
+                    std::to_string(imageResourceNames.size()) + " images, " +
+                    std::to_string(missingDeclaredResources.size()) +
+                    " missing" + missingList.str();
             return false;
         }
         const auto gunFlashMaterial =
