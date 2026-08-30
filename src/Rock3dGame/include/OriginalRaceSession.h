@@ -709,8 +709,6 @@ private:
     void queueRespawn(
         std::size_t racer,
         const std::vector<r3d::physics::VehicleState>& vehicles);
-    void createRacerMapObject(std::size_t racer);
-    void freeRacerMapObject(std::size_t racer) noexcept;
     void destroyRacer(
         std::size_t racer, Vec3 position,
         const r3d::physics::VehicleState& vehicle,
@@ -761,6 +759,11 @@ private:
     source::WorldEventPump ownedGameplayWorld_;
     source::WorldEventPump* gameplayWorld_ = nullptr;
     source::Logic logic_;
+    // Source DataBase owns the seven RecordLib trees; Map owns live global
+    // objects, Trace and the permanent death plane. They outlive Player so
+    // Player::~Player can execute the original FreeCar/DelMapObj path.
+    source::DataBase dataBase_;
+    source::Map map_;
     RacePhase phase_ = RacePhase::Countdown;
     RacePhase phaseBeforePause_ = RacePhase::Countdown;
     float elapsedSeconds_ = 0.0F;
@@ -770,17 +773,12 @@ private:
     std::vector<bool> networkOwnedRacers_;
     std::size_t humanRacer_ = RacerRuntime::invalidWeapon;
     std::vector<RacerRuntime> racers_;
-    std::vector<source::MapObj*> racerMapObjects_;
     std::vector<r3d::physics::VehicleInput> vehicleInputs_;
     std::vector<RaceEvent> deferredFixedStepEvents_;
     std::vector<bool> decorationActive_;
     std::vector<float> decorationLife_;
     // Active source owner. The parallel arrays are renderer/physics views,
     // no longer the authority for damage or death.
-    // Source DataBase owns the seven RecordLib trees; Map owns live global
-    // objects, Trace and the permanent death plane.
-    source::DataBase dataBase_;
-    source::Map map_;
     std::vector<bool> bonusActive_;
     std::vector<float> bonusScales_;
     std::vector<std::size_t> bonusNetworkPendingContact_;

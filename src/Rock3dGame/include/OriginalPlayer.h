@@ -25,6 +25,9 @@ struct WeaponDefinition;
 namespace r3d::game::originalrace::source
 {
 
+class Map;
+class MapObj;
+
 // Slot order deliberately follows Player::SlotType from the Windows source:
 // stHyper, stMine, stWeapon1..stWeapon4.  Player::TakeBonus depends on this
 // order before applying its rounded random selection.
@@ -370,11 +373,17 @@ public:
     bool GetReflScene() const noexcept;
     void SetReflScene(bool value) noexcept;
     const Vehicle* GetCarRecord() const noexcept;
+    void BindMap(
+        Map* value,
+        std::size_t sourceIndex =
+            std::numeric_limits<std::size_t>::max()) noexcept;
+    MapObj* GetCarMapObj() noexcept;
+    const MapObj* GetCarMapObj() const noexcept;
     void BindWheelSlipCatalog(
         const ObjectDefinition* trailEffect,
         const ObjectDefinition* smokeEffect) noexcept;
     void SetCar(const Vehicle* record) noexcept;
-    void CreateCar(bool newRace) noexcept;
+    void CreateCar(bool newRace);
     void FreeCar(bool freeState) noexcept;
     void OnLapPass(std::size_t weaponDefinitionCount) noexcept;
     void ReloadWeapons(std::size_t weaponDefinitionCount) noexcept;
@@ -465,7 +474,7 @@ public:
     ProgressResult OnProgress(
         float deltaTime, std::uint32_t cheatMask, std::size_t playerId,
         std::size_t difficulty,
-        const std::vector<CheatPlayerView>& players) noexcept;
+        const std::vector<CheatPlayerView>& players);
     Player* FindClosestEnemy(
         float viewAngle, bool zTest,
         std::span<Player* const> players) noexcept;
@@ -496,7 +505,7 @@ public:
     void ApplyRaceReward() noexcept;
 
     void Destroy() noexcept;
-    PlayerRestoreStep ProgressRestore(float seconds) noexcept;
+    PlayerRestoreStep ProgressRestore(float seconds);
     ResetCarPose ResetCar(const ResetCarRayCast& rayCast);
     void Disconnect() noexcept;
     void ResetBlock(bool block) noexcept;
@@ -588,9 +597,15 @@ private:
     bool finished_ = false;
     std::vector<DeathEffectBehavior*> vehicleDeathEffects_;
     HeadLightMode headLight_ = HeadLightMode::None;
-    // Portable counterpart of CarState::mapObj. Player::ReleaseCar detaches
-    // both spot lights and the night-flare actor without changing the
-    // selected HeadLightMode; CreateCar attaches them again.
+    // Exact CarState::mapObj ownership. Map owns the allocation; Player
+    // creates/deletes it in CreateCar/FreeCar and retains the live identity.
+    Map* mapOwner_ = nullptr;
+    MapObj* carMapObj_ = nullptr;
+    std::size_t mapSourceIndex_ =
+        std::numeric_limits<std::size_t>::max();
+    // Standalone source-unit tests may run without a Map owner. This flag
+    // retains their backend-neutral car graph while the active game always
+    // uses carMapObj_ as well.
     bool carPresent_ = false;
     const Vehicle* carRecord_ = nullptr;
     const ObjectDefinition* wheelTrailEffect_ = nullptr;

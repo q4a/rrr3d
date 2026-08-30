@@ -1,5 +1,6 @@
 #include "OriginalPlayer.h"
 
+#include "OriginalMap.h"
 #include "OriginalRace.h"
 #include "OriginalWeapon.h"
 
@@ -894,7 +895,7 @@ void Player::SetHeadlight(HeadLightMode value) noexcept
 
 bool Player::HasCar() const noexcept
 {
-    return carPresent_;
+    return mapOwner_ != nullptr ? carMapObj_ != nullptr : carPresent_;
 }
 
 bool Player::HasAttachedLights() const noexcept
@@ -927,6 +928,22 @@ void Player::SetReflScene(bool value) noexcept
 const Vehicle* Player::GetCarRecord() const noexcept
 {
     return carRecord_;
+}
+
+void Player::BindMap(Map* value, std::size_t sourceIndex) noexcept
+{
+    if (mapOwner_ == value && mapSourceIndex_ == sourceIndex)
+        return;
+    FreeCar(true);
+    mapOwner_ = value;
+    mapSourceIndex_ = sourceIndex;
+}
+
+MapObj* Player::GetCarMapObj() noexcept { return carMapObj_; }
+
+const MapObj* Player::GetCarMapObj() const noexcept
+{
+    return carMapObj_;
 }
 
 void Player::BindWheelSlipCatalog(
@@ -980,10 +997,21 @@ void Player::SetCar(const Vehicle* record) noexcept
     }
 }
 
-void Player::CreateCar(bool newRace) noexcept
+void Player::CreateCar(bool newRace)
 {
     if (!carPresent_)
     {
+        if (mapOwner_ != nullptr && carRecord_ != nullptr)
+        {
+            auto& mapObject = mapOwner_->AddMapObj(
+                MapObjCategory::Car, GameObjType::RockCar,
+                carRecord_->record, mapSourceIndex_);
+            mapObject.BindGameObj(gameCar);
+            mapObject.SetPlayer(this);
+            mapObject.GetGameObj().ResetGameObject(
+                carRecord_->maximumLife);
+            carMapObj_ = &mapObject;
+        }
         carPresent_ = true;
         // Windows creates a new GameObject from the car record here. Rebuild
         // its behavior graph so EventEffect one-live state never leaks from
@@ -1092,6 +1120,13 @@ void Player::FreeCar(bool freeState) noexcept
     gameCar.ReleaseWheels();
     gameCar.ReleaseSoundMotor();
     car.OnFreeCar(freeState);
+    if (carMapObj_ != nullptr)
+    {
+        auto* mapObject = carMapObj_;
+        carMapObj_ = nullptr;
+        if (mapOwner_ != nullptr)
+            mapOwner_->DelMapObj(mapObject);
+    }
 }
 
 void Player::OnLapPass(std::size_t weaponDefinitionCount) noexcept
@@ -1790,7 +1825,7 @@ Player::CheatResult Player::CheatUpdate(
 Player::ProgressResult Player::OnProgress(
     float deltaTime, std::uint32_t cheatMask, std::size_t playerId,
     std::size_t difficulty,
-    const std::vector<CheatPlayerView>& players) noexcept
+    const std::vector<CheatPlayerView>& players)
 {
     ProgressResult result;
     if (HasCar())
@@ -2125,7 +2160,7 @@ void Player::Destroy() noexcept
     FreeCar(false);
 }
 
-PlayerRestoreStep Player::ProgressRestore(float seconds) noexcept
+PlayerRestoreStep Player::ProgressRestore(float seconds)
 {
     if (HasCar())
         return PlayerRestoreStep::None;

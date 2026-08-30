@@ -2443,6 +2443,26 @@ ID из текущего `MapObj`; parser `sourceIndex` используется
 Map smoke проверяет монотонность, transfer/clone и отсутствие пропуска ID
 после отклонённого DataBase record.
 
+### B8bo — `Player::CarState::mapObj` снова принадлежит Player — выполнено
+
+После B8bn в session оставалось второе зеркало live car identity:
+`racerMapObjects_`, а методы `createRacerMapObject/freeRacerMapObject`
+вручную пытались повторить `Player::CreateCar/FreeCar` при старте, смерти,
+respawn, disconnect и выходе. В Windows этот указатель является полем
+`Player::CarState`; session/Race не создаёт параллельный car object.
+
+`source::Player` теперь привязан к source Map и сам добавляет `ctCar`
+`RockCar`, связывает `MapObj↔Player↔gameCar`, сохраняет live identity и
+удаляет её в `FreeCar`. Двухсекундный restore создаёт новый MapObj внутри
+того же `CreateCar(false)` до `ResetCar`. Session-массив и обе ручные функции
+удалены; weapon/projectile/mine target paths читают объект у Player.
+
+Map/DataBase переставлены перед Player storage, чтобы пережить его
+деструкторы. Unit regression проверяет первый ID, sourceIndex, все обратные
+ссылки, удаление registry entry, новый ID при respawn и очистку при Destroy.
+Race lifecycle, physics smoke и 300-frame Metal race с шестью машинами
+подтверждают активный путь.
+
 ## Воспроизведение проверки
 
 ```sh

@@ -1194,13 +1194,14 @@ void OriginalRaceSession::reset()
     projectiles_.clear();
     projectileBodyCommands_.clear();
     nextProjectileBodyId_ = 1U;
-    // Car MapObjs bind the live Player::gameCar. Release the map side while
-    // Player storage is still valid, then rebuild both collections.
+    // Player::FreeCar owns DelMapObj in the Windows source. Release every
+    // live car through that owner before clearing the remaining map lists.
+    for (auto& player : racers_)
+        player.FreeCar(true);
     map_.Clear();
     dataBase_.Configure(race_, logic_);
     racers_.clear();
     racers_.resize(race_.racers.size());
-    racerMapObjects_.assign(race_.racers.size(), nullptr);
     vehicleInputs_.assign(race_.racers.size(), {});
     humanPlayer_.SetCurWeapon(0);
     aiPlayers_.reserve(race_.racers.size());
@@ -1340,10 +1341,10 @@ void OriginalRaceSession::reset()
             playerId, static_cast<int>(sourceRacer.gamerId),
             sourceRacer.netSlot, sourceRacer.name,
             sourceRacer.netName, sourceRacer.color);
+        racers_[index].BindMap(&map_, index);
         racers_[index].BindWheelSlipCatalog(
             &race_.wheelTrailEffect, &race_.wheelSmokeEffect);
         racers_[index].SetCar(&vehicle);
-        createRacerMapObject(index);
         for (std::size_t weaponIndex = 0;
              weaponIndex < race_.weapons.size(); ++weaponIndex)
         {
@@ -1823,7 +1824,6 @@ bool OriginalRaceSession::disconnectNetworkRacer(
     }
     auto& runtime = racers_[racer];
     runtime.Disconnect();
-    freeRacerMapObject(racer);
     releaseRacerProjectileReferences(racer);
     if (racer < vehicleInputs_.size())
         vehicleInputs_[racer] = {};
@@ -2696,9 +2696,11 @@ bool OriginalRaceSession::racerHasAiController(
 std::uint32_t OriginalRaceSession::racerMapObjectId(
     std::size_t racer) const noexcept
 {
-    return racer < racerMapObjects_.size() &&
-                   racerMapObjects_[racer] != nullptr
-        ? racerMapObjects_[racer]->GetId()
+    const auto* mapObject = racer < racers_.size()
+        ? racers_[racer].GetCarMapObj()
+        : nullptr;
+    return mapObject != nullptr
+        ? mapObject->GetId()
         : source::Map::defaultMapObjId;
 }
 
@@ -3232,10 +3234,8 @@ OriginalRaceSession::progressPlayers(
                         source::EventEffect::invalidEffect;
                 }
             }
-            // Source Player::OnProgress executes CreateCar(false) immediately
-            // before ResetCar. Materialize the adapter MapObj before the
-            // ResetCar ray query in this same fixed-step callback.
-            createRacerMapObject(racer);
+            // Source Player::OnProgress executes CreateCar(false), including
+            // its live MapObj, immediately before ResetCar in this callback.
             queueRespawn(racer, vehicles);
         }
 
@@ -3838,11 +3838,12 @@ bool OriginalRaceSession::prepareAiWeaponAttack(
 
     source::Weapon::ShotDesc shot;
     const std::size_t target = attack.decision.weaponTarget;
-    if (target < racerMapObjects_.size() &&
-        racerMapObjects_[target] != nullptr)
+    auto* targetMapObject = target < racers_.size()
+        ? racers_[target].GetCarMapObj()
+        : nullptr;
+    if (targetMapObject != nullptr)
     {
-        shot.targetMapObject =
-            &racerMapObjects_[target]->GetGameObj();
+        shot.targetMapObject = &targetMapObject->GetGameObj();
     }
     const auto description = weapon->GetDescHandle();
     std::vector<float> sampledMinimumLifetimes;
@@ -4497,33 +4498,6 @@ void OriginalRaceSession::queueRespawn(
          reset.position, 0.0F});
 }
 
-void OriginalRaceSession::createRacerMapObject(std::size_t racer)
-{
-    if (racer >= racers_.size() || racer >= racerMapObjects_.size() ||
-        racerMapObjects_[racer] != nullptr)
-        return;
-    const auto* vehicle = racers_[racer].GetCarRecord();
-    if (vehicle == nullptr)
-        return;
-    auto& mapObject = map_.AddMapObj(
-        source::MapObjCategory::Car,
-        source::GameObjType::RockCar, vehicle->record, racer);
-    mapObject.BindGameObj(racers_[racer].gameCar);
-    mapObject.SetPlayer(&racers_[racer]);
-    mapObject.GetGameObj().ResetGameObject(vehicle->maximumLife);
-    racerMapObjects_[racer] = &mapObject;
-}
-
-void OriginalRaceSession::freeRacerMapObject(
-    std::size_t racer) noexcept
-{
-    if (racer >= racerMapObjects_.size() ||
-        racerMapObjects_[racer] == nullptr)
-        return;
-    map_.DelMapObj(racerMapObjects_[racer]);
-    racerMapObjects_[racer] = nullptr;
-}
-
 void OriginalRaceSession::destroyRacer(
     std::size_t racer, Vec3 position,
     const r3d::physics::VehicleState& vehicle,
@@ -4537,7 +4511,6 @@ void OriginalRaceSession::destroyRacer(
     runtime.Destroy();
     const auto sourceDeathPlans =
         runtime.ConsumeVehicleDeathEffectSpawns();
-    freeRacerMapObject(racer);
     appendPlayerGameEvents(racer, position, false);
     releaseRacerProjectileReferences(racer);
     // LowLifePoints::FreeEffect and destruction of the owning car's include
@@ -4604,8 +4577,7 @@ void OriginalRaceSession::synchronizeRacerGameCars(
          racer < racers_.size() && racer < vehicles.size(); ++racer)
     {
         auto& runtime = racers_[racer];
-        if (!runtime.HasCar() || racer >= racerMapObjects_.size() ||
-            racerMapObjects_[racer] == nullptr)
+        if (!runtime.HasCar() || runtime.GetCarMapObj() == nullptr)
             continue;
         const auto& vehicle = vehicles[racer];
         runtime.gameCar.SynchronizeSpeed(vehicle.speed);
@@ -5067,11 +5039,13 @@ void OriginalRaceSession::updateGameplay(
             const auto sourceModelReleases =
                 projectile.sourceObject->BuildSourceModelReleasePlan();
             source::GameObject* targetObject = nullptr;
-            if (targetRacer < racerMapObjects_.size() &&
-                racerMapObjects_[targetRacer] != nullptr)
+            auto* targetMapObject = targetRacer < racers_.size()
+                ? racers_[targetRacer].GetCarMapObj()
+                : nullptr;
+            if (targetMapObject != nullptr)
             {
                 targetObject =
-                    &racerMapObjects_[targetRacer]->GetGameObj();
+                    &targetMapObject->GetGameObj();
             }
             const auto deathPlan = hasSourceDeathEffect
                 ? projectile.sourceObject->DestroyWithEffect(
@@ -5989,10 +5963,12 @@ void OriginalRaceSession::updateGameplay(
                     break;
                 }
                 projectile.target = nextTarget;
+                auto* nextTargetMapObject = nextTarget < racers_.size()
+                    ? racers_[nextTarget].GetCarMapObj()
+                    : nullptr;
                 projectile.sourceObject->RetargetImpulse(
-                    nextTarget < racerMapObjects_.size() &&
-                            racerMapObjects_[nextTarget] != nullptr
-                        ? &racerMapObjects_[nextTarget]->GetGameObj()
+                    nextTargetMapObject != nullptr
+                        ? &nextTargetMapObject->GetGameObj()
                         : nullptr);
                 break;
             }
@@ -6739,11 +6715,13 @@ void OriginalRaceSession::updateGameplay(
         else
         {
             source::GameObject* sourceTarget = nullptr;
-            if (homingTarget < racerMapObjects_.size() &&
-                racerMapObjects_[homingTarget] != nullptr)
+            auto* targetMapObject = homingTarget < racers_.size()
+                ? racers_[homingTarget].GetCarMapObj()
+                : nullptr;
+            if (targetMapObject != nullptr)
             {
                 sourceTarget =
-                    &racerMapObjects_[homingTarget]->GetGameObj();
+                    &targetMapObject->GetGameObj();
             }
             std::vector<float> sampledMinimumLifetimes;
             sampledMinimumLifetimes.reserve(itemProjectiles.size());
@@ -7152,11 +7130,13 @@ void OriginalRaceSession::updateGameplay(
         const bool hasSourceDeathEffect =
             death != nullptr && hasDeathEffect(*death);
         source::GameObject* targetObject = nullptr;
-        if (targetRacer < racerMapObjects_.size() &&
-            racerMapObjects_[targetRacer] != nullptr)
+        auto* targetMapObject = targetRacer < racers_.size()
+            ? racers_[targetRacer].GetCarMapObj()
+            : nullptr;
+        if (targetMapObject != nullptr)
         {
             targetObject =
-                &racerMapObjects_[targetRacer]->GetGameObj();
+                &targetMapObject->GetGameObj();
         }
         const auto deathPlan = hasSourceDeathEffect
             ? mine.sourceObject->DestroyWithEffect(
@@ -8574,8 +8554,6 @@ void OriginalRaceSession::completeRaceForExit(
         std::fill(decorationActive_.begin(), decorationActive_.end(), false);
         std::fill(bonusActive_.begin(), bonusActive_.end(), false);
         map_.Clear();
-        std::fill(
-            racerMapObjects_.begin(), racerMapObjects_.end(), nullptr);
         std::fill(vehicleInputs_.begin(), vehicleInputs_.end(),
                   r3d::physics::VehicleInput{});
         logic_.ClearContactBehavior();

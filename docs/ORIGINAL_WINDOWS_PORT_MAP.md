@@ -67,7 +67,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `Menu` | `originalmenu::MenuSystem` + source Main/Profile/Dialog/Options/Race/Finish/Final owners | Source owner, frame core | Завершить concrete network callbacks; bgfx/CoreText/SDL остаются backend boundary |
 | `MenuSystem` | `originalmenu::{MenuSystem,ScreenStack,FrameState}` | Source owner, active menu path | Подключить concrete navigation graphs; bgfx остаётся draw executor |
 | `OptionsMenu` | `originaloptions::{OptionsMenuState,StartOptionsMenuState}` + backend visuals | Source owner, active options path | Legacy Widget events заменены SDL input, CoreText и bgfx draw submission |
-| `Player` | `source::Player`, `CarState`, behaviors, `PresentationState` | Source owner, active gameplay/presentation state | bgfx/Jolt исполняют graph/actor commands; продолжить аудит remaining event/listener and profile bridges |
+| `Player` | `source::Player`, `CarState`, behaviors, `PresentationState` | Source owner, active gameplay/presentation/live-car path | `CreateCar/FreeCar` владеют точным live `MapObj`; bgfx/Jolt исполняют graph/actor commands, остаётся аудит profile bridges |
 | `Race` | `OriginalRace`, `OriginalRaceSession`, lifecycle/place/tournament on shared World | Source owner, active fixed/late lifecycle, partial orchestration | Продолжить вынос gameplay transactions из session; place sorting уже выполняется после Jolt solver через единственный World late-progress |
 | `RaceMenu2` | `originalracemenu::{RaceMenuState,RaceMainFrameState,GamersFrameState,GarageFrameState,WorkshopFrameState,SpaceshipFrameState,AngarFrameState,AchievementFrameState}` | Source owner, all six offline frame paths | Проверить оставшиеся network callbacks и оставить bgfx/CoreText backend boundary |
 | `RecordLib` | `source::{MapObjRecordLibrary,MapObjRecordNode,MapObjRecord}` | Source owner, active hierarchy | Editor-only mutation/serialization API не входит в пользовательский runtime |
@@ -1082,6 +1082,20 @@ parser-descriptor. Проверены все 190 bundled `.r3dMap`: неиспо
 этом порядке `ctEffects/ctWeapon/ctCar/ctWaypoint` пусты. Regression
 закрепляет реальную последовательность map1 1..234, 235..286, 287..293,
 машины с 294, а также отсутствие пропуска ID после отклонённого record.
+
+Результат B8bo: устранён `OriginalRaceSession::racerMapObjects_`. В Windows
+`Player::CarState::mapObj` создаётся самим `Player::CreateCar` через
+`Map::AddMapObj`, связывается с `Player` и удаляется в `FreeCar`. Portable
+`Player` теперь хранит тот же live pointer и выполняет весь этот lifecycle;
+session больше не создаёт, не удаляет и не восстанавливает вторую identity.
+
+Смерть, строгая двухсекундная задержка, `CreateCar(false)→ResetCar`, network
+disconnect и `Race::ExitRace` идут через одного владельца. Weapon target,
+homing/impulse, mine/death target и сетевой поиск читают MapObj прямо у
+`Player`. Порядок полей session исправлен так, чтобы Map/DataBase переживали
+деструкторы Player. Regression проверяет bind `MapObj↔Player↔gameCar`,
+удаление ID, выдачу нового ID при respawn и окончательное удаление при
+Destroy; активный 300-frame Jolt/Metal заезд проверяет шесть машин.
 
 ## Правило обновления карты
 

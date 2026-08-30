@@ -1,4 +1,5 @@
 #include "OriginalLogic.h"
+#include "OriginalMap.h"
 #include "OriginalPlayer.h"
 #include "OriginalRace.h"
 #include "OriginalWeapon.h"
@@ -331,6 +332,7 @@ int main()
         "world\\db\\root\\ctEffects\\damageEnergymarauder";
     firstCar.shieldEffect.record =
         "world\\db\\root\\ctEffects\\shield1";
+    firstCar.maximumLife = 100.0F;
     r3d::game::originalrace::Vehicle secondCar;
     secondCar.record = "world\\db\\root\\ctCar\\buggi";
     secondCar.lowLifeEffect.record =
@@ -352,6 +354,40 @@ int main()
     secondCar.slotMounts[4].placements.push_back(
         {"world\\race\\workshopRoot\\workshop\\hyperdrive",
          {0.0F, 0.0F, 1.0F, 0.0F}, {-1.5F, 0.0F, 0.35F}});
+
+    // Active Player::CreateCar owns the MapObj lifecycle exactly like
+    // CarState::mapObj in Windows. There is no session-side pointer mirror.
+    source::Logic mapLogic;
+    source::Map playerMap(&mapLogic);
+    source::Player mapPlayer;
+    mapPlayer.Reset(100.0F, 1U);
+    mapPlayer.BindMap(&playerMap, 7U);
+    mapPlayer.SetCar(&firstCar);
+    mapPlayer.CreateCar(true);
+    auto* firstPlayerMapObject = mapPlayer.GetCarMapObj();
+    if (firstPlayerMapObject == nullptr ||
+        firstPlayerMapObject->GetId() != 1U ||
+        firstPlayerMapObject->GetSourceIndex() != 7U ||
+        firstPlayerMapObject->GetPlayer() != &mapPlayer ||
+        &firstPlayerMapObject->GetGameObj() != &mapPlayer.gameCar ||
+        mapPlayer.gameCar.GetMapObj() != firstPlayerMapObject ||
+        playerMap.GetMapObj(1U) != firstPlayerMapObject)
+        return 100;
+    mapPlayer.FreeCar(false);
+    if (mapPlayer.GetCarMapObj() != nullptr || mapPlayer.HasCar() ||
+        mapPlayer.gameCar.GetMapObj() != nullptr ||
+        playerMap.GetMapObj(1U, true) != nullptr)
+        return 101;
+    mapPlayer.CreateCar(false);
+    if (mapPlayer.GetCarMapObj() == nullptr ||
+        mapPlayer.GetCarMapObj()->GetId() != 2U ||
+        playerMap.GetMapObj(2U) != mapPlayer.GetCarMapObj())
+        return 102;
+    mapPlayer.Destroy();
+    if (mapPlayer.GetCarMapObj() != nullptr ||
+        playerMap.GetMapObj(2U, true) != nullptr)
+        return 103;
+
     player.SetCar(&firstCar);
     player.CreateCar(true);
     if (player.GetCarRecord() != &firstCar || !player.HasCar())

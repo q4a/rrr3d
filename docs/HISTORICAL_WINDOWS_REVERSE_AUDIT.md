@@ -3004,6 +3004,8 @@ Car category pass один раз обновляет `RockCar`, колёса, ch
 является удвоением update: это максимум по четырём колёсам всех шести машин
 после того, как AI wheels также получают contact state до source slip pass.
 Regression отдельно проверяет bind identity и безопасное отсоединение.
+На этом этапе сам pointer/lifecycle всё ещё хранился в session; это
+оставшееся расхождение окончательно устранено в P2.268.
 
 ### P2.122 — source `CarWheel` descriptor and visual offset — выполнено
 
@@ -6047,6 +6049,26 @@ ID отсутствует в этих descriptors: `_lastId` увеличива�
 как Decoration→Track→Bonus→Car. Integrated map1 regression закрепляет
 1..234/235..286/287..293/294+, а Map regression — последовательность после
 ошибки DataBase, clone/transfer и глобальный registry lookup.
+
+### P2.268 — `Player::CreateCar/FreeCar` владеют car MapObj — выполнено
+
+Прямая сверка `Player::{CreateCar,FreeCar,OnDestroy,OnProgress}` показала,
+что portable session всё ещё обходил `CarState::mapObj`: отдельный vector
+создавал car MapObj до `Player::CreateCar`, вручную удалял его после
+`Destroy/Disconnect` и заново материализовал перед `ResetCar`. Это оставляло
+два признака существования машины и две независимые lifecycle-ветви.
+
+Live `MapObj*` перенесён в `source::Player`. `CreateCar` вызывает общий
+`Map::AddMapObj`, связывает единственный embedded `gameCar` и Player;
+`FreeCar` снимает graph/audio/presentation state и удаляет этот объект из
+Map. Restore, disconnect и ExitRace уже вызывают эти исходные методы, поэтому
+session-side create/free и весь `racerMapObjects_` удалены. Все target paths
+получают GameObject от `Player::GetCarMapObj`.
+
+Lifetime полей исправлен: DataBase/Map уничтожаются после Player. Regression
+закрепляет pointer identity и reverse links, IDs 1→удалён→2 на respawn и
+очистку при Destroy. Полный active race smoke подтверждает сохранение шести
+живых машин, AI targets, Jolt contacts и Metal submission.
 
 ## Итоговое решение
 
