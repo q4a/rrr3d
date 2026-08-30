@@ -2069,6 +2069,20 @@ Renderer только рисует выданные alpha или исходны�
 следующей GameMode/application транзакцией. Unit regression проверяет оба
 alpha, inter-logo blank, skip, loading и отсутствие повторного StartGame.
 
+### B8au — source GameMode movie frame state machine — выполнено
+
+Немедленные `music.pause/video.play/video.stop/completion` в host заменены
+на `GameModeMovieState`, повторяющий integer `_movieTime`. Два первых кадра
+готовят окно и video mode, 2–5 являются wait frames, 6 выдаёт
+Open/Play/ResetInput, 7 ждёт backend event. Completed/UserAbort/Error переводят
+owner в 8; Unload приходит на 9, а video-mode/music restore и VideoStopped —
+только на 12.
+
+AVFoundation/SDL остаются backend-командным исполнителем и поставщиком
+completion. Во время teardown завершившийся player больше не поллится
+повторно, поэтому state 8 не сбрасывается в цикле. Unit regression проверяет
+prepare/enter, четыре wait frame, Play, completion tail, Unload и exit event.
+
 ## Воспроизведение проверки
 
 ```sh

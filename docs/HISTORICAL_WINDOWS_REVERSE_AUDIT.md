@@ -5658,6 +5658,22 @@ alpha/load/start результаты. Regression проверяет серед�
 одноразовый StartGame. Movie `_movieTime` остаётся следующим отдельным
 GameMode блоком, поскольку требует video backend commands.
 
+### P2.249 — `GameMode::_movieTime` возвращён source owner — выполнено
+
+Следующая прямая сверка подтвердила аналогичный разрыв в роликах: portable
+menu callback сразу останавливал menu music и запускал AVFoundation, а любое
+завершение немедленно делало Stop/resume/completion. Windows выполняет это
+через 13 состояний `_movieTime`, намеренно оставляя кадры для fullscreen
+window, video mode, DirectShow open и безопасного unload.
+
+`GameModeMovieState` теперь выдаёт backend-neutral команды ровно на source
+кадрах 0/1/6/9/12. Active host сохраняет выбранный movie/completion, но
+Pause/Open/ResetInput/Unload/Resume и VideoStopped происходят только по этим
+командам. AVFoundation completion, error и пользовательский skip вызывают
+эквивалент `OnGraphEvent` и переводят state в 8; polling прекращается до
+отложенного Unload, исключая повторный reset tail. Regression проходит весь
+автомат и доказывает четыре wait frame до Play и после completion.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

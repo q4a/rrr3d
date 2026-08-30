@@ -5222,7 +5222,12 @@ int main(int argc, char** argv)
     std::function<void()> originalMovieGamersGarage;
     OriginalMovieCompletion originalMovieCompletion =
         OriginalMovieCompletion::None;
+    r3d::game::originalrace::source::GameModeMovieState
+        sourceMovieState;
+    std::filesystem::path originalMovieCache;
+    std::string originalMovieSource;
     bool originalMovieActive = false;
+    bool originalMovieBackendStarted = false;
     std::uint32_t originalMovieInputSuppressionFrames = 0U;
     bool videoFrameObserved = !options->videoSmokeTest;
     bool videoAudioObserved = !options->videoSmokeTest;
@@ -5231,12 +5236,12 @@ int main(int argc, char** argv)
     bool videoSmokeSeeked = false;
     const std::uint64_t videoSmokeDeadline =
         options->videoSmokeTest ? SDL_GetTicks() + 15000U : 0U;
-    auto finishOriginalMovie = [&]() {
+    auto completeOriginalMovie = [&]() {
         if (!originalMovieActive)
             return;
         const auto completion = originalMovieCompletion;
-        videoPlayer.stop();
         originalMovieActive = false;
+        originalMovieBackendStarted = false;
         originalMovieCompletion = OriginalMovieCompletion::None;
 #ifdef RRR3D_AUDIO
         if (!music.pause(false, audioError))
@@ -5276,44 +5281,75 @@ int main(int argc, char** argv)
             break;
         }
     };
+    auto finishOriginalMovie = [&]() {
+        if (originalMovieActive)
+        {
+            sourceMovieState.NotifyPlaybackEnded();
+            originalMovieBackendStarted = false;
+        }
+    };
     auto playOriginalMovie =
         [&](std::string_view sourceMovie,
             OriginalMovieCompletion completion) {
-            const auto cache =
+            originalMovieCache =
                 movieCachePath(resources->root(), sourceMovie);
-#ifdef RRR3D_AUDIO
-            if (!music.pause(true, audioError))
-            {
-                std::cerr
-                    << "Original movie menu-music pause failed: "
-                    << audioError << '\n';
-                runtimeSmokeFailed = true;
-                return false;
-            }
-#endif
-            std::string videoError;
-            if (!videoPlayer.play(
-                    cache,
-                    options->videoSmokeTest ? 0.0F : 1.0F,
-                    videoError))
-            {
-                std::cerr << "Original movie playback failed for "
-                          << sourceMovie << ": " << videoError << '\n';
-#ifdef RRR3D_AUDIO
-                music.pause(false, audioError);
-#endif
-                runtimeSmokeFailed = true;
-                return false;
-            }
+            originalMovieSource = sourceMovie;
+            sourceMovieState.Play();
             originalMovieActive = true;
+            originalMovieBackendStarted = false;
             originalMovieCompletion = completion;
-            // Video::Play calls World::ResetInput; the Windows main loop
-            // drops ordinary input until the reset survives three frames.
-            originalMovieInputSuppressionFrames = 3U;
             std::cout << "Original GameMode::PlayMovie: "
                       << sourceMovie << '\n';
             return true;
         };
+    auto advanceOriginalMovie = [&]() {
+        if (!originalMovieActive)
+            return;
+        const auto frame = sourceMovieState.OnFrame();
+        // prepareWindow maps to the Cocoa-managed fullscreen surface. SDL
+        // already owns the correct display mode; consuming the source frame
+        // still preserves the original command order.
+        static_cast<void>(frame.prepareWindow);
+#ifdef RRR3D_AUDIO
+        if (frame.enterVideoMode && !music.pause(true, audioError))
+        {
+            std::cerr
+                << "Original movie menu-music pause failed: "
+                << audioError << '\n';
+            runtimeSmokeFailed = true;
+        }
+#endif
+        if (frame.openAndPlay)
+        {
+            std::string videoError;
+            if (!videoPlayer.play(
+                    originalMovieCache,
+                    options->videoSmokeTest ? 0.0F : 1.0F,
+                    videoError))
+            {
+                std::cerr << "Original movie playback failed for "
+                          << originalMovieSource << ": "
+                          << videoError << '\n';
+                runtimeSmokeFailed = true;
+                sourceMovieState.NotifyPlaybackEnded();
+            }
+            else
+            {
+                originalMovieBackendStarted = true;
+                // Video::Play calls World::ResetInput; the Windows main loop
+                // drops ordinary input until the reset survives three frames.
+                originalMovieInputSuppressionFrames = 3U;
+            }
+        }
+        if (frame.unload)
+        {
+            videoPlayer.stop();
+            originalMovieBackendStarted = false;
+        }
+        if (frame.exitVideoMode && frame.videoStopped)
+            completeOriginalMovie();
+        originalMovieActive = sourceMovieState.IsPlaying();
+    };
     if (options->videoSmokeTest)
     {
         originalMovieStartMatch = [&]() {
@@ -14261,7 +14297,8 @@ int main(int argc, char** argv)
             running = false;
 
 #ifdef RRR3D_VIDEO
-        if (originalMovieActive)
+        advanceOriginalMovie();
+        if (originalMovieActive && originalMovieBackendStarted)
         {
             std::string videoError;
             const auto state = videoPlayer.update(videoError);
@@ -16420,7 +16457,7 @@ int main(int argc, char** argv)
         }
 
 #ifdef RRR3D_VIDEO
-        if (originalMovieActive)
+        if (sourceMovieState.IsVideoMode())
         {
             // GameMode::OnProgress switched the Windows renderer to a
             // dedicated video mode.  Continuing to submit the complete

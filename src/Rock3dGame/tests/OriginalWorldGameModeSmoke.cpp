@@ -136,6 +136,38 @@ int main()
         !startupFrame.startGame || startup.IsActive())
         return fail("source -3 StartGame transition differs");
 
+    source::GameModeMovieState movie;
+    movie.Play();
+    auto movieFrame = movie.OnFrame();
+    if (!movieFrame.prepareWindow || movie.FrameState() != 1)
+        return fail("source movie window preparation differs");
+    movieFrame = movie.OnFrame();
+    if (!movieFrame.enterVideoMode || !movie.IsVideoMode() ||
+        movie.FrameState() != 2)
+        return fail("source movie video-mode entry differs");
+    for (int frame = 0; frame < 4; ++frame)
+    {
+        movieFrame = movie.OnFrame();
+        if (movieFrame.openAndPlay)
+            return fail("source movie opened before four wait frames");
+    }
+    movieFrame = movie.OnFrame();
+    if (!movieFrame.openAndPlay || movie.FrameState() != 7)
+        return fail("source movie Open/Play frame differs");
+    movie.NotifyPlaybackEnded();
+    movieFrame = movie.OnFrame();
+    if (movieFrame.unload || movie.FrameState() != 9)
+        return fail("source movie completion tail frame 8 differs");
+    movieFrame = movie.OnFrame();
+    if (!movieFrame.unload || movie.FrameState() != 10)
+        return fail("source movie unload frame differs");
+    movie.OnFrame();
+    movie.OnFrame();
+    movieFrame = movie.OnFrame();
+    if (!movieFrame.exitVideoMode || !movieFrame.videoStopped ||
+        movie.IsPlaying() || movie.IsVideoMode())
+        return fail("source movie cVideoStopped transition differs");
+
     source::WorldFrameClock frameClock;
     if (frameClock.SmoothDelta(-1.0F) != 0.0F ||
         frameClock.GetSynchronizedFrameCount() != 1U)

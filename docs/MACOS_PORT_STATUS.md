@@ -2739,3 +2739,14 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   исходный `-2`, поэтому loading frame не пропускается.
 - `rrr3d_original_world_game_mode_smoke` проверяет обе logo-фазы, blank,
   skip, loading и одноразовый StartGame transition.
+
+### Source GameMode movie follow-up
+
+- `GameModeMovieState` переносит integer `_movieTime` 0–12; menu callbacks
+  больше не запускают и не завершают AVFoundation ролик немедленно.
+- Window/video-mode preparation, четыре pre-open wait frame, Open/Play,
+  ResetInput, delayed Unload, music resume и VideoStopped имеют source order.
+- Backend completion/error/skip переводят owner в state 8; teardown до 12
+  продолжается покадрово без повторного polling завершившегося player.
+- World/GameMode regression проверяет все командные кадры и оба четырёхкадровых
+  участка ожидания.

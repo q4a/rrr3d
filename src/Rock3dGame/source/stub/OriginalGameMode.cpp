@@ -84,6 +84,81 @@ float GameModeStartupState::ElapsedSeconds() const noexcept
     return elapsedSeconds_;
 }
 
+void GameModeMovieState::Play() noexcept
+{
+    movieTime_ = 0;
+    videoMode_ = false;
+}
+
+void GameModeMovieState::NotifyPlaybackEnded() noexcept
+{
+    if (movieTime_ != -1)
+        movieTime_ = 8;
+}
+
+GameModeMovieFrame GameModeMovieState::OnFrame() noexcept
+{
+    GameModeMovieFrame frame;
+    if (movieTime_ == -1)
+        return frame;
+    if (movieTime_ == 0)
+    {
+        frame.prepareWindow = true;
+        movieTime_ = 1;
+    }
+    else if (movieTime_ == 1)
+    {
+        frame.enterVideoMode = true;
+        videoMode_ = true;
+        movieTime_ = 2;
+    }
+    else if (movieTime_ >= 2 && movieTime_ <= 5)
+    {
+        ++movieTime_;
+    }
+    else if (movieTime_ == 6)
+    {
+        frame.openAndPlay = true;
+        movieTime_ = 7;
+    }
+    else if (movieTime_ == 7)
+    {
+        // DirectShow/AVFoundation completion advances this state through
+        // NotifyPlaybackEnded, exactly like GameMode::OnGraphEvent.
+    }
+    else if (movieTime_ >= 8 && movieTime_ <= 11)
+    {
+        if (movieTime_ == 9)
+        {
+            frame.unload = true;
+        }
+        ++movieTime_;
+    }
+    else if (movieTime_ == 12)
+    {
+        frame.exitVideoMode = true;
+        frame.videoStopped = true;
+        movieTime_ = -1;
+        videoMode_ = false;
+    }
+    return frame;
+}
+
+bool GameModeMovieState::IsPlaying() const noexcept
+{
+    return movieTime_ != -1;
+}
+
+bool GameModeMovieState::IsVideoMode() const noexcept
+{
+    return videoMode_;
+}
+
+std::int32_t GameModeMovieState::FrameState() const noexcept
+{
+    return movieTime_;
+}
+
 void GameModeRaceState::Reset(bool immediateRaceStart) noexcept
 {
     countdownStage_ = immediateRaceStart ? goRace : goRaceWait;

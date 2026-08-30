@@ -52,6 +52,35 @@ private:
     float elapsedSeconds_ = 0.0F;
 };
 
+struct GameModeMovieFrame
+{
+    bool prepareWindow = false;
+    bool enterVideoMode = false;
+    bool openAndPlay = false;
+    bool unload = false;
+    bool exitVideoMode = false;
+    bool videoStopped = false;
+};
+
+// GameMode::_movieTime is a frame counter, not a time duration. This owner
+// preserves its window/video/music/input preparation and four-frame teardown
+// while the macOS video backend executes the returned commands.
+class GameModeMovieState
+{
+public:
+    void Play() noexcept;
+    void NotifyPlaybackEnded() noexcept;
+    GameModeMovieFrame OnFrame() noexcept;
+
+    bool IsPlaying() const noexcept;
+    bool IsVideoMode() const noexcept;
+    std::int32_t FrameState() const noexcept;
+
+private:
+    std::int32_t movieTime_ = -1;
+    bool videoMode_ = false;
+};
+
 class GameModeRaceState
 {
 public:
