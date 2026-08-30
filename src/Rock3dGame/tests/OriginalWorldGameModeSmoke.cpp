@@ -1,6 +1,7 @@
 #include "OriginalGameMode.h"
 #include "OriginalWorld.h"
 
+#include <cmath>
 #include <cstdint>
 #include <iostream>
 #include <string>
@@ -110,6 +111,39 @@ private:
 
 int main()
 {
+    source::WorldFrameClock frameClock;
+    if (frameClock.SmoothDelta(-1.0F) != 0.0F ||
+        frameClock.GetSynchronizedFrameCount() != 1U)
+        return fail("negative platform delta was not sanitized");
+    frameClock.Reset();
+    if (std::abs(frameClock.SmoothDelta(1.0F / 120.0F) -
+                 1.0F / 120.0F) > 0.000001F ||
+        std::abs(frameClock.SmoothDelta(1.0F / 40.0F) -
+                 1.0F / 60.0F) > 0.000001F)
+        return fail("15-frame synchronized average differs from source");
+    frameClock.Reset();
+    const auto halfStep = frameClock.Schedule(
+        1.0F / 120.0F, true);
+    const auto fullStep = frameClock.Schedule(
+        1.0F / 120.0F, true);
+    if (halfStep.fixedSteps != 0U ||
+        !halfStep.lateProgressWithoutPhysics ||
+        std::abs(halfStep.physicsAlpha - 0.5F) > 0.000001F ||
+        fullStep.fixedSteps != 1U ||
+        fullStep.lateProgressWithoutPhysics ||
+        std::abs(fullStep.physicsAlpha) > 0.000001F)
+        return fail("source 1/60 accumulator/alpha differs");
+    const auto clamped = frameClock.Schedule(1.0F, false);
+    if (clamped.fixedSteps != source::WorldFrameClock::maximumFixedSteps ||
+        clamped.physicsAlpha != -1.0F ||
+        std::abs(clamped.deltaTime - 7.0F / 60.0F) > 0.000001F)
+        return fail("source maximum simulation delta differs");
+    frameClock.Reset();
+    frameClock.SmoothDelta(0.01F);
+    if (frameClock.SmoothDelta(0.02F, false) != 0.02F ||
+        frameClock.GetSynchronizedFrameCount() != 0U)
+        return fail("disabled synchronization did not clear source history");
+
     std::vector<int> order;
     Host host(order);
     source::WorldEventPump world(&host);

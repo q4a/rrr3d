@@ -5608,6 +5608,22 @@ resize; все menu/dialog/garage/workshop/options hit tests и cursor испо�
 жизненный цикл Reset. Win32 window styles, D3D reset и screen-ray остаются
 платформенными adapter responsibilities.
 
+### P2.246 — source `World::MainProgress` timing возвращён — выполнено
+
+Прямая сверка выявила, что host вручную усреднял 15 кадров, но терял
+остальную семантику `World`: double accumulator, fixed-step schedule и
+render interpolation. В `WorldEventPump::FrameStep` постоянно передавался
+`physicsAlpha=0`, поэтому frame listeners никогда не видели фактическую
+долю незавершённого физического шага.
+
+Новый `source::WorldFrameClock` переносит `MainProgress` constants и state:
+`cMaxSimStep=1/60`, maximum delta `7/60`, 15 double samples, double
+accumulator, fixed count и `startRace ? alpha : -1`. Active SDL loop теперь
+использует этот owner вместо массива host-а. Jolt остаётся backend-владельцем
+solver execution и не шагается второй раз; source schedule определяет frame
+timing/alpha, а существующий `WorldFixedStepController` обслуживает Jolt
+substeps. Unit regression фиксирует averaging, carry, clamp и race gate.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

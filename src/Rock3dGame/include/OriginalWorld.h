@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <deque>
 #include <vector>
 
 namespace r3d::game::originalrace::source
@@ -58,6 +59,37 @@ public:
     virtual void OnEnvironmentFrame(float deltaTime);
     virtual void OnNetworkFrame(float deltaTime);
     virtual void OnControlFrame(float deltaTime);
+};
+
+// Timing policy from World::MainProgress. Platform clocks supply raw frame
+// seconds; this owner keeps the source 15-frame synchronized average,
+// 7/60 clamp, 1/60 accumulator and render interpolation alpha. Physics and
+// rendering backends consume the resulting plan without owning game timing.
+class WorldFrameClock
+{
+public:
+    static constexpr float fixedStep = 1.0F / 60.0F;
+    static constexpr std::size_t maximumFixedSteps = 7U;
+    static constexpr std::size_t synchronizedFrameCount = 15U;
+
+    struct Plan
+    {
+        float deltaTime = 0.0F;
+        float physicsAlpha = -1.0F;
+        std::size_t fixedSteps = 0U;
+        bool lateProgressWithoutPhysics = true;
+    };
+
+    void Reset() noexcept;
+    float SmoothDelta(
+        double rawDeltaTime, bool synchronized = true) noexcept;
+    Plan Schedule(float deltaTime, bool raceStarted) noexcept;
+    float GetAccumulator() const noexcept;
+    std::size_t GetSynchronizedFrameCount() const noexcept;
+
+private:
+    std::deque<double> frameDeltas_;
+    double accumulator_ = 0.0;
 };
 
 // Backend-neutral transcription of World.cpp's four ordered event lists and

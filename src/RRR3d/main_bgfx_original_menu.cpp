@@ -4839,9 +4839,7 @@ int main(int argc, char** argv)
     bool championshipMode = true;
     bool newTournamentProfile = false;
     std::uint64_t previousFrameTicks = SDL_GetTicksNS();
-    std::array<float, 15> sourceFrameDeltas{};
-    std::size_t sourceFrameDeltaCount = 0U;
-    std::size_t sourceFrameDeltaCursor = 0U;
+    r3d::game::originalrace::source::WorldFrameClock sourceWorldClock;
     std::array<bool, 9> finalSlidesObserved{};
     bool finalCreditsMotionObserved =
         !options->finalMenuSmokeTest;
@@ -14303,22 +14301,11 @@ int main(int argc, char** argv)
 #endif
 
         const std::uint64_t currentFrameTicks = SDL_GetTicksNS();
-        const float rawFrameSeconds = std::max(
-            static_cast<float>(currentFrameTicks - previousFrameTicks) /
-                1000000000.0F,
-            0.0F);
-        sourceFrameDeltas[sourceFrameDeltaCursor] = rawFrameSeconds;
-        sourceFrameDeltaCursor =
-            (sourceFrameDeltaCursor + 1U) % sourceFrameDeltas.size();
-        sourceFrameDeltaCount = std::min(
-            sourceFrameDeltaCount + 1U, sourceFrameDeltas.size());
-        const float smoothedFrameSeconds = std::accumulate(
-            sourceFrameDeltas.begin(),
-            sourceFrameDeltas.begin() +
-                static_cast<std::ptrdiff_t>(sourceFrameDeltaCount),
-            0.0F) / static_cast<float>(sourceFrameDeltaCount);
-        float frameSeconds = std::clamp(
-            smoothedFrameSeconds, 0.0F, 7.0F / 60.0F);
+        const double rawFrameSeconds = std::max(
+            static_cast<double>(currentFrameTicks - previousFrameTicks) /
+                1000000000.0,
+            0.0);
+        float frameSeconds = sourceWorldClock.SmoothDelta(rawFrameSeconds);
         if (options->startupSmokeTest)
         {
             // Exercise the complete twelve-second source timeline without
@@ -14356,6 +14343,10 @@ int main(int argc, char** argv)
 #ifdef RRR3D_VIDEO
         if (originalMovieActive)
             frameSeconds = 0.0F;
+#endif
+#ifdef RRR3D_PHYSICS
+        const auto sourceFramePlan =
+            sourceWorldClock.Schedule(frameSeconds, inRace);
 #endif
         previousFrameTicks = currentFrameTicks;
 #ifdef RRR3D_PHYSICS
@@ -16455,7 +16446,8 @@ int main(int argc, char** argv)
 #endif
 
 #ifdef RRR3D_PHYSICS
-        worldEventPump.FrameStep(frameSeconds, 0.0F);
+        worldEventPump.FrameStep(
+            frameSeconds, sourceFramePlan.physicsAlpha);
         const auto gameModeCommands = gameModeState.TakeCommands();
         if (std::find(
                 gameModeCommands.begin(), gameModeCommands.end(),

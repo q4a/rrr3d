@@ -2702,3 +2702,15 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   после coalesced resize, включая случай неизменившегося backbuffer.
 - Новый `rrr3d_original_view_smoke` проверяет Retina 2×, Y inversion,
   projection round-trip, move delta/offset и Reset lifetime.
+
+### Source World frame-clock follow-up
+
+- `source::WorldFrameClock` заменил локальный host-массив и переносит
+  15-frame double average, `7/60` clamp и double accumulator из
+  `World::MainProgress`.
+- `WorldEventPump::FrameStep` получает вычисленный interpolation alpha, а
+  вне начатой гонки — исходное значение `-1`; прежняя заглушка `0.0` удалена.
+- Jolt остаётся единственным physics solver backend и использует прежний
+  source `1/60` fixed controller без двойного шага.
+- `rrr3d_original_world_game_mode_smoke` расширен проверками smoothing,
+  half-step carry, fixed count, alpha, clamp и synchronization reset.

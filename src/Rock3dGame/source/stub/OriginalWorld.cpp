@@ -1,5 +1,8 @@
 #include "OriginalWorld.h"
 
+#include <cmath>
+#include <numeric>
+
 namespace r3d::game::originalrace::source
 {
 
@@ -31,6 +34,72 @@ void WorldHost::OnNetworkFrame(float deltaTime)
 void WorldHost::OnControlFrame(float deltaTime)
 {
     static_cast<void>(deltaTime);
+}
+
+void WorldFrameClock::Reset() noexcept
+{
+    frameDeltas_.clear();
+    accumulator_ = 0.0;
+}
+
+float WorldFrameClock::SmoothDelta(
+    double rawDeltaTime, bool synchronized) noexcept
+{
+    if (!std::isfinite(rawDeltaTime) || rawDeltaTime < 0.0)
+        rawDeltaTime = 0.0;
+
+    double result = rawDeltaTime;
+    if (synchronized)
+    {
+        frameDeltas_.push_back(rawDeltaTime);
+        if (frameDeltas_.size() > synchronizedFrameCount)
+            frameDeltas_.pop_front();
+        result = std::accumulate(
+                     frameDeltas_.begin(), frameDeltas_.end(), 0.0) /
+                 static_cast<double>(frameDeltas_.size());
+    }
+    else
+    {
+        frameDeltas_.clear();
+    }
+    return static_cast<float>(std::min(
+        result, static_cast<double>(fixedStep) *
+                    static_cast<double>(maximumFixedSteps)));
+}
+
+WorldFrameClock::Plan WorldFrameClock::Schedule(
+    float deltaTime, bool raceStarted) noexcept
+{
+    if (!std::isfinite(deltaTime) || deltaTime < 0.0F)
+        deltaTime = 0.0F;
+    deltaTime = std::min(
+        deltaTime, fixedStep * static_cast<float>(maximumFixedSteps));
+    accumulator_ += static_cast<double>(deltaTime);
+
+    Plan plan;
+    plan.deltaTime = deltaTime;
+    const double sourceFixedStep = static_cast<double>(fixedStep);
+    while (accumulator_ >= sourceFixedStep &&
+           plan.fixedSteps < maximumFixedSteps)
+    {
+        accumulator_ -= sourceFixedStep;
+        ++plan.fixedSteps;
+    }
+    plan.lateProgressWithoutPhysics = plan.fixedSteps == 0U;
+    plan.physicsAlpha = raceStarted
+        ? static_cast<float>(accumulator_ / sourceFixedStep)
+        : -1.0F;
+    return plan;
+}
+
+float WorldFrameClock::GetAccumulator() const noexcept
+{
+    return static_cast<float>(accumulator_);
+}
+
+std::size_t WorldFrameClock::GetSynchronizedFrameCount() const noexcept
+{
+    return frameDeltas_.size();
 }
 
 WorldEventPump::WorldEventPump(WorldHost* host) noexcept

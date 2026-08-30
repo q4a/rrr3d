@@ -87,7 +87,7 @@ Windows target не компилируется.
 | Garage/workshop/tournament data | `RaceMenu2`, `DataBase`, `garage.xml`, `workshop.xml`, `tournamet.xml`, `achievment.xml` | `OriginalGarage.cpp` + source-derived Gamers/Garage/Workshop/Angar/Achievment frames | Частично | Каталог, семь gamers и Viper achievement gate, source available/secret/locked order, buy/sell/install/swap/recharge/upgrade, reward purchase, campaign confirmations, charge-inclusive 50% resale, colors, stats фактической комплектации и bonus preview перенесены. 3D goods/slots/planets/boss cars читают исходные mesh/texture/vehicle transforms и повторяют `ViewPort3d` fitting/rotation. Legacy widget objects ещё отсутствуют |
 | Map/catalog loading | `Map`, `MapObj`, `DataBase` | `OriginalRace.cpp`, `OriginalMap.cpp`, `OriginalMapObj.cpp`, `OriginalTrace.cpp`, `OriginalLogic.cpp` | Частично | 88 записей и исходные placements читаются вместе с XML instance name/transform/life/maxTimeLife/timeLife; runtime `Map` владеет семью category lists, стабильными `MapObjRec/MapObjLib` catalogs с RecordNode hierarchy/canonical-relative lookup, ID registry, ground/TouchDeath и Trace. Восстановлены record-based `Map::AddMapObj(ref)` с recursive include proxy clone, detached ownership transfer `Map::InsertMapObj`, source `itemN`/leaf/global `base0/base1` naming, `_mapObj`/`_player`, parent/children/include graph, hierarchical world transforms, narrow `CreateGameObj/Assign`, отдельный `Misc/Crush` special-list с callback container-lock и точный `Logic::OnProgress`: special Decoration → Effects → Car → Bonus → transient. Type replacement сохраняет Player/record/ID, а concrete state сбрасывается до proxy load. Legacy `SerialNode` owner/writer остаётся parser boundary |
 | Track collision | PhysX triangle meshes | Jolt triangle meshes из исходных shapes | Перенесено | Используемый race path получает исходные triangles/material groups |
-| Vehicle descriptions | `DataBase::CarDesc`, `RockCar` | XML/source constants → `VehicleDescription` | Частично | Mass, body, wheels, motor/gears/suspension перенесены; весь `RockCar`/PhysX state и contact callbacks не перенесены |
+| Vehicle descriptions | `DataBase::CarDesc`, `RockCar` | XML/source constants → `VehicleDescription` + source `RockCar` owner | Перенесено с backend-адаптацией | Mass/body/wheels/motor/gears/suspension, dynamic Weapons ownership, Player listener и GameCar/RockCar contact/damage state перенесены; только PhysX actor/solver calls закономерно исполняются Jolt |
 | Vehicle simulation | PhysX 2.8.4 `NxWheelShape` | Jolt custom vehicle adapter | Частично | Нативная замена работает; `GameCar` снова является source `GameObject`, serialized `SoundMotor` живёт в его owner, каждый `CarWheel` — child с ordered type-9 `trail`/`smoke7` owners (record/pos/sound/Make-Free не схлопываются), а included actors гусеницы/подушки владеют exact type-13/type-14 behaviors. Session один раз преобразует Jolt contacts/axle speed в owner results для Metal и SDL; silent wheels больше не получают synthetic SkidAsphalt. `GameCar::LockSpring` подавляет airborne pitch как в source, но полная численная эквивалентность PhysX tire/suspension/solver ещё не доказана |
 | Car-to-track/car contacts | `GameCar::OnContactModify`, `GameCar::OnContact`, PhysX reports | Jolt contacts → `source::GameCar::OnContact` commands | Перенесено с backend-адаптацией | Source `GameCar` владеет body-contact flag, damage thresholds, shot-transparent border gate, clutch release, exact spring redirect и kinetic-energy attribution; session только подаёт Jolt normal/friction/velocity/energy snapshot и применяет результат. PhysX solver заменён Jolt, но `sumFrictionForce` передаётся и как вектор, а не только как величина |
 | Bonus/mine/crater contacts | `Proj::ComputeAABB`, `MineContact`, `MasloContact`, `MineRipUpdate` | source AABB/OBB, lock/contact state и nested-projectile runtime | Частично | Удалены сферы и hardcode осколков; source boxes, 0.25/0.4 lock rules, `ptMineProton`, impulse, oil clutch, nested lifetime/death effects перенесены. Map `AutoProj` снова наследует `GameObject` и готовится/освобождается через `LogicInited/Released`. Динамика осколков остаётся адаптацией к Jolt, не численной копией PhysX |
@@ -2028,6 +2028,18 @@ client округляются в пиксели Metal drawable точно пер
 размерности даже когда bgfx backbuffer не требует пересоздания. Regression
 проверяет Retina scale, D3D Y inversion, projection round-trip, click
 snapshot, move delta/offset и сохранение pointer state через Reset.
+
+### B8ar — source World frame clock/fixed schedule — выполнено
+
+Локальный массив host-а заменён на `source::WorldFrameClock`, повторяющий
+`World::MainProgress`: входной SDL counter остаётся double, последние 15
+кадров усредняются до float simulation delta, delta ограничивается `7/60`,
+а double accumulator выдаёт fixed-step count и render interpolation alpha.
+`WorldEventPump::FrameStep` теперь получает реальный alpha вместо заглушки
+`0.0`. Jolt остаётся единственным исполнителем физического solver step и
+использует существующий source `1/60` controller, поэтому двойного шага нет.
+Regression проверяет averaging, carry двух half-step, clamp, race-off alpha
+и очистку history при отключённой synchronization.
 
 ## Воспроизведение проверки
 
