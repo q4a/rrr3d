@@ -1,4 +1,5 @@
 #include "OriginalEnvironment.h"
+#include "OriginalWorld.h"
 
 #include <cmath>
 #include <iostream>
@@ -150,6 +151,22 @@ int main()
     scene.ReleaseScene();
     if (scene.SceneStarted() || scene.RainVisible())
         return fail("Environment ReleaseScene differs");
+
+    source::WorldEventPump world;
+    world.SetEnvironment(&scene);
+    scene.PrepareScene(water, false, {10.0F, 11.0F, 12.0F});
+    scene.PrepareScene(water, false, {13.0F, 14.0F, 15.0F});
+    if (!near(scene.RainPosition().x, 10.0F))
+        return fail("Environment advanced outside World::FrameStep");
+    world.FrameStep(1.0F / 60.0F, 0.5F);
+    if (!near(scene.RainPosition().x, 13.0F))
+        return fail("World::FrameStep did not process Environment");
+    world.Pause(true);
+    scene.PrepareScene(water, false, {16.0F, 17.0F, 18.0F});
+    world.FrameStep(1.0F / 60.0F, 0.5F);
+    if (!near(scene.RainPosition().x, 13.0F))
+        return fail("paused World advanced Environment");
+    scene.ReleaseScene();
 
     std::cout << "original Environment source rules passed\n";
     return 0;

@@ -3734,6 +3734,8 @@ int main(int argc, char** argv)
     auto physicsWorld = r3d::physics::createOriginalVehicleWorld(
         *physicsDescription, physicsError);
     r3d::game::originalrace::source::WorldEventPump worldEventPump;
+    r3d::game::originalrace::source::Environment worldEnvironment;
+    worldEventPump.SetEnvironment(&worldEnvironment);
     r3d::game::originalrace::OriginalRaceSession raceSession(
         *originalRace, options->legacyWindowsDebug, &worldEventPump);
     r3d::game::originalrace::source::TraceGfx sourceTraceGfx(
@@ -3817,7 +3819,7 @@ int main(int argc, char** argv)
                                  *originalRace,
                                  static_cast<std::uint32_t>(pixelWidth),
                                  static_cast<std::uint32_t>(pixelHeight),
-                                 physicsError) ||
+                                 physicsError, &worldEnvironment) ||
         !garageRenderer.initialize(
             *device, originalResourceManager, *originalGarageScene,
             static_cast<std::uint32_t>(pixelWidth),
@@ -6370,7 +6372,7 @@ int main(int argc, char** argv)
                     *device, originalResourceManager, *originalRace,
                     static_cast<std::uint32_t>(pixelWidth),
                     static_cast<std::uint32_t>(pixelHeight),
-                    reloadError) ||
+                    reloadError, &worldEnvironment) ||
                 !raceHud.initialize(
                     *device, originalResourceManager,
                     originalGameDataCatalog,

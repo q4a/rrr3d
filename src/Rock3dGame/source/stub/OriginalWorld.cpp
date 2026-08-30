@@ -1,5 +1,7 @@
 #include "OriginalWorld.h"
 
+#include "OriginalEnvironment.h"
+
 #include <cmath>
 #include <numeric>
 
@@ -112,6 +114,11 @@ void WorldEventPump::SetHost(WorldHost* host) noexcept
     host_ = host;
 }
 
+void WorldEventPump::SetEnvironment(Environment* environment) noexcept
+{
+    environment_ = environment;
+}
+
 void WorldEventPump::SetGameMode(GameModeFrameEvent* gameMode) noexcept
 {
     gameMode_ = gameMode;
@@ -192,7 +199,9 @@ void WorldEventPump::FrameStep(float deltaTime, float physicsAlpha)
     {
         for (auto* event : frameEvents_)
             event->OnFrame(deltaTime, physicsAlpha);
-        if (host_ != nullptr)
+        if (environment_ != nullptr)
+            environment_->ProcessScene(deltaTime);
+        else if (host_ != nullptr)
             host_->OnEnvironmentFrame(deltaTime);
     }
 

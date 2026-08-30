@@ -2750,3 +2750,15 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   продолжается покадрово без повторного polling завершившегося player.
 - World/GameMode regression проверяет все командные кадры и оба четырёхкадровых
   участка ожидания.
+
+### Source World/Environment ownership follow-up
+
+- Active race использует один `source::Environment`, подключённый к общему
+  `WorldEventPump`; renderer-private `ProcessScene` удалён.
+- `WorldEventPump::FrameStep` обновляет Environment после source FrameEvents
+  и до network/control/GameMode, с тем же pause gate, что Windows World.
+- bgfx renderer публикует только camera/description snapshot и потребляет
+  rain/render policy; графические ресурсы остаются backend responsibility.
+- Race shutdown/reload освобождает scene и обнуляет borrowed snapshot, поэтому
+  замена `Race` не оставляет указатель на старую environment description.
+- `rrr3d_original_environment_smoke` проверяет World ownership и paused frame.

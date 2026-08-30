@@ -1884,8 +1884,11 @@ bool OriginalRaceRenderer::initialize(
     GraphicsDevice& device,
     OriginalResourceManager& resources,
     const r3d::game::originalrace::Race& race,
-    std::uint32_t width, std::uint32_t height, std::string& error)
+    std::uint32_t width, std::uint32_t height, std::string& error,
+    r3d::game::originalrace::source::Environment* sourceEnvironment)
 {
+    sourceEnvironment_ = sourceEnvironment != nullptr
+        ? sourceEnvironment : &ownedSourceEnvironment_;
     try
     {
         if (!sourceCameraMathValid())
@@ -2567,7 +2570,7 @@ bool OriginalRaceRenderer::initialize(
 
 void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
 {
-    sourceEnvironment_.ReleaseScene();
+    sourceEnvironment_->ReleaseScene();
     destroyFrameTargets(device);
     if (valid(environmentReflectionTarget_))
         device.destroy(environmentReflectionTarget_);
@@ -2740,6 +2743,7 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
     activeLightQuality_ = 2U;
     activeEnvironmentPolicy_ = {};
     sunShaftResourcesEnabled_ = false;
+    sourceEnvironment_ = &ownedSourceEnvironment_;
 }
 
 Camera OriginalRaceRenderer::makeCamera(
@@ -5212,10 +5216,10 @@ void OriginalRaceRenderer::draw(
             runtime.immortalEffect.GetEffectSeconds());
     }
 
-    if (sourceEnvironment_.RainVisible() && !vehicles.empty())
+    if (sourceEnvironment_->RainVisible() && !vehicles.empty())
     {
         r3d::physics::Transform rainParent;
-        rainParent.position = sourceEnvironment_.RainPosition();
+        rainParent.position = sourceEnvironment_->RainPosition();
         drawDefinition(rainEffect_, race.rainEffect, rainParent,
                        elapsedSeconds, r3d::physics::Vec3{});
     }
@@ -5692,12 +5696,7 @@ void OriginalRaceRenderer::renderFrame(
             : 0.0F;
     const bool isometricCamera =
         std::abs(camera.projection[15]) > 0.5F;
-    if (!sourceEnvironment_.SceneStarted())
-    {
-        sourceEnvironment_.StartScene(
-            race.environment, isometricCamera, cameraPosition_);
-    }
-    sourceEnvironment_.ProcessScene(
+    sourceEnvironment_->PrepareScene(
         race.environment, isometricCamera, cameraPosition_);
     activeEnvironmentPolicy_ =
         r3d::game::originalrace::source::Environment::ApplyQuality(

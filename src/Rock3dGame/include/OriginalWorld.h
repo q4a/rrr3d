@@ -7,6 +7,8 @@
 namespace r3d::game::originalrace::source
 {
 
+class Environment;
+
 class WorldEvent
 {
 public:
@@ -102,6 +104,7 @@ public:
     explicit WorldEventPump(WorldHost* host = nullptr) noexcept;
 
     void SetHost(WorldHost* host) noexcept;
+    void SetEnvironment(Environment* environment) noexcept;
     void SetGameMode(GameModeFrameEvent* gameMode) noexcept;
 
     void RegFixedStepEvent(FixedStepEvent* event);
@@ -159,6 +162,7 @@ private:
     }
 
     WorldHost* host_ = nullptr;
+    Environment* environment_ = nullptr;
     GameModeFrameEvent* gameMode_ = nullptr;
     std::vector<FixedStepEvent*> fixedStepEvents_;
     std::vector<ProgressEvent*> progressEvents_;

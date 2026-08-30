@@ -373,12 +373,31 @@ void Environment::StartScene(
     ApplyRain(description, isometricCamera, cameraPosition);
 }
 
+void Environment::PrepareScene(
+    const EnvironmentDescription& description, bool isometricCamera,
+    const r3d::physics::Vec3& cameraPosition) noexcept
+{
+    frameDescription_ = &description;
+    frameIsometricCamera_ = isometricCamera;
+    frameCameraPosition_ = cameraPosition;
+    StartScene(description, isometricCamera, cameraPosition);
+}
+
 void Environment::ReleaseScene() noexcept
 {
-    if (!sceneStarted_)
-        return;
+    frameDescription_ = nullptr;
+    frameCameraPosition_ = {};
+    frameIsometricCamera_ = false;
     sceneStarted_ = false;
     rainVisible_ = false;
+}
+
+void Environment::ProcessScene(float) noexcept
+{
+    if (frameDescription_ == nullptr)
+        return;
+    ProcessScene(
+        *frameDescription_, frameIsometricCamera_, frameCameraPosition_);
 }
 
 void Environment::ProcessScene(

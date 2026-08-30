@@ -66,7 +66,9 @@ public:
                     OriginalResourceManager& resources,
                     const r3d::game::originalrace::Race& race,
                     std::uint32_t width, std::uint32_t height,
-                    std::string& error);
+                    std::string& error,
+                    r3d::game::originalrace::source::Environment*
+                        sourceEnvironment = nullptr);
     bool resize(r3d::renderer::GraphicsDevice& device,
                 std::uint32_t width, std::uint32_t height,
                 std::string& error);
@@ -244,7 +246,10 @@ private:
     r3d::physics::Vec3 sceneWorldCenter_;
     std::vector<r3d::physics::Vec3> grassFieldOffsets_;
     r3d::game::originalrace::source::CameraManager sourceCamera_;
-    r3d::game::originalrace::source::Environment sourceEnvironment_;
+    r3d::game::originalrace::source::Environment
+        ownedSourceEnvironment_;
+    r3d::game::originalrace::source::Environment* sourceEnvironment_ =
+        &ownedSourceEnvironment_;
     r3d::game::originalrace::source::EnvironmentRenderPolicy
         activeEnvironmentPolicy_;
     r3d::physics::Vec3 cameraPosition_;

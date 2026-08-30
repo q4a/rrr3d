@@ -79,7 +79,14 @@ public:
     void StartScene(const EnvironmentDescription& description,
                     bool isometricCamera,
                     const r3d::physics::Vec3& cameraPosition) noexcept;
+    // World owns ProcessScene in the source. The renderer supplies the
+    // backend-neutral camera/description snapshot produced by its previous
+    // frame, then World::FrameStep advances it in source order.
+    void PrepareScene(const EnvironmentDescription& description,
+                      bool isometricCamera,
+                      const r3d::physics::Vec3& cameraPosition) noexcept;
     void ReleaseScene() noexcept;
+    void ProcessScene(float deltaTime) noexcept;
     void ProcessScene(const EnvironmentDescription& description,
                       bool isometricCamera,
                       const r3d::physics::Vec3& cameraPosition) noexcept;
@@ -95,9 +102,12 @@ private:
                    const r3d::physics::Vec3& cameraPosition) noexcept;
 
     r3d::physics::Vec3 rainPosition_;
+    const EnvironmentDescription* frameDescription_ = nullptr;
+    r3d::physics::Vec3 frameCameraPosition_;
     bool sceneStarted_ = false;
     bool rainVisible_ = false;
     bool isometricRain_ = false;
+    bool frameIsometricCamera_ = false;
 };
 
 } // namespace r3d::game::originalrace::source

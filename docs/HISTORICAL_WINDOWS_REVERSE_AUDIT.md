@@ -5674,6 +5674,23 @@ Pause/Open/ResetInput/Unload/Resume и VideoStopped происходят тол�
 отложенного Unload, исключая повторный reset tail. Regression проходит весь
 автомат и доказывает четыре wait frame до Play и после completion.
 
+### P2.250 — `World::_env->ProcessScene` возвращён World owner — выполнено
+
+Сверка `World.cpp::FrameStep` и `Environment.cpp::ProcessScene` выявила
+следующее ownership-расхождение: portable `OriginalRaceRenderer` напрямую
+вызывал Environment во время render preparation. В оригинале World делает
+это после ordered frame listeners, до network/control/GameMode, и полностью
+пропускает при pause.
+
+Общий active `WorldEventPump` теперь хранит `source::Environment` и вызывает
+его в точном source boundary. Renderer передаёт только последнюю
+backend-neutral camera/description context и рисует готовое rain state.
+Однокадровая позиция камеры соответствует оригиналу: camera
+`OnInputFrame` вызывается ControlManager уже после Environment. ReleaseScene
+очищает borrowed context до reload. Regression проверяет отсутствие
+renderer-side advance, World advance и pause gate; Garage/Angar остаются
+presentation-only owners вне active race World.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

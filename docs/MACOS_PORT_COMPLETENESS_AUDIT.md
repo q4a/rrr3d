@@ -2083,6 +2083,22 @@ completion. Во время teardown завершившийся player боль�
 повторно, поэтому state 8 не сбрасывается в цикле. Unit regression проверяет
 prepare/enter, четыре wait frame, Play, completion tail, Unload и exit event.
 
+### B8av — `Environment::ProcessScene` возвращён active `World` — выполнено
+
+Прямая сверка `World::FrameStep` выявила оставшийся renderer-owned вызов:
+active `OriginalRaceRenderer::renderFrame` сам запускал и обновлял
+`source::Environment`, тогда как Windows World вызывает Environment после
+всех `FrameEvent` и до network/control/GameMode. Теперь общий active
+`WorldEventPump` хранит Environment owner и исполняет `ProcessScene` в этом
+точном месте с исходным pause gate.
+
+Renderer только публикует description/isometric/camera snapshot и рисует
+полученное rain state. Обработка snapshot на следующем World frame сохраняет
+исходный порядок: Windows camera control тоже обновляется после Environment.
+Race reload/shutdown очищает scene и borrowed description до замены данных.
+Отдельный Environment regression проверяет, что snapshot не двигает rain
+сам, World frame двигает, а paused World — нет.
+
 ## Воспроизведение проверки
 
 ```sh

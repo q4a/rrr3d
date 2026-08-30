@@ -77,7 +77,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `TraceGfx` | `source::TraceGfx` + transient bgfx submission | Source owner, active F6 path | Selection/link/geometry/material policy source-owned; D3D9 Box/Sprite/DrawPrimitiveUP заменены backend triangles |
 | `View` | `originalview::ViewState` + SDL/bgfx adapters | Source owner, active input/display path | `ScreenToView`, projection conversion и mouse click/move snapshots source-owned; SDL сообщает logical client/drawable sizes, bgfx исполняет resize |
 | `Weapon` | `source::{Weapon,Proj,AutoProj,WeaponItem...}` | Source owner, active shot/contact/progress core | Shot preparation и все active Proj progress dispatch выполнены; остались Jolt actor integration/query, nested spawning и network authority adapters |
-| `World` | one active `source::WorldFrameClock`/`WorldEventPump` + native `WorldHost` | Source owner, active timing/event core | GameMode, Logic, Race/place и GameObject registrations используют один owner; SDL clock, Jolt substeps и bgfx submission остаются backend boundaries |
+| `World` | one active `source::WorldFrameClock`/`WorldEventPump`/`Environment` + native `WorldHost` | Source owner, active timing/event/environment core | GameMode, Logic, Race/place, GameObject registrations и `Environment::ProcessScene` используют один owner; SDL clock, Jolt substeps и bgfx submission остаются backend boundaries |
 
 ## Очередь крупных блоков
 
@@ -897,6 +897,17 @@ completion; owner выдаёт prepare-window frame 0, video-mode/music-pause fr
 tail 8–11 с Unload на 9 и ExitVideoMode/`cVideoStopped` на 12. SDL/AVFoundation
 исполняют команды; skip/complete/error больше не перепрыгивают сразу к меню.
 Regression проверяет каждый transition и отсутствие раннего Play/Unload.
+
+Результат B8av: `Environment` больше не является приватным frame owner
+`OriginalRaceRenderer`. Active `WorldEventPump` владеет общей source
+Environment-ссылкой и вызывает `ProcessScene(deltaTime)` строго после
+ordered `FrameEvent`, до network/control/GameMode, как `World.cpp:279–301`.
+Renderer оставляет только backend-neutral snapshot текущей description,
+camera style и позиции; этот snapshot обрабатывается World на следующем
+кадре, что совпадает с Windows-порядком, где `CameraManager::Control::OnInputFrame`
+также идёт после Environment. Garage/Angar presentation renderers сохраняют
+локальный owner, поскольку не входят в active race World. Regression
+проверяет World-owned rain follow и pause gate.
 
 ## Правило обновления карты
 
