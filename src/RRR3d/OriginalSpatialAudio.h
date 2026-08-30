@@ -56,6 +56,8 @@ public:
     float GetVolume() const noexcept;
     void SetFrequencyRatio(float value) noexcept;
     float GetFrequencyRatio() const noexcept;
+    void SetPlaybackPositionFrames(std::uint64_t value) noexcept;
+    std::uint64_t GetPlaybackPositionFrames() const noexcept;
     void SetPos3d(OriginalAudioPosition value) noexcept;
     OriginalAudioPosition GetPos3d() const noexcept;
     void SetDistanceScaler(float value) noexcept;
@@ -80,6 +82,7 @@ private:
     float resourceVolume_ = 1.0F;
     float volume_ = 1.0F;
     float frequencyRatio_ = 1.0F;
+    std::uint64_t playbackPositionFrames_ = 0U;
     float distanceScaler_ = 0.0F;
     bool loop_ = false;
     bool play_ = false;

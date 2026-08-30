@@ -73,7 +73,7 @@ Windows target не компилируется.
 | Audio device/mixer | XAudio2/X3DAudio | SDL3/CoreAudio | Замена платформы | Backend полноценный, но весь исходный game-side `Audio.cpp` object graph не перенесён |
 | MusicCat/menu music | `MusicCat`, `DialogMenu2::MusicDialog`, три menu Ogg и 11 game Ogg | `game.xml` catalog, background decode, source shuffle/Play/Stop/Next, in-process pause cursor, `user.xml` playlist + source music popup | Перенесено | Clean profile начинает с пустых очередей; дубликаты/invalid user indices сохраняются до `Play`; Pause выполняет source `StopMusic` и recreation с PCM cursor. Game track извлекается только в `DoStartRace` с кадра 0; `ExitRace` не продвигает очередь, PCM cursor между запусками не сохраняется; MusicDialog использует исходный `dlgFrame2`, serialized metadata, layout и timing |
 | Menu SoundSheme | `Menu::SoundSheme`, один Effects source | девять source UI cues и один interrupting SDL voice | Перенесено | `ssButton1..5`, `ssStepper`, Accept/Info и Workshop drag используют исходные click/hover/pickup/repaint/planet/option/accept/warning события без наложения |
-| Spatial race audio | X3DAudio game integration | source-derived `m3dFlat` voices поверх SDL | Частично | Общий `OriginalSource3d` теперь владеет play intent, backend voice, resource/source gain, pitch, loop/once и 30/45 м stop/restart для постоянных `SoundMotor`/`PxWheelSlipEffect`; ShotEffect, pair-owned `PairPxContactEffect` и lifetime/target-child `LifeEffect` пока функционально сопоставлены отдельными host records и переводятся на того же owner следующим блоком; legacy XAudio2 priority/pool остаётся backend boundary |
+| Spatial race audio | X3DAudio game integration | source-derived `m3dFlat` voices поверх SDL | Частично | Общий `OriginalSource3d` владеет play intent, PCM cursor, backend voice, resource/source gain, pitch, loop/once и 30/45 м stop/resume для `SoundMotor`, `PxWheelSlipEffect`, `ShotEffect`, pair-owned `PairPxContactEffect` и lifetime/target-child `LifeEffect`; раздельные raw voice/proxy host state удалены, legacy XAudio2 priority/pool и ещё не классифицированные non-3d `Source` cues остаются следующей границей аудита |
 | Commentator | `GameMode::Commentator`, serialized `game.xml/commentator/comments` | единый `OriginalGameData` descriptor + source state machine поверх SDL Voice bus | Перенесено | Все 37 comments и voices читаются общим `GameMode::LoadGameData`-совместимым loader; доступные файлы выбранного style связываются с descriptors, а chance/delay/busy/repeatPlayer, weighted choice, prefix/suffix, настоящий битовый `playerId` и все offline race events повторяют source semantics |
 | Главное меню, внешний вид | `MainMenu2.cpp` | source-owned `FrameController` поверх bgfx | Частично | Фон/панели/selection и source layout Main/GameMode/Tournament/Difficulty/Profile активны; полный network/credits widget object graph ещё не завершён |
 | Навигация меню | `Menu`, `MenuSystem`, `MainMenu2`, `OptionsMenu`, `RaceMenu2`, `FinishMenu`, `FinalMenu`, `GameMode` | source-owned stack, frame policy, Profile/Options/RaceMenu/Finish/Final graphs | Частично | Main/GameMode/Tournament/Difficulty/Profile, Options/StartOptions, RaceMain/Gamers/Garage/Workshop/Angar/Achievment, Finish и Final имеют source availability, navigation, lifecycle, layout и команды; остаются concrete network callbacks и legacy Widget backend graph |
@@ -97,7 +97,7 @@ Windows target не компилируется.
 | AI | `AICar.cpp`, `AIPlayer.cpp`, `Player::CheatUpdate` | source-derived path/control/attack states в session | Перенесено с backend-адаптацией | Перенесены four-track chain/lock masks, `ComputeTrackInd`, `edgeLine/edgeNorm`, turn braking, blocked recovery/reset, retained targets, line/Z shot gates, range/ammo/random/readiness, hyper, mines и difficulty rubber-banding. Неигровая debug visualization исключена, secret-path branch в Windows закомментирован |
 | Weapons/projectiles | `Weapon.cpp`, `Player.cpp`, `Logic.cpp` | resident `Weapon`/`Proj` GameObjects + Jolt projectile adapter | Перенесено с backend-адаптацией | Сопоставлены все enum types 0–24 и активные workshop/projectile records: source boxes/rays, forces, timing, groups, homing, attached/ray weapons, mines, nested projectiles, `ptHyper`, `ptSpring`. Fast/attached projectiles владеют source `Proj : GameObject`, проходят общий progress и concrete type-6 DeathEffect listener; target-child и ignore-sender spawn-plan создаётся из GameObject::Death. Rigid-body solver остаётся Jolt; перевод AutoProj/mine runtime на тот же death graph продолжается отдельным блоком |
 | Weapon shot effects | `Weapon::CreateShot`, `ShotEffect`, serialized `ctWeapon` behaviors | resident `Weapon : GameObject` → concrete type-10 behavior → source effect graph | Перенесено | Все slot-owned Weapon имеют собственные listener/behavior graph; каждый успешный PrepareProj передаёт serialized `Proj::pos` через `Behaviors::OnShot`, после чего создаётся отдельный WeaponShotEffect с record/local position/ignore-rotation/effective nested lifetime из `db.xml`. Multi-projectile trigger вызывает behavior для каждого принятого actor, как Windows |
-| Weapon shot sounds | `Weapon::CreateShot`, `ShotEffect::GiveSource3d`, serialized sound refs | source `ctWeapon/behaviors/items/*[@type=10]/sounds` | Перенесено | Все 24 refs предзагружаются; случайный вариант выбирается на каждый успешно prepared projectile, `drobilka` остаётся без звука, а отдельный Source3d на машину/слот/вариант сохраняет ignore-while-playing и дальний delayed start/resume |
+| Weapon shot sounds | `Weapon::CreateShot`, `ShotEffect::GiveSource3d`, serialized sound refs | source `ctWeapon/behaviors/items/*[@type=10]/sounds` | Перенесено | Все 24 refs предзагружаются; случайный вариант выбирается на каждый успешно prepared projectile, `drobilka` остаётся без звука, а отдельный Source3d на машину/слот/вариант выполняет source `SetPos(0)` перед idempotent `Play`, дальний delayed start и stop-lag resume с сохранённого PCM cursor |
 | Damage/support/shield | `GameObject::Damage`, `Logic::Damage`, `TouchDeath`, `DroidItem`, `ReflectorItem`, `LowLifePoints`, `DamageEffect`, `ImmortalEffect` | `OriginalLogic` + active `Behavior/Behaviors` + source-owned event-effect records | Частично | Перенесены damage types, reflector rules, immortality, touch attribution, death plane, mine exclusion и Droid heal. `Logic` владеет contact behavior/ranges; runtime MapObj получают исходную `GameObject::_logic` связь. Player car behaviors теперь хранят точные `smoke6`, per-car `damageEnergy*`, `shield1`, local position и `scaleK`: low-life и energy child actors создаются/free-ятся owner-ами, а renderer/session больше не выбирают их из параллельного Race state. Динамический Frost Ray `SlowEffect` также подключён к graph. Подключение остальных concrete backend behaviors продолжается |
 | Effect resurrection/lifetime | `ResurrectObj`, `FxSystemWaitingEnd`, `FxSystemSrcSpeed`, `LifeEffect`, `GameObject::OnProgress` | concrete type-2/type-3/type-7 behaviors + active MapObj world detach + recursive include progress | Перенесено с backend-адаптацией | Каждый RaceEffect владеет стабильным source GameObject и listener-зарегистрированными behaviors: positive `maximumTimeLife` посылает Death, type 2 воскрешает/fades и завершает объект после нулевого particle count, type 3 получает Jolt actor velocity и выполняет parent WorldToLocalNorm, type 7 делает один delayed Play. Вложенный effect сохраняет world pose/последнюю скорость при detach. bgfx и SDL только потребляют готовые particle/audio границы вместо создания игровых state machines в render/audio loops |
 | Bonuses | `Proj` types 4–10, `Player::TakeBonus` | concrete map-owned `AutoProj`, Jolt sensor, serialized values/DeathEffect и source contact branches | Перенесено с backend-адаптацией | Persistent speed/lusha/oil, одноразовый `Death()`, medpack/charge/money/immortal, Windows `Round((N-1)*Random())`, charge truncation и pickup sounds идут через source object graph; Jolt заменяет PhysX sensor/manifold, а spawn разрешает type-6 `DeathEffectBehavior` |
@@ -2283,6 +2283,31 @@ resource/source volume, frequency ratio, loop/once mode, позицию, play in
 backend regression проверяет gain/pitch, обе границы гистерезиса, повторный
 start, move ownership, ровно один stop каждого активного proxy и `pmOnce` EOF.
 SDL/CoreAudio остаётся только декодером/микшером backend voice.
+
+### B8bf — transient `Shot/Life/PairPxContact Source3d` owners — выполнено
+
+После постоянных emitters три копии той же state machine оставались внутри
+application loop: raw `sound/voice/spatialProxyPlaying` records для
+`ShotEffect`, `LifeEffect` и `PairPxContactEffect`. Они вручную повторяли
+attenuation, start/stop и EOF, а при удалении за 45 м фактически ставили SDL
+voice на паузу. Исходный `Proxy::Streaming::Stop` останавливает XAudio voice,
+но сохраняет текущую sample position для последующего `Play`.
+
+`OriginalSource3d` теперь хранит PCM cursor при explicit Stop и stop-lag,
+передаёт его через `PlayOptions::startFrame` при возобновлении и предоставляет
+source `SetPos`-эквивалент. Wheel-slip при новом скольжении и новый
+`SoundMotor` явно переходят на нулевой кадр, как исходные классы; обычное
+удаление за 45 м продолжает тот же sample, что устраняет циклическое начало
+tyre loop при движении через границу слышимости.
+
+Shot records теперь живут весь lifetime slot/sound owner и выполняют точный
+`SetPos(0); Play()` для каждого выстрела. Life source существует до смерти
+порожденного effect object, даже если Ogg закончился раньше. Contact source
+остаётся в actor-pair node после `pmOnce` EOF и удаляется только вместе с
+последним contact через исходные 0.1 s. Race start/exit, disconnect и world
+reload полагаются на RAII owner вместо ручных `audio.stop` ветвей. Fake
+backend regression дополнительно проверяет cursor 123→Stop→resume, explicit
+Stop/seek и отсутствие double-stop.
 
 ## Воспроизведение проверки
 

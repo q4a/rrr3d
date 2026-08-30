@@ -5880,6 +5880,29 @@ stop-lag, restart, move без double-stop и `pmOnce` completion. XAudio2 proxy
 priority allocator и streaming заменены разрешённой SDL/CoreAudio backend
 границей; transient Shot/Life/Contact records переводятся следующим блоком.
 
+### P2.260 — transient `Source3d` и PCM stop/resume возвращены — выполнено
+
+Сверка `Proxy::Streaming::{Play,Stop,GetPos,SetPos}` уточнила важную деталь
+P2.259: дальний `Source3d::ApplyX3dEffect` вызывает Stop, который не перематывает
+stream. Raw SDL implementation сохраняла voice в paused-состоянии, а первая
+версия общего owner уничтожала handle без cursor. Второй вариант неверно
+начинал loop заново и мог проявляться как повторяющееся заикание шин.
+
+Owner теперь снимает `voicePositionFrames` перед stop-lag/explicit Stop и
+возобновляет новый backend voice через `startFrame`. `SetPos(0)` останавливает
+текущий handle без сброса play intent и создаёт его с нуля на следующем
+Update. Это повторяет `ShotEffect::OnShot` и условный rewind
+`PxWheelSlipEffect`, тогда как обычный выход за 45 м продолжает прежний cursor.
+
+Все три оставшихся spatial host records переведены на этот класс. Shot
+Source3d сохраняется на owner/slot/sound после EOF и при каждом выстреле
+получает `SetPos(0); Play()`. Life source живёт до effect lifetime. Pair
+contact source после `pmOnce` EOF остаётся молчащим в node до release
+последнего point через 0.1 s; повторный collision того же живого pair его не
+пересоздаёт. Start/exit/disconnect/reload уничтожают owners через RAII.
+Regression закрепляет resume с кадров 123 и 222, explicit seek 0, EOF и
+точное число backend Stop.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

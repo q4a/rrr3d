@@ -75,9 +75,10 @@ The active race adapter also preserves the source `m3dFlat` path: 30 metre
 linear attenuation, no pan or Doppler, and the 45 metre stop lag. Weapon
 `ShotEffect` selects across every serialized sound with the legacy uniform
 `RandomRange` rule once per successfully prepared projectile. Its per-car,
-per-equipped-slot, per-sound `Source3d` state ignores a repeated `Play` while
-active, can defer a far shot until the owner enters 30 metres, pauses beyond
-45 metres without rewinding, and resumes from the same sample on approach.
+per-equipped-slot, per-sound `Source3d` executes the source `SetPos(0)` before
+the idempotent `Play`, can defer a far shot until the owner enters 30 metres,
+stops beyond 45 metres without rewinding, and resumes from the saved PCM
+sample on approach.
 
 The same ownership model now covers the other active race emitters.
 `PairPxContactEffect` chooses one of the five serialized impact sounds with

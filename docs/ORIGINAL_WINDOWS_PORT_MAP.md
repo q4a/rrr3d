@@ -985,6 +985,16 @@ gain, RPM pitch, loop/once и natural `pmOnce` completion; CoreAudio/SDL
 double-stop. Transient Shot/Life/Contact emitters остаются следующим
 крупным блоком того же owner migration.
 
+Результат B8ax: `OriginalSource3d` дополнен точным
+`Proxy::Streaming::Stop/GetPos/SetPos` cursor lifecycle. Stop-lag сохраняет
+PCM frame и resume передаёт его SDL backend; source rewind 0 используется
+для нового wheel slip, motor и каждого `ShotEffect::OnShot`. Оставшиеся raw
+Shot/Life/PairContact voice records заменены общим owner. Shot живёт на
+slot/sound, Life — до effect death, Contact — до pair release через 0.1 s,
+включая молчащий state после `pmOnce` EOF. RAII заменяет ручные Stop ветви на
+race transition/disconnect; CoreAudio остаётся mixer boundary. Regression
+проверяет два сохранённых cursor, seek 0, EOF и single-owner teardown.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:

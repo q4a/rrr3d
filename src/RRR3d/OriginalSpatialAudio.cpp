@@ -79,6 +79,7 @@ void OriginalSource3d::MoveFrom(OriginalSource3d&& other) noexcept
     resourceVolume_ = other.resourceVolume_;
     volume_ = other.volume_;
     frequencyRatio_ = other.frequencyRatio_;
+    playbackPositionFrames_ = other.playbackPositionFrames_;
     distanceScaler_ = other.distanceScaler_;
     loop_ = other.loop_;
     play_ = std::exchange(other.play_, false);
@@ -141,6 +142,22 @@ float OriginalSource3d::GetFrequencyRatio() const noexcept
 {
     return frequencyRatio_;
 }
+void OriginalSource3d::SetPlaybackPositionFrames(
+    std::uint64_t value) noexcept
+{
+    playbackPositionFrames_ = value;
+    if (backend_ != nullptr && voice_ != invalidVoice)
+    {
+        backend_->stop(voice_);
+        voice_ = invalidVoice;
+    }
+}
+std::uint64_t OriginalSource3d::GetPlaybackPositionFrames() const noexcept
+{
+    if (backend_ != nullptr && voice_ != invalidVoice)
+        return backend_->voicePositionFrames(voice_);
+    return playbackPositionFrames_;
+}
 void OriginalSource3d::SetPos3d(OriginalAudioPosition value) noexcept
 {
     position_ = value;
@@ -172,7 +189,11 @@ void OriginalSource3d::Stop() noexcept
     play_ = false;
     proxyPlaying_ = false;
     if (backend_ != nullptr && voice_ != invalidVoice)
+    {
+        playbackPositionFrames_ =
+            backend_->voicePositionFrames(voice_);
         backend_->stop(voice_);
+    }
     voice_ = invalidVoice;
 }
 
@@ -214,6 +235,8 @@ bool OriginalSource3d::Update(
     proxyPlaying_ = spatial.proxyPlaying;
     if (spatial.stopped && voice_ != invalidVoice)
     {
+        playbackPositionFrames_ =
+            backend_->voicePositionFrames(voice_);
         backend_->stop(voice_);
         voice_ = invalidVoice;
     }
@@ -227,6 +250,7 @@ bool OriginalSource3d::Update(
         options.volume = gain;
         options.loop = loop_;
         options.paused = paused;
+        options.startFrame = playbackPositionFrames_;
         voice_ = backend_->play(sound_, options, error);
         if (voice_ == invalidVoice)
         {
@@ -319,8 +343,10 @@ bool runOriginalSpatialAudioSmokeTest() noexcept
         {
             const auto voice = next_++;
             active_[voice] = true;
+            positions_[voice] = options.startFrame;
             volume = options.volume;
             voicePaused = options.paused;
+            startFrame = options.startFrame;
             return voice;
         }
         bool stop(VoiceHandle voice) noexcept override
@@ -350,7 +376,11 @@ bool runOriginalSpatialAudioSmokeTest() noexcept
             return found != active_.end() && found->second;
         }
         std::uint64_t voicePositionFrames(
-            VoiceHandle) const noexcept override { return 0U; }
+            VoiceHandle voice) const noexcept override
+        {
+            const auto found = positions_.find(voice);
+            return found != positions_.end() ? found->second : 0U;
+        }
         void setPaused(bool) noexcept override {}
         bool paused() const noexcept override { return false; }
         void setMasterVolume(float) noexcept override {}
@@ -364,15 +394,21 @@ bool runOriginalSpatialAudioSmokeTest() noexcept
         Statistics statistics() const noexcept override { return {}; }
 
         void finish(VoiceHandle voice) { active_[voice] = false; }
+        void setPosition(VoiceHandle voice, std::uint64_t value)
+        {
+            positions_[voice] = value;
+        }
 
         float volume = 0.0F;
         float pitch = 0.0F;
         bool voicePaused = false;
         std::size_t stops = 0U;
+        std::uint64_t startFrame = 0U;
 
     private:
         VoiceHandle next_ = 1U;
         std::unordered_map<VoiceHandle, bool> active_;
+        std::unordered_map<VoiceHandle, std::uint64_t> positions_;
     };
 
     FakeAudio fake;
@@ -389,6 +425,7 @@ bool runOriginalSpatialAudioSmokeTest() noexcept
     const auto sourceVoice = source.GetVoice();
     const float sourceStartVolume = fake.volume;
     const float sourceStartPitch = fake.pitch;
+    fake.setPosition(sourceVoice, 123U);
     source.SetPos3d({45.001F, 0.0F, 0.0F});
     const bool sourceStoppedAtLag =
         source.Update({}, false, error) &&
@@ -403,12 +440,21 @@ bool runOriginalSpatialAudioSmokeTest() noexcept
     const bool sourceResumed =
         source.Update({}, false, error) &&
         source.IsProxyPlaying() && !fake.voicePaused &&
-        source.GetVoice() != invalidVoice;
+        source.GetVoice() != invalidVoice && fake.startFrame == 123U;
     const auto resumedVoice = source.GetVoice();
     OriginalSource3d moved(std::move(source));
     const bool moveKeptProxy =
         moved.GetVoice() == resumedVoice &&
         source.GetVoice() == invalidVoice;
+    fake.setPosition(resumedVoice, 222U);
+    moved.Stop();
+    const bool explicitStopKeptPosition =
+        moved.GetPlaybackPositionFrames() == 222U &&
+        moved.Play() && moved.Update({}, false, error) &&
+        fake.startFrame == 222U;
+    moved.SetPlaybackPositionFrames(0U);
+    const bool explicitSeekRestarted =
+        moved.Update({}, false, error) && fake.startFrame == 0U;
     moved.Stop();
 
     OriginalSource3d once;
@@ -452,7 +498,9 @@ bool runOriginalSpatialAudioSmokeTest() noexcept
            nearlyEqual(sourceStartVolume, 1.0F) &&
            nearlyEqual(sourceStartPitch, 1.25F) &&
            sourceStoppedAtLag && sourceStayedStopped &&
-           sourceResumed && moveKeptProxy && fake.stops == 2U &&
+           sourceResumed && moveKeptProxy &&
+           explicitStopKeptPosition && explicitSeekRestarted &&
+           fake.stops == 4U &&
            onceStarted && onceVoice != invalidVoice && onceReportedEnd;
 }
 

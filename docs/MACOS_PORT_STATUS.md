@@ -2878,3 +2878,16 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   wheel visual остаётся на contact point, звук следует за объектом колеса.
 - Regression проверяет source/resource multiplication, RPM pitch,
   hysteresis, move ownership, точное число Stop и natural `pmOnce` EOF.
+
+### Source3d transient owner/cursor follow-up
+
+- Stop-lag и explicit Stop теперь сохраняют `voicePositionFrames`; restart
+  передаёт cursor в SDL `PlayOptions::startFrame`, как XAudio2 Streaming.
+- Новый slip и новый motor выполняют source rewind 0, поэтому tyre loop не
+  начинает самопроизвольно повторяться на границе 30/45 м.
+- Raw `sound/voice/spatialProxyPlaying` удалены из Shot, Life и PairContact
+  records; все используют тот же movable RAII `OriginalSource3d`.
+- Shot owner сохраняется на slot/sound и выполняет `SetPos(0); Play()`;
+  Life живёт до своего effect, Contact — до 0.1-second pair release после EOF.
+- Race transitions и network disconnect больше не вызывают ручной Stop для
+  этих records; destructors освобождают каждый активный backend voice один раз.
