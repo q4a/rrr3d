@@ -229,6 +229,11 @@ bool WorldEventPump::HasFixedStepEvent(
            fixedStepEvents_.end();
 }
 
+std::size_t WorldEventPump::ProgressEventCount() const noexcept
+{
+    return progressEvents_.size();
+}
+
 bool WorldEventPump::HasLateProgressEvent(
     const LateProgressEvent* event) const noexcept
 {

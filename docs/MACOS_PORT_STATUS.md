@@ -2714,3 +2714,17 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   source `1/60` fixed controller без двойного шага.
 - `rrr3d_original_world_game_mode_smoke` расширен проверками smoothing,
   half-step carry, fixed count, alpha, clamp и synchronization reset.
+
+### Shared source World ownership follow-up
+
+- Active `OriginalRaceSession` больше не создаёт отдельный World рядом с
+  host World: один `WorldEventPump` владеет GameMode, Logic, Race/place и
+  GameObject registrations.
+- Session-owned fallback сохранён только для автономных regressions;
+  production lifetime гарантирует уничтожение session раньше общего World.
+- Pause и ordered progress/fixed/late/frame lists теперь относятся к одному
+  source owner, а Jolt продолжает использовать адресные callbacks без N×N.
+- Реальный `WorldFrameClock::physicsAlpha` доходит до
+  `GameCar::DispatchPxSync`; default `1.0` в active renderer path удалён.
+- Physics smoke требует внешний World identity и непустые progress/fixed/late
+  registrations до выполнения полной map1 гонки.

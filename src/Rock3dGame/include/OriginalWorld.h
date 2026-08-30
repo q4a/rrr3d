@@ -127,6 +127,7 @@ public:
     bool DispatchFrameEvent(
         FrameEvent* event, float deltaTime, float physicsAlpha);
     bool HasFixedStepEvent(const FixedStepEvent* event) const noexcept;
+    std::size_t ProgressEventCount() const noexcept;
     bool HasLateProgressEvent(
         const LateProgressEvent* event) const noexcept;
     bool HasFrameEvent(const FrameEvent* event) const noexcept;

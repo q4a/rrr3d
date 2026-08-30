@@ -2041,6 +2041,21 @@ snapshot, move delta/offset и сохранение pointer state через Res
 Regression проверяет averaging, carry двух half-step, clamp, race-off alpha
 и очистку history при отключённой synchronization.
 
+### B8as — единый active World owner — выполнено
+
+Ранее приложение держало `WorldEventPump` только для `GameModeState`, а
+`OriginalRaceSession` безусловно создавал второй pump для `Logic`, place и
+GameObject listeners. Это нарушало исходный общий pause/lifetime/event graph.
+Session теперь принимает внешний World и использует внутренний только в
+headless regression. Active macOS lifetime объявляет World раньше session,
+подключает к нему Logic/Race/GameCar, затем тот же World — к GameMode.
+
+Адресные Jolt callbacks по-прежнему не вызывают общий fixed list N×N.
+Завершённая физическая поза проходит `GameCar::DispatchPxSync` того же World
+с фактическим `WorldFrameClock::physicsAlpha`, вместо прежнего default 1.0.
+Session regression проверяет identity общего owner и наличие progress,
+fixed и late registrations; physics smoke проверяет полный map1 runtime.
+
 ## Воспроизведение проверки
 
 ```sh

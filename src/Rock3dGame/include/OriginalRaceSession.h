@@ -400,8 +400,12 @@ class OriginalRaceSession
 {
 public:
     explicit OriginalRaceSession(const Race& race,
-                                 bool legacyWindowsDebug = false);
+                                 bool legacyWindowsDebug = false,
+                                 source::WorldEventPump* world = nullptr);
     ~OriginalRaceSession();
+
+    source::WorldEventPump& sourceWorld() noexcept;
+    const source::WorldEventPump& sourceWorld() const noexcept;
 
     void reset();
     void applyPlayerProfile(const PlayerProfile& profile);
@@ -515,7 +519,7 @@ public:
     r3d::physics::VehicleState racerFrameState(
         std::size_t racer,
         const r3d::physics::VehicleState& physicsState,
-        float deltaTime) noexcept;
+        float deltaTime, float physicsAlpha = 1.0F) noexcept;
     source::SoundMotorMix racerMotorMix(
         std::size_t racer) const noexcept;
     std::size_t humanRacer() const noexcept;
@@ -729,7 +733,8 @@ private:
     const Race& race_;
     // Declared before Logic so Logic can unregister its ProgressEvent while
     // the World owner is still alive during destruction.
-    source::WorldEventPump gameplayWorld_;
+    source::WorldEventPump ownedGameplayWorld_;
+    source::WorldEventPump* gameplayWorld_ = nullptr;
     source::Logic logic_;
     RacePhase phase_ = RacePhase::Countdown;
     RacePhase phaseBeforePause_ = RacePhase::Countdown;

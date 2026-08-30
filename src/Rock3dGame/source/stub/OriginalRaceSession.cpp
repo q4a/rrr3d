@@ -1081,15 +1081,17 @@ std::string workshopReference(std::string_view record)
 } // namespace
 
 OriginalRaceSession::OriginalRaceSession(
-    const Race& race, bool legacyWindowsDebug)
+    const Race& race, bool legacyWindowsDebug,
+    source::WorldEventPump* world)
     : legacyWindowsDebug_(legacyWindowsDebug), race_(race),
+      gameplayWorld_(world != nullptr ? world : &ownedGameplayWorld_),
       map_(&logic_, &dataBase_)
 {
     if (race_.tracePath.size() < 2 || race_.tracePoints.empty() ||
         race_.racers.empty())
         throw std::invalid_argument("Original race session data is incomplete");
-    logic_.AttachWorld(&gameplayWorld_);
-    gameplayWorld_.RegLateProgressEvent(&racePlaceModel_);
+    logic_.AttachWorld(gameplayWorld_);
+    gameplayWorld_->RegLateProgressEvent(&racePlaceModel_);
     buildSourceTrace();
     reset();
 }
@@ -1097,7 +1099,17 @@ OriginalRaceSession::OriginalRaceSession(
 OriginalRaceSession::~OriginalRaceSession()
 {
     clearEffects();
-    gameplayWorld_.UnregLateProgressEvent(&racePlaceModel_);
+    gameplayWorld_->UnregLateProgressEvent(&racePlaceModel_);
+}
+
+source::WorldEventPump& OriginalRaceSession::sourceWorld() noexcept
+{
+    return *gameplayWorld_;
+}
+
+const source::WorldEventPump& OriginalRaceSession::sourceWorld() const noexcept
+{
+    return *gameplayWorld_;
 }
 
 void OriginalRaceSession::notifyEffectDestroyed(
@@ -2436,7 +2448,7 @@ physics::VehicleDriveCommand OriginalRaceSession::racerFixedStepDrive(
     if (racer >= racers_.size())
         return {};
     const auto command = racers_[racer].gameCar.DispatchFixedStepDrive(
-        gameplayWorld_, deltaTime,
+        *gameplayWorld_, deltaTime,
         {input.throttle, input.reverse, input.brake,
          input.steering, input.manualSteering},
         {state.signedSpeed, state.absoluteSpeed,
@@ -2484,7 +2496,7 @@ void OriginalRaceSession::synchronizeRacerPhysicsState(
 physics::VehicleState OriginalRaceSession::racerFrameState(
     std::size_t racer,
     const physics::VehicleState& physicsState,
-    float deltaTime) noexcept
+    float deltaTime, float physicsAlpha) noexcept
 {
     if (racer >= racers_.size())
         return physicsState;
@@ -2507,7 +2519,8 @@ physics::VehicleState OriginalRaceSession::racerFrameState(
              wheel.rotation.z, wheel.rotation.w}});
     }
     const auto graph = racers_[racer].gameCar.DispatchPxSync(
-        gameplayWorld_, physicalBody, physicalWheels, deltaTime);
+        *gameplayWorld_, physicalBody, physicalWheels,
+        deltaTime, physicsAlpha);
 
     physics::VehicleState state = physicsState;
     state.body.position = {
@@ -4366,7 +4379,7 @@ void OriginalRaceSession::updatePlaces(
 
     racePlaceModel_.PrepareLateProgress(
         std::move(players), !raceLifecycle_.GetResults().empty());
-    gameplayWorld_.LateProgress(seconds, true);
+    gameplayWorld_->LateProgress(seconds, true);
     const auto sourceUpdate = racePlaceModel_.TakeLateProgressUpdate();
     for (std::size_t place = 0; place < sourceUpdate.order.size(); ++place)
         racers_[sourceUpdate.order[place]].SetPlace(
@@ -8530,7 +8543,7 @@ void OriginalRaceSession::update(
     // Logic.cpp progresses exactly Decoration::_specialList, then Effects,
     // Car, Bonus and finally its separately registered transient objects.
     ingestPairContacts(vehicles);
-    gameplayWorld_.Progress(seconds);
+    gameplayWorld_->Progress(seconds);
     releasePairContacts();
     for (std::size_t index = 0U;
          index < bonusObjects().GetSlotCount(); ++index)
@@ -8791,7 +8804,16 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             throw std::runtime_error(
                 "source RandomRange/Player::TakeBonus formula failed");
         }
-        OriginalRaceSession session(race);
+        source::WorldEventPump sharedWorld;
+        OriginalRaceSession session(race, false, &sharedWorld);
+        if (&session.sourceWorld() != &sharedWorld ||
+            sharedWorld.ProgressEventCount() == 0U ||
+            sharedWorld.FixedStepEventCount() == 0U ||
+            sharedWorld.LateProgressEventCount() == 0U)
+        {
+            throw std::runtime_error(
+                "GameMode/Logic/Race did not share one source World");
+        }
         const auto sourceTransformMatches = [](
             const source::GameObject& object,
             const Transform& transform) {

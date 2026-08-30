@@ -56,11 +56,11 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `FinishMenu` | `originalracemenu::FinishMenuFrameState` + bgfx/CoreText view | Source owner, active frame | Legacy Widget API заменён backend draw/input; result order, timing, events и layout принадлежат source owner |
 | `GameBase` | `OriginalGameObject`, all serialized behaviors, effects, motor sound state | Source owner, active behavior graph | Все shipped type 0–14 имеют concrete owner/runtime; bgfx/Jolt/SDL исполняют только graph/physics/audio commands |
 | `GameCar` | `source::GameCar::{OnFixedStepDrive,OnContact,OnPxSync}` + Jolt vehicle adapter | Source owner, active drive/contact frame | Оставшиеся PhysX solver queries и actor operations являются Jolt boundary; продолжить аудит public serialization/editor-only методов |
-| `GameMode` | `source::GameModeState` + `GameModeRaceState` | Source owner, active race path | Startup/movie/config и часть menu/audio backend-команд ещё находятся в host |
+| `GameMode` | `source::GameModeState` + `GameModeRaceState` on shared `WorldEventPump` | Source owner, active race path | Startup/movie/config и часть menu/audio backend-команд ещё находятся в host |
 | `GameObject` | `source::GameObject`, event counters, frame sync, listener/contact graph | Source owner, active core | Jolt/bgfx snapshots остаются backend boundary; source fixed/frame registration подключена |
 | `HudMenu` | `source::{HudMenu,MiniMapFrame,PlayerStateFrame}` + `OriginalRaceHud` | Source owner, active HUD/minimap/player-state policy | State/Escape/layout/countdown, MiniMap, weapon/place/life, OnProcessEvent, notifications, car-life и opponents source-owned; FinishMenu не дублируется, bgfx/CoreText payload и camera projection остаются backend boundary |
 | `HumanPlayer` | `source::HumanPlayer` | Source owner | Полный input message order, driving/progress gates и weapon selection перенесены; SDL только переводит source-сообщения |
-| `Logic` | `source::Logic` + `WorldEventPump` progress registration | Source owner, active object/contact core | Убрать оставшиеся network authority и projectile backend-view loops из session |
+| `Logic` | `source::Logic` + shared active `WorldEventPump` registration | Source owner, active object/contact core | Убрать оставшиеся network authority и projectile backend-view loops из session |
 | `MainMenu2` | `mainmenu2::{Controller,FrameController,ProfileFrameState,FinalMenuFrameState}` + `originalmenu::ScreenStack` | Source owner, active Main/Profile/Final path | Остались concrete network callbacks и backend draw submission |
 | `Map` | `source::Map` + shared `source::DataBase` | Source owner, active registry path | XML parsing и backend actor create/destroy остаются adapters |
 | `MapObj` | `source::MapObj*` record/list hierarchy | Source owner, partial | Убрать importer/runtime mirrors и проверить все concrete object types |
@@ -68,7 +68,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `MenuSystem` | `originalmenu::{MenuSystem,ScreenStack,FrameState}` | Source owner, active menu path | Подключить concrete navigation graphs; bgfx остаётся draw executor |
 | `OptionsMenu` | `originaloptions::{OptionsMenuState,StartOptionsMenuState}` + backend visuals | Source owner, active options path | Legacy Widget events заменены SDL input, CoreText и bgfx draw submission |
 | `Player` | `source::Player`, `CarState`, behaviors, `PresentationState` | Source owner, active gameplay/presentation state | bgfx/Jolt исполняют graph/actor commands; продолжить аудит remaining event/listener and profile bridges |
-| `Race` | `OriginalRace`, `OriginalRaceSession`, lifecycle/place/tournament | Source owner, active fixed/late lifecycle, partial orchestration | Продолжить вынос gameplay transactions из session; place sorting уже выполняется после Jolt solver через World late-progress |
+| `Race` | `OriginalRace`, `OriginalRaceSession`, lifecycle/place/tournament on shared World | Source owner, active fixed/late lifecycle, partial orchestration | Продолжить вынос gameplay transactions из session; place sorting уже выполняется после Jolt solver через единственный World late-progress |
 | `RaceMenu2` | `originalracemenu::{RaceMenuState,RaceMainFrameState,GamersFrameState,GarageFrameState,WorkshopFrameState,SpaceshipFrameState,AngarFrameState,AchievementFrameState}` | Source owner, all six offline frame paths | Проверить оставшиеся network callbacks и оставить bgfx/CoreText backend boundary |
 | `RecordLib` | `source::{MapObjRecordLibrary,MapObjRecordNode,MapObjRecord}` | Source owner, active hierarchy | Editor-only mutation/serialization API не входит в пользовательский runtime |
 | `ResourceManager` | `OriginalResourceManager` + native readers/uploaders | Source owner, graph/sound path | Mesh/image/sound identity и lifetime общие; font/material-library ownership ещё нужно завершить |
@@ -77,7 +77,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `TraceGfx` | `source::TraceGfx` + transient bgfx submission | Source owner, active F6 path | Selection/link/geometry/material policy source-owned; D3D9 Box/Sprite/DrawPrimitiveUP заменены backend triangles |
 | `View` | `originalview::ViewState` + SDL/bgfx adapters | Source owner, active input/display path | `ScreenToView`, projection conversion и mouse click/move snapshots source-owned; SDL сообщает logical client/drawable sizes, bgfx исполняет resize |
 | `Weapon` | `source::{Weapon,Proj,AutoProj,WeaponItem...}` | Source owner, active shot/contact/progress core | Shot preparation и все active Proj progress dispatch выполнены; остались Jolt actor integration/query, nested spawning и network authority adapters |
-| `World` | `source::WorldFrameClock`, `WorldEventPump` + native `WorldHost` | Source owner, active timing/event core | Clock/15-frame sync/7×1/60 accumulator/alpha и event order source-owned; SDL clock, Jolt substeps и bgfx submission остаются backend boundaries |
+| `World` | one active `source::WorldFrameClock`/`WorldEventPump` + native `WorldHost` | Source owner, active timing/event core | GameMode, Logic, Race/place и GameObject registrations используют один owner; SDL clock, Jolt substeps и bgfx submission остаются backend boundaries |
 
 ## Очередь крупных блоков
 
@@ -870,6 +870,16 @@ Active loop потребляет его `deltaTime/physicsAlpha`; Jolt выпо�
 разрешённый solver substep через уже существующий `WorldFixedStepController`,
 без второго физического шага. Regression покрывает half-step carry, alpha,
 clamp, race-off `-1` и отключение frame synchronization.
+
+Результат B8as: устранены два параллельных `WorldEventPump`. Active app
+создаёт World до `OriginalRaceSession`; session подключает к нему `Logic`,
+`RacePlaceModel`, GameCar и behaviors, а затем тот же объект получает
+`GameModeState`. Встроенный session World сохранён только для автономных
+headless regressions. Pause/frame/fixed/late registrations теперь имеют
+один lifetime owner. `WorldFrameClock::physicsAlpha` дополнительно передаётся
+в адресный `GameCar::DispatchPxSync`, поэтому графическая поза использует
+исходную незавершённую долю шага, а не default `1.0`. Regression требует
+внешний owner и ненулевые progress/fixed/late списки; Jolt остаётся solver.
 
 ## Правило обновления карты
 

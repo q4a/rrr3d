@@ -5624,6 +5624,24 @@ solver execution и не шагается второй раз; source schedule �
 timing/alpha, а существующий `WorldFixedStepController` обслуживает Jolt
 substeps. Unit regression фиксирует averaging, carry, clamp и race gate.
 
+### P2.247 — `GameMode` и race graph снова используют один `World` — выполнено
+
+После восстановления clock обнаружилось структурное расхождение: active
+host создавал `WorldEventPump` для `GameModeState`, тогда как
+`OriginalRaceSession` скрыто владел вторым World для `Logic`,
+`RacePlaceModel` и всех GameObject listeners. В Windows `GameMode::Reg*` и
+`Logic::Reg*` делегируют одному `_world`; два pause/frame/lifetime домена в
+исходнике невозможны.
+
+`OriginalRaceSession` теперь принимает внешний World с безопасным owned
+fallback только для headless tests. Active app создаёт общий owner раньше
+session и подключает к нему GameMode/Logic/Race/GameCar graph. Destructor
+session успевает снять все registrations до уничтожения World. Адресные
+Jolt fixed/frame dispatch сохранены, поэтому общего N×N fixed callback нет.
+Кроме того, вычисленный `WorldFrameClock::physicsAlpha` передаётся в
+`GameCar::OnPxSync`; прежний default 1.0 больше не обходит source
+interpolation. Regression проверяет shared identity и три active event list.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

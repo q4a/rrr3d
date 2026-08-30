@@ -3733,8 +3733,9 @@ int main(int argc, char** argv)
     std::string physicsError;
     auto physicsWorld = r3d::physics::createOriginalVehicleWorld(
         *physicsDescription, physicsError);
+    r3d::game::originalrace::source::WorldEventPump worldEventPump;
     r3d::game::originalrace::OriginalRaceSession raceSession(
-        *originalRace, options->legacyWindowsDebug);
+        *originalRace, options->legacyWindowsDebug, &worldEventPump);
     r3d::game::originalrace::source::TraceGfx sourceTraceGfx(
         &raceSession.sourceMap().GetTrace());
     raceSession.setCampaign(true);
@@ -5330,7 +5331,6 @@ int main(int argc, char** argv)
 #ifdef RRR3D_PHYSICS
     bool inRace = false;
     r3d::game::originalrace::source::GameModeState gameModeState;
-    r3d::game::originalrace::source::WorldEventPump worldEventPump;
     worldEventPump.SetGameMode(&gameModeState);
     bool exitRaceDialogVisible = false;
     bool exitRaceYesFocused = true;
@@ -15805,7 +15805,8 @@ int main(int argc, char** argv)
                 {
                     raceRenderVehicles[index] =
                         raceSession.racerFrameState(
-                            index, raceVehicles[index], frameSeconds);
+                            index, raceVehicles[index], frameSeconds,
+                            sourceFramePlan.physicsAlpha);
                 }
             }
             for (std::size_t index = 0;
