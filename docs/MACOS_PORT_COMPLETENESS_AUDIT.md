@@ -2056,6 +2056,19 @@ headless regression. Active macOS lifetime объявляет World раньше
 Session regression проверяет identity общего owner и наличие progress,
 fixed и late registrations; physics smoke проверяет полный map1 runtime.
 
+### B8at — source GameMode startup state machine — выполнено
+
+Стартовая последовательность больше не определяется локальными `bool/float`
+и формулами в `main`. `GameModeStartupState` переносит значение и переходы
+`GameMode::_startUpTime`: 1 s delay, fade/hold/fade Yard, пустой кадр,
+fade/hold/fade Lab, затем source-состояния `-2` loading и `-3` StartGame.
+`OnHandleInput` Escape переводит owner в `-2`, сохраняя loading frame.
+
+Renderer только рисует выданные alpha или исходный `startLogo` и исполняет
+одноразовый StartGame edge; решение о StartOptions/discrete-video остаётся
+следующей GameMode/application транзакцией. Unit regression проверяет оба
+alpha, inter-logo blank, skip, loading и отсутствие повторного StartGame.
+
 ## Воспроизведение проверки
 
 ```sh

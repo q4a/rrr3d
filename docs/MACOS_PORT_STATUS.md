@@ -2728,3 +2728,14 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   `GameCar::DispatchPxSync`; default `1.0` в active renderer path удалён.
 - Physics smoke требует внешний World identity и непустые progress/fixed/late
   registrations до выполнения полной map1 гонки.
+
+### Source GameMode startup follow-up
+
+- `GameModeStartupState` заменил executable-owned startup bool/timer и
+  переносит `_startUpTime` из Windows `GameMode::OnFrame`.
+- Yard/Lab delay, fade, hold, inter-logo blank, `-2` loading frame и
+  `-3` StartGame являются source state; bgfx только рисует готовые alpha.
+- Escape больше не устанавливает условные 12 секунд: он переводит owner в
+  исходный `-2`, поэтому loading frame не пропускается.
+- `rrr3d_original_world_game_mode_smoke` проверяет обе logo-фазы, blank,
+  skip, loading и одноразовый StartGame transition.

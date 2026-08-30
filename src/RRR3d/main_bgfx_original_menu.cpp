@@ -4616,8 +4616,12 @@ int main(int argc, char** argv)
     bool running = true;
     bool runtimeSmokeFailed = false;
     std::uint32_t renderedFrames = 0;
-    bool sourceStartupActive = sourceStartupRequested;
-    float sourceStartupSeconds = 0.0F;
+    r3d::game::originalrace::source::GameModeStartupState
+        sourceStartupState;
+    sourceStartupState.Run(sourceStartupRequested);
+    r3d::game::originalrace::source::GameModeStartupFrame
+        sourceStartupFrame;
+    bool sourceStartupActive = sourceStartupState.IsActive();
     bool startupYardFadeObserved = !options->startupSmokeTest;
     bool startupYardHoldObserved = !options->startupSmokeTest;
     bool startupLabFadeObserved = !options->startupSmokeTest;
@@ -10842,7 +10846,7 @@ int main(int argc, char** argv)
                 {
                     // GameMode::OnHandleInput changes _startUpTime to -2:
                     // one startLogo frame is still presented before menu.
-                    sourceStartupSeconds = 12.0F;
+                    sourceStartupState.SkipIntro();
                     startupEscapeObserved = true;
                 }
                 continue;
@@ -14361,8 +14365,9 @@ int main(int argc, char** argv)
 #endif
         if (sourceStartupActive)
         {
-            sourceStartupSeconds = std::min(
-                sourceStartupSeconds + frameSeconds, 12.25F);
+            sourceStartupFrame =
+                sourceStartupState.OnFrame(frameSeconds);
+            sourceStartupActive = sourceStartupFrame.active;
         }
         if (menuStack.back() == MenuScreen::Credits)
         {
@@ -16314,35 +16319,41 @@ int main(int argc, char** argv)
         sourceDialogs.Progress(
             frameSeconds, {menu::virtualWidth, menu::virtualHeight});
 
+        if (sourceStartupFrame.startGame)
+        {
+            startupMenuTransitionObserved = true;
+#ifdef RRR3D_PHYSICS
+            if (sourcePreferredCameraAutodetect)
+            {
+                sourceStartOptionsActive = true;
+                sourcePreferredCameraAutodetect = false;
+            }
+            else if (sourceDiscreteVideoChanged)
+            {
+                profileState.config.quality.frameRateMode =
+                    "sfrFixed";
+                sourceDiscreteVideoChanged = false;
+            }
+#endif
+#ifdef RRR3D_AUDIO
+            showOriginalMusicInfo(
+                OriginalMusicDialogSource::Menu,
+                music.currentTrack());
+#endif
+            previousFrameTicks = SDL_GetTicksNS();
+            std::cout
+                << "Original GameMode::Run startup -> MainMenu2\n";
+            sourceStartupFrame = {};
+        }
+
         if (sourceStartupActive)
         {
-            constexpr float logoDelay = 1.0F;
-            constexpr float logoFade = 1.0F;
-            constexpr float logoHold = 3.0F;
             const float yardAlpha =
-                std::clamp(
-                    (sourceStartupSeconds - logoDelay) / logoFade,
-                    0.0F, 1.0F) -
-                std::clamp(
-                    (sourceStartupSeconds -
-                     (logoDelay + logoFade + logoHold)) /
-                        logoFade,
-                    0.0F, 1.0F);
-            // Literal GameMode::OnFrame logo2Delay:
-            // fade + hold + fade + two one-second blank delays = 7 s.
-            constexpr float secondLogoDelay =
-                logoFade + logoHold + logoFade +
-                logoDelay + logoDelay;
+                sourceStartupFrame.firstLogoAlpha;
             const float labAlpha =
-                std::clamp(
-                    (sourceStartupSeconds - secondLogoDelay) /
-                        logoFade,
-                    0.0F, 1.0F) -
-                std::clamp(
-                    (sourceStartupSeconds -
-                     (secondLogoDelay + logoFade + logoHold)) /
-                        logoFade,
-                    0.0F, 1.0F);
+                sourceStartupFrame.secondLogoAlpha;
+            const float startupSeconds =
+                sourceStartupState.ElapsedSeconds();
 
             startupYardFadeObserved = startupYardFadeObserved ||
                 (yardAlpha > 0.05F && yardAlpha < 0.95F);
@@ -16354,16 +16365,16 @@ int main(int argc, char** argv)
                 labAlpha > 0.99F;
             startupInitialBlankObserved =
                 startupInitialBlankObserved ||
-                (sourceStartupSeconds < 1.0F &&
+                (startupSeconds < 1.0F &&
                  yardAlpha <= 0.0F && labAlpha <= 0.0F);
             startupInterlogoBlankObserved =
                 startupInterlogoBlankObserved ||
-                (sourceStartupSeconds >= 6.0F &&
-                 sourceStartupSeconds < 7.0F &&
+                (startupSeconds >= 6.0F &&
+                 startupSeconds < 7.0F &&
                  yardAlpha <= 0.0F && labAlpha <= 0.0F);
 
             device->beginFrame(camera, 0x000000ffU);
-            if (sourceStartupSeconds < 12.0F)
+            if (!sourceStartupFrame.loadFrame)
             {
                 if (yardAlpha > 0.0F)
                 {
@@ -16405,33 +16416,6 @@ int main(int argc, char** argv)
             }
             device->endFrame();
             ++renderedFrames;
-
-            if (sourceStartupSeconds >= 12.25F)
-            {
-                sourceStartupActive = false;
-                startupMenuTransitionObserved = true;
-#ifdef RRR3D_PHYSICS
-                if (sourcePreferredCameraAutodetect)
-                {
-                    sourceStartOptionsActive = true;
-                    sourcePreferredCameraAutodetect = false;
-                }
-                else if (sourceDiscreteVideoChanged)
-                {
-                    profileState.config.quality.frameRateMode =
-                        "sfrFixed";
-                    sourceDiscreteVideoChanged = false;
-                }
-#endif
-#ifdef RRR3D_AUDIO
-                showOriginalMusicInfo(
-                    OriginalMusicDialogSource::Menu,
-                    music.currentTrack());
-#endif
-                previousFrameTicks = SDL_GetTicksNS();
-                std::cout
-                    << "Original GameMode::Run startup -> MainMenu2\n";
-            }
             continue;
         }
 

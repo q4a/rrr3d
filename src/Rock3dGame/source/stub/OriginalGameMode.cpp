@@ -7,6 +7,83 @@
 namespace r3d::game::originalrace::source
 {
 
+void GameModeStartupState::Run(bool playIntro) noexcept
+{
+    elapsedSeconds_ = 0.0F;
+    phase_ = playIntro ? Phase::Logos : Phase::Inactive;
+}
+
+void GameModeStartupState::SkipIntro() noexcept
+{
+    if (phase_ == Phase::Logos)
+    {
+        elapsedSeconds_ = 12.0F;
+        phase_ = Phase::Loading;
+    }
+}
+
+GameModeStartupFrame GameModeStartupState::OnFrame(
+    float deltaTime) noexcept
+{
+    GameModeStartupFrame frame;
+    switch (phase_)
+    {
+    case Phase::Inactive:
+        return frame;
+    case Phase::Loading:
+        frame.active = true;
+        frame.loadFrame = true;
+        phase_ = Phase::StartGame;
+        return frame;
+    case Phase::StartGame:
+        frame.startGame = true;
+        phase_ = Phase::Inactive;
+        return frame;
+    case Phase::Logos:
+        break;
+    }
+
+    constexpr float logoDelay = 1.0F;
+    constexpr float logoFadeTime = 1.0F;
+    constexpr float logoTime = 3.0F;
+    constexpr float secondLogoDelay =
+        logoFadeTime + logoTime + logoFadeTime +
+        logoDelay + logoDelay;
+    elapsedSeconds_ += std::max(deltaTime, 0.0F);
+    frame.active = true;
+    frame.firstLogoAlpha =
+        std::clamp(
+            (elapsedSeconds_ - logoDelay) / logoFadeTime,
+            0.0F, 1.0F) -
+        std::clamp(
+            (elapsedSeconds_ -
+             (logoDelay + logoFadeTime + logoTime)) /
+                logoFadeTime,
+            0.0F, 1.0F);
+    frame.secondLogoAlpha =
+        std::clamp(
+            (elapsedSeconds_ - secondLogoDelay) / logoFadeTime,
+            0.0F, 1.0F) -
+        std::clamp(
+            (elapsedSeconds_ -
+             (secondLogoDelay + logoFadeTime + logoTime)) /
+                logoFadeTime,
+            0.0F, 1.0F);
+    if (elapsedSeconds_ >= 12.0F)
+        phase_ = Phase::Loading;
+    return frame;
+}
+
+bool GameModeStartupState::IsActive() const noexcept
+{
+    return phase_ != Phase::Inactive;
+}
+
+float GameModeStartupState::ElapsedSeconds() const noexcept
+{
+    return elapsedSeconds_;
+}
+
 void GameModeRaceState::Reset(bool immediateRaceStart) noexcept
 {
     countdownStage_ = immediateRaceStart ? goRace : goRaceWait;

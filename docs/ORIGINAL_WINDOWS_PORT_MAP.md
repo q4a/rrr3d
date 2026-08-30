@@ -56,7 +56,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `FinishMenu` | `originalracemenu::FinishMenuFrameState` + bgfx/CoreText view | Source owner, active frame | Legacy Widget API заменён backend draw/input; result order, timing, events и layout принадлежат source owner |
 | `GameBase` | `OriginalGameObject`, all serialized behaviors, effects, motor sound state | Source owner, active behavior graph | Все shipped type 0–14 имеют concrete owner/runtime; bgfx/Jolt/SDL исполняют только graph/physics/audio commands |
 | `GameCar` | `source::GameCar::{OnFixedStepDrive,OnContact,OnPxSync}` + Jolt vehicle adapter | Source owner, active drive/contact frame | Оставшиеся PhysX solver queries и actor operations являются Jolt boundary; продолжить аудит public serialization/editor-only методов |
-| `GameMode` | `source::GameModeState` + `GameModeRaceState` on shared `WorldEventPump` | Source owner, active race path | Startup/movie/config и часть menu/audio backend-команд ещё находятся в host |
+| `GameMode` | `source::GameModeStartupState`, `GameModeState` + `GameModeRaceState` on shared World | Source owner, active startup/race path | Movie/config и часть menu/audio backend-команд ещё находятся в host |
 | `GameObject` | `source::GameObject`, event counters, frame sync, listener/contact graph | Source owner, active core | Jolt/bgfx snapshots остаются backend boundary; source fixed/frame registration подключена |
 | `HudMenu` | `source::{HudMenu,MiniMapFrame,PlayerStateFrame}` + `OriginalRaceHud` | Source owner, active HUD/minimap/player-state policy | State/Escape/layout/countdown, MiniMap, weapon/place/life, OnProcessEvent, notifications, car-life и opponents source-owned; FinishMenu не дублируется, bgfx/CoreText payload и camera projection остаются backend boundary |
 | `HumanPlayer` | `source::HumanPlayer` | Source owner | Полный input message order, driving/progress gates и weapon selection перенесены; SDL только переводит source-сообщения |
@@ -880,6 +880,15 @@ headless regressions. Pause/frame/fixed/late registrations теперь имею
 в адресный `GameCar::DispatchPxSync`, поэтому графическая поза использует
 исходную незавершённую долю шага, а не default `1.0`. Regression требует
 внешний owner и ненулевые progress/fixed/late списки; Jolt остаётся solver.
+
+Результат B8at: host-переменные `sourceStartupActive/sourceStartupSeconds`
+и повторные alpha-формулы удалены. `source::GameModeStartupState` исполняет
+точный `GameMode::_startUpTime`: delay/fade/hold двух логотипов, пустой
+интервал 6–7 s, переход в `-2`, один loading frame, затем `-3/StartGame`.
+Escape вызывает тот же `-2`, а не перескакивает прямо в меню. Active renderer
+получает только два alpha и команды load/start; StartOptions/discrete-video и
+CoreText/bgfx остаются backend/application границами. Regression закрепляет
+все стадии и одноразовый StartGame edge.
 
 ## Правило обновления карты
 

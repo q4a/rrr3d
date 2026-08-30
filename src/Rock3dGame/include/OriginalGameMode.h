@@ -17,6 +17,41 @@ struct GameModeRaceAdvance
     bool finishTimeEnded = false;
 };
 
+struct GameModeStartupFrame
+{
+    float firstLogoAlpha = 0.0F;
+    float secondLogoAlpha = 0.0F;
+    bool loadFrame = false;
+    bool startGame = false;
+    bool active = false;
+};
+
+// Exact backend-neutral owner for GameMode::_startUpTime. GUI textures and
+// drawing remain native, while logo timing, the -2 loading frame, the -3
+// StartGame transition and Escape skip belong to the source state machine.
+class GameModeStartupState
+{
+public:
+    void Run(bool playIntro) noexcept;
+    void SkipIntro() noexcept;
+    GameModeStartupFrame OnFrame(float deltaTime) noexcept;
+
+    bool IsActive() const noexcept;
+    float ElapsedSeconds() const noexcept;
+
+private:
+    enum class Phase : std::uint8_t
+    {
+        Inactive,
+        Logos,
+        Loading,
+        StartGame,
+    };
+
+    Phase phase_ = Phase::Inactive;
+    float elapsedSeconds_ = 0.0F;
+};
+
 class GameModeRaceState
 {
 public:

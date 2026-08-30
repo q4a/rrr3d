@@ -111,6 +111,31 @@ private:
 
 int main()
 {
+    source::GameModeStartupState startup;
+    startup.Run(true);
+    auto startupFrame = startup.OnFrame(1.5F);
+    if (!startupFrame.active ||
+        std::abs(startupFrame.firstLogoAlpha - 0.5F) > 0.000001F ||
+        startupFrame.secondLogoAlpha != 0.0F || startupFrame.loadFrame)
+        return fail("first source startup logo timing differs");
+    startupFrame = startup.OnFrame(5.5F);
+    if (startupFrame.firstLogoAlpha != 0.0F ||
+        startupFrame.secondLogoAlpha != 0.0F ||
+        std::abs(startup.ElapsedSeconds() - 7.0F) > 0.000001F)
+        return fail("source inter-logo blank frame differs");
+    startupFrame = startup.OnFrame(1.5F);
+    if (std::abs(startupFrame.secondLogoAlpha - 1.0F) > 0.000001F)
+        return fail("second source startup logo timing differs");
+    startup.SkipIntro();
+    startupFrame = startup.OnFrame(0.0F);
+    if (!startupFrame.active || !startupFrame.loadFrame ||
+        startupFrame.startGame)
+        return fail("source -2 startup loading frame differs");
+    startupFrame = startup.OnFrame(0.0F);
+    if (startupFrame.active || startupFrame.loadFrame ||
+        !startupFrame.startGame || startup.IsActive())
+        return fail("source -3 StartGame transition differs");
+
     source::WorldFrameClock frameClock;
     if (frameClock.SmoothDelta(-1.0F) != 0.0F ||
         frameClock.GetSynchronizedFrameCount() != 1U)

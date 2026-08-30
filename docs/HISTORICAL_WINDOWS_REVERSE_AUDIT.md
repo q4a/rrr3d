@@ -5642,6 +5642,22 @@ Jolt fixed/frame dispatch сохранены, поэтому общего N×N f
 `GameCar::OnPxSync`; прежний default 1.0 больше не обходит source
 interpolation. Regression проверяет shared identity и три active event list.
 
+### P2.248 — `GameMode::_startUpTime` возвращён source owner — выполнено
+
+Сверка `GameMode::Run`, `OnFrame` и `OnHandleInput` показала, что startup
+оставался реконструированным непосредственно в executable: boolean active,
+float seconds, продублированные alpha-формулы и произвольный порог 12.25 s.
+Такой код совпадал с картинкой приблизительно, но не имел исходных стадий
+`-2/-3` и мог менять число loading/menu кадров при другом frame delta.
+
+`source::GameModeStartupState` теперь владеет буквальным автоматом: два
+1/3/1-second logo участка с вторым delay 7 s, пустой inter-logo кадр,
+`-2` loading, `-3` StartGame и Escape→`-2`. bgfx получает только готовые
+alpha/load/start результаты. Regression проверяет середину первого fade,
+пустой интервал, hold второго logo, skip, ровно один loading frame и
+одноразовый StartGame. Movie `_movieTime` остаётся следующим отдельным
+GameMode блоком, поскольку требует video backend commands.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
