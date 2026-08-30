@@ -851,9 +851,10 @@ struct WorldRayHit
     bool hit = false;
 };
 
+template <typename DecorationIsActive>
 WorldRayHit raycastWorld(
     const Race& race,
-    const std::vector<bool>& decorationActive,
+    DecorationIsActive&& decorationIsActive,
     const std::vector<r3d::physics::VehicleState>& vehicles,
     const std::vector<RacerRuntime>& racers, std::size_t ignoredVehicle,
     Vec3 origin, Vec3 direction, float maximumDistance)
@@ -872,8 +873,7 @@ WorldRayHit raycastWorld(
         // DestrObj::OnDeath removes its PhysX actor.  Keeping its old triangle
         // mesh in the ray query made Laser/FrostRay stop on invisible debris.
         if (decoration != RacerRuntime::invalidWeapon &&
-            decoration < decorationActive.size() &&
-            !decorationActive[decoration])
+            !decorationIsActive(decoration))
         {
             continue;
         }
@@ -934,8 +934,9 @@ struct ResetRayHit
     float distance = std::numeric_limits<float>::max();
 };
 
+template <typename DecorationIsActive>
 ResetRayHit raycastResetWorld(
-    const Race& race, const std::vector<bool>& decorationActive,
+    const Race& race, DecorationIsActive&& decorationIsActive,
     const std::vector<r3d::physics::VehicleState>& vehicles,
     const std::vector<RacerRuntime>& racers, std::size_t ownVehicle,
     Vec3 origin)
@@ -956,8 +957,7 @@ ResetRayHit raycastResetWorld(
                 ? race.collisionMeshDecorationInstances[meshIndex]
                 : RacerRuntime::invalidWeapon;
         if (decoration != RacerRuntime::invalidWeapon &&
-            decoration < decorationActive.size() &&
-            !decorationActive[decoration])
+            !decorationIsActive(decoration))
         {
             continue;
         }
@@ -1158,6 +1158,43 @@ source::MapObjects& OriginalRaceSession::decorationObjects() noexcept
     return map_.GetMapObjList(source::MapObjCategory::Decoration);
 }
 
+const source::MapObjects&
+OriginalRaceSession::decorationObjects() const noexcept
+{
+    return map_.GetMapObjList(source::MapObjCategory::Decoration);
+}
+
+bool OriginalRaceSession::decorationIsActive(
+    std::size_t index) const noexcept
+{
+    const auto* mapObject = decorationObjects().Get(index);
+    return mapObject != nullptr &&
+           mapObject->GetGameObj().GetLiveState() !=
+               source::GameObject::LiveState::Death;
+}
+
+float OriginalRaceSession::decorationLifeValue(
+    std::size_t index) const noexcept
+{
+    const auto* mapObject = decorationObjects().Get(index);
+    const auto* object = mapObject != nullptr
+        ? mapObject->GetDestrObj()
+        : nullptr;
+    return object != nullptr ? object->GetLife() : 0.0F;
+}
+
+void OriginalRaceSession::refreshDecorationView() const
+{
+    decorationActive_.resize(race_.decorationInstances.size());
+    decorationLife_.resize(race_.decorationInstances.size());
+    for (std::size_t index = 0U;
+         index < race_.decorationInstances.size(); ++index)
+    {
+        decorationActive_[index] = decorationIsActive(index);
+        decorationLife_[index] = decorationLifeValue(index);
+    }
+}
+
 source::MapObjects& OriginalRaceSession::bonusObjects() noexcept
 {
     return map_.GetMapObjList(source::MapObjCategory::Bonus);
@@ -1212,9 +1249,8 @@ void OriginalRaceSession::reset()
     pendingAiAttacks_.clear();
     previousPositions_.assign(race_.racers.size(), {});
     racePlaceModel_.Reset();
-    decorationActive_.assign(race_.decorationInstances.size(), true);
-    decorationLife_.clear();
-    decorationLife_.reserve(race_.decorationInstances.size());
+    decorationActive_.assign(race_.decorationInstances.size(), false);
+    decorationLife_.assign(race_.decorationInstances.size(), 0.0F);
     decorationObjects().Reserve(race_.decorationInstances.size());
     for (std::size_t index = 0U;
          index < race_.decorationInstances.size(); ++index)
@@ -1238,8 +1274,8 @@ void OriginalRaceSession::reset()
         }
         if (!instance.name.empty())
             mapObject.SetName(instance.name);
-        decorationLife_.push_back(object->GetLife());
     }
+    refreshDecorationView();
     auto& trackObjects =
         map_.GetMapObjList(source::MapObjCategory::Track);
     trackObjects.Reserve(race_.trackInstances.size());
@@ -2123,10 +2159,9 @@ bool OriginalRaceSession::findDecorationWithBox(
         return false;
     const OrientedBox source = orientedBox(transform, collision);
     for (std::size_t index = 0;
-         index < race_.decorationInstances.size() &&
-         index < decorationActive_.size(); ++index)
+         index < race_.decorationInstances.size(); ++index)
     {
-        if (!decorationActive_[index])
+        if (!decorationIsActive(index))
             continue;
         const auto& instance = race_.decorationInstances[index];
         const auto& definition =
@@ -2151,9 +2186,8 @@ bool OriginalRaceSession::findDecorationWithBox(
     {
         const std::size_t instanceIndex =
             race_.collisionMeshDecorationInstances[meshIndex];
-        if (instanceIndex >= decorationActive_.size() ||
-            instanceIndex >= race_.decorationInstances.size() ||
-            !decorationActive_[instanceIndex])
+        if (instanceIndex >= race_.decorationInstances.size() ||
+            !decorationIsActive(instanceIndex))
             continue;
         const auto& instance =
             race_.decorationInstances[instanceIndex];
@@ -2215,10 +2249,8 @@ bool OriginalRaceSession::damageDecorationWithBox(
 bool OriginalRaceSession::damageDecoration(
     std::size_t hit, float damage, std::size_t attacker)
 {
-    if (hit >= decorationActive_.size() ||
-        hit >= race_.decorationInstances.size() ||
-        decorationObjects().Get(hit) == nullptr ||
-        !decorationActive_[hit])
+    if (hit >= race_.decorationInstances.size() ||
+        !decorationIsActive(hit))
         return false;
     const auto definition = race_.decorationInstances[hit].definition;
     if (definition >= race_.decorationDefinitions.size() ||
@@ -2236,17 +2268,16 @@ OriginalRaceSession::applyDecorationDamageInternal(
     DamageType damageType, bool synchronizeState,
     float targetLife, bool death, bool networkReplicated)
 {
-    if (hit >= decorationActive_.size() ||
-        hit >= race_.decorationInstances.size() ||
-        !decorationActive_[hit])
+    if (hit >= race_.decorationInstances.size() ||
+        !decorationIsActive(hit))
         return {};
     const auto& instance = race_.decorationInstances[hit];
     if (instance.definition >= race_.decorationDefinitions.size() ||
         !race_.decorationDefinitions[instance.definition].destructible)
-        return {decorationLife_[hit], false};
+        return {decorationLifeValue(hit), false};
     auto* mapObject = decorationObjects().Get(hit);
     if (mapObject == nullptr || mapObject->GetDestrObj() == nullptr)
-        return {decorationLife_[hit], false};
+        return {decorationLifeValue(hit), false};
     const auto mapObjectId = mapObject->GetId();
 
     // Logic::Damage in a network race accepts map damage only from a human
@@ -2256,12 +2287,12 @@ OriginalRaceSession::applyDecorationDamageInternal(
     {
         if (attacker >= racers_.size() ||
             !racers_[attacker].IsHumanOrOpponent())
-            return {decorationLife_[hit], false};
+            return {decorationLifeValue(hit), false};
         if (!networkGameplayHost_)
         {
             if (attacker >= networkOwnedRacers_.size() ||
                 !networkOwnedRacers_[attacker])
-                return {decorationLife_[hit], false};
+                return {decorationLifeValue(hit), false};
             RaceEvent request;
             request.kind = RaceEventKind::MapObjectDamage;
             request.racer = attacker;
@@ -2272,7 +2303,7 @@ OriginalRaceSession::applyDecorationDamageInternal(
             request.networkMapObject = true;
             request.networkProjectileId = mapObjectId;
             events_.push_back(std::move(request));
-            return {decorationLife_[hit], false};
+            return {decorationLifeValue(hit), false};
         }
     }
 
@@ -2282,7 +2313,7 @@ OriginalRaceSession::applyDecorationDamageInternal(
         ? object.Damage(attacker, appliedDamage, targetLife, death,
                         damageType)
         : object.Damage(attacker, appliedDamage, damageType);
-    decorationLife_[hit] = object.GetLife();
+    const float currentLife = object.GetLife();
     const bool destroyed = damageResult.death;
 
     RaceEvent damageEvent;
@@ -2292,18 +2323,17 @@ OriginalRaceSession::applyDecorationDamageInternal(
     damageEvent.position = instance.transform.position;
     damageEvent.value = appliedDamage;
     damageEvent.damageType = damageType;
-    damageEvent.authoritativeLife = decorationLife_[hit];
+    damageEvent.authoritativeLife = currentLife;
     damageEvent.authoritativeDeath = destroyed;
     damageEvent.networkReplicated = networkReplicated;
     damageEvent.networkMapObject = true;
     damageEvent.networkProjectileId = mapObjectId;
     events_.push_back(std::move(damageEvent));
     if (!destroyed)
-        return {decorationLife_[hit], false};
+        return {currentLife, false};
 
-    decorationActive_[hit] = false;
     if (!object.HasPendingDestruction())
-        return {decorationLife_[hit], true};
+        return {currentLife, true};
     decorationObjects().ProgressOne(hit, 0.0F);
     const Vec3 position =
         race_.decorationInstances[hit].transform.position;
@@ -2318,7 +2348,7 @@ OriginalRaceSession::applyDecorationDamageInternal(
     destroyedEvent.networkMapObject = true;
     destroyedEvent.networkProjectileId = mapObjectId;
     events_.push_back(std::move(destroyedEvent));
-    return {decorationLife_[hit], true};
+    return {currentLife, true};
 }
 
 void OriginalRaceSession::setPaused(bool paused) noexcept
@@ -2664,11 +2694,13 @@ Vec3 OriginalRaceSession::mapPosition(std::size_t racer) const noexcept
 
 const std::vector<bool>& OriginalRaceSession::decorationActive() const noexcept
 {
+    refreshDecorationView();
     return decorationActive_;
 }
 
 const std::vector<float>& OriginalRaceSession::decorationLife() const noexcept
 {
+    refreshDecorationView();
     return decorationLife_;
 }
 
@@ -2900,7 +2932,11 @@ r3d::physics::WorldRayCastHit OriginalRaceSession::queryWorldRay(
     }
 
     const auto hit = raycastWorld(
-        race_, decorationActive_, vehicles, racers_, ignoredVehicle,
+        race_,
+        [this](std::size_t index) {
+            return decorationIsActive(index);
+        },
+        vehicles, racers_, ignoredVehicle,
         origin, direction, maximumDistance);
     if (!hit.hit)
         return result;
@@ -2912,7 +2948,7 @@ r3d::physics::WorldRayCastHit OriginalRaceSession::queryWorldRay(
     result.decoration = hit.decoration;
     result.surface = hit.vehicle < vehicles.size()
         ? r3d::physics::CollisionSurface::Vehicle
-        : hit.decoration < decorationActive_.size()
+        : hit.decoration < race_.decorationInstances.size()
             ? r3d::physics::CollisionSurface::Decoration
             : r3d::physics::CollisionSurface::TrackPlane;
     return result;
@@ -2925,7 +2961,11 @@ source::ResetCarRayKind OriginalRaceSession::queryResetWorld(
     if (!worldRaycast_)
     {
         return raycastResetWorld(
-                   race_, decorationActive_, vehicles, racers_,
+                   race_,
+                   [this](std::size_t index) {
+                       return decorationIsActive(index);
+                   },
+                   vehicles, racers_,
                    ownVehicle, origin)
             .kind;
     }
@@ -5394,9 +5434,8 @@ void OriginalRaceSession::updateGameplay(
                     }
                 }
             }
-            else if (sourceRay &&
-                     laserUpdate.applyDamage &&
-                     rayHit.decoration < decorationActive_.size())
+            else if (sourceRay && laserUpdate.applyDamage &&
+                     decorationIsActive(rayHit.decoration))
             {
                 // RaycastClosestShape reports one concrete PhysX actor.  Do
                 // not perform a second broad ray query here: that used to
@@ -5527,10 +5566,8 @@ void OriginalRaceSession::updateGameplay(
                             projectile.physicsContacts.begin(),
                             projectile.physicsContacts.end(),
                             [&](const r3d::physics::BodyContact& value) {
-                                return value.otherDecoration <
-                                           decorationActive_.size() &&
-                                       decorationActive_[
-                                           value.otherDecoration];
+                                return decorationIsActive(
+                                    value.otherDecoration);
                             });
                         if (contact != projectile.physicsContacts.end())
                         {
@@ -5589,9 +5626,8 @@ void OriginalRaceSession::updateGameplay(
                         projectile.physicsContacts.begin(),
                         projectile.physicsContacts.end(),
                         [&](const r3d::physics::BodyContact& value) {
-                            return value.otherDecoration <
-                                       decorationActive_.size() &&
-                                   decorationActive_[value.otherDecoration];
+                            return decorationIsActive(
+                                value.otherDecoration);
                         });
                     if (contact != projectile.physicsContacts.end())
                     {
@@ -5984,9 +6020,8 @@ void OriginalRaceSession::updateGameplay(
                   projectile.physicsContacts.begin(),
                   projectile.physicsContacts.end(),
                   [&](const r3d::physics::BodyContact& contact) {
-                      return contact.otherDecoration <
-                                 decorationActive_.size() &&
-                             decorationActive_[contact.otherDecoration];
+                      return decorationIsActive(
+                          contact.otherDecoration);
                   })
             : projectile.physicsContacts.end();
         if (projectile.active &&
@@ -6855,7 +6890,7 @@ void OriginalRaceSession::updateGameplay(
                     runtimeProjectile.sourceObject->RouteContact(false)
                         .damageType);
             }
-            else if (projectileDecoration < decorationActive_.size())
+            else if (decorationIsActive(projectileDecoration))
             {
                 damageDecoration(
                     projectileDecoration,
@@ -8310,7 +8345,7 @@ void OriginalRaceSession::updateGameplay(
                     r3d::physics::CollisionSurface::Decoration ||
                 contact.otherDecoration >=
                     race_.decorationInstances.size() ||
-                contact.otherDecoration >= decorationActive_.size())
+                !decorationIsActive(contact.otherDecoration))
                 continue;
             const auto& instance =
                 race_.decorationInstances[contact.otherDecoration];
@@ -8551,7 +8586,6 @@ void OriginalRaceSession::completeRaceForExit(
         pendingNetworkShots_.clear();
         pendingNetworkBonuses_.clear();
         pendingNetworkMineContacts_.clear();
-        std::fill(decorationActive_.begin(), decorationActive_.end(), false);
         std::fill(bonusActive_.begin(), bonusActive_.end(), false);
         map_.Clear();
         std::fill(vehicleInputs_.begin(), vehicleInputs_.end(),
@@ -10796,8 +10830,14 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                         add(add(first, second), third), 1.0F / 3.0F);
                     const Vec3 origin = add(
                         center, multiply(normal, 0.1F));
+                    const auto& activeDecorations =
+                        destructionSession.decorationActive();
                     const auto rayHit = raycastWorld(
-                        race, destructionSession.decorationActive(),
+                        race,
+                        [&activeDecorations](std::size_t index) {
+                            return index < activeDecorations.size() &&
+                                   activeDecorations[index];
+                        },
                         noRayVehicles, noRayRacers,
                         RacerRuntime::invalidWeapon, origin,
                         multiply(normal, -1.0F), 0.2F);
@@ -10919,8 +10959,14 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                         "mismatch");
                 }
             }
+            const auto& activeDecorations =
+                destructionSession.decorationActive();
             const auto removedActorRay = raycastWorld(
-                race, destructionSession.decorationActive(),
+                race,
+                [&activeDecorations](std::size_t index) {
+                    return index < activeDecorations.size() &&
+                           activeDecorations[index];
+                },
                 noRayVehicles, noRayRacers,
                 RacerRuntime::invalidWeapon, sourceRayOrigin,
                 sourceRayDirection, 0.2F);

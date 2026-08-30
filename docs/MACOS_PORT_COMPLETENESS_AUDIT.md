@@ -2463,6 +2463,27 @@ Map/DataBase переставлены перед Player storage, чтобы пе
 Race lifecycle, physics smoke и 300-frame Metal race с шестью машинами
 подтверждают активный путь.
 
+### B8bp — состояние декораций принадлежит live MapObj — выполнено
+
+После возврата live ID и car lifecycle оставались два session-зеркала
+`decorationActive_`/`decorationLife_`. Они обновлялись вручную при уроне и
+выходе и одновременно управляли contact filtering, Laser/FrostRay,
+reset-ray и разрушением. Это расходилось с Windows, где `MapObjList`,
+`GameObject::LiveState` и `DestrObj::GetLife()` являются единственным
+источником состояния.
+
+Все игровые проверки теперь читают живой `MapObj` по source index. Урон
+сразу получает life из `DestrObj`, смерть проходит через
+`MapObjects::ProgressOne`, а отсутствие объекта автоматически исключает его
+из лучей и контактов. Ray helpers принимают live predicate и больше не
+перестраивают полный массив на каждый выстрел или reset-ray.
+
+Публичные массивы сохранены только как совместимое представление рендера и
+smoke-диагностики: getters заново строят их из live object graph и они не
+участвуют в решениях gameplay. Existing destruction/network regressions
+закрепляют исчезновение actor из ray group, нулевое active-состояние после
+удаления и authoritative life/death synchronization.
+
 ## Воспроизведение проверки
 
 ```sh

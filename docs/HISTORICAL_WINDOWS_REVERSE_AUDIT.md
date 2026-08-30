@@ -6070,6 +6070,28 @@ Lifetime полей исправлен: DataBase/Map уничтожаются п
 очистку при Destroy. Полный active race smoke подтверждает сохранение шести
 живых машин, AI targets, Jolt contacts и Metal submission.
 
+### P2.269 — live MapObj владеет состоянием декораций — выполнено
+
+Сверка `MapObjList`, `GameObject::{Damage,OnDeath,GetLiveState}` и
+`DestrObj::GetLife` выявила следующий остаток adapter-архитектуры:
+`OriginalRaceSession` хранил `decorationActive_` и `decorationLife_` как
+второй gameplay owner. Контакты, world ray, reset-car ray и projectile paths
+могли принимать решение по этому зеркалу независимо от живого source
+объекта.
+
+Теперь active/death проверяются непосредственно через category
+`MapObjects::Get(sourceIndex)` и `GameObject::LiveState`, а life берётся из
+конкретного `DestrObj`. Source death с `ProgressOne` удаляет объект из Map и
+тем самым атомарно выключает collision/ray participation. Отдельное
+обнуление массивов при ExitRace удалено: `Map::Clear` уже является исходным
+владельцем этого перехода.
+
+Старый vector API оставлен только на границе renderer/smoke и строится по
+требованию из живого graph. Ray helpers переведены на live predicate, чтобы
+не выполнять полный O(N) rebuild при каждом Laser/FrostRay либо reset ray.
+Регрессии разрушения и сетевого урона проверяют удаление actor, отсутствие
+повторного события и authoritative life/death через этот единый путь.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

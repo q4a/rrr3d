@@ -63,7 +63,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `Logic` | `source::Logic` + shared active `WorldEventPump` registration | Source owner, active object/contact/audio-category core | Music/Effects/Voice gain и mute source-owned; убрать оставшиеся network authority и projectile backend-view loops из session, SDL/CoreAudio остаётся submix backend |
 | `MainMenu2` | `mainmenu2::{Controller,FrameController,ProfileFrameState,FinalMenuFrameState}` + `originalmenu::ScreenStack` | Source owner, active Main/Profile/Final path | Остались concrete network callbacks и backend draw submission |
 | `Map` | `source::Map` + shared `source::DataBase` | Source owner, active registry path | XML parsing и backend actor create/destroy остаются adapters |
-| `MapObj` | `source::MapObj*` record/list hierarchy | Source owner, active live-ID/runtime hierarchy | Global ID выдаёт только live `Map::MapObjList`; `sourceIndex` остаётся backend mapping, editor serialization не входит в runtime |
+| `MapObj` | `source::MapObj*` record/list hierarchy | Source owner, active live-ID/runtime hierarchy | Global ID, decoration live/death/life выдаёт только live `Map::MapObjList`/`GameObject`; `sourceIndex` остаётся backend mapping, editor serialization не входит в runtime |
 | `Menu` | `originalmenu::MenuSystem` + source Main/Profile/Dialog/Options/Race/Finish/Final owners | Source owner, frame core | Завершить concrete network callbacks; bgfx/CoreText/SDL остаются backend boundary |
 | `MenuSystem` | `originalmenu::{MenuSystem,ScreenStack,FrameState}` | Source owner, active menu path | Подключить concrete navigation graphs; bgfx остаётся draw executor |
 | `OptionsMenu` | `originaloptions::{OptionsMenuState,StartOptionsMenuState}` + backend visuals | Source owner, active options path | Legacy Widget events заменены SDL input, CoreText и bgfx draw submission |
@@ -1096,6 +1096,19 @@ homing/impulse, mine/death target и сетевой поиск читают MapO
 деструкторы Player. Regression проверяет bind `MapObj↔Player↔gameCar`,
 удаление ID, выдачу нового ID при respawn и окончательное удаление при
 Destroy; активный 300-frame Jolt/Metal заезд проверяет шесть машин.
+
+Результат B8bp: `decorationActive_` и `decorationLife_` больше не являются
+параллельным gameplay owner. Collision contacts, Laser/FrostRay, reset-car
+ray, projectile hits и damage path читают `MapObj`,
+`GameObject::LiveState` и `DestrObj::GetLife` непосредственно из category
+`MapObjects`. Удаление через `ProgressOne` либо `Map::Clear` само исключает
+объект из всех игровых запросов.
+
+Совместимые vector getters сохранены для renderer/smoke, но каждый раз
+строят snapshot из живого object graph. Внутренние ray helpers принимают
+live predicate и не выполняют O(N) snapshot на каждый запрос. Existing
+destruction/network regressions закрепляют удаление actor, отсутствие
+повторной death emission и authoritative life/death state.
 
 ## Правило обновления карты
 

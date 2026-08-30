@@ -623,7 +623,11 @@ private:
         bool mineSourcePrepared = false;
     };
     source::MapObjects& decorationObjects() noexcept;
+    const source::MapObjects& decorationObjects() const noexcept;
     source::MapObjects& bonusObjects() noexcept;
+    bool decorationIsActive(std::size_t index) const noexcept;
+    float decorationLifeValue(std::size_t index) const noexcept;
+    void refreshDecorationView() const;
 
     const std::vector<std::uint32_t>& tracePathAt(
         std::size_t path) const;
@@ -775,8 +779,10 @@ private:
     std::vector<RacerRuntime> racers_;
     std::vector<r3d::physics::VehicleInput> vehicleInputs_;
     std::vector<RaceEvent> deferredFixedStepEvents_;
-    std::vector<bool> decorationActive_;
-    std::vector<float> decorationLife_;
+    // Renderer compatibility views rebuilt from live MapObj/GameObject on
+    // demand. They never participate in gameplay decisions.
+    mutable std::vector<bool> decorationActive_;
+    mutable std::vector<float> decorationLife_;
     // Active source owner. The parallel arrays are renderer/physics views,
     // no longer the authority for damage or death.
     std::vector<bool> bonusActive_;
