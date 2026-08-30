@@ -5983,6 +5983,26 @@ source-owned 0→1, SDL/CoreAudio применяет его произведен
 source-owned `Logic::scMusic`. Regression проверяет числовые шаги, обе цели,
 inactive frame и композицию внутри `GameModeState`.
 
+### P2.265 — единый `GameMode::_music` source возвращён — выполнено
+
+Прямая сверка конструктора/деструктора `GameMode`, `MusicCat::{Play,Stop,
+Pause,OnStreamEnd}` и `GameMode::{PlayMusic,StopMusic}` выявила более
+глубокое расхождение: Windows создаёт ровно один `snd::Source _music`, а
+`_menuMusic` и `_gameMusic` являются только двумя владельцами playlist/report
+состояния над ним. Portable adapter ошибочно создавал по независимому SDL
+voice на каждый каталог, поэтому при неидеальном переходе оба трека могли
+жить одновременно, а cursor/stream-end принадлежали не тому MusicCat.
+
+`OriginalGameModeMusicSource` теперь владеет единственным backend voice и
+текущим report-owner. Любой `PlayMusic` сначала выполняет глобальный
+`StopMusic`, затем публикует нового владельца; natural EOF доставляется
+только активному каталогу, а заменённый report не запускает свой Next.
+`Pause(true)` сохраняет PCM cursor и освобождает общий voice, `Pause(false)`
+возобновляет тот же трек. Menu и game MusicCat подключены к одному owner;
+FinalMenu намеренно оставлен на отдельном source. Детерминированный fake
+backend regression проверяет identity, owner A→B, cursor, natural EOF и
+global Stop; integrated smoke закрепляет невозможность двух voices.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

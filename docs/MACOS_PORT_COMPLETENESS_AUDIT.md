@@ -2383,6 +2383,23 @@ Unit regression проверяет обе команды, speed, inactive frame 
 через `GameModeState`; active finish smoke продолжает проверять промежуточный
 ненулевой gain.
 
+### B8bl — единый `GameMode::_music` source — выполнено
+
+Menu и race MusicCat больше не владеют двумя независимыми backend voices.
+Добавлен один `OriginalGameModeMusicSource`, соответствующий создаваемому в
+Windows конструкторе `GameMode` полю `_music`; оба каталога сохраняют свои
+track/playlist/cursor состояния, но `Play`, `Stop`, `Pause` и natural EOF
+проходят через один source и одного текущего report-owner.
+
+Замена каталога сначала останавливает старый voice и снимает его owner, а
+бывший MusicCat не принимает чужой stream-end и не запускается заново.
+Pause сохраняет PCM frame и resume создаёт voice с этого frame. FinalMenu
+остаётся независимым, поскольку его музыкальный lifecycle не принадлежит
+`GameMode::_menuMusic/_gameMusic`. Fake backend regression проверяет
+menu→game replacement, cursor, natural EOF/release и глобальный Stop, а
+active race smoke — shared identity и отсутствие двух music voices;
+SDL/CoreAudio остаётся только decoder/mixer boundary.
+
 ## Воспроизведение проверки
 
 ```sh

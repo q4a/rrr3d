@@ -4018,6 +4018,21 @@ int main(int argc, char** argv)
         SDL_Quit();
         return EXIT_FAILURE;
     }
+    if (!rrr3d::audio::runOriginalGameModeMusicSourceSmokeTest())
+    {
+        std::cerr << "Original GameMode shared music source regression "
+                     "failed\n";
+        audio.shutdown();
+        releaseResources();
+        originalResourceManager.Shutdown();
+        device.reset();
+        SDL_DestroyWindow(window);
+#ifdef RRR3D_GAMEPAD_INPUT
+        input.shutdown();
+#endif
+        SDL_Quit();
+        return EXIT_FAILURE;
+    }
 
     try
     {
@@ -4114,8 +4129,11 @@ int main(int argc, char** argv)
         temporary += ".tmp";
         std::filesystem::remove(temporary, removeError);
     }
+    // GameMode constructs one snd::Source and both MusicCat instances route
+    // PlayMusic/StopMusic through it. FinalMenu owns a different source.
+    rrr3d::audio::OriginalGameModeMusicSource gameModeMusicSource(audio);
     rrr3d::audio::OriginalMenuMusic music(
-        audio, *resources, musicStatePath,
+        gameModeMusicSource, audio, *resources, musicStatePath,
         options->audioSmokeTest ? 0x4d75736963436174ULL
                                 : rrr3d::platform::steady_nanoseconds(),
         options->audioSmokeTest,
@@ -4174,7 +4192,7 @@ int main(int argc, char** argv)
     const auto gameMusicStatePath =
         rrr3d::platform::save_directory() / "game-music.state";
     rrr3d::audio::OriginalMenuMusic gameMusic(
-        audio, *resources, gameMusicStatePath,
+        gameModeMusicSource, audio, *resources, gameMusicStatePath,
         rrr3d::platform::steady_nanoseconds() ^
             0x47616d654d757369ULL,
         false, originalMusicCatalog.game,
@@ -4204,6 +4222,10 @@ int main(int argc, char** argv)
     }
     const bool gameMusicDeferredSelectionObserved =
         !gameMusic.currentTrack().has_value();
+    const bool gameModeSharedMusicSourceObserved =
+        music.sharesPlaybackSourceWith(gameMusic) &&
+        !music.sharesPlaybackSourceWith(finalMusic);
+    bool gameModeMusicExclusiveVoiceObserved = true;
     bool gameMusicZeroStartObserved =
         !options->raceRenderSmokeTest;
     bool finishMenuAudioHeldObserved =
@@ -16119,6 +16141,10 @@ int main(int argc, char** argv)
             runtimeSmokeFailed = true;
             running = false;
         }
+        gameModeMusicExclusiveVoiceObserved =
+            gameModeMusicExclusiveVoiceObserved &&
+            !(gameMusic.currentVoiceActive() &&
+              music.currentVoiceActive());
         bool sourceMusicFrameActive = !worldEventPump.IsPaused();
 #ifdef RRR3D_VIDEO
         sourceMusicFrameActive =
@@ -20682,6 +20708,8 @@ int main(int argc, char** argv)
                     !raceMusicDialogObserved ||
                     !raceLoopTeardownObserved ||
                     !gameMusicDeferredSelectionObserved ||
+                    !gameModeSharedMusicSourceObserved ||
+                    !gameModeMusicExclusiveVoiceObserved ||
                     !gameMusicZeroStartObserved ||
 #endif
                     !racePauseDialogObserved ||
@@ -20754,7 +20782,9 @@ int main(int argc, char** argv)
                         << raceLoopTeardownObserved
                         << ", gameMusicSourceLifecycle="
                         << gameMusicDeferredSelectionObserved << '/'
-                        << gameMusicZeroStartObserved
+                        << gameMusicZeroStartObserved << '/'
+                        << gameModeSharedMusicSourceObserved << '/'
+                        << gameModeMusicExclusiveVoiceObserved
 #endif
                         << ", pause="
                         << racePauseDialogObserved << '/'

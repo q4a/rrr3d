@@ -10,6 +10,7 @@
 #include <iterator>
 #include <optional>
 #include <system_error>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -48,11 +49,66 @@ struct DecodeResult
 
 } // namespace
 
+OriginalGameModeMusicSource::OriginalGameModeMusicSource(
+	r3d::audio::AudioBackend &audio) noexcept
+	: audio_(audio)
+{
+}
+
+OriginalGameModeMusicSource::~OriginalGameModeMusicSource()
+{
+	stop();
+}
+
+bool OriginalGameModeMusicSource::play(
+	const void *owner, r3d::audio::SoundHandle sound,
+	const r3d::audio::PlayOptions &options, std::string &error)
+{
+	stop();
+	voice_ = audio_.play(sound, options, error);
+	if (voice_ == r3d::audio::invalidVoice)
+		return false;
+	owner_ = owner;
+	return true;
+}
+
+void OriginalGameModeMusicSource::stop() noexcept
+{
+	if (voice_ != r3d::audio::invalidVoice)
+		audio_.stop(voice_);
+	voice_ = r3d::audio::invalidVoice;
+	owner_ = nullptr;
+}
+
+void OriginalGameModeMusicSource::release(const void *owner) noexcept
+{
+	if (owner_ != owner)
+		return;
+	voice_ = r3d::audio::invalidVoice;
+	owner_ = nullptr;
+}
+
+bool OriginalGameModeMusicSource::owns(const void *owner) const noexcept
+{
+	return owner_ == owner && voice_ != r3d::audio::invalidVoice;
+}
+
+bool OriginalGameModeMusicSource::active(const void *owner) const noexcept
+{
+	return owns(owner) && audio_.isVoiceActive(voice_);
+}
+
+std::uint64_t OriginalGameModeMusicSource::positionFrames(
+	const void *owner) const noexcept
+{
+	return active(owner) ? audio_.voicePositionFrames(voice_) : 0U;
+}
+
 struct OriginalMenuMusic::Impl
 {
 	Impl(r3d::audio::AudioBackend &backend, const r3d::resource::ResourceFileSystem &fileSystem,
 	     std::filesystem::path persistedState, std::uint64_t seed, bool shouldPersist)
-		: Impl(backend, fileSystem, std::move(persistedState), seed,
+		: Impl(nullptr, backend, fileSystem, std::move(persistedState), seed,
 		       shouldPersist,
 		       r3d::game::originalaudio::
 		           loadOriginalMusicCatalog(fileSystem).menu,
@@ -60,13 +116,18 @@ struct OriginalMenuMusic::Impl
 	{
 	}
 
-	Impl(r3d::audio::AudioBackend &backend,
+	Impl(OriginalGameModeMusicSource *sharedSource,
+	     r3d::audio::AudioBackend &backend,
 	     const r3d::resource::ResourceFileSystem &fileSystem,
 	     std::filesystem::path persistedState, std::uint64_t seed,
 	     bool shouldPersist,
 	     std::vector<r3d::game::MusicCatTrack> tracks,
 	     std::vector<std::size_t> initialPlaylist)
-		: audio(backend), resources(fileSystem), statePath(std::move(persistedState)),
+		: ownedSource(sharedSource == nullptr
+		                  ? std::make_unique<OriginalGameModeMusicSource>(backend)
+		                  : nullptr),
+		  source(sharedSource != nullptr ? *sharedSource : *ownedSource),
+		  audio(backend), resources(fileSystem), statePath(std::move(persistedState)),
 		  music(std::move(tracks), seed), loaded(music.tracks().size()), persistState(shouldPersist)
 	{
 		music.setPlaylist(std::move(initialPlaylist));
@@ -113,13 +174,13 @@ struct OriginalMenuMusic::Impl
 		if (!reapDecode(error))
 			return false;
 
-		if (voice != r3d::audio::invalidVoice && audio.isVoiceActive(voice))
+		if (source.active(this))
 		{
-			music.setPlaybackPosition(audio.voicePositionFrames(voice), currentTotalFrames());
+			music.setPlaybackPosition(source.positionFrames(this), currentTotalFrames());
 		}
-		else if (voice != r3d::audio::invalidVoice)
+		else if (source.owns(this))
 		{
-			voice = r3d::audio::invalidVoice;
+			source.release(this);
 			trackStarted = false;
 			if (playbackRequested && !music.paused())
 			{
@@ -132,6 +193,13 @@ struct OriginalMenuMusic::Impl
 				if (!writeState(error))
 					return false;
 			}
+		}
+		else if (trackStarted)
+		{
+			// Another MusicCat replaced this catalog through GameMode::PlayMusic.
+			// Its old stream-end report is unregistered and must not restart here.
+			trackStarted = false;
+			playbackRequested = false;
 		}
 
 		trimDecodedCache();
@@ -157,9 +225,7 @@ struct OriginalMenuMusic::Impl
 		capturePosition();
 		std::string ignored;
 		writeState(ignored);
-		if (voice != r3d::audio::invalidVoice)
-			audio.stop(voice);
-		voice = r3d::audio::invalidVoice;
+		source.stop();
 		trackStarted = false;
 
 		if (decode)
@@ -196,9 +262,7 @@ struct OriginalMenuMusic::Impl
 			error = "Original menu music is not initialized";
 			return false;
 		}
-		if (voice != r3d::audio::invalidVoice)
-			audio.stop(voice);
-		voice = r3d::audio::invalidVoice;
+		source.stop();
 		trackStarted = false;
 		music.setPaused(false);
 		music.setPlaybackPosition(0, 0);
@@ -216,9 +280,7 @@ struct OriginalMenuMusic::Impl
 
 	void stop() noexcept
 	{
-		if (voice != r3d::audio::invalidVoice)
-			audio.stop(voice);
-		voice = r3d::audio::invalidVoice;
+		source.stop();
 		trackStarted = false;
 		playbackRequested = false;
 		music.setPaused(false);
@@ -240,9 +302,7 @@ struct OriginalMenuMusic::Impl
 			// MusicCat::Pause(true) stores Source::GetPos and calls StopMusic;
 			// it does not retain a paused XAudio Proxy. Recreate the backend
 			// voice from the saved PCM frame on Pause(false).
-			if (voice != r3d::audio::invalidVoice)
-				audio.stop(voice);
-			voice = r3d::audio::invalidVoice;
+			source.stop();
 			trackStarted = false;
 		}
 		else if (playbackRequested &&
@@ -258,9 +318,7 @@ struct OriginalMenuMusic::Impl
 			error = "Original menu music is not initialized";
 			return false;
 		}
-		if (voice != r3d::audio::invalidVoice)
-			audio.stop(voice);
-		voice = r3d::audio::invalidVoice;
+		source.stop();
 		trackStarted = false;
 		if (!music.next())
 		{
@@ -289,9 +347,7 @@ struct OriginalMenuMusic::Impl
 			error = "Original menu music seek position is outside the track";
 			return false;
 		}
-		if (voice != r3d::audio::invalidVoice)
-			audio.stop(voice);
-		voice = r3d::audio::invalidVoice;
+		source.stop();
 		trackStarted = false;
 		music.setPlaybackPosition(mixerFrame, total);
 		return startCurrent(error);
@@ -489,8 +545,7 @@ struct OriginalMenuMusic::Impl
 		options.bus = r3d::audio::Bus::Music;
 		options.paused = music.paused();
 		options.startFrame = music.positionFrames();
-		voice = audio.play(entry.sound, options, error);
-		if (voice == r3d::audio::invalidVoice)
+		if (!source.play(this, entry.sound, options, error))
 			return false;
 		trackStarted = true;
 		music.setPlaybackPosition(options.startFrame, entry.info.mixerFrames);
@@ -499,8 +554,8 @@ struct OriginalMenuMusic::Impl
 
 	void capturePosition() noexcept
 	{
-		if (voice != r3d::audio::invalidVoice && audio.isVoiceActive(voice))
-			music.setPlaybackPosition(audio.voicePositionFrames(voice), currentTotalFrames());
+		if (source.active(this))
+			music.setPlaybackPosition(source.positionFrames(this), currentTotalFrames());
 	}
 
 	std::uint64_t currentTotalFrames() const noexcept
@@ -547,13 +602,14 @@ struct OriginalMenuMusic::Impl
 		return true;
 	}
 
+	std::unique_ptr<OriginalGameModeMusicSource> ownedSource;
+	OriginalGameModeMusicSource &source;
 	r3d::audio::AudioBackend &audio;
 	const r3d::resource::ResourceFileSystem &resources;
 	std::filesystem::path statePath;
 	r3d::game::MusicCat music;
 	std::vector<LoadedTrack> loaded;
 	std::optional<std::future<DecodeResult>> decode;
-	r3d::audio::VoiceHandle voice = r3d::audio::invalidVoice;
 	std::chrono::steady_clock::time_point lastSave{};
 	std::string stateWarning;
 	std::uint64_t transitions = 0;
@@ -577,7 +633,20 @@ OriginalMenuMusic::OriginalMenuMusic(
 	bool persistState, std::vector<r3d::game::MusicCatTrack> tracks,
 	std::vector<std::size_t> initialPlaylist)
 	: impl_(std::make_unique<Impl>(
-		  audio, resources, std::move(statePath), randomSeed,
+		  nullptr, audio, resources, std::move(statePath), randomSeed,
+		  persistState, std::move(tracks), std::move(initialPlaylist)))
+{
+}
+
+OriginalMenuMusic::OriginalMenuMusic(
+	OriginalGameModeMusicSource &source,
+	r3d::audio::AudioBackend &audio,
+	const r3d::resource::ResourceFileSystem &resources,
+	std::filesystem::path statePath, std::uint64_t randomSeed,
+	bool persistState, std::vector<r3d::game::MusicCatTrack> tracks,
+	std::vector<std::size_t> initialPlaylist)
+	: impl_(std::make_unique<Impl>(
+		  &source, audio, resources, std::move(statePath), randomSeed,
 		  persistState, std::move(tracks), std::move(initialPlaylist)))
 {
 }
@@ -644,8 +713,8 @@ std::optional<std::size_t> OriginalMenuMusic::currentTrack() const noexcept
 
 std::uint64_t OriginalMenuMusic::currentPositionFrames() const noexcept
 {
-	if (impl_->voice != r3d::audio::invalidVoice && impl_->audio.isVoiceActive(impl_->voice))
-		return impl_->audio.voicePositionFrames(impl_->voice);
+	if (impl_->source.active(impl_.get()))
+		return impl_->source.positionFrames(impl_.get());
 	return impl_->music.positionFrames();
 }
 
@@ -656,7 +725,7 @@ bool OriginalMenuMusic::paused() const noexcept
 
 bool OriginalMenuMusic::currentVoiceActive() const noexcept
 {
-	return impl_->voice != r3d::audio::invalidVoice && impl_->audio.isVoiceActive(impl_->voice);
+	return impl_->source.active(impl_.get());
 }
 
 bool OriginalMenuMusic::allTracksLoaded() const noexcept
@@ -696,6 +765,130 @@ const r3d::audio::SoundInfo *OriginalMenuMusic::trackInfo(std::size_t index) con
 {
 	return index < impl_->loaded.size() && impl_->loaded[index].state == LoadState::Loaded ? &impl_->loaded[index].info
 	                                                                                       : nullptr;
+}
+
+bool OriginalMenuMusic::sharesPlaybackSourceWith(
+	const OriginalMenuMusic &other) const noexcept
+{
+	return &impl_->source == &other.impl_->source;
+}
+
+bool runOriginalGameModeMusicSourceSmokeTest() noexcept
+{
+	class FakeAudio final : public r3d::audio::AudioBackend
+	{
+	  public:
+		bool initialize(std::string &) override { return true; }
+		void shutdown() noexcept override {}
+		r3d::audio::SoundHandle loadOgg(
+			const std::filesystem::path &, r3d::audio::SoundInfo &,
+			std::string &) override { return 1U; }
+		bool unloadSound(r3d::audio::SoundHandle) noexcept override { return true; }
+		r3d::audio::VoiceHandle play(
+			r3d::audio::SoundHandle sound,
+			const r3d::audio::PlayOptions &options,
+			std::string &) override
+		{
+			lastVoice = nextVoice++;
+			lastSound = sound;
+			lastOptions = options;
+			active[lastVoice] = true;
+			positions[lastVoice] = options.startFrame;
+			return lastVoice;
+		}
+		bool stop(r3d::audio::VoiceHandle voice) noexcept override
+		{
+			active[voice] = false;
+			++stopCount;
+			return true;
+		}
+		void stopAll() noexcept override { active.clear(); }
+		bool setVoicePaused(r3d::audio::VoiceHandle, bool) noexcept override { return true; }
+		bool setVoiceParameters(r3d::audio::VoiceHandle, float, float, float) noexcept override { return true; }
+		bool isVoiceActive(r3d::audio::VoiceHandle voice) const noexcept override
+		{
+			const auto found = active.find(voice);
+			return found != active.end() && found->second;
+		}
+		std::uint64_t voicePositionFrames(r3d::audio::VoiceHandle voice) const noexcept override
+		{
+			const auto found = positions.find(voice);
+			return found != positions.end() ? found->second : 0U;
+		}
+		void setPaused(bool value) noexcept override { pausedValue = value; }
+		bool paused() const noexcept override { return pausedValue; }
+		void setMasterVolume(float value) noexcept override { master = value; }
+		float masterVolume() const noexcept override { return master; }
+		void setBusVolume(r3d::audio::Bus, float) noexcept override {}
+		float busVolume(r3d::audio::Bus) const noexcept override { return 1.0F; }
+		void notifyPlaybackDeviceEvent(
+			r3d::audio::PlaybackDeviceEvent, std::uint32_t) noexcept override {}
+		std::string driverName() const override { return "fake"; }
+		std::string outputDeviceName() const override { return "fake"; }
+		r3d::audio::Statistics statistics() const noexcept override { return {}; }
+
+		void setPosition(r3d::audio::VoiceHandle voice, std::uint64_t position)
+		{
+			positions[voice] = position;
+		}
+		void finish(r3d::audio::VoiceHandle voice) { active[voice] = false; }
+
+		std::unordered_map<r3d::audio::VoiceHandle, bool> active;
+		std::unordered_map<r3d::audio::VoiceHandle, std::uint64_t> positions;
+		r3d::audio::PlayOptions lastOptions;
+		r3d::audio::SoundHandle lastSound = r3d::audio::invalidSound;
+		r3d::audio::VoiceHandle lastVoice = r3d::audio::invalidVoice;
+		std::size_t stopCount = 0U;
+
+	  private:
+		r3d::audio::VoiceHandle nextVoice = 1U;
+		float master = 1.0F;
+		bool pausedValue = false;
+	};
+
+	FakeAudio audio;
+	OriginalGameModeMusicSource source(audio);
+	const int menuOwner = 1;
+	const int gameOwner = 2;
+	std::string error;
+	r3d::audio::PlayOptions options;
+	options.bus = r3d::audio::Bus::Music;
+	options.startFrame = 12U;
+	const bool menuStarted =
+		source.play(&menuOwner, 7U, options, error) &&
+		source.owns(&menuOwner) && source.active(&menuOwner) &&
+		source.positionFrames(&menuOwner) == 12U;
+	const auto menuVoice = audio.lastVoice;
+	audio.setPosition(menuVoice, 44U);
+	const bool menuCursor = source.positionFrames(&menuOwner) == 44U;
+
+	options.startFrame = 3U;
+	const bool gameReplacedMenu =
+		source.play(&gameOwner, 8U, options, error) &&
+		!source.owns(&menuOwner) && !audio.isVoiceActive(menuVoice) &&
+		source.owns(&gameOwner) && source.active(&gameOwner) &&
+		audio.stopCount == 1U && audio.lastSound == 8U &&
+		audio.lastOptions.bus == r3d::audio::Bus::Music &&
+		audio.lastOptions.startFrame == 3U;
+	const auto gameVoice = audio.lastVoice;
+	audio.finish(gameVoice);
+	const bool naturalEndRetainsReport =
+		source.owns(&gameOwner) && !source.active(&gameOwner);
+	source.release(&gameOwner);
+	const bool naturalEndReleased =
+		!source.owns(&gameOwner) && audio.stopCount == 1U;
+
+	options.startFrame = 0U;
+	const bool menuRestarted =
+		source.play(&menuOwner, 7U, options, error) &&
+		source.active(&menuOwner);
+	source.stop();
+	const bool globallyStopped =
+		!source.owns(&menuOwner) && audio.stopCount == 2U;
+
+	return menuStarted && menuCursor && gameReplacedMenu &&
+	       naturalEndRetainsReport && naturalEndReleased &&
+	       menuRestarted && globallyStopped;
 }
 
 } // namespace rrr3d::audio

@@ -56,7 +56,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `FinishMenu` | `originalracemenu::FinishMenuFrameState` + bgfx/CoreText view | Source owner, active frame | Legacy Widget API заменён backend draw/input; result order, timing, events и layout принадлежат source owner |
 | `GameBase` | `OriginalGameObject`, all serialized behaviors, effects, motor sound state | Source owner, active behavior graph | Все shipped type 0–14 имеют concrete owner/runtime; bgfx/Jolt/SDL исполняют только graph/physics/audio commands |
 | `GameCar` | `source::GameCar::{OnFixedStepDrive,OnContact,OnPxSync}` + Jolt vehicle adapter | Source owner, active drive/contact frame | Оставшиеся PhysX solver queries и actor operations являются Jolt boundary; продолжить аудит public serialization/editor-only методов |
-| `GameMode` | source startup/movie/race/music-fade states on shared World | Source owner, active startup/movie/race/audio-policy path | Config и исполнение menu/audio команд ещё находятся в host; SDL/CoreAudio применяет готовые source/category gains |
+| `GameMode` | source startup/movie/race/music-fade states + one shared menu/game music source on shared World | Source owner, active startup/movie/race/audio-policy path | Config и dispatch menu/audio команд ещё находятся в host; SDL/CoreAudio декодирует и исполняет готовые source/category commands |
 | `GameObject` | `source::GameObject`, event counters, frame sync, listener/contact graph | Source owner, active core | Jolt/bgfx snapshots остаются backend boundary; source fixed/frame registration подключена |
 | `HudMenu` | `source::{HudMenu,MiniMapFrame,PlayerStateFrame}` + `OriginalRaceHud` | Source owner, active HUD/minimap/player-state policy | State/Escape/layout/countdown, MiniMap, weapon/place/life, OnProcessEvent, notifications, car-life и opponents source-owned; FinishMenu не дублируется, bgfx/CoreText payload и camera projection остаются backend boundary |
 | `HumanPlayer` | `source::HumanPlayer` | Source owner | Полный input message order, driving/progress gates и weapon selection перенесены; SDL только переводит source-сообщения |
@@ -1041,6 +1041,19 @@ source volume, `_fadeSpeedMusic` и формулу каждого `OnFrame` с c
 останавливают interpolation, а Options меняет только category gain и не
 обходит source gain. Regression закрепляет target/speed, последовательность
 0→0.25→0.4375, inactive gate, обратный target и finish-close ownership.
+
+Результат B8bl: `OriginalGameModeMusicSource` возвращает единственный
+`GameMode::_music`, который Windows разделяет между `_menuMusic` и
+`_gameMusic`. Каталоги сохраняют независимые playlist/current/cursor, но
+`PlayMusic` всегда выполняет глобальный Stop, меняет report-owner и создаёт
+ровно один backend voice. Natural EOF обрабатывает только текущий MusicCat;
+заменённый каталог не может выполнить ложный Next или перезапустить музыку.
+
+Menu pause/resume сохраняет PCM frame на общем source, race Play заменяет
+его тем же способом, а FinalMenu остаётся на отдельном owner. Integrated
+smoke закрепляет shared identity и mutual exclusion voices, а fake backend
+regression — owner A→B, cursor, natural EOF и global Stop. SDL/CoreAudio
+остаётся decode/mixer boundary.
 
 ## Правило обновления карты
 

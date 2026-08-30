@@ -19,6 +19,32 @@ class ResourceFileSystem;
 namespace rrr3d::audio
 {
 
+// Windows GameMode owns one snd::Source for both its menu and race MusicCat
+// instances.  The catalogs retain their independent shuffle/cursor state,
+// but every PlayMusic/StopMusic operation is serialized through this owner.
+class OriginalGameModeMusicSource
+{
+  public:
+	explicit OriginalGameModeMusicSource(r3d::audio::AudioBackend &audio) noexcept;
+	~OriginalGameModeMusicSource();
+
+	OriginalGameModeMusicSource(const OriginalGameModeMusicSource &) = delete;
+	OriginalGameModeMusicSource &operator=(const OriginalGameModeMusicSource &) = delete;
+
+	bool play(const void *owner, r3d::audio::SoundHandle sound,
+	          const r3d::audio::PlayOptions &options, std::string &error);
+	void stop() noexcept;
+	void release(const void *owner) noexcept;
+	bool owns(const void *owner) const noexcept;
+	bool active(const void *owner) const noexcept;
+	std::uint64_t positionFrames(const void *owner) const noexcept;
+
+  private:
+	r3d::audio::AudioBackend &audio_;
+	r3d::audio::VoiceHandle voice_ = r3d::audio::invalidVoice;
+	const void *owner_ = nullptr;
+};
+
 // Connects the portable MusicCat policy to AudioBackend. Ogg decoding happens
 // on one background worker while the render/input loop continues.
 class OriginalMenuMusic
@@ -27,6 +53,13 @@ class OriginalMenuMusic
 	OriginalMenuMusic(r3d::audio::AudioBackend &audio, const r3d::resource::ResourceFileSystem &resources,
 	                  std::filesystem::path statePath, std::uint64_t randomSeed, bool persistState);
 	OriginalMenuMusic(r3d::audio::AudioBackend &audio,
+	                  const r3d::resource::ResourceFileSystem &resources,
+	                  std::filesystem::path statePath,
+	                  std::uint64_t randomSeed, bool persistState,
+	                  std::vector<r3d::game::MusicCatTrack> tracks,
+	                  std::vector<std::size_t> initialPlaylist);
+	OriginalMenuMusic(OriginalGameModeMusicSource &source,
+	                  r3d::audio::AudioBackend &audio,
 	                  const r3d::resource::ResourceFileSystem &resources,
 	                  std::filesystem::path statePath,
 	                  std::uint64_t randomSeed, bool persistState,
@@ -64,10 +97,13 @@ class OriginalMenuMusic
 	const std::vector<std::size_t> &playlist() const noexcept;
 	const r3d::game::MusicCatTrack *track(std::size_t index) const noexcept;
 	const r3d::audio::SoundInfo *trackInfo(std::size_t index) const noexcept;
+	bool sharesPlaybackSourceWith(const OriginalMenuMusic &other) const noexcept;
 
   private:
 	struct Impl;
 	std::unique_ptr<Impl> impl_;
 };
+
+bool runOriginalGameModeMusicSourceSmokeTest() noexcept;
 
 } // namespace rrr3d::audio
