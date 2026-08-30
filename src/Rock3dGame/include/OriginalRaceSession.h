@@ -632,6 +632,11 @@ private:
     bool bonusIsActive(std::size_t index) const noexcept;
     float bonusScaleValue(std::size_t index) const noexcept;
     void refreshBonusView() const;
+    bool projectileIsActive(
+        const ProjectileRuntime& projectile) const noexcept;
+    bool mineIsActive(const MineRuntime& mine) const noexcept;
+    void refreshProjectileView() const noexcept;
+    void refreshMineView() const noexcept;
 
     const std::vector<std::uint32_t>& tracePathAt(
         std::size_t path) const;
@@ -813,8 +818,10 @@ private:
     std::vector<Vec3> previousPositions_;
     std::vector<RaceEvent> events_;
     std::vector<RaceEffect> effects_;
-    std::vector<MineRuntime> mines_;
-    std::vector<ProjectileRuntime> projectiles_;
+    // Backend pose/contact views. The source Proj registered in Logic owns
+    // lifetime; active is refreshed for renderer/test compatibility.
+    mutable std::vector<MineRuntime> mines_;
+    mutable std::vector<ProjectileRuntime> projectiles_;
     std::vector<RespawnRequest> respawns_;
     std::vector<VelocityRequest> velocityRequests_;
     std::vector<AngularVelocityRequest> angularVelocityRequests_;

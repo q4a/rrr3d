@@ -1234,6 +1234,34 @@ void OriginalRaceSession::refreshBonusView() const
     }
 }
 
+bool OriginalRaceSession::projectileIsActive(
+    const ProjectileRuntime& projectile) const noexcept
+{
+    return logic_.HasGameObj(projectile.sourceObject) &&
+           projectile.sourceObject->GetLiveState() !=
+               source::GameObject::LiveState::Death;
+}
+
+bool OriginalRaceSession::mineIsActive(
+    const MineRuntime& mine) const noexcept
+{
+    return logic_.HasGameObj(mine.sourceObject) &&
+           mine.sourceObject->GetLiveState() !=
+               source::GameObject::LiveState::Death;
+}
+
+void OriginalRaceSession::refreshProjectileView() const noexcept
+{
+    for (auto& projectile : projectiles_)
+        projectile.active = projectileIsActive(projectile);
+}
+
+void OriginalRaceSession::refreshMineView() const noexcept
+{
+    for (auto& mine : mines_)
+        mine.active = mineIsActive(mine);
+}
+
 void OriginalRaceSession::reset()
 {
     gameModeRaceState_.Reset(legacyWindowsDebug_);
@@ -2826,12 +2854,14 @@ const std::vector<RaceEffect>& OriginalRaceSession::effects() const noexcept
 
 const std::vector<MineRuntime>& OriginalRaceSession::mines() const noexcept
 {
+    refreshMineView();
     return mines_;
 }
 
 const std::vector<ProjectileRuntime>&
 OriginalRaceSession::projectiles() const noexcept
 {
+    refreshProjectileView();
     return projectiles_;
 }
 
@@ -2888,6 +2918,16 @@ void OriginalRaceSession::synchronizeProjectilePhysics(
             });
         if (projectile != projectiles_.end())
         {
+            if (!state.active)
+            {
+                projectile->physicsBacked = false;
+                projectile->physicsBodyId =
+                    r3d::physics::invalidProjectileBodyId;
+                projectile->physicsContacts.clear();
+                if (projectileIsActive(*projectile))
+                    queueProjectileBodyCreate(*projectile);
+                continue;
+            }
             projectile->physicsPreviousPosition = projectile->position;
             projectile->position = state.body.position;
             projectile->rotation = state.body.rotation;
@@ -2896,8 +2936,6 @@ void OriginalRaceSession::synchronizeProjectilePhysics(
             projectile->speed = length3(projectile->velocity);
             if (!projectile->attached && projectile->speed > 0.0001F)
                 projectile->direction = normalized3(projectile->velocity);
-            if (!state.active)
-                projectile->active = false;
             continue;
         }
         const auto mine = std::find_if(
@@ -2907,13 +2945,21 @@ void OriginalRaceSession::synchronizeProjectilePhysics(
             });
         if (mine != mines_.end())
         {
+            if (!state.active)
+            {
+                mine->physicsBacked = false;
+                mine->physicsBodyId =
+                    r3d::physics::invalidProjectileBodyId;
+                mine->physicsContacts.clear();
+                if (mineIsActive(*mine))
+                    queueMineBodyCreate(*mine);
+                continue;
+            }
             mine->physicsPreviousPosition = mine->position;
             mine->position = state.body.position;
             mine->rotation = state.body.rotation;
             mine->velocity = state.linearVelocity;
             mine->physicsContacts = state.contacts;
-            if (!state.active)
-                mine->active = false;
             continue;
         }
         const auto bonus = std::find(
@@ -5298,16 +5344,14 @@ void OriginalRaceSession::updateGameplay(
 
     for (auto& projectile : projectiles_)
     {
-        if (!projectile.active)
+        if (!projectileIsActive(projectile))
+        {
+            projectile.active = false;
             continue;
+        }
         if (projectile.deferProgressOnce)
         {
             projectile.deferProgressOnce = false;
-            continue;
-        }
-        if (!logic_.HasGameObj(projectile.sourceObject))
-        {
-            projectile.active = false;
             continue;
         }
         const auto& projectileDefinition =
@@ -5321,6 +5365,7 @@ void OriginalRaceSession::updateGameplay(
             if (projectile.owner >= vehicles.size() ||
                 projectile.owner >= racers_.size())
             {
+                projectile.sourceObject->Death();
                 projectile.active = false;
                 continue;
             }
@@ -5341,6 +5386,8 @@ void OriginalRaceSession::updateGameplay(
                     seconds);
             if (!attachedProgress.valid)
             {
+                if (!projectile.sourceObject->destroyed)
+                    projectile.sourceObject->Death();
                 projectile.active = false;
                 continue;
             }
@@ -6070,7 +6117,7 @@ void OriginalRaceSession::updateGameplay(
                           contact.otherDecoration);
                   })
             : projectile.physicsContacts.end();
-        if (projectile.active &&
+        if (projectileIsActive(projectile) &&
             projectileContactRoute.handler ==
                 source::Proj::ContactHandler::Sonar)
         {
@@ -6109,7 +6156,7 @@ void OriginalRaceSession::updateGameplay(
                 }
             }
         }
-        else if (projectile.active &&
+        else if (projectileIsActive(projectile) &&
                  !(sourceProgressRoute.handler ==
                        source::Proj::ProgressHandler::Impulse &&
                    projectile.target < racers_.size()))
@@ -6153,7 +6200,7 @@ void OriginalRaceSession::updateGameplay(
                 projectile.active = false;
             }
         }
-        if (projectile.active &&
+        if (projectileIsActive(projectile) &&
             projectile.sourceObject->GetMaxTimeLife() > 0.0F &&
             projectile.sourceObject->GetTimeLife() >
                 projectile.sourceObject->GetMaxTimeLife())
@@ -6166,14 +6213,14 @@ void OriginalRaceSession::updateGameplay(
     }
     for (const auto& projectile : projectiles_)
     {
-        if (!projectile.active)
+        if (!projectileIsActive(projectile))
             queueProjectileBodyDestroy(projectile);
     }
     projectiles_.erase(
         std::remove_if(
             projectiles_.begin(), projectiles_.end(),
-            [](const ProjectileRuntime& projectile) {
-                return !projectile.active;
+            [this](const ProjectileRuntime& projectile) {
+                return !projectileIsActive(projectile);
             }),
         projectiles_.end());
 
@@ -7327,8 +7374,12 @@ void OriginalRaceSession::updateGameplay(
         return true;
     };
     auto deactivateMine = [&](MineRuntime& mine) {
-        if (!mine.active)
+        if (!mineIsActive(mine))
+        {
+            queueMineBodyDestroy(mine);
+            mine.active = false;
             return;
+        }
         if (!mine.sourceObject->destroyed)
             mine.sourceObject->Death();
         // Logic's deferred GameObject destruction notifies Player::OnDestroy,
@@ -7339,7 +7390,7 @@ void OriginalRaceSession::updateGameplay(
     };
     auto applyMineContact = [&](MineRuntime& mine, std::size_t racer,
                                 const Vec3& contactPoint) {
-        if (!mine.active || racer >= vehicles.size() ||
+        if (!mineIsActive(mine) || racer >= vehicles.size() ||
             racer >= racers_.size() || racers_[racer].IsDestroyed() ||
             !logic_.HasGameObj(mine.sourceObject))
             return false;
@@ -7427,7 +7478,7 @@ void OriginalRaceSession::updateGameplay(
         const auto found = std::find_if(
             mines_.begin(), mines_.end(),
             [&](const MineRuntime& mine) {
-                return mine.active &&
+                return mineIsActive(mine) &&
                        mine.owner == contact.projectileOwner &&
                        mine.owner < racers_.size() &&
                        racers_[mine.owner].HasBonusProjectile(
@@ -7441,9 +7492,7 @@ void OriginalRaceSession::updateGameplay(
     }
     for (auto& mine : mines_)
     {
-        if (!mine.active)
-            continue;
-        if (!logic_.HasGameObj(mine.sourceObject))
+        if (!mineIsActive(mine))
         {
             queueMineBodyDestroy(mine);
             mine.active = false;
@@ -7635,7 +7684,7 @@ void OriginalRaceSession::updateGameplay(
             }
             if (sourceContact.applyProjectile)
                 applyMineContact(mine, racer, contactPoint);
-            if (!mine.active)
+            if (!mineIsActive(mine))
                 break;
         }
     }
@@ -7645,8 +7694,8 @@ void OriginalRaceSession::updateGameplay(
         std::make_move_iterator(spawnedMines.end()));
     mines_.erase(
         std::remove_if(mines_.begin(), mines_.end(),
-                       [](const MineRuntime& mine) {
-                           return !mine.active;
+                       [this](const MineRuntime& mine) {
+                           return !mineIsActive(mine);
                        }),
         mines_.end());
 
@@ -10166,6 +10215,23 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                         "source fixed-step AI Mine did not create exactly "
                         "one Jolt actor on the firing tick");
                 }
+                r3d::physics::ProjectileBodyState lostMineBody;
+                lostMineBody.id = mineBodyCommands.front().body.id;
+                lostMineBody.active = false;
+                fixedMineSession.synchronizeProjectilePhysics(
+                    {lostMineBody});
+                const auto recoveredMineBodyCommands =
+                    fixedMineSession.takeProjectileBodyCommands();
+                if (!fixedMineSession.mines().front().active ||
+                    recoveredMineBodyCommands.size() != 1U ||
+                    recoveredMineBodyCommands.front().kind !=
+                        r3d::physics::ProjectileBodyCommandKind::Create ||
+                    recoveredMineBodyCommands.front().body.id ==
+                        lostMineBody.id)
+                {
+                    throw std::runtime_error(
+                        "Jolt actor loss overrode live source Mine state");
+                }
                 fixedMineSession.raceFixedStep(
                     1.0F / 60.0F, fixedMineVehicles,
                     fixedMineInputs, fixedMineResets);
@@ -10441,6 +10507,29 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                         "Jolt projectile pose/contact was not synchronized "
                         "back into the source runtime");
                 }
+                projectileBodyState.active = false;
+                queuedAttackSession.synchronizeProjectilePhysics(
+                    {projectileBodyState});
+                const auto recoveredProjectileBodyCommands =
+                    queuedAttackSession.takeProjectileBodyCommands();
+                if (!queuedAttackSession.projectiles().front().active ||
+                    recoveredProjectileBodyCommands.size() != 1U ||
+                    recoveredProjectileBodyCommands.front().kind !=
+                        r3d::physics::ProjectileBodyCommandKind::Create ||
+                    recoveredProjectileBodyCommands.front().body.id ==
+                        projectileBodyState.id)
+                {
+                    throw std::runtime_error(
+                        "Jolt actor loss overrode live source Proj state");
+                }
+                projectileBodyState.id =
+                    recoveredProjectileBodyCommands.front().body.id;
+                projectileBodyState.body =
+                    recoveredProjectileBodyCommands.front().body.transform;
+                projectileBodyState.linearVelocity =
+                    recoveredProjectileBodyCommands.front()
+                        .body.linearVelocity;
+                projectileBodyState.active = true;
                 projectileBodyState.contacts.clear();
                 queuedAttackSession.synchronizeProjectilePhysics(
                     {projectileBodyState});

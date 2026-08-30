@@ -6113,6 +6113,26 @@ Integrated regression искусственно возвращает inactive Jol
 Оригинальные countdown arming 0→0.4→1, mine death effect, pickup и
 NetPlayer request/replay regressions продолжают проверять общую цепочку.
 
+### P2.271 — Logic владеет transient Proj/Mine lifetime — выполнено
+
+Сверка `Logic::{RegGameObj,ProgressGameObjs,CleanGameObjs}` и projectile
+death/contact paths показала, что `ProjectileRuntime::active` и
+`MineRuntime::active` всё ещё выступали вторым владельцем. В частности,
+неактивный Jolt body мог выключить runtime, хотя зарегистрированный
+`source::Proj` оставался жив, а несколько adapter-ветвей завершали только
+boolean без `GameObject::Death`.
+
+Все gameplay gates и удаление runtime теперь основаны на наличии объекта в
+Logic registry и его `LiveState`. Impact, timeout, attached-owner loss и mine
+contact сначала завершают source object; actor destroy и erase следуют за
+этим. Renderer-compatible `active` обновляется в публичных getters и не
+участвует в решениях.
+
+Jolt остаётся pose/contact/actor boundary. Если backend сообщает inactive
+body для живого transient Proj либо Mine, старый ID отбрасывается и выдаётся
+одна create-команда с новым ID; source object не меняется. Integrated smoke
+закрепляет оба recovery пути вместе с fixed-step attack/mine ownership.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

@@ -60,7 +60,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `GameObject` | `source::GameObject`, event counters, frame sync, listener/contact graph | Source owner, active core | Jolt/bgfx snapshots остаются backend boundary; source fixed/frame registration подключена |
 | `HudMenu` | `source::{HudMenu,MiniMapFrame,PlayerStateFrame}` + `OriginalRaceHud` | Source owner, active HUD/minimap/player-state policy | State/Escape/layout/countdown, MiniMap, weapon/place/life, OnProcessEvent, notifications, car-life и opponents source-owned; FinishMenu не дублируется, bgfx/CoreText payload и camera projection остаются backend boundary |
 | `HumanPlayer` | `source::HumanPlayer` | Source owner | Полный input message order, driving/progress gates и weapon selection перенесены; SDL только переводит source-сообщения |
-| `Logic` | `source::Logic` + shared active `WorldEventPump` registration | Source owner, active object/contact/audio-category core | Music/Effects/Voice gain и mute source-owned; убрать оставшиеся network authority и projectile backend-view loops из session, SDL/CoreAudio остаётся submix backend |
+| `Logic` | `source::Logic` + shared active `WorldEventPump` registration | Source owner, active object/contact/audio-category/transient lifetime core | Proj/Mine lifetime source-owned; остались network authority и backend pose/contact views, SDL/CoreAudio остаётся submix backend |
 | `MainMenu2` | `mainmenu2::{Controller,FrameController,ProfileFrameState,FinalMenuFrameState}` + `originalmenu::ScreenStack` | Source owner, active Main/Profile/Final path | Остались concrete network callbacks и backend draw submission |
 | `Map` | `source::Map` + shared `source::DataBase` | Source owner, active registry path | XML parsing и backend actor create/destroy остаются adapters |
 | `MapObj` | `source::MapObj*` record/list hierarchy | Source owner, active live-ID/runtime hierarchy | Global ID и decoration/bonus lifetime выдаёт только live `Map::MapObjList`/`GameObject`; AutoProj владеет arming scale, `sourceIndex` остаётся backend mapping |
@@ -1120,6 +1120,17 @@ Jolt sensor следует за source lifetime: source death выдаёт destr
 но inactive backend state не убивает бонус. Для ещё живого AutoProj sensor
 пересоздаётся с новым backend ID. Regression закрепляет это направление
 ownership вместе с исходными pickup/hazard/network/arming переходами.
+
+Результат B8br: `ProjectileRuntime::active` и `MineRuntime::active` больше
+не владеют transient lifetime. Единственный owner — зарегистрированный в
+`Logic` concrete `source::Proj`; gameplay проверяет registry и
+`GameObject::LiveState`, а impact/timeout/contact выполняет source Death до
+actor teardown и удаления runtime view.
+
+Публичные runtime getters обновляют `active` только для renderer/smoke.
+Потеря Jolt actor живого projectile/mine приводит к одной create-команде с
+новым backend ID, а не к смерти source object. Две integrated regression
+закрепляют это направление ownership.
 
 ## Правило обновления карты
 

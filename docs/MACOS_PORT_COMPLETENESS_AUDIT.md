@@ -2504,6 +2504,26 @@ Pickup, map mine, oil/slow/speed contacts и network replay теперь про�
 существующие pickup, hazard, arming и network regressions проходят через
 тот же owner.
 
+### B8br — transient Proj/Mine lifetime возвращён Logic — выполнено
+
+Последний active-флаг в этой группе оставался в `ProjectileRuntime` и
+`MineRuntime`. Session фильтровал contacts, timeouts, erase и renderer по
+этому флагу, а `ProjectileBodyState::active=false` мог удалить ещё живой
+source projectile. В Windows каждый быстрый projectile и автономная мина —
+конкретный `Proj`, зарегистрированный в `Logic::_gameObjs`.
+
+Gameplay теперь определяет жизнь через `Logic::HasGameObj` и
+`GameObject::LiveState`. Impact/timeout/contact сначала выполняет source
+`Death`/`DestroyWithEffect`; только после этого удаляются Jolt actor и
+runtime view. Невалидный attached owner также завершает сам source object,
+а не только скрывает adapter record.
+
+`active` сохранён для renderer и существующих smoke assertions, но getters
+перестраивают его из Logic registry. Неактивный Jolt actor больше не меняет
+source lifetime: для живого `Proj` или `Mine` создаётся новый actor. Две
+регрессии имитируют потерю actor, требуют сохранения source-live state и
+ровно одну create-команду с новым backend ID.
+
 ## Воспроизведение проверки
 
 ```sh
