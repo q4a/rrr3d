@@ -56,28 +56,9 @@ MapObj& Map::AddMapObj(
     MapObjCategory category, GameObjType type, std::string record,
     std::size_t sourceIndex)
 {
-    while (objects_.contains(++lastId_))
+    auto sourceId = lastId_;
+    while (objects_.contains(++sourceId))
     {
-    }
-    return AddMapObj(
-        category, type, std::move(record), lastId_, sourceIndex);
-}
-
-MapObj& Map::AddMapObj(
-    MapObjCategory category, GameObjType type, std::string record,
-    std::uint32_t sourceId, std::size_t sourceIndex)
-{
-    if (sourceId == defaultMapObjId || objects_.contains(sourceId))
-    {
-        const auto found = objects_.find(sourceId);
-        const std::string existing =
-            found != objects_.end() && found->second != nullptr
-                ? found->second->GetRecord()
-                : std::string("<null>");
-        throw std::invalid_argument(
-            "MapObj ID " + std::to_string(sourceId) +
-            " is not unique/nonzero for '" + record +
-            "' (existing '" + existing + "')");
     }
     const auto categoryIndex = CategoryIndex(category);
     auto* recordProxy = dataBase_->GetRecord(category, record, false);
@@ -128,13 +109,14 @@ MapObj& Map::InsertMapObj(std::unique_ptr<MapObj> value)
     if (value->GetRecordProxy() == nullptr)
         value->SetRecord({}, category);
 
-    while (objects_.contains(++lastId_))
+    auto sourceId = lastId_;
+    while (objects_.contains(++sourceId))
     {
     }
     auto& result = categories_[CategoryIndex(category)].Insert(
         std::move(value));
     result.GetGameObj().SetLogic(logic_);
-    Register(result, lastId_);
+    Register(result, sourceId);
     return result;
 }
 
@@ -159,11 +141,6 @@ bool Map::DelMapObj(MapObj* value) noexcept
         }
     }
     return false;
-}
-
-void Map::ReserveIdsThrough(std::uint32_t value) noexcept
-{
-    lastId_ = std::max(lastId_, value);
 }
 
 void Map::Clear() noexcept

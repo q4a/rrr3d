@@ -15121,6 +15121,8 @@ int main(int argc, char** argv)
                         r3d::game::originalrace::RaceEventKind::Bonus &&
                     event.networkRequest &&
                     !event.networkReplicated &&
+                    event.networkMapObject &&
+                    event.networkProjectileId != 0U &&
                     event.racer < networkRaceModelOrder.size() &&
                     event.target < originalRace->bonuses.size())
                 {
@@ -15157,8 +15159,7 @@ int main(int argc, char** argv)
                             std::string error;
                             if (!networkSession.sendOwnedPlayerBonus(
                                     networkRaceModelOrder[event.racer],
-                                    originalRace->bonuses[event.target]
-                                        .mapObjectId,
+                                    event.networkProjectileId,
                                     bonusType, event.value, error))
                             {
                                 std::cerr
@@ -15272,6 +15273,8 @@ int main(int argc, char** argv)
                         r3d::game::originalrace::RaceEventKind::
                             MapObjectDamage &&
                     !event.networkReplicated &&
+                    event.networkMapObject &&
+                    event.networkProjectileId != 0U &&
                     event.racer < networkRaceModelOrder.size() &&
                     event.target <
                         originalRace->decorationInstances.size())
@@ -15296,8 +15299,7 @@ int main(int argc, char** argv)
                         std::string error;
                         if (!networkSession.sendMapObjectDamage(
                                 networkRaceModelOrder[event.racer],
-                                originalRace->decorationInstances[
-                                    event.target].mapObjectId,
+                                event.networkProjectileId,
                                 event.value,
                                 static_cast<std::int32_t>(
                                     event.damageType),

@@ -6025,6 +6025,29 @@ StartOptions вызывает Check повторно и только тогда 
 Multiplayer одним нажатием. Unit regression проверяет обе Run-ветви,
 idempotency, Prepare/Free и оба результата integrated/discrete GPU.
 
+### P2.267 — глобальные `MapObj` ID возвращены live `MapObjList` — выполнено
+
+Сверка `Map::{Load,AddMapObj,InsertMapObj}` и
+`Map::MapObjList::InsertItem` обнаружила, что portable importer подменял
+исходного владельца identity. Он заранее пересчитывал XML-категории,
+записывал ID в descriptors декораций, бонусов и racers, а session затем
+насильно повторял вычисленные значения и резервировал диапазон. В Windows
+ID отсутствует в этих descriptors: `_lastId` увеличивается единственным
+живым `MapObjList` непосредственно при успешной вставке.
+
+Удалены `mapObjectId`, `firstDynamicMapObjectId`, обе assign-функции,
+`ReserveIdsThrough` и публичный overload `AddMapObj(..., sourceId, ...)`.
+Автоматические Add/Insert сначала разрешают record и создают объект, затем
+регистрируют следующий свободный ID; неудачная операция не меняет
+`_lastId`. Network damage/bonus transport получает ID из live `MapObj`, а
+не из parser mirror.
+
+Проверка 190 bundled карт показала, что `ctEffects`, `ctWeapon`, `ctCar` и
+`ctWaypoint` во всех них пусты; active load order полностью материализуется
+как Decoration→Track→Bonus→Car. Integrated map1 regression закрепляет
+1..234/235..286/287..293/294+, а Map regression — последовательность после
+ошибки DataBase, clone/transfer и глобальный registry lookup.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

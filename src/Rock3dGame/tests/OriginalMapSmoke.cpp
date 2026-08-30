@@ -43,18 +43,18 @@ int main()
         source::MapObjCategory::Decoration,
         source::GameObjType::DestrObj,
         "world\\db\\root\\ctDecoration\\Misc\\semaphore",
-        7U, 2U);
+        2U);
     auto& track = map.AddMapObj(
         source::MapObjCategory::Track,
         source::GameObjType::GameObj,
-        "world\\db\\root\\ctTrack\\track1", 9U, 4U);
+        "world\\db\\root\\ctTrack\\track1", 4U);
     track.GetGameObj().ResetGameObject(-1.0F);
 
     if (map.GetMapObj(source::Map::defaultMapObjId) != nullptr ||
-        map.GetMapObj(7U) != &semaphore ||
-        map.GetMapObj(9U) != &track ||
+        map.GetMapObj(1U) != &semaphore ||
+        map.GetMapObj(2U) != &track ||
         map.GetSemaphore() != &semaphore ||
-        map.GetLastId() != 9U || map.GetObjects().size() != 2U ||
+        map.GetLastId() != 2U || map.GetObjects().size() != 2U ||
         semaphore.GetSourceIndex() != 2U ||
         semaphore.GetGameObj().GetLogic() != &logic ||
         !semaphoreSourceLoaded ||
@@ -163,40 +163,28 @@ int main()
         source::MapObjCategory::Bonus,
         source::GameObjType::Proj,
         "world\\db\\root\\ctBonus\\money", 5U);
-    if (bonus.GetId() != 10U || map.GetMapObj(10U) != &bonus ||
+    if (bonus.GetId() != 3U || map.GetMapObj(3U) != &bonus ||
         bonus.GetSourceIndex() != 5U || bonus.GetName() != "money0")
         return 3;
-
-    bool duplicateRejected = false;
-    try
-    {
-        map.AddMapObj(
-            source::MapObjCategory::Effects,
-            source::GameObjType::GameObj, "Effect\\smoke", 9U, 0U);
-    }
-    catch (const std::invalid_argument&)
-    {
-        duplicateRejected = true;
-    }
-    if (!duplicateRejected || map.GetObjects().size() != 3U)
+    if (map.GetObjects().size() != 3U)
         return 4;
 
     // Map::GetMapObj hides lsDeath by default, while includeDead preserves
     // access until MapObjects finishes the progress callback and removal.
     semaphore.GetGameObj().Death(
         r3d::game::originalrace::DamageType::Simple);
-    if (map.GetMapObj(7U) != nullptr ||
-        map.GetMapObj(7U, true) != &semaphore)
+    if (map.GetMapObj(1U) != nullptr ||
+        map.GetMapObj(1U, true) != &semaphore)
         return 5;
     const auto special = map.GetMapObjList(
         source::MapObjCategory::Decoration).OnProgressSpecial(0.0F);
     if (special.progressed != 1U || special.removed != 1U ||
-        map.GetMapObj(7U, true) != nullptr ||
+        map.GetMapObj(1U, true) != nullptr ||
         map.GetObjects().size() != 2U || map.GetSemaphore() != nullptr)
         return 6;
 
     if (!map.DelMapObj(&track) || map.DelMapObj(&track) ||
-        map.GetMapObj(9U, true) != nullptr ||
+        map.GetMapObj(2U, true) != nullptr ||
         map.GetObjects().size() != 1U)
         return 7;
 
@@ -220,7 +208,14 @@ int main()
         return 9;
 
     map.Clear();
-    map.ReserveIdsThrough(293U);
+    // Source Map has no ID reservation shortcut: every serialized MapObj is
+    // inserted in category order and consumes the next live global ID.
+    for (std::size_t index = 0U; index < 293U; ++index)
+    {
+        map.AddMapObj(
+            source::MapObjCategory::Effects,
+            source::GameObjType::GameObj, "Effect\\serialized", index);
+    }
     auto& firstCar = map.AddMapObj(
         source::MapObjCategory::Car,
         source::GameObjType::RockCar, "Car\\marauder", 0U);
@@ -604,34 +599,40 @@ int main()
     auto& configuredDecoration = databaseMap.AddMapObj(
         source::MapObjCategory::Decoration,
         source::GameObjType::DestrObj,
-        databaseDecoration.record, 41U, 0U);
+        databaseDecoration.record, 0U);
     auto& configuredCar = databaseMap.AddMapObj(
         source::MapObjCategory::Car,
         source::GameObjType::RockCar,
-        databaseCar.record, 42U, 0U);
+        databaseCar.record, 0U);
     auto& configuredWeapon = databaseMap.AddMapObj(
         source::MapObjCategory::Weapon,
         source::GameObjType::Weapon,
-        databaseWeapon.record, 44U, 0U);
+        databaseWeapon.record, 0U);
     auto& configuredProjectile = databaseMap.AddMapObj(
         source::MapObjCategory::Effects,
         source::GameObjType::Proj,
-        databaseProjectile.visual.record, 45U, 0U);
+        databaseProjectile.visual.record, 0U);
     bool missingDatabaseRecordRejected = false;
     try
     {
         databaseMap.AddMapObj(
             source::MapObjCategory::Track,
             source::GameObjType::GameObj,
-            "world\\db\\root\\ctTrack\\notConfigured", 43U, 0U);
+            "world\\db\\root\\ctTrack\\notConfigured", 0U);
     }
     catch (const std::invalid_argument&)
     {
         missingDatabaseRecordRejected = true;
     }
+    auto& configuredCarAfterRejectedRecord = databaseMap.AddMapObj(
+        source::MapObjCategory::Car,
+        source::GameObjType::RockCar,
+        databaseCar.record, 1U);
     const auto* configuredFragment =
         configuredDecoration.GetDestrObj()->GetDestrList().Get(0U);
     if (!missingDatabaseRecordRejected ||
+        configuredCarAfterRejectedRecord.GetId() != 5U ||
+        databaseMap.GetLastId() != 5U ||
         &databaseMap.GetDataBase() != &database ||
         database.GetRecordCount() != 8U ||
         database.GetRecord(

@@ -2420,6 +2420,29 @@ Up/Down/Left/Right больше не делает второй menu/stepper ша
 StartOptions и полный M8 audio/input/MusicCat smoke проходят; unit regression
 проверяет обе startup ветви и все CheckStartupMenu one-shot transitions.
 
+### B8bn — единственный live-владелец `MapObj` ID — выполнено
+
+Обратная сверка `Map.cpp::MapObjList::InsertItem` выявила оставшийся
+архитектурный суррогат: XML-importer заранее вычислял ID и сохранял их в
+descriptor-полях `ObjectInstance/BonusInstance/Racer/Race`, после чего
+session принудительно воспроизводил этот диапазон через отдельный overload
+и `ReserveIdsThrough`. В оригинале ни parser, ни Player не владеют этой
+identity — следующий глобальный ID выдаёт сама живая карта при вставке.
+
+Зеркальные поля, функции предварительного подсчёта, резервирование и
+публичная вставка с заданным ID удалены. `Map::AddMapObj`/`InsertMapObj`
+фиксируют новый ID только после успешного разрешения record и вставки,
+поэтому исключение не оставляет дырку. Damage и bonus network RPC получают
+ID из текущего `MapObj`; parser `sourceIndex` используется только для связи
+с backend-массивами.
+
+Аудит всех 190 поставляемых `.r3dMap` подтвердил пустые
+`ctEffects/ctWeapon/ctCar/ctWaypoint`, поэтому активный source load-order
+совпадает с материализацией Decoration→Track→Bonus→Car. Map1 regression
+проверяет живые ID 1..234, 235..286, 287..293 и машины начиная с 294;
+Map smoke проверяет монотонность, transfer/clone и отсутствие пропуска ID
+после отклонённого DataBase record.
+
 ## Воспроизведение проверки
 
 ```sh

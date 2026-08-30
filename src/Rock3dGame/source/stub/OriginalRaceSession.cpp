@@ -1223,8 +1223,7 @@ void OriginalRaceSession::reset()
             race_.decorationDefinitions.at(instance.definition);
         auto& mapObject = map_.AddMapObj(
             source::MapObjCategory::Decoration,
-            source::GameObjType::DestrObj, definition.record,
-            instance.mapObjectId, index);
+            source::GameObjType::DestrObj, definition.record, index);
         auto* object = mapObject.GetDestrObj();
         if (object == nullptr)
             throw std::runtime_error(
@@ -1251,8 +1250,7 @@ void OriginalRaceSession::reset()
             race_.trackDefinitions.at(instance.definition);
         auto& mapObject = map_.AddMapObj(
             source::MapObjCategory::Track,
-            source::GameObjType::GameObj, definition.record,
-            instance.mapObjectId, index);
+            source::GameObjType::GameObj, definition.record, index);
         auto& object = mapObject.GetGameObj();
         applySourceProxyTransform(object, instance.transform);
         if (instance.hasProxyState)
@@ -1276,8 +1274,7 @@ void OriginalRaceSession::reset()
         const auto& bonus = race_.bonuses[index];
         auto& mapObject = map_.AddMapObj(
             source::MapObjCategory::Bonus,
-            source::GameObjType::Proj, bonus.record,
-            bonus.mapObjectId, index);
+            source::GameObjType::Proj, bonus.record, index);
         auto& object = mapObject.GetGameObj();
         applySourceProxyTransform(object, bonus.transform);
         if (bonus.hasProxyState)
@@ -1321,11 +1318,6 @@ void OriginalRaceSession::reset()
     campaignRewardsApplied_ = false;
     raceLifecycle_.Reset();
     raceRunState_.Reset();
-    // Static categories which the active backend does not need still
-    // consumed MapObj IDs during Map::Load. Player::CreateCar then asks Map
-    // for the next ID; it never trusts an ID stored on a player descriptor.
-    if (race_.firstDynamicMapObjectId > 0U)
-        map_.ReserveIdsThrough(race_.firstDynamicMapObjectId - 1U);
     for (std::size_t index = 0; index < racers_.size(); ++index)
     {
         const auto& sourceRacer = race_.racers[index];
@@ -2252,6 +2244,10 @@ OriginalRaceSession::applyDecorationDamageInternal(
     if (instance.definition >= race_.decorationDefinitions.size() ||
         !race_.decorationDefinitions[instance.definition].destructible)
         return {decorationLife_[hit], false};
+    auto* mapObject = decorationObjects().Get(hit);
+    if (mapObject == nullptr || mapObject->GetDestrObj() == nullptr)
+        return {decorationLife_[hit], false};
+    const auto mapObjectId = mapObject->GetId();
 
     // Logic::Damage in a network race accepts map damage only from a human
     // NetPlayer. A client sends its local request without mutating the
@@ -2273,15 +2269,14 @@ OriginalRaceSession::applyDecorationDamageInternal(
             request.position = instance.transform.position;
             request.value = std::max(damage, 0.0F);
             request.damageType = damageType;
+            request.networkMapObject = true;
+            request.networkProjectileId = mapObjectId;
             events_.push_back(std::move(request));
             return {decorationLife_[hit], false};
         }
     }
 
     const float appliedDamage = damage;
-    auto* mapObject = decorationObjects().Get(hit);
-    if (mapObject == nullptr || mapObject->GetDestrObj() == nullptr)
-        return {decorationLife_[hit], false};
     auto& object = *mapObject->GetDestrObj();
     const auto damageResult = synchronizeState
         ? object.Damage(attacker, appliedDamage, targetLife, death,
@@ -2300,6 +2295,8 @@ OriginalRaceSession::applyDecorationDamageInternal(
     damageEvent.authoritativeLife = decorationLife_[hit];
     damageEvent.authoritativeDeath = destroyed;
     damageEvent.networkReplicated = networkReplicated;
+    damageEvent.networkMapObject = true;
+    damageEvent.networkProjectileId = mapObjectId;
     events_.push_back(std::move(damageEvent));
     if (!destroyed)
         return {decorationLife_[hit], false};
@@ -2318,6 +2315,8 @@ OriginalRaceSession::applyDecorationDamageInternal(
     destroyedEvent.value = appliedDamage;
     destroyedEvent.damageType = damageType;
     destroyedEvent.networkReplicated = networkReplicated;
+    destroyedEvent.networkMapObject = true;
+    destroyedEvent.networkProjectileId = mapObjectId;
     events_.push_back(std::move(destroyedEvent));
     return {decorationLife_[hit], true};
 }
@@ -7854,6 +7853,8 @@ void OriginalRaceSession::updateGameplay(
                 race_.bonuses[bonusIndex].transform.position;
             event.value = sourceValue;
             event.networkRequest = true;
+            event.networkMapObject = true;
+            event.networkProjectileId = bonusObject->GetId();
             events_.push_back(std::move(event));
             return true;
         }
@@ -7910,6 +7911,8 @@ void OriginalRaceSession::updateGameplay(
         event.value = sourceValue;
         event.pickSlot = pickSlot;
         event.networkReplicated = networkReplicated;
+        event.networkMapObject = true;
+        event.networkProjectileId = bonusObject->GetId();
         events_.push_back(std::move(event));
         return true;
     };
@@ -8083,7 +8086,7 @@ void OriginalRaceSession::updateGameplay(
                     contact.target = bonusIndex;
                     contact.position = contactPoint;
                     contact.networkMapObject = true;
-                    contact.networkProjectileId = bonus.mapObjectId;
+                    contact.networkProjectileId = mapBonus->GetId();
                     events_.push_back(std::move(contact));
                     continue;
                 }
@@ -8901,22 +8904,61 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                    std::abs(rotation[2] - transform.rotation.z) < 0.001F &&
                    std::abs(rotation[3] - transform.rotation.w) < 0.001F;
         };
-        const auto verifyPlacedProxy = [&](const auto& instance) {
-            const auto* object = session.sourceMap().GetMapObj(
-                instance.mapObjectId, true);
+        const auto verifyPlacedProxy = [&](
+            source::MapObjCategory category, std::size_t index,
+            const auto& instance) {
+            const auto* object = session.sourceMap()
+                                     .GetMapObjList(category)
+                                     .Get(index);
             return object != nullptr &&
                    sourceTransformMatches(
                        object->GetGameObj(), instance.transform);
         };
         if ((!race.decorationInstances.empty() &&
-             !verifyPlacedProxy(race.decorationInstances.front())) ||
+             !verifyPlacedProxy(
+                 source::MapObjCategory::Decoration, 0U,
+                 race.decorationInstances.front())) ||
             (!race.trackInstances.empty() &&
-             !verifyPlacedProxy(race.trackInstances.front())) ||
+             !verifyPlacedProxy(
+                 source::MapObjCategory::Track, 0U,
+                 race.trackInstances.front())) ||
             (!race.bonuses.empty() &&
-             !verifyPlacedProxy(race.bonuses.front())))
+             !verifyPlacedProxy(
+                 source::MapObjCategory::Bonus, 0U,
+                 race.bonuses.front())))
         {
             throw std::runtime_error(
                 "GameObject::LoadProxy placement transform was not bound");
+        }
+        const auto mapObjectId = [&session](
+            source::MapObjCategory category, std::size_t index) {
+            const auto* object = session.sourceMap()
+                                     .GetMapObjList(category)
+                                     .Get(index);
+            return object != nullptr
+                ? object->GetId()
+                : source::Map::defaultMapObjId;
+        };
+        if (mapObjectId(source::MapObjCategory::Decoration, 0U) != 1U ||
+            mapObjectId(
+                source::MapObjCategory::Decoration,
+                race.decorationInstances.size() - 1U) != 234U ||
+            mapObjectId(source::MapObjCategory::Track, 0U) != 235U ||
+            mapObjectId(
+                source::MapObjCategory::Track,
+                race.trackInstances.size() - 1U) != 286U ||
+            mapObjectId(source::MapObjCategory::Bonus, 0U) != 287U ||
+            mapObjectId(
+                source::MapObjCategory::Bonus,
+                race.bonuses.size() - 1U) != 293U ||
+            session.racerMapObjectId(0U) != 294U ||
+            session.racerMapObjectId(session.racers().size() - 1U) !=
+                293U + session.racers().size() ||
+            session.sourceMap().GetLastId() !=
+                293U + session.racers().size())
+        {
+            throw std::runtime_error(
+                "source MapObjList live ID order differs from map1");
         }
         for (std::size_t racer = 0U;
              racer < session.racers().size(); ++racer)
@@ -10715,8 +10757,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 race.decorationDefinitions.at(
                     sourceDestruction->definition);
             const auto* destructionMapObject =
-                destructionSession.sourceMap().GetMapObj(
-                    sourceDestruction->mapObjectId, true);
+                destructionSession.sourceMap()
+                    .GetMapObjList(source::MapObjCategory::Decoration)
+                    .Get(instance);
             if (destructionMapObject == nullptr ||
                 destructionMapObject->GetDestrObj() == nullptr ||
                 destructionMapObject->GetDestrObj()
@@ -10729,6 +10772,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             }
             const std::size_t mapObjectsBefore =
                 destructionSession.sourceMap().GetObjects().size();
+            const std::uint32_t destructionMapObjectId =
+                destructionMapObject->GetId();
             const std::uint32_t lastMapIdBefore =
                 destructionSession.sourceMap().GetLastId();
             Vec3 sourceContact = sourceDestruction->transform.position;
@@ -10859,7 +10904,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             }
             const auto& separatedMap = destructionSession.sourceMap();
             if (separatedMap.GetMapObj(
-                    sourceDestruction->mapObjectId, true) != nullptr ||
+                    destructionMapObjectId, true) != nullptr ||
                 separatedMap.GetObjects().size() !=
                     mapObjectsBefore - 1U +
                         destructionDefinition.destructionPieces.size() ||
@@ -11720,17 +11765,6 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             shieldBonus.transform.position =
                 vehicles.front().body.position;
             shieldBonus.transform.position.z += 100.0F;
-            // This fixture extends serialized ctBonus, so Map::Load assigns
-            // its ID before Player::CreateCar allocates dynamic car IDs.
-            shieldBonus.mapObjectId =
-                shieldRace.firstDynamicMapObjectId++;
-            for (std::size_t index = 0U;
-                 index < shieldRace.racers.size(); ++index)
-            {
-                shieldRace.racers[index].mapObjectId =
-                    shieldRace.firstDynamicMapObjectId +
-                    static_cast<std::uint32_t>(index);
-            }
             shieldRace.bonuses.push_back(std::move(shieldBonus));
             shieldRace.vehicle.shieldSoundPaths =
                 {"Data/Sounds/shield-owner-test.ogg"};
@@ -15657,8 +15691,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     return instance.definition <
                                networkRace.decorationDefinitions.size() &&
                            networkRace.decorationDefinitions[
-                               instance.definition].destructible &&
-                           instance.mapObjectId != 0U;
+                               instance.definition].destructible;
                 });
             if (destructible ==
                 networkRace.decorationInstances.end())
@@ -15671,13 +15704,26 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 networkRace.decorationInstances.begin());
             OriginalRaceSession mapHost(networkRace);
             mapHost.setNetworkGameplayRole(true, true, hostOwned);
+            const auto* hostDecoration = mapHost.sourceMap()
+                .GetMapObjList(source::MapObjCategory::Decoration)
+                .Get(decorationIndex);
+            const auto* hostBonus = networkRace.bonuses.empty()
+                ? nullptr
+                : mapHost.sourceMap()
+                      .GetMapObjList(source::MapObjCategory::Bonus)
+                      .Get(0U);
+            const std::uint32_t mapObjectId = hostDecoration != nullptr
+                ? hostDecoration->GetId()
+                : source::Map::defaultMapObjId;
             if (mapHost.decorationForMapObjectId(
-                    destructible->mapObjectId) != decorationIndex ||
+                    mapObjectId) != decorationIndex ||
                 mapHost.racerForMapObjectId(
-                    networkRace.racers.front().mapObjectId) != 0U ||
+                    mapHost.racerMapObjectId(0U)) != 0U ||
                 (!networkRace.bonuses.empty() &&
                  mapHost.bonusForMapObjectId(
-                     networkRace.bonuses.front().mapObjectId) != 0U))
+                     hostBonus != nullptr
+                         ? hostBonus->GetId()
+                         : source::Map::defaultMapObjId) != 0U))
             {
                 throw std::runtime_error(
                     "source Map global ID registry did not resolve "
@@ -15687,7 +15733,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 mapHost.decorationLife()[decorationIndex];
             const auto mapAuthoritative =
                 mapHost.applyNetworkMapObjectDamage(
-                    destructible->mapObjectId, 0U, 1.0F,
+                    mapObjectId, 0U, 1.0F,
                     DamageType::Simple);
             const float decorationExpected =
                 decorationInitial - 1.0F;
@@ -15705,12 +15751,12 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 true, false, clientOwned);
             const auto mapSynchronized =
                 mapClient.applyNetworkMapObjectDamage(
-                    destructible->mapObjectId, 0U, 1.0F,
+                    mapObjectId, 0U, 1.0F,
                     DamageType::Energy, true, 0.0F, true);
             if (!mapSynchronized.death ||
                 mapClient.decorationActive()[decorationIndex] ||
                 mapClient.decorationForMapObjectId(
-                    destructible->mapObjectId) !=
+                    mapObjectId) !=
                     RacerRuntime::invalidWeapon)
             {
                 throw std::runtime_error(

@@ -374,9 +374,6 @@ struct ObjectInstance
 {
     std::uint32_t definition = 0;
     Transform transform;
-    // Map::MapObjList::InsertItem assigns one monotonically increasing ID
-    // while loading ctEffects..ctBonus. Network RPCs use this global ID.
-    std::uint32_t mapObjectId = 0U;
     // MapObjects::LoadItem assigns the XML element name after proxy load.
     std::string name;
     float life = -1.0F;
@@ -692,7 +689,6 @@ struct BonusInstance
     float speed = 0.0F;
     std::uint32_t projectileType = 0U;
     bool modelSize = true;
-    std::uint32_t mapObjectId = 0U;
     std::string name;
     float life = -1.0F;
     float maximumTimeLife = -1.0F;
@@ -811,8 +807,6 @@ struct Racer
     Vehicle configuredVehicle;
     bool hasConfiguredVehicle = false;
     std::array<float, 4> color{1.0F, 1.0F, 1.0F, 1.0F};
-    // Player cars are global MapObj entries created after the static map.
-    std::uint32_t mapObjectId = 0U;
 };
 
 // Minimal backend-neutral Planet::PlayerData presentation record. Ordering
@@ -860,8 +854,6 @@ struct Race
     // the source ctDecoration instance that owns the PhysX triangle mesh.
     std::vector<std::size_t> collisionMeshDecorationInstances;
     std::vector<BonusInstance> bonuses;
-    // First free global MapObj ID after all serialized map categories.
-    std::uint32_t firstDynamicMapObjectId = 1U;
     std::vector<TracePoint> tracePoints;
     std::vector<std::uint32_t> tracePath;
     std::vector<std::vector<std::uint32_t>> tracePaths;

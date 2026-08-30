@@ -3742,60 +3742,6 @@ std::vector<r3d::physics::TriangleMesh> loadCollisionMeshes(
     return result;
 }
 
-std::uint32_t mapItemCount(TiXmlElement* map, std::string_view category,
-                           std::string_view source)
-{
-    const std::string path = std::string(category) + "/items";
-    auto* items = require(map, path, source);
-    std::uint32_t count = 0U;
-    for (auto* item = items->FirstChildElement(); item != nullptr;
-         item = item->NextSiblingElement())
-        ++count;
-    return count;
-}
-
-void assignStaticMapObjectIds(TiXmlElement* map, Race& race)
-{
-    // Map::Load visits MapObjLib::Category in this exact enum order and
-    // MapObjList::InsertItem increments _lastId for every object.  Rebuild
-    // the same global identity even for categories the portable renderer
-    // does not otherwise need to materialize.
-    std::uint32_t next = 1U;
-    next += mapItemCount(map, "ctEffects", race.levelPath);
-    const auto decorationCount =
-        mapItemCount(map, "ctDecoration", race.levelPath);
-    if (decorationCount != race.decorationInstances.size())
-        throw resource::ResourceError(
-            race.levelPath + ": ctDecoration MapObj count mismatch");
-    for (auto& instance : race.decorationInstances)
-        instance.mapObjectId = next++;
-
-    const auto trackCount = mapItemCount(map, "ctTrack", race.levelPath);
-    if (trackCount != race.trackInstances.size())
-        throw resource::ResourceError(
-            race.levelPath + ": ctTrack MapObj count mismatch");
-    for (auto& instance : race.trackInstances)
-        instance.mapObjectId = next++;
-
-    next += mapItemCount(map, "ctWeapon", race.levelPath);
-    next += mapItemCount(map, "ctCar", race.levelPath);
-    next += mapItemCount(map, "ctWaypoint", race.levelPath);
-    const auto bonusCount = mapItemCount(map, "ctBonus", race.levelPath);
-    if (bonusCount != race.bonuses.size())
-        throw resource::ResourceError(
-            race.levelPath + ": ctBonus MapObj count mismatch");
-    for (auto& bonus : race.bonuses)
-        bonus.mapObjectId = next++;
-    race.firstDynamicMapObjectId = next;
-}
-
-void assignRacerMapObjectIds(Race& race)
-{
-    std::uint32_t next = race.firstDynamicMapObjectId;
-    for (auto& racer : race.racers)
-        racer.mapObjectId = next++;
-}
-
 void loadMapProxyState(TiXmlElement* item, ObjectInstance& instance)
 {
     instance.name = item->Value() != nullptr ? item->Value() : "";
@@ -3933,8 +3879,6 @@ void loadMap(const resource::ResourceFileSystem& resources,
         bonus.value = scalar(bonusRecord, "proj/damage", "db.xml/bonus");
         race.bonuses.push_back(std::move(bonus));
     }
-    assignStaticMapObjectIds(map, race);
-
     auto* points = require(map, "trace/points", race.levelPath);
     for (auto* point = points->FirstChildElement(); point != nullptr;
          point = point->NextSiblingElement())
@@ -4160,8 +4104,6 @@ Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources,
         bonus.value = scalar(bonusRecord, "proj/damage", "db.xml/bonus");
         race.bonuses.push_back(std::move(bonus));
     }
-    assignStaticMapObjectIds(map, race);
-
     auto* points = require(map, "trace/points", race.levelPath);
     for (auto* point = points->FirstChildElement(); point != nullptr;
          point = point->NextSiblingElement())
@@ -4303,7 +4245,6 @@ Race loadFirstOriginalRace(const resource::ResourceFileSystem& resources,
             "garage.xml: tournament player car is missing");
     race.vehicle = race.vehicles[humanVehicle->second];
     selectRacers(race, resources, firstPlanet, 1U, carRecord);
-    assignRacerMapObjectIds(race);
     race.collisionMeshes = loadCollisionMeshes(
         race, resources, race.collisionMeshDecorationInstances);
     if (race.trackInstances.empty() || race.tracePath.size() < 2 ||
@@ -4370,7 +4311,6 @@ Race loadOriginalRace(const resource::ResourceFileSystem& resources,
     selectRacers(result, resources, selectedPlanet,
                  result.trackCatalog[trackIndex].racePass,
                  result.vehicle.record);
-    assignRacerMapObjectIds(result);
     return result;
 }
 
@@ -4435,11 +4375,11 @@ Race loadOriginalGarageScene(
         result.decorationDefinitions.push_back(std::move(definition));
     }
     result.decorationInstances.push_back(
-        {0U, {}, 0U, {}, -1.0F, -1.0F, 0.0F, false});
+        {0U, {}, {}, -1.0F, -1.0F, 0.0F, false});
     Transform question;
     question.position = {0.0F, 0.0F, 0.39F};
     result.decorationInstances.push_back(
-        {1U, question, 0U, {}, -1.0F, -1.0F, 0.0F, false});
+        {1U, question, {}, -1.0F, -1.0F, 0.0F, false});
 
     result.racers.reserve(result.vehicles.size());
     for (std::size_t index = 0; index < result.vehicles.size(); ++index)
@@ -4528,9 +4468,9 @@ Race loadOriginalAngarScene(
     space.transform.rotation = multiply(roll, pitch);
 
     result.decorationInstances.push_back(
-        {0U, {}, 0U, {}, -1.0F, -1.0F, 0.0F, false});
+        {0U, {}, {}, -1.0F, -1.0F, 0.0F, false});
     result.decorationInstances.push_back(
-        {1U, {}, 0U, {}, -1.0F, -1.0F, 0.0F, false});
+        {1U, {}, {}, -1.0F, -1.0F, 0.0F, false});
 
     // Environment::ewAngar + Environment::wtAngar.
     source::Environment::ApplyPresentation(
@@ -5204,7 +5144,6 @@ void reconcileOriginalPlayerRoster(
         racer.netName.clear();
         racer.human = false;
         racer.color = sourcePlayerColor(playerId - 1U);
-        racer.mapObjectId = race.firstDynamicMapObjectId + playerId;
         if (const auto* identity = findOriginalPlayerIdentity(
                 race, static_cast<int>(racer.gamerId)))
         {
@@ -5214,13 +5153,6 @@ void reconcileOriginalPlayerRoster(
         race.racers.push_back(std::move(racer));
     }
 
-    // Race::CreatePlayers/DelPlayer changes the dynamic MapObj creation
-    // order together with the active list. Keep the canonical contiguous IDs
-    // when a menu stepper shrinks and later expands the roster.
-    for (std::size_t index = 0U; index < race.racers.size(); ++index)
-        race.racers[index].mapObjectId =
-            race.firstDynamicMapObjectId +
-            static_cast<std::uint32_t>(index);
 }
 
 std::uint32_t originalEffectiveLapCount(
@@ -5777,8 +5709,6 @@ bool runOriginalRaceResourceSmokeTest(
             skirmishRoster.racers[7].playerId != 7 ||
             skirmishRoster.racers[7].gamerId != 7U ||
             skirmishRoster.racers[7].name != "svKristoph" ||
-            skirmishRoster.racers.back().mapObjectId !=
-                race.firstDynamicMapObjectId + 7U ||
             std::abs(skirmishRoster.racers[6].color[0] -
                      216.0F / 255.0F) > 0.001F ||
             originalEffectiveLapCount(race, true, 8U) !=
@@ -5806,9 +5736,7 @@ bool runOriginalRaceResourceSmokeTest(
         }
         reconcileOriginalPlayerRoster(skirmishRoster, 2U, false);
         if (skirmishRoster.racers.size() != 3U ||
-            skirmishRoster.racers.back().playerId != 2 ||
-            skirmishRoster.racers.back().mapObjectId !=
-                race.firstDynamicMapObjectId + 2U)
+            skirmishRoster.racers.back().playerId != 2)
         {
             error = "source Race::CreatePlayers shrink mismatch";
             return false;
@@ -7314,17 +7242,7 @@ bool runOriginalRaceResourceSmokeTest(
             race.bonuses.front().name != "money0" ||
             !race.bonuses.front().hasProxyState ||
             !near(race.bonuses.front().maximumTimeLife, 0.0F) ||
-            race.decorationInstances.front().mapObjectId != 1U ||
-            race.decorationInstances.back().mapObjectId != 234U ||
-            race.trackInstances.front().mapObjectId != 235U ||
-            race.trackInstances.back().mapObjectId != 286U ||
-            race.bonuses.front().mapObjectId != 287U ||
-            race.bonuses.back().mapObjectId != 293U ||
-            race.firstDynamicMapObjectId != 294U ||
             race.racers.empty() ||
-            race.racers.front().mapObjectId != 294U ||
-            race.racers.back().mapObjectId !=
-                293U + race.racers.size() ||
             race.trackCatalog.size() != 88 ||
             physics.collisionMeshes.empty() || borderMeshCount == 0 ||
             triangleCount < 591 ||

@@ -208,6 +208,8 @@ struct RaceEvent
     // did not yet mutate gameplay state. UI/achievement consumers ignore
     // this transport event and observe the replicated application instead.
     bool networkRequest = false;
+    // The Windows packet's uint object field carries either a spawned
+    // projectile ID or a live MapObj ID. This flag preserves that distinction.
     bool networkMapObject = false;
     std::uint8_t networkSlotMask = 0U;
     std::uint32_t networkProjectileId = 0U;
