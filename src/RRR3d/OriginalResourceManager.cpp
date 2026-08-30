@@ -3,6 +3,7 @@
 #include "OriginalMainMenu.h"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <vector>
 
@@ -13,6 +14,9 @@ namespace
 
 constexpr std::string_view whiteResourceKey = "<source-white>";
 constexpr unsigned boldFontWeight = 700U;
+constexpr std::array<std::string_view, 6> sourceWorldTypes{
+    "wtWorld1", "wtWorld2", "wtWorld3", "wtWorld4", "wtWorld5",
+    "wtWorld6"};
 
 bool valid(r3d::renderer::Mesh value) noexcept
 {
@@ -23,6 +27,29 @@ bool valid(r3d::renderer::Mesh value) noexcept
 bool valid(r3d::renderer::Texture value) noexcept
 {
     return value.value != r3d::renderer::invalid_resource;
+}
+
+int resourceWorldTag(std::string_view sourceName) noexcept
+{
+    std::string path(sourceName);
+    std::transform(
+        path.begin(), path.end(), path.begin(), [](unsigned char value) {
+            if (value == '\\')
+                return static_cast<char>('/');
+            return static_cast<char>(std::tolower(value));
+        });
+    for (int world = 0; world < 6; ++world)
+    {
+        const auto segment =
+            "/world" + std::to_string(world + 1) + "/";
+        const auto prefix = segment.substr(1);
+        if (path.find(segment) != std::string::npos ||
+            path.starts_with(prefix))
+        {
+            return world;
+        }
+    }
+    return -1;
 }
 
 std::vector<r3d::renderer::StaticMeshVertex> makeVertices(
@@ -85,10 +112,15 @@ OriginalResourceManager::GetMesh(std::string_view sourceName)
 {
     ++requests_;
     const auto key = ResolveKey(sourceName);
-    if (const auto found = meshes_.find(key); found != meshes_.end())
+    auto [record, created] = meshes_.try_emplace(
+        key, MeshResource{
+                 std::string(sourceName), {}, {},
+                 resourceWorldTag(sourceName)});
+    if (!created)
     {
         ++cacheHits_;
-        return found->second;
+        if (valid(record->second.mesh))
+            return record->second;
     }
 
     auto source = std::make_shared<r3d::resource::R3DMeshAsset>(
@@ -101,11 +133,10 @@ OriginalResourceManager::GetMesh(std::string_view sourceName)
         throw r3d::resource::ResourceError(
             "Unable to upload original mesh " + std::string(sourceName));
 
-    auto [inserted, created] = meshes_.emplace(
-        key, MeshResource{std::string(sourceName), std::move(source), mesh});
-    static_cast<void>(created);
+    record->second.source = std::move(source);
+    record->second.mesh = mesh;
     managedMeshes_.insert(mesh.vertices.value);
-    return inserted->second;
+    return record->second;
 }
 
 const OriginalResourceManager::TextureResource&
@@ -113,10 +144,15 @@ OriginalResourceManager::GetTexture(std::string_view sourceName)
 {
     ++requests_;
     const auto key = ResolveKey(sourceName);
-    if (const auto found = textures_.find(key); found != textures_.end())
+    auto [record, created] = textures_.try_emplace(
+        key, TextureResource{
+                 std::string(sourceName), {}, 0U, 0U,
+                 resourceWorldTag(sourceName)});
+    if (!created)
     {
         ++cacheHits_;
-        return found->second;
+        if (valid(record->second.texture))
+            return record->second;
     }
 
     std::string lower(sourceName);
@@ -170,12 +206,11 @@ OriginalResourceManager::GetTexture(std::string_view sourceName)
             "Unable to upload original texture " +
             std::string(sourceName));
 
-    auto [inserted, created] = textures_.emplace(
-        key, TextureResource{
-                 std::string(sourceName), texture, width, height});
-    static_cast<void>(created);
+    record->second.texture = texture;
+    record->second.width = width;
+    record->second.height = height;
     managedTextures_.insert(texture.value);
-    return inserted->second;
+    return record->second;
 }
 
 const OriginalResourceManager::TextureResource&
@@ -184,10 +219,16 @@ OriginalResourceManager::GetTexture(
 {
     ++requests_;
     const auto key = ResolveKey(sourceImage.virtualPath);
-    if (const auto found = textures_.find(key); found != textures_.end())
+    auto [record, created] = textures_.try_emplace(
+        key, TextureResource{
+                 sourceImage.virtualPath, {}, sourceImage.width,
+                 sourceImage.height,
+                 resourceWorldTag(sourceImage.virtualPath)});
+    if (!created)
     {
         ++cacheHits_;
-        return found->second;
+        if (valid(record->second.texture))
+            return record->second;
     }
 
     const auto texture =
@@ -203,13 +244,11 @@ OriginalResourceManager::GetTexture(
         throw r3d::resource::ResourceError(
             "Unable to upload original texture " +
             sourceImage.virtualPath);
-    auto [inserted, created] = textures_.emplace(
-        key, TextureResource{
-                 sourceImage.virtualPath, texture,
-                 sourceImage.width, sourceImage.height});
-    static_cast<void>(created);
+    record->second.texture = texture;
+    record->second.width = sourceImage.width;
+    record->second.height = sourceImage.height;
     managedTextures_.insert(texture.value);
-    return inserted->second;
+    return record->second;
 }
 
 const OriginalResourceManager::TextureResource&
@@ -229,7 +268,7 @@ OriginalResourceManager::GetWhiteTexture()
         throw r3d::resource::ResourceError(
             "Unable to create source white texture");
     auto [inserted, created] = textures_.emplace(
-        key, TextureResource{key, texture, 1U, 1U});
+        key, TextureResource{key, texture, 1U, 1U, -1});
     static_cast<void>(created);
     managedTextures_.insert(texture.value);
     return inserted->second;
@@ -301,6 +340,61 @@ OriginalResourceManager::GetMaterial(std::string_view name) const
     return found->second;
 }
 
+void OriginalResourceManager::LoadWorld(int worldType)
+{
+    if (worldType < 0 || worldType > worldTypeCount)
+        throw r3d::resource::ResourceError(
+            "ResourceManager received an invalid world type");
+    if (worldType_ == worldType)
+        return;
+    if (device_ == nullptr)
+        throw r3d::resource::ResourceError(
+            "Original ResourceManager is shut down");
+
+    for (auto& [key, resource] : meshes_)
+    {
+        static_cast<void>(key);
+        if (resource.tag != worldType_ || !valid(resource.mesh))
+            continue;
+        managedMeshes_.erase(resource.mesh.vertices.value);
+        device_->destroy(resource.mesh);
+        resource.mesh = {};
+        resource.source.reset();
+    }
+    for (auto& [key, resource] : textures_)
+    {
+        static_cast<void>(key);
+        if (resource.tag != worldType_ || !valid(resource.texture))
+            continue;
+        managedTextures_.erase(resource.texture.value);
+        device_->destroy(resource.texture);
+        resource.texture = {};
+        resource.width = 0U;
+        resource.height = 0U;
+    }
+    // D3D9 eagerly initialized the records of the new tag here. The Metal
+    // adapter materializes them on the first renderer request, before a
+    // frame is submitted, while retaining the same Complex* record.
+    worldType_ = worldType;
+}
+
+void OriginalResourceManager::LoadWorld(std::string_view worldType)
+{
+    const auto found = std::find(
+        sourceWorldTypes.begin(), sourceWorldTypes.end(), worldType);
+    if (found == sourceWorldTypes.end())
+        throw r3d::resource::ResourceError(
+            "ResourceManager received unknown source world type " +
+            std::string(worldType));
+    LoadWorld(static_cast<int>(
+        std::distance(sourceWorldTypes.begin(), found)));
+}
+
+int OriginalResourceManager::GetWorldType() const noexcept
+{
+    return worldType_;
+}
+
 void OriginalResourceManager::AttachAudio(
     r3d::audio::AudioBackend& audio) noexcept
 {
@@ -360,6 +454,22 @@ std::size_t OriginalResourceManager::GetMeshCount() const noexcept
 std::size_t OriginalResourceManager::GetTextureCount() const noexcept
 {
     return textures_.size();
+}
+
+std::size_t OriginalResourceManager::GetLoadedMeshCount() const noexcept
+{
+    return static_cast<std::size_t>(std::count_if(
+        meshes_.begin(), meshes_.end(), [](const auto& item) {
+            return valid(item.second.mesh);
+        }));
+}
+
+std::size_t OriginalResourceManager::GetLoadedTextureCount() const noexcept
+{
+    return static_cast<std::size_t>(std::count_if(
+        textures_.begin(), textures_.end(), [](const auto& item) {
+            return valid(item.second.texture);
+        }));
 }
 std::size_t OriginalResourceManager::GetRequestCount() const noexcept
 {
@@ -482,6 +592,7 @@ void OriginalResourceManager::Shutdown() noexcept
     managedMeshes_.clear();
     device_ = nullptr;
     resources_ = nullptr;
+    worldType_ = worldTypeCount;
 }
 
 } // namespace rrr3d::race

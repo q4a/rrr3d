@@ -1,6 +1,7 @@
 #include "OriginalResourceManager.h"
 
 #include <array>
+#include <algorithm>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -218,6 +219,47 @@ int fail(const char* message)
     return 1;
 }
 
+template <class Value>
+void writeBinary(std::ofstream& stream, const Value& value)
+{
+    stream.write(
+        reinterpret_cast<const char*>(&value),
+        static_cast<std::streamsize>(sizeof(value)));
+}
+
+void writeTriangleMesh(const std::filesystem::path& path)
+{
+    std::ofstream stream(path, std::ios::binary);
+    const std::int32_t version = 0;
+    const std::uint8_t leftHanded = 0U;
+    const std::uint8_t hasTexcoords = 0U;
+    const std::int32_t vertexCount = 3;
+    writeBinary(stream, version);
+    writeBinary(stream, leftHanded);
+    writeBinary(stream, hasTexcoords);
+    writeBinary(stream, vertexCount);
+    constexpr std::array<std::array<float, 6>, 3> vertices{{
+        {{0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F}},
+        {{1.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F}},
+        {{0.0F, 1.0F, 0.0F, 0.0F, 0.0F, 1.0F}},
+    }};
+    for (const auto& vertex : vertices)
+        for (const float value : vertex)
+            writeBinary(stream, value);
+    const std::int32_t faceCount = 1;
+    writeBinary(stream, faceCount);
+    for (const std::uint32_t index : {0U, 1U, 2U})
+        writeBinary(stream, index);
+    const std::int32_t materialCount = 1;
+    const std::int32_t materialId = 0;
+    const std::int32_t firstFace = 0;
+    const std::int32_t groupFaceCount = 1;
+    writeBinary(stream, materialCount);
+    writeBinary(stream, materialId);
+    writeBinary(stream, firstFace);
+    writeBinary(stream, groupFaceCount);
+}
+
 } // namespace
 
 int main()
@@ -227,13 +269,22 @@ int main()
                             .count();
     const auto root = std::filesystem::temp_directory_path() /
                       ("rrr3d-resource-manager-" + std::to_string(unique));
-    std::filesystem::create_directories(root);
+    std::filesystem::create_directories(root / "Data/World1");
+    std::filesystem::create_directories(root / "Data/World2");
     {
         std::ofstream image(root / "panel.rgba", std::ios::binary);
         image << "rgba";
+        std::ofstream world1Image(
+            root / "Data/World1/panel.rgba", std::ios::binary);
+        world1Image << "rgba";
+        std::ofstream world2Image(
+            root / "Data/World2/panel.rgba", std::ios::binary);
+        world2Image << "rgba";
         std::ofstream sound(root / "tone.ogg", std::ios::binary);
         sound << "ogg";
     }
+    writeTriangleMesh(root / "Data/World1/mesh.r3d");
+    writeTriangleMesh(root / "Data/World2/mesh.r3d");
 
     r3d::resource::ResourceFileSystem fileSystem(root);
     FakeGraphicsDevice device;
@@ -299,6 +350,46 @@ int main()
         if (device.destroyedTextures != std::vector<std::uint16_t>{500U})
             return fail("foreign texture did not use backend release");
 
+        auto world1Image = image;
+        world1Image.virtualPath = "Data/World1/panel.rgba";
+        auto world2Image = image;
+        world2Image.virtualPath = "Data/World2/panel.rgba";
+        resources.LoadWorld("wtWorld1");
+        const auto* world1TextureRecord =
+            &resources.GetTexture(world1Image);
+        const auto world1Texture = world1TextureRecord->texture;
+        const auto* world1MeshRecord =
+            &resources.GetMesh("Data/World1/mesh.r3d");
+        const auto world1Mesh = world1MeshRecord->mesh;
+        resources.LoadWorld("wtWorld2");
+        if (world1TextureRecord->texture.value !=
+                r3d::renderer::invalid_resource ||
+            world1MeshRecord->mesh.vertices.value !=
+                r3d::renderer::invalid_resource ||
+            resources.GetLoadedTextureCount() != 1U ||
+            resources.GetLoadedMeshCount() != 0U)
+            return fail("LoadWorld did not unload the previous world tag");
+        const auto world2Texture =
+            resources.GetTexture(world2Image).texture;
+        const auto world2Mesh =
+            resources.GetMesh("Data/World2/mesh.r3d").mesh;
+        resources.LoadWorld("wtWorld1");
+        const auto& reloadedWorld1Texture =
+            resources.GetTexture(world1Image);
+        const auto& reloadedWorld1Mesh =
+            resources.GetMesh("Data/World1/mesh.r3d");
+        if (&reloadedWorld1Texture != world1TextureRecord ||
+            &reloadedWorld1Mesh != world1MeshRecord ||
+            reloadedWorld1Texture.texture.value == world1Texture.value ||
+            reloadedWorld1Mesh.mesh.vertices.value ==
+                world1Mesh.vertices.value ||
+            resources.GetWorldType() != 0 ||
+            resources.GetTextureCount() != 3U ||
+            resources.GetMeshCount() != 2U ||
+            resources.GetLoadedTextureCount() != 2U ||
+            resources.GetLoadedMeshCount() != 1U)
+            return fail("Complex resource identity did not survive reload");
+
         resources.AttachAudio(firstAudio);
         const auto firstSound = resources.GetSound("tone.ogg", 0.5F).sound;
         const auto& cachedSound = resources.GetSound("tone.ogg", 1.75F);
@@ -317,14 +408,35 @@ int main()
         resources.Shutdown();
         if (secondAudio.unloaded !=
                 std::vector<r3d::audio::SoundHandle>{secondSound} ||
-            device.destroyedTextures !=
-                std::vector<std::uint16_t>{500U, texture.value} ||
+            device.destroyedTextures.size() != 5U ||
+            std::find(
+                device.destroyedTextures.begin(),
+                device.destroyedTextures.end(), texture.value) ==
+                device.destroyedTextures.end() ||
+            std::find(
+                device.destroyedTextures.begin(),
+                device.destroyedTextures.end(), world1Texture.value) ==
+                device.destroyedTextures.end() ||
+            std::find(
+                device.destroyedTextures.begin(),
+                device.destroyedTextures.end(), world2Texture.value) ==
+                device.destroyedTextures.end() ||
+            device.destroyedMeshes.size() != 3U ||
+            std::find(
+                device.destroyedMeshes.begin(),
+                device.destroyedMeshes.end(), world1Mesh.vertices.value) ==
+                device.destroyedMeshes.end() ||
+            std::find(
+                device.destroyedMeshes.begin(),
+                device.destroyedMeshes.end(), world2Mesh.vertices.value) ==
+                device.destroyedMeshes.end() ||
             resources.GetMaterialCount() != 0U)
             return fail("ResourceManager shutdown ownership order differs");
         resources.Shutdown();
     }
 
-    if (device.destroyedTextures.size() != 2U)
+    if (device.destroyedTextures.size() != 5U ||
+        device.destroyedMeshes.size() != 3U)
         return fail("ResourceManager destructor repeated texture release");
 
     std::error_code cleanupError;

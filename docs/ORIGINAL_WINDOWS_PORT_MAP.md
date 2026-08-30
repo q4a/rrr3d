@@ -71,7 +71,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `Race` | `OriginalRace`, `OriginalRaceSession`, lifecycle/place/tournament on shared World | Source owner, active fixed/late lifecycle, partial orchestration | Продолжить вынос gameplay transactions из session; place sorting уже выполняется после Jolt solver через единственный World late-progress |
 | `RaceMenu2` | `originalracemenu::{RaceMenuState,RaceMainFrameState,GamersFrameState,GarageFrameState,WorkshopFrameState,SpaceshipFrameState,AngarFrameState,AchievementFrameState}` | Source owner, all six offline frame paths | Проверить оставшиеся network callbacks и оставить bgfx/CoreText backend boundary |
 | `RecordLib` | `source::{MapObjRecordLibrary,MapObjRecordNode,MapObjRecord}` | Source owner, active hierarchy | Editor-only mutation/serialization API не входит в пользовательский runtime |
-| `ResourceManager` | `OriginalResourceManager` + native readers/uploaders | Source owner, active GUI/graph/sound/font/material path | GUI/HUD/3D mesh/image/sound/TextFont/ComplexMat identity, charset и lifetime общие; bgfx payload остаётся backend boundary |
+| `ResourceManager` | `OriginalResourceManager` + native readers/uploaders | Source owner, active GUI/graph/sound/font/material path | GUI/HUD/3D mesh/image/sound/TextFont/ComplexMat identity, charset, world tags и lifetime общие; bgfx payload остаётся backend boundary |
 | `RockCar` | `source::RockCar`, dynamic `Weapons`, Player listener/contact sink | Source owner, active gameplay graph | PhysX actor/solver calls заменены Jolt; editor/legacy serializer остаётся parser boundary |
 | `Trace` | `source::{Trace,WayPath,WayNode,WayPoint}` | Source owner, active race/debug path | Editor serialization остаётся вне пользовательской игры; gameplay geometry и TraceGfx используют один owner |
 | `TraceGfx` | `source::TraceGfx` + transient bgfx submission | Source owner, active F6 path | Selection/link/geometry/material policy source-owned; D3D9 Box/Sprite/DrawPrimitiveUP заменены backend triangles |
@@ -171,7 +171,7 @@ Jolt/render views, а часть type-specific ray/movement queries всё ещ�
 выходным командам `Proj`, не удаляя массивы представления до появления
 эквивалента PhysX actor ownership.
 
-### B5 — DataBase/RecordLib/ResourceManager (B5a–B5c выполнены)
+### B5 — DataBase/RecordLib/ResourceManager (B5a–B5f выполнены)
 
 Вернуть единый typed record graph, source/proxy load, fix-up names, concrete
 object factory и resource identity. Текущие проверенные XML/R3D parsers
@@ -258,6 +258,15 @@ Options/StartOptions labels возвращены к Small 24. Regression про�
 хранят ссылки на один canonical descriptor, а ImageLib samplers загружаются
 из него. Первый descriptor с данным source-именем сохраняет identity, как в
 Windows library; bgfx pipeline/texture payload остаётся backend boundary.
+
+Результат B5f/B8az: `ComplexMeshLib` и `ComplexImageLib` сохраняют records
+после выгрузки их decoded/GPU payload. `ResourceManager::LoadWorld` снова
+использует теги `wtWorld1..wtWorld6`: после teardown текущего race renderer
+освобождает mesh/image payload прежней планеты, а новый мир лениво
+материализуется до первого кадра с прежней identity. Глобальные GUI/car/
+weapon resources не затрагиваются. Проверка `ShaderLib` отдельно доказала,
+что в shipped source она пуста: обе регистрации закомментированы, поэтому
+bgfx shader catalog туда намеренно не выдуман.
 
 ### B6 — Menu/MenuSystem и исходные frames (B6a–B6e.5 выполнены)
 

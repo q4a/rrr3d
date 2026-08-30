@@ -2801,3 +2801,16 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   postprocess pipeline states остаются платформенным renderer payload.
 - ResourceManager smoke проверяет identity, first-record semantics, поля
   descriptor и очистку library при shutdown.
+
+### Source ComplexMesh/Image world lifetime follow-up
+
+- Mesh/Image records получают source world tag из `Data/World1..World6`;
+  global GUI/car/weapon records сохраняют tag -1.
+- `LoadWorld(wtWorld*)` после renderer teardown освобождает decoded/GPU
+  payload старой планеты, не удаляя canonical library records.
+- Tournament reload повторно материализует нужные handles до первого кадра;
+  при возврате на планету record identity остаётся прежней.
+- Два generated valid `.r3d` и две image-записи в regression проверяют
+  World1→World2→World1, handle destruction/recreation и shutdown.
+- Source `ShaderLib` подтверждён пустым: обе регистрации закомментированы и
+  `GetShaderLib` не вызывается, поэтому invented bgfx registry не добавлялся.

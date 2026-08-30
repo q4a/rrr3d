@@ -5742,6 +5742,30 @@ ImageLib/MeshLib. Regression проверяет стабильный адрес,
 semantics, material fields и shutdown; bgfx pipeline state остаётся только
 backend-представлением исходного материала.
 
+### P2.254 — world-tag lifetime `ComplexMeshLib/ComplexImageLib` возвращён — выполнено
+
+Прямая сверка `ComplexMesh::Load/Unload`, `ComplexImage::Load/Unload` и
+`ResourceManager::LoadWorld` подтвердила, что общий portable cache никогда
+не освобождал ресурсы прошлой планеты. После нескольких campaign переходов
+он удерживал decoded meshes и Metal textures всех посещённых миров, хотя
+Windows освобождает payload старого tag и оставляет только library record.
+
+Mesh/Image records теперь имеют индекс World1..World6, вычисленный из того
+же `Data\\WorldN` имени. Переключение происходит после teardown активных HUD
+и race assets, уничтожает только handles прежнего мира и сохраняет record;
+повторный `Get` до первого кадра заново материализует его с тем же адресом.
+Global tag -1 не выгружается. Startup и tournament reload вызывают
+`LoadWorld` из serialized `TrackCatalogEntry::worldType`. Regression с двумя
+валидными `.r3d` и двумя images проверяет World1→World2→World1, destruction,
+stable identity, handle recreation и idempotent shutdown.
+
+Одновременно проверен следующий предполагаемый пробел — `ShaderLib`. В
+оригинальном constructor обе регистрации shader classes закомментированы,
+по всему `prog` нет вызовов `GetShaderLib`; библиотека shipped runtime пуста.
+Поэтому переносить туда invented bgfx entries было бы ошибкой. Реальные graph
+shader/effect objects остаются в renderer backend, как D3D9-объекты остаются
+у `GraphManager` в Windows.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

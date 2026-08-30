@@ -1929,6 +1929,13 @@ int main(int argc, char** argv)
         *device, *resources);
     originalResourceManager.SetFontCharset(
         originalgamedata::findLanguage(originalGameDataCatalog, activeLanguage)->charset);
+#ifdef RRR3D_PHYSICS
+    if (selectedTrack < originalRace->trackCatalog.size())
+    {
+        originalResourceManager.LoadWorld(
+            originalRace->trackCatalog[selectedTrack].worldType);
+    }
+#endif
 
     constexpr std::array<Vertex, 4> quadVertices{{
         {-0.5F, -0.5F, 0.0F, 0xffffffffU, 0.0F, 0.0F},
@@ -6132,6 +6139,11 @@ int main(int argc, char** argv)
                     *resources, selectedTrack,
                     profileState.player.currentCar,
                     options->legacyWindowsDebug);
+            if (selectedTrack < originalRace->trackCatalog.size())
+            {
+                originalResourceManager.LoadWorld(
+                    originalRace->trackCatalog[selectedTrack].worldType);
+            }
             r3d::game::originalrace::selectOriginalWeather(
                 *resources, *originalRace,
                 profileState.config.quality.light >= 1U &&

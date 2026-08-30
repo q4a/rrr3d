@@ -66,7 +66,7 @@ Windows target не компилируется.
 |---|---|---|---|---|
 | CMake, arm64 `.app`, bundle, signing | VS projects/resources | CMake presets, bundle scripts | Перенесено | Notarization/Developer ID не входят в текущую локальную сборку |
 | Platform filesystem/logging | Win32/XPlatform | XPlatform + macOS directories | Замена платформы | Игровой логике это не должно давать различий |
-| Resource filesystem | `ResourceManager`, Windows paths | `ResourceFileSystem` + `OriginalResourceManager`, exact-case catalog | Перенесено | Mesh/Image/Sound/TextFont/ComplexMat identity, charset и release order активны; GPU payload остаётся backend boundary |
+| Resource filesystem | `ResourceManager`, Windows paths | `ResourceFileSystem` + `OriginalResourceManager`, exact-case catalog | Перенесено | Mesh/Image/Sound/TextFont/ComplexMat identity, charset, world-tag unload/reload и release order активны; GPU payload остаётся backend boundary |
 | `.r3d`, DDS/PNG, XML | Исходные loaders | portable decoders + TinyXML | Перенесено | Поддержаны используемые форматы; это не перенос всего legacy resource object graph |
 | Окно и event loop | Win32/D3D window | SDL3/Cocoa | Замена платформы | Нативный путь работает |
 | Keyboard/mouse/gamepad | XInput/Win32 `ControlManager` | source `VirtualKey`/action state поверх SDL3 | Перенесено с backend-адаптацией | Точные constructor/user bindings, raw menu keys, repeat, focus release, `XUSER_INDEX_ANY` event delivery, hot-plug, 30/255 и 7849/8689 thresholds перенесены; Win32/XInput polling API заменён SDL3 events |
@@ -2149,6 +2149,29 @@ Backend-only postprocess states не объявлены source `LibMaterial`: о
 bgfx pipeline/texture handles, остаются корректной Metal boundary.
 ResourceManager regression фиксирует identity, first-record semantics,
 descriptor fields и очистку library при shutdown.
+
+### B8az — ComplexMesh/Image world tags и пустой source ShaderLib — выполнено
+
+Сверка `ComplexMesh::{Load,Unload}`, `ComplexImage::{Load,Unload}` и
+`ResourceManager::LoadWorld` выявила реальную утечку lifetime: при смене
+планеты portable manager сохранял все декодированные meshes и Metal textures
+каждого посещённого мира. Теперь physical records получают исходный индекс
+по `Data/World1..World6`; смена `wtWorld*` освобождает payload прежнего тега,
+но не сам record. Повторный вход создаёт новые backend handles по тому же
+адресу library record. Глобальные записи с tag -1 остаются загруженными.
+
+Active startup выбирает tag текущего tournament track до инициализации
+renderer, а reload делает switch только после shutdown HUD/race renderer.
+D3D9 eager `Load` адаптирован в materialization при первом `Get` до первого
+кадра: это сохраняет source lifetime и не загружает неиспользуемый каталог.
+Regression генерирует два настоящих `.r3d`, проходит World1→World2→World1 и
+проверяет destruction, повторную загрузку, стабильную mesh/image identity и
+отсутствие повторного release.
+
+Аудит `ResourceManager::ShaderLib` не дал объекта для переноса: в `eff9338`
+обе `ClassList::Add` строки закомментированы, а единственный `GetShaderLib`
+не вызывается. Реальные D3D9 graph shaders принадлежат GraphManager/effect
+objects; их bgfx equivalents закономерно остаются renderer-owned payload.
 
 ## Воспроизведение проверки
 
