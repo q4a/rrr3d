@@ -5691,6 +5691,23 @@ backend-neutral camera/description context и рисует готовое rain s
 renderer-side advance, World advance и pause gate; Garage/Angar остаются
 presentation-only owners вне active race World.
 
+### P2.251 — `ResourceManager` GUI ImageLib/lifetime возвращены — выполнено
+
+Сверка оригинальных constructor/destructor и `LoadSound` выявила, что
+portable GUI оставался вне уже введённого ResourceManager: 111 загрузок
+исходных `mainmenu2::Image` создавали отдельные backend texture и экранный
+cleanup считал себя их владельцем. Теперь canonical physical path объединяет
+GUI, HUD и 3D textures в одном ImageLib-owner; локальный Release игнорирует
+заимствованные handles, а общий shutdown выполняется после UI/renderers и до
+уничтожения GraphicsDevice.
+
+Деструктор manager идемпотентно выполняет source-порядок
+SoundLib→ImageLib→MeshLib. Cache hit `LoadSound` снова применяет последний
+volume, а AudioBackend rebind выгружает старую SoundLib до замены указателя.
+Новый regression с fake graphics/audio backends доказывает единственную
+texture identity, чужой/backend release, смену audio owner и отсутствие
+double destruction. TextFontLib/ComplexMatLib остаются отдельным B5d.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

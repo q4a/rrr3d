@@ -2762,3 +2762,16 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - Race shutdown/reload освобождает scene и обнуляет borrowed snapshot, поэтому
   замена `Race` не оставляет указатель на старую environment description.
 - `rrr3d_original_environment_smoke` проверяет World ownership и paused frame.
+
+### Source ResourceManager GUI/lifetime follow-up
+
+- 111 активных GUI image paths больше не создают независимые копии: все
+  source `mainmenu2::Image` разрешаются через canonical ImageLib identity.
+- UI/race cleanup использует owner-aware Release; shared mesh/texture живут
+  до общего shutdown после renderer teardown и уничтожаются ровно один раз.
+- `OriginalResourceManager` стал RAII-owner с source release order
+  SoundLib→ImageLib→MeshLib и безопасным повторным Shutdown.
+- SoundLib cache hit применяет последний descriptor volume; AudioBackend
+  rebind сначала выгружает все handles прежнего backend.
+- `rrr3d_original_resource_manager_smoke` проверяет cache, borrow/release,
+  rebind и destructor idempotence на независимых fake backends.

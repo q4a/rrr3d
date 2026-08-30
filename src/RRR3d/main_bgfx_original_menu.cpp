@@ -5,6 +5,7 @@
 #include "OriginalMainMenu.h"
 #include "OriginalMenuSystem.h"
 #include "OriginalOptionsMenu.h"
+#include "OriginalResourceManager.h"
 #include "OriginalRaceMenu.h"
 #include "OriginalView.h"
 #ifdef RRR3D_NETWORK
@@ -1007,6 +1008,13 @@ Texture createImageTexture(GraphicsDevice& device, const menu::Image& image)
                                      image.bytes.data(), image.bytes.size());
 }
 
+Texture createImageTexture(
+    rrr3d::race::OriginalResourceManager& resources,
+    const menu::Image& image)
+{
+    return resources.GetTexture(image).texture;
+}
+
 Texture createImageTextureWithAlpha(
     GraphicsDevice& device, const menu::Image& image,
     std::uint8_t alphaNumerator, std::uint8_t alphaDenominator)
@@ -1912,6 +1920,8 @@ int main(int argc, char** argv)
         profileState.config.quality.filtering,
         profileState.config.quality.msaa);
 #endif
+    rrr3d::race::OriginalResourceManager originalResourceManager(
+        *device, *resources);
 
     constexpr std::array<Vertex, 4> quadVertices{{
         {-0.5F, -0.5F, 0.0F, 0xffffffffU, 0.0F, 0.0F},
@@ -1935,13 +1945,13 @@ int main(int argc, char** argv)
         quadVertices.data(), quadVertices.size(), quadIndices.data(),
         quadIndices.size());
     const Texture background =
-        createImageTexture(*device, model->backgroundImage);
-    const Texture topPanel = createImageTexture(*device, model->topPanelImage);
+        createImageTexture(originalResourceManager, model->backgroundImage);
+    const Texture topPanel = createImageTexture(originalResourceManager, model->topPanelImage);
     const Texture bottomPanel =
-        createImageTexture(*device, model->bottomPanelImage);
+        createImageTexture(originalResourceManager, model->bottomPanelImage);
     const Texture selection =
-        createImageTexture(*device, model->selectionImage);
-    const Texture cursor = createImageTexture(*device, model->cursorImage);
+        createImageTexture(originalResourceManager, model->selectionImage);
+    const Texture cursor = createImageTexture(originalResourceManager, model->cursorImage);
     const auto startupYardImage = menu::loadOriginalImage(
         *resources, "Data/GUI/yardLogo.png");
     const auto startupLabImage = menu::loadOriginalImage(
@@ -1949,16 +1959,16 @@ int main(int argc, char** argv)
     const auto startupLoadImage = menu::loadOriginalImage(
         *resources, "Data/GUI/startLogo.dds");
     const Texture startupYard =
-        createImageTexture(*device, startupYardImage);
+        createImageTexture(originalResourceManager, startupYardImage);
     const Texture startupLab =
-        createImageTexture(*device, startupLabImage);
+        createImageTexture(originalResourceManager, startupLabImage);
     const Texture startupLoad =
-        createImageTexture(*device, startupLoadImage);
+        createImageTexture(originalResourceManager, startupLoadImage);
 #ifdef RRR3D_AUDIO
     const auto musicDialogFrameImage = menu::loadOriginalImage(
         *resources, "Data/GUI/dlgFrame2.png");
     const Texture musicDialogFrame =
-        createImageTexture(*device, musicDialogFrameImage);
+        createImageTexture(originalResourceManager, musicDialogFrameImage);
 #endif
     const auto finalBackImage = menu::loadOriginalImage(
         *resources, "Data/GUI/buttonBg2.png");
@@ -1984,13 +1994,13 @@ int main(int argc, char** argv)
         menu::loadOriginalImage(
             *resources, "Data/GUI/Slides/slide9.dds")};
     const Texture finalBack =
-        createImageTexture(*device, finalBackImage);
+        createImageTexture(originalResourceManager, finalBackImage);
     const Texture finalBackSelected =
-        createImageTexture(*device, finalBackSelectedImage);
+        createImageTexture(originalResourceManager, finalBackSelectedImage);
     std::array<Texture, finalSlideImages.size()> finalSlides{};
     for (std::size_t index = 0U; index < finalSlides.size(); ++index)
         finalSlides[index] =
-            createImageTexture(*device, finalSlideImages[index]);
+            createImageTexture(originalResourceManager, finalSlideImages[index]);
 #ifdef RRR3D_PHYSICS
     const auto acceptFrameImage = menu::loadOriginalImage(
         *resources, "Data/GUI/dlgFrame1.png");
@@ -1999,11 +2009,11 @@ int main(int argc, char** argv)
     const auto acceptButtonSelectedImage = menu::loadOriginalImage(
         *resources, "Data/GUI/dlgButtonSel1.png");
     const Texture acceptFrame =
-        createImageTexture(*device, acceptFrameImage);
+        createImageTexture(originalResourceManager, acceptFrameImage);
     const Texture acceptButton =
-        createImageTexture(*device, acceptButtonImage);
+        createImageTexture(originalResourceManager, acceptButtonImage);
     const Texture acceptButtonSelected =
-        createImageTexture(*device, acceptButtonSelectedImage);
+        createImageTexture(originalResourceManager, acceptButtonSelectedImage);
     const auto infoDialogFrameImage = menu::loadOriginalImage(
         *resources, "Data/GUI/dlgFrame4.png");
     const auto infoDialogButtonImage = menu::loadOriginalImage(
@@ -2012,9 +2022,9 @@ int main(int argc, char** argv)
         menu::loadOriginalImage(
             *resources, "Data/GUI/dlgButtonSel2.png");
     const Texture infoDialogFrame =
-        createImageTexture(*device, infoDialogFrameImage);
+        createImageTexture(originalResourceManager, infoDialogFrameImage);
     const Texture infoDialogButton =
-        createImageTexture(*device, infoDialogButtonImage);
+        createImageTexture(originalResourceManager, infoDialogButtonImage);
     const Texture infoDialogButtonSelected =
         createImageTexture(
             *device, infoDialogButtonSelectedImage);
@@ -2023,9 +2033,9 @@ int main(int argc, char** argv)
     const auto profileArrowSelectedImage = menu::loadOriginalImage(
         *resources, "Data/GUI/arrowSel1.png");
     const Texture profileArrow =
-        createImageTexture(*device, profileArrowImage);
+        createImageTexture(originalResourceManager, profileArrowImage);
     const Texture profileArrowSelected =
-        createImageTexture(*device, profileArrowSelectedImage);
+        createImageTexture(originalResourceManager, profileArrowSelectedImage);
     const Texture profileArrowDisabled =
         createImageTextureWithAlpha(
             *device, profileArrowImage, 1U, 4U);
@@ -2040,15 +2050,15 @@ int main(int argc, char** argv)
     const auto gamersNextArrowSelectedImage = menu::loadOriginalImage(
         *resources, "Data/GUI/arrowSel2.png");
     const Texture gamersSpace =
-        createImageTexture(*device, gamersSpaceImage);
+        createImageTexture(originalResourceManager, gamersSpaceImage);
     const Texture gamersBottomPanel =
-        createImageTexture(*device, gamersBottomPanelImage);
+        createImageTexture(originalResourceManager, gamersBottomPanelImage);
     const Texture gamersPhotoLight =
-        createImageTexture(*device, gamersPhotoLightImage);
+        createImageTexture(originalResourceManager, gamersPhotoLightImage);
     const Texture gamersNextArrow =
-        createImageTexture(*device, gamersNextArrowImage);
+        createImageTexture(originalResourceManager, gamersNextArrowImage);
     const Texture gamersNextArrowSelected =
-        createImageTexture(*device, gamersNextArrowSelectedImage);
+        createImageTexture(originalResourceManager, gamersNextArrowSelectedImage);
     std::vector<menu::Image> gamersBossImages;
     std::vector<Texture> gamersBossTextures;
     gamersBossImages.reserve(originalGarage->gamers.size());
@@ -2058,7 +2068,7 @@ int main(int argc, char** argv)
         gamersBossImages.push_back(menu::loadOriginalImage(
             *resources, gamer.bossPhotoPath));
         gamersBossTextures.push_back(
-            createImageTexture(*device, gamersBossImages.back()));
+            createImageTexture(originalResourceManager, gamersBossImages.back()));
     }
     const auto optionsBackgroundImage = menu::loadOriginalImage(
         *resources, "Data/GUI/optionsBg.png");
@@ -2093,37 +2103,37 @@ int main(int argc, char** argv)
     const auto gamepadIconImage = menu::loadOriginalImage(
         *resources, "Data/GUI/ctGamepad.png");
     const Texture optionsBackground =
-        createImageTexture(*device, optionsBackgroundImage);
+        createImageTexture(originalResourceManager, optionsBackgroundImage);
     const Texture startOptionsBackground =
-        createImageTexture(*device, startOptionsBackgroundImage);
+        createImageTexture(originalResourceManager, startOptionsBackgroundImage);
     const Texture loadingFrame =
-        createImageTexture(*device, loadingFrameImage);
+        createImageTexture(originalResourceManager, loadingFrameImage);
     const Texture optionsRow =
-        createImageTexture(*device, optionsRowImage);
+        createImageTexture(originalResourceManager, optionsRowImage);
     const Texture controlsRow =
-        createImageTexture(*device, controlsRowImage);
+        createImageTexture(originalResourceManager, controlsRowImage);
     const Texture optionsArrow =
-        createImageTexture(*device, optionsArrowImage);
+        createImageTexture(originalResourceManager, optionsArrowImage);
     const Texture optionsArrowSelected =
-        createImageTexture(*device, optionsArrowSelectedImage);
+        createImageTexture(originalResourceManager, optionsArrowSelectedImage);
     const Texture optionsBarBackground =
-        createImageTexture(*device, optionsBarBackgroundImage);
+        createImageTexture(originalResourceManager, optionsBarBackgroundImage);
     const Texture optionsBar =
-        createImageTexture(*device, optionsBarImage);
+        createImageTexture(originalResourceManager, optionsBarImage);
     const Texture optionsButton =
-        createImageTexture(*device, optionsButtonImage);
+        createImageTexture(originalResourceManager, optionsButtonImage);
     const Texture optionsButtonSelected =
-        createImageTexture(*device, optionsButtonSelectedImage);
+        createImageTexture(originalResourceManager, optionsButtonSelectedImage);
     const Texture startOptionsButton =
-        createImageTexture(*device, startOptionsButtonImage);
+        createImageTexture(originalResourceManager, startOptionsButtonImage);
     const Texture optionsKey =
-        createImageTexture(*device, optionsKeyImage);
+        createImageTexture(originalResourceManager, optionsKeyImage);
     const Texture optionsKeySelected =
-        createImageTexture(*device, optionsKeySelectedImage);
+        createImageTexture(originalResourceManager, optionsKeySelectedImage);
     const Texture keyboardIcon =
-        createImageTexture(*device, keyboardIconImage);
+        createImageTexture(originalResourceManager, keyboardIconImage);
     const Texture gamepadIcon =
-        createImageTexture(*device, gamepadIconImage);
+        createImageTexture(originalResourceManager, gamepadIconImage);
     const std::array<std::uint8_t, 4> optionsMaskPixel{
         0U, 0U, 0U, 204U};
     const Texture optionsMask = device->createTextureRgba8(
@@ -2172,43 +2182,43 @@ int main(int argc, char** argv)
         menu::loadOriginalImage(*resources, "Data/GUI/cloudy.png"),
         menu::loadOriginalImage(*resources, "Data/GUI/rainy.png")};
     const Texture raceTopPanel =
-        createImageTexture(*device, raceTopPanelImage);
+        createImageTexture(originalResourceManager, raceTopPanelImage);
     const Texture raceBottomPanel =
-        createImageTexture(*device, raceBottomPanelImage);
+        createImageTexture(originalResourceManager, raceBottomPanelImage);
     const Texture raceMenuButton =
-        createImageTexture(*device, raceMenuButtonImage);
+        createImageTexture(originalResourceManager, raceMenuButtonImage);
     const Texture raceMenuButtonSelected =
-        createImageTexture(*device, raceMenuButtonSelectedImage);
+        createImageTexture(originalResourceManager, raceMenuButtonSelectedImage);
     const Texture raceMoney =
-        createImageTexture(*device, raceMoneyImage);
+        createImageTexture(originalResourceManager, raceMoneyImage);
     const Texture raceStats =
-        createImageTexture(*device, raceStatsImage);
+        createImageTexture(originalResourceManager, raceStatsImage);
     const Texture raceImageFrame =
-        createImageTexture(*device, raceImageFrameImage);
+        createImageTexture(originalResourceManager, raceImageFrameImage);
     const Texture raceChargeBar =
-        createImageTexture(*device, raceChargeBarImage);
+        createImageTexture(originalResourceManager, raceChargeBarImage);
     const Texture raceStatBar =
-        createImageTexture(*device, raceStatBarImage);
+        createImageTexture(originalResourceManager, raceStatBarImage);
 #ifdef RRR3D_NETWORK
     const Texture networkPlayerFrame =
-        createImageTexture(*device, networkPlayerFrameImage);
+        createImageTexture(originalResourceManager, networkPlayerFrameImage);
     const Texture networkPlayerKick =
-        createImageTexture(*device, networkPlayerKickImage);
+        createImageTexture(originalResourceManager, networkPlayerKickImage);
     const Texture networkPlayerKickSelected =
-        createImageTexture(*device, networkPlayerKickSelectedImage);
+        createImageTexture(originalResourceManager, networkPlayerKickSelectedImage);
     const Texture networkPlayerReady =
-        createImageTexture(*device, networkPlayerReadyImage);
+        createImageTexture(originalResourceManager, networkPlayerReadyImage);
     const Texture networkPlayerReadySelected =
-        createImageTexture(*device, networkPlayerReadySelectedImage);
+        createImageTexture(originalResourceManager, networkPlayerReadySelectedImage);
 #endif
     std::array<Texture, 7> raceMenuIcons{};
     for (std::size_t index = 0U; index < raceMenuIcons.size(); ++index)
         raceMenuIcons[index] =
-            createImageTexture(*device, raceMenuIconImages[index]);
+            createImageTexture(originalResourceManager, raceMenuIconImages[index]);
     std::array<Texture, 4> raceWeatherIcons{};
     for (std::size_t index = 0U; index < raceWeatherIcons.size(); ++index)
         raceWeatherIcons[index] =
-            createImageTexture(*device, raceWeatherImages[index]);
+            createImageTexture(originalResourceManager, raceWeatherImages[index]);
     const auto garageTopPanelImage = menu::loadOriginalImage(
         *resources, "Data/GUI/topPanel2.png");
     const auto garageBottomPanelImage = menu::loadOriginalImage(
@@ -2250,41 +2260,41 @@ int main(int argc, char** argv)
         *resources,
         "Data/GUI/buyButtonSel_" + garageLanguage + ".png");
     const Texture garageTopPanel =
-        createImageTexture(*device, garageTopPanelImage);
+        createImageTexture(originalResourceManager, garageTopPanelImage);
     const Texture garageBottomPanel =
-        createImageTexture(*device, garageBottomPanelImage);
+        createImageTexture(originalResourceManager, garageBottomPanelImage);
     const Texture garageSidePanel =
-        createImageTexture(*device, garageSidePanelImage);
+        createImageTexture(originalResourceManager, garageSidePanelImage);
     const Texture garageMoney =
-        createImageTexture(*device, garageMoneyImage);
+        createImageTexture(originalResourceManager, garageMoneyImage);
     const Texture garageStats =
-        createImageTexture(*device, garageStatsImage);
+        createImageTexture(originalResourceManager, garageStatsImage);
     const Texture garageStatBar =
-        createImageTexture(*device, garageStatBarImage);
+        createImageTexture(originalResourceManager, garageStatBarImage);
     const Texture garageCarBox =
-        createImageTexture(*device, garageCarBoxImage);
+        createImageTexture(originalResourceManager, garageCarBoxImage);
     const Texture garageCarBoxSelected =
-        createImageTexture(*device, garageCarBoxSelectedImage);
+        createImageTexture(originalResourceManager, garageCarBoxSelectedImage);
     const Texture garageLock =
-        createImageTexture(*device, garageLockImage);
+        createImageTexture(originalResourceManager, garageLockImage);
     const Texture garageColorBox =
-        createImageTexture(*device, garageColorBoxImage);
+        createImageTexture(originalResourceManager, garageColorBoxImage);
     const Texture garageColorBoxBackground =
-        createImageTexture(*device, garageColorBoxBackgroundImage);
+        createImageTexture(originalResourceManager, garageColorBoxBackgroundImage);
     const Texture garageColorBoxSelected =
-        createImageTexture(*device, garageColorBoxSelectedImage);
+        createImageTexture(originalResourceManager, garageColorBoxSelectedImage);
     const Texture garageArrow =
-        createImageTexture(*device, garageArrowImage);
+        createImageTexture(originalResourceManager, garageArrowImage);
     const Texture garageArrowSelected =
-        createImageTexture(*device, garageArrowSelectedImage);
+        createImageTexture(originalResourceManager, garageArrowSelectedImage);
     const Texture garageBack =
-        createImageTexture(*device, garageBackImage);
+        createImageTexture(originalResourceManager, garageBackImage);
     const Texture garageBackSelected =
-        createImageTexture(*device, garageBackSelectedImage);
+        createImageTexture(originalResourceManager, garageBackSelectedImage);
     const Texture garageBuy =
-        createImageTexture(*device, garageBuyImage);
+        createImageTexture(originalResourceManager, garageBuyImage);
     const Texture garageBuySelected =
-        createImageTexture(*device, garageBuySelectedImage);
+        createImageTexture(originalResourceManager, garageBuySelectedImage);
     const auto workshopTopPanelImage = menu::loadOriginalImage(
         *resources, "Data/GUI/topPanel3.png");
     const auto workshopBottomPanelImage = menu::loadOriginalImage(
@@ -2318,41 +2328,41 @@ int main(int argc, char** argv)
     const auto workshopInfoFrameImage = menu::loadOriginalImage(
         *resources, "Data/GUI/dlgFrame3.png");
     const Texture workshopTopPanel =
-        createImageTexture(*device, workshopTopPanelImage);
+        createImageTexture(originalResourceManager, workshopTopPanelImage);
     const Texture workshopBottomPanel =
-        createImageTexture(*device, workshopBottomPanelImage);
+        createImageTexture(originalResourceManager, workshopBottomPanelImage);
     const Texture workshopLeftPanel =
-        createImageTexture(*device, workshopLeftPanelImage);
+        createImageTexture(originalResourceManager, workshopLeftPanelImage);
     const Texture workshopSlot =
-        createImageTexture(*device, workshopSlotImage);
+        createImageTexture(originalResourceManager, workshopSlotImage);
     const Texture workshopSlotFrame =
-        createImageTexture(*device, workshopSlotFrameImage);
+        createImageTexture(originalResourceManager, workshopSlotFrameImage);
     const Texture workshopChargeBox =
-        createImageTexture(*device, workshopChargeBoxImage);
+        createImageTexture(originalResourceManager, workshopChargeBoxImage);
     const Texture workshopChargeBar =
-        createImageTexture(*device, workshopChargeBarImage);
+        createImageTexture(originalResourceManager, workshopChargeBarImage);
     const Texture workshopChargeButton =
-        createImageTexture(*device, workshopChargeButtonImage);
+        createImageTexture(originalResourceManager, workshopChargeButtonImage);
     const Texture workshopChargeButtonSelected =
-        createImageTexture(*device, workshopChargeButtonSelectedImage);
+        createImageTexture(originalResourceManager, workshopChargeButtonSelectedImage);
     const Texture workshopStatBarPlus =
-        createImageTexture(*device, workshopStatBarPlusImage);
+        createImageTexture(originalResourceManager, workshopStatBarPlusImage);
     std::array<Texture, 3> workshopUpgradeTextures{};
     for (std::size_t index = 0U;
          index < workshopUpgradeTextures.size(); ++index)
     {
         workshopUpgradeTextures[index] =
-            createImageTexture(*device, workshopUpgradeImages[index]);
+            createImageTexture(originalResourceManager, workshopUpgradeImages[index]);
     }
     std::array<Texture, 4> workshopSlotIconTextures{};
     for (std::size_t index = 0U;
          index < workshopSlotIconTextures.size(); ++index)
     {
         workshopSlotIconTextures[index] =
-            createImageTexture(*device, workshopSlotIconImages[index]);
+            createImageTexture(originalResourceManager, workshopSlotIconImages[index]);
     }
     const Texture workshopInfoFrame =
-        createImageTexture(*device, workshopInfoFrameImage);
+        createImageTexture(originalResourceManager, workshopInfoFrameImage);
     const auto angarBottomPanelImage = menu::loadOriginalImage(
         *resources, "Data/GUI/bottomPanel6.png");
     const auto angarPlanetInfoImage = menu::loadOriginalImage(
@@ -2370,21 +2380,21 @@ int main(int argc, char** argv)
     const auto angarDoorUpImage = menu::loadOriginalImage(
         *resources, "Data/GUI/doorUp.png");
     const Texture angarBottomPanel =
-        createImageTexture(*device, angarBottomPanelImage);
+        createImageTexture(originalResourceManager, angarBottomPanelImage);
     const Texture angarPlanetInfo =
-        createImageTexture(*device, angarPlanetInfoImage);
+        createImageTexture(originalResourceManager, angarPlanetInfoImage);
     const Texture angarClose =
-        createImageTexture(*device, angarCloseImage);
+        createImageTexture(originalResourceManager, angarCloseImage);
     const Texture angarCloseSelected =
-        createImageTexture(*device, angarCloseSelectedImage);
+        createImageTexture(originalResourceManager, angarCloseSelectedImage);
     const Texture angarDoorSlot =
-        createImageTexture(*device, angarDoorSlotImage);
+        createImageTexture(originalResourceManager, angarDoorSlotImage);
     const Texture angarDoorSlotSelected =
-        createImageTexture(*device, angarDoorSlotSelectedImage);
+        createImageTexture(originalResourceManager, angarDoorSlotSelectedImage);
     const Texture angarDoorDown =
-        createImageTexture(*device, angarDoorDownImage);
+        createImageTexture(originalResourceManager, angarDoorDownImage);
     const Texture angarDoorUp =
-        createImageTexture(*device, angarDoorUpImage);
+        createImageTexture(originalResourceManager, angarDoorUpImage);
     std::vector<menu::Image> angarBossImages;
     std::vector<Texture> angarBossTextures;
     angarBossImages.reserve(originalGarage->planets.size());
@@ -2395,7 +2405,7 @@ int main(int argc, char** argv)
             menu::loadOriginalImage(
                 *resources, planet.bossPhotoPath));
         angarBossTextures.push_back(
-            createImageTexture(*device, angarBossImages.back()));
+            createImageTexture(originalResourceManager, angarBossImages.back()));
     }
     const auto achievementBackgroundImage = menu::loadOriginalImage(
         *resources, "Data/GUI/achievmentBg.dds");
@@ -2410,17 +2420,17 @@ int main(int argc, char** argv)
     const auto achievementOkSelectedImage = menu::loadOriginalImage(
         *resources, "Data/GUI/okButSel.png");
     const Texture achievementBackground =
-        createImageTexture(*device, achievementBackgroundImage);
+        createImageTexture(originalResourceManager, achievementBackgroundImage);
     const Texture achievementBottomPanel =
-        createImageTexture(*device, achievementBottomPanelImage);
+        createImageTexture(originalResourceManager, achievementBottomPanelImage);
     const Texture achievementPanel =
-        createImageTexture(*device, achievementPanelImage);
+        createImageTexture(originalResourceManager, achievementPanelImage);
     const Texture achievementClose =
-        createImageTexture(*device, achievementCloseImage);
+        createImageTexture(originalResourceManager, achievementCloseImage);
     const Texture achievementOk =
-        createImageTexture(*device, achievementOkImage);
+        createImageTexture(originalResourceManager, achievementOkImage);
     const Texture achievementOkSelected =
-        createImageTexture(*device, achievementOkSelectedImage);
+        createImageTexture(originalResourceManager, achievementOkSelectedImage);
     const auto finishLeftFrameImage = menu::loadOriginalImage(
         *resources, "Data/GUI/playerLeftFrame.png");
     const auto finishRightFrameImage = menu::loadOriginalImage(
@@ -2428,11 +2438,11 @@ int main(int argc, char** argv)
     const auto finishLineFrameImage = menu::loadOriginalImage(
         *resources, "Data/GUI/playerLineFrame.png");
     const Texture finishLeftFrame =
-        createImageTexture(*device, finishLeftFrameImage);
+        createImageTexture(originalResourceManager, finishLeftFrameImage);
     const Texture finishRightFrame =
-        createImageTexture(*device, finishRightFrameImage);
+        createImageTexture(originalResourceManager, finishRightFrameImage);
     const Texture finishLineFrame =
-        createImageTexture(*device, finishLineFrameImage);
+        createImageTexture(originalResourceManager, finishLineFrameImage);
     const std::array<menu::Image, 3> finishCupImages{
         menu::loadOriginalImage(*resources, "Data/GUI/cup1.dds"),
         menu::loadOriginalImage(*resources, "Data/GUI/cup2.dds"),
@@ -2440,7 +2450,7 @@ int main(int argc, char** argv)
     std::array<Texture, finishCupImages.size()> finishCups{};
     for (std::size_t index = 0U; index < finishCups.size(); ++index)
         finishCups[index] =
-            createImageTexture(*device, finishCupImages[index]);
+            createImageTexture(originalResourceManager, finishCupImages[index]);
     std::vector<menu::Image> achievementLockedImages;
     std::vector<menu::Image> achievementOpenedImages;
     std::vector<Texture> achievementLockedTextures;
@@ -2458,9 +2468,9 @@ int main(int argc, char** argv)
             menu::loadOriginalImage(
                 *resources, std::string(visual.openedImage)));
         achievementLockedTextures.push_back(
-            createImageTexture(*device, achievementLockedImages.back()));
+            createImageTexture(originalResourceManager, achievementLockedImages.back()));
         achievementOpenedTextures.push_back(
-            createImageTexture(*device, achievementOpenedImages.back()));
+            createImageTexture(originalResourceManager, achievementOpenedImages.back()));
     }
     std::vector<menu::Image> garageCarImages;
     std::vector<Texture> garageCarTextures;
@@ -2473,7 +2483,7 @@ int main(int argc, char** argv)
             "Data/GUI/Cars/" +
                 std::string(recordName(car.record)) + ".png"));
         garageCarTextures.push_back(
-            createImageTexture(*device, garageCarImages.back()));
+            createImageTexture(originalResourceManager, garageCarImages.back()));
     }
     constexpr std::array<std::array<std::uint8_t, 4>, 14>
         garageColorPixels{{
@@ -2628,11 +2638,11 @@ int main(int argc, char** argv)
         };
     auto destroyPage = [&](const MenuPageVisual& page) {
         for (const auto& item : page.disabled)
-            device->destroy(item.texture);
+            originalResourceManager.Release(item.texture);
         for (const auto& item : page.selected)
-            device->destroy(item.texture);
+            originalResourceManager.Release(item.texture);
         for (const auto& item : page.normal)
-            device->destroy(item.texture);
+            originalResourceManager.Release(item.texture);
     };
 #ifdef RRR3D_PHYSICS
     constexpr menu::Rgba8 optionsTextColor{175, 175, 175, 255};
@@ -3216,9 +3226,9 @@ int main(int argc, char** argv)
     auto clearFinishRows = [&]() {
         for (const auto& row : finishRows)
         {
-            device->destroy(row.rewardValue.texture);
-            device->destroy(row.name.texture);
-            device->destroy(row.photo);
+            originalResourceManager.Release(row.rewardValue.texture);
+            originalResourceManager.Release(row.name.texture);
+            originalResourceManager.Release(row.photo);
         }
         finishRows.clear();
     };
@@ -3466,50 +3476,50 @@ int main(int argc, char** argv)
 #ifdef RRR3D_PHYSICS
         for (const auto& item : gameMusicDialogVisuals)
         {
-            device->destroy(item.info.texture);
-            device->destroy(item.title.texture);
+            originalResourceManager.Release(item.info.texture);
+            originalResourceManager.Release(item.title.texture);
         }
 #endif
         for (const auto& item : menuMusicDialogVisuals)
         {
-            device->destroy(item.info.texture);
-            device->destroy(item.title.texture);
+            originalResourceManager.Release(item.info.texture);
+            originalResourceManager.Release(item.title.texture);
         }
-        device->destroy(musicDialogFrame);
+        originalResourceManager.Release(musicDialogFrame);
 #endif
 #ifdef RRR3D_PHYSICS
         clearFinishRows();
 #ifdef RRR3D_NETWORK
         for (const auto& player : networkRacePlayerVisuals)
         {
-            device->destroy(player.readyLabel.texture);
-            device->destroy(player.name.texture);
+            originalResourceManager.Release(player.readyLabel.texture);
+            originalResourceManager.Release(player.name.texture);
         }
         networkRacePlayerVisuals.clear();
 #endif
         for (const auto& line : startOptionsInfoLines)
-            device->destroy(line.texture);
+            originalResourceManager.Release(line.texture);
         destroyPage(startOptionsActionPage);
         destroyPage(startOptionsValuePage);
         destroyPage(startOptionsLabelPage);
         destroyPage(raceMainStatsPage);
-        device->destroy(finishPriceInfo.texture);
-        device->destroy(finishRewardTitle.texture);
-        device->destroy(achievementPoints.texture);
-        device->destroy(achievementRewards.texture);
+        originalResourceManager.Release(finishPriceInfo.texture);
+        originalResourceManager.Release(finishRewardTitle.texture);
+        originalResourceManager.Release(achievementPoints.texture);
+        originalResourceManager.Release(achievementRewards.texture);
 #endif
         for (const auto& section : finalCredits)
         {
             for (const auto& line : section.lines)
-                device->destroy(line.texture);
-            device->destroy(section.caption.texture);
+                originalResourceManager.Release(line.texture);
+            originalResourceManager.Release(section.caption.texture);
         }
-        device->destroy(finalBackText.texture);
+        originalResourceManager.Release(finalBackText.texture);
         for (const auto texture : finalSlides)
-            device->destroy(texture);
-        device->destroy(finalBackSelected);
-        device->destroy(finalBack);
-        device->destroy(version.texture);
+            originalResourceManager.Release(texture);
+        originalResourceManager.Release(finalBackSelected);
+        originalResourceManager.Release(finalBack);
+        originalResourceManager.Release(version.texture);
 #ifdef RRR3D_PHYSICS
         destroyPage(garageStatsPage);
         destroyPage(garageInfoPage);
@@ -3543,121 +3553,121 @@ int main(int argc, char** argv)
         destroyPage(soundOptionNamesPage);
         destroyPage(graphicsOptionNamesPage);
         destroyPage(gameOptionNamesPage);
-        device->destroy(optionsMask);
+        originalResourceManager.Release(optionsMask);
         for (const auto texture : garageColorTextures)
-            device->destroy(texture);
+            originalResourceManager.Release(texture);
         for (const auto texture : garageCarTextures)
-            device->destroy(texture);
+            originalResourceManager.Release(texture);
         for (const auto texture : finishCups)
-            device->destroy(texture);
-        device->destroy(finishLineFrame);
-        device->destroy(finishRightFrame);
-        device->destroy(finishLeftFrame);
+            originalResourceManager.Release(texture);
+        originalResourceManager.Release(finishLineFrame);
+        originalResourceManager.Release(finishRightFrame);
+        originalResourceManager.Release(finishLeftFrame);
         for (const auto texture : workshopSlotIconTextures)
-            device->destroy(texture);
+            originalResourceManager.Release(texture);
         for (const auto texture : workshopUpgradeTextures)
-            device->destroy(texture);
+            originalResourceManager.Release(texture);
         for (const auto texture : angarBossTextures)
-            device->destroy(texture);
+            originalResourceManager.Release(texture);
         for (const auto texture : achievementOpenedTextures)
-            device->destroy(texture);
+            originalResourceManager.Release(texture);
         for (const auto texture : achievementLockedTextures)
-            device->destroy(texture);
-        device->destroy(achievementOkSelected);
-        device->destroy(achievementOk);
-        device->destroy(achievementClose);
-        device->destroy(achievementPanel);
-        device->destroy(achievementBottomPanel);
-        device->destroy(achievementBackground);
-        device->destroy(angarDoorUp);
-        device->destroy(angarDoorDown);
-        device->destroy(angarDoorSlotSelected);
-        device->destroy(angarDoorSlot);
-        device->destroy(angarCloseSelected);
-        device->destroy(angarClose);
-        device->destroy(angarPlanetInfo);
-        device->destroy(angarBottomPanel);
-        device->destroy(workshopStatBarPlus);
-        device->destroy(workshopInfoFrame);
-        device->destroy(workshopChargeButtonSelected);
-        device->destroy(workshopChargeButton);
-        device->destroy(workshopChargeBar);
-        device->destroy(workshopChargeBox);
-        device->destroy(workshopSlotFrame);
-        device->destroy(workshopSlot);
-        device->destroy(workshopLeftPanel);
-        device->destroy(workshopBottomPanel);
-        device->destroy(workshopTopPanel);
-        device->destroy(garageBuySelected);
-        device->destroy(garageBuy);
-        device->destroy(garageBackSelected);
-        device->destroy(garageBack);
-        device->destroy(garageArrowSelected);
-        device->destroy(garageArrow);
-        device->destroy(garageColorBoxSelected);
-        device->destroy(garageColorBoxBackground);
-        device->destroy(garageColorBox);
-        device->destroy(garageLock);
-        device->destroy(garageCarBoxSelected);
-        device->destroy(garageCarBox);
-        device->destroy(garageStatBar);
-        device->destroy(garageStats);
-        device->destroy(garageMoney);
-        device->destroy(garageSidePanel);
-        device->destroy(garageBottomPanel);
-        device->destroy(garageTopPanel);
+            originalResourceManager.Release(texture);
+        originalResourceManager.Release(achievementOkSelected);
+        originalResourceManager.Release(achievementOk);
+        originalResourceManager.Release(achievementClose);
+        originalResourceManager.Release(achievementPanel);
+        originalResourceManager.Release(achievementBottomPanel);
+        originalResourceManager.Release(achievementBackground);
+        originalResourceManager.Release(angarDoorUp);
+        originalResourceManager.Release(angarDoorDown);
+        originalResourceManager.Release(angarDoorSlotSelected);
+        originalResourceManager.Release(angarDoorSlot);
+        originalResourceManager.Release(angarCloseSelected);
+        originalResourceManager.Release(angarClose);
+        originalResourceManager.Release(angarPlanetInfo);
+        originalResourceManager.Release(angarBottomPanel);
+        originalResourceManager.Release(workshopStatBarPlus);
+        originalResourceManager.Release(workshopInfoFrame);
+        originalResourceManager.Release(workshopChargeButtonSelected);
+        originalResourceManager.Release(workshopChargeButton);
+        originalResourceManager.Release(workshopChargeBar);
+        originalResourceManager.Release(workshopChargeBox);
+        originalResourceManager.Release(workshopSlotFrame);
+        originalResourceManager.Release(workshopSlot);
+        originalResourceManager.Release(workshopLeftPanel);
+        originalResourceManager.Release(workshopBottomPanel);
+        originalResourceManager.Release(workshopTopPanel);
+        originalResourceManager.Release(garageBuySelected);
+        originalResourceManager.Release(garageBuy);
+        originalResourceManager.Release(garageBackSelected);
+        originalResourceManager.Release(garageBack);
+        originalResourceManager.Release(garageArrowSelected);
+        originalResourceManager.Release(garageArrow);
+        originalResourceManager.Release(garageColorBoxSelected);
+        originalResourceManager.Release(garageColorBoxBackground);
+        originalResourceManager.Release(garageColorBox);
+        originalResourceManager.Release(garageLock);
+        originalResourceManager.Release(garageCarBoxSelected);
+        originalResourceManager.Release(garageCarBox);
+        originalResourceManager.Release(garageStatBar);
+        originalResourceManager.Release(garageStats);
+        originalResourceManager.Release(garageMoney);
+        originalResourceManager.Release(garageSidePanel);
+        originalResourceManager.Release(garageBottomPanel);
+        originalResourceManager.Release(garageTopPanel);
         for (const auto texture : raceWeatherIcons)
-            device->destroy(texture);
+            originalResourceManager.Release(texture);
         for (const auto texture : raceMenuIcons)
-            device->destroy(texture);
+            originalResourceManager.Release(texture);
 #ifdef RRR3D_NETWORK
-        device->destroy(networkPlayerReadySelected);
-        device->destroy(networkPlayerReady);
-        device->destroy(networkPlayerKickSelected);
-        device->destroy(networkPlayerKick);
-        device->destroy(networkPlayerFrame);
+        originalResourceManager.Release(networkPlayerReadySelected);
+        originalResourceManager.Release(networkPlayerReady);
+        originalResourceManager.Release(networkPlayerKickSelected);
+        originalResourceManager.Release(networkPlayerKick);
+        originalResourceManager.Release(networkPlayerFrame);
 #endif
-        device->destroy(raceStatBar);
-        device->destroy(raceChargeBar);
-        device->destroy(raceImageFrame);
-        device->destroy(raceStats);
-        device->destroy(raceMoney);
-        device->destroy(raceMenuButtonSelected);
-        device->destroy(raceMenuButton);
-        device->destroy(raceBottomPanel);
-        device->destroy(raceTopPanel);
-        device->destroy(gamepadIcon);
-        device->destroy(keyboardIcon);
-        device->destroy(optionsKeySelected);
-        device->destroy(optionsKey);
-        device->destroy(optionsButtonSelected);
-        device->destroy(optionsButton);
-        device->destroy(startOptionsButton);
-        device->destroy(optionsBar);
-        device->destroy(optionsBarBackground);
-        device->destroy(optionsArrowSelected);
-        device->destroy(optionsArrow);
-        device->destroy(controlsRow);
-        device->destroy(optionsRow);
-        device->destroy(loadingFrame);
-        device->destroy(startOptionsBackground);
-        device->destroy(optionsBackground);
-        device->destroy(acceptButtonSelected);
-        device->destroy(acceptButton);
-        device->destroy(acceptFrame);
-        device->destroy(infoDialogButtonSelected);
-        device->destroy(infoDialogButton);
-        device->destroy(infoDialogFrame);
-        device->destroy(profileArrowDisabled);
-        device->destroy(profileArrowSelected);
-        device->destroy(profileArrow);
+        originalResourceManager.Release(raceStatBar);
+        originalResourceManager.Release(raceChargeBar);
+        originalResourceManager.Release(raceImageFrame);
+        originalResourceManager.Release(raceStats);
+        originalResourceManager.Release(raceMoney);
+        originalResourceManager.Release(raceMenuButtonSelected);
+        originalResourceManager.Release(raceMenuButton);
+        originalResourceManager.Release(raceBottomPanel);
+        originalResourceManager.Release(raceTopPanel);
+        originalResourceManager.Release(gamepadIcon);
+        originalResourceManager.Release(keyboardIcon);
+        originalResourceManager.Release(optionsKeySelected);
+        originalResourceManager.Release(optionsKey);
+        originalResourceManager.Release(optionsButtonSelected);
+        originalResourceManager.Release(optionsButton);
+        originalResourceManager.Release(startOptionsButton);
+        originalResourceManager.Release(optionsBar);
+        originalResourceManager.Release(optionsBarBackground);
+        originalResourceManager.Release(optionsArrowSelected);
+        originalResourceManager.Release(optionsArrow);
+        originalResourceManager.Release(controlsRow);
+        originalResourceManager.Release(optionsRow);
+        originalResourceManager.Release(loadingFrame);
+        originalResourceManager.Release(startOptionsBackground);
+        originalResourceManager.Release(optionsBackground);
+        originalResourceManager.Release(acceptButtonSelected);
+        originalResourceManager.Release(acceptButton);
+        originalResourceManager.Release(acceptFrame);
+        originalResourceManager.Release(infoDialogButtonSelected);
+        originalResourceManager.Release(infoDialogButton);
+        originalResourceManager.Release(infoDialogFrame);
+        originalResourceManager.Release(profileArrowDisabled);
+        originalResourceManager.Release(profileArrowSelected);
+        originalResourceManager.Release(profileArrow);
         for (const auto texture : gamersBossTextures)
-            device->destroy(texture);
-        device->destroy(gamersNextArrowSelected);
-        device->destroy(gamersNextArrow);
-        device->destroy(gamersPhotoLight);
-        device->destroy(gamersBottomPanel);
-        device->destroy(gamersSpace);
+            originalResourceManager.Release(texture);
+        originalResourceManager.Release(gamersNextArrowSelected);
+        originalResourceManager.Release(gamersNextArrow);
+        originalResourceManager.Release(gamersPhotoLight);
+        originalResourceManager.Release(gamersBottomPanel);
+        originalResourceManager.Release(gamersSpace);
 #endif
         destroyPage(creditsPage);
         destroyPage(optionsPage);
@@ -3676,25 +3686,26 @@ int main(int argc, char** argv)
         destroyPage(tournamentPage);
         destroyPage(gameModePage);
         destroyPage(mainPage);
-        device->destroy(startupLoad);
-        device->destroy(startupLab);
-        device->destroy(startupYard);
-        device->destroy(cursor);
-        device->destroy(selection);
-        device->destroy(bottomPanel);
-        device->destroy(topPanel);
-        device->destroy(background);
-        device->destroy(quad);
+        originalResourceManager.Release(startupLoad);
+        originalResourceManager.Release(startupLab);
+        originalResourceManager.Release(startupYard);
+        originalResourceManager.Release(cursor);
+        originalResourceManager.Release(selection);
+        originalResourceManager.Release(bottomPanel);
+        originalResourceManager.Release(topPanel);
+        originalResourceManager.Release(background);
+        originalResourceManager.Release(quad);
 #ifdef RRR3D_PHYSICS
-        device->destroy(raceShader);
+        originalResourceManager.Release(raceShader);
 #endif
-        device->destroy(shader);
+        originalResourceManager.Release(shader);
     };
 
     if (!gpuResourcesValid || !optionsResourcesValid)
     {
         std::cerr << "Unable to create original MainMenu2 GPU resources\n";
         releaseResources();
+        originalResourceManager.Shutdown();
         device.reset();
         SDL_DestroyWindow(window);
 #ifdef RRR3D_GAMEPAD_INPUT
@@ -3805,8 +3816,6 @@ int main(int argc, char** argv)
             ? rrr3d::race::RaceCameraStyle::ThirdPerson
             : rrr3d::race::RaceCameraStyle::Isometric;
     std::vector<TextVisual> gameDebugVisual;
-    rrr3d::race::OriginalResourceManager originalResourceManager(
-        *device, *resources);
     rrr3d::race::OriginalRaceRenderer raceRenderer;
     rrr3d::race::OriginalRaceRenderer garageRenderer;
     rrr3d::race::OriginalRaceRenderer angarRenderer;
@@ -3846,8 +3855,8 @@ int main(int argc, char** argv)
         garageRenderer.shutdown(*device);
         raceRenderer.shutdown(*device);
         raceHud.shutdown(*device);
-        originalResourceManager.Shutdown();
         releaseResources();
+        originalResourceManager.Shutdown();
         device.reset();
         SDL_DestroyWindow(window);
 #ifdef RRR3D_GAMEPAD_INPUT
@@ -3888,8 +3897,8 @@ int main(int argc, char** argv)
             garageRenderer.shutdown(*device);
             raceRenderer.shutdown(*device);
             raceHud.shutdown(*device);
-            originalResourceManager.Shutdown();
             releaseResources();
+            originalResourceManager.Shutdown();
             device.reset();
             SDL_DestroyWindow(window);
 #ifdef RRR3D_GAMEPAD_INPUT
@@ -3946,6 +3955,7 @@ int main(int argc, char** argv)
     {
         std::cerr << "Audio initialization failed: " << audioError << '\n';
         releaseResources();
+        originalResourceManager.Shutdown();
         device.reset();
         SDL_DestroyWindow(window);
 #ifdef RRR3D_GAMEPAD_INPUT
@@ -3965,6 +3975,7 @@ int main(int argc, char** argv)
                   << '\n';
         audio.shutdown();
         releaseResources();
+        originalResourceManager.Shutdown();
         device.reset();
         SDL_DestroyWindow(window);
 #ifdef RRR3D_GAMEPAD_INPUT
@@ -3988,6 +3999,7 @@ int main(int argc, char** argv)
                   << audioError << '\n';
         audio.shutdown();
         releaseResources();
+        originalResourceManager.Shutdown();
         device.reset();
         SDL_DestroyWindow(window);
 #ifdef RRR3D_GAMEPAD_INPUT
@@ -4008,6 +4020,7 @@ int main(int argc, char** argv)
         originalResourceManager.ShutdownSounds();
         audio.shutdown();
         releaseResources();
+        originalResourceManager.Shutdown();
         device.reset();
         SDL_DestroyWindow(window);
 #ifdef RRR3D_GAMEPAD_INPUT
@@ -4068,6 +4081,7 @@ int main(int argc, char** argv)
         originalResourceManager.ShutdownSounds();
         audio.shutdown();
         releaseResources();
+        originalResourceManager.Shutdown();
         device.reset();
         SDL_DestroyWindow(window);
 #ifdef RRR3D_GAMEPAD_INPUT
@@ -4095,6 +4109,7 @@ int main(int argc, char** argv)
         originalResourceManager.ShutdownSounds();
         audio.shutdown();
         releaseResources();
+        originalResourceManager.Shutdown();
         device.reset();
         SDL_DestroyWindow(window);
 #ifdef RRR3D_GAMEPAD_INPUT
@@ -4127,6 +4142,7 @@ int main(int argc, char** argv)
         originalResourceManager.ShutdownSounds();
         audio.shutdown();
         releaseResources();
+        originalResourceManager.Shutdown();
         device.reset();
         SDL_DestroyWindow(window);
 #ifdef RRR3D_GAMEPAD_INPUT
@@ -4436,9 +4452,10 @@ int main(int argc, char** argv)
         angarRenderer.shutdown(*device);
         garageRenderer.shutdown(*device);
         raceRenderer.shutdown(*device);
-        originalResourceManager.Shutdown();
+        originalResourceManager.ShutdownSounds();
         audio.shutdown();
         releaseResources();
+        originalResourceManager.Shutdown();
         device.reset();
         SDL_DestroyWindow(window);
 #ifdef RRR3D_GAMEPAD_INPUT
@@ -5620,8 +5637,8 @@ int main(int argc, char** argv)
     auto clearNetworkRacePlayerVisuals = [&]() {
         for (const auto& player : networkRacePlayerVisuals)
         {
-            device->destroy(player.readyLabel.texture);
-            device->destroy(player.name.texture);
+            originalResourceManager.Release(player.readyLabel.texture);
+            originalResourceManager.Release(player.name.texture);
         }
         networkRacePlayerVisuals.clear();
         networkKickHoverOwner.reset();
@@ -7222,7 +7239,7 @@ int main(int argc, char** argv)
             localized("svOk"), menu::virtualWidth * 0.5F,
             menu::virtualHeight * 0.5F);
         if (valid(infoDialog.ok.texture))
-            device->destroy(infoDialog.ok.texture);
+            originalResourceManager.Release(infoDialog.ok.texture);
         infoDialog.ok = {};
         sourceDialogs.SetInfoDismissable(false);
     };
@@ -8871,7 +8888,7 @@ int main(int argc, char** argv)
                 originalCurrency(raceSession.achievementPoints()),
             menu::headerFontHeight, false,
             menu::Rgba8{250, 88, 0, 255}, resolvedFont);
-        device->destroy(achievementPoints.texture);
+        originalResourceManager.Release(achievementPoints.texture);
         achievementPoints = pointsReplacement;
         menuSelection = sourceAchievementFrame.focus();
     };
@@ -9777,7 +9794,7 @@ int main(int argc, char** argv)
                     const auto photo = menu::loadOriginalImage(
                         *resources, photoPath);
                     row.photo =
-                        createImageTexture(*device, photo);
+                        createImageTexture(originalResourceManager, photo);
                     const float photoScale = std::min(
                         {1.0F,
                          198.0F /
@@ -16596,7 +16613,7 @@ int main(int argc, char** argv)
             {
                 for (auto& line : gameDebugVisual)
                     if (valid(line.texture))
-                        device->destroy(line.texture);
+                        originalResourceManager.Release(line.texture);
                 gameDebugVisual.clear();
                 const auto sourceLines = gameDebug.lines(
                     *originalRace, raceSession, raceVehicles,
@@ -20971,7 +20988,7 @@ int main(int argc, char** argv)
         SDL_StopTextInput(window);
     for (auto& line : gameDebugVisual)
         if (valid(line.texture))
-            device->destroy(line.texture);
+            originalResourceManager.Release(line.texture);
     gameDebugVisual.clear();
     destroyUserChatVisual(*device, userChatVisual);
     physicsWorld.reset();
@@ -20980,7 +20997,6 @@ int main(int argc, char** argv)
     angarRenderer.shutdown(*device);
     garageRenderer.shutdown(*device);
     raceRenderer.shutdown(*device);
-    originalResourceManager.Shutdown();
     if (!sourceNormalInteractiveLaunch)
     {
         std::error_code cleanupError;
@@ -20989,6 +21005,7 @@ int main(int argc, char** argv)
     }
 #endif
     releaseResources();
+    originalResourceManager.Shutdown();
     device.reset();
     SDL_ShowCursor();
     SDL_DestroyWindow(window);

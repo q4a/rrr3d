@@ -50,6 +50,11 @@ OriginalResourceManager::OriginalResourceManager(
 {
 }
 
+OriginalResourceManager::~OriginalResourceManager()
+{
+    Shutdown();
+}
+
 std::string OriginalResourceManager::ResolveKey(
     std::string_view sourceName) const
 {
@@ -83,6 +88,7 @@ OriginalResourceManager::GetMesh(std::string_view sourceName)
     auto [inserted, created] = meshes_.emplace(
         key, MeshResource{std::string(sourceName), std::move(source), mesh});
     static_cast<void>(created);
+    managedMeshes_.insert(mesh.vertices.value);
     return inserted->second;
 }
 
@@ -152,6 +158,41 @@ OriginalResourceManager::GetTexture(std::string_view sourceName)
         key, TextureResource{
                  std::string(sourceName), texture, width, height});
     static_cast<void>(created);
+    managedTextures_.insert(texture.value);
+    return inserted->second;
+}
+
+const OriginalResourceManager::TextureResource&
+OriginalResourceManager::GetTexture(
+    const r3d::game::mainmenu2::Image& sourceImage)
+{
+    ++requests_;
+    const auto key = ResolveKey(sourceImage.virtualPath);
+    if (const auto found = textures_.find(key); found != textures_.end())
+    {
+        ++cacheHits_;
+        return found->second;
+    }
+
+    const auto texture =
+        sourceImage.storage ==
+                r3d::game::mainmenu2::ImageStorage::EncodedContainer
+            ? device_->createTextureContainer(
+                  sourceImage.bytes.data(), sourceImage.bytes.size(),
+                  sourceImage.virtualPath)
+            : device_->createTextureRgba8(
+                  sourceImage.width, sourceImage.height,
+                  sourceImage.bytes.data(), sourceImage.bytes.size());
+    if (!valid(texture))
+        throw r3d::resource::ResourceError(
+            "Unable to upload original texture " +
+            sourceImage.virtualPath);
+    auto [inserted, created] = textures_.emplace(
+        key, TextureResource{
+                 sourceImage.virtualPath, texture,
+                 sourceImage.width, sourceImage.height});
+    static_cast<void>(created);
+    managedTextures_.insert(texture.value);
     return inserted->second;
 }
 
@@ -174,12 +215,16 @@ OriginalResourceManager::GetWhiteTexture()
     auto [inserted, created] = textures_.emplace(
         key, TextureResource{key, texture, 1U, 1U});
     static_cast<void>(created);
+    managedTextures_.insert(texture.value);
     return inserted->second;
 }
 
 void OriginalResourceManager::AttachAudio(
     r3d::audio::AudioBackend& audio) noexcept
 {
+    if (audio_ == &audio)
+        return;
+    ShutdownSounds();
     audio_ = &audio;
 }
 
@@ -192,6 +237,9 @@ OriginalResourceManager::GetSound(
     if (const auto found = sounds_.find(key); found != sounds_.end())
     {
         ++soundCacheHits_;
+        // ResourceManager::LoadSound calls SetVolume after SoundLib::Find,
+        // so the shared resource always receives the latest descriptor.
+        found->second.volume = volume;
         return found->second;
     }
     if (audio_ == nullptr)
@@ -255,6 +303,53 @@ std::size_t OriginalResourceManager::GetSoundCacheHitCount() const noexcept
     return soundCacheHits_;
 }
 
+bool OriginalResourceManager::Owns(
+    r3d::renderer::Mesh resource) const noexcept
+{
+    return managedMeshes_.contains(resource.vertices.value);
+}
+
+bool OriginalResourceManager::Owns(
+    r3d::renderer::Texture resource) const noexcept
+{
+    return managedTextures_.contains(resource.value);
+}
+
+void OriginalResourceManager::Release(
+    r3d::renderer::Shader resource) noexcept
+{
+    if (device_ != nullptr)
+        device_->destroy(resource);
+}
+
+void OriginalResourceManager::Release(
+    r3d::renderer::Mesh resource) noexcept
+{
+    if (device_ != nullptr && !Owns(resource))
+        device_->destroy(resource);
+}
+
+void OriginalResourceManager::Release(
+    r3d::renderer::Texture resource) noexcept
+{
+    if (device_ != nullptr && !Owns(resource))
+        device_->destroy(resource);
+}
+
+void OriginalResourceManager::Release(
+    r3d::renderer::RenderTarget resource) noexcept
+{
+    if (device_ != nullptr)
+        device_->destroy(resource);
+}
+
+void OriginalResourceManager::Release(
+    r3d::renderer::CubeRenderTarget resource) noexcept
+{
+    if (device_ != nullptr)
+        device_->destroy(resource);
+}
+
 void OriginalResourceManager::ShutdownSounds() noexcept
 {
     if (audio_ != nullptr)
@@ -289,6 +384,8 @@ void OriginalResourceManager::Shutdown() noexcept
     }
     textures_.clear();
     meshes_.clear();
+    managedTextures_.clear();
+    managedMeshes_.clear();
     device_ = nullptr;
     resources_ = nullptr;
 }

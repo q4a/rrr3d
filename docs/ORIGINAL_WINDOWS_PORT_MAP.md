@@ -71,7 +71,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `Race` | `OriginalRace`, `OriginalRaceSession`, lifecycle/place/tournament on shared World | Source owner, active fixed/late lifecycle, partial orchestration | Продолжить вынос gameplay transactions из session; place sorting уже выполняется после Jolt solver через единственный World late-progress |
 | `RaceMenu2` | `originalracemenu::{RaceMenuState,RaceMainFrameState,GamersFrameState,GarageFrameState,WorkshopFrameState,SpaceshipFrameState,AngarFrameState,AchievementFrameState}` | Source owner, all six offline frame paths | Проверить оставшиеся network callbacks и оставить bgfx/CoreText backend boundary |
 | `RecordLib` | `source::{MapObjRecordLibrary,MapObjRecordNode,MapObjRecord}` | Source owner, active hierarchy | Editor-only mutation/serialization API не входит в пользовательский runtime |
-| `ResourceManager` | `OriginalResourceManager` + native readers/uploaders | Source owner, graph/sound path | Mesh/image/sound identity и lifetime общие; font/material-library ownership ещё нужно завершить |
+| `ResourceManager` | `OriginalResourceManager` + native readers/uploaders | Source owner, active GUI/graph/sound path | GUI/HUD/3D mesh/image/sound identity и ordered lifetime общие; TextFont/ComplexMat descriptors ещё нужно завершить |
 | `RockCar` | `source::RockCar`, dynamic `Weapons`, Player listener/contact sink | Source owner, active gameplay graph | PhysX actor/solver calls заменены Jolt; editor/legacy serializer остаётся parser boundary |
 | `Trace` | `source::{Trace,WayPath,WayNode,WayPoint}` | Source owner, active race/debug path | Editor serialization остаётся вне пользовательской игры; gameplay geometry и TraceGfx используют один owner |
 | `TraceGfx` | `source::TraceGfx` + transient bgfx submission | Source owner, active F6 path | Selection/link/geometry/material policy source-owned; D3D9 Box/Sprite/DrawPrimitiveUP заменены backend triangles |
@@ -232,13 +232,21 @@ weapon/effect paths используют заимствованные handles и
 на 105 запросов (29 повторных), сохранил правильное завершение всех loop
 voices и прошёл без висячего звука в меню.
 
+Результат B5c.1/B8aw закрывает оставшийся обход ImageLib в активном GUI.
+Все 111 source-image uploads в `main_bgfx_original_menu` получают texture у
+того же canonical owner, что HUD/garage/race; экранные release paths больше
+не уничтожают shared handle. Manager имеет RAII shutdown и исходный порядок
+SoundLib→ImageLib→MeshLib. Повторный `LoadSound` после `Find` обновляет volume,
+а rebind backend сначала выгружает прежний SoundLib. Fake-backend regression
+фиксирует cache/borrow/rebind/idempotence без зависимости от Metal window.
+
 `MusicCat` намеренно остаётся отдельным потоковым владельцем: он асинхронно
 декодирует только текущий/следующий track и выгружает старый, тогда как
 Windows-каталог `LoadMusic` был декларацией имён. Принудительное помещение
 всех tracks в PCM SoundLib вернуло бы задержки и расход памяти, устранённые в
 Milestone 8.
 
-Открытая B5d: вернуть source identity для font descriptors и material-library
+Открытая B5d: вернуть source identity для TextFontLib и ComplexMatLib
 descriptors/samplers. Их backend payload останется CoreText и bgfx/Metal.
 
 ### B6 — Menu/MenuSystem и исходные frames (B6a–B6e.5 выполнены)

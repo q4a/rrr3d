@@ -4,6 +4,7 @@
 #include "resource/R3DMeshAsset.h"
 #include "resource/ResourceFileSystem.h"
 #include "audio/AudioBackend.h"
+#include "OriginalMainMenu.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -11,6 +12,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace rrr3d::race
 {
@@ -47,7 +49,7 @@ public:
     OriginalResourceManager(
         r3d::renderer::GraphicsDevice& device,
         const r3d::resource::ResourceFileSystem& resources) noexcept;
-    ~OriginalResourceManager() = default;
+    ~OriginalResourceManager();
 
     OriginalResourceManager(const OriginalResourceManager&) = delete;
     OriginalResourceManager& operator=(
@@ -55,6 +57,8 @@ public:
 
     const MeshResource& GetMesh(std::string_view sourceName);
     const TextureResource& GetTexture(std::string_view sourceName);
+    const TextureResource& GetTexture(
+        const r3d::game::mainmenu2::Image& sourceImage);
     const TextureResource& GetWhiteTexture();
     void AttachAudio(r3d::audio::AudioBackend& audio) noexcept;
     const SoundResource& GetSound(
@@ -68,6 +72,13 @@ public:
     std::size_t GetSoundCount() const noexcept;
     std::size_t GetSoundRequestCount() const noexcept;
     std::size_t GetSoundCacheHitCount() const noexcept;
+    bool Owns(r3d::renderer::Mesh resource) const noexcept;
+    bool Owns(r3d::renderer::Texture resource) const noexcept;
+    void Release(r3d::renderer::Shader resource) noexcept;
+    void Release(r3d::renderer::Mesh resource) noexcept;
+    void Release(r3d::renderer::Texture resource) noexcept;
+    void Release(r3d::renderer::RenderTarget resource) noexcept;
+    void Release(r3d::renderer::CubeRenderTarget resource) noexcept;
     void ShutdownSounds() noexcept;
     void Shutdown() noexcept;
 
@@ -80,6 +91,8 @@ private:
     std::unordered_map<std::string, MeshResource> meshes_;
     std::unordered_map<std::string, TextureResource> textures_;
     std::unordered_map<std::string, SoundResource> sounds_;
+    std::unordered_set<std::uint32_t> managedMeshes_;
+    std::unordered_set<std::uint32_t> managedTextures_;
     std::size_t requests_ = 0U;
     std::size_t cacheHits_ = 0U;
     std::size_t soundRequests_ = 0U;

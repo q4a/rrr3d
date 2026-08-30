@@ -66,7 +66,7 @@ Windows target не компилируется.
 |---|---|---|---|---|
 | CMake, arm64 `.app`, bundle, signing | VS projects/resources | CMake presets, bundle scripts | Перенесено | Notarization/Developer ID не входят в текущую локальную сборку |
 | Platform filesystem/logging | Win32/XPlatform | XPlatform + macOS directories | Замена платформы | Игровой логике это не должно давать различий |
-| Resource filesystem | `ResourceManager`, Windows paths | `ResourceFileSystem`, exact-case catalog | Перенесено | Сам `ResourceManager.cpp` не компилируется; его игровые lifetime/cache semantics покрыты не полностью |
+| Resource filesystem | `ResourceManager`, Windows paths | `ResourceFileSystem` + `OriginalResourceManager`, exact-case catalog | Перенесено | Mesh/Image/Sound library identity, cache и release order активны; открыты TextFont/ComplexMat descriptors |
 | `.r3d`, DDS/PNG, XML | Исходные loaders | portable decoders + TinyXML | Перенесено | Поддержаны используемые форматы; это не перенос всего legacy resource object graph |
 | Окно и event loop | Win32/D3D window | SDL3/Cocoa | Замена платформы | Нативный путь работает |
 | Keyboard/mouse/gamepad | XInput/Win32 `ControlManager` | source `VirtualKey`/action state поверх SDL3 | Перенесено с backend-адаптацией | Точные constructor/user bindings, raw menu keys, repeat, focus release, `XUSER_INDEX_ANY` event delivery, hot-plug, 30/255 и 7849/8689 thresholds перенесены; Win32/XInput polling API заменён SDL3 events |
@@ -2098,6 +2098,23 @@ Renderer только публикует description/isometric/camera snapshot �
 Race reload/shutdown очищает scene и borrowed description до замены данных.
 Отдельный Environment regression проверяет, что snapshot не двигает rain
 сам, World frame двигает, а paused World — нет.
+
+### B8aw — GUI ImageLib и полный ResourceManager lifetime — выполнено
+
+Прямая сверка `ResourceManager::{ResourceManager,~ResourceManager,LoadSound}`
+показала, что 3D/HUD уже использовали общий manager, но 111 активных GUI
+image upload paths создавали собственные bgfx texture и локально их
+уничтожали. Все исходные `mainmenu2::Image` теперь получают canonical
+physical-path identity из одного `OriginalResourceManager`; экранный cleanup
+освобождает только заимствование, а библиотека уничтожает texture один раз
+после renderers/UI и до GraphicsDevice.
+
+Manager стал RAII-owner и воспроизводит порядок SoundLib→ImageLib→MeshLib.
+Повторный `LoadSound` обновляет volume общего объекта после `Find`, как
+Windows `SetVolume`, а смена AudioBackend сначала выгружает прежний SoundLib.
+Отдельный fake-backend regression проверяет cache hit, borrowed release,
+backend rebind, idempotent shutdown и отсутствие double destroy. TextFontLib
+и ComplexMatLib остаются следующим B5d, CoreText/bgfx — backend payload.
 
 ## Воспроизведение проверки
 

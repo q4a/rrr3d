@@ -324,6 +324,8 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
         target_sources(${PROJECT_NAME} PRIVATE
             CoreTextRasterizer.cpp
             CoreTextRasterizer.h
+            OriginalResourceManager.cpp
+            OriginalResourceManager.h
         )
         target_link_libraries(${PROJECT_NAME} PRIVATE
             ${RRR3D_CORETEXT_FRAMEWORK}
@@ -456,8 +458,6 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
                 OriginalGameDebug.h
                 OriginalRaceHud.cpp
                 OriginalRaceHud.h
-                OriginalResourceManager.cpp
-                OriginalResourceManager.h
                 OriginalRaceRenderer.cpp
                 OriginalWorkshopRenderer.cpp
                 OriginalRaceRenderer.h
@@ -664,3 +664,20 @@ else()
 endif()
 
 rrr3d_set_common_target_options(${PROJECT_NAME})
+
+if(NOT WIN32 AND RRR3D_BUILD_ORIGINAL_MENU)
+    add_executable(rrr3d_original_resource_manager_smoke
+        OriginalResourceManagerSmoke.cpp
+        OriginalResourceManager.cpp
+        OriginalResourceManager.h
+    )
+    target_link_libraries(rrr3d_original_resource_manager_smoke PRIVATE
+        Rock3dGame
+    )
+    rrr3d_set_common_target_options(
+        rrr3d_original_resource_manager_smoke)
+    add_test(
+        NAME rrr3d_original_resource_manager_smoke
+        COMMAND rrr3d_original_resource_manager_smoke
+    )
+endif()
