@@ -663,6 +663,47 @@ public:
     using EffectId = std::uint64_t;
     static constexpr EffectId invalidEffect = 0U;
 
+private:
+    struct EffectState
+    {
+        std::vector<EffectId> effectIds;
+        EffectId makeEffectId = invalidEffect;
+        EffectId nextEffectId = 1U;
+    };
+
+public:
+    // Backend effects can outlive the source GameObject behavior which
+    // created them. Windows removed GameObjEvent from the child during owner
+    // destruction; the portable renderer uses this weak identity to preserve
+    // that rule without retaining or dereferencing the destroyed behavior.
+    class EffectReference
+    {
+    public:
+        EffectReference() = default;
+
+        bool HasOwner() const noexcept;
+        bool HasEffect() const noexcept;
+        bool IsEffectMaked() const noexcept;
+        bool IsOwnedBy(const EventEffect& owner) const noexcept;
+        bool NotifyDestroyed() noexcept;
+        EffectId GetEffectId() const noexcept;
+        void Reset() noexcept;
+
+    private:
+        friend class EventEffect;
+        EffectReference(
+            std::weak_ptr<EffectState> state, EffectId effect) noexcept;
+
+        std::weak_ptr<EffectState> state_;
+        EffectId effect_ = invalidEffect;
+    };
+
+    EventEffect() = default;
+    EventEffect(const EventEffect& other);
+    EventEffect& operator=(const EventEffect& other);
+    EventEffect(EventEffect&&) noexcept = default;
+    EventEffect& operator=(EventEffect&&) noexcept = default;
+
     struct SpawnResult
     {
         bool createEffect = false;
@@ -690,6 +731,7 @@ public:
     EffectId GetMakeEffectId() const noexcept;
     std::size_t GetEffectCount() const noexcept;
     bool HasEffect(EffectId effect) const noexcept;
+    EffectReference ObserveEffect(EffectId effect) noexcept;
     SpawnResult GetSpawnResult(bool created) noexcept;
     const ObjectDefinition* GetEffectDefinition() const noexcept;
     const std::array<float, 3U>& GetPosition() const noexcept;
@@ -706,9 +748,8 @@ private:
     std::array<float, 3U> position_{};
     std::array<float, 3U> impulse_{};
     bool ignoreRotation_ = false;
-    std::vector<EffectId> effectIds_;
-    EffectId makeEffectId_ = invalidEffect;
-    EffectId nextEffectId_ = 1U;
+    std::shared_ptr<EffectState> effectState_ =
+        std::make_shared<EffectState>();
     std::vector<std::string> soundPaths_;
 };
 

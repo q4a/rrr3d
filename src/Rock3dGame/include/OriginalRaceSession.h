@@ -287,12 +287,11 @@ struct RaceEffect
     // Windows MapObjRec is reference-counted; retain the equivalent parsed
     // record when the portable source owner is about to be released.
     std::shared_ptr<const ObjectDefinition> sourceDefinitionOwner;
-    // EventEffect::GameObjEvent::OnDestroy callback target. Transient Logic
-    // owners are retained while this identity is live; actors rebuilt at a
-    // car respawn detach the callback before replacing their behavior graph.
-    source::EventEffect* sourceEventOwner = nullptr;
-    source::EventEffect::EffectId sourceEventId =
-        source::EventEffect::invalidEffect;
+    // EventEffect::GameObjEvent identity. This weak reference mirrors the
+    // listener detachment performed by the Windows EventEffect destructor:
+    // transient actors may finish after their source behavior has gone, but
+    // can never call back through a dangling behavior pointer.
+    source::EventEffect::EffectReference sourceEvent;
     std::size_t racer = RacerRuntime::invalidWeapon;
     std::size_t vehicleEffect = RacerRuntime::invalidWeapon;
     Transform transform;

@@ -1115,19 +1115,11 @@ const source::WorldEventPump& OriginalRaceSession::sourceWorld() const noexcept
 void OriginalRaceSession::notifyEffectDestroyed(
     RaceEffect& effect) noexcept
 {
-    if (effect.sourceEventOwner != nullptr)
-    {
-        // GameObjEvent::OnDestroy first tells its EventEffect owner that the
-        // distinguished child died. Type-specific owner teardown follows
-        // this base transition, matching the virtual Windows callback order.
-        if (effect.sourceEventId != source::EventEffect::invalidEffect)
-            effect.sourceEventOwner->OnDestroyEffect(
-                effect.sourceEventId);
-        else
-            effect.sourceEventOwner->OnDestroyEffect();
-        effect.sourceEventOwner = nullptr;
-        effect.sourceEventId = source::EventEffect::invalidEffect;
-    }
+    // GameObjEvent::OnDestroy first tells its live EventEffect owner that the
+    // distinguished child died. If Logic already destroyed that behavior,
+    // the weak identity expires exactly like the Windows listener detachment
+    // and this becomes a safe no-op.
+    effect.sourceEvent.NotifyDestroyed();
     if (effect.kind == RaceEventKind::VehicleSlowEffect &&
         effect.racer < racers_.size())
     {
@@ -2133,8 +2125,9 @@ bool OriginalRaceSession::applyRacerDamageInternal(
             effect.racer = target;
             effect.parentRacer = target;
             effect.sourceDefinition = energySpawn->definition;
-            effect.sourceEventOwner = energySpawn->owner;
-            effect.sourceEventId = energySpawn->effectId;
+            if (energySpawn->owner != nullptr)
+                effect.sourceEvent = energySpawn->owner->ObserveEffect(
+                    energySpawn->effectId);
             effect.transform.position = {
                 energySpawn->position[0], energySpawn->position[1],
                 energySpawn->position[2]};
@@ -3361,9 +3354,7 @@ OriginalRaceSession::progressPlayers(
                 if (effect.kind == RaceEventKind::VehicleDestroyed &&
                     effect.racer == racer)
                 {
-                    effect.sourceEventOwner = nullptr;
-                    effect.sourceEventId =
-                        source::EventEffect::invalidEffect;
+                    effect.sourceEvent.Reset();
                 }
             }
             // Source Player::OnProgress executes CreateCar(false), including
@@ -4687,8 +4678,9 @@ void OriginalRaceSession::destroyRacer(
         effect.racer = racer;
         effect.vehicleEffect = index;
         effect.sourceDefinition = sourcePlan.definition;
-        effect.sourceEventOwner = sourcePlan.owner;
-        effect.sourceEventId = sourcePlan.effectId;
+        if (sourcePlan.owner != nullptr)
+            effect.sourceEvent = sourcePlan.owner->ObserveEffect(
+                sourcePlan.effectId);
         effect.sourceImpulse = {
             sourcePlan.impulse[0], sourcePlan.impulse[1],
             sourcePlan.impulse[2]};
@@ -5007,8 +4999,9 @@ void OriginalRaceSession::updateGameplay(
                 effect.racer = racer;
                 effect.parentRacer = racer;
                 effect.sourceDefinition = spawn.definition;
-                effect.sourceEventOwner = spawn.owner;
-                effect.sourceEventId = spawn.effectId;
+                if (spawn.owner != nullptr)
+                    effect.sourceEvent = spawn.owner->ObserveEffect(
+                        spawn.effectId);
                 effect.transform.position = {
                     spawn.position[0], spawn.position[1],
                     spawn.position[2]};
@@ -5258,8 +5251,9 @@ void OriginalRaceSession::updateGameplay(
                         impact.sourceDefinitionOwner != nullptr
                             ? impact.sourceDefinitionOwner.get()
                             : &visual;
-                    impact.sourceEventOwner = eventOwner;
-                    impact.sourceEventId = eventId;
+                    if (eventOwner != nullptr)
+                        impact.sourceEvent = eventOwner->ObserveEffect(
+                            eventId);
                     if (exactTransform != nullptr)
                         impact.transform = *exactTransform;
                     if (targetChild && targetRacer < vehicles.size())
@@ -5504,8 +5498,9 @@ void OriginalRaceSession::updateGameplay(
                         effect.weapon = projectile.weapon;
                         effect.projectile = projectile.projectile;
                         effect.sourceDefinition = spawn->definition;
-                        effect.sourceEventOwner = spawn->owner;
-                        effect.sourceEventId = spawn->effectId;
+                        if (spawn->owner != nullptr)
+                            effect.sourceEvent = spawn->owner->ObserveEffect(
+                                spawn->effectId);
                         effect.transform.position = {
                             spawn->position[0], spawn->position[1],
                             spawn->position[2]};
@@ -6321,8 +6316,9 @@ void OriginalRaceSession::updateGameplay(
                 source.visual, source.duration);
             applySourceEffectTiming(effect, timing, source.visual);
             effect.weapon = weapon;
-            effect.sourceEventOwner = spawn->owner;
-            effect.sourceEventId = spawn->effectId;
+            if (spawn->owner != nullptr)
+                effect.sourceEvent = spawn->owner->ObserveEffect(
+                    spawn->effectId);
             effect.sourceDefinition = &source.visual;
             effect.ignoreRotation = spawn->ignoreRotation;
             effect.sourceImpulse = {
@@ -7321,8 +7317,9 @@ void OriginalRaceSession::updateGameplay(
             deathPlan.impulse[2]};
         impact.sourceVelocity = mine.velocity;
         impact.sourceDefinition = deathPlan.definition;
-        impact.sourceEventOwner = deathPlan.owner;
-        impact.sourceEventId = deathPlan.effectId;
+        if (deathPlan.owner != nullptr)
+            impact.sourceEvent = deathPlan.owner->ObserveEffect(
+                deathPlan.effectId);
         if (deathPlan.targetChild && targetRacer < vehicles.size())
         {
             impact.parentRacer = targetRacer;
@@ -7754,8 +7751,9 @@ void OriginalRaceSession::updateGameplay(
             deathPlan.impulse[0], deathPlan.impulse[1],
             deathPlan.impulse[2]};
         impact.sourceDefinition = deathPlan.definition;
-        impact.sourceEventOwner = deathPlan.owner;
-        impact.sourceEventId = deathPlan.effectId;
+        if (deathPlan.owner != nullptr)
+            impact.sourceEvent = deathPlan.owner->ObserveEffect(
+                deathPlan.effectId);
         if (deathPlan.targetChild && targetRacer < vehicles.size())
         {
             impact.parentRacer = targetRacer;
@@ -12098,11 +12096,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                         return effect.kind ==
                                    RaceEventKind::VehicleDestroyed &&
                                effect.sourceDefinition != nullptr &&
-                               effect.sourceEventOwner != nullptr &&
-                               effect.sourceEventId !=
-                                   source::EventEffect::invalidEffect &&
-                               effect.sourceEventOwner->HasEffect(
-                                   effect.sourceEventId);
+                               effect.sourceEvent.HasEffect();
                     }));
             const auto sourceDeathSoundCount = static_cast<std::size_t>(
                 std::count_if(
@@ -12186,7 +12180,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 [](const RaceEffect& effect) {
                     return effect.kind ==
                                RaceEventKind::VehicleDestroyed &&
-                           effect.sourceEventOwner != nullptr;
+                           effect.sourceEvent.HasOwner();
                 });
             if (deathRespawns.size() != 1U ||
                 deathSession.racers().front().GetLife() !=
@@ -13030,11 +13024,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                         return effect.kind ==
                                    RaceEventKind::WeaponShotEffect &&
                                effect.weapon == weaponIndex &&
-                               effect.sourceEventOwner != nullptr &&
-                               effect.sourceEventId !=
-                                   source::EventEffect::invalidEffect &&
-                               effect.sourceEventOwner->HasEffect(
-                                   effect.sourceEventId) &&
+                               effect.sourceEvent.HasEffect() &&
                                effect.sourceDefinition != nullptr &&
                                effect.sourceDefinition->record ==
                                    sourceWeapon->shotEffect.visual.record &&
@@ -13069,10 +13059,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                         [&](const RaceEffect& effect) {
                             return effect.kind ==
                                        RaceEventKind::WeaponShotEffect &&
-                                   effect.sourceEventOwner ==
-                                       &shotOwner &&
-                                   shotOwner.HasEffect(
-                                       effect.sourceEventId);
+                                   effect.sourceEvent.IsOwnedBy(shotOwner) &&
+                                   effect.sourceEvent.HasEffect();
                         }));
                 if (shotOwner.GetEffectCount() != backendCount)
                 {
@@ -14448,8 +14436,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                                effect.parentRacer == 1U &&
                                effect.weapon == frostWeapon &&
                                effect.projectile == 0U &&
-                               effect.sourceEventOwner != nullptr &&
-                               effect.sourceEventOwner->IsEffectMaked() &&
+                               effect.sourceEvent.IsEffectMaked() &&
                                effect.sourceDefinition ==
                                    &frostRace.weapons[frostWeapon]
                                         .projectiles[0U]
@@ -14470,8 +14457,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                                    RaceEventKind::VehicleEnergyDamage &&
                                effect.racer == 1U &&
                                effect.parentRacer == 1U &&
-                               effect.sourceEventOwner != nullptr &&
-                               effect.sourceEventOwner->IsEffectMaked() &&
+                               effect.sourceEvent.IsEffectMaked() &&
                                effect.sourceDefinition ==
                                    frostSession.racers()[1]
                                        .energyDamageEffect
@@ -14781,9 +14767,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                            effect.weapon == childEffectWeapon &&
                            effect.visualVariant == 3U &&
                            effect.sourceDefinition != nullptr &&
-                           effect.sourceEventOwner != nullptr &&
-                           effect.sourceEventOwner->HasEffect(
-                               effect.sourceEventId);
+                           effect.sourceEvent.HasEffect();
                 });
             if (attachedDeath == childEffectSession.effects().end() ||
                 attachedDeath->parentRacer != 1U)
@@ -14968,9 +14952,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                            effect.visualVariant == 3U &&
                            effect.ignoreRotation &&
                            effect.sourceDefinition != nullptr &&
-                           effect.sourceEventOwner != nullptr &&
-                           effect.sourceEventOwner->HasEffect(
-                               effect.sourceEventId);
+                           effect.sourceEvent.HasEffect();
                 });
             if (!hasSourceMortarDeath)
             {
@@ -15168,9 +15150,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                            effect.weapon == mineWeapon &&
                            effect.visualVariant == 3U &&
                            effect.sourceDefinition != nullptr &&
-                           effect.sourceEventOwner != nullptr &&
-                           effect.sourceEventOwner->HasEffect(
-                               effect.sourceEventId) &&
+                           effect.sourceEvent.HasEffect() &&
                            effect.ignoreRotation &&
                            std::abs(effect.origin.z -
                                     (minePosition.z + 0.5F)) < 0.001F;

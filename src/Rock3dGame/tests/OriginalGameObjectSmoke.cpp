@@ -4,6 +4,7 @@
 
 #include <cmath>
 #include <iostream>
+#include <memory>
 #include <vector>
 
 namespace original = r3d::game::originalrace;
@@ -698,6 +699,26 @@ int main()
         eventEffect.GetEffectCount() != 0U ||
         eventEffect.OnDestroyEffect())
         return 37;
+
+    // A portable RaceEffect can finish after Logic destroys its transient
+    // Proj behavior. The Windows listener destructor detached this callback;
+    // the weak identity must likewise expire instead of retaining a raw,
+    // dangling EventEffect pointer.
+    source::EventEffect::EffectReference expiredEffect;
+    {
+        auto transientOwner = std::make_unique<source::EventEffect>();
+        if (!transientOwner->MakeEffect())
+            return 107;
+        expiredEffect = transientOwner->ObserveEffect(
+            transientOwner->GetMakeEffectId());
+        if (!expiredEffect.HasOwner() || !expiredEffect.HasEffect() ||
+            !expiredEffect.IsEffectMaked() ||
+            !expiredEffect.IsOwnedBy(*transientOwner))
+            return 108;
+    }
+    if (expiredEffect.HasOwner() || expiredEffect.HasEffect() ||
+        expiredEffect.IsEffectMaked() || expiredEffect.NotifyDestroyed())
+        return 109;
 
     source::LifeEffect lifeEffect;
     if (lifeEffect.OnProgress(false) || lifeEffect.HasPlayed() ||

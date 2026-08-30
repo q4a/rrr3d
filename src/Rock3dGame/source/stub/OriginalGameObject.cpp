@@ -1679,6 +1679,30 @@ bool FxSystemSrcSpeedBehavior::HasPhysicsActor() const noexcept
     return actorAvailable_;
 }
 
+EventEffect::EventEffect(const EventEffect& other)
+    : definition_(other.definition_), position_(other.position_),
+      impulse_(other.impulse_), ignoreRotation_(other.ignoreRotation_),
+      effectState_(std::make_shared<EffectState>(*other.effectState_)),
+      soundPaths_(other.soundPaths_)
+{
+}
+
+EventEffect& EventEffect::operator=(const EventEffect& other)
+{
+    if (this == &other)
+        return *this;
+    definition_ = other.definition_;
+    position_ = other.position_;
+    impulse_ = other.impulse_;
+    ignoreRotation_ = other.ignoreRotation_;
+    // Copying a source behavior creates an independent listener/effect list.
+    // Replacing the shared state also expires references to the old behavior,
+    // matching EventEffect::~EventEffect listener detachment on Windows.
+    effectState_ = std::make_shared<EffectState>(*other.effectState_);
+    soundPaths_ = other.soundPaths_;
+    return *this;
+}
+
 void EventEffect::Configure(
     const ObjectDefinition* definition,
     std::array<float, 3U> position,
@@ -1700,38 +1724,38 @@ void EventEffect::ConfigureSounds(
 
 void EventEffect::Reset() noexcept
 {
-    effectIds_.clear();
-    makeEffectId_ = invalidEffect;
+    effectState_->effectIds.clear();
+    effectState_->makeEffectId = invalidEffect;
 }
 
 EventEffect::EffectId EventEffect::CreateEffect() noexcept
 {
-    EffectId effect = nextEffectId_++;
+    EffectId effect = effectState_->nextEffectId++;
     if (effect == invalidEffect)
-        effect = nextEffectId_++;
-    effectIds_.push_back(effect);
+        effect = effectState_->nextEffectId++;
+    effectState_->effectIds.push_back(effect);
     return effect;
 }
 
 bool EventEffect::MakeEffect() noexcept
 {
-    if (makeEffectId_ != invalidEffect)
+    if (effectState_->makeEffectId != invalidEffect)
         return false;
-    makeEffectId_ = CreateEffect();
+    effectState_->makeEffectId = CreateEffect();
     return true;
 }
 
 bool EventEffect::FreeEffect() noexcept
 {
-    if (makeEffectId_ == invalidEffect)
+    if (effectState_->makeEffectId == invalidEffect)
         return false;
-    return OnDestroyEffect(makeEffectId_);
+    return OnDestroyEffect(effectState_->makeEffectId);
 }
 
 bool EventEffect::OnDestroyEffect() noexcept
 {
-    return makeEffectId_ != invalidEffect &&
-        OnDestroyEffect(makeEffectId_);
+    return effectState_->makeEffectId != invalidEffect &&
+        OnDestroyEffect(effectState_->makeEffectId);
 }
 
 bool EventEffect::OnDestroyEffect(EffectId effect) noexcept
@@ -1739,34 +1763,106 @@ bool EventEffect::OnDestroyEffect(EffectId effect) noexcept
     if (effect == invalidEffect)
         return false;
     const auto found = std::find(
-        effectIds_.begin(), effectIds_.end(), effect);
-    if (found == effectIds_.end())
+        effectState_->effectIds.begin(), effectState_->effectIds.end(),
+        effect);
+    if (found == effectState_->effectIds.end())
         return false;
-    if (makeEffectId_ == effect)
-        makeEffectId_ = invalidEffect;
-    effectIds_.erase(found);
+    if (effectState_->makeEffectId == effect)
+        effectState_->makeEffectId = invalidEffect;
+    effectState_->effectIds.erase(found);
     return true;
 }
 
 bool EventEffect::IsEffectMaked() const noexcept
 {
-    return makeEffectId_ != invalidEffect;
+    return effectState_->makeEffectId != invalidEffect;
 }
 
 EventEffect::EffectId EventEffect::GetMakeEffectId() const noexcept
 {
-    return makeEffectId_;
+    return effectState_->makeEffectId;
 }
 
 std::size_t EventEffect::GetEffectCount() const noexcept
 {
-    return effectIds_.size();
+    return effectState_->effectIds.size();
 }
 
 bool EventEffect::HasEffect(EffectId effect) const noexcept
 {
-    return std::find(effectIds_.begin(), effectIds_.end(), effect) !=
-        effectIds_.end();
+    return std::find(
+               effectState_->effectIds.begin(),
+               effectState_->effectIds.end(), effect) !=
+        effectState_->effectIds.end();
+}
+
+EventEffect::EffectReference EventEffect::ObserveEffect(
+    EffectId effect) noexcept
+{
+    return EffectReference(effectState_, effect);
+}
+
+EventEffect::EffectReference::EffectReference(
+    std::weak_ptr<EffectState> state, EffectId effect) noexcept
+    : state_(std::move(state)), effect_(effect)
+{
+}
+
+bool EventEffect::EffectReference::HasOwner() const noexcept
+{
+    return !state_.expired();
+}
+
+bool EventEffect::EffectReference::HasEffect() const noexcept
+{
+    const auto state = state_.lock();
+    return state != nullptr && effect_ != invalidEffect &&
+        std::find(
+            state->effectIds.begin(), state->effectIds.end(), effect_) !=
+            state->effectIds.end();
+}
+
+bool EventEffect::EffectReference::IsEffectMaked() const noexcept
+{
+    const auto state = state_.lock();
+    return state != nullptr &&
+        state->makeEffectId != invalidEffect;
+}
+
+bool EventEffect::EffectReference::IsOwnedBy(
+    const EventEffect& owner) const noexcept
+{
+    const auto state = state_.lock();
+    return state != nullptr && state == owner.effectState_;
+}
+
+bool EventEffect::EffectReference::NotifyDestroyed() noexcept
+{
+    const auto state = state_.lock();
+    const EffectId effect = effect_;
+    Reset();
+    if (state == nullptr || effect == invalidEffect)
+        return false;
+    const auto found = std::find(
+        state->effectIds.begin(), state->effectIds.end(), effect);
+    if (found == state->effectIds.end())
+        return false;
+    if (state->makeEffectId == effect)
+        state->makeEffectId = invalidEffect;
+    state->effectIds.erase(found);
+    return true;
+}
+
+EventEffect::EffectId
+EventEffect::EffectReference::GetEffectId() const noexcept
+{
+    return effect_;
+}
+
+void EventEffect::EffectReference::Reset() noexcept
+{
+    state_.reset();
+    effect_ = invalidEffect;
 }
 
 EventEffect::SpawnResult EventEffect::GetSpawnResult(
@@ -1776,7 +1872,7 @@ EventEffect::SpawnResult EventEffect::GetSpawnResult(
         created && definition_ != nullptr,
         true,
         this,
-        created ? makeEffectId_ : invalidEffect,
+        created ? effectState_->makeEffectId : invalidEffect,
         definition_,
         position_,
         impulse_,
