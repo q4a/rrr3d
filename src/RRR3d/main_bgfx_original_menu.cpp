@@ -1929,6 +1929,7 @@ int main(int argc, char** argv)
         *device, *resources);
     originalResourceManager.SetFontCharset(
         originalgamedata::findLanguage(originalGameDataCatalog, activeLanguage)->charset);
+    originalResourceManager.Load();
 #ifdef RRR3D_PHYSICS
     if (selectedTrack < originalRace->trackCatalog.size())
     {

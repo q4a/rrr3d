@@ -340,6 +340,21 @@ OriginalResourceManager::GetMaterial(std::string_view name) const
     return found->second;
 }
 
+void OriginalResourceManager::Load()
+{
+    if (loaded_)
+        return;
+    if (resources_ == nullptr)
+        throw r3d::resource::ResourceError(
+            "Original ResourceManager is shut down");
+    for (const auto& material :
+         r3d::game::originalrace::loadOriginalMaterialCatalog(*resources_))
+    {
+        RegisterMaterial(material);
+    }
+    loaded_ = true;
+}
+
 void OriginalResourceManager::LoadWorld(int worldType)
 {
     if (worldType < 0 || worldType > worldTypeCount)
@@ -593,6 +608,7 @@ void OriginalResourceManager::Shutdown() noexcept
     device_ = nullptr;
     resources_ = nullptr;
     worldType_ = worldTypeCount;
+    loaded_ = false;
 }
 
 } // namespace rrr3d::race

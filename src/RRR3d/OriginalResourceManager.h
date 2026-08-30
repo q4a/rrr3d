@@ -86,6 +86,7 @@ public:
         const r3d::game::originalrace::MaterialDefinition& material);
     const r3d::game::originalrace::MaterialDefinition& GetMaterial(
         std::string_view name) const;
+    void Load();
     static constexpr int worldTypeCount = 6;
     void LoadWorld(int worldType);
     void LoadWorld(std::string_view worldType);
@@ -137,6 +138,7 @@ private:
     std::size_t soundCacheHits_ = 0U;
     r3d::game::originalgamedata::LanguageCharset fontCharset_ = r3d::game::originalgamedata::LanguageCharset::Default;
     int worldType_ = worldTypeCount;
+    bool loaded_ = false;
 };
 
 } // namespace rrr3d::race

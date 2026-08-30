@@ -2814,3 +2814,15 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   World1→World2→World1, handle destruction/recreation и shutdown.
 - Source `ShaderLib` подтверждён пустым: обе регистрации закомментированы и
   `GetShaderLib` не вызывается, поэтому invented bgfx registry не добавлялся.
+
+### Source ResourceManager full MatLib catalog follow-up
+
+- `ResourceManager::Load()` теперь создаёт все 257 source material records до
+  инициализации GUI/race, а не только records уже посещённой карты.
+- Catalog объединяет 251 unique active loader name и шесть вручную созданных
+  LibMaterial; два закомментированных World2 records не добавляются.
+- Descriptor-only gravBall, mortiraBall и Car blend сохраняются без invented
+  textures; остальные paths и atlas DDS проверяются при построении catalog.
+- Image/bgfx payload остаётся ленивым, поэтому восстановление library lookup
+  не загружает сотни неиспользуемых Metal textures при старте.
+- Physics resource smoke проверяет ровно 257 уникальных source names.

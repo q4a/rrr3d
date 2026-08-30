@@ -5766,6 +5766,22 @@ stable identity, handle recreation и idempotent shutdown.
 shader/effect objects остаются в renderer backend, как D3D9-объекты остаются
 у `GraphManager` в Windows.
 
+### P2.255 — полный `ResourceManager::Load()` MatLib catalog возвращён — выполнено
+
+Следующая сверка выявила, что canonical MatLib всё ещё наполнялась по факту
+посещения активного race/menu renderer. Оригинальный `ResourceManager::Load`
+до игры вызывает world1..6/effects/crush/cars/bonus/weapons/upgrades/GUI и
+тем самым делает доступными все именованные материалы независимо от карты.
+
+В source подтверждены 251 уникальное имя из активных `Load*LibMat` и
+`LoadCarLibMat` вызовов и ещё шесть вручную созданных записей, итого 257.
+Публичный backend-neutral catalog теперь строит все descriptors из того же
+mapping кода, а `OriginalResourceManager::Load` регистрирует их до создания
+экранов. gravBall, mortiraBall и Car blend корректно остаются без diffuse
+texture; два World2/track2 вызова остаются закомментированными, как в Windows.
+Полный physics resource regression проверяет 257 уникальных имён и existence
+всех declared texture paths; GPU payload по-прежнему загружается лениво.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

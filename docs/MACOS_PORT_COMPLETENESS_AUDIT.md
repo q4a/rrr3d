@@ -108,7 +108,7 @@ Windows target не компилируется.
 | Debug trace visualization | `TraceGfx` | `source::TraceGfx` + transient bgfx triangles | Перенесено с backend-адаптацией | Source owner владеет waypoint boxes, path grayscale, selected point/path/tile/link и alpha/material flags. D3D9 Box/Sprite/DrawPrimitiveUP заменены transient Metal triangles; упрощённая зелёная ribbon-заглушка удалена |
 | Camera/View | `CameraManager.cpp`, `View.cpp`, `ActorManager::PullInRayTargetGroup` | `source::{CameraManager,AutoObserver}` + `originalview::ViewState` и cull-opacity backend | Перенесено для offline race/presentation | Перенесены все пять release/debug styles, velocity pose, pull-back, ortho lead/teleport compensation, FlyTo, Garage/Angar AutoObserver, screen/world/ray/XY-plane policy, rounded `ScreenToView`, projection conversion, click/move state и 0.25 s `gpCullOpacity`; bgfx оставляет matrices, SDL — window/drawable events и pointer payload |
 | Scene graph/render queues | `GraphManager`, `Actor`, `SceneManager` | custom queues в `OriginalRaceRenderer` | Частично | Основные order buckets есть; generic actor/proxy/octree graph не перенесён |
-| Materials | `MaterialLibrary`, `MappingShaders`, `DataBase` | source-derived material catalog + bgfx mappings | Перенесено с renderer-адаптацией | Проверены все 238 активных `Load*LibMat` records; два отсутствующих texture records являются source no-texture projectiles, ещё два — закомментированные `World2/track2` calls. Opaque/alpha/additive/bump/reflection/refraction и material flags сопоставлены без active name fallback; `refract.fx` использует исходные LINEAR/WRAP/MIRROR samplers |
+| Materials | `MaterialLibrary`, `MappingShaders`, `DataBase` | source-derived material catalog + bgfx mappings | Перенесено с renderer-адаптацией | Полный catalog содержит 257 source records: 251 unique active `Load*LibMat`/`LoadCarLibMat` names и 6 вручную созданных LibMaterial; descriptor-only gravBall/mortiraBall/Car blend не требуют texture. Opaque/alpha/additive/bump/reflection/refraction и material flags сопоставлены без active name fallback; два `World2/track2` calls в source закомментированы; `refract.fx` использует исходные LINEAR/WRAP/MIRROR samplers |
 | Lighting/shadows/HDR | D3D9 graph effects | bgfx/Metal passes + active `Player` light attachment | Частично | Реализованы directional race passes, source Player spot/night flare lifecycle, shadow maps Garage/Angar, HDR/bloom/tone map, Middle+ `goRefr` clean-scene/refraction и High-quality perspective SunShaft; flare без `gpReflScene/gpReflWater` исключён из reflection passes. Bit-for-bit и полное graph state parity не доказаны |
 | Particles/effects/trails | `FxManager`, effect records | portable emitter/trail renderer | Перенесено для active catalog | В фактическом `db.xml` покрыты все 8 manager classes, все 37 `ntParticleSystem`, единственный активный `FxFlowEmitter`, все 14 `partDesc` и 5 `flowDesc` fields, child systems, distributions, lifetime/fading и `ntIVBMesh`/`ntSprite`/`ntPlane`. Flattened include сохраняет собственные lighting/order/lifetime каждого child Actor; D3D sorting заменён bgfx |
 | Weather/water/magma/sky | `Environment.cpp`, `GraphManager`, `WaterPlane`, `FogPlane`, `GrassField`, source `.fx` | source graph + bgfx/Metal shader equivalents | Перенесено с backend-адаптацией | Перенесены шесть world branches, weather fog/ambient/sky/far, quality gates, rain/isometric exclusions, scene AABB +300, UV scale 4/25/50, Low/volume paths, water reflection, depth reconstruction, cloud animation/color/intensity, source grass atlas/density/scale и sky без camera translation; D3D9 заменён Metal |
@@ -2172,6 +2172,23 @@ Regression генерирует два настоящих `.r3d`, проходи
 обе `ClassList::Add` строки закомментированы, а единственный `GetShaderLib`
 не вызывается. Реальные D3D9 graph shaders принадлежат GraphManager/effect
 objects; их bgfx equivalents закономерно остаются renderer-owned payload.
+
+### B8ba — полный `ResourceManager::Load` MatLib catalog — выполнено
+
+После восстановления canonical identity оставался порядок загрузки: manager
+получал material record только когда renderer впервые встречал его в текущей
+Race. В Windows `ResourceManager::Load()` вызывает все world/effect/car/
+bonus/weapon/GUI loaders до начала игры, поэтому `MatLib::Get` не зависит от
+того, посещалась ли планета.
+
+`loadOriginalMaterialCatalog` теперь перечисляет ту же полную библиотеку:
+251 unique active вызов `Load*LibMat`/`LoadCarLibMat` плюс шесть материалов,
+которые source строит вручную (`maslo`, shield/phaser family и `Car\\blend`),
+всего 257 уникальных записей. `OriginalResourceManager::Load()` регистрирует
+их перед инициализацией экранов. Texture paths и animated atlas descriptors
+проверяются сразу, но ImageLib и Metal handles материализуются лениво.
+Physics resource regression проверяет размер 257 и уникальность имён; это
+также исправляет прежнее заниженное число 238 в карте аудита.
 
 ## Воспроизведение проверки
 

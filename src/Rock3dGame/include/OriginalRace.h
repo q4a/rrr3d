@@ -935,6 +935,8 @@ Race loadOriginalRace(const resource::ResourceFileSystem& resources,
                       std::size_t trackIndex,
                       std::string_view playerCar = {},
                       bool legacyWindowsDebug = false);
+std::vector<MaterialDefinition> loadOriginalMaterialCatalog(
+    const resource::ResourceFileSystem& resources);
 void selectOriginalWeather(
     const resource::ResourceFileSystem& resources, Race& race,
     bool allowNight, bool mostProbable, float randomUnit);

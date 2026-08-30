@@ -21,6 +21,7 @@
 #include <stdexcept>
 #include <string_view>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace r3d::game::originalrace
 {
@@ -467,7 +468,8 @@ void selectRacers(Race& race,
 }
 
 MaterialDefinition materialDefinition(
-    const resource::ResourceFileSystem& resources, std::string_view legacy)
+    const resource::ResourceFileSystem& resources, std::string_view legacy,
+    std::vector<MaterialDefinition>* catalog = nullptr)
 {
     const std::string record(legacy);
     auto tune = [&](MaterialDefinition material) {
@@ -1282,6 +1284,20 @@ MaterialDefinition materialDefinition(
         {"World6\\stone", "Data/World6/Texture/stone.dds",
          MaterialBlend::Opaque},
     };
+    if (catalog != nullptr)
+    {
+        catalog->reserve(catalog->size() + std::size(mappings) + 3U);
+        for (const auto& mapping : mappings)
+            catalog->push_back(
+                materialDefinition(resources, mapping.record));
+        for (const auto record : {
+                 "Effect\\gravBall", "Weapon\\mortiraBall",
+                 "Car\\blend"})
+        {
+            catalog->push_back(materialDefinition(resources, record));
+        }
+        return {};
+    }
     if (record == "Effect\\gravBall" ||
         record == "Weapon\\mortiraBall" ||
         record == "Car\\blend")
@@ -3966,6 +3982,14 @@ std::uint32_t unsignedValue(std::string_view value,
 
 } // namespace
 
+std::vector<MaterialDefinition> loadOriginalMaterialCatalog(
+    const resource::ResourceFileSystem& resources)
+{
+    std::vector<MaterialDefinition> result;
+    materialDefinition(resources, {}, &result);
+    return result;
+}
+
 const PlayerIdentity* findOriginalPlayerIdentity(
     const Race& race, int gamerId) noexcept
 {
@@ -6096,6 +6120,19 @@ bool runOriginalRaceResourceSmokeTest(
         const auto near = [](float first, float second) {
             return std::abs(first - second) <= 0.0001F;
         };
+        const auto materialCatalog =
+            loadOriginalMaterialCatalog(resources);
+        std::unordered_set<std::string> materialNames;
+        for (const auto& material : materialCatalog)
+            materialNames.insert(material.record);
+        if (materialCatalog.size() != 257U ||
+            materialNames.size() != materialCatalog.size())
+        {
+            error = "source ComplexMatLib catalog mismatch: " +
+                    std::to_string(materialCatalog.size()) + "/" +
+                    std::to_string(materialNames.size());
+            return false;
+        }
         const auto gunFlashMaterial =
             materialDefinition(resources, "Effect\\gunEff2");
         const auto speedArrowMaterial =
