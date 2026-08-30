@@ -2484,6 +2484,26 @@ smoke-диагностики: getters заново строят их из live o
 закрепляют исчезновение actor из ray group, нулевое active-состояние после
 удаления и authoritative life/death synchronization.
 
+### B8bq — бонусы и hazards принадлежат live AutoProj — выполнено
+
+Следующий audit обнаружил эквивалентное зеркало для bonus category:
+`bonusActive_` принимал gameplay-решения, вручную выключался после pickup и
+mine contact и даже мог быть обнулён неактивным состоянием Jolt sensor.
+`bonusScales_` отдельно копировал arming-scale после каждого world progress.
+
+Pickup, map mine, oil/slow/speed contacts и network replay теперь проверяют
+живой `MapObj/AutoProj` и его `GameObject::LiveState`. Source `TakeBonus` или
+`DestroyWithEffect` выполняет death; backend sensor удаляется вслед за этим
+переходом. Если Jolt неожиданно теряет sensor живого бонуса, session создаёт
+новый sensor с новым backend ID и не меняет source lifetime.
+
+`bonusActive()`/`bonusScales()` остались renderer-compatible snapshots, но
+строятся по требованию непосредственно из `MapObjects` и
+`AutoProj::GetModelScale`. Regression имитирует потерю Jolt sensor,
+проверяет сохранение live AutoProj и ровно одну create-команду с новым ID;
+существующие pickup, hazard, arming и network regressions проходят через
+тот же owner.
+
 ## Воспроизведение проверки
 
 ```sh

@@ -625,9 +625,13 @@ private:
     source::MapObjects& decorationObjects() noexcept;
     const source::MapObjects& decorationObjects() const noexcept;
     source::MapObjects& bonusObjects() noexcept;
+    const source::MapObjects& bonusObjects() const noexcept;
     bool decorationIsActive(std::size_t index) const noexcept;
     float decorationLifeValue(std::size_t index) const noexcept;
     void refreshDecorationView() const;
+    bool bonusIsActive(std::size_t index) const noexcept;
+    float bonusScaleValue(std::size_t index) const noexcept;
+    void refreshBonusView() const;
 
     const std::vector<std::uint32_t>& tracePathAt(
         std::size_t path) const;
@@ -783,10 +787,11 @@ private:
     // demand. They never participate in gameplay decisions.
     mutable std::vector<bool> decorationActive_;
     mutable std::vector<float> decorationLife_;
-    // Active source owner. The parallel arrays are renderer/physics views,
-    // no longer the authority for damage or death.
-    std::vector<bool> bonusActive_;
-    std::vector<float> bonusScales_;
+    // Renderer compatibility views rebuilt from live MapObj/AutoProj on
+    // demand. Source GameObject state owns pickup/hazard lifetime; Jolt only
+    // follows it with a sensor body.
+    mutable std::vector<bool> bonusActive_;
+    mutable std::vector<float> bonusScales_;
     std::vector<std::size_t> bonusNetworkPendingContact_;
     source::HumanPlayer humanPlayer_;
     std::vector<source::AIPlayer> aiPlayers_;

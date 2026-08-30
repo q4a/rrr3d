@@ -1200,6 +1200,40 @@ source::MapObjects& OriginalRaceSession::bonusObjects() noexcept
     return map_.GetMapObjList(source::MapObjCategory::Bonus);
 }
 
+const source::MapObjects& OriginalRaceSession::bonusObjects() const noexcept
+{
+    return map_.GetMapObjList(source::MapObjCategory::Bonus);
+}
+
+bool OriginalRaceSession::bonusIsActive(std::size_t index) const noexcept
+{
+    const auto* mapObject = bonusObjects().Get(index);
+    return mapObject != nullptr &&
+           mapObject->GetGameObj().GetLiveState() !=
+               source::GameObject::LiveState::Death;
+}
+
+float OriginalRaceSession::bonusScaleValue(
+    std::size_t index) const noexcept
+{
+    const auto* mapObject = bonusObjects().Get(index);
+    const auto* projectile = mapObject != nullptr
+        ? mapObject->GetAutoProj()
+        : nullptr;
+    return projectile != nullptr ? projectile->GetModelScale() : -1.0F;
+}
+
+void OriginalRaceSession::refreshBonusView() const
+{
+    bonusActive_.resize(race_.bonuses.size());
+    bonusScales_.resize(race_.bonuses.size());
+    for (std::size_t index = 0U; index < race_.bonuses.size(); ++index)
+    {
+        bonusActive_[index] = bonusIsActive(index);
+        bonusScales_[index] = bonusScaleValue(index);
+    }
+}
+
 void OriginalRaceSession::reset()
 {
     gameModeRaceState_.Reset(legacyWindowsDebug_);
@@ -1299,7 +1333,7 @@ void OriginalRaceSession::reset()
         if (!instance.name.empty())
             mapObject.SetName(instance.name);
     }
-    bonusActive_.assign(race_.bonuses.size(), true);
+    bonusActive_.assign(race_.bonuses.size(), false);
     bonusPhysicsBodyIds_.assign(
         race_.bonuses.size(),
         r3d::physics::invalidProjectileBodyId);
@@ -1326,9 +1360,9 @@ void OriginalRaceSession::reset()
         if (projectile == nullptr)
             throw std::runtime_error(
                 "DataBase bonus proxy created wrong type");
-        bonusScales_[index] = projectile->GetModelScale();
         queueBonusBodyCreate(index);
     }
+    refreshBonusView();
     bonusNetworkPendingContact_.assign(
         race_.bonuses.size(), RacerRuntime::invalidWeapon);
     events_.clear();
@@ -2706,11 +2740,13 @@ const std::vector<float>& OriginalRaceSession::decorationLife() const noexcept
 
 const std::vector<bool>& OriginalRaceSession::bonusActive() const noexcept
 {
+    refreshBonusView();
     return bonusActive_;
 }
 
 const std::vector<float>& OriginalRaceSession::bonusScales() const noexcept
 {
+    refreshBonusView();
     return bonusScales_;
 }
 
@@ -2889,8 +2925,18 @@ void OriginalRaceSession::synchronizeProjectilePhysics(
                 bonus - bonusPhysicsBodyIds_.begin());
             if (index < bonusPhysicsContacts_.size())
                 bonusPhysicsContacts_[index] = state.contacts;
-            if (!state.active && index < bonusActive_.size())
-                bonusActive_[index] = false;
+            if (!state.active && index < bonusPhysicsBodyIds_.size())
+            {
+                // Jolt is a sensor backend, not the bonus lifetime owner.
+                // Recreate an unexpectedly missing actor while the source
+                // AutoProj remains live; a dead source object stays absent.
+                bonusPhysicsBodyIds_[index] =
+                    r3d::physics::invalidProjectileBodyId;
+                if (index < bonusPhysicsContacts_.size())
+                    bonusPhysicsContacts_[index].clear();
+                if (bonusIsActive(index))
+                    queueBonusBodyCreate(index);
+            }
         }
     }
 }
@@ -3779,7 +3825,7 @@ void OriginalRaceSession::queueMineBodyDestroy(
 void OriginalRaceSession::queueBonusBodyCreate(std::size_t bonus)
 {
     if (!externalProjectilePhysics_ || bonus >= race_.bonuses.size() ||
-        bonus >= bonusActive_.size() || !bonusActive_[bonus] ||
+        !bonusIsActive(bonus) ||
         bonus >= bonusPhysicsBodyIds_.size() ||
         bonusPhysicsBodyIds_[bonus] !=
             r3d::physics::invalidProjectileBodyId)
@@ -7678,8 +7724,7 @@ void OriginalRaceSession::updateGameplay(
                                    std::size_t racer,
                                    const Vec3& contactPoint) {
         if (bonusIndex >= race_.bonuses.size() ||
-            bonusIndex >= bonusActive_.size() ||
-            !bonusActive_[bonusIndex] ||
+            !bonusIsActive(bonusIndex) ||
             racer >= racers_.size() || racer >= vehicles.size() ||
             racers_[racer].IsDestroyed())
             return false;
@@ -7705,7 +7750,6 @@ void OriginalRaceSession::updateGameplay(
                     DamageType::Mine);
             materializeBonusDeathEffect(
                 bonusIndex, deathPlan, racer);
-            bonusActive_[bonusIndex] = false;
             queueBonusBodyDestroy(bonusIndex);
         }
         applyProjectileDamageCommand(
@@ -7766,9 +7810,7 @@ void OriginalRaceSession::updateGameplay(
         float replicatedValue = 0.0F) {
         if (racer >= racers_.size() ||
             bonusIndex >= race_.bonuses.size() ||
-            bonusIndex >= bonusActive_.size() ||
-            bonusObjects().Get(bonusIndex) == nullptr ||
-            !bonusActive_[bonusIndex] || racers_[racer].IsDestroyed())
+            !bonusIsActive(bonusIndex) || racers_[racer].IsDestroyed())
             return false;
         auto& runtime = racers_[racer];
         auto* bonusObject = bonusObjects().Get(bonusIndex);
@@ -7909,9 +7951,7 @@ void OriginalRaceSession::updateGameplay(
         case source::PlayerBonusSlot::None:
             break;
         }
-        bonusActive_[bonusIndex] =
-            !bonusObject->GetGameObj().destroyed;
-        if (!bonusActive_[bonusIndex])
+        if (!bonusIsActive(bonusIndex))
             queueBonusBodyDestroy(bonusIndex);
         if (deathEffect != nullptr)
         {
@@ -7948,7 +7988,7 @@ void OriginalRaceSession::updateGameplay(
     for (std::size_t bonusIndex = 0;
          bonusIndex < race_.bonuses.size(); ++bonusIndex)
     {
-        if (!bonusActive_[bonusIndex])
+        if (!bonusIsActive(bonusIndex))
             continue;
         for (std::size_t racer = 0;
              racer < vehicles.size() && racer < racers_.size(); ++racer)
@@ -8586,7 +8626,6 @@ void OriginalRaceSession::completeRaceForExit(
         pendingNetworkShots_.clear();
         pendingNetworkBonuses_.clear();
         pendingNetworkMineContacts_.clear();
-        std::fill(bonusActive_.begin(), bonusActive_.end(), false);
         map_.Clear();
         std::fill(vehicleInputs_.begin(), vehicleInputs_.end(),
                   r3d::physics::VehicleInput{});
@@ -8630,20 +8669,6 @@ void OriginalRaceSession::update(
     ingestPairContacts(vehicles);
     gameplayWorld_->Progress(seconds);
     releasePairContacts();
-    for (std::size_t index = 0U;
-         index < bonusObjects().GetSlotCount(); ++index)
-    {
-        if (index >= bonusActive_.size() || !bonusActive_[index])
-            continue;
-        const auto* mapObject = bonusObjects().Get(index);
-        if (mapObject == nullptr || mapObject->GetAutoProj() == nullptr)
-            continue;
-        if (index < bonusScales_.size())
-        {
-            bonusScales_[index] =
-                mapObject->GetAutoProj()->GetModelScale();
-        }
-    }
     for (auto& effect : effects_)
     {
         effect.seconds -= seconds;
@@ -11031,6 +11056,23 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 throw std::runtime_error(
                     "source AutoProj oil did not start at scale zero with "
                     "one Jolt actor");
+            }
+            r3d::physics::ProjectileBodyState lostBonusSensor;
+            lostBonusSensor.id = autoProjBodyCommands.front().body.id;
+            lostBonusSensor.active = false;
+            autoProjSession.synchronizeProjectilePhysics(
+                {lostBonusSensor});
+            const auto recoveredBonusBodyCommands =
+                autoProjSession.takeProjectileBodyCommands();
+            if (!autoProjSession.bonusActive().front() ||
+                recoveredBonusBodyCommands.size() != 1U ||
+                recoveredBonusBodyCommands.front().kind !=
+                    r3d::physics::ProjectileBodyCommandKind::Create ||
+                recoveredBonusBodyCommands.front().body.id ==
+                    lostBonusSensor.id)
+            {
+                throw std::runtime_error(
+                    "Jolt sensor loss overrode live source AutoProj state");
             }
             autoProjSession.update(
                 0.1F, autoProjVehicles, autoProjInput);

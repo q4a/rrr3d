@@ -6092,6 +6092,27 @@ Lifetime полей исправлен: DataBase/Map уничтожаются п
 Регрессии разрушения и сетевого урона проверяют удаление actor, отсутствие
 повторного события и authoritative life/death через этот единый путь.
 
+### P2.270 — live AutoProj владеет bonus lifetime и scale — выполнено
+
+Сверка Windows `Logic::TakeBonus`, `Player::TakeBonus`, `Proj::OnContact` и
+`AutoProj::OnProgress` подтвердила, что bonus-category объект не имеет
+отдельного active-флага: pickup вызывает `GameObject::Death`, mine hazard
+проходит через `DestroyWithEffect`, а model arming-scale хранит сам
+`AutoProj`. В portable session эти значения дублировали
+`bonusActive_`/`bonusScales_`; более того, Jolt мог деактивировать source
+bonus своим `ProjectileBodyState::active=false`.
+
+Все contact/pickup/network decisions теперь читают live MapObj и
+`GameObject::LiveState`; renderer scale берётся из `GetModelScale` по
+требованию. Source death единолично инициирует destroy sensor command. В
+обратном направлении backend больше не меняет gameplay state: потерянный
+sensor живого AutoProj получает новый ID и create command.
+
+Integrated regression искусственно возвращает inactive Jolt sensor,
+проверяет, что bonus остаётся source-live, и требует ровно один новый sensor.
+Оригинальные countdown arming 0→0.4→1, mine death effect, pickup и
+NetPlayer request/replay regressions продолжают проверять общую цепочку.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

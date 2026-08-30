@@ -63,7 +63,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `Logic` | `source::Logic` + shared active `WorldEventPump` registration | Source owner, active object/contact/audio-category core | Music/Effects/Voice gain и mute source-owned; убрать оставшиеся network authority и projectile backend-view loops из session, SDL/CoreAudio остаётся submix backend |
 | `MainMenu2` | `mainmenu2::{Controller,FrameController,ProfileFrameState,FinalMenuFrameState}` + `originalmenu::ScreenStack` | Source owner, active Main/Profile/Final path | Остались concrete network callbacks и backend draw submission |
 | `Map` | `source::Map` + shared `source::DataBase` | Source owner, active registry path | XML parsing и backend actor create/destroy остаются adapters |
-| `MapObj` | `source::MapObj*` record/list hierarchy | Source owner, active live-ID/runtime hierarchy | Global ID, decoration live/death/life выдаёт только live `Map::MapObjList`/`GameObject`; `sourceIndex` остаётся backend mapping, editor serialization не входит в runtime |
+| `MapObj` | `source::MapObj*` record/list hierarchy | Source owner, active live-ID/runtime hierarchy | Global ID и decoration/bonus lifetime выдаёт только live `Map::MapObjList`/`GameObject`; AutoProj владеет arming scale, `sourceIndex` остаётся backend mapping |
 | `Menu` | `originalmenu::MenuSystem` + source Main/Profile/Dialog/Options/Race/Finish/Final owners | Source owner, frame core | Завершить concrete network callbacks; bgfx/CoreText/SDL остаются backend boundary |
 | `MenuSystem` | `originalmenu::{MenuSystem,ScreenStack,FrameState}` | Source owner, active menu path | Подключить concrete navigation graphs; bgfx остаётся draw executor |
 | `OptionsMenu` | `originaloptions::{OptionsMenuState,StartOptionsMenuState}` + backend visuals | Source owner, active options path | Legacy Widget events заменены SDL input, CoreText и bgfx draw submission |
@@ -1109,6 +1109,17 @@ ray, projectile hits и damage path читают `MapObj`,
 live predicate и не выполняют O(N) snapshot на каждый запрос. Existing
 destruction/network regressions закрепляют удаление actor, отсутствие
 повторной death emission и authoritative life/death state.
+
+Результат B8bq: bonus category также избавлена от параллельного owner.
+Pickup, mine/oil/slow/speed contacts и network replay используют live
+`MapObj/AutoProj` и `GameObject::LiveState`; arming scale берётся из
+`AutoProj::GetModelScale`. `bonusActive_`/`bonusScales_` существуют только
+как snapshots для renderer/smoke.
+
+Jolt sensor следует за source lifetime: source death выдаёт destroy command,
+но inactive backend state не убивает бонус. Для ещё живого AutoProj sensor
+пересоздаётся с новым backend ID. Regression закрепляет это направление
+ownership вместе с исходными pickup/hazard/network/arming переходами.
 
 ## Правило обновления карты
 
