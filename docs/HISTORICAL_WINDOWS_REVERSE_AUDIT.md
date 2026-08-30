@@ -5722,8 +5722,25 @@ TextFontLib owner. Исправлены явные reconstructed HUD разме�
 стал Header, lap 25/bold и ammo 18/bold стали Small, opponent 15 стал
 VerySmall. Options/StartOptions снова используют Small 24 вместо общего
 VerySmall 18, из-за которого строки были смещены. Regression проверяет пять
-имён, weight, lookup и Russian charset propagation. ComplexMatLib остаётся
+имён, weight, lookup и Russian charset propagation. ComplexMatLib закрыт
 следующим resource-owner блоком.
+
+### P2.253 — `ResourceManager::ComplexMatLib` возвращён — выполнено
+
+Сверка оригинальных `ComplexMatLib::LoadLibMat/Get` и
+`ResourceManager::AddSampler2dTo` подтвердила не отсутствие material mapping,
+а неправильное владение: portable race renderer и HUD копировали уже
+перенесённые descriptors в каждый локальный asset. Поэтому одно исходное
+имя не имело общей library identity и sampler paths читались из копий.
+
+`OriginalResourceManager` теперь владеет canonical `LibMaterial` по source
+record name и сохраняет первый загруженный descriptor. Все активные mesh,
+shadow, transparency, particle и HUD weapon-preview paths используют ссылки
+на него; diffuse и normal/reflection textures загружаются через тот же
+ImageLib owner из canonical fields. MatLib очищается между TextFontLib и
+ImageLib/MeshLib. Regression проверяет стабильный адрес, first-record
+semantics, material fields и shutdown; bgfx pipeline state остаётся только
+backend-представлением исходного материала.
 
 ## Итоговое решение
 

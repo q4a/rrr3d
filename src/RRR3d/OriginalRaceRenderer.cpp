@@ -1505,7 +1505,7 @@ void drawGroups(GraphicsDevice& device,
         }
         const auto& material =
             asset.materials[std::min(
-                index, asset.materials.size() - 1U)];
+                index, asset.materials.size() - 1U)].get();
         const auto blend = material.blend;
         result.writeDepth = result.writeDepth && material.writeDepth;
         if (isBlended(blend))
@@ -1542,7 +1542,7 @@ void drawGroups(GraphicsDevice& device,
             !asset.materials.empty() &&
             isBlended(
                 asset.materials[std::min(
-                    index, asset.materials.size() - 1U)].blend);
+                    index, asset.materials.size() - 1U)].get().blend);
         return layer == DrawLayer::All ||
                (layer == DrawLayer::Transparency && transparent) ||
                (layer == DrawLayer::Opaque && !transparent);
@@ -1555,7 +1555,7 @@ void drawGroups(GraphicsDevice& device,
         const auto material =
             asset.materials.empty()
                 ? MaterialState{}
-                : materialState(asset.materials.front(), 0U);
+                : materialState(asset.materials.front().get(), 0U);
         device.draw(asset.mesh, shader, asset.textures.front(), model,
                     materialPipeline(0U), {}, material);
         return;
@@ -1572,7 +1572,7 @@ void drawGroups(GraphicsDevice& device,
         const auto material =
             asset.materials.empty()
                 ? MaterialState{}
-                : materialState(asset.materials.front(), 0U);
+                : materialState(asset.materials.front().get(), 0U);
         device.draw(asset.mesh, shader, asset.textures.front(), model,
                     materialPipeline(0U),
                     {group.firstIndex, group.indexCount},
@@ -1591,7 +1591,7 @@ void drawGroups(GraphicsDevice& device,
             std::min(index, asset.textures.size() - 1U);
         const auto groupPipeline = materialPipeline(materialIndex);
         const auto material =
-            materialState(asset.materials[materialIndex],
+            materialState(asset.materials[materialIndex].get(),
                           materialIndex);
         device.draw(asset.mesh, shader, asset.textures[textureIndex], model,
                     groupPipeline,
@@ -1674,7 +1674,7 @@ void drawShadowGroups(GraphicsDevice& device,
         const auto state =
             asset.materials.empty()
                 ? MaterialState{}
-                : stateFor(asset.materials.front());
+                : stateFor(asset.materials.front().get());
         device.draw(asset.mesh, shader, asset.textures.front(), model,
                     geometryPipeline, {}, state);
         return;
@@ -1688,7 +1688,7 @@ void drawShadowGroups(GraphicsDevice& device,
         const auto state =
             asset.materials.empty()
                 ? MaterialState{}
-                : stateFor(asset.materials.front());
+                : stateFor(asset.materials.front().get());
         device.draw(asset.mesh, shader, asset.textures.front(), model,
                     geometryPipeline,
                     {group.firstIndex, group.indexCount}, state);
@@ -1707,7 +1707,7 @@ void drawShadowGroups(GraphicsDevice& device,
         const auto state =
             asset.materials.empty()
                 ? MaterialState{}
-                : stateFor(asset.materials[materialIndex]);
+                : stateFor(asset.materials[materialIndex].get());
         device.draw(asset.mesh, shader, asset.textures[textureIndex], model,
                     geometryPipeline,
                     {group.firstIndex, group.indexCount}, state);
@@ -2050,11 +2050,14 @@ bool OriginalRaceRenderer::initialize(
                 asset.mesh = shared.mesh;
                 asset.sharedMesh = true;
             }
-            asset.materials = node.materials;
-            asset.subMesh = node.subMesh;
+            asset.materials.reserve(node.materials.size());
             for (const auto& material : node.materials)
             {
-                if (material.texturePath.empty())
+                const auto& canonicalMaterial =
+                    resources.RegisterMaterial(material);
+                asset.materials.emplace_back(
+                    canonicalMaterial);
+                if (canonicalMaterial.texturePath.empty())
                 {
                     asset.textures.push_back(
                         resources.GetWhiteTexture().texture);
@@ -2062,12 +2065,13 @@ bool OriginalRaceRenderer::initialize(
                 else
                 {
                     asset.textures.push_back(
-                        uploadOriginalTexture(material.texturePath));
+                        uploadOriginalTexture(
+                            canonicalMaterial.texturePath));
                 }
                 const auto& auxiliaryTexturePath =
-                    !material.normalTexturePath.empty()
-                        ? material.normalTexturePath
-                        : material.reflectionTexturePath;
+                    !canonicalMaterial.normalTexturePath.empty()
+                        ? canonicalMaterial.normalTexturePath
+                        : canonicalMaterial.reflectionTexturePath;
                 if (auxiliaryTexturePath.empty())
                 {
                     asset.normalTextures.push_back({});
@@ -2075,10 +2079,10 @@ bool OriginalRaceRenderer::initialize(
                 else
                 {
                     asset.normalTextures.push_back(
-                        uploadOriginalTexture(
-                            auxiliaryTexturePath));
+                        uploadOriginalTexture(auxiliaryTexturePath));
                 }
             }
+            asset.subMesh = node.subMesh;
             bool normalTexturesValid =
                 asset.normalTextures.size() == node.materials.size();
             for (std::size_t index = 0;
@@ -2086,8 +2090,9 @@ bool OriginalRaceRenderer::initialize(
                  ++index)
             {
                 normalTexturesValid =
-                    (node.materials[index].normalTexturePath.empty() &&
-                     node.materials[index]
+                    (asset.materials[index].get()
+                         .normalTexturePath.empty() &&
+                     asset.materials[index].get()
                          .reflectionTexturePath.empty()) ||
                     valid(asset.normalTextures[index]);
             }
@@ -2114,6 +2119,7 @@ bool OriginalRaceRenderer::initialize(
                         ParticleEmitterDefinition>& emitters) {
                 asset.particleTextures.resize(emitters.size());
                 asset.particleNodes.resize(emitters.size());
+                asset.particleMaterials.resize(emitters.size());
                 for (std::size_t emitter = 0;
                      emitter < emitters.size(); ++emitter)
                 {
@@ -2140,10 +2146,16 @@ bool OriginalRaceRenderer::initialize(
                         continue;
                     }
                     auto& output = asset.particleTextures[emitter];
+                    auto& outputMaterials =
+                        asset.particleMaterials[emitter];
                     for (const auto& material :
                          emitters[emitter].materials)
                     {
-                        if (material.texturePath.empty())
+                        const auto& canonicalMaterial =
+                            resources.RegisterMaterial(material);
+                        outputMaterials.emplace_back(
+                            canonicalMaterial);
+                        if (canonicalMaterial.texturePath.empty())
                         {
                             output.push_back(
                                 resources.GetWhiteTexture().texture);
@@ -2152,7 +2164,7 @@ bool OriginalRaceRenderer::initialize(
                         {
                             output.push_back(
                                 uploadOriginalTexture(
-                                    material.texturePath));
+                                    canonicalMaterial.texturePath));
                         }
                     }
                     if (output.empty() ||
@@ -2638,6 +2650,7 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
             emitter.clear();
         }
         object.particleTextures.clear();
+        object.particleMaterials.clear();
         for (auto& emitter : object.particleNodes)
         {
             for (auto& node : emitter)
@@ -3275,7 +3288,7 @@ void OriginalRaceRenderer::draw(
                     asset.nodes[index].materials.begin(),
                     asset.nodes[index].materials.end(),
                     [](const auto& material) {
-                        return isBlended(material.blend);
+                        return isBlended(material.get().blend);
                     }))
             {
                 const float dx =
@@ -3444,6 +3457,8 @@ void OriginalRaceRenderer::draw(
                     definition.particleEmitters[emitterIndex];
                 const auto& textures =
                     asset.particleTextures[emitterIndex];
+                const auto& materials =
+                    asset.particleMaterials[emitterIndex];
                 const auto* nodeAssets =
                     emitterIndex < asset.particleNodes.size()
                         ? &asset.particleNodes[emitterIndex]
@@ -3453,7 +3468,7 @@ void OriginalRaceRenderer::draw(
                     r3d::game::originalrace::
                         ParticleRenderMode::Node;
                 if ((!nodeEmitter &&
-                     (textures.empty() || emitter.materials.empty())) ||
+                     (textures.empty() || materials.empty())) ||
                     (nodeEmitter &&
                      (nodeAssets == nullptr || nodeAssets->empty() ||
                       nodeAssets->size() !=
@@ -3972,11 +3987,11 @@ void OriginalRaceRenderer::draw(
                         }
                         const std::size_t materialIndex =
                             submittedParticles %
-                            emitter.materials.size();
+                            materials.size();
                         const std::size_t textureIndex =
                             submittedParticles % textures.size();
                         const auto& sourceMaterial =
-                            emitter.materials[materialIndex];
+                            materials[materialIndex].get();
                         float materialFrame =
                             scheduled.life > 0.0F
                                 ? std::clamp(

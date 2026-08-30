@@ -5,6 +5,7 @@
 #include "resource/ResourceFileSystem.h"
 #include "audio/AudioBackend.h"
 #include "OriginalMainMenu.h"
+#include "OriginalRace.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -79,6 +80,10 @@ public:
     TextFontResource ResolveTextFont(float height, bool bold) const;
     void SetFontCharset(r3d::game::originalgamedata::LanguageCharset value) noexcept;
     r3d::game::originalgamedata::LanguageCharset GetFontCharset() const noexcept;
+    const r3d::game::originalrace::MaterialDefinition& RegisterMaterial(
+        const r3d::game::originalrace::MaterialDefinition& material);
+    const r3d::game::originalrace::MaterialDefinition& GetMaterial(
+        std::string_view name) const;
     void AttachAudio(r3d::audio::AudioBackend& audio) noexcept;
     const SoundResource& GetSound(
         std::string_view sourceName, float volume = 1.0F);
@@ -90,6 +95,7 @@ public:
     std::size_t GetCacheHitCount() const noexcept;
     std::size_t GetSoundCount() const noexcept;
     std::size_t GetTextFontCount() const noexcept;
+    std::size_t GetMaterialCount() const noexcept;
     std::size_t GetSoundRequestCount() const noexcept;
     std::size_t GetSoundCacheHitCount() const noexcept;
     bool Owns(r3d::renderer::Mesh resource) const noexcept;
@@ -112,6 +118,9 @@ private:
     std::unordered_map<std::string, TextureResource> textures_;
     std::unordered_map<std::string, SoundResource> sounds_;
     std::unordered_map<std::string, TextFontResource> textFonts_;
+    std::unordered_map<
+        std::string, r3d::game::originalrace::MaterialDefinition>
+        materials_;
     std::unordered_set<std::uint32_t> managedMeshes_;
     std::unordered_set<std::uint32_t> managedTextures_;
     std::size_t requests_ = 0U;

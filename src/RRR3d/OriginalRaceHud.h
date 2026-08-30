@@ -9,6 +9,7 @@
 
 #include <array>
 #include <cstddef>
+#include <functional>
 #include <limits>
 #include <map>
 #include <string>
@@ -72,8 +73,8 @@ private:
     {
         r3d::renderer::Mesh mesh;
         std::vector<r3d::renderer::Texture> textures;
-        std::vector<r3d::game::originalrace::MaterialDefinition>
-            materials;
+        std::vector<std::reference_wrapper<const
+            r3d::game::originalrace::MaterialDefinition>> materials;
         std::vector<r3d::renderer::DrawRange> groups;
     };
 

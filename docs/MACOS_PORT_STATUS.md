@@ -2787,4 +2787,17 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - HUD place/lap/ammo/opponent labels возвращены к исходным font roles;
   Options и StartOptions используют Small 24 вместо reconstructed 18.
 - ResourceManager smoke теперь проверяет каталог, named lookup, bold и
-  propagation Russian charset. Следующий ресурсный owner — ComplexMatLib.
+  propagation Russian charset. ComplexMatLib закрыт следующим блоком.
+
+### Source ResourceManager ComplexMatLib follow-up
+
+- Общий manager владеет одним canonical `LibMaterial` на source record name;
+  повторная регистрация возвращает первую запись, как Windows library lookup.
+- Race mesh/shadow/transparency assets, sprite particles и HUD weapon preview
+  больше не копируют descriptors, а хранят стабильные ссылки на MatLib owner.
+- Diffuse и normal/reflection samplers загружаются из canonical descriptor
+  через общий ImageLib; blend, alpha, depth, fog и atlas читаются там же.
+- MatLib очищается после TextFontLib и до ImageLib/MeshLib; bgfx handles и
+  postprocess pipeline states остаются платформенным renderer payload.
+- ResourceManager smoke проверяет identity, first-record semantics, поля
+  descriptor и очистку library при shutdown.

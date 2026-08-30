@@ -66,7 +66,7 @@ Windows target не компилируется.
 |---|---|---|---|---|
 | CMake, arm64 `.app`, bundle, signing | VS projects/resources | CMake presets, bundle scripts | Перенесено | Notarization/Developer ID не входят в текущую локальную сборку |
 | Platform filesystem/logging | Win32/XPlatform | XPlatform + macOS directories | Замена платформы | Игровой логике это не должно давать различий |
-| Resource filesystem | `ResourceManager`, Windows paths | `ResourceFileSystem` + `OriginalResourceManager`, exact-case catalog | Перенесено | Mesh/Image/Sound/TextFont identity, charset и release order активны; открыт ComplexMat descriptor owner |
+| Resource filesystem | `ResourceManager`, Windows paths | `ResourceFileSystem` + `OriginalResourceManager`, exact-case catalog | Перенесено | Mesh/Image/Sound/TextFont/ComplexMat identity, charset и release order активны; GPU payload остаётся backend boundary |
 | `.r3d`, DDS/PNG, XML | Исходные loaders | portable decoders + TinyXML | Перенесено | Поддержаны используемые форматы; это не перенос всего legacy resource object graph |
 | Окно и event loop | Win32/D3D window | SDL3/Cocoa | Замена платформы | Нативный путь работает |
 | Keyboard/mouse/gamepad | XInput/Win32 `ControlManager` | source `VirtualKey`/action state поверх SDL3 | Перенесено с backend-адаптацией | Точные constructor/user bindings, raw menu keys, repeat, focus release, `XUSER_INDEX_ANY` event delivery, hot-plug, 30/255 и 7849/8689 thresholds перенесены; Win32/XInput polling API заменён SDL3 events |
@@ -2130,7 +2130,25 @@ Header, lap и weapon ammo — Small, opponent label — VerySmall. Все по�
 Options/StartOptions возвращены с 18 на исходный Small 24; version остаётся
 VerySmall 18. ResourceManager regression проверяет каталог и переход charset,
 а полный app build подтверждает активные CoreText call sites. ComplexMatLib
-остаётся следующим отдельным resource block.
+закрыт следующим отдельным resource block.
+
+### B8ay — source ComplexMatLib identity и active samplers — выполнено
+
+Прямая сверка `ComplexMatLib::{LoadLibMat,Get}` и
+`ResourceManager::AddSampler2dTo` показала, что source-derived material
+параметры уже были перенесены, но каждый VisualNode, emitter и HUD preview
+хранил собственную копию descriptor. Общий `OriginalResourceManager` теперь
+регистрирует именованный `LibMaterial` один раз и возвращает стабильную
+canonical identity; повторная запись с тем же именем не заменяет первую.
+
+Active race mesh/shadow/transparency paths, sprite particle emitters и HUD
+weapon models хранят ссылки на этот owner. Diffuse, normal/reflection paths,
+blend/alpha/depth/fog/atlas и sampler upload читаются из canonical record,
+а shutdown удаляет MatLib после TextFontLib и перед ImageLib/MeshLib.
+Backend-only postprocess states не объявлены source `LibMaterial`: они, как и
+bgfx pipeline/texture handles, остаются корректной Metal boundary.
+ResourceManager regression фиксирует identity, first-record semantics,
+descriptor fields и очистку library при shutdown.
 
 ## Воспроизведение проверки
 

@@ -12,6 +12,7 @@
 #include "resource/R3DMeshAsset.h"
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -31,7 +32,8 @@ public:
         r3d::renderer::Mesh mesh;
         std::vector<r3d::renderer::Texture> textures;
         std::vector<r3d::renderer::Texture> normalTextures;
-        std::vector<r3d::game::originalrace::MaterialDefinition> materials;
+        std::vector<std::reference_wrapper<const
+            r3d::game::originalrace::MaterialDefinition>> materials;
         int subMesh = -1;
         bool sharedMesh = false;
     };
@@ -41,6 +43,9 @@ public:
         std::vector<Asset> nodes;
         std::vector<std::vector<r3d::renderer::Texture>>
             particleTextures;
+        std::vector<std::vector<std::reference_wrapper<const
+            r3d::game::originalrace::MaterialDefinition>>>
+            particleMaterials;
         // FxNodeManager owns ordinary mesh nodes instead of sprite
         // materials. The outer index remains aligned with particleEmitters.
         std::vector<std::vector<Asset>> particleNodes;

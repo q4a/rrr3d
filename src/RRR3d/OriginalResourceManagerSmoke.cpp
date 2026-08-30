@@ -244,6 +244,24 @@ int main()
         rrr3d::race::OriginalResourceManager resources(device, fileSystem);
         if (resources.GetTextFontCount() != 5U)
             return fail("TextFontLib does not contain five source fonts");
+        r3d::game::originalrace::MaterialDefinition sourceMaterial;
+        sourceMaterial.record = "Effect\\smoke1";
+        sourceMaterial.texturePath = "Data/Effect/smoke1.dds";
+        sourceMaterial.blend =
+            r3d::game::originalrace::MaterialBlend::Transparency;
+        sourceMaterial.ignoreFog = true;
+        const auto& material = resources.RegisterMaterial(sourceMaterial);
+        auto conflictingMaterial = sourceMaterial;
+        conflictingMaterial.texturePath = "Data/Effect/wrong.dds";
+        conflictingMaterial.ignoreFog = false;
+        const auto& cachedMaterial =
+            resources.RegisterMaterial(conflictingMaterial);
+        if (&material != &cachedMaterial ||
+            &resources.GetMaterial("Effect\\smoke1") != &material ||
+            resources.GetMaterialCount() != 1U ||
+            material.texturePath != "Data/Effect/smoke1.dds" ||
+            !material.ignoreFog)
+            return fail("ComplexMatLib identity/descriptor differs");
         const auto &header = resources.GetTextFont("Header");
         const auto &item = resources.GetTextFont("Item");
         const auto &small = resources.GetTextFont("Small");
@@ -300,7 +318,8 @@ int main()
         if (secondAudio.unloaded !=
                 std::vector<r3d::audio::SoundHandle>{secondSound} ||
             device.destroyedTextures !=
-                std::vector<std::uint16_t>{500U, texture.value})
+                std::vector<std::uint16_t>{500U, texture.value} ||
+            resources.GetMaterialCount() != 0U)
             return fail("ResourceManager shutdown ownership order differs");
         resources.Shutdown();
     }

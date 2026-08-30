@@ -284,12 +284,15 @@ bool OriginalRaceHud::initialize(
             visual.mesh = device.createMesh(
                 vertices.data(), vertices.size(), mesh.indices.data(),
                 mesh.indices.size());
-            visual.materials = source.materials;
             for (const auto& material : source.materials)
             {
+                const auto& canonicalMaterial =
+                    resources.RegisterMaterial(material);
+                visual.materials.emplace_back(
+                    canonicalMaterial);
                 visual.textures.push_back(
                     resources.GetTexture(
-                        material.texturePath).texture);
+                        canonicalMaterial.texturePath).texture);
             }
             for (const auto& group : mesh.materialGroups)
             {
@@ -1005,7 +1008,7 @@ void OriginalRaceHud::draw(GraphicsDevice& device, Mesh quad,
             if (!visual.materials.empty())
             {
                 const auto& source = visual.materials[
-                    std::min(group, visual.materials.size() - 1U)];
+                    std::min(group, visual.materials.size() - 1U)].get();
                 material.color = source.color;
                 material.alphaReference = source.alphaReference;
                 material.emissive = std::max(source.emissive, 0.35F);

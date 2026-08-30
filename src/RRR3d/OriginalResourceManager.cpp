@@ -276,6 +276,31 @@ r3d::game::originalgamedata::LanguageCharset OriginalResourceManager::GetFontCha
     return fontCharset_;
 }
 
+const r3d::game::originalrace::MaterialDefinition&
+OriginalResourceManager::RegisterMaterial(
+    const r3d::game::originalrace::MaterialDefinition& material)
+{
+    if (material.record.empty())
+        throw r3d::resource::ResourceError(
+            "ComplexMatLib cannot register an unnamed LibMaterial");
+    if (const auto found = materials_.find(material.record);
+        found != materials_.end())
+    {
+        return found->second;
+    }
+    return materials_.emplace(material.record, material).first->second;
+}
+
+const r3d::game::originalrace::MaterialDefinition&
+OriginalResourceManager::GetMaterial(std::string_view name) const
+{
+    const auto found = materials_.find(std::string(name));
+    if (found == materials_.end())
+        throw r3d::resource::ResourceError(
+            "LibMaterial" + std::string(name) + " does not exist");
+    return found->second;
+}
+
 void OriginalResourceManager::AttachAudio(
     r3d::audio::AudioBackend& audio) noexcept
 {
@@ -355,6 +380,11 @@ std::size_t OriginalResourceManager::GetTextFontCount() const noexcept
     return textFonts_.size();
 }
 
+std::size_t OriginalResourceManager::GetMaterialCount() const noexcept
+{
+    return materials_.size();
+}
+
 std::size_t OriginalResourceManager::GetSoundRequestCount() const noexcept
 {
     return soundRequests_;
@@ -431,6 +461,7 @@ void OriginalResourceManager::Shutdown() noexcept
 {
     ShutdownSounds();
     textFonts_.clear();
+    materials_.clear();
     if (device_ == nullptr)
         return;
     for (const auto& [key, resource] : textures_)
