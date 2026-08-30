@@ -5966,6 +5966,23 @@ Config load, Options preview/cancel/apply, race-start и finish music fade
 три submix bus; source default/autodetect/muted-update и active pause/resume
 закреплены regressions.
 
+### P2.264 — `GameMode` снова владеет music fade — выполнено
+
+Прямая сверка `FadeInMusic`, `FadeOutMusic`, `OnFinishFrameClose` и
+`OnFrame` выявила отдельный host-суррогат поверх восстановленного Logic
+submix. `sourceMenuMusicGain` вручную реализовывал только переход 0→1 и при
+каждом старте гонки сбрасывался в 1, хотя Windows `PlayMusic` сохраняет
+volume единственного `_music` source.
+
+Новый `GameModeMusicFadeState` владеет `_fadeMusic`, `_fadeSpeedMusic` и
+текущим source-volume. Сохранены даже исторически обратные названия:
+`FadeInMusic` выбирает target 0, `FadeOutMusic` — target 1. Frame выполняет
+точную формулу `(target-current)*deltaTime/(speed>0?speed:1)` и clamp 0..1;
+pause/movie gate не продвигает переход. `OnFinishFrameClose` запускает
+source-owned 0→1, SDL/CoreAudio применяет его произведение с уже
+source-owned `Logic::scMusic`. Regression проверяет числовые шаги, обе цели,
+inactive frame и композицию внутри `GameModeState`.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

@@ -168,6 +168,30 @@ int main()
         movie.IsPlaying() || movie.IsVideoMode())
         return fail("source movie cVideoStopped transition differs");
 
+    source::GameModeMusicFadeState musicFade;
+    if (musicFade.GetVolume() != 1.0F ||
+        musicFade.GetTargetVolume() != 1.0F ||
+        musicFade.GetSpeed() != 0.0F)
+        return fail("source music fade defaults differ");
+    musicFade.FadeOutMusic(0.0F, 1.0F);
+    if (musicFade.GetVolume() != 0.0F ||
+        musicFade.GetTargetVolume() != 1.0F ||
+        musicFade.GetSpeed() != 1.0F ||
+        !musicFade.OnFrame(0.25F) ||
+        std::abs(musicFade.GetVolume() - 0.25F) > 0.000001F)
+        return fail("source FadeOutMusic first frame differs");
+    if (!musicFade.OnFrame(0.25F) ||
+        std::abs(musicFade.GetVolume() - 0.4375F) > 0.000001F)
+        return fail("source music exponential interpolation differs");
+    if (musicFade.OnFrame(1.0F, false) ||
+        std::abs(musicFade.GetVolume() - 0.4375F) > 0.000001F)
+        return fail("inactive source music fade advanced");
+    musicFade.FadeInMusic(-1.0F, 2.0F);
+    if (musicFade.GetTargetVolume() != 0.0F ||
+        !musicFade.OnFrame(0.5F) ||
+        std::abs(musicFade.GetVolume() - 0.328125F) > 0.000001F)
+        return fail("source FadeInMusic target/speed differs");
+
     source::WorldFrameClock frameClock;
     if (frameClock.SmoothDelta(-1.0F) != 0.0F ||
         frameClock.GetSynchronizedFrameCount() != 1U)
@@ -296,6 +320,11 @@ int main()
             source::GameModeCommand::FadeOutMusic,
             source::GameModeCommand::ResumeMenuMusic})
         return fail("finish/close command order differs");
+    if (game.GetMusicSourceVolume() != 0.0F ||
+        game.GetMusicFadeState().GetTargetVolume() != 1.0F ||
+        !game.OnMusicFrame(0.25F) ||
+        std::abs(game.GetMusicSourceVolume() - 0.25F) > 0.000001F)
+        return fail("OnFinishFrameClose music fade ownership differs");
 
     order.clear();
     UserProbe user1(100, order);

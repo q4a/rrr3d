@@ -3734,6 +3734,8 @@ int main(int argc, char** argv)
     r3d::game::originalrace::source::WorldEventPump worldEventPump;
     r3d::game::originalrace::source::Environment worldEnvironment;
     worldEventPump.SetEnvironment(&worldEnvironment);
+    r3d::game::originalrace::source::GameModeState gameModeState;
+    worldEventPump.SetGameMode(&gameModeState);
     r3d::game::originalrace::OriginalRaceSession raceSession(
         *originalRace, options->legacyWindowsDebug, &worldEventPump);
     r3d::game::originalrace::source::TraceGfx sourceTraceGfx(
@@ -4083,7 +4085,8 @@ int main(int argc, char** argv)
 #ifdef RRR3D_PHYSICS
     audio.setBusVolume(r3d::audio::Bus::Music,
                        raceSession.soundVolume(
-                           LogicSoundCategory::Music));
+                           LogicSoundCategory::Music) *
+                           gameModeState.GetMusicSourceVolume());
     audio.setBusVolume(r3d::audio::Bus::Effects,
                        raceSession.soundVolume(
                            LogicSoundCategory::Effects));
@@ -4203,10 +4206,6 @@ int main(int argc, char** argv)
         !gameMusic.currentTrack().has_value();
     bool gameMusicZeroStartObserved =
         !options->raceRenderSmokeTest;
-    // GameMode::_fadeMusic is the gain of its one shared music source.  Keep
-    // an equivalent factor over the SDL Music bus for the only active source
-    // fade used by OnFinishFrameClose.
-    float sourceMenuMusicGain = 1.0F;
     bool finishMenuAudioHeldObserved =
         !options->finishMenuSmokeTest;
     bool finishMenuAudioCloseObserved =
@@ -4611,10 +4610,10 @@ int main(int argc, char** argv)
     };
     auto startRaceAudio = [&]() {
         stopAllRaceLoops();
-        sourceMenuMusicGain = 1.0F;
         audio.setBusVolume(r3d::audio::Bus::Music,
                            raceSession.soundVolume(
-                               LogicSoundCategory::Music));
+                               LogicSoundCategory::Music) *
+                               gameModeState.GetMusicSourceVolume());
         audio.setBusVolume(r3d::audio::Bus::Effects,
                            raceSession.soundVolume(
                                LogicSoundCategory::Effects));
@@ -5435,8 +5434,6 @@ int main(int argc, char** argv)
 #endif
 #ifdef RRR3D_PHYSICS
     bool inRace = false;
-    r3d::game::originalrace::source::GameModeState gameModeState;
-    worldEventPump.SetGameMode(&gameModeState);
     bool exitRaceDialogVisible = false;
     bool exitRaceYesFocused = true;
     r3d::physics::VehicleInput raceInput;
@@ -9504,7 +9501,8 @@ int main(int argc, char** argv)
         applyProfileSoundVolumesToLogic();
         audio.setBusVolume(
             r3d::audio::Bus::Music,
-            raceSession.soundVolume(LogicSoundCategory::Music));
+            raceSession.soundVolume(LogicSoundCategory::Music) *
+                gameModeState.GetMusicSourceVolume());
         audio.setBusVolume(
             r3d::audio::Bus::Effects,
             raceSession.soundVolume(LogicSoundCategory::Effects));
@@ -9634,7 +9632,8 @@ int main(int argc, char** argv)
         applyProfileSoundVolumesToLogic();
         audio.setBusVolume(
             r3d::audio::Bus::Music,
-            raceSession.soundVolume(LogicSoundCategory::Music));
+            raceSession.soundVolume(LogicSoundCategory::Music) *
+                gameModeState.GetMusicSourceVolume());
         audio.setBusVolume(
             r3d::audio::Bus::Effects,
             raceSession.soundVolume(LogicSoundCategory::Effects));
@@ -9706,7 +9705,8 @@ int main(int argc, char** argv)
                 audio.setBusVolume(
                     r3d::audio::Bus::Music,
                     raceSession.soundVolume(
-                        LogicSoundCategory::Music));
+                        LogicSoundCategory::Music) *
+                        gameModeState.GetMusicSourceVolume());
             }
             else if (menuSelection == 3U)
             {
@@ -9878,8 +9878,10 @@ int main(int argc, char** argv)
         // start menu music from the MusicCat's stored position at zero source
         // gain, then let OnFrame approach full gain over one second.
         commentator.stop();
-        sourceMenuMusicGain = 0.0F;
-        audio.setBusVolume(r3d::audio::Bus::Music, 0.0F);
+        audio.setBusVolume(
+            r3d::audio::Bus::Music,
+            raceSession.soundVolume(LogicSoundCategory::Music) *
+                gameModeState.GetMusicSourceVolume());
         if (!music.pause(false, audioError))
         {
             std::cerr
@@ -16117,23 +16119,24 @@ int main(int argc, char** argv)
             runtimeSmokeFailed = true;
             running = false;
         }
-        if (sourceMenuMusicGain < 1.0F)
+        bool sourceMusicFrameActive = !worldEventPump.IsPaused();
+#ifdef RRR3D_VIDEO
+        sourceMusicFrameActive =
+            sourceMusicFrameActive && !sourceMovieState.IsPlaying();
+#endif
+        if (gameModeState.OnMusicFrame(
+                frameSeconds, sourceMusicFrameActive))
         {
-            // GameMode::OnFrame applies
-            //   gain += (1 - gain) * dt / 1 second
-            // after OnFinishFrameClose::FadeOutMusic(0).
-            sourceMenuMusicGain = std::clamp(
-                sourceMenuMusicGain +
-                    (1.0F - sourceMenuMusicGain) * frameSeconds,
-                0.0F, 1.0F);
+            const float sourceMusicVolume =
+                gameModeState.GetMusicSourceVolume();
             audio.setBusVolume(
                 r3d::audio::Bus::Music,
                 raceSession.soundVolume(LogicSoundCategory::Music) *
-                    sourceMenuMusicGain);
+                    sourceMusicVolume);
             finishMenuMusicFadeObserved =
                 finishMenuMusicFadeObserved ||
-                (sourceMenuMusicGain > 0.0F &&
-                 sourceMenuMusicGain < 1.0F &&
+                (sourceMusicVolume > 0.0F &&
+                 sourceMusicVolume < 1.0F &&
                  audio.busVolume(r3d::audio::Bus::Music) > 0.0F);
         }
 #endif

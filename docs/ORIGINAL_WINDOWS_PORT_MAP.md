@@ -56,7 +56,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `FinishMenu` | `originalracemenu::FinishMenuFrameState` + bgfx/CoreText view | Source owner, active frame | Legacy Widget API заменён backend draw/input; result order, timing, events и layout принадлежат source owner |
 | `GameBase` | `OriginalGameObject`, all serialized behaviors, effects, motor sound state | Source owner, active behavior graph | Все shipped type 0–14 имеют concrete owner/runtime; bgfx/Jolt/SDL исполняют только graph/physics/audio commands |
 | `GameCar` | `source::GameCar::{OnFixedStepDrive,OnContact,OnPxSync}` + Jolt vehicle adapter | Source owner, active drive/contact frame | Оставшиеся PhysX solver queries и actor operations являются Jolt boundary; продолжить аудит public serialization/editor-only методов |
-| `GameMode` | source startup/movie/race states on shared World | Source owner, active startup/movie/race path | Config и часть menu/audio backend-команд ещё находятся в host |
+| `GameMode` | source startup/movie/race/music-fade states on shared World | Source owner, active startup/movie/race/audio-policy path | Config и исполнение menu/audio команд ещё находятся в host; SDL/CoreAudio применяет готовые source/category gains |
 | `GameObject` | `source::GameObject`, event counters, frame sync, listener/contact graph | Source owner, active core | Jolt/bgfx snapshots остаются backend boundary; source fixed/frame registration подключена |
 | `HudMenu` | `source::{HudMenu,MiniMapFrame,PlayerStateFrame}` + `OriginalRaceHud` | Source owner, active HUD/minimap/player-state policy | State/Escape/layout/countdown, MiniMap, weapon/place/life, OnProcessEvent, notifications, car-life и opponents source-owned; FinishMenu не дублируется, bgfx/CoreText payload и camera projection остаются backend boundary |
 | `HumanPlayer` | `source::HumanPlayer` | Source owner | Полный input message order, driving/progress gates и weapon selection перенесены; SDL только переводит source-сообщения |
@@ -1028,6 +1028,19 @@ fade получают итоговый gain из `Logic`. SDL/CoreAudio толь
 соответствующий bus volume и больше не решает, какое сохранённое значение
 нужно восстановить. Regression проверяет исходные autodetect 1.2/0.8/1.2,
 SetVolume под mute и активный pause→zero→resume path RaceSession.
+
+Результат B8bk: удалена host-переменная, изображавшая
+`GameMode::_fadeMusic`. `GameModeMusicFadeState` воспроизводит буквальные
+`FadeInMusic`/`FadeOutMusic` (исторические имена ставят target 0/1), optional
+source volume, `_fadeSpeedMusic` и формулу каждого `OnFrame` с clamp 0..1.
+`GameModeState::OnFinishFrameClose` теперь сам начинает переход 0→1; host
+применяет произведение этого source-volume и `Logic::scMusic` к SDL bus.
+
+Начало гонки больше не принудительно сбрасывает fade в 1 — оригинальный
+`PlayMusic` сохраняет текущую громкость общего source. Pause и movie frame
+останавливают interpolation, а Options меняет только category gain и не
+обходит source gain. Regression закрепляет target/speed, последовательность
+0→0.25→0.4375, inactive gate, обратный target и finish-close ownership.
 
 ## Правило обновления карты
 

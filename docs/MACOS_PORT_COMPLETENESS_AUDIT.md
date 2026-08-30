@@ -2367,6 +2367,22 @@ initial/apply/cancel/live-preview, race-start и finish-fade ветви чита
 autodetect 1.2/0.8/1.2 и muted update; RaceSession regression — pause/resume
 с сохранением пользовательской громкости.
 
+### B8bk — `GameMode::_fadeMusic/_fadeSpeedMusic` owner — выполнено
+
+После B8bj у host оставалась вторая часть итогового Music gain:
+`sourceMenuMusicGain` вручную задавался в 0 на закрытии FinishMenu, рос по
+похожей формуле и принудительно возвращался в 1 при старте гонки. Последнее
+отличалось от Windows: `PlayMusic` не сбрасывает volume общего `_music`.
+
+Добавлен `GameModeMusicFadeState` с точными default 1/target 1/speed 0,
+`FadeInMusic` target 0, `FadeOutMusic` target 1, optional initial volume и
+исходным exponential step `(target-current)*dt/(speed>0?speed:1)` с clamp.
+`OnFinishFrameClose` меняет owner, interpolation заморожен при pause/movie,
+а SDL Music bus получает `Logic::Music gain × GameMode source volume`.
+Unit regression проверяет обе команды, speed, inactive frame и композицию
+через `GameModeState`; active finish smoke продолжает проверять промежуточный
+ненулевой gain.
+
 ## Воспроизведение проверки
 
 ```sh

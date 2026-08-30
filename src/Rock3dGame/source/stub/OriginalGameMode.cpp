@@ -159,6 +159,56 @@ std::int32_t GameModeMovieState::FrameState() const noexcept
     return movieTime_;
 }
 
+void GameModeMusicFadeState::SetFade(
+    float target, float sourceVolume, float speed) noexcept
+{
+    targetVolume_ = target;
+    speed_ = speed;
+    if (sourceVolume >= 0.0F)
+        volume_ = sourceVolume;
+}
+
+void GameModeMusicFadeState::FadeInMusic(
+    float sourceVolume, float speed) noexcept
+{
+    SetFade(0.0F, sourceVolume, speed);
+}
+
+void GameModeMusicFadeState::FadeOutMusic(
+    float sourceVolume, float speed) noexcept
+{
+    SetFade(1.0F, sourceVolume, speed);
+}
+
+bool GameModeMusicFadeState::OnFrame(
+    float deltaTime, bool active) noexcept
+{
+    if (!active)
+        return false;
+    const float deltaVolume =
+        (targetVolume_ - volume_) * deltaTime /
+        (speed_ > 0.0F ? speed_ : 1.0F);
+    if (deltaVolume == 0.0F)
+        return false;
+    volume_ = std::clamp(volume_ + deltaVolume, 0.0F, 1.0F);
+    return true;
+}
+
+float GameModeMusicFadeState::GetVolume() const noexcept
+{
+    return volume_;
+}
+
+float GameModeMusicFadeState::GetTargetVolume() const noexcept
+{
+    return targetVolume_;
+}
+
+float GameModeMusicFadeState::GetSpeed() const noexcept
+{
+    return speed_;
+}
+
 void GameModeRaceState::Reset(bool immediateRaceStart) noexcept
 {
     countdownStage_ = immediateRaceStart ? goRace : goRaceWait;
@@ -352,6 +402,35 @@ void GameModeState::OnFinishFrameClose()
     commands_.push_back(GameModeCommand::StopCommentator);
     commands_.push_back(GameModeCommand::FadeOutMusic);
     commands_.push_back(GameModeCommand::ResumeMenuMusic);
+    FadeOutMusic(0.0F);
+}
+
+void GameModeState::FadeInMusic(
+    float sourceVolume, float speed) noexcept
+{
+    musicFade_.FadeInMusic(sourceVolume, speed);
+}
+
+void GameModeState::FadeOutMusic(
+    float sourceVolume, float speed) noexcept
+{
+    musicFade_.FadeOutMusic(sourceVolume, speed);
+}
+
+bool GameModeState::OnMusicFrame(float deltaTime, bool active) noexcept
+{
+    return musicFade_.OnFrame(deltaTime, active);
+}
+
+float GameModeState::GetMusicSourceVolume() const noexcept
+{
+    return musicFade_.GetVolume();
+}
+
+const GameModeMusicFadeState&
+GameModeState::GetMusicFadeState() const noexcept
+{
+    return musicFade_;
 }
 
 void GameModeState::OnLoadingFramePresented() noexcept

@@ -81,6 +81,30 @@ private:
     bool videoMode_ = false;
 };
 
+// Exact backend-neutral owner for GameMode::_fadeMusic and
+// _fadeSpeedMusic. The historical FadeIn/FadeOut names are preserved even
+// though they set target volumes 0 and 1 respectively in the shipped code.
+class GameModeMusicFadeState
+{
+public:
+    void FadeInMusic(
+        float sourceVolume = -1.0F, float speed = 1.0F) noexcept;
+    void FadeOutMusic(
+        float sourceVolume = -1.0F, float speed = 1.0F) noexcept;
+    bool OnFrame(float deltaTime, bool active = true) noexcept;
+
+    float GetVolume() const noexcept;
+    float GetTargetVolume() const noexcept;
+    float GetSpeed() const noexcept;
+
+private:
+    void SetFade(float target, float sourceVolume, float speed) noexcept;
+
+    float volume_ = 1.0F;
+    float targetVolume_ = 1.0F;
+    float speed_ = 0.0F;
+};
+
 class GameModeRaceState
 {
 public:
@@ -170,6 +194,13 @@ public:
     bool ExitRace(bool saveGame);
     void ExitRaceGoFinish();
     void OnFinishFrameClose();
+    void FadeInMusic(
+        float sourceVolume = -1.0F, float speed = 1.0F) noexcept;
+    void FadeOutMusic(
+        float sourceVolume = -1.0F, float speed = 1.0F) noexcept;
+    bool OnMusicFrame(float deltaTime, bool active = true) noexcept;
+    float GetMusicSourceVolume() const noexcept;
+    const GameModeMusicFadeState& GetMusicFadeState() const noexcept;
 
     void OnLoadingFramePresented() noexcept;
     std::size_t LoadingPresentedFrames() const noexcept;
@@ -198,6 +229,7 @@ private:
     bool raceLoading_ = false;
     bool raceActive_ = false;
     bool paused_ = false;
+    GameModeMusicFadeState musicFade_;
 };
 
 } // namespace r3d::game::originalrace::source
