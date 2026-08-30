@@ -3409,11 +3409,15 @@ Vehicle loadVehicle(const resource::ResourceFileSystem& resources,
         resources, database,
         "world\\db\\root\\ctEffects\\damageEnergy" + basename(record),
         source + "/DamageEffect/damageEnergy");
+    appendBehaviorSounds(
+        resources, car, "5", result.energyDamageSoundPaths);
     // DataBase::LoadCar attaches ImmortalEffect to every car with this
     // source record and the fixed non-uniform scale coefficient.
     result.shieldEffect = objectDefinition(
         resources, database, "world\\db\\root\\ctEffects\\shield1",
         source + "/ImmortalEffect/shield1");
+    appendBehaviorSounds(
+        resources, car, "11", result.shieldSoundPaths);
     result.shieldEffectScale = {1.3F, 1.7F, 1.7F};
     result.deathEffects = deathEffectDefinitions(
         resources, database, record, source + "/death effects");
@@ -6702,6 +6706,8 @@ bool runOriginalRaceResourceSmokeTest(
         const bool energyDamageMatchesSource =
             recordEndsWith(
                 energyDamage.record, "damageEnergymarauder") &&
+            race.vehicle.energyDamageSoundPaths.empty() &&
+            race.vehicle.shieldSoundPaths.empty() &&
             near(energyDamage.maximumTimeLife, 0.5F) &&
             energyDamage.graphOrder == GraphOrder::Effect &&
             energyDamage.visualNodes.size() == 1U &&

@@ -534,15 +534,25 @@ int main()
         return 18;
 
     source::DamageEffect energyDamage(original::DamageType::Energy);
+    energyDamage.ConfigureSounds({"damage-a.ogg", "damage-b.ogg"});
     if (energyDamage.OnDamage(original::DamageType::Simple) ||
-        !energyDamage.OnDamage(original::DamageType::Energy))
+        energyDamage.HasPlayRequest() ||
+        !energyDamage.OnDamage(original::DamageType::Energy) ||
+        !energyDamage.HasPlayRequest())
         return 19;
+    const auto* damageSound = energyDamage.ConsumePlayRequest(0.75F);
+    if (damageSound == nullptr || *damageSound != "damage-b.ogg" ||
+        energyDamage.HasPlayRequest())
+        return 112;
     const auto damageSpawn = energyDamage.GetSpawnResult(true);
     if (damageSpawn.owner == nullptr ||
         !damageSpawn.owner->OnDestroyEffect() ||
         energyDamage.IsEffectMaked() ||
         !energyDamage.OnDamage(original::DamageType::Energy) ||
-        energyDamage.OnDamage(original::DamageType::Energy))
+        energyDamage.ConsumePlayRequest(0.0F) == nullptr ||
+        energyDamage.OnDamage(original::DamageType::Energy) ||
+        !energyDamage.HasPlayRequest() ||
+        energyDamage.ConsumePlayRequest(0.0F) == nullptr)
         return 98;
     energyDamage.OnProgress(0.5F);
     if (!energyDamage.IsEffectMaked())
@@ -552,11 +562,17 @@ int main()
         return 21;
 
     source::ImmortalEffect shieldEffect;
+    shieldEffect.ConfigureSounds({"shield-a.ogg"});
     shieldEffect.OnImmortalStatus(true);
     if (!shieldEffect.IsEffectMaked() ||
         shieldEffect.GetFadeInTime() != 0.0F ||
-        shieldEffect.GetScale() != 0.0F)
+        shieldEffect.GetScale() != 0.0F ||
+        !shieldEffect.HasPlayRequest())
         return 22;
+    const auto* shieldSound = shieldEffect.ConsumePlayRequest(0.0F);
+    if (shieldSound == nullptr || *shieldSound != "shield-a.ogg" ||
+        shieldEffect.HasPlayRequest())
+        return 113;
     shieldEffect.OnProgress(0.1F);
     shieldEffect.OnDamage();
     if (std::abs(shieldEffect.GetScale() - 0.2F) > 0.0001F ||

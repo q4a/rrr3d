@@ -95,6 +95,16 @@ enum class PickSlot : std::uint8_t
     Mine,
 };
 
+// Persistent EventEffect Source3d identity. These sources belong to the
+// behavior attached to a car, not to the transient visual actor spawned by
+// that behavior.
+enum class EventEffectSoundOwner : std::uint8_t
+{
+    None,
+    DamageEffect,
+    ImmortalEffect,
+};
+
 struct RaceControl
 {
     r3d::physics::VehicleInput driving;
@@ -168,6 +178,8 @@ struct RaceEvent
     // Exact EventEffect/LifeEffect sound selected when its source object is
     // created. Empty for non-audio race events.
     std::string soundPath{};
+    EventEffectSoundOwner soundEventOwner =
+        EventEffectSoundOwner::None;
     // ShotEffect owns one persistent Source3d per serialized sound on each
     // equipped slot. A valid index identifies that source owner so repeated
     // Play calls can be ignored while it is already active, and a shot made

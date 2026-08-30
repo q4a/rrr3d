@@ -1006,6 +1006,16 @@ category, gain/pitch, 33→77 resume, rewind 0 и teardown. Последняя d
 EffectSound как Shot/Life/PairContact; MusicCat остаётся отдельным source
 playlist/streaming классом, SDL/CoreAudio — mixer boundary.
 
+Результат B8bi: `DamageEffect::OnDamage` и
+`ImmortalEffect::OnImmortalStatus` снова владеют отдельными car-lifetime
+Source3d callbacks. Loader хранит type-5/type-11 sounds отдельно от
+LifeEffect sounds порождённого actor; Damage выполняет Stop/rewind на каждом
+подходящем damage callback, Immortal — rewind при status=true. Host owner
+следует за car и сохраняется после once EOF до уничтожения поведения.
+Shipped каталоги доказанно пусты (`<sounds />`, закомментированные bullet
+AddSound), поэтому порт не добавляет искусственный cue; shield bonus по-прежнему
+звучит через исходный `Snd\\shieldOn` Death/LifeEffect путь.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:

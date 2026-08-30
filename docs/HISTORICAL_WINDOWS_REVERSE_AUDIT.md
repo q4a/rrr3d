@@ -5927,6 +5927,28 @@ active game host удалена после доказательства, что 
 схлопывается в Source: его отдельная очередь и background decode соответствуют
 исходному вложенному классу и остаются специализированным adapter owner.
 
+### P2.262 — `DamageEffect`/`ImmortalEffect` Source3d callbacks — выполнено
+
+Сверка `DamageEffect::OnDamage`, `ImmortalEffect::OnImmortalStatus` и
+`EventEffect::{GiveSource3d,OnProgress}` выявила оставшийся разрыв после общей
+Source3d migration. Visual state machines уже были source-owned, но их
+behavior-каталоги и независимые audio callbacks не существовали: звук мог
+быть ошибочно отнесён к `LifeEffect` порождённого visual actor.
+
+`Vehicle` теперь отдельно хранит type-5/type-11 `sounds` самой car behavior,
+а `DamageEffect` и `ImmortalEffect` выдают play request независимо от
+`MakeEffect`. Damage при каждом подходящем `dtEnergy` повторяет
+Stop→once→SetPos(0)→Play, даже если прежний 0.5-секундный actor ещё жив;
+Immortal делает once→SetPos(0)→Play только на реальном переходе shield off→on.
+Host держит один `OriginalSource3d` на racer/behavior/path, каждый кадр
+следует за позицией автомобиля и уничтожает owner вместе с car.
+
+В исходных сгенерированных `DataBase::LoadCar` и поставляемом `db.xml` оба
+каталога намеренно пусты (три bullet-hit AddSound закомментированы, shield
+activation cue приходит из DeathEffect бонуса `Snd\\shieldOn`). Поэтому
+активные ресурсы не получают выдуманный новый звук; synthetic regressions
+закрепляют полностью рабочий callback для данных, где каталог задан.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

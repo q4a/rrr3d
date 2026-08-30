@@ -2140,9 +2140,16 @@ void DamageEffect::Configure(
     effectSeconds_ = 0.0F;
 }
 
+void DamageEffect::ConfigureSounds(
+    std::vector<std::string> soundPaths)
+{
+    eventEffect_.ConfigureSounds(std::move(soundPaths));
+}
+
 void DamageEffect::Reset() noexcept
 {
     effectSeconds_ = 0.0F;
+    playRequest_ = false;
     eventEffect_.Reset();
 }
 
@@ -2150,6 +2157,10 @@ bool DamageEffect::OnDamage(DamageType damageType) noexcept
 {
     if (damageType_ != damageType)
         return false;
+    // DamageEffect::OnDamage always calls GiveSource3d, even while the
+    // previous visual actor is still alive. The adapter consumes this
+    // independently from the one-live-effect MakeEffect result.
+    playRequest_ = true;
     const bool created = eventEffect_.MakeEffect();
     if (created)
         effectSeconds_ = 0.0F;
@@ -2201,6 +2212,26 @@ DamageEffect::GetEffectDefinition() const noexcept
     return eventEffect_.GetEffectDefinition();
 }
 
+const std::vector<std::string>&
+DamageEffect::GetSoundPaths() const noexcept
+{
+    return eventEffect_.GetSoundPaths();
+}
+
+bool DamageEffect::HasPlayRequest() const noexcept
+{
+    return playRequest_;
+}
+
+const std::string* DamageEffect::ConsumePlayRequest(
+    float randomUnit) noexcept
+{
+    if (!playRequest_)
+        return nullptr;
+    playRequest_ = false;
+    return eventEffect_.SelectSoundPath(randomUnit);
+}
+
 void ImmortalEffect::Configure(
     const ObjectDefinition* definition,
     std::array<float, 3U> scaleK) noexcept
@@ -2210,12 +2241,19 @@ void ImmortalEffect::Configure(
     Reset();
 }
 
+void ImmortalEffect::ConfigureSounds(
+    std::vector<std::string> soundPaths)
+{
+    eventEffect_.ConfigureSounds(std::move(soundPaths));
+}
+
 void ImmortalEffect::Reset() noexcept
 {
     fadeInTime_ = -1.0F;
     fadeOutTime_ = -1.0F;
     damageTime_ = -1.0F;
     effectSeconds_ = 0.0F;
+    playRequest_ = false;
     eventEffect_.Reset();
 }
 
@@ -2226,6 +2264,10 @@ void ImmortalEffect::OnImmortalStatus(bool status) noexcept
         // EventEffect::MakeEffect keeps an existing fading actor. The source
         // deliberately does not cancel fadeOutTime_ when a new shield starts.
         eventEffect_.MakeEffect();
+        // Like the Windows GiveSource3d path, sound playback belongs to the
+        // activation callback and is not conditional on creating a new
+        // shield actor.
+        playRequest_ = true;
         fadeInTime_ = 0.0F;
     }
     else
@@ -2332,6 +2374,26 @@ ImmortalEffect::GetEffectDefinition() const noexcept
 const std::array<float, 3U>& ImmortalEffect::GetScaleK() const noexcept
 {
     return scaleK_;
+}
+
+const std::vector<std::string>&
+ImmortalEffect::GetSoundPaths() const noexcept
+{
+    return eventEffect_.GetSoundPaths();
+}
+
+bool ImmortalEffect::HasPlayRequest() const noexcept
+{
+    return playRequest_;
+}
+
+const std::string* ImmortalEffect::ConsumePlayRequest(
+    float randomUnit) noexcept
+{
+    if (!playRequest_)
+        return nullptr;
+    playRequest_ = false;
+    return eventEffect_.SelectSoundPath(randomUnit);
 }
 
 void SlowEffect::Reset() noexcept

@@ -339,8 +339,10 @@ int main()
     secondCar.energyDamageEffect.record =
         "world\\db\\root\\ctEffects\\damageEnergybuggi";
     secondCar.energyDamageEffect.maximumTimeLife = 0.5F;
+    secondCar.energyDamageSoundPaths = {"energy-a.ogg"};
     secondCar.shieldEffect.record =
         "world\\db\\root\\ctEffects\\shield1";
+    secondCar.shieldSoundPaths = {"shield-a.ogg"};
     secondCar.shieldEffectScale = {1.3F, 1.7F, 1.7F};
     secondCar.slotMounts[6].position = {2.0F, 3.0F, 4.0F};
     secondCar.slotMounts[6].placements.push_back(
@@ -362,8 +364,12 @@ int main()
             &secondCar.lowLifeEffect ||
         player.energyDamageEffect.GetEffectDefinition() !=
             &secondCar.energyDamageEffect ||
+        player.energyDamageEffect.GetSoundPaths() !=
+            secondCar.energyDamageSoundPaths ||
         player.immortalEffect.GetEffectDefinition() !=
             &secondCar.shieldEffect ||
+        player.immortalEffect.GetSoundPaths() !=
+            secondCar.shieldSoundPaths ||
         player.lowLifePoints.GetEffectPosition()[2] != 0.5F ||
         player.immortalEffect.GetScaleK()[0] != 1.3F ||
         player.immortalEffect.GetScaleK()[1] != 1.7F)

@@ -2011,6 +2011,26 @@ bool OriginalRaceSession::applyRacerDamageInternal(
     // start local shield/damage effects for its outbound request.
     const auto energySpawn =
         runtime.ConsumeEnergyDamageEffectSpawn();
+    if (runtime.energyDamageEffect.HasPlayRequest())
+    {
+        const auto& paths =
+            runtime.energyDamageEffect.GetSoundPaths();
+        const auto* path = runtime.energyDamageEffect.ConsumePlayRequest(
+            paths.empty()
+                ? 0.0F
+                : static_cast<float>(sourceUniformRandomUnit()));
+        if (path != nullptr)
+        {
+            RaceEvent sound;
+            sound.kind = RaceEventKind::EffectSound;
+            sound.racer = target;
+            sound.position = vehicle.body.position;
+            sound.soundPath = *path;
+            sound.soundEventOwner =
+                EventEffectSoundOwner::DamageEffect;
+            events_.push_back(std::move(sound));
+        }
+    }
     if (energySpawn.has_value() && energySpawn->createEffect &&
         energySpawn->definition != nullptr)
     {
@@ -7808,6 +7828,25 @@ void OriginalRaceSession::updateGameplay(
         }
         if (!result.playerApplied)
             return false;
+        if (runtime.immortalEffect.HasPlayRequest())
+        {
+            const auto& paths = runtime.immortalEffect.GetSoundPaths();
+            const auto* path = runtime.immortalEffect.ConsumePlayRequest(
+                paths.empty()
+                    ? 0.0F
+                    : static_cast<float>(sourceUniformRandomUnit()));
+            if (path != nullptr)
+            {
+                RaceEvent sound;
+                sound.kind = RaceEventKind::EffectSound;
+                sound.racer = racer;
+                sound.position = vehicles[racer].body.position;
+                sound.soundPath = *path;
+                sound.soundEventOwner =
+                    EventEffectSoundOwner::ImmortalEffect;
+                events_.push_back(std::move(sound));
+            }
+        }
         PickSlot pickSlot = PickSlot::None;
         switch (result.player.slot)
         {
@@ -11642,6 +11681,21 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     static_cast<std::uint32_t>(index);
             }
             shieldRace.bonuses.push_back(std::move(shieldBonus));
+            shieldRace.vehicle.shieldSoundPaths =
+                {"Data/Sounds/shield-owner-test.ogg"};
+            for (auto& vehicle : shieldRace.vehicles)
+            {
+                vehicle.shieldSoundPaths =
+                    shieldRace.vehicle.shieldSoundPaths;
+            }
+            for (auto& racer : shieldRace.racers)
+            {
+                if (racer.hasConfiguredVehicle)
+                {
+                    racer.configuredVehicle.shieldSoundPaths =
+                        shieldRace.vehicle.shieldSoundPaths;
+                }
+            }
 
             OriginalRaceSession shieldSession(shieldRace);
             auto shieldVehicles = vehicles;
@@ -11668,10 +11722,22 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             shieldSession.update(
                 1.0F / 60.0F, shieldVehicles, shieldInput);
             const auto& picked = shieldSession.racers().front();
+            const bool hasShieldOwnerSound = std::any_of(
+                shieldSession.events().begin(),
+                shieldSession.events().end(),
+                [](const RaceEvent& event) {
+                    return event.kind == RaceEventKind::EffectSound &&
+                           event.racer == 0U &&
+                           event.soundEventOwner ==
+                               EventEffectSoundOwner::ImmortalEffect &&
+                           event.soundPath ==
+                               "Data/Sounds/shield-owner-test.ogg";
+                });
             if (std::abs(picked.GetShieldSeconds() - 10.0F) > 0.001F ||
                 picked.immortalEffect.GetEffectSeconds() != 0.0F ||
                 picked.immortalEffect.GetFadeInTime() != 0.0F ||
-                picked.immortalEffect.GetFadeOutTime() >= 0.0F)
+                picked.immortalEffect.GetFadeOutTime() >= 0.0F ||
+                !hasShieldOwnerSound)
             {
                 throw std::runtime_error(
                     "source ImmortalEffect activation transition failed");
@@ -14021,7 +14087,23 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
         }
         if (vehicles.size() > 1U)
         {
-            OriginalRaceSession frostSession(race);
+            Race frostRace = race;
+            frostRace.vehicle.energyDamageSoundPaths =
+                {"Data/Sounds/damage-owner-test.ogg"};
+            for (auto& vehicle : frostRace.vehicles)
+            {
+                vehicle.energyDamageSoundPaths =
+                    frostRace.vehicle.energyDamageSoundPaths;
+            }
+            for (auto& racer : frostRace.racers)
+            {
+                if (racer.hasConfiguredVehicle)
+                {
+                    racer.configuredVehicle.energyDamageSoundPaths =
+                        frostRace.vehicle.energyDamageSoundPaths;
+                }
+            }
+            OriginalRaceSession frostSession(frostRace);
             PlayerProfile frostProfile;
             auto& slot = frostProfile.slots[
                 PlayerProfile::firstWeaponSlot];
@@ -14091,6 +14173,17 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 frostSession.racers()[1].GetLife();
             frostSession.update(
                 1.0F / 60.0F, frostVehicles, frostInput);
+            const bool hasDamageOwnerSound = std::any_of(
+                frostSession.events().begin(),
+                frostSession.events().end(),
+                [](const RaceEvent& event) {
+                    return event.kind == RaceEventKind::EffectSound &&
+                           event.racer == 1U &&
+                           event.soundEventOwner ==
+                               EventEffectSoundOwner::DamageEffect &&
+                           event.soundPath ==
+                               "Data/Sounds/damage-owner-test.ogg";
+                });
             if (frostSession.racers()[1].GetLife() >= lifeBeforeFrost ||
                 std::abs(frostSession.racers()[1]
                              .slowEffect.GetRemainingSeconds() - 1.0F) >
@@ -14098,7 +14191,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 frostSession.racers()[1].slowEffect.GetWeapon() !=
                     frostWeapon ||
                 frostSession.racers()[1]
-                        .slowEffect.GetProjectile() != 0U)
+                        .slowEffect.GetProjectile() != 0U ||
+                !hasDamageOwnerSound)
             {
                 throw std::runtime_error(
                     "source FrostRay SlowEffect child was not created");
@@ -14117,7 +14211,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                                effect.sourceEventOwner != nullptr &&
                                effect.sourceEventOwner->IsEffectMaked() &&
                                effect.sourceDefinition ==
-                                   &race.weapons[frostWeapon]
+                                   &frostRace.weapons[frostWeapon]
                                         .projectiles[0U]
                                         .tertiaryVisual;
                     });

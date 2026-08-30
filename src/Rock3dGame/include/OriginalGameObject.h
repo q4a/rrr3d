@@ -876,6 +876,7 @@ public:
         const ObjectDefinition* definition,
         DamageType damageType,
         float maximumTimeLife) noexcept;
+    void ConfigureSounds(std::vector<std::string> soundPaths);
     void Reset() noexcept;
     bool OnDamage(DamageType damageType) noexcept;
     void OnProgress(float deltaTime) noexcept;
@@ -886,11 +887,15 @@ public:
     float GetEffectSeconds() const noexcept;
     EventEffect::SpawnResult GetSpawnResult(bool created) noexcept;
     const ObjectDefinition* GetEffectDefinition() const noexcept;
+    const std::vector<std::string>& GetSoundPaths() const noexcept;
+    bool HasPlayRequest() const noexcept;
+    const std::string* ConsumePlayRequest(float randomUnit) noexcept;
 
 private:
     DamageType damageType_ = DamageType::Simple;
     float maximumTimeLife_ = 0.5F;
     float effectSeconds_ = 0.0F;
+    bool playRequest_ = false;
     EventEffect eventEffect_;
 };
 
@@ -903,6 +908,7 @@ public:
     void Configure(
         const ObjectDefinition* definition,
         std::array<float, 3U> scaleK) noexcept;
+    void ConfigureSounds(std::vector<std::string> soundPaths);
     void Reset() noexcept;
     void OnImmortalStatus(bool status) noexcept;
     void OnDamage() noexcept;
@@ -917,6 +923,9 @@ public:
     float GetDamageAlpha() const noexcept;
     const ObjectDefinition* GetEffectDefinition() const noexcept;
     const std::array<float, 3U>& GetScaleK() const noexcept;
+    const std::vector<std::string>& GetSoundPaths() const noexcept;
+    bool HasPlayRequest() const noexcept;
+    const std::string* ConsumePlayRequest(float randomUnit) noexcept;
 
 private:
     float fadeInTime_ = -1.0F;
@@ -924,6 +933,7 @@ private:
     float damageTime_ = -1.0F;
     float effectSeconds_ = 0.0F;
     std::array<float, 3U> scaleK_{1.0F, 1.0F, 1.0F};
+    bool playRequest_ = false;
     EventEffect eventEffect_;
 };
 

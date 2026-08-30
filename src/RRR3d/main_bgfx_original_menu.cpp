@@ -4313,6 +4313,14 @@ int main(int argc, char** argv)
         r3d::physics::Vec3 position;
         rrr3d::audio::OriginalSource3d emitter;
     };
+    struct EventEffectAudio
+    {
+        std::size_t racer = 0;
+        r3d::game::originalrace::EventEffectSoundOwner owner =
+            r3d::game::originalrace::EventEffectSoundOwner::None;
+        std::string path;
+        rrr3d::audio::OriginalSource3d emitter;
+    };
     struct TimedEffectAudio
     {
         std::size_t followRacer =
@@ -4329,6 +4337,7 @@ int main(int argc, char** argv)
     bool raceLoopTeardownObserved = !options->raceRenderSmokeTest;
     std::vector<ShotEffectAudio> shotEffectAudio;
     std::vector<ContactEffectAudio> contactEffectAudio;
+    std::vector<EventEffectAudio> eventEffectAudio;
     std::vector<TimedEffectAudio> timedEffectAudio;
     auto loadEngineSound = [&](const std::string& path) {
         try
@@ -4400,6 +4409,20 @@ int main(int argc, char** argv)
             preloadDefinition(vehicle.lowLifeEffect);
             preloadDefinition(vehicle.energyDamageEffect);
             preloadDefinition(vehicle.shieldEffect);
+            for (const auto& path : vehicle.energyDamageSoundPaths)
+            {
+                valid =
+                    loadEngineSound(path) !=
+                        r3d::audio::invalidSound &&
+                    valid;
+            }
+            for (const auto& path : vehicle.shieldSoundPaths)
+            {
+                valid =
+                    loadEngineSound(path) !=
+                        r3d::audio::invalidSound &&
+                    valid;
+            }
             for (const auto& death : vehicle.deathEffects)
                 preloadDefinition(death.visual);
         }
@@ -4593,6 +4616,7 @@ int main(int argc, char** argv)
         commentator.reset();
         shotEffectAudio.clear();
         contactEffectAudio.clear();
+        eventEffectAudio.clear();
         timedEffectAudio.clear();
         for (std::size_t racer = 0; racer < engineAudio.size();
              ++racer)
@@ -4602,6 +4626,7 @@ int main(int argc, char** argv)
         stopAllRaceLoops();
         shotEffectAudio.clear();
         contactEffectAudio.clear();
+        eventEffectAudio.clear();
         timedEffectAudio.clear();
         commentator.stop();
         commentator.pause(true);
@@ -7427,6 +7452,10 @@ int main(int argc, char** argv)
                 });
             std::erase_if(
                 contactEffectAudio, [&](const auto& source) {
+                    return source.racer == racer;
+                });
+            std::erase_if(
+                eventEffectAudio, [&](const auto& source) {
                     return source.racer == racer;
                 });
             std::erase_if(
@@ -15230,7 +15259,13 @@ int main(int argc, char** argv)
 #ifdef RRR3D_AUDIO
                     // SoundMotor belongs to the source Car. Its destructor
                     // frees both loops as soon as the car is destroyed.
+                    // DamageEffect/ImmortalEffect sources have the same car
+                    // behavior lifetime.
                     stopRacerMotorAudio(event.target);
+                    std::erase_if(
+                        eventEffectAudio, [&](const auto& source) {
+                            return source.racer == event.target;
+                        });
 #endif
                 }
 #ifdef RRR3D_AUDIO
@@ -15282,7 +15317,53 @@ int main(int argc, char** argv)
                     {
                         const auto sound =
                             loadEngineSound(event.soundPath);
-                        if (event.soundContactActor !=
+                        if (event.soundEventOwner !=
+                            r3d::game::originalrace::
+                                EventEffectSoundOwner::None)
+                        {
+                            auto active = std::find_if(
+                                eventEffectAudio.begin(),
+                                eventEffectAudio.end(),
+                                [&](const EventEffectAudio& source) {
+                                    return source.racer == event.racer &&
+                                           source.owner ==
+                                               event.soundEventOwner &&
+                                           source.path == event.soundPath;
+                                });
+                            if (sound != r3d::audio::invalidSound &&
+                                active == eventEffectAudio.end())
+                            {
+                                EventEffectAudio source;
+                                source.racer = event.racer;
+                                source.owner = event.soundEventOwner;
+                                source.path = event.soundPath;
+                                configureSource(
+                                    source.emitter, sound, false);
+                                source.emitter.SetPlaybackPositionFrames(0U);
+                                source.emitter.SetPos3d(
+                                    {event.position.x, event.position.y,
+                                     event.position.z});
+                                source.emitter.Play();
+                                eventEffectAudio.push_back(
+                                    std::move(source));
+                            }
+                            else if (active != eventEffectAudio.end())
+                            {
+                                // DamageEffect explicitly stops before its
+                                // once-mode rewind. ImmortalEffect only
+                                // rewinds; SetPos itself replaces an active
+                                // backend buffer while retaining play intent.
+                                if (event.soundEventOwner ==
+                                    r3d::game::originalrace::
+                                        EventEffectSoundOwner::DamageEffect)
+                                {
+                                    active->emitter.Stop();
+                                }
+                                active->emitter.SetPlaybackPositionFrames(0U);
+                                active->emitter.Play();
+                            }
+                        }
+                        else if (event.soundContactActor !=
                             std::numeric_limits<std::uint32_t>::max())
                         {
                             const auto active = std::find_if(
@@ -15503,6 +15584,29 @@ int main(int argc, char** argv)
                         running = false;
                     }
                     ++source;
+                }
+                for (auto& source : eventEffectAudio)
+                {
+                    if (source.racer < raceVehicles.size())
+                    {
+                        const auto& position =
+                            raceVehicles[source.racer].body.position;
+                        source.emitter.SetPos3d(
+                            {position.x, position.y, position.z});
+                    }
+                    if (!source.emitter.Update(
+                            {listener.x, listener.y, listener.z},
+                            raceSession.phase() ==
+                                r3d::game::originalrace::RacePhase::Paused,
+                            audioError))
+                    {
+                        std::cerr
+                            << "Original Damage/Immortal EventEffect "
+                               "Source3d failed: "
+                            << audioError << '\n';
+                        runtimeSmokeFailed = true;
+                        running = false;
+                    }
                 }
                 for (auto source = contactEffectAudio.begin();
                      source != contactEffectAudio.end();)

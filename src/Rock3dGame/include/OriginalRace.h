@@ -521,7 +521,11 @@ struct Vehicle
     // DataBase::LoadCar creates damageEnergy<car> and attaches a
     // DamageEffect filtered to dtEnergy for every vehicle.
     ObjectDefinition energyDamageEffect;
+    // EventEffect::_sounds belongs to the car behavior rather than to the
+    // spawned damage actor's own LifeEffect graph.
+    std::vector<std::string> energyDamageSoundPaths;
     ObjectDefinition shieldEffect;
+    std::vector<std::string> shieldSoundPaths;
     Vec3 shieldEffectScale{1.3F, 1.7F, 1.7F};
     std::vector<DeathEffectDefinition> deathEffects;
     r3d::physics::VehicleDescription physics;

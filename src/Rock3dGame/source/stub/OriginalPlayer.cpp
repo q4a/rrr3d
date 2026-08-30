@@ -959,19 +959,24 @@ void Player::SetCar(const Vehicle* record) noexcept
             carRecord_->energyDamageEffect.maximumTimeLife > 0.0F
                 ? carRecord_->energyDamageEffect.maximumTimeLife
                 : 0.5F);
+        energyDamageEffect.ConfigureSounds(
+            carRecord_->energyDamageSoundPaths);
         immortalEffect.Configure(
             &carRecord_->shieldEffect,
             {carRecord_->shieldEffectScale.x,
              carRecord_->shieldEffectScale.y,
              carRecord_->shieldEffectScale.z});
+        immortalEffect.ConfigureSounds(carRecord_->shieldSoundPaths);
     }
     else
     {
         lowLifePoints.Configure(nullptr, {}, 0.35F);
         energyDamageEffect.Configure(
             nullptr, DamageType::Energy, 0.5F);
+        energyDamageEffect.ConfigureSounds({});
         immortalEffect.Configure(
             nullptr, {1.0F, 1.0F, 1.0F});
+        immortalEffect.ConfigureSounds({});
     }
 }
 
