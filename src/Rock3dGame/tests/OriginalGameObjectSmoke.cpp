@@ -126,6 +126,33 @@ protected:
 
 int main()
 {
+    source::Logic soundLogic;
+    using SoundCategory = source::Logic::SoundCategory;
+    if (soundLogic.GetVolume(SoundCategory::Music) != 1.0F ||
+        soundLogic.GetVolume(SoundCategory::Effects) != 1.0F ||
+        soundLogic.GetVolume(SoundCategory::Voice) != 1.0F)
+        return 101;
+    soundLogic.AutodetectVolume();
+    if (std::abs(soundLogic.GetVolume(SoundCategory::Music) - 1.2F) >
+            0.0001F ||
+        std::abs(soundLogic.GetVolume(SoundCategory::Effects) - 0.8F) >
+            0.0001F ||
+        std::abs(soundLogic.GetVolume(SoundCategory::Voice) - 1.2F) >
+            0.0001F)
+        return 102;
+    soundLogic.Mute(SoundCategory::Effects, true);
+    soundLogic.SetVolume(SoundCategory::Effects, 0.35F);
+    if (!soundLogic.IsMuted(SoundCategory::Effects) ||
+        soundLogic.GetVolume(SoundCategory::Effects) != 0.0F ||
+        std::abs(soundLogic.GetStoredVolume(SoundCategory::Effects) -
+                 0.35F) > 0.0001F)
+        return 103;
+    soundLogic.Mute(SoundCategory::Effects, false);
+    if (soundLogic.IsMuted(SoundCategory::Effects) ||
+        std::abs(soundLogic.GetVolume(SoundCategory::Effects) - 0.35F) >
+            0.0001F)
+        return 104;
+
     if (std::string(source::BehaviorTypeName(
             source::BehaviorType::ShotEffect)) != "btShotEffect" ||
         std::string(source::BehaviorTypeName(

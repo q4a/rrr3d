@@ -246,6 +246,17 @@ class Logic final : public WorldHost
 public:
     using ContactRange = std::array<float, 2U>;
 
+    // Logic::SndCategory owns the persistent gain and mute state. The native
+    // audio backend is only the replacement for the three XAudio2 submix
+    // voices and consumes GetVolume() at its platform boundary.
+    enum class SoundCategory : std::uint8_t
+    {
+        Music = 0U,
+        Effects,
+        Voice,
+        Count,
+    };
+
     enum class SlotType : std::uint8_t
     {
         Hyper = 0U,
@@ -383,7 +394,20 @@ public:
     const ContactRange& GetTouchCarDamageForce() const noexcept;
     void SetTouchCarDamageForce(ContactRange value) noexcept;
 
+    float GetVolume(SoundCategory category) const noexcept;
+    float GetStoredVolume(SoundCategory category) const noexcept;
+    void SetVolume(SoundCategory category, float value) noexcept;
+    void AutodetectVolume() noexcept;
+    void Mute(SoundCategory category, bool value) noexcept;
+    bool IsMuted(SoundCategory category) const noexcept;
+
 private:
+    static constexpr std::size_t SoundCategoryIndex(
+        SoundCategory category) noexcept
+    {
+        return static_cast<std::size_t>(category);
+    }
+
     WorldEventPump* world_ = nullptr;
     Map* map_ = nullptr;
     std::vector<std::unique_ptr<GameObject>> gameObjects_;
@@ -393,6 +417,10 @@ private:
     ContactRange touchBorderDamageForce_{};
     ContactRange touchCarDamage_{};
     ContactRange touchCarDamageForce_{};
+    std::array<float, static_cast<std::size_t>(SoundCategory::Count)>
+        soundVolumes_{1.0F, 1.0F, 1.0F};
+    std::array<bool, static_cast<std::size_t>(SoundCategory::Count)>
+        soundMutes_{};
 };
 
 } // namespace r3d::game::originalrace::source

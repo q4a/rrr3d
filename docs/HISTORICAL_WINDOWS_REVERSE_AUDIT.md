@@ -5949,6 +5949,23 @@ activation cue приходит из DeathEffect бонуса `Snd\\shieldOn`). 
 активные ресурсы не получают выдуманный новый звук; synthetic regressions
 закрепляют полностью рабочий callback для данных, где каталог задан.
 
+### P2.263 — `Logic::SndCategory` снова владеет gain и mute — выполнено
+
+После возврата concrete Source/Source3d оставался более высокий утраченный
+owner: Windows `Logic` создаёт три submix voice, хранит `_volume/_mute` для
+Music, Effects и Voice, а `GameMode::Pause` вызывает только
+`Mute(scEffects)`. Portable host вместо этого читал profile config напрямую
+и вычислял zero/restore из race pause-флага.
+
+В `source::Logic` возвращены `GetVolume`, `SetVolume`, `AutodetectVolume` и
+`Mute` с исходной семантикой: stored volume меняется даже под mute, applied
+volume остаётся нулём и восстанавливается при unmute. RaceSession больше не
+выдаёт pause как суррогат audio-state и маршрутизирует pause в Effects owner.
+Config load, Options preview/cancel/apply, race-start и finish music fade
+передают в SDL/CoreAudio уже готовый source gain. Backend только реализует
+три submix bus; source default/autodetect/muted-update и active pause/resume
+закреплены regressions.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

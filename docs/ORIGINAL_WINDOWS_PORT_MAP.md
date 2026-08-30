@@ -60,7 +60,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `GameObject` | `source::GameObject`, event counters, frame sync, listener/contact graph | Source owner, active core | Jolt/bgfx snapshots остаются backend boundary; source fixed/frame registration подключена |
 | `HudMenu` | `source::{HudMenu,MiniMapFrame,PlayerStateFrame}` + `OriginalRaceHud` | Source owner, active HUD/minimap/player-state policy | State/Escape/layout/countdown, MiniMap, weapon/place/life, OnProcessEvent, notifications, car-life и opponents source-owned; FinishMenu не дублируется, bgfx/CoreText payload и camera projection остаются backend boundary |
 | `HumanPlayer` | `source::HumanPlayer` | Source owner | Полный input message order, driving/progress gates и weapon selection перенесены; SDL только переводит source-сообщения |
-| `Logic` | `source::Logic` + shared active `WorldEventPump` registration | Source owner, active object/contact core | Убрать оставшиеся network authority и projectile backend-view loops из session |
+| `Logic` | `source::Logic` + shared active `WorldEventPump` registration | Source owner, active object/contact/audio-category core | Music/Effects/Voice gain и mute source-owned; убрать оставшиеся network authority и projectile backend-view loops из session, SDL/CoreAudio остаётся submix backend |
 | `MainMenu2` | `mainmenu2::{Controller,FrameController,ProfileFrameState,FinalMenuFrameState}` + `originalmenu::ScreenStack` | Source owner, active Main/Profile/Final path | Остались concrete network callbacks и backend draw submission |
 | `Map` | `source::Map` + shared `source::DataBase` | Source owner, active registry path | XML parsing и backend actor create/destroy остаются adapters |
 | `MapObj` | `source::MapObj*` record/list hierarchy | Source owner, partial | Убрать importer/runtime mirrors и проверить все concrete object types |
@@ -1015,6 +1015,19 @@ LifeEffect sounds порождённого actor; Damage выполняет Stop
 Shipped каталоги доказанно пусты (`<sounds />`, закомментированные bullet
 AddSound), поэтому порт не добавляет искусственный cue; shield bonus по-прежнему
 звучит через исходный `Snd\\shieldOn` Death/LifeEffect путь.
+
+Результат B8bj: возвращены `Logic::GetVolume`, `SetVolume`,
+`AutodetectVolume` и `Mute` для исходных `scMusic/scEffects/scVoice`.
+`source::Logic` снова раздельно хранит persistent gain и mute-флаг каждой
+категории: изменение громкости во время mute не включает звук, а unmute
+восстанавливает последнее значение. `GameMode::Pause` теперь действительно
+вызывает Effects mute у этого owner-а; прежний session pause-суррогат удалён.
+
+Initial config, Options live preview/cancel/apply, race start и finish music
+fade получают итоговый gain из `Logic`. SDL/CoreAudio только выставляет
+соответствующий bus volume и больше не решает, какое сохранённое значение
+нужно восстановить. Regression проверяет исходные autodetect 1.2/0.8/1.2,
+SetVolume под mute и активный pause→zero→resume path RaceSession.
 
 ## Правило обновления карты
 

@@ -436,6 +436,16 @@ public:
     void setEnableMineBug(bool enabled) noexcept;
     void setSpringBorders(bool enabled) noexcept;
     void setPaused(bool paused) noexcept;
+    void setSoundVolume(
+        source::Logic::SoundCategory category, float value) noexcept;
+    float soundVolume(
+        source::Logic::SoundCategory category) const noexcept;
+    float storedSoundVolume(
+        source::Logic::SoundCategory category) const noexcept;
+    void muteSound(
+        source::Logic::SoundCategory category, bool value) noexcept;
+    bool soundMuted(
+        source::Logic::SoundCategory category) const noexcept;
     // AIDebug::Control toggles AICar::_enbAI for the inspected human car on
     // F7.  This is intentionally runtime-only and never changes race setup.
     void setDebugHumanAiControl(bool enabled) noexcept;
@@ -501,7 +511,8 @@ public:
     float elapsedSeconds() const noexcept;
     bool finishPresentationReady() const noexcept;
     // GameMode::Pause couples World::Pause with Logic::Mute(scEffects).
-    // The audio backend consumes this state at its platform boundary.
+    // The audio backend consumes Logic's resulting category volume at its
+    // platform boundary.
     bool effectsMuted() const noexcept;
     const std::vector<r3d::physics::VehicleInput>& vehicleInputs() const
         noexcept;

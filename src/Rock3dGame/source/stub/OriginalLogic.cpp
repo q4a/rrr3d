@@ -834,4 +834,45 @@ void Logic::SetTouchCarDamageForce(ContactRange value) noexcept
     touchCarDamageForce_ = value;
 }
 
+float Logic::GetVolume(SoundCategory category) const noexcept
+{
+    const auto index = SoundCategoryIndex(category);
+    if (index >= soundVolumes_.size())
+        return 0.0F;
+    return soundMutes_[index] ? 0.0F : soundVolumes_[index];
+}
+
+float Logic::GetStoredVolume(SoundCategory category) const noexcept
+{
+    const auto index = SoundCategoryIndex(category);
+    return index < soundVolumes_.size() ? soundVolumes_[index] : 0.0F;
+}
+
+void Logic::SetVolume(SoundCategory category, float value) noexcept
+{
+    const auto index = SoundCategoryIndex(category);
+    if (index < soundVolumes_.size())
+        soundVolumes_[index] = value;
+}
+
+void Logic::AutodetectVolume() noexcept
+{
+    SetVolume(SoundCategory::Music, 1.2F);
+    SetVolume(SoundCategory::Effects, 0.8F);
+    SetVolume(SoundCategory::Voice, 1.2F);
+}
+
+void Logic::Mute(SoundCategory category, bool value) noexcept
+{
+    const auto index = SoundCategoryIndex(category);
+    if (index < soundMutes_.size())
+        soundMutes_[index] = value;
+}
+
+bool Logic::IsMuted(SoundCategory category) const noexcept
+{
+    const auto index = SoundCategoryIndex(category);
+    return index < soundMutes_.size() && soundMutes_[index];
+}
+
 } // namespace r3d::game::originalrace::source

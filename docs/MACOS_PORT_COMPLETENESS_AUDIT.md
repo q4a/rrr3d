@@ -2350,6 +2350,23 @@ rewind только при включении бессмертия. Active host 
 Synthetic GameObject/RaceSession regressions проверяют random selection,
 повторный Damage request при живом actor и отдельную Immortal identity.
 
+### B8bj — `Logic::SndCategory` gain/mute owner — выполнено
+
+Аудит `Logic::{InitSndCat,GetVolume,SetVolume,AutodetectVolume,Mute}` выявил,
+что три submix-состояния всё ещё отсутствовали в portable owner. Host сам
+хранил config gain, сам подставлял ноль при pause и сам решал, что вернуть
+после resume. Это было дублированием игрового состояния, а не допустимой
+заменой XAudio2.
+
+`source::Logic` теперь владеет Music/Effects/Voice stored gain и mute
+независимо. `SetVolume` во время mute сохраняет новое значение без
+включения категории; `Mute(false)` раскрывает последний gain. Активные
+initial/apply/cancel/live-preview, race-start и finish-fade ветви читают
+этот owner, а `GameMode::Pause` переключает именно Effects. SDL/CoreAudio
+остаётся только backend submix. GameObject regression закрепляет default,
+autodetect 1.2/0.8/1.2 и muted update; RaceSession regression — pause/resume
+с сохранением пользовательской громкости.
+
 ## Воспроизведение проверки
 
 ```sh

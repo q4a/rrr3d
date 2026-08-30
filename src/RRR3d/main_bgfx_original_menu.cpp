@@ -3743,6 +3743,20 @@ int main(int argc, char** argv)
     raceSession.applyAchievementProfile(profileState);
     raceSession.setEnableMineBug(profileState.config.enableMineBug);
     raceSession.setSpringBorders(profileState.config.springBorders);
+    using LogicSoundCategory =
+        r3d::game::originalrace::source::Logic::SoundCategory;
+    auto applyProfileSoundVolumesToLogic = [&]() {
+        raceSession.setSoundVolume(
+            LogicSoundCategory::Music,
+            profileState.config.musicVolume);
+        raceSession.setSoundVolume(
+            LogicSoundCategory::Effects,
+            profileState.config.effectsVolume);
+        raceSession.setSoundVolume(
+            LogicSoundCategory::Voice,
+            profileState.config.voiceVolume);
+    };
+    applyProfileSoundVolumesToLogic();
     auto bindSourceVehicleFixedStep = [&]() {
         if (!physicsWorld)
             return;
@@ -4068,11 +4082,14 @@ int main(int argc, char** argv)
     audio.setMasterVolume(originalaudio::masteringVoiceVolume);
 #ifdef RRR3D_PHYSICS
     audio.setBusVolume(r3d::audio::Bus::Music,
-                       profileState.config.musicVolume);
+                       raceSession.soundVolume(
+                           LogicSoundCategory::Music));
     audio.setBusVolume(r3d::audio::Bus::Effects,
-                       profileState.config.effectsVolume);
+                       raceSession.soundVolume(
+                           LogicSoundCategory::Effects));
     audio.setBusVolume(r3d::audio::Bus::Voice,
-                       profileState.config.voiceVolume);
+                       raceSession.soundVolume(
+                           LogicSoundCategory::Voice));
 #else
     audio.setBusVolume(r3d::audio::Bus::Music,
                        originalaudio::defaultMusicVolume);
@@ -4596,9 +4613,11 @@ int main(int argc, char** argv)
         stopAllRaceLoops();
         sourceMenuMusicGain = 1.0F;
         audio.setBusVolume(r3d::audio::Bus::Music,
-                           profileState.config.musicVolume);
+                           raceSession.soundVolume(
+                               LogicSoundCategory::Music));
         audio.setBusVolume(r3d::audio::Bus::Effects,
-                           profileState.config.effectsVolume);
+                           raceSession.soundVolume(
+                               LogicSoundCategory::Effects));
         if (!music.pause(true, audioError) ||
             !gameMusic.play(audioError))
         {
@@ -6876,9 +6895,8 @@ int main(int argc, char** argv)
 #ifdef RRR3D_AUDIO
         audio.setBusVolume(
             r3d::audio::Bus::Effects,
-            raceSession.effectsMuted()
-                ? 0.0F
-                : profileState.config.effectsVolume);
+            raceSession.soundVolume(
+                LogicSoundCategory::Effects));
 #endif
     };
     auto closeExitRaceDialog = [&]() {
@@ -6905,7 +6923,8 @@ int main(int argc, char** argv)
 #ifdef RRR3D_AUDIO
         raceEffectsMuteObserved = raceEffectsMuteObserved &&
             std::abs(audio.busVolume(r3d::audio::Bus::Effects) -
-                     profileState.config.effectsVolume) < 0.0001F;
+                     raceSession.soundVolume(
+                         LogicSoundCategory::Effects)) < 0.0001F;
 #endif
         clearRaceControls();
         previousFrameTicks = SDL_GetTicksNS();
@@ -9482,15 +9501,16 @@ int main(int argc, char** argv)
     };
     auto cancelOriginalOptions = [&]() {
 #ifdef RRR3D_AUDIO
+        applyProfileSoundVolumesToLogic();
         audio.setBusVolume(
             r3d::audio::Bus::Music,
-            profileState.config.musicVolume);
+            raceSession.soundVolume(LogicSoundCategory::Music));
         audio.setBusVolume(
             r3d::audio::Bus::Effects,
-            profileState.config.effectsVolume);
+            raceSession.soundVolume(LogicSoundCategory::Effects));
         audio.setBusVolume(
             r3d::audio::Bus::Voice,
-            profileState.config.voiceVolume);
+            raceSession.soundVolume(LogicSoundCategory::Voice));
 #endif
         sourceOptionsMenu.cancel(
             profileState.config, profileState.player.difficulty);
@@ -9611,15 +9631,16 @@ int main(int argc, char** argv)
         }
 #endif
 #ifdef RRR3D_AUDIO
+        applyProfileSoundVolumesToLogic();
         audio.setBusVolume(
             r3d::audio::Bus::Music,
-            profileState.config.musicVolume);
+            raceSession.soundVolume(LogicSoundCategory::Music));
         audio.setBusVolume(
             r3d::audio::Bus::Effects,
-            profileState.config.effectsVolume);
+            raceSession.soundVolume(LogicSoundCategory::Effects));
         audio.setBusVolume(
             r3d::audio::Bus::Voice,
-            profileState.config.voiceVolume);
+            raceSession.soundVolume(LogicSoundCategory::Voice));
         if (profileState.config.commentatorStyle !=
             previousConfig.commentatorStyle)
         {
@@ -9678,17 +9699,35 @@ int main(int argc, char** argv)
         if (menuStack.back() == MenuScreen::SoundOptions)
         {
             if (menuSelection == 2U)
+            {
+                raceSession.setSoundVolume(
+                    LogicSoundCategory::Music,
+                    optionsDraftConfig.musicVolume);
                 audio.setBusVolume(
                     r3d::audio::Bus::Music,
-                    optionsDraftConfig.musicVolume);
+                    raceSession.soundVolume(
+                        LogicSoundCategory::Music));
+            }
             else if (menuSelection == 3U)
+            {
+                raceSession.setSoundVolume(
+                    LogicSoundCategory::Effects,
+                    optionsDraftConfig.effectsVolume);
                 audio.setBusVolume(
                     r3d::audio::Bus::Effects,
-                    optionsDraftConfig.effectsVolume);
+                    raceSession.soundVolume(
+                        LogicSoundCategory::Effects));
+            }
             else if (menuSelection == 4U)
+            {
+                raceSession.setSoundVolume(
+                    LogicSoundCategory::Voice,
+                    optionsDraftConfig.voiceVolume);
                 audio.setBusVolume(
                     r3d::audio::Bus::Voice,
-                    optionsDraftConfig.voiceVolume);
+                    raceSession.soundVolume(
+                        LogicSoundCategory::Voice));
+            }
         }
 #endif
         refreshCurrentOptionsPage();
@@ -16089,7 +16128,7 @@ int main(int argc, char** argv)
                 0.0F, 1.0F);
             audio.setBusVolume(
                 r3d::audio::Bus::Music,
-                profileState.config.musicVolume *
+                raceSession.soundVolume(LogicSoundCategory::Music) *
                     sourceMenuMusicGain);
             finishMenuMusicFadeObserved =
                 finishMenuMusicFadeObserved ||

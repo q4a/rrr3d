@@ -2325,6 +2325,7 @@ OriginalRaceSession::applyDecorationDamageInternal(
 void OriginalRaceSession::setPaused(bool paused) noexcept
 {
     gameModeRaceState_.Pause(paused);
+    logic_.Mute(source::Logic::SoundCategory::Effects, paused);
     if (paused && phase_ != RacePhase::Paused)
     {
         phaseBeforePause_ = phase_;
@@ -2334,6 +2335,36 @@ void OriginalRaceSession::setPaused(bool paused) noexcept
     {
         phase_ = phaseBeforePause_;
     }
+}
+
+void OriginalRaceSession::setSoundVolume(
+    source::Logic::SoundCategory category, float value) noexcept
+{
+    logic_.SetVolume(category, value);
+}
+
+float OriginalRaceSession::soundVolume(
+    source::Logic::SoundCategory category) const noexcept
+{
+    return logic_.GetVolume(category);
+}
+
+float OriginalRaceSession::storedSoundVolume(
+    source::Logic::SoundCategory category) const noexcept
+{
+    return logic_.GetStoredVolume(category);
+}
+
+void OriginalRaceSession::muteSound(
+    source::Logic::SoundCategory category, bool value) noexcept
+{
+    logic_.Mute(category, value);
+}
+
+bool OriginalRaceSession::soundMuted(
+    source::Logic::SoundCategory category) const noexcept
+{
+    return logic_.IsMuted(category);
 }
 
 void OriginalRaceSession::synchronizeNetworkCountdown(
@@ -2440,7 +2471,7 @@ bool OriginalRaceSession::finishPresentationReady() const noexcept
 
 bool OriginalRaceSession::effectsMuted() const noexcept
 {
-    return gameModeRaceState_.IsPaused();
+    return logic_.IsMuted(source::Logic::SoundCategory::Effects);
 }
 
 const std::vector<r3d::physics::VehicleInput>&
@@ -9073,10 +9104,27 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             throw std::runtime_error(
                 "offline cGoRaceWait source stage was not initialized");
         }
+        session.setSoundVolume(
+            source::Logic::SoundCategory::Effects, 0.35F);
+        if (std::abs(session.soundVolume(
+                         source::Logic::SoundCategory::Effects) -
+                     0.35F) > 0.0001F ||
+            std::abs(session.storedSoundVolume(
+                         source::Logic::SoundCategory::Effects) -
+                     0.35F) > 0.0001F)
+        {
+            throw std::runtime_error(
+                "Logic Effects source category setup failed");
+        }
         session.setPaused(true);
         session.update(0.1F, vehicles, input);
         if (session.phase() != RacePhase::Paused ||
             !session.effectsMuted() ||
+            session.soundVolume(
+                source::Logic::SoundCategory::Effects) != 0.0F ||
+            std::abs(session.storedSoundVolume(
+                         source::Logic::SoundCategory::Effects) -
+                     0.35F) > 0.0001F ||
             session.countdownSeconds() != 4.0F)
         {
             throw std::runtime_error(
@@ -9084,7 +9132,10 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
         }
         session.setPaused(false);
         if (session.phase() != RacePhase::Countdown ||
-            session.effectsMuted())
+            session.effectsMuted() ||
+            std::abs(session.soundVolume(
+                         source::Logic::SoundCategory::Effects) -
+                     0.35F) > 0.0001F)
         {
             throw std::runtime_error(
                 "GameMode::Pause effects restore mismatch");
