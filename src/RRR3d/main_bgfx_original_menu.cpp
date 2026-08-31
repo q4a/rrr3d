@@ -16087,6 +16087,14 @@ int main(int argc, char** argv)
                     }
                     raceSession.synchronizeProjectilePhysics(
                         projectileStates);
+                    for (const auto& binding : decorationDebrisBindings)
+                    {
+                        if (binding.debris >= physicsWorld->debrisCount())
+                            continue;
+                        raceSession.synchronizeDecorationDebrisPhysics(
+                            binding.instance, binding.piece,
+                            physicsWorld->debris(binding.debris));
+                    }
                 };
                 if (sourceFramePlan.fixedSteps == 0U)
                 {
@@ -16145,21 +16153,6 @@ int main(int argc, char** argv)
                             index, raceVehicles[index], frameSeconds,
                             sourceFramePlan.physicsAlpha);
                 }
-            }
-            decorationFragments.clear();
-            decorationFragments.reserve(
-                decorationDebrisBindings.size());
-            for (const auto& binding : decorationDebrisBindings)
-            {
-                if (binding.debris >= physicsWorld->debrisCount())
-                    continue;
-                const auto& debris =
-                    physicsWorld->debris(binding.debris);
-                if (!debris.active)
-                    continue;
-                decorationFragments.push_back(
-                    {binding.instance, binding.piece,
-                     debris.body});
             }
             vehicleDeathFragments.clear();
             vehicleDeathFragments.reserve(
@@ -16794,6 +16787,23 @@ int main(int argc, char** argv)
                     {position[0], position[1], position[2]};
                 originalRace->decorationInstances[index].transform.rotation =
                     {rotation[0], rotation[1], rotation[2], rotation[3]};
+            }
+            decorationFragments.clear();
+            decorationFragments.reserve(
+                decorationDebrisBindings.size());
+            for (const auto& binding : decorationDebrisBindings)
+            {
+                if (binding.debris >= physicsWorld->debrisCount() ||
+                    !physicsWorld->debris(binding.debris).active)
+                    continue;
+                const auto transform =
+                    raceSession.decorationDebrisFrameTransform(
+                        binding.instance, binding.piece);
+                if (transform)
+                {
+                    decorationFragments.push_back(
+                        {binding.instance, binding.piece, *transform});
+                }
             }
             const auto humanRacer = raceSession.humanRacer();
             gameDebug.updateFrame(frameSeconds);

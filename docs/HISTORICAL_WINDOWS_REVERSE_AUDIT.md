@@ -6912,3 +6912,19 @@ linear velocity и `Body::IsActive()`, session хранит их в concrete sou
 предыдущий physics step, а не предыдущий render frame. Backend boundary не
 изменён: Jolt владеет actor/solver и gameplay pose, source владеет event order
 и render interpolation.
+
+### P2.321 — отделённые части разрушения возвращены source GameObject — выполнено
+
+Оригинальный `DestrObj::OnProgress` не создаёт визуальные копии: он вставляет
+те же объекты `_destrList` в `Map`, задаёт им world position/rotation parent-а
+и очищает только контейнер списка. Следовательно, дальнейшая синхронизация
+PhysX actor принадлежит конкретному перенесённому child `GameObject`.
+
+Portable destruction event правильно создавал тела Jolt, но строил
+`DecorationFragmentState` прямо из `DebrisState`, минуя source graph events.
+Теперь session захватывает child pointers до `ReleaseDestruction` (перемещение
+`unique_ptr` не меняет адрес), хранит точную пару instance/piece и направляет
+каждую завершённую solver pose в этот source object. Metal читает fragment
+transform после `WorldEventPump::FrameStep`; Jolt продолжает владеть телом,
+контактами и конечной gameplay pose. Source regression фиксирует transfer,
+interpolation и wake→sleep unregister на реальном `crush1`.

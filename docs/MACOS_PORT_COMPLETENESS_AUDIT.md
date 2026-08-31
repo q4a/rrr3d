@@ -3131,3 +3131,22 @@ source `WorldEventPump::FrameStep`. Одновременно projectile pose-his
 
 Physics regression требует ненулевую опубликованную скорость падающей бочки,
 awake-state во время движения и нулевую скорость после source reset.
+
+### B8dp — подключена pose-history отделённых DestrObj children — выполнено
+
+`eff9338:prog/Rock3dGame/source/game/GameCar.cpp::DestrObj::OnProgress`
+переносит каждый тот же child `MapObj` из `_destrList` в runtime `Map`, снимает
+parent/owner, затем задаёт ему world pose разрушенного объекта. После этого
+его PhysX actor остаётся обычным `GameObject` actor и участвует в общем
+wake/sleep + `OnPxSync` lifecycle.
+
+Порт создавал правильные Jolt debris bodies, но renderer читал их solver pose
+напрямую. Session теперь сохраняет стабильные адреса именно перемещённых
+source children, сопоставляет их с serialized piece index и публикует pose,
+linear velocity и awake-state после каждого source fixed step. После frame
+dispatch fragment renderer получает позу этого child `GameObject`; scale
+остаётся scale исходного parent instance, как в прежнем backend mapping.
+
+Regression разрушает shipped `crush1`, проверяет перенос всех children в Map,
+half-alpha позу динамической части, её body-progress registration и финальную
+sleep pose. Physics regression отдельно требует реальную debris velocity.

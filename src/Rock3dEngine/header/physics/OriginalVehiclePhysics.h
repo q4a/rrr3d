@@ -468,6 +468,7 @@ struct DebrisDescription
 struct DebrisState
 {
     Transform body;
+    Vec3 linearVelocity;
     bool active = false;
     bool bodyAwake = false;
 };

@@ -2692,6 +2692,7 @@ private:
         bodies.DestroyBody(debris.body);
         debris.body = JPH::BodyID();
         debris.state.active = false;
+        debris.state.linearVelocity = {};
         debris.state.bodyAwake = false;
     }
 
@@ -3412,6 +3413,7 @@ private:
         debris.state.bodyAwake = body.IsActive();
         debris.state.body.position = fromJolt(body.GetPosition());
         debris.state.body.rotation = fromJolt(body.GetRotation());
+        debris.state.linearVelocity = fromJolt(body.GetLinearVelocity());
     }
 
     void updateState(std::size_t index) noexcept
@@ -4834,9 +4836,18 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
     const float debrisStartHeight =
         contactWorld->debris(debrisIndex).body.position.z;
     input = {};
+    bool debrisPublishedMotion = false;
     for (int step = 0; step < 120; ++step)
+    {
         contactWorld->step(1.0F / 120.0F, input);
-    if (contactWorld->debris(debrisIndex).body.position.z >=
+        debrisPublishedMotion = debrisPublishedMotion ||
+            (contactWorld->debris(debrisIndex).bodyAwake &&
+             std::abs(
+                 contactWorld->debris(debrisIndex).linearVelocity.z) >
+                 0.01F);
+    }
+    if (!debrisPublishedMotion ||
+        contactWorld->debris(debrisIndex).body.position.z >=
         debrisStartHeight - 0.1F)
     {
         error = "source gotDestrObj dynamic body did not enter Jolt physics";

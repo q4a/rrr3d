@@ -581,6 +581,11 @@ public:
     void synchronizeDecorationPhysics(
         std::size_t decoration,
         const r3d::physics::DecorationState& state) noexcept;
+    void synchronizeDecorationDebrisPhysics(
+        std::size_t decoration, std::size_t piece,
+        const r3d::physics::DebrisState& state) noexcept;
+    std::optional<Transform> decorationDebrisFrameTransform(
+        std::size_t decoration, std::size_t piece) const noexcept;
 
 private:
     bool legacyWindowsDebug_ = false;
@@ -785,6 +790,12 @@ private:
     // demand. They never participate in gameplay decisions.
     mutable std::vector<bool> decorationActive_;
     mutable std::vector<float> decorationLife_;
+    // DestrObj::ReleaseDestruction moves these exact child MapObjs from the
+    // serialized destruction list into Map. Pointers remain stable across
+    // the unique_ptr transfer and identify each Jolt debris actor's source
+    // GameObject without inventing another gameplay object.
+    std::vector<std::vector<source::GameObject*>>
+        releasedDecorationPieces_;
     // Renderer compatibility views rebuilt from live MapObj/AutoProj on
     // demand. Source GameObject state owns pickup/hazard lifetime; Jolt only
     // follows it with a sensor body.

@@ -1338,6 +1338,7 @@ void OriginalRaceSession::reset()
     // live car through that owner before clearing the remaining map lists.
     for (auto& player : racers_)
         player.FreeCar(true);
+    releasedDecorationPieces_.clear();
     map_.Clear();
     dataBase_.Configure(race_, logic_);
     racers_.clear();
@@ -1354,6 +1355,7 @@ void OriginalRaceSession::reset()
     racePlaceModel_.Reset();
     decorationActive_.assign(race_.decorationInstances.size(), false);
     decorationLife_.assign(race_.decorationInstances.size(), 0.0F);
+    releasedDecorationPieces_.resize(race_.decorationInstances.size());
     decorationObjects().Reserve(race_.decorationInstances.size());
     for (std::size_t index = 0U;
          index < race_.decorationInstances.size(); ++index)
@@ -2437,6 +2439,16 @@ OriginalRaceSession::applyDecorationDamageInternal(
 
     if (!object.HasPendingDestruction())
         return {currentLife, true};
+    auto& releasedPieces = releasedDecorationPieces_[hit];
+    releasedPieces.assign(
+        object.GetDestrList().GetSlotCount(), nullptr);
+    for (std::size_t piece = 0U;
+         piece < object.GetDestrList().GetSlotCount(); ++piece)
+    {
+        auto* child = object.GetDestrList().Get(piece);
+        if (child != nullptr)
+            releasedPieces[piece] = &child->GetGameObj();
+    }
     decorationObjects().ProgressOne(hit, 0.0F);
     const Vec3 position =
         race_.decorationInstances[hit].transform.position;
@@ -2973,6 +2985,53 @@ void OriginalRaceSession::synchronizeDecorationPhysics(
         {rotation.x, rotation.y, rotation.z, rotation.w},
         {velocity.x, velocity.y, velocity.z},
         state.active && state.bodyAwake);
+}
+
+void OriginalRaceSession::synchronizeDecorationDebrisPhysics(
+    std::size_t decoration, std::size_t piece,
+    const r3d::physics::DebrisState& state) noexcept
+{
+    if (decoration >= releasedDecorationPieces_.size() ||
+        piece >= releasedDecorationPieces_[decoration].size())
+        return;
+    auto* object = releasedDecorationPieces_[decoration][piece];
+    if (object == nullptr)
+        return;
+    const auto currentPosition = object->GetWorldPos();
+    const auto currentRotation = object->GetWorldRot();
+    const auto position = state.active
+        ? state.body.position
+        : Vec3{currentPosition[0], currentPosition[1], currentPosition[2]};
+    const auto rotation = state.active
+        ? state.body.rotation
+        : Quat{currentRotation[0], currentRotation[1],
+               currentRotation[2], currentRotation[3]};
+    const auto velocity = state.active ? state.linearVelocity : Vec3{};
+    object->SynchronizePhysicsState(
+        {position.x, position.y, position.z},
+        {rotation.x, rotation.y, rotation.z, rotation.w},
+        {velocity.x, velocity.y, velocity.z},
+        state.active && state.bodyAwake);
+}
+
+std::optional<Transform>
+OriginalRaceSession::decorationDebrisFrameTransform(
+    std::size_t decoration, std::size_t piece) const noexcept
+{
+    if (decoration >= race_.decorationInstances.size() ||
+        decoration >= releasedDecorationPieces_.size() ||
+        piece >= releasedDecorationPieces_[decoration].size())
+        return std::nullopt;
+    const auto* object = releasedDecorationPieces_[decoration][piece];
+    if (object == nullptr)
+        return std::nullopt;
+    const auto position = object->GetWorldPos();
+    const auto rotation = object->GetWorldRot();
+    auto result = race_.decorationInstances[decoration].transform;
+    result.position = {position[0], position[1], position[2]};
+    result.rotation = {
+        rotation[0], rotation[1], rotation[2], rotation[3]};
+    return result;
 }
 
 void OriginalRaceSession::synchronizeProjectilePhysics(
@@ -11317,6 +11376,74 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                         "source DestrObj transferred child proxy state "
                         "mismatch");
                 }
+            }
+            const auto dynamicPiece = std::find_if(
+                destructionDefinition.destructionPieces.begin(),
+                destructionDefinition.destructionPieces.end(),
+                [](const DestructionPieceDefinition& piece) {
+                    return piece.dynamic;
+                });
+            if (dynamicPiece ==
+                destructionDefinition.destructionPieces.end())
+            {
+                throw std::runtime_error(
+                    "source crush1 has no dynamic destruction child");
+            }
+            const auto dynamicPieceIndex = static_cast<std::size_t>(
+                dynamicPiece -
+                destructionDefinition.destructionPieces.begin());
+            r3d::physics::DebrisState firstPieceState;
+            firstPieceState.active = true;
+            firstPieceState.bodyAwake = true;
+            firstPieceState.body = sourceDestruction->transform;
+            firstPieceState.linearVelocity = {4.0F, 0.0F, 0.0F};
+            destructionSession.synchronizeDecorationDebrisPhysics(
+                instance, dynamicPieceIndex, firstPieceState);
+            auto secondPieceState = firstPieceState;
+            secondPieceState.body.position.x += 4.0F;
+            destructionSession.synchronizeDecorationDebrisPhysics(
+                instance, dynamicPieceIndex, secondPieceState);
+            destructionSession.sourceWorld().LateProgress(
+                1.0F / 60.0F, true);
+            destructionSession.sourceWorld().FrameStep(
+                1.0F / 120.0F, 0.5F);
+            const auto interpolatedPiece =
+                destructionSession.decorationDebrisFrameTransform(
+                    instance, dynamicPieceIndex);
+            const auto* interpolatedMapObject =
+                destructionSession.sourceMap().GetMapObj(
+                    lastMapIdBefore +
+                        static_cast<std::uint32_t>(dynamicPieceIndex) + 1U,
+                    true);
+            if (!interpolatedPiece || interpolatedMapObject == nullptr ||
+                std::abs(
+                    interpolatedPiece->position.x -
+                    (sourceDestruction->transform.position.x + 2.0F)) >
+                    0.001F ||
+                !interpolatedMapObject->GetGameObj()
+                     .IsBodyProgressEvent())
+            {
+                throw std::runtime_error(
+                    "released DestrObj child bypassed source pose history");
+            }
+            auto sleepingPieceState = secondPieceState;
+            sleepingPieceState.body.position.x += 1.0F;
+            sleepingPieceState.linearVelocity = {};
+            sleepingPieceState.bodyAwake = false;
+            destructionSession.synchronizeDecorationDebrisPhysics(
+                instance, dynamicPieceIndex, sleepingPieceState);
+            const auto sleepingPiece =
+                destructionSession.decorationDebrisFrameTransform(
+                    instance, dynamicPieceIndex);
+            if (!sleepingPiece ||
+                std::abs(
+                    sleepingPiece->position.x -
+                    sleepingPieceState.body.position.x) > 0.001F ||
+                interpolatedMapObject->GetGameObj()
+                    .IsBodyProgressEvent())
+            {
+                throw std::runtime_error(
+                    "released DestrObj child sleep pose/event mismatch");
             }
             const auto& activeDecorations =
                 destructionSession.decorationActive();

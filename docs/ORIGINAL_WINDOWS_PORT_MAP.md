@@ -1779,6 +1779,19 @@ Projectile publication перенесена внутрь того же per-step 
 несколько catch-up шагов не схлопывались в одну историю. Никакая render pose
 не возвращается в Jolt либо gameplay state.
 
+Результат B8dp: завершён graph-sync для children, которые
+`eff9338:GameCar.cpp::DestrObj::OnProgress` вынимает из `_destrList` и вставляет
+в runtime `Map`. Ранее их Jolt bodies и визуалы существовали, но fragment
+renderer обходил перенесённый source `GameObject` и использовал конечную
+solver pose.
+
+Session теперь сохраняет адреса этих exact MapObj children до container
+transfer, а `DebrisState` экспортирует недостающую linear velocity. Каждый
+source 1/60 шаг обновляет child через общий `SynchronizePhysicsState`; после
+late/frame событий renderer получает alpha-interpolated pose по exact
+instance/piece binding. Это не вводит новый объект или state machine: source
+MapObj владеет graph lifecycle, Jolt — actor storage и solve.
+
 Каждый крупный block commit обязан:
 
 1. назвать точные методы из `eff9338:prog`, которые стали активными;
