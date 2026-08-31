@@ -15,6 +15,13 @@ namespace r3d::game::originalrace
 namespace
 {
 
+bool sourceProjectileIsLive(const source::Proj* projectile) noexcept
+{
+    return projectile != nullptr &&
+           projectile->GetLiveState() !=
+               source::GameObject::LiveState::Death;
+}
+
 bool hasDeathEffect(const DeathEffectDefinition& definition) noexcept
 {
     return !definition.visual.record.empty() ||
@@ -1254,16 +1261,14 @@ bool OriginalRaceSession::projectileIsActive(
     const ProjectileRuntime& projectile) const noexcept
 {
     return logic_.HasGameObj(projectile.sourceObject) &&
-           projectile.sourceObject->GetLiveState() !=
-               source::GameObject::LiveState::Death;
+           sourceProjectileIsLive(projectile.sourceObject);
 }
 
 bool OriginalRaceSession::mineIsActive(
     const MineRuntime& mine) const noexcept
 {
     return logic_.HasGameObj(mine.sourceObject) &&
-           mine.sourceObject->GetLiveState() !=
-               source::GameObject::LiveState::Death;
+           sourceProjectileIsLive(mine.sourceObject);
 }
 
 std::size_t OriginalRaceSession::projectileTargetRacer(
@@ -1289,19 +1294,13 @@ std::size_t OriginalRaceSession::projectileTargetRacer(
 void OriginalRaceSession::refreshProjectileView() const noexcept
 {
     for (auto& projectile : projectiles_)
-    {
-        projectile.active = projectileIsActive(projectile);
         refreshRuntimePoseFromSource(projectile);
-    }
 }
 
 void OriginalRaceSession::refreshMineView() const noexcept
 {
     for (auto& mine : mines_)
-    {
-        mine.active = mineIsActive(mine);
         refreshRuntimePoseFromSource(mine);
-    }
 }
 
 void OriginalRaceSession::reset()
@@ -1922,10 +1921,7 @@ void OriginalRaceSession::releaseRacerProjectileReferences(
         projectile.ownerCollisionArmed = true;
         if (projectile.sourceObject != nullptr &&
             projectile.sourceObject->destroyed)
-        {
-            projectile.active = false;
             continue;
-        }
         if (projectile.sourceObject != nullptr &&
             projectile.sourceObject->IsDetachedFromSourceWeapon())
         {
@@ -5458,10 +5454,7 @@ void OriginalRaceSession::updateGameplay(
     for (auto& projectile : projectiles_)
     {
         if (!projectileIsActive(projectile))
-        {
-            projectile.active = false;
             continue;
-        }
         if (projectile.deferProgressOnce)
         {
             projectile.deferProgressOnce = false;
@@ -5479,7 +5472,6 @@ void OriginalRaceSession::updateGameplay(
                 projectile.owner >= racers_.size())
             {
                 projectile.sourceObject->Death();
-                projectile.active = false;
                 continue;
             }
             const auto physicalSlot = projectileWeaponSlot(projectile);
@@ -5499,7 +5491,6 @@ void OriginalRaceSession::updateGameplay(
             {
                 if (!projectile.sourceObject->destroyed)
                     projectile.sourceObject->Death();
-                projectile.active = false;
                 continue;
             }
             Transform shotTransform;
@@ -5884,7 +5875,6 @@ void OriginalRaceSession::updateGameplay(
                 spawnProjectileImpact(
                     projectile, projectile.position,
                     RacerRuntime::invalidWeapon);
-                projectile.active = false;
             }
             continue;
         }
@@ -6112,7 +6102,6 @@ void OriginalRaceSession::updateGameplay(
                 spawnProjectileImpact(
                     projectile, projectile.position, target,
                     sourceContact.route.damageType);
-                projectile.active = false;
             }
             applyProjectileDamageCommand(
                 sourceContact.damage, target, contactPoint);
@@ -6184,7 +6173,6 @@ void OriginalRaceSession::updateGameplay(
                     spawnProjectileImpact(
                         projectile, projectile.position, target,
                         sourceContact.route.damageType);
-                    projectile.active = false;
                     break;
                 }
                 if (!sourceContact.impulse.findNextTarget)
@@ -6208,7 +6196,6 @@ void OriginalRaceSession::updateGameplay(
                     spawnProjectileImpact(
                         projectile, projectile.position, target,
                         sourceContact.route.damageType);
-                    projectile.active = false;
                     break;
                 }
                 auto* nextTargetMapObject = nextTarget < racers_.size()
@@ -6316,7 +6303,6 @@ void OriginalRaceSession::updateGameplay(
                 spawnProjectileImpact(
                     projectile, projectile.position,
                     RacerRuntime::invalidWeapon);
-                projectile.active = false;
             }
         }
         if (projectileIsActive(projectile) &&
@@ -6327,7 +6313,6 @@ void OriginalRaceSession::updateGameplay(
             spawnProjectileImpact(
                 projectile, projectile.position,
                 RacerRuntime::invalidWeapon);
-            projectile.active = false;
         }
     }
     for (const auto& projectile : projectiles_)
@@ -7495,7 +7480,6 @@ void OriginalRaceSession::updateGameplay(
         if (!mineIsActive(mine))
         {
             queueMineBodyDestroy(mine);
-            mine.active = false;
             return;
         }
         if (!mine.sourceObject->destroyed)
@@ -7504,7 +7488,6 @@ void OriginalRaceSession::updateGameplay(
         // which removes the retained BonusProj listener entry. GetBonusProj
         // already rejects this death-state object before that callback.
         queueMineBodyDestroy(mine);
-        mine.active = false;
     };
     auto applyMineContact = [&](MineRuntime& mine, std::size_t racer,
                                 const Vec3& contactPoint) {
@@ -7613,7 +7596,6 @@ void OriginalRaceSession::updateGameplay(
         if (!mineIsActive(mine))
         {
             queueMineBodyDestroy(mine);
-            mine.active = false;
             continue;
         }
         const auto& mineDefinition =
@@ -10368,7 +10350,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     {lostMineBody});
                 const auto recoveredMineBodyCommands =
                     fixedMineSession.takeProjectileBodyCommands();
-                if (!fixedMineSession.mines().front().active ||
+                if (!sourceProjectileIsLive(
+                        fixedMineSession.mines().front().sourceObject) ||
                     recoveredMineBodyCommands.size() != 1U ||
                     recoveredMineBodyCommands.front().kind !=
                         r3d::physics::ProjectileBodyCommandKind::Create ||
@@ -10669,7 +10652,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     {projectileBodyState});
                 const auto recoveredProjectileBodyCommands =
                     queuedAttackSession.takeProjectileBodyCommands();
-                if (!queuedAttackSession.projectiles().front().active ||
+                if (!sourceProjectileIsLive(
+                        queuedAttackSession.projectiles()
+                            .front().sourceObject) ||
                     recoveredProjectileBodyCommands.size() != 1U ||
                     recoveredProjectileBodyCommands.front().kind !=
                         r3d::physics::ProjectileBodyCommandKind::Create ||
@@ -13674,7 +13659,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                            projectile.sourceObject != nullptr &&
                            projectile.sourceObject
                                ->IsAttachedToSourceWeapon() &&
-                           projectile.active;
+                           sourceProjectileIsLive(
+                               projectile.sourceObject);
                 });
             if (activeDrobilka ==
                     drobilkaSession.projectiles().end() ||
@@ -13874,7 +13860,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     return projectile.owner == 0U &&
                            projectile.weapon == legacySonarWeapon &&
                            projectile.projectile == 0U &&
-                           projectile.active;
+                           sourceProjectileIsLive(
+                               projectile.sourceObject);
                 });
             if (activeLegacySonar ==
                 legacySonarSession.projectiles().end())
@@ -14967,7 +14954,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     return projectile.owner == 0U &&
                            projectile.weapon == childEffectWeapon &&
                            projectile.projectile == 0U &&
-                           projectile.active;
+                           sourceProjectileIsLive(
+                               projectile.sourceObject);
                 });
             if (launchedChildProjectile ==
                 childEffectSession.projectiles().end())
@@ -15096,7 +15084,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     return projectile.owner == 0U &&
                            projectile.weapon == mortarWeapon &&
                            projectile.projectile == 0U &&
-                           projectile.active;
+                           sourceProjectileIsLive(
+                               projectile.sourceObject);
                 });
             if (launchedProjectile ==
                 mortarSession.projectiles().end())

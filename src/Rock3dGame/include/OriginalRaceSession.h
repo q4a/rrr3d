@@ -364,7 +364,6 @@ struct MineRuntime
     Vec3 physicsPreviousPosition;
     std::vector<r3d::physics::BodyContact> physicsContacts;
     bool physicsBacked = false;
-    bool active = true;
 };
 
 struct ProjectileRuntime
@@ -395,7 +394,6 @@ struct ProjectileRuntime
     Vec3 physicsPreviousPosition;
     std::vector<r3d::physics::BodyContact> physicsContacts;
     bool physicsBacked = false;
-    bool active = true;
 };
 
 class OriginalRaceSession
@@ -812,7 +810,7 @@ private:
     std::vector<RaceEvent> events_;
     std::vector<RaceEffect> effects_;
     // Backend pose/contact views. The source Proj registered in Logic owns
-    // lifetime; active is refreshed for renderer/test compatibility.
+    // lifetime; Jolt body activity is deliberately not mirrored here.
     mutable std::vector<MineRuntime> mines_;
     mutable std::vector<ProjectileRuntime> projectiles_;
     std::vector<RespawnRequest> respawns_;

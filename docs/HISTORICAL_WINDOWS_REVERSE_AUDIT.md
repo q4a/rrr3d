@@ -6544,3 +6544,19 @@ session/renderer используют её для progress branch, Jolt body mod
 direction and beam presentation. Regression отдельно уничтожает linked Laser
 и unlinked Drobilka weapon: первый мёртв и не detached, второй жив и detached.
 Jolt остаётся владельцем только actor state/contact snapshots.
+
+### P2.299 — удалены последние transient active snapshots — выполнено
+
+P2.271 вернул gameplay lifetime в `Logic`, но намеренно оставил поля
+`ProjectileRuntime::active` и `MineRuntime::active` как совместимые копии для
+renderer и старых assertions. Повторная проверка показала, что эти поля уже
+не несут полезного backend state: getters каждый кадр переписывали их из
+того же `GameObject::LiveState`, а все записи `false` следовали сразу после
+source `Death`/impact.
+
+Обе копии удалены. Renderer проверяет concrete `Proj` напрямую, integrated
+assertions проверяют source live state, а session дополнительно требует
+регистрацию объекта в `Logic`. Backend `ProjectileBodyState::active` не
+переименован и не смешан с gameplay lifetime: это входной сигнал о потере
+Jolt actor, после которого живому source object выдаётся новая Create-команда.
+Death/erase по-прежнему движутся только от original source owner к backend.

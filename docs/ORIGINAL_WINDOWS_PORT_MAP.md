@@ -1466,6 +1466,18 @@ commands, direction sync, renderer beam/impact и regressions. Jolt runtime
 хранит только body id/pose/contact cache; при respawn он исполняет source
 detach transition без второго bool-state.
 
+Результат B8ct: завершён ранее начатый в B8br возврат transient lifetime в
+`Logic`. Оставленные тогда renderer/smoke snapshots
+`ProjectileRuntime::active` и `MineRuntime::active` теперь удалены полностью.
+Public view, renderer, contacts, timeouts и regressions читают живой
+`source::Proj` через `Logic::HasGameObj` и `GameObject::LiveState`.
+
+`ProjectileBodyState::active` сохранён только как сообщение Jolt о наличии
+backend body. Если body потерян при живом source object, session сбрасывает
+старый ID и выдаёт Create; если source object умер, session выдаёт Destroy и
+удаляет view. Таким образом, ни один bool в portable runtime больше не может
+скрыть или воскресить projectile/mine вопреки original `Logic` registry.
+
 Каждый крупный block commit обязан:
 
 1. назвать точные методы из `eff9338:prog`, которые стали активными;

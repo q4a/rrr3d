@@ -4815,7 +4815,9 @@ void OriginalRaceRenderer::draw(
 
     for (const auto& projectile : projectiles)
     {
-        if (!projectile.active ||
+        if (projectile.sourceObject == nullptr ||
+            projectile.sourceObject->GetLiveState() ==
+                r3d::game::originalrace::source::GameObject::LiveState::Death ||
             projectile.weapon >= race.weapons.size() ||
             projectile.weapon >= projectiles_.size() ||
             projectile.projectile >=
@@ -4906,7 +4908,10 @@ void OriginalRaceRenderer::draw(
 
     for (const auto& mine : mines)
     {
-        if (!mine.active || mine.weapon >= race.weapons.size() ||
+        if (mine.sourceObject == nullptr ||
+            mine.sourceObject->GetLiveState() ==
+                r3d::game::originalrace::source::GameObject::LiveState::Death ||
+            mine.weapon >= race.weapons.size() ||
             mine.weapon >= projectiles_.size() ||
             mine.projectile >=
                 race.weapons[mine.weapon].projectiles.size() ||
