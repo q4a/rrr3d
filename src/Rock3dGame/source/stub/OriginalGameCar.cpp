@@ -134,39 +134,6 @@ float contactDamage(
 
 } // namespace
 
-class GameCar::SoundMotorBehavior final : public Behavior
-{
-public:
-    SoundMotorBehavior(Behaviors* owner, GameCar* car) noexcept
-        : Behavior(owner), car_(car)
-    {
-    }
-
-    void OnProgress(float) noexcept override
-    {
-        // Windows SoundMotor::OnProgress only updates Source3d world
-        // positions. SDL applies that backend boundary from the car pose.
-    }
-
-    SoundMotor& State() noexcept { return state_; }
-    const SoundMotor& State() const noexcept { return state_; }
-
-protected:
-    void OnMotor(float deltaTime, float rpm,
-                 float minimumRpm, float maximumRpm) noexcept override
-    {
-        if (car_ == nullptr)
-            return;
-        car_->soundMotorMix_ = state_.OnMotor(
-            deltaTime, rpm, minimumRpm, maximumRpm,
-            car_->rpmVolumeRange_, car_->rpmFrequencyRange_);
-    }
-
-private:
-    GameCar* car_ = nullptr;
-    SoundMotor state_;
-};
-
 GameCar::GameCar()
 {
     RegFixedStepEvent();
@@ -213,8 +180,7 @@ GameCar& GameCar::operator=(const GameCar& other) noexcept
     if (other.HasSoundMotor())
     {
         BindSoundMotor(rpmVolumeRange_, rpmFrequencyRange_);
-        soundMotorBehavior_->State() =
-            other.soundMotorBehavior_->State();
+        *soundMotor_ = *other.soundMotor_;
         soundMotorMix_ = other.soundMotorMix_;
     }
     else
@@ -427,8 +393,8 @@ void GameCar::Reset() noexcept
     SetSyncFrameEvent(false);
     SetBodyProgressEvent(false);
     GetFrameSync().Reset();
-    if (soundMotorBehavior_ != nullptr)
-        soundMotorBehavior_->State().Reset();
+    if (soundMotor_ != nullptr)
+        soundMotor_->Reset();
     soundMotorMix_ = {};
 }
 
@@ -1115,7 +1081,7 @@ void GameCar::BindSoundMotor(
     ReleaseSoundMotor();
     rpmVolumeRange_ = rpmVolumeRange;
     rpmFrequencyRange_ = rpmFrequencyRange;
-    soundMotorBehavior_ = &GetBehaviors().Add<SoundMotorBehavior>(
+    soundMotor_ = &GetBehaviors().Add<SoundMotor>(
         BehaviorType::SoundMotor, this);
 }
 
@@ -1124,7 +1090,7 @@ void GameCar::ReleaseSoundMotor() noexcept
     if (auto* behavior =
             GetBehaviors().Find(BehaviorType::SoundMotor))
         GetBehaviors().Delete(behavior);
-    soundMotorBehavior_ = nullptr;
+    soundMotor_ = nullptr;
     soundMotorMix_ = {};
 }
 
@@ -1144,7 +1110,7 @@ const SoundMotorMix& GameCar::GetSoundMotorMix() const noexcept
 
 bool GameCar::HasSoundMotor() const noexcept
 {
-    return soundMotorBehavior_ != nullptr &&
+    return soundMotor_ != nullptr &&
            GetBehaviors().Find(BehaviorType::SoundMotor) != nullptr;
 }
 
@@ -1507,6 +1473,44 @@ bool GameCar::IsMineLocked() const noexcept
 float GameCar::GetMineTime() const noexcept
 {
     return mineTime_;
+}
+
+SoundMotor::SoundMotor() noexcept : Behavior(nullptr) {}
+
+SoundMotor::SoundMotor(
+    Behaviors* owner, GameCar* car) noexcept
+    : Behavior(owner), car_(car)
+{
+}
+
+SoundMotor::SoundMotor(const SoundMotor& other) noexcept
+    : Behavior(nullptr), currentRpm_(other.currentRpm_)
+{
+}
+
+SoundMotor& SoundMotor::operator=(
+    const SoundMotor& other) noexcept
+{
+    if (this != &other)
+        currentRpm_ = other.currentRpm_;
+    return *this;
+}
+
+void SoundMotor::OnProgress(float) noexcept
+{
+    // Windows SoundMotor::OnProgress updates the two Source3d positions.
+    // SDL performs that backend operation from the owning car pose.
+}
+
+void SoundMotor::OnMotor(
+    float deltaTime, float rpm,
+    float minimumRpm, float maximumRpm) noexcept
+{
+    if (car_ == nullptr)
+        return;
+    car_->soundMotorMix_ = OnMotor(
+        deltaTime, rpm, minimumRpm, maximumRpm,
+        car_->rpmVolumeRange_, car_->rpmFrequencyRange_);
 }
 
 void SoundMotor::Reset() noexcept
@@ -2067,6 +2071,38 @@ bool CarWheel::HasSlipSound() const noexcept
     return slipSoundEnabled_;
 }
 
+GusenizaAnim::GusenizaAnim() noexcept : Behavior(nullptr) {}
+
+GusenizaAnim::GusenizaAnim(
+    Behaviors* owner, CarAnimationChild* child) noexcept
+    : Behavior(owner), child_(child)
+{
+}
+
+GusenizaAnim::GusenizaAnim(
+    const GusenizaAnim& other) noexcept
+    : Behavior(nullptr), xAnimationOffset_(other.xAnimationOffset_)
+{
+}
+
+GusenizaAnim& GusenizaAnim::operator=(
+    const GusenizaAnim& other) noexcept
+{
+    if (this != &other)
+        xAnimationOffset_ = other.xAnimationOffset_;
+    return *this;
+}
+
+void GusenizaAnim::OnProgress(float deltaTime) noexcept
+{
+    if (child_ == nullptr)
+        return;
+    const auto* car =
+        dynamic_cast<const GameCar*>(child_->GetParent());
+    OnProgress(
+        deltaTime, car != nullptr ? car->GetLeadWheelSpeed() : 0.0F);
+}
+
 void GusenizaAnim::Reset() noexcept
 {
     xAnimationOffset_ = 0.0F;
@@ -2084,6 +2120,43 @@ float GusenizaAnim::OnProgress(
 float GusenizaAnim::GetTextureOffset() const noexcept
 {
     return 1.0F - xAnimationOffset_;
+}
+
+PodushkaAnim::PodushkaAnim() noexcept : Behavior(nullptr) {}
+
+PodushkaAnim::PodushkaAnim(
+    Behaviors* owner, CarAnimationChild* child,
+    int targetTag) noexcept
+    : Behavior(owner), child_(child), targetTag_(targetTag)
+{
+}
+
+PodushkaAnim::PodushkaAnim(
+    const PodushkaAnim& other) noexcept
+    : Behavior(nullptr), angle_(other.angle_),
+      targetTag_(other.targetTag_)
+{
+}
+
+PodushkaAnim& PodushkaAnim::operator=(
+    const PodushkaAnim& other) noexcept
+{
+    if (this != &other)
+    {
+        angle_ = other.angle_;
+        targetTag_ = other.targetTag_;
+    }
+    return *this;
+}
+
+void PodushkaAnim::OnProgress(float deltaTime) noexcept
+{
+    if (child_ == nullptr)
+        return;
+    const auto* car =
+        dynamic_cast<const GameCar*>(child_->GetParent());
+    OnProgress(
+        deltaTime, car != nullptr ? car->GetLeadWheelSpeed() : 0.0F);
 }
 
 void PodushkaAnim::Reset() noexcept
@@ -2117,58 +2190,6 @@ float PodushkaAnim::GetAngle() const noexcept
     return angle_;
 }
 
-class CarAnimationChild::TrackBehavior final : public Behavior
-{
-public:
-    TrackBehavior(Behaviors* owner, CarAnimationChild* child) noexcept
-        : Behavior(owner), child_(child)
-    {
-    }
-
-    void OnProgress(float deltaTime) noexcept override
-    {
-        if (child_ == nullptr)
-            return;
-        const auto* car = dynamic_cast<const GameCar*>(child_->GetParent());
-        state_.OnProgress(
-            deltaTime, car != nullptr ? car->GetLeadWheelSpeed() : 0.0F);
-    }
-
-    GusenizaAnim& State() noexcept { return state_; }
-    const GusenizaAnim& State() const noexcept { return state_; }
-
-private:
-    CarAnimationChild* child_ = nullptr;
-    GusenizaAnim state_;
-};
-
-class CarAnimationChild::CushionBehavior final : public Behavior
-{
-public:
-    CushionBehavior(Behaviors* owner, CarAnimationChild* child,
-                    int targetTag) noexcept
-        : Behavior(owner), child_(child)
-    {
-        state_.SetTargetTag(targetTag);
-    }
-
-    void OnProgress(float deltaTime) noexcept override
-    {
-        if (child_ == nullptr)
-            return;
-        const auto* car = dynamic_cast<const GameCar*>(child_->GetParent());
-        state_.OnProgress(
-            deltaTime, car != nullptr ? car->GetLeadWheelSpeed() : 0.0F);
-    }
-
-    PodushkaAnim& State() noexcept { return state_; }
-    const PodushkaAnim& State() const noexcept { return state_; }
-
-private:
-    CarAnimationChild* child_ = nullptr;
-    PodushkaAnim state_;
-};
-
 CarAnimationChild::CarAnimationChild() = default;
 
 CarAnimationChild::CarAnimationChild(
@@ -2201,11 +2222,11 @@ CarAnimationChild& CarAnimationChild::operator=(
     {
         targetTags.push_back(
             behavior != nullptr
-                ? behavior->State().GetTargetTag() : 0);
+                ? behavior->GetTargetTag() : 0);
     }
     BindBehaviors(other.trackBehavior_ != nullptr, targetTags);
     if (trackBehavior_ != nullptr && other.trackBehavior_ != nullptr)
-        trackBehavior_->State() = other.trackBehavior_->State();
+        *trackBehavior_ = *other.trackBehavior_;
     for (std::size_t index = 0U;
          index < cushionBehaviors_.size() &&
          index < other.cushionBehaviors_.size(); ++index)
@@ -2213,8 +2234,8 @@ CarAnimationChild& CarAnimationChild::operator=(
         if (cushionBehaviors_[index] != nullptr &&
             other.cushionBehaviors_[index] != nullptr)
         {
-            cushionBehaviors_[index]->State() =
-                other.cushionBehaviors_[index]->State();
+            *cushionBehaviors_[index] =
+                *other.cushionBehaviors_[index];
         }
     }
     return *this;
@@ -2243,7 +2264,7 @@ void CarAnimationChild::BindBehaviors(
     cushionBehaviors_.clear();
     if (trackAnimation)
     {
-        trackBehavior_ = &GetBehaviors().Add<TrackBehavior>(
+        trackBehavior_ = &GetBehaviors().Add<GusenizaAnim>(
             BehaviorType::GusenizaAnim, this);
     }
     cushionBehaviors_.reserve(cushionTargetTags.size());
@@ -2251,7 +2272,7 @@ void CarAnimationChild::BindBehaviors(
          index < cushionTargetTags.size(); ++index)
     {
         cushionBehaviors_.push_back(
-            &GetBehaviors().Add<CushionBehavior>(
+            &GetBehaviors().Add<PodushkaAnim>(
                 BehaviorType::PodushkaAnim, this,
                 cushionTargetTags[index]));
     }
@@ -2290,7 +2311,7 @@ std::size_t CarAnimationChild::GetCushionAnimationCount() const noexcept
 float CarAnimationChild::GetTrackTextureOffset() const noexcept
 {
     return trackBehavior_ != nullptr
-               ? trackBehavior_->State().GetTextureOffset() : 1.0F;
+               ? trackBehavior_->GetTextureOffset() : 1.0F;
 }
 
 float CarAnimationChild::GetCushionAngle(
@@ -2298,7 +2319,7 @@ float CarAnimationChild::GetCushionAngle(
 {
     return index < cushionBehaviors_.size() &&
                    cushionBehaviors_[index] != nullptr
-               ? cushionBehaviors_[index]->State().GetAngle() : 0.0F;
+               ? cushionBehaviors_[index]->GetAngle() : 0.0F;
 }
 
 int CarAnimationChild::GetCushionTargetTag(
@@ -2306,7 +2327,7 @@ int CarAnimationChild::GetCushionTargetTag(
 {
     return index < cushionBehaviors_.size() &&
                    cushionBehaviors_[index] != nullptr
-               ? cushionBehaviors_[index]->State().GetTargetTag() : 0;
+               ? cushionBehaviors_[index]->GetTargetTag() : 0;
 }
 
 float CarAnimationChild::GetCushionAngleForTag(
@@ -2314,12 +2335,12 @@ float CarAnimationChild::GetCushionAngleForTag(
 {
     const auto found = std::find_if(
         cushionBehaviors_.begin(), cushionBehaviors_.end(),
-        [targetTag](const CushionBehavior* behavior) {
+        [targetTag](const PodushkaAnim* behavior) {
             return behavior != nullptr &&
-                   behavior->State().GetTargetTag() == targetTag;
+                   behavior->GetTargetTag() == targetTag;
         });
     return found != cushionBehaviors_.end()
-               ? (*found)->State().GetAngle() : 0.0F;
+               ? (*found)->GetAngle() : 0.0F;
 }
 
 } // namespace r3d::game::originalrace::source

@@ -11,6 +11,12 @@ int main()
 {
     static_assert(std::is_base_of_v<
                   source::EventEffect, source::PxWheelSlipEffect>);
+    static_assert(std::is_base_of_v<
+                  source::Behavior, source::SoundMotor>);
+    static_assert(std::is_base_of_v<
+                  source::Behavior, source::GusenizaAnim>);
+    static_assert(std::is_base_of_v<
+                  source::Behavior, source::PodushkaAnim>);
     source::GameCar car;
     source::GameObject ordinaryObject;
     const source::GameObject& genericCar = car;
@@ -153,6 +159,9 @@ int main()
         car.GetBehaviors().GetCount() != 1U ||
         car.GetBehaviors().Find(
             source::BehaviorType::SoundMotor) == nullptr ||
+        dynamic_cast<const source::SoundMotor*>(
+            car.GetBehaviors().Find(
+                source::BehaviorType::SoundMotor)) == nullptr ||
         car.GetListenerCount() != 1U)
         return 20;
     const auto ownerIdle = car.OnMotor(
@@ -667,13 +676,19 @@ int main()
         trackChild->GetBehaviors().GetCount() != 1U ||
         trackChild->GetBehaviors().Find(
             source::BehaviorType::GusenizaAnim) == nullptr ||
+        dynamic_cast<const source::GusenizaAnim*>(
+            trackChild->GetBehaviors().Find(
+                source::BehaviorType::GusenizaAnim)) == nullptr ||
         cushionChild->GetCushionAnimationCount() != 2U ||
         cushionChild->GetCushionTargetTag(0U) != 1 ||
         cushionChild->GetCushionTargetTag(1U) != 2 ||
         cushionChild->GetBehaviors().GetCount() != 2U ||
         cushionChild->GetListenerCount() != 2U ||
         cushionChild->GetBehaviors().Find(
-            source::BehaviorType::PodushkaAnim) == nullptr)
+            source::BehaviorType::PodushkaAnim) == nullptr ||
+        dynamic_cast<const source::PodushkaAnim*>(
+            cushionChild->GetBehaviors().Find(
+                source::BehaviorType::PodushkaAnim)) == nullptr)
         return 30;
     car.GetWheel(0U)->SetAxleSpeed(10.0F);
     const auto animationProgress = car.OnProgress(0.5F);

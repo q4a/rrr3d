@@ -6469,3 +6469,18 @@ Wrapper удалён. Concrete `PxWheelSlipEffect` получает ordered prog
 Make/Free visual и Play/Stop sound transitions. Copy path сохраняет новое
 `Behaviors` owner binding и независимую effect identity. Regression проверяет
 `EventEffect` inheritance и concrete dynamic identity найденного type-9.
+
+### P2.294 — types 12/13/14 возвращены к concrete Behavior identity — выполнено
+
+В оригинальном `GameBase.h` `SoundMotor`, `GusenizaAnim` и `PodushkaAnim`
+не являются state utilities: они непосредственно наследуют `Behavior`.
+Portable P2.287 уже перенёс source state внутрь entries, но оставлял три
+отдельных wrapper-класса с вложенными объектами.
+
+Wrappers удалены. `SoundMotor::OnMotor` сам обрабатывает RPM lag и voice mix;
+`GusenizaAnim::OnProgress` сам вычисляет track sampler offset;
+`PodushkaAnim::OnProgress` сам владеет targetTag и углом нужного mesh node.
+SDL/Metal получают только готовый payload. Copy operations намеренно не
+копируют owner/child pointer, поэтому новая graph entry не ссылается на
+старый автомобиль. Tests проверяют source inheritance и concrete identity
+всех трёх найденных entries.

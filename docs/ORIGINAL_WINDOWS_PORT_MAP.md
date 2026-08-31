@@ -1408,6 +1408,17 @@ MakeEffect/FreeEffect и Source3d request.
 копирует только source configuration/state, сохраняя новое owner binding и
 независимые effect handles.
 
+Результат B8co: удалены последние car-animation wrapper-классы
+`SoundMotorBehavior`, `TrackBehavior` и `CushionBehavior`. Исходные
+`SoundMotor`, `GusenizaAnim` и `PodushkaAnim` теперь сами наследуют
+`Behavior`, регистрируются как types 12/13/14 и принимают ordered callbacks.
+
+SoundMotor владеет RPM lag/mix и передаёт SDL две готовые voice-компоненты;
+GusenizaAnim владеет sampler offset, PodushkaAnim — углом и serialized
+targetTag. Copy car/animation child сохраняет новый owner/child binding и
+копирует только source state. `Behaviors::Find` возвращает concrete классы,
+не промежуточные adapters.
+
 Каждый крупный block commit обязан:
 
 1. назвать точные методы из `eff9338:prog`, которые стали активными;

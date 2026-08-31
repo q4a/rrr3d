@@ -2732,3 +2732,10 @@ Metal остались adapters для velocity, sound source и presentation ac
 одновременно является registered listener, source slip state и владельцем
 effect/sound transition. Jolt передаёт contact/slip, SDL и Metal потребляют
 готовый `WheelSlipProgress`; дополнительного state-owner больше нет.
+
+### B8co — SoundMotor/GusenizaAnim/PodushkaAnim являются Behavior — выполнено
+
+Удалены wrappers типов 12/13/14. Concrete source-классы теперь сами являются
+entries `Behaviors`, владеют RPM lag, track UV offset, cushion angle и
+targetTag. SDL voices и Metal material/node transforms остаются backend
+consumers; source callback identity и lifetime больше не раздвоены.

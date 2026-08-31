@@ -404,7 +404,7 @@ public:
     float GetMineTime() const noexcept;
 
 private:
-    class SoundMotorBehavior;
+    friend class SoundMotor;
 
     void OnFixedStep(float deltaTime) noexcept override;
     void OnFrame(
@@ -414,7 +414,7 @@ private:
     float clutchTime_ = 0.0F;
     float springTime_ = 0.0F;
     float mineTime_ = 0.0F;
-    SoundMotorBehavior* soundMotorBehavior_ = nullptr;
+    SoundMotor* soundMotor_ = nullptr;
     SoundMotorMix soundMotorMix_;
     std::array<float, 2> rpmVolumeRange_{0.0F, 1.0F};
     std::array<float, 2> rpmFrequencyRange_{0.0F, 1.0F};
@@ -453,12 +453,17 @@ private:
 
 // Backend-neutral owner for GameBase.cpp::SoundMotor. SDL owns the two
 // voices, while the source RPM lag and layer mix remain gameplay behavior.
-class SoundMotor
+class SoundMotor final : public Behavior
 {
 public:
     static constexpr float motorLag = 10000.0F;
     using Mix = SoundMotorMix;
 
+    SoundMotor() noexcept;
+    SoundMotor(Behaviors* owner, GameCar* car) noexcept;
+    SoundMotor(const SoundMotor& other) noexcept;
+    SoundMotor& operator=(const SoundMotor& other) noexcept;
+    void OnProgress(float deltaTime) noexcept override;
     void Reset() noexcept;
     Mix OnMotor(
         float deltaTime, float rpm, float minimumRpm,
@@ -466,7 +471,12 @@ public:
         const std::array<float, 2>& rpmFrequencyRange) noexcept;
     float GetCurrentRpm() const noexcept;
 
+protected:
+    void OnMotor(float deltaTime, float rpm,
+                 float minimumRpm, float maximumRpm) noexcept override;
+
 private:
+    GameCar* car_ = nullptr;
     float currentRpm_ = 0.0F;
 };
 
@@ -608,24 +618,38 @@ private:
     bool inverted_ = false;
 };
 
-class GusenizaAnim
+class GusenizaAnim final : public Behavior
 {
 public:
     static constexpr float trackLength = 5.0F;
 
+    GusenizaAnim() noexcept;
+    GusenizaAnim(
+        Behaviors* owner, CarAnimationChild* child) noexcept;
+    GusenizaAnim(const GusenizaAnim& other) noexcept;
+    GusenizaAnim& operator=(const GusenizaAnim& other) noexcept;
+    void OnProgress(float deltaTime) noexcept override;
     void Reset() noexcept;
     float OnProgress(float deltaTime, float leadWheelSpeed) noexcept;
     float GetTextureOffset() const noexcept;
 
 private:
+    CarAnimationChild* child_ = nullptr;
     float xAnimationOffset_ = 0.0F;
 };
 
-class PodushkaAnim
+class PodushkaAnim final : public Behavior
 {
 public:
     static constexpr float minimumWheelSpeed = 1.0F;
 
+    PodushkaAnim() noexcept;
+    PodushkaAnim(
+        Behaviors* owner, CarAnimationChild* child,
+        int targetTag = 0) noexcept;
+    PodushkaAnim(const PodushkaAnim& other) noexcept;
+    PodushkaAnim& operator=(const PodushkaAnim& other) noexcept;
+    void OnProgress(float deltaTime) noexcept override;
     void Reset() noexcept;
     void SetTargetTag(int value) noexcept;
     int GetTargetTag() const noexcept;
@@ -633,6 +657,7 @@ public:
     float GetAngle() const noexcept;
 
 private:
+    CarAnimationChild* child_ = nullptr;
     float angle_ = 0.0F;
     int targetTag_ = 0;
 };
@@ -668,13 +693,11 @@ public:
     int GetCushionTargetTag(std::size_t index) const noexcept;
 
 private:
-    class TrackBehavior;
-    class CushionBehavior;
     void BindBehaviors(
         bool trackAnimation, const std::vector<int>& cushionTargetTags);
 
-    TrackBehavior* trackBehavior_ = nullptr;
-    std::vector<CushionBehavior*> cushionBehaviors_;
+    GusenizaAnim* trackBehavior_ = nullptr;
+    std::vector<PodushkaAnim*> cushionBehaviors_;
 };
 
 } // namespace r3d::game::originalrace::source
