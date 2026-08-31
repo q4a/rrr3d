@@ -6928,3 +6928,18 @@ Portable destruction event правильно создавал тела Jolt, н
 transform после `WorldEventPump::FrameStep`; Jolt продолжает владеть телом,
 контактами и конечной gameplay pose. Source regression фиксирует transfer,
 interpolation и wake→sleep unregister на реальном `crush1`.
+
+### P2.322 — vehicle DeathEffect debris возвращён source-владельцу — выполнено
+
+`DeathEffect::OnDeath` в `eff9338` формирует `EffectDesc`, вызывает
+`MakeEffect` и сразу получает PhysX actor созданного effect MapObj. Значит,
+его дальнейшие wake/sleep callbacks и alpha interpolation принадлежат
+обычному `GameObject`, несмотря на отдельный срок жизни визуального эффекта.
+
+Portable runtime сохранял source behavior/lifetime в `RaceEffect::effectOwner`,
+но не подключал owner к общему Logic/World и передавал Jolt debris transform
+сразу renderer-у. Теперь spawn pose устанавливается на этот concrete owner,
+он подключён к source event lists, а per-step `DebrisState` проходит через
+`SynchronizePhysicsState`. `VehicleDeathFragmentState` создаётся только после
+frame dispatch из graph pose. Jolt остаётся единственным solver/body owner;
+source сохраняет event ordering, effect lifetime и render interpolation.

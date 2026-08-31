@@ -16095,6 +16095,14 @@ int main(int argc, char** argv)
                             binding.instance, binding.piece,
                             physicsWorld->debris(binding.debris));
                     }
+                    for (const auto& binding : vehicleDebrisBindings)
+                    {
+                        if (binding.debris >= physicsWorld->debrisCount())
+                            continue;
+                        raceSession.synchronizeVehicleDeathDebrisPhysics(
+                            binding.racer, binding.effect,
+                            physicsWorld->debris(binding.debris));
+                    }
                 };
                 if (sourceFramePlan.fixedSteps == 0U)
                 {
@@ -16153,20 +16161,6 @@ int main(int argc, char** argv)
                             index, raceVehicles[index], frameSeconds,
                             sourceFramePlan.physicsAlpha);
                 }
-            }
-            vehicleDeathFragments.clear();
-            vehicleDeathFragments.reserve(
-                vehicleDebrisBindings.size());
-            for (const auto& binding : vehicleDebrisBindings)
-            {
-                if (binding.debris >= physicsWorld->debrisCount())
-                    continue;
-                const auto& debris =
-                    physicsWorld->debris(binding.debris);
-                if (!debris.active)
-                    continue;
-                vehicleDeathFragments.push_back(
-                    {binding.racer, binding.effect, debris.body});
             }
             raceElapsedSeconds = raceSession.elapsedSeconds();
 #ifdef RRR3D_AUDIO
@@ -16803,6 +16797,23 @@ int main(int argc, char** argv)
                 {
                     decorationFragments.push_back(
                         {binding.instance, binding.piece, *transform});
+                }
+            }
+            vehicleDeathFragments.clear();
+            vehicleDeathFragments.reserve(
+                vehicleDebrisBindings.size());
+            for (const auto& binding : vehicleDebrisBindings)
+            {
+                if (binding.debris >= physicsWorld->debrisCount() ||
+                    !physicsWorld->debris(binding.debris).active)
+                    continue;
+                const auto transform =
+                    raceSession.vehicleDeathDebrisFrameTransform(
+                        binding.racer, binding.effect);
+                if (transform)
+                {
+                    vehicleDeathFragments.push_back(
+                        {binding.racer, binding.effect, *transform});
                 }
             }
             const auto humanRacer = raceSession.humanRacer();

@@ -586,6 +586,11 @@ public:
         const r3d::physics::DebrisState& state) noexcept;
     std::optional<Transform> decorationDebrisFrameTransform(
         std::size_t decoration, std::size_t piece) const noexcept;
+    void synchronizeVehicleDeathDebrisPhysics(
+        std::size_t racer, std::size_t effect,
+        const r3d::physics::DebrisState& state) noexcept;
+    std::optional<Transform> vehicleDeathDebrisFrameTransform(
+        std::size_t racer, std::size_t effect) const noexcept;
 
 private:
     bool legacyWindowsDebug_ = false;

@@ -3034,6 +3034,59 @@ OriginalRaceSession::decorationDebrisFrameTransform(
     return result;
 }
 
+void OriginalRaceSession::synchronizeVehicleDeathDebrisPhysics(
+    std::size_t racer, std::size_t effect,
+    const r3d::physics::DebrisState& state) noexcept
+{
+    const auto runtime = std::find_if(
+        effects_.begin(), effects_.end(),
+        [&](const RaceEffect& value) {
+            return value.kind == RaceEventKind::VehicleDestroyed &&
+                   value.racer == racer &&
+                   value.vehicleEffect == effect;
+        });
+    if (runtime == effects_.end() || runtime->effectOwner == nullptr)
+        return;
+    auto& object = *runtime->effectOwner;
+    const auto currentPosition = object.GetWorldPos();
+    const auto currentRotation = object.GetWorldRot();
+    const auto position = state.active
+        ? state.body.position
+        : Vec3{currentPosition[0], currentPosition[1], currentPosition[2]};
+    const auto rotation = state.active
+        ? state.body.rotation
+        : Quat{currentRotation[0], currentRotation[1],
+               currentRotation[2], currentRotation[3]};
+    const auto velocity = state.active ? state.linearVelocity : Vec3{};
+    object.SynchronizePhysicsState(
+        {position.x, position.y, position.z},
+        {rotation.x, rotation.y, rotation.z, rotation.w},
+        {velocity.x, velocity.y, velocity.z},
+        state.active && state.bodyAwake);
+}
+
+std::optional<Transform>
+OriginalRaceSession::vehicleDeathDebrisFrameTransform(
+    std::size_t racer, std::size_t effect) const noexcept
+{
+    const auto runtime = std::find_if(
+        effects_.begin(), effects_.end(),
+        [&](const RaceEffect& value) {
+            return value.kind == RaceEventKind::VehicleDestroyed &&
+                   value.racer == racer &&
+                   value.vehicleEffect == effect;
+        });
+    if (runtime == effects_.end() || runtime->effectOwner == nullptr)
+        return std::nullopt;
+    const auto position = runtime->effectOwner->GetWorldPos();
+    const auto rotation = runtime->effectOwner->GetWorldRot();
+    auto result = runtime->transform;
+    result.position = {position[0], position[1], position[2]};
+    result.rotation = {
+        rotation[0], rotation[1], rotation[2], rotation[3]};
+    return result;
+}
+
 void OriginalRaceSession::synchronizeProjectilePhysics(
     const std::vector<r3d::physics::ProjectileBodyState>& states)
 {
@@ -4935,6 +4988,17 @@ void OriginalRaceSession::destroyRacer(
         effect.sourceVelocity = vehicle.linearVelocity;
         if (sourcePlan.ignoreRotation)
             effect.transform.rotation = {};
+        effect.effectOwner->SetWorldPos(
+            {effect.transform.position.x, effect.transform.position.y,
+             effect.transform.position.z});
+        effect.effectOwner->SetWorldRot(
+            {effect.transform.rotation.x, effect.transform.rotation.y,
+             effect.transform.rotation.z, effect.transform.rotation.w});
+        // DeathEffect::MakeEffect inserts the created MapObj into Map before
+        // it can receive PhysX wake notifications. RaceEffect explicitly
+        // progresses this backend-neutral source owner, but it still needs
+        // the shared Logic/World for GameObject late/frame event dispatch.
+        effect.effectOwner->SetLogic(&logic_);
         attachSourceLifeEffect(effect, source.soundPaths, racer);
         effects_.push_back(std::move(effect));
     }
@@ -12580,6 +12644,81 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             {
                 throw std::runtime_error(
                     "source vehicle death effects/sounds/immediate removal failed");
+            }
+            const auto dynamicDeathEffect = std::find_if(
+                sourceVehicle.deathEffects.begin(),
+                sourceVehicle.deathEffects.end(),
+                [](const DeathEffectDefinition& effect) {
+                    return effect.visual.dynamicBody;
+                });
+            if (dynamicDeathEffect == sourceVehicle.deathEffects.end())
+            {
+                throw std::runtime_error(
+                    "source vehicle has no dynamic DeathEffect body");
+            }
+            const auto dynamicDeathEffectIndex =
+                static_cast<std::size_t>(
+                    dynamicDeathEffect - sourceVehicle.deathEffects.begin());
+            const auto dynamicDeathRuntime = std::find_if(
+                deathSession.effects().begin(),
+                deathSession.effects().end(),
+                [&](const RaceEffect& effect) {
+                    return effect.kind == RaceEventKind::VehicleDestroyed &&
+                           effect.racer == 0U &&
+                           effect.vehicleEffect == dynamicDeathEffectIndex;
+                });
+            if (dynamicDeathRuntime == deathSession.effects().end() ||
+                dynamicDeathRuntime->effectOwner == nullptr)
+            {
+                throw std::runtime_error(
+                    "source dynamic DeathEffect owner is missing");
+            }
+            r3d::physics::DebrisState firstDeathBody;
+            firstDeathBody.active = true;
+            firstDeathBody.bodyAwake = true;
+            firstDeathBody.body = dynamicDeathRuntime->transform;
+            firstDeathBody.linearVelocity = {4.0F, 0.0F, 0.0F};
+            deathSession.synchronizeVehicleDeathDebrisPhysics(
+                0U, dynamicDeathEffectIndex, firstDeathBody);
+            auto secondDeathBody = firstDeathBody;
+            secondDeathBody.body.position.x += 4.0F;
+            deathSession.synchronizeVehicleDeathDebrisPhysics(
+                0U, dynamicDeathEffectIndex, secondDeathBody);
+            deathSession.sourceWorld().LateProgress(
+                1.0F / 60.0F, true);
+            deathSession.sourceWorld().FrameStep(
+                1.0F / 120.0F, 0.5F);
+            const auto interpolatedDeathBody =
+                deathSession.vehicleDeathDebrisFrameTransform(
+                    0U, dynamicDeathEffectIndex);
+            if (!interpolatedDeathBody ||
+                std::abs(
+                    interpolatedDeathBody->position.x -
+                    (firstDeathBody.body.position.x + 2.0F)) > 0.001F ||
+                !dynamicDeathRuntime->effectOwner
+                     ->IsBodyProgressEvent())
+            {
+                throw std::runtime_error(
+                    "source DeathEffect body bypassed GameObject pose history");
+            }
+            auto sleepingDeathBody = secondDeathBody;
+            sleepingDeathBody.body.position.x += 1.0F;
+            sleepingDeathBody.linearVelocity = {};
+            sleepingDeathBody.bodyAwake = false;
+            deathSession.synchronizeVehicleDeathDebrisPhysics(
+                0U, dynamicDeathEffectIndex, sleepingDeathBody);
+            const auto sleepingDeathTransform =
+                deathSession.vehicleDeathDebrisFrameTransform(
+                    0U, dynamicDeathEffectIndex);
+            if (!sleepingDeathTransform ||
+                std::abs(
+                    sleepingDeathTransform->position.x -
+                    sleepingDeathBody.body.position.x) > 0.001F ||
+                dynamicDeathRuntime->effectOwner
+                    ->IsBodyProgressEvent())
+            {
+                throw std::runtime_error(
+                    "source DeathEffect body sleep pose/event mismatch");
             }
             deathVehicles[0].bodyContacts.clear();
             deathVehicles[0].speed = 0.0F;

@@ -26,7 +26,7 @@ game-rule differences in the adapter; it does not retune the car by eye.
 | Projectile motion quality | Projectile shapes have no `NxCCDSkeleton` and the scene never enables `NX_CONTINUOUS_CD`, so PhysX uses discrete collision detection | Projectile bodies use Jolt `EMotionQuality::Discrete`; the previously forced `LinearCast` mode has been removed |
 | Shape skin/solver | `Physx.cpp` sets `NX_SKIN_WIDTH=0.025`; `LoadCrushObj` raises movable crush boxes to `0.1`; `NxBodyDesc` uses four solver iterations | Jolt uses `0.05` penetration slop for a pair of default skins and four velocity iterations; the excess `0.075` of each explicit crush skin is represented by a per-shape collision inset |
 | Body sleep | `DataBase::AddPxBody` sets mass-normalized `sleepEnergyThreshold=0.05`; `NX_SLEEP_INTERVAL` is `0.4 s` | Jolt's representative-point movement test uses the equivalent enclosing-sphere radius rate `0.5*sqrt(2*0.05)` and the same `0.4 s`; awake state is exported for cars, decorations and debris |
-| GameObject graph sync | `Scene::UserNotify` drives `GameObject::OnWake/OnSleep`; awake cars, projectiles, movable decorations and detached DestrObj children run `OnPxSync(1)` in late progress and alpha interpolation in frame progress | Jolt exports `Body::IsActive()` separately from actor existence; concrete source objects receive every completed 1/60 pose and Metal consumes their interpolated graph pose |
+| GameObject graph sync | `Scene::UserNotify` drives `GameObject::OnWake/OnSleep`; awake cars, projectiles, movable decorations, detached DestrObj children and physical DeathEffects run `OnPxSync(1)` in late progress and alpha interpolation in frame progress | Jolt exports `Body::IsActive()` separately from actor existence; concrete source objects receive every completed 1/60 pose and Metal consumes their interpolated graph pose |
 | Wheel queries | Wheels do not collide with shot-transparent borders or other cars | Suspension raycasts reject border and vehicle bodies |
 | Reset | Pose, velocities, gear and wheel state are reset | Wheel angular/rotation/steer state, neutral gear and idle RPM are explicitly restored |
 
@@ -66,6 +66,8 @@ cannot hide a motor defect. It checks:
   velocity after the original race reset contract.
 - exact DestrObj child transfer binding, debris velocity, half-alpha fragment
   pose and terminal sleep/unregister behavior.
+- physical vehicle DeathEffect owner registration, half-alpha debris pose and
+  terminal wake-to-sleep publication.
 
 Representative final acceptance also runs tracks 0, 16, 48 and 64 through the
 packaged arm64 Debug executable and a 240-frame bgfx/Metal race integration
@@ -116,3 +118,7 @@ child `MapObj` moved by `DestrObj::OnProgress` retains source graph ownership;
 its stable address is bound to the matching Jolt debris actor. Rendering uses
 that child's post-frame pose, while the debris actor remains the sole physics
 state owner.
+
+Physical vehicle DeathEffects use the same rule. Their source `GameObject`
+keeps behavior and effect lifetime, Jolt keeps the dynamic body, and the
+renderer consumes only the source owner's post-frame pose.

@@ -1792,6 +1792,19 @@ late/frame событий renderer получает alpha-interpolated pose по
 instance/piece binding. Это не вводит новый объект или state machine: source
 MapObj владеет graph lifecycle, Jolt — actor storage и solve.
 
+Результат B8dq: физические vehicle DeathEffect больше не обходят source
+`GameObject`. В Windows `DeathEffect::OnDeath` создаёт effect MapObj через
+`MakeEffect` и работает с его PhysX actor; в порте соответствующий concrete
+owner уже существовал внутри `RaceEffect`, но renderer читал Jolt debris pose
+напрямую.
+
+Owner теперь получает spawn world transform, shared Logic/World registration
+и каждую completed source-step pose с velocity/awake. После `OnLateProgress`
+и `OnFrame` renderer строит `VehicleDeathFragmentState` из source graph pose.
+Срок жизни эффекта и LifeEffect остаются в `RaceEffect`, физическое тело — в
+Jolt; render interpolation ни в один из этих gameplay/backend states не
+записывается обратно.
+
 Каждый крупный block commit обязан:
 
 1. назвать точные методы из `eff9338:prog`, которые стали активными;

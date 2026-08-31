@@ -3150,3 +3150,20 @@ dispatch fragment renderer получает позу этого child `GameObjec
 Regression разрушает shipped `crush1`, проверяет перенос всех children в Map,
 half-alpha позу динамической части, её body-progress registration и финальную
 sleep pose. Physics regression отдельно требует реальную debris velocity.
+
+### B8dq — подключён GameObject lifecycle физических DeathEffect — выполнено
+
+Оригинальный `eff9338:GameBase.cpp::DeathEffect::OnDeath` вызывает
+`MakeEffect`, после чего созданный MapObj уже имеет source `GameObject` и
+PhysX actor. Поэтому динамические кузовные части из vehicle death effects
+проходят общий `Scene::UserNotify` / `OnPxSync`, а не отдельный renderer path.
+
+В порте `RaceEffect` уже владел concrete source `GameObject`, однако его поза
+не была подключена к shared Logic/World, а `vehicleDeathFragments` строился
+прямо из Jolt `DebrisState`. Теперь owner получает точную spawn pose и shared
+Logic, каждый completed source step публикует solver pose/velocity/awake, а
+после frame events Metal читает source graph pose. Effect lifetime,
+LifeEffect и Jolt body lifetime остаются у прежних владельцев.
+
+Regression на shipped vehicle death выбирает реальный dynamic DeathEffect,
+проверяет half-alpha transform, body-progress registration и sleep final pose.
