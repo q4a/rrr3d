@@ -2401,6 +2401,11 @@ ObjectDefinition objectDefinition(
                             pieceTransform.scale.y;
                         destructionPiece.halfExtents.z *=
                             pieceTransform.scale.z;
+                        const float savedSkinWidth = optionalScalar(
+                            shape, "skinWidth", -1.0F);
+                        destructionPiece.skinWidth =
+                            savedSkinWidth < 0.0F ? 0.025F
+                                                  : savedSkinWidth;
                         destructionPiece.dynamic =
                             destructionPiece.mass > 0.0F;
                         break;
@@ -2441,6 +2446,10 @@ ObjectDefinition objectDefinition(
                         : Quat{};
                 result.bodyHalfExtents =
                     vector3(shape, "dimensions", source);
+                const float savedSkinWidth = optionalScalar(
+                    shape, "skinWidth", -1.0F);
+                result.bodySkinWidth =
+                    savedSkinWidth < 0.0F ? 0.025F : savedSkinWidth;
                 result.dynamicBody = result.bodyMass > 0.0F;
                 break;
             }
@@ -3428,6 +3437,12 @@ Vehicle loadVehicle(const resource::ResourceFileSystem& resources,
         vector3(car, "pxActor/shapes/items/item0/dimensions", source);
     vehicle.shapePosition =
         vector3(car, "pxActor/shapes/items/item0/pos", source);
+    {
+        const float savedSkinWidth = optionalScalar(
+            car, "pxActor/shapes/items/item0/skinWidth", -1.0F);
+        vehicle.bodySkinWidth =
+            savedSkinWidth < 0.0F ? 0.025F : savedSkinWidth;
+    }
     vehicle.angularDamping = vector3(car, "angDamping", source);
     const auto bodyMaterial = static_cast<unsigned>(
         optionalScalar(
@@ -5313,6 +5328,7 @@ std::vector<DecorationDebrisDefinition> makeDecorationDestruction(
             std::abs(piece.halfExtents.x * instance.transform.scale.x),
             std::abs(piece.halfExtents.y * instance.transform.scale.y),
             std::abs(piece.halfExtents.z * instance.transform.scale.z)};
+        debris.skinWidth = piece.skinWidth;
         debris.mass = piece.mass;
         if (!piece.dynamic)
         {
@@ -5428,6 +5444,7 @@ r3d::physics::WorldDescription makePhysicsDescription(
                      instance.transform.scale.y),
             std::abs(definition.bodyHalfExtents.z *
                      instance.transform.scale.z)};
+        decoration.skinWidth = definition.bodySkinWidth;
         decoration.mass = definition.bodyMass;
         decoration.hasBodyShape =
             decoration.halfExtents.x > 0.0F &&
@@ -5463,6 +5480,7 @@ r3d::physics::WorldDescription makePhysicsDescription(
                              instance.transform.scale.y),
                     std::abs(piece.halfExtents.z *
                              instance.transform.scale.z)};
+                childShape.skinWidth = piece.skinWidth;
                 decoration.childShapes.push_back(childShape);
             }
         }
@@ -6268,7 +6286,12 @@ bool runOriginalRaceResourceSmokeTest(
             intactDestructionBodiesMatch =
                 instanceIndex < physics.decorations.size() &&
                 !physics.decorations[instanceIndex].collisionResponse &&
-                physics.decorations[instanceIndex].childShapes.size() == 12U;
+                physics.decorations[instanceIndex].childShapes.size() == 12U &&
+                std::all_of(
+                    physics.decorations[instanceIndex].childShapes.begin(),
+                    physics.decorations[instanceIndex].childShapes.end(),
+                    [&](const r3d::physics::DecorationDescription::ChildShape&
+                            shape) { return near(shape.skinWidth, 0.1F); });
             const auto bodies = makeDecorationDestruction(
                 race, resources, instanceIndex);
             destructionBodyCount = bodies.size();
@@ -6309,6 +6332,8 @@ bool runOriginalRaceResourceSmokeTest(
                             near(physicsBody.localImpulse.y, 0.0F) &&
                             near(physicsBody.localImpulse.z, 0.0F);
                         return parentPose && sourceLifetimeAndImpulse &&
+                               near(physicsBody.skinWidth,
+                                    source.skinWidth) &&
                                physicsBody.dynamic == source.dynamic &&
                                (source.dynamic
                                     ? physicsBody.collisionMeshes.empty() &&
@@ -6354,6 +6379,7 @@ bool runOriginalRaceResourceSmokeTest(
                 }
                 ++dynamicCount;
                 if (!near(piece.mass, 200.0F) ||
+                    !near(piece.skinWidth, 0.1F) ||
                     piece.halfExtents.x <= 0.0F ||
                     piece.halfExtents.y <= 0.0F ||
                     piece.halfExtents.z <= 0.0F)
@@ -6364,6 +6390,7 @@ bool runOriginalRaceResourceSmokeTest(
         if (!sourcePiecesMatch(crush1, 14U, 12U) ||
             !sourcePiecesMatch(reklama, 11U, 10U) ||
             bochka == nullptr || bochka->destructible ||
+            !near(bochka->bodySkinWidth, 0.1F) ||
             !bochka->destructionPieces.empty() ||
             !intactDestructionBodiesMatch ||
             !destructionBodiesMatch ||

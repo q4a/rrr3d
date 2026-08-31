@@ -6769,3 +6769,22 @@ Jolt runtime теперь захватывает contact history один раз
 contract даже в standalone smoke, но никогда не переживает reset. Unit
 boundary и settled-vehicle regression подтверждают обе стороны порога и
 активацию реальной ветви; полный arm64/CTest/physics/Metal набор прошёл.
+
+### P2.313 — восстановлены NxShape skinWidth и solverIterationCount — выполнено
+
+`eff9338:Physx.cpp` устанавливает SDK `NX_SKIN_WIDTH=0.025`, а
+`DataBase::LoadCrushObj/LoadCrush` меняют его на `0.1` для 69 сохранённых
+box-форм разрушаемых частей, бочек и знаков. Эти значения отсутствовали в
+portable object graph: целая destructible sensor, отделённый debris и обычная
+dynamic decoration создавались с геометрией Jolt без source skin. Одновременно
+сцена наследовала десять Jolt velocity iterations вместо четырёх из
+`NxBodyDesc`.
+
+Loader теперь разрешает сохранённый `-1` в глобальные `0.025` и переносит
+явные значения через все lifecycle-состояния формы. Поскольку Jolt convex
+radius не смещает наружные плоскости, пара default shapes моделируется scene
+penetration slop `0.05`, а excess `0.075` explicit crush skin — inset-ом
+конкретного box. Solver ограничен четырьмя source iterations. Регрессии
+проверяют raw catalog provenance и backend mapping; 32 CTest, physics smoke и
+1800-frame Metal race завершились без потери контактов, AI-прогресса или
+устойчивости автомобиля.

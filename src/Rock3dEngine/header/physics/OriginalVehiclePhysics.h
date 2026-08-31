@@ -63,12 +63,14 @@ struct DecorationDescription
         Vec3 position;
         Quat rotation;
         Vec3 halfExtents;
+        float skinWidth = 0.025F;
     };
 
     Transform transform;
     Vec3 shapePosition;
     Quat shapeRotation;
     Vec3 halfExtents;
+    float skinWidth = 0.025F;
     float mass = 0.0F;
     bool hasBodyShape = false;
     bool dynamic = false;
@@ -118,6 +120,7 @@ struct VehicleDescription
     Vec3 shapePosition;
     Vec3 centerOfMass;
     Vec3 angularDamping{1.0F, 1.0F, 1.0F};
+    float bodySkinWidth = 0.025F;
     float bodyFriction = 0.08F;
     float brakeTorque = 0.0F;
     float differentialRatio = 0.0F;
@@ -423,6 +426,7 @@ struct DebrisDescription
     Vec3 shapePosition;
     Quat shapeRotation;
     Vec3 halfExtents{0.1F, 0.1F, 0.1F};
+    float skinWidth = 0.025F;
     Vec3 localImpulse;
     float mass = 1.0F;
     float lifetime = -1.0F;

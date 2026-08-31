@@ -22,6 +22,7 @@ game-rule differences in the adapter; it does not retune the car by eye.
 | Clutch | Oil disables tire reaction; selected cars ignore it through `clutchImmunity` | Traction suppression and immunity are both preserved; immune cars do not receive the oil spin |
 | Coordinates | Linear and angular vectors transform differently across the reflected Z-up/Y-up basis | Angular velocity now uses the axial-vector sign transform |
 | Materials | Cars use 0.08 or 0.02 friction and zero restitution; track uses 0.1, border uses dynamic 4.0 | Source scalar coefficients and combine behavior are assigned by collision surface |
+| Shape skin/solver | `Physx.cpp` sets `NX_SKIN_WIDTH=0.025`; `LoadCrushObj` raises movable crush boxes to `0.1`; `NxBodyDesc` uses four solver iterations | Jolt uses `0.05` penetration slop for a pair of default skins and four velocity iterations; the excess `0.075` of each explicit crush skin is represented by a per-shape collision inset |
 | Wheel queries | Wheels do not collide with shot-transparent borders or other cars | Suspension raycasts reject border and vehicle bodies |
 | Reset | Pose, velocities, gear and wheel state are reset | Wheel angular/rotation/steer state, neutral gear and idle RPM are explicitly restored |
 
@@ -54,8 +55,7 @@ smoke.
 ## Backend boundary
 
 Jolt and PhysX 2.8.4 use different suspension/contact solvers, so trajectories
-cannot be bit-identical. Jolt exposes scalar body friction rather than the
-two-direction PhysX anisotropic material used by the car body. The adapter
-therefore preserves the source scalar coefficients, combine mode, tire curves,
-impulse cutoff and game-side state machine, while solver iteration order
-remains Jolt-specific.
+cannot be bit-identical. The adapter preserves the source two-direction track
+contact, scalar coefficients, combine mode, tire curves, shape skin distances,
+iteration count, impulse cutoff and game-side state machine. Constraint order
+and the inner contact implementation remain Jolt-specific.

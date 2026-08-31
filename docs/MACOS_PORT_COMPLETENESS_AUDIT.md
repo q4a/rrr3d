@@ -2989,3 +2989,21 @@ smoke прошли. Длинный заезд сохранил четыре whee
 Arm64 build, 32/32 CTest, physics smoke и 1800-frame Metal race прошли. В
 длинном заезде все пять AI прогрессировали, четыре колеса оставались в
 контакте, а player достиг `47.78` без regressions renderer/audio/menu.
+
+### B8dh — перенесены PhysX shape skin и scene solver iterations — выполнено
+
+Обратная проверка `eff9338:Physx.cpp`, `DataBase::LoadCrushObj` и
+`DataBase::LoadCrush` выявила потерянный collision contract. Глобальный
+`NX_SKIN_WIDTH=0.025` применяется ко всем формам с сохранённым `-1`, а 69
+box-форм подвижных разрушаемых частей, бочек и знаков явно имеют `0.1`.
+Portable loader не сохранял поле, а Jolt оставался на slop `0.02` и десяти
+solver iterations вместо исходных четырёх.
+
+Skin теперь сохраняется в object/physics описаниях целой декорации, attached
+child и отделённого debris. Jolt scene получает сумму двух стандартных skins
+`0.05`, а explicit excess формы `0.075` — геометрический inset именно этой
+box-формы. Это не подмена convex radius: последний только скругляет форму и
+не передвигает наружную контактную поверхность. Backend также использует
+четыре velocity iterations. Resource regression проверяет `crush1`,
+`reklama`, `bochka` и передачу в debris; physics regression — default,
+explicit и thin-box адаптацию. Полный arm64/CTest/physics/Metal набор прошёл.

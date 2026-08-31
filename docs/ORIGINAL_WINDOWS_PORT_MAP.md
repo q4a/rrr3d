@@ -1652,6 +1652,23 @@ Hermite. История обновляется на частоте Windows World
 вместе с автомобилем. Jolt владеет только хранением contact point и
 применением итогового impulse budget.
 
+Результат B8dh: восстановлен контракт `NxShapeDesc::skinWidth` и число
+итераций сцены. `eff9338:Physx.cpp` задаёт глобальный skin `0.025`, а
+`DataBase::LoadCrushObj/LoadCrush` сохраняют `0.1` у всех подвижных частей,
+бочек и знаков. Ранний Jolt boundary игнорировал оба значения и использовал
+свои `mPenetrationSlop=0.02` и десять velocity iterations, поэтому лёгкое
+препятствие начинало исправлять проникновение раньше и жёстче оригинала.
+
+Source skin теперь проходит из `db.xml` через `ObjectDefinition`, целую
+`DecorationDescription` и отделённый `DebrisDescription`. Две стандартные
+формы дают сцене исходную сумму `0.05`; явный excess `0.075` crush-box
+реализован inset-ом конкретной collision shape, поскольку Jolt convex radius
+не меняет наружные плоскости и не является аналогом PhysX skin. Scene solver
+исполняет исходные четыре velocity iterations; Jolt 120 Hz и внутренний
+constraint order остаются backend boundary. Parser/backend regressions и
+полный arm64 build, 32 CTest, physics smoke, 1800-frame Metal race прошли;
+пять AI сохранили скорость `37.48–40.50`, player — `39.09`.
+
 Каждый крупный block commit обязан:
 
 1. назвать точные методы из `eff9338:prog`, которые стали активными;

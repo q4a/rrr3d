@@ -54,6 +54,31 @@ constexpr JPH::uint count = 2;
 // lets an ordinary off-centre impact spin a chassis fast enough for the next
 // wheel/body contact to turn that rotation into an artificial upward launch.
 constexpr float sourceMaximumAngularVelocity = 7.0F;
+// Physx.cpp sets NX_SKIN_WIDTH to 0.025. Two default shapes may therefore
+// interpenetrate by 0.05 before their visual surfaces meet. NxBodyDesc also
+// leaves solverIterationCount at its SDK default of four.
+constexpr float sourceSkinWidth = 0.025F;
+constexpr float sourcePenetrationSlop = 2.0F * sourceSkinWidth;
+constexpr JPH::uint sourceSolverIterations = 4U;
+
+JPH::Vec3 sourceBoxHalfExtents(Vec3 halfExtents, float skinWidth) noexcept
+{
+    // Jolt's convex radius rounds the inside of a box without moving its
+    // outer planes, so it cannot represent PhysX skin width. The global
+    // penetration slop accounts for two default 0.025 skins. Inset only the
+    // excess carried by shapes for which the source explicitly saved a
+    // larger value (the crush pieces use 0.1).
+    constexpr float minimumHalfExtent = 0.005F;
+    const float effectiveSkin =
+        std::isfinite(skinWidth) && skinWidth >= 0.0F
+            ? skinWidth : sourceSkinWidth;
+    const float inset =
+        std::max(effectiveSkin - sourceSkinWidth, 0.0F);
+    return {
+        std::max(std::abs(halfExtents.x) - inset, minimumHalfExtent),
+        std::max(std::abs(halfExtents.z) - inset, minimumHalfExtent),
+        std::max(std::abs(halfExtents.y) - inset, minimumHalfExtent)};
+}
 
 class ObjectLayerPairFilter final : public JPH::ObjectLayerPairFilter
 {
@@ -853,8 +878,6 @@ float sourceTireFunction(
     return sign * force;
 }
 
-constexpr float sourceSkinWidth = 0.025F;
-
 bool sourceLowSpeedWheelContact(
     Vec3 previous, Vec3 current, bool previousValid) noexcept
 {
@@ -908,6 +931,10 @@ public:
         validate();
         system_.Init(4096, 0, 16384, 4096, broadPhaseInterface_,
                      objectVsBroadPhase_, objectLayerPairs_);
+        auto physicsSettings = system_.GetPhysicsSettings();
+        physicsSettings.mPenetrationSlop = sourcePenetrationSlop;
+        physicsSettings.mNumVelocitySteps = sourceSolverIterations;
+        system_.SetPhysicsSettings(physicsSettings);
         contactListener_.resize(description_.spawns.size());
         system_.SetContactListener(&contactListener_);
         system_.SetGravity(
@@ -1513,10 +1540,8 @@ public:
         }
         else
         {
-            const JPH::Vec3 halfExtents{
-                std::max(description.halfExtents.x, 0.05F),
-                std::max(description.halfExtents.z, 0.05F),
-                std::max(description.halfExtents.y, 0.05F)};
+            const JPH::Vec3 halfExtents = sourceBoxHalfExtents(
+                description.halfExtents, description.skinWidth);
             const auto box = new JPH::BoxShape(halfExtents);
             const auto shifted = JPH::RotatedTranslatedShapeSettings(
                                      toJolt(description.shapePosition),
@@ -2565,9 +2590,11 @@ private:
             const auto& source = description_.decorations[index];
             auto& decoration = decorations_[index];
             auto createBoxBody = [&](Vec3 halfExtents, Vec3 shapePosition,
-                                     Quat shapeRotation, bool dynamic,
-                                     float mass, bool collisionResponse) {
-                const auto box = new JPH::BoxShape(toJolt(halfExtents));
+                                     Quat shapeRotation, float skinWidth,
+                                     bool dynamic, float mass,
+                                     bool collisionResponse) {
+                const auto box = new JPH::BoxShape(
+                    sourceBoxHalfExtents(halfExtents, skinWidth));
                 const auto shifted = JPH::RotatedTranslatedShapeSettings(
                                          toJolt(shapePosition),
                                          toJolt(shapeRotation), box)
@@ -2620,8 +2647,8 @@ private:
             {
                 decoration.shapeBody = createBoxBody(
                     source.halfExtents, source.shapePosition,
-                    source.shapeRotation, source.dynamic, source.mass,
-                    source.collisionResponse);
+                    source.shapeRotation, source.skinWidth, source.dynamic,
+                    source.mass, source.collisionResponse);
             }
             // Actor::InitRootNxActor attaches these shapes to the parent's
             // static NX_AF_DISABLE_RESPONSE actor. Their saved body records
@@ -2632,7 +2659,8 @@ private:
             {
                 decoration.childShapeBodies.push_back(createBoxBody(
                     child.halfExtents, child.position, child.rotation,
-                    false, 0.0F, source.collisionResponse));
+                    child.skinWidth, false, 0.0F,
+                    source.collisionResponse));
             }
         }
     }
@@ -2640,7 +2668,8 @@ private:
     void createVehicle(const VehicleSpawn& spawn)
     {
         const auto& source = spawn.vehicle;
-        const JPH::Vec3 halfExtents = toJolt(source.halfExtents);
+        const JPH::Vec3 halfExtents = sourceBoxHalfExtents(
+            source.halfExtents, source.bodySkinWidth);
         const auto box = new JPH::BoxShape(halfExtents);
         const auto translated = JPH::RotatedTranslatedShapeSettings(
                                     toJolt(source.shapePosition),
@@ -3152,6 +3181,21 @@ std::unique_ptr<OriginalVehicleWorld> createOriginalVehicleWorld(
 bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
                                         std::string& error)
 {
+    const JPH::Vec3 defaultSkinBox = sourceBoxHalfExtents(
+        {1.0F, 2.0F, 3.0F}, 0.025F);
+    const JPH::Vec3 crushSkinBox = sourceBoxHalfExtents(
+        {1.0F, 2.0F, 3.0F}, 0.1F);
+    const JPH::Vec3 thinCrushSkinBox = sourceBoxHalfExtents(
+        {0.048F, 1.0F, 1.0F}, 0.1F);
+    if (std::abs(sourcePenetrationSlop - 0.05F) > 0.0001F ||
+        sourceSolverIterations != 4U ||
+        !defaultSkinBox.IsClose({1.0F, 3.0F, 2.0F}, 0.0001F) ||
+        !crushSkinBox.IsClose({0.925F, 2.925F, 1.925F}, 0.0001F) ||
+        !thinCrushSkinBox.IsClose({0.005F, 0.925F, 0.925F}, 0.0001F))
+    {
+        error = "PhysX skin-width/solver scene contract failed";
+        return false;
+    }
     const auto flatBodyFriction = sourceTrackBodyFriction(
         JPH::Quat::sIdentity(), JPH::Vec3::sAxisY(),
         CollisionSurface::TrackPlane);

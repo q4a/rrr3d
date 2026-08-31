@@ -333,6 +333,10 @@ struct DestructionPieceDefinition
     Vec3 shapePosition;
     Quat shapeRotation;
     Vec3 halfExtents;
+    // NxShapeDesc::skinWidth is -1 by default and therefore resolves to the
+    // SDK-wide NX_SKIN_WIDTH (0.025). LoadCrushObj explicitly raises this to
+    // 0.1 for every movable destruction piece.
+    float skinWidth = 0.025F;
     float mass = 0.0F;
     bool dynamic = false;
 };
@@ -351,6 +355,7 @@ struct ObjectDefinition
     Vec3 bodyShapePosition;
     Quat bodyShapeRotation;
     Vec3 bodyHalfExtents;
+    float bodySkinWidth = 0.025F;
     float bodyMass = 0.0F;
     bool dynamicBody = false;
     float maximumLife = -1.0F;
