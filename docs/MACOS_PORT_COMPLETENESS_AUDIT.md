@@ -124,8 +124,10 @@ Windows target не компилируется.
 `main_bgfx_original_menu.cpp` всё ещё вручную объявляет `MenuScreen`.
 `GameModeFrame`, `TournamentFrame`, `DifficultyFrame` и активный
 `OptionsMenu` больше не являются произвольными generic-списками: их
-компоновка, доступность и переходы сопоставлены с исходником. Главные
-оставшиеся generic-блоки — Network и часть переходов.
+компоновка, доступность и typed переходы принадлежат concrete source state.
+MainFrame также больше не разбирается по raw index. Network frames и
+callbacks закрыты B8cr/B8cu; host сохраняет Screen enum, draw submission и
+исполнение profile/video/network transactions.
 Активные `FinishMenu` и `FinalMenu` уже используют исходные игровые ресурсы,
 layout, timing и ControlEvent semantics. Legacy `MenuSystem`
 animation/event object graph также не компилируется.
@@ -2799,3 +2801,16 @@ Transport оставляет только `SessionFailure` и replicated player 
 SDL/bgfx локализуют и показывают готовое решение. Main loop использует owner
 при LAN/IP connect, failure presentation и входе client owner в match. Unit
 и 420-frame network smoke подтверждают callback order и диалоговый lifecycle.
+
+### B8cv — четыре основных MainMenu2 frame owner-а завершены — выполнено
+
+Общий `FrameController` уже обеспечивал исходные координаты, disabled rows и
+keyboard navigation, но host сам выбирал действия по индексам. Concrete
+`MainFrameState`, `GameModeFrameState`, `TournamentFrameState` и
+`DifficultyFrameState` теперь возвращают typed commands и владеют tutorial/
+profile gates. Difficulty хранит выбор Easy/Normal/Hard, поэтому отложенный
+video completion использует то же состояние, что Windows `_difficulty`.
+
+Main loop только выполняет push/back/start/profile/video операции. Unit
+перебирает все command values, disabled cases и сохранение difficulty;
+300-frame Metal smoke проходит Main→GameMode→Tournament→RaceMenu.

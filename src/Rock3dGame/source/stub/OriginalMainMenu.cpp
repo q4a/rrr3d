@@ -412,6 +412,103 @@ float FrameController::itemY(float viewportHeight, std::size_t item,
            static_cast<float>(item) * (itemHeight + 5.0F);
 }
 
+void MainFrameState::show() noexcept
+{
+    enabled_.assign(5U, true);
+}
+
+std::optional<MainFrameCommand> MainFrameState::activate(
+    std::size_t item) const noexcept
+{
+    if (item >= enabled_.size())
+        return std::nullopt;
+    return static_cast<MainFrameCommand>(item);
+}
+
+const std::vector<bool>& MainFrameState::enabledItems() const noexcept
+{
+    return enabled_;
+}
+
+void GameModeFrameState::show(
+    bool tutorialFirstStageComplete) noexcept
+{
+    enabled_ = {true, tutorialFirstStageComplete, true};
+}
+
+std::optional<GameModeFrameCommand> GameModeFrameState::activate(
+    std::size_t item) const noexcept
+{
+    if (item >= enabled_.size() || !enabled_[item])
+        return std::nullopt;
+    return static_cast<GameModeFrameCommand>(item);
+}
+
+const std::vector<bool>& GameModeFrameState::enabledItems() const noexcept
+{
+    return enabled_;
+}
+
+void TournamentFrameState::show(bool hasLastProfile,
+                                bool hasProfiles) noexcept
+{
+    enabled_ = {hasLastProfile, true, hasProfiles, true};
+}
+
+std::optional<TournamentFrameCommand> TournamentFrameState::activate(
+    std::size_t item) const noexcept
+{
+    if (item >= enabled_.size() || !enabled_[item])
+        return std::nullopt;
+    return static_cast<TournamentFrameCommand>(item);
+}
+
+const std::vector<bool>& TournamentFrameState::enabledItems() const noexcept
+{
+    return enabled_;
+}
+
+void DifficultyFrameState::show() noexcept
+{
+    enabled_.assign(4U, true);
+}
+
+std::optional<DifficultyFrameCommand> DifficultyFrameState::activate(
+    std::size_t item) noexcept
+{
+    if (item >= enabled_.size())
+        return std::nullopt;
+    if (item == 3U)
+        return DifficultyFrameCommand{};
+    difficulty_ = static_cast<DifficultySelection>(item);
+    return DifficultyFrameCommand{
+        DifficultyFrameCommandType::StartMatch, difficulty_};
+}
+
+DifficultySelection DifficultyFrameState::difficulty() const noexcept
+{
+    return difficulty_;
+}
+
+std::string_view DifficultyFrameState::difficultyName() const noexcept
+{
+    switch (difficulty_)
+    {
+    case DifficultySelection::Easy:
+        return "gdEasy";
+    case DifficultySelection::Normal:
+        return "gdNormal";
+    case DifficultySelection::Hard:
+        return "gdHard";
+    }
+    return "gdNormal";
+}
+
+const std::vector<bool>& DifficultyFrameState::enabledItems() const noexcept
+{
+    return enabled_;
+}
+
 void NetworkFrameState::show(
     std::vector<std::string> adapterAddresses)
 {

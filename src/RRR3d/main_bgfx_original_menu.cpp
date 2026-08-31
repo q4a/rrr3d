@@ -4934,6 +4934,10 @@ int main(int argc, char** argv)
     auto& menuStack = sourceMenuSystem.Screens();
     auto& menuSelection = sourceMenuSystem.Selection();
     r3d::game::mainmenu2::FrameController sourceMainMenuFrame;
+    r3d::game::mainmenu2::MainFrameState sourceMainFrameState;
+    r3d::game::mainmenu2::GameModeFrameState sourceGameModeFrameState;
+    r3d::game::mainmenu2::TournamentFrameState sourceTournamentFrameState;
+    r3d::game::mainmenu2::DifficultyFrameState sourceDifficultyFrameState;
     bool championshipMode = true;
     bool newTournamentProfile = false;
     std::uint64_t previousFrameTicks = SDL_GetTicksNS();
@@ -5103,7 +5107,30 @@ int main(int argc, char** argv)
 #endif
         auto& page = activeMenuPage();
         sourceMainMenuFrame.show(screen, page.enabled.size(), context);
-        page.enabled = sourceMainMenuFrame.enabledItems();
+        switch (screen)
+        {
+        case MenuScreen::Main:
+            sourceMainFrameState.show();
+            page.enabled = sourceMainFrameState.enabledItems();
+            break;
+        case MenuScreen::GameMode:
+            sourceGameModeFrameState.show(
+                context.tutorialFirstStageComplete);
+            page.enabled = sourceGameModeFrameState.enabledItems();
+            break;
+        case MenuScreen::Tournament:
+            sourceTournamentFrameState.show(
+                context.hasLastProfile, context.hasProfiles);
+            page.enabled = sourceTournamentFrameState.enabledItems();
+            break;
+        case MenuScreen::Difficulty:
+            sourceDifficultyFrameState.show();
+            page.enabled = sourceDifficultyFrameState.enabledItems();
+            break;
+        default:
+            page.enabled = sourceMainMenuFrame.enabledItems();
+            break;
+        }
     };
     auto firstEnabledMenuItem = [&]() {
         return sourceMainMenuFrame.firstEnabled();
@@ -13819,9 +13846,16 @@ int main(int argc, char** argv)
                 switch (menuStack.back())
                 {
                 case MenuScreen::Main:
-                    if (menuSelection == 0U)
+                {
+                    const auto command =
+                        sourceMainFrameState.activate(menuSelection);
+                    if (!command)
+                        break;
+                    if (*command == r3d::game::mainmenu2::
+                                        MainFrameCommand::SinglePlayer)
                         pushMenu(MenuScreen::GameMode);
-                    else if (menuSelection == 1U)
+                    else if (*command == r3d::game::mainmenu2::
+                                             MainFrameCommand::Network)
 #ifdef RRR3D_NETWORK
                     {
                         if (initializeNetwork())
@@ -13830,7 +13864,8 @@ int main(int argc, char** argv)
 #else
                         pushMenu(MenuScreen::Network);
 #endif
-                    else if (menuSelection == 2U)
+                    else if (*command == r3d::game::mainmenu2::
+                                             MainFrameCommand::Options)
                     {
 #ifdef RRR3D_PHYSICS
                         beginOriginalOptions();
@@ -13838,18 +13873,27 @@ int main(int argc, char** argv)
                         pushMenu(MenuScreen::Options);
 #endif
                     }
-                    else if (menuSelection == 3U)
+                    else if (*command == r3d::game::mainmenu2::
+                                             MainFrameCommand::Authors)
                         showOriginalFinalMenu();
                     else
                         running = false;
                     break;
+                }
                 case MenuScreen::GameMode:
-                    if (menuSelection == 0U)
+                {
+                    const auto command =
+                        sourceGameModeFrameState.activate(menuSelection);
+                    if (!command)
+                        break;
+                    if (*command == r3d::game::mainmenu2::
+                                        GameModeFrameCommand::Championship)
                     {
                         championshipMode = true;
                         pushMenu(MenuScreen::Tournament);
                     }
-                    else if (menuSelection == 1U)
+                    else if (*command == r3d::game::mainmenu2::
+                                             GameModeFrameCommand::Skirmish)
                     {
                         championshipMode = false;
                         newTournamentProfile = false;
@@ -13858,8 +13902,15 @@ int main(int argc, char** argv)
                     else
                         backMenu();
                     break;
+                }
                 case MenuScreen::Tournament:
-                    if (menuSelection == 0U)
+                {
+                    const auto command =
+                        sourceTournamentFrameState.activate(menuSelection);
+                    if (!command)
+                        break;
+                    if (*command == r3d::game::mainmenu2::
+                                        TournamentFrameCommand::Continue)
                     {
 #ifdef RRR3D_PHYSICS
                         // TournamentFrame::Continue uses lastNetProfile in
@@ -13893,29 +13944,35 @@ int main(int argc, char** argv)
                         showOriginalRaceMenu();
 #endif
                     }
-                    else if (menuSelection == 1U)
+                    else if (*command == r3d::game::mainmenu2::
+                                             TournamentFrameCommand::NewGame)
                     {
                         championshipMode = true;
                         newTournamentProfile = true;
                         pushMenu(MenuScreen::Difficulty);
                     }
-                    else if (menuSelection == 2U)
+                    else if (*command == r3d::game::mainmenu2::
+                                             TournamentFrameCommand::Load)
                         pushMenu(MenuScreen::Profiles);
                     else
                         backMenu();
                     break;
+                }
                 case MenuScreen::Difficulty:
                 {
-                    if (menuSelection >= 3U)
+                    const auto command =
+                        sourceDifficultyFrameState.activate(menuSelection);
+                    if (!command)
+                        break;
+                    if (command->type == r3d::game::mainmenu2::
+                                             DifficultyFrameCommandType::Back)
                     {
                         backMenu();
                         break;
                     }
 #ifdef RRR3D_PHYSICS
-                    const auto difficulty =
-                        std::array<std::string, 3>{
-                            "gdEasy", "gdNormal", "gdHard"}
-                            [menuSelection];
+                    const std::string difficulty(
+                        sourceDifficultyFrameState.difficultyName());
                     const auto startSelectedMatch = [&, difficulty]() {
                         const bool needsGamerSelection =
                             !championshipMode || newTournamentProfile;

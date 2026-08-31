@@ -56,6 +56,55 @@ int main()
     if (!frame.enabled(0U) || frame.enabled(2U))
         return fail("TournamentFrame continue/load ownership differs");
 
+    MainFrameState mainFrame;
+    mainFrame.show();
+    if (mainFrame.enabledItems().size() != 5U ||
+        mainFrame.activate(0U) != MainFrameCommand::SinglePlayer ||
+        mainFrame.activate(1U) != MainFrameCommand::Network ||
+        mainFrame.activate(2U) != MainFrameCommand::Options ||
+        mainFrame.activate(3U) != MainFrameCommand::Authors ||
+        mainFrame.activate(4U) != MainFrameCommand::Exit ||
+        mainFrame.activate(5U))
+        return fail("MainFrame concrete command mapping differs");
+
+    GameModeFrameState gameModeFrame;
+    gameModeFrame.show(false);
+    if (gameModeFrame.activate(1U) ||
+        gameModeFrame.activate(0U) !=
+            GameModeFrameCommand::Championship ||
+        gameModeFrame.activate(2U) != GameModeFrameCommand::Back)
+        return fail("GameModeFrame concrete disabled/command policy differs");
+    gameModeFrame.show(true);
+    if (gameModeFrame.activate(1U) != GameModeFrameCommand::Skirmish)
+        return fail("GameModeFrame did not enable completed tutorial path");
+
+    TournamentFrameState tournamentFrame;
+    tournamentFrame.show(false, false);
+    if (tournamentFrame.activate(0U) || tournamentFrame.activate(2U) ||
+        tournamentFrame.activate(1U) !=
+            TournamentFrameCommand::NewGame ||
+        tournamentFrame.activate(3U) != TournamentFrameCommand::Back)
+        return fail("TournamentFrame concrete profile gates differ");
+    tournamentFrame.show(true, true);
+    if (tournamentFrame.activate(0U) !=
+            TournamentFrameCommand::Continue ||
+        tournamentFrame.activate(2U) != TournamentFrameCommand::Load)
+        return fail("TournamentFrame concrete commands differ");
+
+    DifficultyFrameState difficultyFrame;
+    difficultyFrame.show();
+    const auto hardDifficulty = difficultyFrame.activate(2U);
+    if (!hardDifficulty ||
+        hardDifficulty->type != DifficultyFrameCommandType::StartMatch ||
+        hardDifficulty->difficulty != DifficultySelection::Hard ||
+        difficultyFrame.difficulty() != DifficultySelection::Hard ||
+        difficultyFrame.difficultyName() != "gdHard" ||
+        difficultyFrame.activate(3U)->type !=
+            DifficultyFrameCommandType::Back ||
+        difficultyFrame.difficulty() != DifficultySelection::Hard ||
+        difficultyFrame.activate(4U))
+        return fail("DifficultyFrame selection/deferred state differs");
+
     NetworkFrameState network;
     network.show({"10.0.0.1", "10.0.0.2", "10.0.0.3",
                   "10.0.0.4", "10.0.0.5", "10.0.0.6",

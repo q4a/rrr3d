@@ -61,7 +61,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `HudMenu` | `source::{HudMenu,MiniMapFrame,PlayerStateFrame}` + `OriginalRaceHud` | Source owner, active HUD/minimap/player-state policy | State/Escape/layout/countdown, MiniMap, weapon/place/life, OnProcessEvent, notifications, car-life и opponents source-owned; FinishMenu не дублируется, bgfx/CoreText payload и camera projection остаются backend boundary |
 | `HumanPlayer` | `source::HumanPlayer` | Source owner, active selection owner | Полный input message order, driving/progress gates и единственное состояние текущего primary weapon перенесены; SDL только переводит source-сообщения |
 | `Logic` | `source::Logic` + shared active `WorldEventPump` registration | Source owner, active object/contact/audio-category/transient lifetime core | Proj/Mine lifetime source-owned; остались network authority и backend pose/contact views, SDL/CoreAudio остаётся submix backend |
-| `MainMenu2` | `mainmenu2::{Controller,FrameController,ProfileFrameState,FinalMenuFrameState,NetworkCallbackState}` + `originalmenu::ScreenStack` | Source owner, active Main/Profile/Final/network path | Все non-Steam network frames и callbacks source-owned; transport, dialog drawing и backend submission остаются adapters |
+| `MainMenu2` | `mainmenu2::{MainFrameState,GameModeFrameState,TournamentFrameState,DifficultyFrameState,ProfileFrameState,FinalMenuFrameState,NetworkCallbackState}` + `originalmenu::ScreenStack` | Source owner, active Main/Profile/Final/network path | Shared layout/navigation остаётся в FrameController; frame commands и все non-Steam network callbacks source-owned, backend submission остаётся adapter |
 | `Map` | `source::Map` + shared `source::DataBase` | Source owner, active registry path | XML parsing и backend actor create/destroy остаются adapters |
 | `MapObj` | `source::MapObj*` record/list hierarchy | Source owner, active live-ID/runtime hierarchy | Global ID и decoration/bonus lifetime выдаёт только live `Map::MapObjList`/`GameObject`; AutoProj владеет arming scale, `sourceIndex` остаётся backend mapping |
 | `Menu` | `originalmenu::MenuSystem` + source Main/Profile/Dialog/Options/Race/Finish/Final/network callback owners | Source owner, frame core | Disconnect/critical pause/exit policy source-owned; bgfx/CoreText/SDL остаются backend boundary |
@@ -1491,6 +1491,19 @@ commands. Active LAN/IP connect и replicated owner arrival проходят ч�
 этот owner. Unit regression покрывает обычный failure, non-owner, inactive и
 active host disconnect, critical error; 420-frame network smoke подтверждает
 failure dialog и host-ready lifecycle.
+
+Результат B8cv: B6c был доведён от общего layout/availability до concrete
+owners четырёх исходных кадров. `MainFrameState`, `GameModeFrameState`,
+`TournamentFrameState` и `DifficultyFrameState` теперь задают exact command
+mapping, tutorial/profile disabled gates и выбранную `_difficulty`, которая
+переживает отложенный `cVideoStopped` start.
+
+Активный main loop больше не интерпретирует индексы Single/Network/Options/
+Authors/Exit, Championship/Skirmish/Back, Continue/New/Load/Back и три
+difficulty значения. `FrameController` оставлен общей реализацией
+`SetItems/AdjustMenuItems` и keyboard layout, а concrete owners принимают
+решение OnClick. Unit regression проверяет все commands/gates и сохранение
+Hard через Back; 300-frame Metal smoke проходит campaign menu flow.
 
 Каждый крупный block commit обязан:
 

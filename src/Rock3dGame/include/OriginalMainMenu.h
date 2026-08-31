@@ -107,6 +107,101 @@ private:
     std::vector<bool> enabled_;
 };
 
+enum class MainFrameCommand : std::uint8_t
+{
+    SinglePlayer,
+    Network,
+    Options,
+    Authors,
+    Exit,
+};
+
+class MainFrameState
+{
+public:
+    void show() noexcept;
+    std::optional<MainFrameCommand> activate(
+        std::size_t item) const noexcept;
+    const std::vector<bool>& enabledItems() const noexcept;
+
+private:
+    std::vector<bool> enabled_{true, true, true, true, true};
+};
+
+enum class GameModeFrameCommand : std::uint8_t
+{
+    Championship,
+    Skirmish,
+    Back,
+};
+
+class GameModeFrameState
+{
+public:
+    void show(bool tutorialFirstStageComplete) noexcept;
+    std::optional<GameModeFrameCommand> activate(
+        std::size_t item) const noexcept;
+    const std::vector<bool>& enabledItems() const noexcept;
+
+private:
+    std::vector<bool> enabled_{true, false, true};
+};
+
+enum class TournamentFrameCommand : std::uint8_t
+{
+    Continue,
+    NewGame,
+    Load,
+    Back,
+};
+
+class TournamentFrameState
+{
+public:
+    void show(bool hasLastProfile, bool hasProfiles) noexcept;
+    std::optional<TournamentFrameCommand> activate(
+        std::size_t item) const noexcept;
+    const std::vector<bool>& enabledItems() const noexcept;
+
+private:
+    std::vector<bool> enabled_{false, true, false, true};
+};
+
+enum class DifficultySelection : std::uint8_t
+{
+    Easy,
+    Normal,
+    Hard,
+};
+
+enum class DifficultyFrameCommandType : std::uint8_t
+{
+    StartMatch,
+    Back,
+};
+
+struct DifficultyFrameCommand
+{
+    DifficultyFrameCommandType type =
+        DifficultyFrameCommandType::Back;
+    DifficultySelection difficulty = DifficultySelection::Normal;
+};
+
+class DifficultyFrameState
+{
+public:
+    void show() noexcept;
+    std::optional<DifficultyFrameCommand> activate(
+        std::size_t item) noexcept;
+    DifficultySelection difficulty() const noexcept;
+    std::string_view difficultyName() const noexcept;
+    const std::vector<bool>& enabledItems() const noexcept;
+
+private:
+    DifficultySelection difficulty_ = DifficultySelection::Normal;
+    std::vector<bool> enabled_{true, true, true, true};
+};
+
 enum class NetworkFrameCommand : std::uint8_t
 {
     Create,

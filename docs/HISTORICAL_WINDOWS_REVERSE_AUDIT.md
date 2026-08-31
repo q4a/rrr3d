@@ -6577,3 +6577,18 @@ failure; решения hide message, MatchConnected, warning kind, cursor, paus
 ExitMatch принадлежат source. Boost.Asio выдаёт только typed failure/event,
 а SDL/bgfx исполняют decision. Отдельный unit и LAN smoke проверяют обе
 стороны callback boundary.
+
+### P2.301 — concrete Main/GameMode/Tournament/Difficulty commands — выполнено
+
+B6c перенёс `MainMenu2::SetItems/AdjustMenuItems`, disabled availability и
+layout, но OnClick четырёх основных кадров всё ещё находился в SDL host как
+цепочки `menuSelection == 0/1/...`. Это оставляло переходы формально
+сопоставленными, но без исходного frame owner.
+
+Добавлены отдельные `MainFrameState`, `GameModeFrameState`,
+`TournamentFrameState` и `DifficultyFrameState`. Они возвращают typed
+commands, блокируют Skirmish/Continue/Load на source условиях и хранят
+последнюю Difficulty для movie-completion path. Host исполняет готовую
+команду и сохраняет только profile/video/platform transactions.
+`FrameController` теперь ровно общий layout/navigation слой. Regression и
+Metal menu flow закрепляют новые boundaries.
