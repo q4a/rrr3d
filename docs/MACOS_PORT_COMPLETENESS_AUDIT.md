@@ -3234,3 +3234,22 @@ primary, Hyper и Mine. Active SDL `Source3d` каждый frame читает э
 GameObject; отсутствие Weapon немедленно удаляет voice. Удалены вычисление и
 хранение придуманного car offset. Regression требует совпадения emitted
 ShotEffect position с live source weapon owner.
+
+### B8dv — car-owned Source3d возвращены graph-owner pose — выполнено
+
+Сверка `eff9338:GameObject::OnPxSync`, `GameCar::OnPxSync`,
+`CarWheel::PxSyncWheel`, `SoundMotor::OnProgress` и
+`EventEffect::OnProgress` выявила общий разрыв: portable `GameCar::OnPxSync`
+вычислял правильную alpha-interpolated позу для renderer, но не записывал её
+в source `GameObject`. Поэтому `GetWorldPos()` автомобиля, колеса и любого
+дочернего owner мог оставаться в стартовой позиции.
+
+Интерполированная body pose теперь публикуется в concrete `RockCar`, а
+вычисленная wheel pose — в соответствующий `CarWheel` с сохранением
+parent-relative graph transform. `SoundMotor`, `DamageEffect`,
+`ImmortalEffect` и `PxWheelSlipEffect` host voices читают эти exact owners и
+освобождаются при их исчезновении. Jolt остаётся владельцем solver pose,
+bgfx — потребителем возвращённого frame state, SDL — backend голоса;
+дополнительной transform-модели в адаптере больше нет. Regression проверяет,
+что renderer state и `GetWorldPos()` кузова/каждого колеса совпадают после
+source frame dispatch, включая session lookup и invalid owner lifetime.

@@ -55,7 +55,9 @@ int main()
     const auto bridgeFrame = bridgeCar.DispatchPxSync(
         bridgeWorld, bridgePose, noBridgeWheels, 1.0F / 60.0F);
     if (std::abs(bridgeFrame.body.position.x - 2.0F) > 0.0001F ||
-        std::abs(bridgeFrame.body.position.y - 3.0F) > 0.0001F)
+        std::abs(bridgeFrame.body.position.y - 3.0F) > 0.0001F ||
+        std::abs(bridgeCar.GetWorldPos()[0] - 2.0F) > 0.0001F ||
+        std::abs(bridgeCar.GetWorldPos()[1] - 3.0F) > 0.0001F)
         return 74;
     if (!bridgeCar.SynchronizeNetworkPose(
              bridgePose.position, bridgePose.position,
@@ -653,7 +655,10 @@ int main()
     if (std::abs(syncedCar.body.position.x - 2.0F) > 0.0001F ||
         syncedCar.wheels.size() != 2U ||
         std::abs(syncedCar.wheels[0].position.x - 3.0F) > 0.0001F ||
-        std::abs(syncedCar.wheels[1].position.x - 1.0F) > 0.0001F)
+        std::abs(syncedCar.wheels[1].position.x - 1.0F) > 0.0001F ||
+        std::abs(car.GetWorldPos()[0] - 2.0F) > 0.0001F ||
+        std::abs(car.GetWheel(0U)->GetWorldPos()[0] - 3.0F) > 0.0001F ||
+        std::abs(car.GetWheel(1U)->GetWorldPos()[0] - 1.0F) > 0.0001F)
         return 36;
     car.Reset();
     if (car.GetFrameSync().HasActiveCorrection())

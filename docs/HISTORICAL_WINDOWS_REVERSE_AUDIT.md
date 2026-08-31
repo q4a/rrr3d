@@ -7010,3 +7010,21 @@ physics poses, сверяет interpolated visual/audio position и затем �
 `WeaponItem`, возвращает world pose `Weapon GameObject`, а host прекращает
 voice при исчезновении owner. Regression сравнивает sound event с этой позой;
 старый car-local followOffset полностью удалён.
+
+### P2.327 — GameCar/CarWheel graph pose и оставшиеся Source3d восстановлены — выполнено
+
+В `eff9338` базовый `GameObject::OnPxSync` сначала пишет интерполированную
+PhysX pose в `_grActor`, затем `GameCar::OnPxSync` вызывает
+`CarWheel::PxSyncWheel` для дочерних graph actors. `SoundMotor` и общий
+`EventEffect` читают именно `GetOwner()->GetGameObj()->GetWorldPos()`.
+Portable реализация возвращала правильный временный `PxSyncState`, но не
+публиковала его в source graph objects; engine, damage/shield и wheel-slip
+audio поэтому были привязаны напрямую к backend `VehicleState`.
+
+`GameCar::OnPxSync` теперь обновляет world pose самого source car и точную
+parent-relative pose каждого `CarWheel`. Session предоставляет lifetime-safe
+lookup этих owners. Audio update использует car owner для `SoundMotor`,
+`DamageEffect` и `ImmortalEffect`, wheel owner для `PxWheelSlipEffect`, а при
+удалении owner останавливает/освобождает голос. Unit regression проверяет
+публикацию graph pose; race regression сопоставляет session lookup с
+renderer-facing alpha frame и проверяет invalid car/wheel identities.

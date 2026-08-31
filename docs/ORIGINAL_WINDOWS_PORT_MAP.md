@@ -1866,6 +1866,20 @@ Audio bridge теперь разрешает source physical slot `0..3/Hyper/Mi
 ShotEffect event с exact Weapon pose; body/Jolt и SDL остаются backend
 границами, никакая дополнительная transform-модель не введена.
 
+Результат B8dv: восстановлена отсутствовавшая публикация
+`GameObject::OnPxSync -> GameCar::OnPxSync -> CarWheel::PxSyncWheel`.
+Временный alpha-interpolated body/wheel state теперь записывается в concrete
+source graph owners, поэтому `GetWorldPos()` совпадает с позой, которую bgfx
+получает для кадра. Это закрывает не только звук, но и единый transform
+contract всех car children.
+
+Оставшиеся car-owned 3D sources больше не читают Jolt `VehicleState`
+напрямую: `SoundMotor`, `DamageEffect` и `ImmortalEffect` следуют live
+`RockCar`, `PxWheelSlipEffect` — exact `CarWheel`. Удаление car/wheel owner
+закрывает voice на той же границе, что Windows behavior destructor. Jolt,
+bgfx и SDL сохраняются как solver/render/audio backends соответственно;
+source object graph снова является общей игровой границей между ними.
+
 Каждый крупный block commit обязан:
 
 1. назвать точные методы из `eff9338:prog`, которые стали активными;

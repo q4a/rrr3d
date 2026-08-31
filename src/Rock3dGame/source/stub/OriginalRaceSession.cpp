@@ -3197,6 +3197,30 @@ std::optional<Vec3> OriginalRaceSession::weaponEffectWorldPosition(
     return Vec3{position[0], position[1], position[2]};
 }
 
+std::optional<Vec3> OriginalRaceSession::racerGameObjectWorldPosition(
+    std::size_t racer) const noexcept
+{
+    if (racer >= racers_.size() || !racers_[racer].HasCar() ||
+        racers_[racer].GetCarMapObj() == nullptr)
+        return std::nullopt;
+    const auto position = racers_[racer].gameCar.GetWorldPos();
+    return Vec3{position[0], position[1], position[2]};
+}
+
+std::optional<Vec3>
+OriginalRaceSession::racerWheelGameObjectWorldPosition(
+    std::size_t racer, std::size_t wheel) const noexcept
+{
+    if (racer >= racers_.size() || !racers_[racer].HasCar() ||
+        racers_[racer].GetCarMapObj() == nullptr)
+        return std::nullopt;
+    const auto* sourceWheel = racers_[racer].gameCar.GetWheel(wheel);
+    if (sourceWheel == nullptr)
+        return std::nullopt;
+    const auto position = sourceWheel->GetWorldPos();
+    return Vec3{position[0], position[1], position[2]};
+}
+
 const std::vector<MineRuntime>& OriginalRaceSession::mines() const noexcept
 {
     refreshMineView();
@@ -9719,6 +9743,61 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             vehicles[index].wheelContacts.resize(4U);
             for (auto& contact : vehicles[index].wheelContacts)
                 contact.hasContact = true;
+        }
+        {
+            // GameObject::OnPxSync publishes the graph actor pose before
+            // SoundMotor/EventEffect and CarWheel-owned EventEffect sources
+            // read GetWorldPos. Keep that source ownership visible through
+            // the session boundary instead of validating only the returned
+            // renderer copy.
+            OriginalRaceSession poseSession(race);
+            auto poseVehicle = vehicles.front();
+            poseVehicle.body.position = {123.0F, 456.0F, 7.0F};
+            const auto wheelCount = poseSession.racers()
+                                        .front()
+                                        .gameCar.GetWheelCount();
+            poseVehicle.wheels.resize(wheelCount);
+            for (std::size_t wheel = 0U; wheel < wheelCount; ++wheel)
+            {
+                poseVehicle.wheels[wheel].position = {
+                    poseVehicle.body.position.x +
+                        static_cast<float>(wheel + 1U),
+                    poseVehicle.body.position.y,
+                    poseVehicle.body.position.z - 0.5F};
+            }
+            poseSession.synchronizeRacerPhysicsState(
+                0U,
+                {{poseVehicle.body.position.x,
+                  poseVehicle.body.position.y,
+                  poseVehicle.body.position.z},
+                 {poseVehicle.body.rotation.x,
+                  poseVehicle.body.rotation.y,
+                  poseVehicle.body.rotation.z,
+                  poseVehicle.body.rotation.w}},
+                {}, true);
+            const auto graphVehicle = poseSession.racerFrameState(
+                0U, poseVehicle, 1.0F / 60.0F, 1.0F);
+            const auto carPosition =
+                poseSession.racerGameObjectWorldPosition(0U);
+            const auto wheelPosition =
+                poseSession.racerWheelGameObjectWorldPosition(0U, 0U);
+            if (!carPosition || !wheelPosition ||
+                length3(subtract(
+                    *carPosition,
+                    graphVehicle.body.position)) > 0.001F ||
+                graphVehicle.wheels.empty() ||
+                length3(subtract(
+                    *wheelPosition,
+                    graphVehicle.wheels.front().position)) > 0.001F ||
+                poseSession.racerGameObjectWorldPosition(
+                    poseSession.racers().size()) ||
+                poseSession.racerWheelGameObjectWorldPosition(
+                    0U, wheelCount))
+            {
+                throw std::runtime_error(
+                    "source GameCar/CarWheel graph pose was not published "
+                    "for exact Source3d owners");
+            }
         }
         const auto droidDefinition = std::find_if(
             race.weapons.begin(), race.weapons.end(),

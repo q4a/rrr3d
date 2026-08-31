@@ -434,6 +434,14 @@ GameCar::PxSyncState GameCar::OnPxSync(
     PxSyncState state;
     state.body = GetFrameSync().OnFrame(
         physicalBody, deltaTime, physicsAlpha);
+    // GameObject::OnPxSync in the Windows source writes the interpolated
+    // PhysX pose into the graph actor before GameCar synchronizes its wheel
+    // children.  GameObject's portable transform is that graph-actor state:
+    // publish it here instead of leaving the source owner at its spawn pose.
+    SetWorldPos({state.body.position.x, state.body.position.y,
+                 state.body.position.z});
+    SetWorldRot({state.body.rotation.x, state.body.rotation.y,
+                 state.body.rotation.z, state.body.rotation.w});
     const std::size_t count = std::min(
         wheels_.size(), physicalWheels.size());
     state.wheels.reserve(count);
@@ -441,8 +449,17 @@ GameCar::PxSyncState GameCar::OnPxSync(
     {
         if (wheels_[index] == nullptr)
             continue;
-        state.wheels.push_back(wheels_[index]->PxSyncWheel(
-            physicalBody, state.body, physicalWheels[index]));
+        auto& wheel = *wheels_[index];
+        const auto wheelPose = wheel.PxSyncWheel(
+            physicalBody, state.body, physicalWheels[index]);
+        // CarWheel::PxSyncWheel writes its local graph actor in Windows.
+        // SetWorld* performs the equivalent parent-relative conversion while
+        // retaining the already computed renderer-facing world pose.
+        wheel.SetWorldPos({wheelPose.position.x, wheelPose.position.y,
+                           wheelPose.position.z});
+        wheel.SetWorldRot({wheelPose.rotation.x, wheelPose.rotation.y,
+                           wheelPose.rotation.z, wheelPose.rotation.w});
+        state.wheels.push_back(wheelPose);
     }
     return state;
 }

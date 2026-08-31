@@ -15839,16 +15839,25 @@ int main(int argc, char** argv)
                     }
                     ++source;
                 }
-                for (auto& source : eventEffectAudio)
+                for (auto source = eventEffectAudio.begin();
+                     source != eventEffectAudio.end();)
                 {
-                    if (source.racer < raceVehicles.size())
+                    // DamageEffect and ImmortalEffect are behaviors of the
+                    // exact RockCar GameObject. EventEffect::OnProgress
+                    // follows that graph owner and its destructor frees all
+                    // Source3d instances when Player::FreeCar removes it.
+                    const auto ownerPosition =
+                        raceSession.racerGameObjectWorldPosition(
+                            source->racer);
+                    if (!ownerPosition)
                     {
-                        const auto& position =
-                            raceVehicles[source.racer].body.position;
-                        source.emitter.SetPos3d(
-                            {position.x, position.y, position.z});
+                        source = eventEffectAudio.erase(source);
+                        continue;
                     }
-                    if (!source.emitter.Update(
+                    source->emitter.SetPos3d(
+                        {ownerPosition->x, ownerPosition->y,
+                         ownerPosition->z});
+                    if (!source->emitter.Update(
                             {listener.x, listener.y, listener.z},
                             raceSession.phase() ==
                                 r3d::game::originalrace::RacePhase::Paused,
@@ -15861,6 +15870,7 @@ int main(int argc, char** argv)
                         runtimeSmokeFailed = true;
                         running = false;
                     }
+                    ++source;
                 }
                 for (auto source = contactEffectAudio.begin();
                      source != contactEffectAudio.end();)
@@ -16186,10 +16196,25 @@ int main(int argc, char** argv)
                     auto& motorAudio = engineAudio[racer];
                     const auto motorMix =
                         raceSession.racerMotorMix(racer);
-                    const auto& source =
-                        raceVehicles[racer].body.position;
+                    const auto source =
+                        raceSession.racerGameObjectWorldPosition(racer);
+                    if (!source)
+                    {
+                        // SoundMotor is a car-owned behavior. A missing
+                        // RockCar means both loops and every wheel-owned loop
+                        // have reached their source destructor boundary.
+                        motorAudio.idle.Stop();
+                        motorAudio.rpm.Stop();
+                        if (racer < wheelSlipVoices.size())
+                        {
+                            for (auto& wheel : wheelSlipVoices[racer])
+                                wheel.source.Stop();
+                        }
+                        continue;
+                    }
                     const rrr3d::audio::OriginalAudioPosition
-                        sourcePosition{source.x, source.y, source.z};
+                        sourcePosition{
+                            source->x, source->y, source->z};
                     const rrr3d::audio::OriginalAudioPosition
                         listenerPosition{
                             listener.x, listener.y, listener.z};
@@ -16250,8 +16275,16 @@ int main(int argc, char** argv)
                         // moves the Source3d to the owner CarWheel GameObject.
                         // Preserve that split: the sound follows the wheel,
                         // not a noisy road-contact sample.
-                        const auto& wheelPosition =
-                            raceVehicles[racer].wheels[wheel].position;
+                        const auto wheelPosition =
+                            raceSession.racerWheelGameObjectWorldPosition(
+                                racer, wheel);
+                        if (!wheelPosition)
+                        {
+                            // The PxWheelSlipEffect behavior and its sound
+                            // cannot outlive the concrete CarWheel owner.
+                            voice.source.Stop();
+                            continue;
+                        }
                         if (voice.source.GetSound() ==
                             r3d::audio::invalidSound)
                         {
@@ -16259,8 +16292,8 @@ int main(int argc, char** argv)
                                 voice.source, wheelSlipSound, true);
                         }
                         voice.source.SetPos3d(
-                            {wheelPosition.x, wheelPosition.y,
-                             wheelPosition.z});
+                            {wheelPosition->x, wheelPosition->y,
+                             wheelPosition->z});
                         voice.source.SetVolume(slip.volume);
                         voice.source.SetFrequencyRatio(1.0F);
                         if (!voice.source.IsPlaying())

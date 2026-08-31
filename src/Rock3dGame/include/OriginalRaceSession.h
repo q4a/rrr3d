@@ -586,6 +586,12 @@ public:
     // installed Weapon GameObject, including its independent local rotation.
     std::optional<Vec3> weaponEffectWorldPosition(
         std::size_t racer, std::size_t physicalSlot) const noexcept;
+    // SoundMotor and car-owned EventEffect behaviors read the source car's
+    // graph actor; PxWheelSlipEffect reads its exact CarWheel graph actor.
+    std::optional<Vec3> racerGameObjectWorldPosition(
+        std::size_t racer) const noexcept;
+    std::optional<Vec3> racerWheelGameObjectWorldPosition(
+        std::size_t racer, std::size_t wheel) const noexcept;
     const std::vector<MineRuntime>& mines() const noexcept;
     const std::vector<ProjectileRuntime>& projectiles() const noexcept;
     std::vector<RespawnRequest> takeRespawns();
