@@ -2951,6 +2951,30 @@ OriginalRaceSession::takeProjectileBodyCommands()
     return result;
 }
 
+void OriginalRaceSession::synchronizeDecorationPhysics(
+    std::size_t decoration,
+    const r3d::physics::DecorationState& state) noexcept
+{
+    if (decoration >= race_.decorationInstances.size())
+        return;
+    auto* mapObject = decorationObjects().Get(decoration);
+    if (mapObject == nullptr)
+        return;
+    auto& object = mapObject->GetGameObj();
+    const auto position = state.active
+        ? state.body.position
+        : race_.decorationInstances[decoration].transform.position;
+    const auto rotation = state.active
+        ? state.body.rotation
+        : race_.decorationInstances[decoration].transform.rotation;
+    const auto velocity = state.active ? state.linearVelocity : Vec3{};
+    object.SynchronizePhysicsState(
+        {position.x, position.y, position.z},
+        {rotation.x, rotation.y, rotation.z, rotation.w},
+        {velocity.x, velocity.y, velocity.z},
+        state.active && state.bodyAwake);
+}
+
 void OriginalRaceSession::synchronizeProjectilePhysics(
     const std::vector<r3d::physics::ProjectileBodyState>& states)
 {

@@ -6894,3 +6894,21 @@ physics-backed projectile/mine, не возвращая render transform обр�
 Jolt или gameplay. Static placed mine подтверждена как active/non-awake,
 динамический shot — как active/awake. Это устраняет ещё один фиксированный
 шаговый источник дрожания без изменения траектории или collision timing.
+
+### P2.320 — восстановлена source-интерполяция динамических декораций — выполнено
+
+`eff9338:World::OnProgress` запускает PhysX `Compute` и затем общий
+`OnLateProgress`; `World::OnFrame` вызывает общий frame-event список с
+`pxAlpha`. `GameObject::OnWake`, `OnSleep`, `OnLateProgress`, `OnFrame` и
+`OnPxSync` работают для любого owner-а PhysX actor, включая подвижный
+`DestrObj`, а не только `GameCar`/`Proj`.
+
+Portable main loop обходил этот source owner и копировал Jolt transform
+подвижной ctDecoration прямо в `DecorationInstance`. Теперь Jolt отдаёт pose,
+linear velocity и `Body::IsActive()`, session хранит их в concrete source
+`GameObject`, а после source frame dispatch renderer получает уже
+интерполированную graph pose. На catch-up кадрах и decorations, и projectiles
+публикуют каждую завершённую 1/60 pose, поэтому предыдущая поза означает
+предыдущий physics step, а не предыдущий render frame. Backend boundary не
+изменён: Jolt владеет actor/solver и gameplay pose, source владеет event order
+и render interpolation.

@@ -3112,3 +3112,22 @@ pose, тогда как столкновения остаются на коне�
 Mine/Maslo/MineRip/MineProton/Crater остаются active sensor actors с
 `bodyAwake=false`. Regression проверяет регистрацию, late publication,
 half-alpha frame, sleep transition и static/dynamic Jolt states.
+
+### B8do — подключена pose-history подвижных ctDecoration — выполнено
+
+Обратная проверка `eff9338:prog/Rock3dGame/source/game/World.cpp` показала,
+что PhysX `Compute` выполняется до единого списка late/frame events, а
+`GameObject::OnPxSync` не ограничен автомобилями и снарядами. Поэтому
+подвижные бочки и прочие ctDecoration обязаны проходить ту же пару
+`OnLateProgress(..., true)` / `OnFrame(deltaTime, pxAlpha)`.
+
+Ранний Metal runtime после Jolt шага записывал их конечный transform прямо в
+render instance. Теперь `DecorationState` экспортирует линейную скорость и
+реальный awake bit, `OriginalRaceSession` передаёт каждый завершённый исходный
+шаг concrete `DestrObj::GameObject`, а renderer читает graph pose только после
+source `WorldEventPump::FrameStep`. Одновременно projectile pose-history также
+публикуется после каждого source шага, а не один раз после всего catch-up
+цикла. Gameplay и contacts по-прежнему используют конечную Jolt pose.
+
+Physics regression требует ненулевую опубликованную скорость падающей бочки,
+awake-state во время движения и нулевую скорость после source reset.

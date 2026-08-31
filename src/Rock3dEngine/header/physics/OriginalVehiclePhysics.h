@@ -87,6 +87,7 @@ struct DecorationDescription
 struct DecorationState
 {
     Transform body;
+    Vec3 linearVelocity;
     bool active = false;
     bool bodyAwake = false;
 };

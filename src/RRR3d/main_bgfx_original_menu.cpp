@@ -16039,7 +16039,7 @@ int main(int argc, char** argv)
                 // across every missed step, leaving a visible second/blurred
                 // car.  Keep Jolt's internal 1/120 solver substeps, but expose
                 // every completed source step to the original pose history.
-                const auto publishCompletedVehiclePoses = [&]() {
+                const auto publishCompletedPhysicsPoses = [&]() {
                     for (std::size_t index = 0;
                          index < physicsWorld->vehicleCount(); ++index)
                     {
@@ -16059,6 +16059,34 @@ int main(int argc, char** argv)
                              state.linearVelocity.z},
                             state.bodyAwake);
                     }
+                    for (std::size_t index = 0U;
+                         index < physicsWorld->decorationCount() &&
+                         index < originalRace->decorationInstances.size();
+                         ++index)
+                    {
+                        const auto& instance =
+                            originalRace->decorationInstances[index];
+                        const auto& definition =
+                            originalRace->decorationDefinitions.at(
+                                instance.definition);
+                        if (definition.dynamicBody)
+                        {
+                            raceSession.synchronizeDecorationPhysics(
+                                index, physicsWorld->decoration(index));
+                        }
+                    }
+                    std::vector<r3d::physics::ProjectileBodyState>
+                        projectileStates;
+                    projectileStates.reserve(
+                        physicsWorld->projectileBodyCount());
+                    for (std::size_t index = 0U;
+                         index < physicsWorld->projectileBodyCount(); ++index)
+                    {
+                        projectileStates.push_back(
+                            physicsWorld->projectileBody(index));
+                    }
+                    raceSession.synchronizeProjectilePhysics(
+                        projectileStates);
                 };
                 if (sourceFramePlan.fixedSteps == 0U)
                 {
@@ -16075,7 +16103,7 @@ int main(int argc, char** argv)
                             r3d::game::originalrace::source::
                                 WorldFrameClock::fixedStep,
                             vehicleInputs);
-                        publishCompletedVehiclePoses();
+                        publishCompletedPhysicsPoses();
                     }
                 }
                 for (std::size_t index = 0;
@@ -16094,18 +16122,6 @@ int main(int argc, char** argv)
                             raceSession.racers()[index].car.GetLap());
                     }
                 }
-                std::vector<r3d::physics::ProjectileBodyState>
-                    projectileStates;
-                projectileStates.reserve(
-                    physicsWorld->projectileBodyCount());
-                for (std::size_t index = 0U;
-                     index < physicsWorld->projectileBodyCount(); ++index)
-                {
-                    projectileStates.push_back(
-                        physicsWorld->projectileBody(index));
-                }
-                raceSession.synchronizeProjectilePhysics(
-                    projectileStates);
                 raceSession.lateProgress(frameSeconds, raceVehicles);
 #ifdef RRR3D_NETWORK
                 if (networkMatchStarted &&
@@ -16128,22 +16144,6 @@ int main(int argc, char** argv)
                         raceSession.racerFrameState(
                             index, raceVehicles[index], frameSeconds,
                             sourceFramePlan.physicsAlpha);
-                }
-            }
-            for (std::size_t index = 0;
-                 index < physicsWorld->decorationCount() &&
-                 index < originalRace->decorationInstances.size(); ++index)
-            {
-                const auto& state = physicsWorld->decoration(index);
-                const auto& instance =
-                    originalRace->decorationInstances[index];
-                const auto& definition =
-                    originalRace->decorationDefinitions.at(
-                        instance.definition);
-                if (state.active && definition.dynamicBody)
-                {
-                    originalRace->decorationInstances[index].transform =
-                        state.body;
                 }
             }
             decorationFragments.clear();
@@ -16767,6 +16767,34 @@ int main(int argc, char** argv)
         }
         if (inRace)
         {
+            // GameObject::OnFrame has now applied the source physics alpha.
+            // Publish only that graph pose to rendering; gameplay/contact
+            // code continues to consume the completed Jolt pose above.
+            for (std::size_t index = 0U;
+                 index < physicsWorld->decorationCount() &&
+                 index < originalRace->decorationInstances.size(); ++index)
+            {
+                const auto& instance =
+                    originalRace->decorationInstances[index];
+                const auto& definition =
+                    originalRace->decorationDefinitions.at(
+                        instance.definition);
+                const auto* mapObject =
+                    raceSession.sourceMap()
+                        .GetMapObjList(
+                            r3d::game::originalrace::source::
+                                MapObjCategory::Decoration)
+                        .Get(index);
+                if (!definition.dynamicBody || mapObject == nullptr)
+                    continue;
+                const auto& object = mapObject->GetGameObj();
+                const auto position = object.GetWorldPos();
+                const auto rotation = object.GetWorldRot();
+                originalRace->decorationInstances[index].transform.position =
+                    {position[0], position[1], position[2]};
+                originalRace->decorationInstances[index].transform.rotation =
+                    {rotation[0], rotation[1], rotation[2], rotation[3]};
+            }
             const auto humanRacer = raceSession.humanRacer();
             gameDebug.updateFrame(frameSeconds);
             const float raceRenderSeconds =

@@ -575,6 +575,12 @@ public:
         takeProjectileBodyCommands();
     void synchronizeProjectilePhysics(
         const std::vector<r3d::physics::ProjectileBodyState>& states);
+    // Scene::UserNotify and GameObject::OnPxSync apply to movable map
+    // objects as well as cars/projectiles. Keep their source graph pose
+    // history in the session; Jolt remains only the actor/solver owner.
+    void synchronizeDecorationPhysics(
+        std::size_t decoration,
+        const r3d::physics::DecorationState& state) noexcept;
 
 private:
     bool legacyWindowsDebug_ = false;

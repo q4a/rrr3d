@@ -1766,6 +1766,19 @@ projectile/mine именно интерполированную позу concret
 contacts продолжают использовать конечную Jolt pose. Static placed mines
 остаются active actors, но никогда не получают body-progress event.
 
+Результат B8do: распространён тот же исходный `GameObject::OnPxSync` contract
+на movable ctDecoration. В `eff9338` PhysX wake/sleep callback и общий
+late/frame event list не различают car, projectile и decoration owners, тогда
+как порт напрямую записывал конечную Jolt pose бочки в render data.
+
+`DecorationState` теперь несёт solver pose, linear velocity и awake-state;
+`OriginalRaceSession::synchronizeDecorationPhysics` передаёт каждый
+завершённый source 1/60 шаг concrete `DestrObj::GameObject`. После
+`WorldEventPump::FrameStep` Metal получает его alpha-interpolated world pose.
+Projectile publication перенесена внутрь того же per-step boundary, чтобы
+несколько catch-up шагов не схлопывались в одну историю. Никакая render pose
+не возвращается в Jolt либо gameplay state.
+
 Каждый крупный block commit обязан:
 
 1. назвать точные методы из `eff9338:prog`, которые стали активными;

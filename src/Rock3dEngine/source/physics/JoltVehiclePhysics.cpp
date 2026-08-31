@@ -1747,7 +1747,10 @@ public:
         setBodyEnabled(decoration.shapeBody);
         decoration.state.active = enabled;
         if (!enabled)
+        {
+            decoration.state.linearVelocity = {};
             decoration.state.bodyAwake = false;
+        }
         if (enabled)
             updateState(index);
     }
@@ -2720,6 +2723,7 @@ private:
             decoration.childShapeBodies.clear();
             destroyBody(decoration.shapeBody);
             decoration.state.active = false;
+            decoration.state.linearVelocity = {};
             decoration.state.bodyAwake = false;
         }
     }
@@ -3425,6 +3429,7 @@ private:
         decoration.state.bodyAwake = body.IsActive();
         decoration.state.body.position = fromJolt(body.GetPosition());
         decoration.state.body.rotation = fromJolt(body.GetRotation());
+        decoration.state.linearVelocity = fromJolt(body.GetLinearVelocity());
     }
 
     WorldDescription description_;
@@ -4702,6 +4707,7 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
         contactWorld->decoration(0U).body.position.z;
     input = {};
     bool barrelLanded = false;
+    bool barrelPublishedMotion = false;
     float barrelLowestHeight = barrelStartHeight;
     float barrelPostContactRise = 0.0F;
     for (int step = 0; step < 240; ++step)
@@ -4709,6 +4715,10 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
         contactWorld->step(1.0F / 120.0F, input);
         const float height =
             contactWorld->decoration(0U).body.position.z;
+        barrelPublishedMotion = barrelPublishedMotion ||
+            (contactWorld->decoration(0U).bodyAwake &&
+             std::abs(
+                 contactWorld->decoration(0U).linearVelocity.z) > 0.01F);
         if (height <= 0.4F)
             barrelLanded = true;
         if (barrelLanded)
@@ -4718,7 +4728,7 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
                 barrelPostContactRise, height - barrelLowestHeight);
         }
     }
-    if (!barrelLanded ||
+    if (!barrelLanded || !barrelPublishedMotion ||
         contactWorld->decoration(0U).body.position.z >=
             barrelStartHeight - 0.1F)
     {
@@ -4744,7 +4754,10 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
     if (!contactWorld->decoration(0U).active ||
         !contactWorld->decoration(1U).active ||
         std::abs(contactWorld->decoration(0U).body.position.z -
-                 barrelStartHeight) > 0.001F)
+                 barrelStartHeight) > 0.001F ||
+        std::abs(contactWorld->decoration(0U).linearVelocity.x) > 0.001F ||
+        std::abs(contactWorld->decoration(0U).linearVelocity.y) > 0.001F ||
+        std::abs(contactWorld->decoration(0U).linearVelocity.z) > 0.001F)
     {
         error = "race reset did not restore source ctDecoration bodies";
         return false;
