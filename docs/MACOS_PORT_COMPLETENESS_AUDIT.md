@@ -2913,3 +2913,17 @@ Jolt spring сохраняет поддержку кузова. Regression с п
 нулевой tire impulse при устойчивой высоте шасси. Physics smoke, 32 CTest и
 1800-frame Metal race прошли; max speed восстановилась с 14 до 40.79, все
 пять AI снова имеют progress и скорости 40.4–44.8.
+
+### B8dd — последовательные spring-border contacts — выполнено
+
+`GameCar::OnContact` больше не адаптируется как набор независимых additive
+impulses. В оригинальном PhysX каждый actor-pair callback немедленно заменяет
+`NxActor` linear velocity; второй callback читает результат первого. Порт
+раньше вычислял несколько delta от одной snapshot velocity и складывал их,
+из-за чего границы, разделённые на несколько mesh actors, усиливали rebound.
+
+Portable session теперь ведёт промежуточную source velocity через весь
+contact batch и отправляет Jolt одну итоговую delta. Регрессия с двумя
+border actor identities проверяет точный source result и запрещает более
+одного velocity request. Это устраняет ещё один подтверждённый путь сильного
+отлёта/подбрасывания без изменения исходного spring-border алгоритма.

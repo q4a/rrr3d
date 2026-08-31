@@ -5209,6 +5209,16 @@ void OriginalRaceSession::updateGameplay(
     for (std::size_t racer = 0;
          racer < vehicles.size() && racer < racers_.size(); ++racer)
     {
+        // PhysX dispatches GameCar::OnContact once per actor pair and the
+        // source callback calls setLinearVelocity immediately.  Therefore a
+        // second border pair in the same solver report observes the velocity
+        // written by the first one.  The backend adapter cannot write the
+        // live Jolt body from here, so carry that velocity through the pair
+        // sequence and emit one equivalent delta after every callback has
+        // run.  Computing every delta from the original snapshot and adding
+        // them later multiplied the spring-border rebound at mesh seams.
+        Vec3 contactVelocity = vehicles[racer].linearVelocity;
+        bool contactVelocityChanged = false;
         for (const auto& contact : vehicles[racer].bodyContacts)
         {
             if (contact.surface !=
@@ -5223,7 +5233,7 @@ void OriginalRaceSession::updateGameplay(
             sourceContact.frictionForce =
                 sourceContactVector(contact.frictionForceVector);
             sourceContact.linearVelocity =
-                sourceContactVector(vehicles[racer].linearVelocity);
+                sourceContactVector(contactVelocity);
             sourceContact.forward = sourceContactVector(
                 forward(vehicles[racer].body.rotation));
             sourceContact.sourcePlayerId = racer;
@@ -5234,11 +5244,9 @@ void OriginalRaceSession::updateGameplay(
                 sourceContact, contactRules);
             if (result.setLinearVelocity)
             {
-                const Vec3 wanted =
+                contactVelocity =
                     backendContactVector(result.linearVelocity);
-                velocityRequests_.push_back(
-                    {racer, subtract(
-                        wanted, vehicles[racer].linearVelocity)});
+                contactVelocityChanged = true;
             }
             if (result.damageTarget ==
                     source::GameCar::ContactDamageTarget::Source &&
@@ -5248,6 +5256,13 @@ void OriginalRaceSession::updateGameplay(
                     racer, result.attackerPlayerId, result.damage,
                     vehicles[racer].body.position);
             }
+        }
+        if (contactVelocityChanged)
+        {
+            velocityRequests_.push_back(
+                {racer, subtract(
+                    contactVelocity,
+                    vehicles[racer].linearVelocity)});
         }
     }
     auto spawnProjectileImpact =
@@ -11811,6 +11826,37 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             session.racers().front().GetLife() >= lifeBeforeBorder)
             throw std::runtime_error(
                 "source friction-vector spring-border transition failed");
+
+        // PhysX applies GameCar::OnContact's setLinearVelocity immediately.
+        // Two track actors touching at a mesh seam must consequently produce
+        // one final velocity change, not two deltas computed from the same
+        // pre-contact snapshot and added together by Jolt.
+        vehicles[0].bodyContacts.push_back(
+            vehicles[0].bodyContacts.front());
+        vehicles[0].bodyContacts.back().otherActor = 88U;
+        session.update(1.0F / 60.0F, vehicles, input);
+        const auto seamBorderRequests =
+            session.takeVelocityRequests();
+        const auto playerSeamRequests = static_cast<std::size_t>(
+            std::count_if(
+                seamBorderRequests.begin(), seamBorderRequests.end(),
+                [](const VelocityRequest& request) {
+                    return request.racer == 0U;
+                }));
+        const auto playerSeamRequest = std::find_if(
+            seamBorderRequests.begin(), seamBorderRequests.end(),
+            [](const VelocityRequest& request) {
+                return request.racer == 0U;
+            });
+        if (playerSeamRequests != 1U ||
+            playerSeamRequest == seamBorderRequests.end() ||
+            std::abs(playerSeamRequest->delta.x - 39.0F) > 0.001F ||
+            std::abs(playerSeamRequest->delta.y + 3.0F) > 0.001F ||
+            std::abs(playerSeamRequest->delta.z) > 0.001F)
+        {
+            throw std::runtime_error(
+                "source sequential spring-border contact velocity failed");
+        }
 
         session.setSpringBorders(false);
         session.update(1.0F / 60.0F, vehicles, input);
