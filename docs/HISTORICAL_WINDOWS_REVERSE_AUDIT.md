@@ -6253,3 +6253,18 @@ scene queries и восстановление потерянного actor-а м
 render views получают position/rotation из `GetWorldPos/GetWorldRot`.
 Session-поля остаются только transport snapshot для Jolt/Metal и swept
 contact. Integrated regression отдельно проверяет projectile и mine pose.
+
+### P2.279 — homing target принадлежит только Proj::_shot — выполнено
+
+`ProjectileRuntime::target` удалён как опасная параллельная модель. Source
+`Proj` уже слушает target `GameObject` и в `OnDestroy` очищает
+`_shot.targetMapObject`; session index такого lifetime не имел. После
+respawn он мог адресовать новый car object прежнего racer index, хотя
+оригинальный снаряд цель уже потерял.
+
+Homing update, Impulse contact filtering и запрет decoration-contact во
+время цепочки теперь каждый раз сопоставляют живой
+`Proj::GetSourceTarget()` с текущим `Player::GetCarMapObj()`. Подготовка
+backend runtime больше не принимает отдельный `homingTarget`; retarget
+меняет только source ShotDesc/listener graph. Smoke assertions проверяют
+source identity для AI 3D selection, sphereGun и Impulse handoff.

@@ -1222,6 +1222,17 @@ adapter для команд Jolt, swept contact и Metal submit. Regression дв
 вращает активные projectile и mine через synthetic Jolt state и требует
 точного совпадения `Proj::GetWorldPos/GetWorldRot`.
 
+Результат B8bz: удалено второе live-хранилище homing/Impulse target из
+`ProjectileRuntime`. В Windows цель принадлежит `Proj::_shot` и очищается
+его listener-ом при уничтожении target `MapObj`; индекс session переживал
+respawn и мог самопроизвольно начать означать новую машину того же racer-а.
+
+`OriginalRaceSession` теперь разрешает backend racer index только из
+`Proj::GetSourceTarget()` и текущей source Map identity. Initial target
+создаётся исключительно через `Weapon::ShotContext`, Impulse retarget —
+исключительно через `Proj::RetargetImpulse`. Regression AI, torpeda и
+Impulse проверяет сам source pointer, а не удалённое зеркало.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:

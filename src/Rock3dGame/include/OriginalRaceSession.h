@@ -389,7 +389,6 @@ struct ProjectileRuntime
     // LaserUpdate writes sampler[0].scale.x = beamLength / 10 for the
     // distorted laser only; geometry scale and UV scale are independent.
     float beamTextureScale = 1.0F;
-    std::size_t target = RacerRuntime::invalidWeapon;
     bool attached = false;
     bool directWeapon = false;
     bool ballistic = false;
@@ -650,6 +649,8 @@ private:
     bool projectileIsActive(
         const ProjectileRuntime& projectile) const noexcept;
     bool mineIsActive(const MineRuntime& mine) const noexcept;
+    std::size_t projectileTargetRacer(
+        const ProjectileRuntime& projectile) const noexcept;
     void refreshProjectileView() const noexcept;
     void refreshMineView() const noexcept;
 
@@ -680,8 +681,7 @@ private:
         const std::vector<r3d::physics::VehicleState>& vehicles,
         std::size_t owner, std::size_t weapon,
         std::size_t primaryMount, std::size_t preparedOrdinal,
-        source::Proj& projectile,
-        std::size_t homingTarget);
+        source::Proj& projectile);
     void queueProjectileBodyCreate(ProjectileRuntime& projectile);
     void queueProjectileBodySynchronize(
         const ProjectileRuntime& projectile);

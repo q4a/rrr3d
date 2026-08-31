@@ -1266,6 +1266,26 @@ bool OriginalRaceSession::mineIsActive(
                source::GameObject::LiveState::Death;
 }
 
+std::size_t OriginalRaceSession::projectileTargetRacer(
+    const ProjectileRuntime& projectile) const noexcept
+{
+    const auto* target = projectile.sourceObject != nullptr
+        ? projectile.sourceObject->GetSourceTarget()
+        : nullptr;
+    if (target == nullptr)
+        return RacerRuntime::invalidWeapon;
+    for (std::size_t racer = 0U; racer < racers_.size(); ++racer)
+    {
+        const auto* mapObject = racers_[racer].GetCarMapObj();
+        if (mapObject != nullptr &&
+            &mapObject->GetGameObj() == target)
+        {
+            return racer;
+        }
+    }
+    return RacerRuntime::invalidWeapon;
+}
+
 void OriginalRaceSession::refreshProjectileView() const noexcept
 {
     for (auto& projectile : projectiles_)
@@ -1890,14 +1910,8 @@ void OriginalRaceSession::releaseRacerProjectileReferences(
     {
         // Player::FreeCar has already destroyed the concrete Weapon MapObjs
         // and the car MapObj. Proj::OnDestroy synchronously consumed those
-        // listener callbacks; this adapter only mirrors its resulting state
-        // into the Jolt/runtime record.
-        if (projectile.target == racer &&
-            (projectile.sourceObject == nullptr ||
-             projectile.sourceObject->GetSourceTarget() == nullptr))
-        {
-            projectile.target = RacerRuntime::invalidWeapon;
-        }
+        // listener callbacks. Target identity remains solely in Proj; this
+        // adapter only mirrors the resulting weapon/actor state into Jolt.
         if (projectile.owner != racer)
             continue;
         const bool sourceWeaponCleared =
@@ -3725,8 +3739,7 @@ ProjectileRuntime OriginalRaceSession::buildWeaponProjectileRuntime(
     const std::vector<r3d::physics::VehicleState>& vehicles,
     std::size_t owner, std::size_t weaponIndex,
     std::size_t primaryMount, std::size_t preparedOrdinal,
-    source::Proj& sourceObject,
-    std::size_t homingTarget)
+    source::Proj& sourceObject)
 {
     const auto& weapon = race_.weapons.at(weaponIndex);
     const auto& projectile = sourceObject.GetDesc();
@@ -3786,8 +3799,6 @@ ProjectileRuntime OriginalRaceSession::buildWeaponProjectileRuntime(
         runtime.speed = launch.speed;
         runtime.velocity = multiply(runtime.direction, runtime.speed);
     }
-    if (!route.ray && route.homing)
-        runtime.target = homingTarget;
     return runtime;
 }
 
@@ -4036,10 +4047,6 @@ bool OriginalRaceSession::prepareAiWeaponAttack(
         attack.sourceProjectiles.clear();
         return false;
     }
-    const std::size_t homingTarget =
-        attack.decision.weaponTarget < racers_.size()
-            ? attack.decision.weaponTarget
-            : RacerRuntime::invalidWeapon;
     for (std::size_t ordinal = 0U;
          ordinal < attack.sourceProjectiles.size(); ++ordinal)
     {
@@ -4051,7 +4058,7 @@ bool OriginalRaceSession::prepareAiWeaponAttack(
             continue;
         auto backendRuntime = buildWeaponProjectileRuntime(
             vehicles, racer, weaponIndex, slot, ordinal,
-            *sourceObject, homingTarget);
+            *sourceObject);
         backendRuntime.deferProgressOnce = !externalRaceFixedStep_;
         queueProjectileBodyCreate(backendRuntime);
         projectiles_.push_back(std::move(backendRuntime));
@@ -5830,12 +5837,14 @@ void OriginalRaceSession::updateGameplay(
         }
         if (sourceProgressRoute.homing)
         {
+            const std::size_t sourceTarget =
+                projectileTargetRacer(projectile);
             const bool hasTarget =
-                projectile.target < vehicles.size() &&
-                projectile.target < racers_.size() &&
-                !racers_[projectile.target].IsDestroyed();
+                sourceTarget < vehicles.size() &&
+                sourceTarget < racers_.size() &&
+                !racers_[sourceTarget].IsDestroyed();
             const Vec3 targetPosition = hasTarget
-                ? vehicles[projectile.target].body.position
+                ? vehicles[sourceTarget].body.position
                 : Vec3{};
             const auto update =
                 projectile.sourceObject->ProgressTorpeda(
@@ -5995,6 +6004,8 @@ void OriginalRaceSession::updateGameplay(
         }
         const auto projectileContactRoute =
             projectile.sourceObject->RouteContact(false);
+        const std::size_t sourceTarget =
+            projectileTargetRacer(projectile);
 
         for (std::size_t target = 0;
              target < vehicles.size() && target < racers_.size();
@@ -6006,8 +6017,8 @@ void OriginalRaceSession::updateGameplay(
                 continue;
             if (sourceProgressRoute.handler ==
                     source::Proj::ProgressHandler::Impulse &&
-                projectile.target < racers_.size() &&
-                target != projectile.target)
+                sourceTarget < racers_.size() &&
+                target != sourceTarget)
                 continue;
             const auto& vehicleDefinition = vehicleForRacer(target);
             const OrientedBox targetBox = vehicleBox(
@@ -6149,7 +6160,6 @@ void OriginalRaceSession::updateGameplay(
                     projectile.active = false;
                     break;
                 }
-                projectile.target = nextTarget;
                 auto* nextTargetMapObject = nextTarget < racers_.size()
                     ? racers_[nextTarget].GetCarMapObj()
                     : nullptr;
@@ -6217,7 +6227,7 @@ void OriginalRaceSession::updateGameplay(
         else if (projectileIsActive(projectile) &&
                  !(sourceProgressRoute.handler ==
                        source::Proj::ProgressHandler::Impulse &&
-                   projectile.target < racers_.size()))
+                   sourceTarget < racers_.size()))
         {
             bool decorationDamaged = false;
             if (projectile.physicsBacked)
@@ -6965,7 +6975,7 @@ void OriginalRaceSession::updateGameplay(
                     ? *fixedRuntime
                     : buildWeaponProjectileRuntime(
                           vehicles, shooter, firedWeapon, firedSlot,
-                          preparedOrdinal, *sourceObject, homingTarget);
+                          preparedOrdinal, *sourceObject);
             const std::size_t backendProjectileIndex =
                 runtimeProjectile.projectile;
             const Vec3 projectileOrigin = runtimeProjectile.position;
@@ -10745,10 +10755,16 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 const auto pitchedShot = std::find_if(
                     pitchedTargetSession.projectiles().begin(),
                     pitchedTargetSession.projectiles().end(),
-                    [](const ProjectileRuntime& projectile) {
+                    [&](const ProjectileRuntime& projectile) {
+                        const auto* expectedTarget =
+                            pitchedTargetSession.racers()[2]
+                                .GetCarMapObj();
                         return projectile.owner == 1U &&
                                projectile.projectile == 0U &&
-                               projectile.target == 2U;
+                               projectile.sourceObject != nullptr &&
+                               expectedTarget != nullptr &&
+                               projectile.sourceObject->GetSourceTarget() ==
+                                   &expectedTarget->GetGameObj();
                     });
                 if (pitchedShot ==
                     pitchedTargetSession.projectiles().end())
@@ -14231,7 +14247,10 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                         impulseSession.projectiles().end() &&
                     projectile->sourceObject != nullptr &&
                     projectile->sourceObject->GetSourceTick() == 1U &&
-                    projectile->target == 2U;
+                    impulseSession.racers()[2].GetCarMapObj() != nullptr &&
+                    projectile->sourceObject->GetSourceTarget() ==
+                        &impulseSession.racers()[2]
+                             .GetCarMapObj()->GetGameObj();
             }
             if (!handedOff ||
                 !impulseSession.racers()[1].IsDestroyed() ||
@@ -14322,7 +14341,13 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                            : &*found;
             };
             const auto* projectile = findSphereProjectile();
-            if (projectile == nullptr || projectile->target != 1U)
+            const auto* torpedaTarget =
+                torpedaSession.racers()[1].GetCarMapObj();
+            if (projectile == nullptr ||
+                projectile->sourceObject == nullptr ||
+                torpedaTarget == nullptr ||
+                projectile->sourceObject->GetSourceTarget() !=
+                    &torpedaTarget->GetGameObj())
             {
                 throw std::runtime_error(
                     "source sphereGun viewAngle=0 target selection failed");

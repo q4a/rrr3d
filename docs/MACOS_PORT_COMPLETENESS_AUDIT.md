@@ -2603,3 +2603,11 @@ Droid, Reflector, ammunition и lap reload paths.
 из source object. Это сохраняет PhysX-era contract без возврата PhysX:
 Jolt владеет симуляцией тела, `Proj/GameObject` — игровой мировой позой,
 `ProjectileRuntime` и `MineRuntime` — только обменом с Jolt и Metal.
+
+### B8bz — Proj ShotDesc владеет целью снаряда — выполнено
+
+Удалён session target index, переживавший смерть и respawn target MapObj.
+Torpeda и Impulse теперь используют только listener-managed
+`Proj::_shot.targetMapObject`; перевод в racer index выполняется как
+кратковременный Jolt adapter lookup. Initial selection и chain retarget
+также больше не записывают никакой второй gameplay state.
