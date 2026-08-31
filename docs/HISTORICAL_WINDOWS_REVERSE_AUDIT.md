@@ -6339,3 +6339,16 @@ source model2, а Metal renderer читает его напрямую. Удал�
 effect выводит primary ordinal из него. Regression намеренно устанавливает
 один hyperdrive record в Hyper и Weapon1 и требует привязки projectile к
 отдельному Hyper `Weapon` и исходному Hyper transform.
+
+### P2.285 — MineRip fragment identity принадлежит AutoProj::Desc — выполнено
+
+В исходном `Proj::MineRipUpdate` `_desc.GetModel2/GetModel3` материализуются
+как самостоятельные `MapObj`, и их concrete `AutoProj` descriptor определяет
+model, projectile type, damage, lifetime и DeathEffect. Порт уже создавал
+такие source objects через `nestedProjectileSourceDefinition`, но параллельно
+протаскивал numeric `visualVariant` через split plan и `MineRuntime`.
+
+Оба variant-поля удалены. Jolt runtime различает core/pieces по source type,
+Metal выбирает secondary/tertiary asset по source visual identity, а death
+adapter вычисляет asset variant из того же descriptor. Regression считает и
+проверяет шесть независимых `AutoProj` без session-тега.

@@ -2651,3 +2651,11 @@ Sprite: длину луча, множитель ширины и scale sampler-а
 физических slots игрока; backend получает только вычисленный transform.
 Pointer identity сохраняет различие actors даже для одинаковых weapon
 records и исключает привязку Hyper/Mine к случайному primary mount.
+
+### B8cf — MineRip core/pieces определяются source AutoProj — выполнено
+
+Удалены numeric fragment variants из split plan и mine runtime. Каждый core
+и piece несёт полный nested `Proj::Desc`, как оригинальный отдельный map
+object. Gameplay, Metal visual и DeathEffect route используют этот concrete
+descriptor; session больше не может показать tertiary model для secondary
+projectile или применить чужой death effect.

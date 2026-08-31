@@ -4915,16 +4915,28 @@ void OriginalRaceRenderer::draw(
         if (runtimeDefinition == nullptr)
             continue;
         const auto& definition = *runtimeDefinition;
+        const auto& parentDefinition =
+            race.weapons[mine.weapon].projectiles[mine.projectile];
         const auto& assets =
             projectiles_[mine.weapon][mine.projectile];
         const ObjectAsset* asset = &assets.visual;
-        const r3d::game::originalrace::ObjectDefinition* visual =
-            &definition.visual;
-        if (mine.visualVariant == 1U)
+        const auto isNested = [&definition](
+            const r3d::game::originalrace::NestedProjectileDefinition&
+                nested,
+            const r3d::game::originalrace::ObjectDefinition& visual) {
+            return nested.valid && definition.type == nested.type &&
+                   recordName(definition.visual.record) ==
+                       recordName(visual.record);
+        };
+        if (isNested(
+                parentDefinition.secondaryProjectile,
+                parentDefinition.secondaryVisual))
         {
             asset = &assets.secondaryVisual;
         }
-        else if (mine.visualVariant == 2U)
+        else if (isNested(
+                     parentDefinition.tertiaryProjectile,
+                     parentDefinition.tertiaryVisual))
         {
             asset = &assets.tertiaryVisual;
         }
@@ -4947,7 +4959,7 @@ void OriginalRaceRenderer::draw(
             parent.scale = {scale, scale, scale};
         }
         drawDefinition(
-            *asset, *visual, parent,
+            *asset, definition.visual, parent,
             mine.sourceObject->GetTimeLife(), mine.velocity);
     }
 

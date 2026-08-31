@@ -7339,10 +7339,29 @@ void OriginalRaceSession::updateGameplay(
             mine.sourceObject->GetDesc();
         const auto* death = &sourceDefinition.deathEffect;
         std::uint8_t deathVariant = 3U;
-        if (mine.visualVariant == 1U)
-            deathVariant = 5U;
-        else if (mine.visualVariant == 2U)
-            deathVariant = 6U;
+        if (mine.weapon < race_.weapons.size() &&
+            mine.projectile <
+                race_.weapons[mine.weapon].projectiles.size())
+        {
+            const auto& parent = race_.weapons[mine.weapon]
+                                     .projectiles[mine.projectile];
+            const auto isNested = [&](
+                const NestedProjectileDefinition& nested,
+                const ObjectDefinition& visual) {
+                return nested.valid &&
+                       sourceDefinition.type == nested.type &&
+                       recordName(sourceDefinition.visual.record) ==
+                           recordName(visual.record);
+            };
+            if (isNested(
+                    parent.secondaryProjectile,
+                    parent.secondaryVisual))
+                deathVariant = 5U;
+            else if (isNested(
+                         parent.tertiaryProjectile,
+                         parent.tertiaryVisual))
+                deathVariant = 6U;
+        }
         const bool hasSourceDeathEffect =
             death != nullptr && hasDeathEffect(*death);
         source::GameObject* targetObject = nullptr;
@@ -7649,7 +7668,6 @@ void OriginalRaceSession::updateGameplay(
             {
                 MineRuntime spawned = mine;
                 spawned.owner = RacerRuntime::invalidWeapon;
-                spawned.visualVariant = child.visualVariant;
                 spawned.velocity = runtimeVec(child.linearVelocity);
                 spawned.physicsBodyId =
                     r3d::physics::invalidProjectileBodyId;
@@ -15748,13 +15766,17 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                         splitSession.mines().begin(),
                         splitSession.mines().end(),
                         [](const MineRuntime& mine) {
-                            return mine.visualVariant == 1U;
+                            return mine.sourceObject != nullptr &&
+                                   mine.sourceObject->GetDesc().type ==
+                                       11U;
                         }),
                     std::count_if(
                         splitSession.mines().begin(),
                         splitSession.mines().end(),
                         [](const MineRuntime& mine) {
-                            return mine.visualVariant == 2U;
+                            return mine.sourceObject != nullptr &&
+                                   mine.sourceObject->GetDesc().type ==
+                                       13U;
                         })};
             };
             // GameObject::OnProgress owns _timeLife. At the exact
@@ -15789,9 +15811,12 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             std::vector<const source::Proj*> sourceFragmentObjects;
             for (const auto& mine : splitSession.mines())
             {
-                if (mine.visualVariant == 1U)
+                const auto* object = mine.sourceObject;
+                const std::uint32_t sourceType = object != nullptr
+                    ? object->GetDesc().type
+                    : std::numeric_limits<std::uint32_t>::max();
+                if (sourceType == 11U)
                 {
-                    const auto* object = mine.sourceObject;
                     sourceFragments =
                         sourceFragments &&
                         object != nullptr &&
@@ -15812,9 +15837,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                         object->GetMaxTimeLife() >= 4.0F &&
                         object->GetMaxTimeLife() <= 4.5F;
                 }
-                else if (mine.visualVariant == 2U)
+                else if (sourceType == 13U)
                 {
-                    const auto* object = mine.sourceObject;
                     sourceFragments =
                         sourceFragments &&
                         object != nullptr &&
@@ -15839,10 +15863,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                             0.01F &&
                         mine.velocity.z > 0.0F;
                 }
-                if (mine.visualVariant == 1U ||
-                    mine.visualVariant == 2U)
+                if (sourceType == 11U || sourceType == 13U)
                 {
-                    const auto* object = mine.sourceObject;
                     sourceFragments =
                         sourceFragments && object != nullptr &&
                         std::find(

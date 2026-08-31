@@ -1745,7 +1745,6 @@ int main()
         if (child == 0U)
         {
             validFragments = validFragments &&
-                spawn.visualVariant == 1U &&
                 spawn.definition.type == 11U &&
                 spawn.definition.visual.record == "mineRipCore" &&
                 std::abs(spawn.maximumLife - 4.25F) < 0.0001F &&
@@ -1760,7 +1759,6 @@ int main()
                 spawn.linearVelocity.y * spawn.linearVelocity.y +
                 spawn.linearVelocity.z * spawn.linearVelocity.z);
             validFragments = validFragments &&
-                spawn.visualVariant == 2U &&
                 spawn.definition.type == 13U &&
                 spawn.definition.visual.record == "mineRipPiece" &&
                 spawn.maximumLife >= 4.0F &&

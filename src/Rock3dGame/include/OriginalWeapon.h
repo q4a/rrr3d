@@ -188,7 +188,6 @@ public:
         ProjectileDefinition definition;
         Vec3 linearVelocity;
         float maximumLife = -1.0F;
-        std::uint8_t visualVariant = 0U;
     };
 
     struct MineRipSplitPlan

@@ -1291,6 +1291,18 @@ Metal читает только этот state; три session-поля удал
 и тот же weapon record может одновременно находиться в Hyper и primary slot:
 transform, Drobilka effect identity и attached update не смешиваются.
 
+Результат B8cf: удалены `MineRuntime::visualVariant` и
+`MineRipChildSpawn::visualVariant`. Оригинальный `MineRipUpdate` создаёт
+полноценные map objects из `_desc.model2/model3`; portable split аналогично
+создаёт отдельные `AutoProj` с полной nested `Proj::Desc`, поэтому дополнительное
+число 1/2 было вторым владельцем типа fragment-а.
+
+Split tests, Metal asset selection и выбор nested DeathEffect теперь читают
+`AutoProj::GetDesc()` и сопоставляют его type/visual record с исходным
+secondary/tertiary descriptor. Числовой `RaceEffect::visualVariant` остаётся
+только кратковременным renderer adapter для выбора уже загруженного death
+asset и вычисляется из source descriptor при создании эффекта.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:

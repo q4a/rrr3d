@@ -351,7 +351,6 @@ struct MineRuntime
     // one-shot listener state when the parent runtime is copied to create
     // the autonomous model2/model3 objects.
     source::Proj* sourceObject = nullptr;
-    std::uint8_t visualVariant = 0;
     Vec3 position;
     Quat rotation;
     Vec3 velocity;
