@@ -1733,7 +1733,6 @@ int main()
         {
             validFragments = validFragments &&
                 spawn.visualVariant == 1U &&
-                spawn.armingScale == 0.0F &&
                 spawn.definition.type == 11U &&
                 spawn.definition.visual.record == "mineRipCore" &&
                 std::abs(spawn.maximumLife - 4.25F) < 0.0001F &&
@@ -1749,7 +1748,6 @@ int main()
                 spawn.linearVelocity.z * spawn.linearVelocity.z);
             validFragments = validFragments &&
                 spawn.visualVariant == 2U &&
-                spawn.armingScale == 1.0F &&
                 spawn.definition.type == 13U &&
                 spawn.definition.visual.record == "mineRipPiece" &&
                 spawn.maximumLife >= 4.0F &&

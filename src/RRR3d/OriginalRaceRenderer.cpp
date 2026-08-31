@@ -4934,7 +4934,14 @@ void OriginalRaceRenderer::draw(
         parent.rotation = mine.rotation;
         if (definition.type == 10U)
         {
-            const float scale = mine.armingAlpha;
+            // Windows Proj::MasloUpdate changes the included model's local
+            // GameObject scale. The session has no second arming visual
+            // state: Metal reads that concrete source model directly.
+            const auto* sourceModel =
+                mine.sourceObject->GetSourceModel();
+            const float scale = sourceModel != nullptr
+                ? sourceModel->GetGameObj().GetScale()[0]
+                : 1.0F;
             parent.scale = {scale, scale, scale};
         }
         drawDefinition(

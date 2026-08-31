@@ -1233,6 +1233,18 @@ respawn и мог самопроизвольно начать означать �
 исключительно через `Proj::RetargetImpulse`. Regression AI, torpeda и
 Impulse проверяет сам source pointer, а не удалённое зеркало.
 
+Результат B8ca: визуальный arming scale масла снова принадлежит включённой
+модели concrete `Proj`. Windows `MasloPrepare/MasloUpdate` меняют
+`_model->GameObject::scale`; session больше не копирует результат в
+`MineRuntime::armingAlpha`, а Metal renderer читает живой local scale
+исходной модели.
+
+Удалены также неиспользуемые портовые `ProjectileRuntime::distance` и
+`MineRipChildSpawn::armingScale`. Первое только накапливалось и не
+существовало в original gameplay, второе никогда не применялось и ошибочно
+приписывало core/piece scale исходному split plan. Distance regression теперь
+сравнивает реальные source world positions.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:

@@ -6268,3 +6268,16 @@ Homing update, Impulse contact filtering и запрет decoration-contact во
 backend runtime больше не принимает отдельный `homingTarget`; retarget
 меняет только source ShotDesc/listener graph. Smoke assertions проверяют
 source identity для AI 3D selection, sphereGun и Impulse handoff.
+
+### P2.280 — Maslo visual scale возвращён source model — выполнено
+
+Прямая сверка `MasloPrepare/MasloUpdate` подтвердила, что fade масла не
+является полем projectile actor-а: исходник ставит scale 0 и затем 0..1 на
+включённом `_model->GetGameObj()`. Portable source уже выполнял это точно,
+но renderer обходил его через дублирующий `MineRuntime::armingAlpha`.
+
+Поле удалено; bgfx/Metal получает scale из concrete source model. Заодно
+удалены мёртвый distance accumulator session и неисполняемый
+`MineRipChildSpawn::armingScale`, отсутствующие в Windows call graph.
+Regression проверяет, что активное масло завершает arming именно в source
+model, а проверка max-distance использует разность реальных world poses.

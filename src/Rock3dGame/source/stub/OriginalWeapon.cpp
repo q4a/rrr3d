@@ -1031,7 +1031,6 @@ Proj::MineRipSplitPlan Proj::BuildMineRipSplitPlan(
             description_.secondaryVisual);
         child.maximumLife = sampleLife(
             description_.secondaryProjectile);
-        child.armingScale = 0.0F;
         child.visualVariant = 1U;
         result.children.push_back(std::move(child));
     }
@@ -1067,7 +1066,6 @@ Proj::MineRipSplitPlan Proj::BuildMineRipSplitPlan(
                 direction.x * 10.0F,
                 direction.y * 10.0F,
                 direction.z * 10.0F};
-            child.armingScale = 1.0F;
             child.visualVariant = 2U;
             result.children.push_back(std::move(child));
         }

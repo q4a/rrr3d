@@ -2611,3 +2611,10 @@ Torpeda и Impulse теперь используют только listener-manag
 `Proj::_shot.targetMapObject`; перевод в racer index выполняется как
 кратковременный Jolt adapter lookup. Initial selection и chain retarget
 также больше не записывают никакой второй gameplay state.
+
+### B8ca — Maslo renderer читает source model scale — выполнено
+
+`MineRuntime::armingAlpha` удалён. Только
+`Proj::MasloPrepare/MasloUpdate` изменяют scale включённой модели, и Metal
+рисует масло с этим live значением. Мёртвые session distance и split
+armingScale также удалены; они не управляли ни Windows gameplay, ни backend.

@@ -188,7 +188,6 @@ public:
         ProjectileDefinition definition;
         Vec3 linearVelocity;
         float maximumLife = -1.0F;
-        float armingScale = 0.0F;
         std::uint8_t visualVariant = 0U;
     };
 

@@ -5862,12 +5862,7 @@ void OriginalRaceSession::updateGameplay(
         const Vec3 previous = projectile.physicsBacked
             ? projectile.physicsPreviousPosition
             : projectile.position;
-        if (projectile.physicsBacked)
-        {
-            projectile.distance += length3(subtract(
-                projectile.position, previous));
-        }
-        else
+        if (!projectile.physicsBacked)
         {
             const float speed = std::max(projectile.speed, 1.0F);
             const bool detachedGravity =
@@ -5883,7 +5878,6 @@ void OriginalRaceSession::updateGameplay(
             projectile.position = add(projectile.position, movement);
             if (length3(movement) > 0.0001F)
                 projectile.direction = normalized3(movement);
-            projectile.distance += length3(movement);
         }
         TrackRayHit trackHit;
         if (sourceProgressRoute.rocketHeight)
@@ -7587,9 +7581,6 @@ void OriginalRaceSession::updateGameplay(
             mine.sourceObject->ProgressPlacedMine(
                 sourceVec(mine.position),
                 sourceQuat(mine.rotation), seconds);
-        if (mineProgress.arming.visualScale >= 0.0F)
-            mine.armingAlpha =
-                mineProgress.arming.visualScale;
         if (mineMaximumLife > 0.0F &&
             mineSeconds > mineMaximumLife)
         {
@@ -7614,7 +7605,6 @@ void OriginalRaceSession::updateGameplay(
                 spawned.owner = RacerRuntime::invalidWeapon;
                 spawned.linkedToOwner = false;
                 spawned.visualVariant = child.visualVariant;
-                spawned.armingAlpha = child.armingScale;
                 spawned.velocity = runtimeVec(child.linearVelocity);
                 spawned.physicsBodyId =
                     r3d::physics::invalidProjectileBodyId;
@@ -13945,6 +13935,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 throw std::runtime_error(
                     "source RocketPrepare direction/speed/lifetime failed");
             }
+            const Vec3 thunderLaunchPosition =
+                sourceProjectile->position;
             for (int frame = 0; frame < 121; ++frame)
             {
                 thunderSession.update(
@@ -13962,7 +13954,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 });
             if (sourceProjectile ==
                     thunderSession.projectiles().end() ||
-                sourceProjectile->distance <=
+                length3(subtract(
+                    sourceProjectile->position,
+                    thunderLaunchPosition)) <=
                     thunder->projectiles.front().maximumDistance ||
                 !sourceProjectile->ownerCollisionArmed)
             {
@@ -15630,9 +15624,20 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                                std::abs(request.momentum.z) -
                                expectedOilYawMomentum) < 0.01F;
                 });
+            const auto* oilSource =
+                oilSession.mines().empty()
+                    ? nullptr
+                    : oilSession.mines().front().sourceObject;
+            const auto* oilSourceModel = oilSource != nullptr
+                ? oilSource->GetSourceModel()
+                : nullptr;
             if (!earlyMomentum.empty() ||
                 oilSession.mines().size() != 1U ||
                 !oilLockedClutch ||
+                oilSourceModel == nullptr ||
+                oilSourceModel->GetGameObj().GetScale() !=
+                    source::GameObject::Vector3{
+                        1.0F, 1.0F, 1.0F} ||
                 !oilSession.racers()[0]
                      .gameCar.IsClutchLocked())
             {

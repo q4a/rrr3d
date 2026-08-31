@@ -355,7 +355,6 @@ struct MineRuntime
     Vec3 position;
     Quat rotation;
     Vec3 velocity;
-    float armingAlpha = 0.0F;
     std::uint32_t networkProjectileId = 0U;
     std::size_t networkPendingContact = RacerRuntime::invalidWeapon;
     // Weapon-created mines retain their source car pointer during the
@@ -384,7 +383,6 @@ struct ProjectileRuntime
     Quat rotation;
     float speed = 0.0F;
     float impactDistance = 0.0F;
-    float distance = 0.0F;
     float beamWidthScale = 1.0F;
     // LaserUpdate writes sampler[0].scale.x = beamLength / 10 for the
     // distorted laser only; geometry scale and UV scale are independent.
