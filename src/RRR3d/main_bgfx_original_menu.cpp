@@ -16030,28 +16030,21 @@ int main(int argc, char** argv)
                     }
                 }
 #endif
-                // World.cpp never advances PhysX by the render delta.  It
-                // consumes the 1/60 accumulator in whole fixed steps and
-                // uses the remainder only as OnFrame interpolation alpha.
-                // Advancing Jolt by frameSeconds while feeding it that
-                // independent alpha made high-refresh frames move forward
-                // and then interpolate backwards, which presented the car
-                // as a blurred/doubled pose.  A zero-duration backend step
-                // still clears one-shot contact reports for the source
-                // LateProgress pass without changing pose history.
-                const float physicsSeconds =
-                    r3d::game::originalrace::source::
-                        WorldFrameClock::PhysicsSeconds(sourceFramePlan);
-                physicsWorld->step(physicsSeconds, vehicleInputs);
-                const bool physicsAdvanced =
-                    sourceFramePlan.fixedSteps != 0U;
-                for (std::size_t index = 0;
-                     index < physicsWorld->vehicleCount(); ++index)
-                {
-                    raceVehicles[index] = physicsWorld->vehicle(index);
-                    const auto& state = raceVehicles[index];
-                    if (physicsAdvanced)
+                // World.cpp publishes the completed PhysX pose immediately
+                // before every source 1/60 Compute.  If a slow render frame
+                // consumes several fixed steps, OnFrame therefore blends
+                // only the penultimate and final poses.  Sending their
+                // combined duration to Jolt and publishing only once made
+                // GameObjectFrameSync blend from the preceding render frame
+                // across every missed step, leaving a visible second/blurred
+                // car.  Keep Jolt's internal 1/120 solver substeps, but expose
+                // every completed source step to the original pose history.
+                const auto publishCompletedVehiclePoses = [&]() {
+                    for (std::size_t index = 0;
+                         index < physicsWorld->vehicleCount(); ++index)
                     {
+                        raceVehicles[index] = physicsWorld->vehicle(index);
+                        const auto& state = raceVehicles[index];
                         raceSession.synchronizeRacerPhysicsState(
                             index,
                             {{state.body.position.x,
@@ -16066,6 +16059,29 @@ int main(int argc, char** argv)
                              state.linearVelocity.z},
                             state.bodyAwake);
                     }
+                };
+                if (sourceFramePlan.fixedSteps == 0U)
+                {
+                    // Preserve the backend's per-frame contact-report reset
+                    // without advancing either physics or pose history.
+                    physicsWorld->step(0.0F, vehicleInputs);
+                }
+                else
+                {
+                    for (std::size_t step = 0U;
+                         step < sourceFramePlan.fixedSteps; ++step)
+                    {
+                        physicsWorld->step(
+                            r3d::game::originalrace::source::
+                                WorldFrameClock::fixedStep,
+                            vehicleInputs);
+                        publishCompletedVehiclePoses();
+                    }
+                }
+                for (std::size_t index = 0;
+                     index < physicsWorld->vehicleCount(); ++index)
+                {
+                    raceVehicles[index] = physicsWorld->vehicle(index);
                     if (options->raceRenderSmokeTest &&
                         index < raceSession.racers().size() &&
                         raceSession.racers()[index].IsComputer())

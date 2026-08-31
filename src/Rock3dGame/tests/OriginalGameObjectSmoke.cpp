@@ -527,6 +527,22 @@ int main()
         halfPhysics.rotation.z <= 0.3F ||
         halfPhysics.rotation.z >= halfQuarterTurn)
         return 97;
+    // A slow render frame may contain several World fixed steps. Windows
+    // calls OnPxSync(1) before each Compute, so the render interpolation
+    // interval is always the last two completed poses, never the whole span
+    // since the preceding rendered frame.
+    frameSync.OnPhysicsState(
+        {{20.0F, 8.0F, 0.0F}, physicsEnd.rotation},
+        {5.0F, 4.0F, 0.0F}, true);
+    frameSync.OnPhysicsState(
+        {{30.0F, 12.0F, 0.0F}, physicsEnd.rotation},
+        {7.0F, 6.0F, 0.0F}, true);
+    const auto stalledFrame = frameSync.OnFrame({}, 0.0F, 0.5F);
+    if (std::abs(stalledFrame.position.x - 25.0F) > 0.0001F ||
+        std::abs(stalledFrame.position.y - 10.0F) > 0.0001F ||
+        std::abs(frameSync.GetRenderVelocity().x - 6.0F) > 0.0001F ||
+        std::abs(frameSync.GetRenderVelocity().y - 5.0F) > 0.0001F)
+        return 100;
     frameSync.OnPhysicsState(
         physicsEnd, {0.0F, 0.0F, 0.0F}, false);
     const source::GameObjectFrameSync::Pose invalidBackendPose{

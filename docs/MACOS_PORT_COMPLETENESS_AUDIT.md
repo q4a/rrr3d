@@ -2949,3 +2949,24 @@ Parser regression закрепляет исходные значения Maraude
 — значения обеих ветвей cubic spline и inertia `10`. Прошли arm64 build,
 32/32 CTest, physics smoke и 1800-frame Metal race: player `39.20`, пять AI
 `39.00–41.81`, четыре wheel contacts и полный render/audio/menu teardown.
+
+### B8df — multi-step pose history возвращена к World.cpp — выполнено
+
+При кадре, в который попадало несколько исходных шагов 1/60, host передавал
+Jolt их суммарное время и публиковал в `GameObjectFrameSync` только конечную
+позу. Интерполяция поэтому шла от прошлого отрисованного кадра сразу через
+весь пропущенный диапазон и проявлялась как двоение/размытие движущейся
+машины. В Windows `World::MainProgress` вызывает `LateProgress(..., true)`
+перед последним `FixedStep/Compute`, поэтому `GameObject::OnFrame(alpha)`
+всегда видит только предпоследнюю и последнюю завершённые позы.
+
+Host теперь исполняет каждый накопленный source-step отдельно, оставляя два
+внутренних Jolt substep 1/120, и после каждого шага публикует кузов, колёса и
+velocity исходному frame-sync owner. Нулевой кадр по-прежнему вызывает
+backend с `0` только для очистки transient contact reports и не меняет pose
+history. Регрессия с тремя завершёнными позами требует интерполяцию последней
+пары `20 -> 30`, а не диапазона прошлого render frame.
+
+Arm64 Debug build, 32/32 CTest, physics smoke и 1800-frame bgfx/Metal race
+smoke прошли. Длинный заезд сохранил четыре wheel contacts, скорость игрока
+`39.20`, прогресс всех пяти AI и полный renderer/audio/menu teardown.
