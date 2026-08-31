@@ -2577,7 +2577,11 @@ private:
         }
         settings.mGravityFactor = description.gravityFactor;
         settings.mIsSensor = description.sensor;
-        settings.mMotionQuality = JPH::EMotionQuality::LinearCast;
+        // The Windows runtime never enables NX_CONTINUOUS_CD and none of
+        // Proj::CreatePxBox's shapes owns an NxCCDSkeleton.  LinearCast was
+        // an early portable safeguard, but it made a fast projectile report
+        // contacts which the original discrete PhysX actor would miss.
+        settings.mMotionQuality = JPH::EMotionQuality::Discrete;
         // Original projectile shapes do not override material index 0.
         settings.mFriction = 0.5F;
         settings.mRestitution = 0.5F;

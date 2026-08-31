@@ -3081,3 +3081,17 @@ Jolt listener хранит индекс исключённой машины от
 decorations и соперники сохраняют исходную обработку. Regression фиксирует
 постоянство пары после launch separation и реальный Jolt owner/non-owner
 contact boundary.
+
+### B8dm — восстановлен дискретный collision mode снарядов — выполнено
+
+В исходном Windows runtime ни `Weapon.cpp`, ни `GameBase.cpp`, ни PhysX scene
+не включают `NX_CONTINUOUS_CD` и не назначают projectile shapes
+`NxCCDSkeleton`. Следовательно, созданные через `CreatePxBox` projectile и
+mine actors используют обычную дискретную проверку столкновений PhysX 2.8.4.
+
+Jolt bridge без основания включал `EMotionQuality::LinearCast` для каждого
+projectile body. Это меняло время контакта быстрых выстрелов и могло создавать
+расхождения в detonation/impact state machine. Теперь body создаются с
+`EMotionQuality::Discrete`; выбор gravity и dynamic/static состояния по-прежнему
+приходит из точных Prepare-маршрутов исходника. Никакая новая gameplay
+эвристика в backend не добавлена.

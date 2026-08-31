@@ -23,6 +23,7 @@ game-rule differences in the adapter; it does not retune the car by eye.
 | Coordinates | Linear and angular vectors transform differently across the reflected Z-up/Y-up basis | Angular velocity now uses the axial-vector sign transform |
 | Materials | Scene material 0 is friction/restitution 0.5; cars use 0.08 or 0.02 primary and 2.0 secondary friction with `MIN`; track uses 0.1/`AVERAGE`, border uses dynamic 4.0/`MAX`; restitution always combines with `AVERAGE` | Jolt bodies carry the same coefficients, global callbacks reproduce PhysX combine-mode priority, and car contacts retain two-direction anisotropy |
 | Collision groups | `Physx.cpp::Scene` disables 13 exact group pairs among `cdgShot`, `cdgShotBorder`, `cdgShotTrack`, `cdgShotTransparency`, `cdgWheel` and `cdgTrackPlane` | Jolt object layers encode the original group independently of motion type and apply the same symmetric 8-group matrix; weapon preparation selects the source group |
+| Projectile motion quality | Projectile shapes have no `NxCCDSkeleton` and the scene never enables `NX_CONTINUOUS_CD`, so PhysX uses discrete collision detection | Projectile bodies use Jolt `EMotionQuality::Discrete`; the previously forced `LinearCast` mode has been removed |
 | Shape skin/solver | `Physx.cpp` sets `NX_SKIN_WIDTH=0.025`; `LoadCrushObj` raises movable crush boxes to `0.1`; `NxBodyDesc` uses four solver iterations | Jolt uses `0.05` penetration slop for a pair of default skins and four velocity iterations; the excess `0.075` of each explicit crush skin is represented by a per-shape collision inset |
 | Body sleep | `DataBase::AddPxBody` sets mass-normalized `sleepEnergyThreshold=0.05`; `NX_SLEEP_INTERVAL` is `0.4 s` | Jolt's representative-point movement test uses the equivalent enclosing-sphere radius rate `0.5*sqrt(2*0.05)` and the same `0.4 s`; awake state is exported for cars, decorations and debris |
 | Wheel queries | Wheels do not collide with shot-transparent borders or other cars | Suspension raycasts reject border and vehicle bodies |
@@ -83,3 +84,9 @@ contact once a projectile left a coarse vehicle box. That invented
 `effectPxIgnoreSenderCar` now resolve the one excluded car actor to a vehicle
 index carried by `ProjectileBodyDescription`. Jolt filters only that pair;
 track, border, decorations and other vehicles keep their normal contacts.
+
+Projectile body creation also preserves the source collision-detection mode.
+The Windows code never supplies CCD skeletons and never enables continuous CCD,
+so Jolt uses discrete motion quality rather than the earlier invented
+`LinearCast` sweep. This deliberately preserves gameplay contact cadence; it is
+not a renderer or solver optimization.

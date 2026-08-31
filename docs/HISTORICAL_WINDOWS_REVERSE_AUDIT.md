@@ -6861,3 +6861,18 @@ Portable runtime нарушал этот контракт полем `ownerColli
 gameplay эвристика. Регрессии проверяют повторное пересечение Thunder с
 владельцем, неизменную life и отдельные разрешённый/запрещённый vehicle
 contacts без потери ShotTrack contact с трассой.
+
+### P2.318 — удалён придуманный projectile continuous collision mode — выполнено
+
+Полный поиск по `eff9338` подтвердил отсутствие вызовов
+`setParameter(NX_CONTINUOUS_CD, ...)` и отсутствие `NxCCDSkeleton` у игровых
+projectile shapes. `Weapon.cpp::CreatePxBox` создаёт обычные PhysX box shapes,
+поэтому их collision detection остаётся дискретным. Это относится также к
+Thunder, mines, oil, crater и отделённым MinePiece.
+
+Portable Jolt adapter принудительно назначал каждому такому body
+`EMotionQuality::LinearCast`. Этот режим не был переносом исходной настройки и
+мог смещать первый contact относительно Windows state machine. Настройка
+заменена на `Discrete`. При этом точные source gravity flags сохранены:
+Rocket/Fire без gravity, MinePiece/Drobilka/Mortira с gravity; размещённые
+Mine/Maslo/MineRip/MineProton/Crater остаются static sensor actors.

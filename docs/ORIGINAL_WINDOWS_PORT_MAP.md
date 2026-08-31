@@ -1731,6 +1731,23 @@ Headless route использует тот же source-флаг. Отдельн�
 регрессия возвращает Thunder в машину стрелявшего, а physics regression
 проверяет обе стороны фильтра на реальных Jolt contacts.
 
+Результат B8dm: восстановлен полный способ создания физических тел оружия
+из `eff9338:Weapon.cpp`. `RocketPrepare` сохраняет свой
+`NX_BF_DISABLE_GRAVITY`, `MortiraPrepare` включает гравитацию, а `Fire`
+остаётся без неё и после отсоединения от уничтоженного оружия. Динамические
+`MinePiece`/`Drobilka` используют default `NxBodyDesc` с гравитацией.
+
+Отдельно восстановлено различие `MinePrepare` и `MinePiecePrepare`: обычные
+Mine/Maslo/MineRip/MineProton/Crater создают только статический
+`CreatePxBox` actor с отключённым response, тогда как лишь разлетающийся
+MinePiece получает dynamic body. Ранний bridge ошибочно выводил динамику и
+гравитацию из ненулевой скорости. Наконец, удалён отсутствующий в оригинале
+Jolt `LinearCast`: Windows не включает `NX_CONTINUOUS_CD` и не назначает
+projectile shapes `NxCCDSkeleton`, поэтому Jolt actors снова используют
+discrete collision detection. Jolt остаётся владельцем solver/body storage;
+выбор типа тела, гравитации и collision quality теперь принадлежит source
+`Proj::PreparationRoute` и исходному PhysX descriptor contract.
+
 Каждый крупный block commit обязан:
 
 1. назвать точные методы из `eff9338:prog`, которые стали активными;
