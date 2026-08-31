@@ -2595,3 +2595,11 @@ roster и default weapon catalog создаёт transient `Player::WeaponLoadout
 reload capacity принадлежат только concrete `WeaponItem`; HUD, AI, bonuses,
 shots и profile save уже читают его getters. Покрыты primary, hyper, mine,
 Droid, Reflector, ammunition и lap reload paths.
+
+### B8by — Proj владеет мировой позой поверх Jolt backend — выполнено
+
+Устранён split-owner transform: активный Jolt actor теперь обновляет
+оригинальный `source::Proj`, а renderer view перестраивает position/rotation
+из source object. Это сохраняет PhysX-era contract без возврата PhysX:
+Jolt владеет симуляцией тела, `Proj/GameObject` — игровой мировой позой,
+`ProjectileRuntime` и `MineRuntime` — только обменом с Jolt и Metal.

@@ -1210,6 +1210,18 @@ indices и начальные charge в concrete `WeaponItem`; дальше bonu
 Reload, HUD, AI и profile save читают только source item. Regression
 проверяет primary/hyper/mine, Droid/Reflector, reload и ammunition order.
 
+Результат B8by: мировой transform projectile/mine возвращён concrete
+`source::Proj`. Оригинальные `ProgressAttached`, `ProgressFree` и
+`ProgressPlacedMine` уже обновляли source `GameObject`, но обратная
+синхронизация Jolt меняла только session view. Теперь каждый принятый Jolt
+body state немедленно публикует position/rotation в `Proj`, а renderer
+snapshots перед выдачей читают transform обратно из source owner.
+
+`ProjectileRuntime`/`MineRuntime` сохраняют pose только как backend/render
+adapter для команд Jolt, swept contact и Metal submit. Regression двигает и
+вращает активные projectile и mine через synthetic Jolt state и требует
+точного совпадения `Proj::GetWorldPos/GetWorldRot`.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:

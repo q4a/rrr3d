@@ -6239,3 +6239,17 @@ GetCntCharge}` подтвердило второй слой зеркал. Portab
 живые изменения charge принадлежат WeaponItem. Player, Weapon, lifecycle и
 integrated race regressions переведены на этот owner; 32 CTest, resources,
 Jolt и Metal smoke прошли.
+
+### P2.278 — world pose снарядов возвращён concrete Proj — выполнено
+
+Сверка исходных `Proj::{FireUpdate,ProgressAttached,ProgressFree,
+ProgressPlacedMine}` показала, что их `GameObject` является владельцем
+мирового transform. В portable path source-progress соблюдал это правило,
+но `synchronizeProjectilePhysics` записывал результат Jolt исключительно в
+`ProjectileRuntime`/`MineRuntime`. После backend tick исходные death effects,
+scene queries и восстановление потерянного actor-а могли видеть старую позу.
+
+Теперь Jolt state проходит через source `SetWorldPos/SetWorldRot`, а публичные
+render views получают position/rotation из `GetWorldPos/GetWorldRot`.
+Session-поля остаются только transport snapshot для Jolt/Metal и swept
+contact. Integrated regression отдельно проверяет projectile и mine pose.

@@ -97,6 +97,30 @@ Quat runtimeQuat(source::Proj::Quat value)
     return {value.x, value.y, value.z, value.w};
 }
 
+template <typename Runtime>
+void publishRuntimePoseToSource(Runtime& runtime) noexcept
+{
+    if (runtime.sourceObject == nullptr)
+        return;
+    runtime.sourceObject->SetWorldPos({
+        runtime.position.x, runtime.position.y, runtime.position.z});
+    runtime.sourceObject->SetWorldRot({
+        runtime.rotation.x, runtime.rotation.y,
+        runtime.rotation.z, runtime.rotation.w});
+}
+
+template <typename Runtime>
+void refreshRuntimePoseFromSource(Runtime& runtime) noexcept
+{
+    if (runtime.sourceObject == nullptr)
+        return;
+    const auto& position = runtime.sourceObject->GetWorldPos();
+    const auto& rotation = runtime.sourceObject->GetWorldRot();
+    runtime.position = {position[0], position[1], position[2]};
+    runtime.rotation = {
+        rotation[0], rotation[1], rotation[2], rotation[3]};
+}
+
 void applySourceProxyTransform(
     source::GameObject& object, const Transform& transform) noexcept
 {
@@ -1245,13 +1269,19 @@ bool OriginalRaceSession::mineIsActive(
 void OriginalRaceSession::refreshProjectileView() const noexcept
 {
     for (auto& projectile : projectiles_)
+    {
         projectile.active = projectileIsActive(projectile);
+        refreshRuntimePoseFromSource(projectile);
+    }
 }
 
 void OriginalRaceSession::refreshMineView() const noexcept
 {
     for (auto& mine : mines_)
+    {
         mine.active = mineIsActive(mine);
+        refreshRuntimePoseFromSource(mine);
+    }
 }
 
 void OriginalRaceSession::reset()
@@ -2942,6 +2972,11 @@ void OriginalRaceSession::synchronizeProjectilePhysics(
             projectile->rotation = state.body.rotation;
             projectile->velocity = state.linearVelocity;
             projectile->physicsContacts = state.contacts;
+            // PhysX wrote its actor transform back into the concrete Proj.
+            // Jolt is only the replacement physics backend: the source
+            // GameObject remains the world-pose owner used by effects,
+            // contacts, lifetime recovery and renderer snapshots.
+            publishRuntimePoseToSource(*projectile);
             projectile->speed = length3(projectile->velocity);
             if (!projectile->attached && projectile->speed > 0.0001F)
                 projectile->direction = normalized3(projectile->velocity);
@@ -2969,6 +3004,7 @@ void OriginalRaceSession::synchronizeProjectilePhysics(
             mine->rotation = state.body.rotation;
             mine->velocity = state.linearVelocity;
             mine->physicsContacts = state.contacts;
+            publishRuntimePoseToSource(*mine);
             continue;
         }
         const auto bonus = std::find(
@@ -10220,6 +10256,38 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                         "source fixed-step AI Mine did not create exactly "
                         "one Jolt actor on the firing tick");
                 }
+                r3d::physics::ProjectileBodyState synchronizedMineBody;
+                synchronizedMineBody.id =
+                    mineBodyCommands.front().body.id;
+                synchronizedMineBody.body =
+                    mineBodyCommands.front().body.transform;
+                synchronizedMineBody.body.position.z += 0.375F;
+                synchronizedMineBody.body.rotation =
+                    {0.0F, 0.0F, 0.38268343F, 0.92387953F};
+                synchronizedMineBody.linearVelocity =
+                    mineBodyCommands.front().body.linearVelocity;
+                synchronizedMineBody.active = true;
+                fixedMineSession.synchronizeProjectilePhysics(
+                    {synchronizedMineBody});
+                const auto& synchronizedMine =
+                    fixedMineSession.mines().front();
+                const auto& synchronizedMineSourcePosition =
+                    synchronizedMine.sourceObject->GetWorldPos();
+                const auto& synchronizedMineSourceRotation =
+                    synchronizedMine.sourceObject->GetWorldRot();
+                if (std::abs(
+                        synchronizedMineSourcePosition[2] -
+                        synchronizedMineBody.body.position.z) > 0.0001F ||
+                    std::abs(
+                        synchronizedMineSourceRotation[2] -
+                        synchronizedMineBody.body.rotation.z) > 0.0001F ||
+                    std::abs(
+                        synchronizedMineSourceRotation[3] -
+                        synchronizedMineBody.body.rotation.w) > 0.0001F)
+                {
+                    throw std::runtime_error(
+                        "Jolt Mine pose did not return to source Proj owner");
+                }
                 r3d::physics::ProjectileBodyState lostMineBody;
                 lostMineBody.id = mineBodyCommands.front().body.id;
                 lostMineBody.active = false;
@@ -10500,17 +10568,28 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 projectileBodyState.active = true;
                 queuedAttackSession.synchronizeProjectilePhysics(
                     {projectileBodyState});
+                const auto& synchronizedProjectile =
+                    queuedAttackSession.projectiles().front();
+                const auto& synchronizedProjectileSourcePosition =
+                    synchronizedProjectile.sourceObject->GetWorldPos();
+                const auto& synchronizedProjectileSourceRotation =
+                    synchronizedProjectile.sourceObject->GetWorldRot();
                 if (std::abs(
-                        queuedAttackSession.projectiles().front().position.x -
+                        synchronizedProjectile.position.x -
                         projectileBodyState.body.position.x) > 0.0001F ||
-                    queuedAttackSession.projectiles().front()
-                            .physicsContacts.size() != 1U ||
-                    queuedAttackSession.projectiles().front()
-                            .physicsContacts.front().otherVehicle != 0U)
+                    std::abs(
+                        synchronizedProjectileSourcePosition[0] -
+                        projectileBodyState.body.position.x) > 0.0001F ||
+                    std::abs(
+                        synchronizedProjectileSourceRotation[3] -
+                        projectileBodyState.body.rotation.w) > 0.0001F ||
+                    synchronizedProjectile.physicsContacts.size() != 1U ||
+                    synchronizedProjectile.physicsContacts.front()
+                            .otherVehicle != 0U)
                 {
                     throw std::runtime_error(
                         "Jolt projectile pose/contact was not synchronized "
-                        "back into the source runtime");
+                        "back into the source Proj owner");
                 }
                 projectileBodyState.active = false;
                 queuedAttackSession.synchronizeProjectilePhysics(
