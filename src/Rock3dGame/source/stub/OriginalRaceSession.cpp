@@ -3840,15 +3840,12 @@ void OriginalRaceSession::queueProjectileBodyCreate(
     command.body.halfExtents = source.collision.halfExtents;
     command.body.linearVelocity = projectile.velocity;
     command.body.mass = std::max(source.mass, 0.001F);
-    const bool ballistic =
-        projectile.sourceObject->RoutePreparation().ballistic;
+    const bool bodyGravity =
+        projectile.sourceObject->RoutePreparation().bodyGravity;
     const bool attached =
         projectile.sourceObject->IsAttachedToSourceWeapon();
-    const bool detached =
-        projectile.sourceObject->IsDetachedFromSourceWeapon();
     command.body.gravityFactor =
-        ballistic || detached
-            ? 1.0F : 0.0F;
+        bodyGravity ? 1.0F : 0.0F;
     command.body.dynamic = !attached;
     command.body.kinematic = attached;
     command.body.sensor = true;
@@ -3892,15 +3889,11 @@ void OriginalRaceSession::queueProjectileBodySynchronize(
     command.body.transform.position = projectile.position;
     command.body.transform.rotation = projectile.rotation;
     command.body.linearVelocity = projectile.velocity;
-    const bool ballistic =
+    const bool bodyGravity =
         projectile.sourceObject != nullptr &&
-        projectile.sourceObject->RoutePreparation().ballistic;
-    const bool detached =
-        projectile.sourceObject != nullptr &&
-        projectile.sourceObject->IsDetachedFromSourceWeapon();
+        projectile.sourceObject->RoutePreparation().bodyGravity;
     command.body.gravityFactor =
-        ballistic || detached
-            ? 1.0F : 0.0F;
+        bodyGravity ? 1.0F : 0.0F;
     projectileBodyCommands_.push_back(command);
 }
 
@@ -5953,16 +5946,12 @@ void OriginalRaceSession::updateGameplay(
             const bool sourceWeaponDetached =
                 projectile.sourceObject
                     ->IsDetachedFromSourceWeapon();
-            const bool detachedGravity =
-                sourceWeaponDetached &&
-                sourceProgressRoute.handler ==
-                    source::Proj::ProgressHandler::Drobilka;
-            const bool ballistic =
-                projectile.sourceObject->RoutePreparation().ballistic;
-            if (ballistic || detachedGravity)
+            const bool bodyGravity =
+                projectile.sourceObject->RoutePreparation().bodyGravity;
+            if (bodyGravity)
                 projectile.velocity.z -= 20.0F * seconds;
             const Vec3 movement =
-                (ballistic || sourceWeaponDetached)
+                (bodyGravity || sourceWeaponDetached)
                     ? multiply(projectile.velocity, seconds)
                     : multiply(projectile.direction, speed * seconds);
             projectile.position = add(projectile.position, movement);

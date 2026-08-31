@@ -2044,6 +2044,16 @@ int main()
     const auto laserRules = source::Proj::GetTypeRules(3U);
     const auto fireRules = source::Proj::GetTypeRules(14U);
     const auto mortarRules = source::Proj::GetTypeRules(19U);
+    const auto rocketPreparation =
+        source::Proj::PreparationRouteFor(0U);
+    const auto minePiecePreparation =
+        source::Proj::PreparationRouteFor(13U);
+    const auto firePreparation =
+        source::Proj::PreparationRouteFor(14U);
+    const auto drobilkaGravityPreparation =
+        source::Proj::PreparationRouteFor(15U);
+    const auto mortarPreparation =
+        source::Proj::PreparationRouteFor(19U);
     if (!rocketRules.rocketPrepare || rocketRules.ray ||
         !laserRules.attached || !laserRules.linkedToWeapon ||
         !laserRules.ray ||
@@ -2053,7 +2063,12 @@ int main()
         !source::Proj::GetTypeRules(1U).linkedToWeapon ||
         !source::Proj::GetTypeRules(17U).linkedToWeapon ||
         !source::Proj::GetTypeRules(11U).mineTestsLock ||
-        source::Proj::GetTypeRules(24U).mineTestsLock)
+        source::Proj::GetTypeRules(24U).mineTestsLock ||
+        rocketPreparation.bodyGravity ||
+        !minePiecePreparation.bodyGravity ||
+        firePreparation.bodyGravity ||
+        !drobilkaGravityPreparation.bodyGravity ||
+        !mortarPreparation.bodyGravity)
         return 60;
     bool allPreparationHandlers = true;
     for (std::uint32_t type = 0U; type <= 24U; ++type)

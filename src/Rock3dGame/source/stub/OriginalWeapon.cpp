@@ -2102,6 +2102,8 @@ Proj::PreparationRoute Proj::PreparationRouteFor(
         break;
     case ProjectileType::MinePiece:
         result.collisionGroup = CollisionGroup::ShotTrack;
+        // MinePiecePrepare constructs a default NxBodyDesc.
+        result.bodyGravity = true;
         break;
     case ProjectileType::Fire:
         result.rocketPrepare = true;
@@ -2111,6 +2113,10 @@ Proj::PreparationRoute Proj::PreparationRouteFor(
     case ProjectileType::Drobilka:
         result.attached = true;
         result.requiresWeapon = true;
+        // DrobilkaPrepare constructs a default NxBodyDesc.  Its actor is
+        // driven by the weapon while attached, then retains ordinary
+        // gravity after the weapon disappears.
+        result.bodyGravity = true;
         break;
     case ProjectileType::Sonar:
         result.rocketPrepare = true;
@@ -2131,6 +2137,9 @@ Proj::PreparationRoute Proj::PreparationRouteFor(
     case ProjectileType::Mortira:
         result.rocketPrepare = true;
         result.ballistic = true;
+        // Mortira is the sole RocketPrepare call which passes false for
+        // disableGravity.
+        result.bodyGravity = true;
         result.requiresWeapon = true;
         break;
     case ProjectileType::Crater:

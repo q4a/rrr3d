@@ -425,6 +425,11 @@ public:
         bool rocketPrepare = false;
         bool homing = false;
         bool ballistic = false;
+        // Exact NxBodyDesc gravity flag selected by the source Prepare
+        // method.  This is intentionally independent of attachment:
+        // MinePiece and Drobilka keep gravity enabled, while Fire keeps
+        // NX_BF_DISABLE_GRAVITY even if its weapon is later destroyed.
+        bool bodyGravity = false;
         bool minePlacement = false;
         bool lockMineOnPlacement = false;
         bool mineTestsLock = false;
