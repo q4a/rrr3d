@@ -1718,7 +1718,7 @@ int main(int argc, char** argv)
                   << "/Jolt vehicle"
                      " source torque/gears/reverse, braking, steering,"
                      " airborne/stabilization, suspension/tire contacts,"
-                     " trace reset, countdown, checkpoint/lap/finish,"
+                     " trace reset, countdown, source lap/finish,"
                      " source border/car contacts, weapon/damage, bonus,"
                      " garage/workshop, NetPlayer disconnect removal,"
                      " and respawn state passed\n";
@@ -15896,12 +15896,7 @@ int main(int argc, char** argv)
                             std::abs(raceVehicles[index].speed));
                         maximumRaceAiProgress[index] = std::max(
                             maximumRaceAiProgress[index],
-                            static_cast<float>(
-                                raceSession.racers()[index].car.numLaps) +
-                                static_cast<float>(
-                                    raceSession.racers()[index].nextPathNode) /
-                                    static_cast<float>(std::max<std::size_t>(
-                                        originalRace->tracePath.size(), 1U)));
+                            raceSession.racers()[index].car.GetLap());
                     }
                 }
                 std::vector<r3d::physics::ProjectileBodyState>

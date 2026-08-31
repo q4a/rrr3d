@@ -3162,35 +3162,6 @@ source::ResetCarRayKind OriginalRaceSession::queryResetWorld(
     return source::ResetCarRayKind::Blocked;
 }
 
-const std::vector<std::uint32_t>& OriginalRaceSession::tracePathAt(
-    std::size_t path) const
-{
-    if (!race_.tracePaths.empty())
-        return race_.tracePaths.at(path);
-    if (path == 0U)
-        return race_.tracePath;
-    throw std::out_of_range("Original race trace path is unresolved");
-}
-
-const TracePoint& OriginalRaceSession::tracePoint(
-    std::size_t pathNode) const
-{
-    return tracePoint(0U, pathNode);
-}
-
-const TracePoint& OriginalRaceSession::tracePoint(
-    std::size_t path, std::size_t pathNode) const
-{
-    const auto& nodes = tracePathAt(path);
-    const std::uint32_t id = nodes.at(pathNode % nodes.size());
-    const auto found = std::find_if(
-        race_.tracePoints.begin(), race_.tracePoints.end(),
-        [id](const TracePoint& point) { return point.id == id; });
-    if (found == race_.tracePoints.end())
-        throw std::runtime_error("Original race trace path is unresolved");
-    return *found;
-}
-
 void OriginalRaceSession::buildSourceTrace()
 {
     auto& sourceTrace = map_.GetTrace();
@@ -3225,19 +3196,6 @@ void OriginalRaceSession::buildSourceTrace()
     }
     if (sourceTrace.GetPathCount() == 0U)
         throw std::runtime_error("Original race trace has no paths");
-}
-
-OriginalRaceSession::TraceNodeRef
-OriginalRaceSession::racerTraceNode(std::size_t racer) const noexcept
-{
-    return racer < racers_.size() ? racers_[racer].car.GetCurTileRef()
-                                  : TraceNodeRef{};
-}
-
-float OriginalRaceSession::tracePathLength(std::size_t path) const
-{
-    const auto* value = map_.GetTrace().GetPath(path);
-    return value != nullptr ? value->GetLength() : 0.0F;
 }
 
 float OriginalRaceSession::lapPosition(
@@ -3279,30 +3237,10 @@ void OriginalRaceSession::updateProgress(
                            vehicle.body.position,
                            runtime.car.GetDist()});
     }
-    if (!state.currentTile.valid() || !state.lastNodeChanged)
-        return;
-
-    const auto& tilePath = tracePathAt(state.lastNode.path);
-    const auto& tileStart =
-        tracePoint(state.lastNode.path, state.lastNode.node);
-    if (state.previousLast.valid())
-    {
-        const std::size_t checkpoint =
-            state.lapPassed ? tracePathAt(0U).size() - 1U
-                            : state.lastNode.node;
-        events_.push_back({RaceEventKind::Checkpoint, racer,
-                           checkpoint, tileStart.position, 0.0F});
-    }
-    if (state.lastNode.path == 0U && !state.lapPassed)
-    {
-        runtime.nextPathNode = std::clamp<std::size_t>(
-            state.lastNode.node + 1U, 1U, tilePath.size() - 1U);
-    }
     if (!state.lapPassed)
         return;
 
     runtime.OnLapPass(race_.weapons.size());
-    runtime.nextPathNode = 1;
 
     const auto leader = std::min_element(
         racers_.begin(), racers_.end(),
@@ -12528,9 +12466,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
         lapSession.update(
             1.0F / 60.0F, lapVehicles, input);
         placeOnMainSegment(0U);
-        if (lapSession.racers().front().car.numLaps != 1 ||
-            lapSession.racers().front().nextPathNode != 1)
-            throw std::runtime_error("checkpoint/lap transition failed");
+        if (lapSession.racers().front().car.numLaps != 1)
+            throw std::runtime_error("source CarState lap transition failed");
         lapSession.update(
             1.0F / 60.0F, lapVehicles, input);
         if (lapSession.racers().front().car.numLaps != 1U)

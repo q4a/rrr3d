@@ -67,7 +67,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `Menu` | `originalmenu::MenuSystem` + source Main/Profile/Dialog/Options/Race/Finish/Final owners | Source owner, frame core | Завершить concrete network callbacks; bgfx/CoreText/SDL остаются backend boundary |
 | `MenuSystem` | `originalmenu::{MenuSystem,ScreenStack,FrameState}` | Source owner, active menu path | Подключить concrete navigation graphs; bgfx остаётся draw executor |
 | `OptionsMenu` | `originaloptions::{OptionsMenuState,StartOptionsMenuState}` + backend visuals | Source owner, active options path | Legacy Widget events заменены SDL input, CoreText и bgfx draw submission |
-| `Player` | `source::Player`, `CarState`, behaviors, `PresentationState` | Source owner, active gameplay/presentation/live-car path | `CreateCar/FreeCar` владеют точным live `MapObj`; bgfx/Jolt исполняют graph/actor commands, остаётся аудит profile bridges |
+| `Player` | `source::Player`, `CarState`, behaviors, `PresentationState` | Source owner, active gameplay/presentation/live-car/trace path | `CarState` единолично владеет tile/node/lap/wrong-way/map position; bgfx/Jolt исполняют graph/actor commands, остаётся аудит profile bridges |
 | `Race` | `OriginalRace`, `source::{RaceRunState,RaceLifecycle,RacePlaceModel}`, session adapter, tournament on shared World | Source owner, active fixed/late/finish/settlement lifecycle | `CompleteRace` Player publication, picked-money reset, block, campaign reward, tournament/pass-reset source-owned; продолжить вынос physics/contact materialization из session |
 | `RaceMenu2` | `originalracemenu::{RaceMenuState,RaceMainFrameState,GamersFrameState,GarageFrameState,WorkshopFrameState,SpaceshipFrameState,AngarFrameState,AchievementFrameState}` | Source owner, all six offline frame paths | Проверить оставшиеся network callbacks и оставить bgfx/CoreText backend boundary |
 | `RecordLib` | `source::{MapObjRecordLibrary,MapObjRecordNode,MapObjRecord}` | Source owner, active hierarchy | Editor-only mutation/serialization API не входит в пользовательский runtime |
@@ -1169,6 +1169,19 @@ session; one-shot принадлежит Race lifecycle. Также удалён
 `Player::ApplyRaceReward`, отсутствующий в Windows API и читавший pickMoney
 уже после исходного reset. Regression проверяет разный порядок финиша,
 captured pickMoney, block, все три награды и запрет повторного начисления.
+
+Результат B8bv: аудит `Player::CarState::Update` подтвердил точный перенос
+tile search, linked-node validation, lap wrap, wrong-way distance,
+lost-control window и map position. Ошибка находилась не внутри этого класса,
+а в оставленной вокруг него второй модели прогресса: session отдельно вела
+`Player::nextPathNode`, создавала отсутствующее в Windows событие
+`Checkpoint` и повторно обходила parser trace arrays.
+
+Суррогаты и неиспользуемые `tracePathAt/tracePoint/racerTraceNode` удалены.
+Game debug теперь показывает живой `CarState::GetLastNodeRef`, а Metal AI
+smoke измеряет исходный `CarState::GetLap()` вместо придуманной дроби
+`numLaps + nextPathNode/pathSize`. В session осталась только адаптация
+исходного `lapPassed` в `Race::OnLapPass`/публичные race events.
 
 ## Правило обновления карты
 

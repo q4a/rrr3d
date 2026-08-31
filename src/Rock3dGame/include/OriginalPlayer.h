@@ -519,7 +519,6 @@ public:
     static std::uint32_t BonusCharge(
         std::uint32_t maximumCharge, float value) noexcept;
 
-    std::size_t nextPathNode = 1;
     std::uint32_t ammunition = 10;
     std::uint32_t mines = 0;
     std::uint32_t mineCapacity = 0;

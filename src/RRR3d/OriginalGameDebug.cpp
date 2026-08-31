@@ -221,8 +221,11 @@ std::vector<std::string> OriginalGameDebug::lines(
             "Place " + std::to_string(racer.GetPlace()) + "/" +
             std::to_string(race.racers.size()) + "  lap " +
             std::to_string(racer.car.numLaps) + "/" +
-            std::to_string(race.lapCount) + "  next node " +
-            std::to_string(racer.nextPathNode));
+            std::to_string(race.lapCount) + "  trace " +
+            (racer.car.GetLastNodeRef().valid()
+                 ? std::to_string(racer.car.GetLastNodeRef().path) + ":" +
+                       std::to_string(racer.car.GetLastNodeRef().node)
+                 : std::string("none")));
         result.push_back(
             "Wrong way " +
             std::string(racer.car.moveInverse ? "YES" : "no") +

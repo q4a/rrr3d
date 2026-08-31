@@ -6184,6 +6184,20 @@ reset и не входил в Windows API.
 Lifecycle regression закрепляет порядок AI/Human результатов, exact reward
 для мест 1–3, pickMoney reset, 0.3-second block и отсутствие double award.
 
+### P2.275 — удалена вторая модель trace/checkpoint прогресса — выполнено
+
+Метод-к-методу сверка `Player::CarState::Update`, `GetDist`, `GetLap` и
+`GetMapPos` показала, что concrete source owner уже содержит оригинальную
+логику полностью. Однако session поверх него поддерживала `nextPathNode`,
+сама переводила NodeRef обратно в parser `TracePoint` и выпускала событие
+`Checkpoint`, которого нет в Windows GameEvent/Race/Player.
+
+Эта параллельная модель использовалась только debug и smoke, но могла
+расходиться на branch path и после reset. Она удалена вместе с мёртвыми
+trace lookup helpers. Debug читает live NodeRef, AI progress validation —
+точный `CarState::GetLap`, а MiniMap как и раньше использует исходный
+`CarState::GetMapPos`.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

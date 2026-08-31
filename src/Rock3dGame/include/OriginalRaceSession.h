@@ -40,7 +40,6 @@ enum class RacePhase
 enum class RaceEventKind
 {
     CountdownChanged,
-    Checkpoint,
     Lap,
     Finish,
     Respawn,
@@ -162,7 +161,7 @@ struct AngularMomentumRequest
 
 struct RaceEvent
 {
-    RaceEventKind kind = RaceEventKind::Checkpoint;
+    RaceEventKind kind = RaceEventKind::CountdownChanged;
     std::size_t racer = 0;
     std::size_t target = 0;
     Vec3 position;
@@ -606,7 +605,6 @@ public:
 
 private:
     bool legacyWindowsDebug_ = false;
-    using TraceNodeRef = source::Trace::NodeRef;
     struct PendingAiAttack
     {
         std::size_t racer = RacerRuntime::invalidWeapon;
@@ -654,14 +652,7 @@ private:
     void refreshProjectileView() const noexcept;
     void refreshMineView() const noexcept;
 
-    const std::vector<std::uint32_t>& tracePathAt(
-        std::size_t path) const;
-    const TracePoint& tracePoint(std::size_t pathNode) const;
-    const TracePoint& tracePoint(std::size_t path,
-                                 std::size_t pathNode) const;
     void buildSourceTrace();
-    TraceNodeRef racerTraceNode(std::size_t racer) const noexcept;
-    float tracePathLength(std::size_t path) const;
     float lapPosition(
         std::size_t racer,
         const r3d::physics::VehicleState& vehicle) const;

@@ -2547,6 +2547,13 @@ campaign-выдачу money/points. Session больше не владеет rew
 Удалён отсутствующий в Windows коде `Player::ApplyRaceReward`, который мог
 прочитать pickMoney после его исходного сброса.
 
+### B8bv — единственный trace/lap owner в Player::CarState — выполнено
+
+Удалены портовые `nextPathNode`, `Checkpoint` и повторные parser-trace lookup
+из session. Они отсутствовали в Windows и дублировали уже точный
+`CarState::Update/GetLap/GetMapPos`. Debug и Metal smoke теперь читают живой
+NodeRef/lap напрямую у source CarState.
+
 ## Воспроизведение проверки
 
 ```sh
