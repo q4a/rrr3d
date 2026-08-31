@@ -5,6 +5,7 @@
 #include <array>
 #include <cmath>
 #include <iostream>
+#include <stdexcept>
 #include <vector>
 
 namespace source = r3d::game::originalrace::source;
@@ -2261,7 +2262,32 @@ int main()
     auto& logicBehaviors = logic.GetBehaviors();
     if (logicBehaviors.GetCount() != 0U)
         return 193;
-    auto& contacts = logicBehaviors.AddPairPxContactEffect();
+    const auto progressCountBeforeFactory =
+        logicWorld.ProgressEventCount();
+    auto& contacts = static_cast<source::PairPxContactEffect&>(
+        logicBehaviors.Add(
+            source::LogicBehaviorType::PairPxContactEffect));
+    if (dynamic_cast<source::PairPxContactEffect*>(
+            logicBehaviors.Find(
+                source::LogicBehaviorType::PairPxContactEffect)) !=
+            &contacts ||
+        logicWorld.ProgressEventCount() !=
+            progressCountBeforeFactory + 1U ||
+        &logicBehaviors.Add(
+             source::LogicBehaviorType::PairPxContactEffect) !=
+            &contacts ||
+        logicWorld.ProgressEventCount() !=
+            progressCountBeforeFactory + 1U)
+        return 194;
+    try
+    {
+        static_cast<void>(logicBehaviors.Add(
+            source::LogicBehaviorType::Count));
+        return 195;
+    }
+    catch (const std::invalid_argument&)
+    {
+    }
     contacts.Configure(
         "world\\db\\root\\ctEffects\\spark2",
         {"Sounds/light_impact01.ogg",

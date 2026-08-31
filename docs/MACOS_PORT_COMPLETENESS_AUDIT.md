@@ -2746,3 +2746,11 @@ consumers; source callback identity и lifetime больше не раздвое
 классы, эквивалентным Windows `InitClassList`. Map/Player/Weapon/GameCar
 loaders больше не подменяют serialized type ручным template-class choice;
 Jolt/SDL/Metal bindings применяются только после source construction.
+
+### B8cq — serialized LogicBehaviorType factory восстановлен — выполнено
+
+Отдельный Windows `LogicBehaviors::InitClassList` снова имеет активный
+portable contract: type 0 создаёт concrete `PairPxContactEffect`, а
+`DataBase::Configure` передаёт тип вместо ручного выбора класса. Повторный
+Add сохраняет один source object и одну ordered progress registration;
+неизвестный тип отклоняется. Jolt сообщает только contact manifold.

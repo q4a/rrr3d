@@ -6499,3 +6499,17 @@ visual/sound records, wheel slot и targetTag применяются после 
 меняют class selection. Regression материализует каждый type, проверяет его
 concrete RTTI/owner/listener identity и очищает всю коллекцию без остаточных
 callbacks.
+
+### P2.296 — восстановлен LogicBehaviors::InitClassList contract — выполнено
+
+Оригинальный `Logic.cpp` содержит отдельный class list глобальных behaviors:
+type `lbtPairPxContactEffect` создаёт `PairPxContactEffect`. Portable owner и
+сам контактный алгоритм уже существовали, но `DataBase` обходил serialized
+factory через специальный `AddPairPxContactEffect`, поэтому class identity
+оставалась знанием вызывающего кода.
+
+Добавлен `LogicBehaviors::Add(LogicBehaviorType)` с точным mapping 0 →
+`PairPxContactEffect`; активный `DataBase::Configure` переведён на него.
+Повторный Add возвращает тот же source owner без второго progress listener,
+invalid type отклоняется, а regression проверяет concrete RTTI, owner и
+ordered World registration. Jolt остаётся только contact-input adapter.

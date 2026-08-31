@@ -292,8 +292,9 @@ void DataBase::Configure(const Race& race, Logic& logic)
             });
     }
 
-    auto& contactBehavior =
-        logic.GetBehaviors().AddPairPxContactEffect();
+    auto& contactBehavior = static_cast<PairPxContactEffect&>(
+        logic.GetBehaviors().Add(
+            LogicBehaviorType::PairPxContactEffect));
     const auto* contactRecord = GetRecord(
         MapObjCategory::Effects, race.contactEffect.record, false);
     contactBehavior.Configure(

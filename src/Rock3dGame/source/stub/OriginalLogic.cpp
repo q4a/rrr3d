@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <stdexcept>
 #include <utility>
 
 namespace r3d::game::originalrace::source
@@ -236,14 +237,29 @@ const LogicBehavior* LogicBehaviors::Find(
                : nullptr;
 }
 
+LogicBehavior& LogicBehaviors::Add(LogicBehaviorType type)
+{
+    // Exact Logic.cpp::LogicBehaviors::InitClassList mapping. The portable
+    // collection performs the legacy lsl::ClassList construction directly.
+    switch (type)
+    {
+    case LogicBehaviorType::PairPxContactEffect:
+        if (pairPxContactEffect_ == nullptr)
+        {
+            pairPxContactEffect_ =
+                std::make_unique<PairPxContactEffect>(this);
+        }
+        return *pairPxContactEffect_;
+    case LogicBehaviorType::Count:
+        break;
+    }
+    throw std::invalid_argument("unknown LogicBehaviorType");
+}
+
 PairPxContactEffect& LogicBehaviors::AddPairPxContactEffect()
 {
-    if (pairPxContactEffect_ == nullptr)
-    {
-        pairPxContactEffect_ =
-            std::make_unique<PairPxContactEffect>(this);
-    }
-    return *pairPxContactEffect_;
+    return static_cast<PairPxContactEffect&>(
+        Add(LogicBehaviorType::PairPxContactEffect));
 }
 
 PairPxContactEffect* LogicBehaviors::FindPairPxContactEffect() noexcept

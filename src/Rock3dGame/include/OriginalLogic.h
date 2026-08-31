@@ -221,6 +221,7 @@ public:
     std::size_t GetCount() const noexcept;
     LogicBehavior* Find(LogicBehaviorType type) noexcept;
     const LogicBehavior* Find(LogicBehaviorType type) const noexcept;
+    LogicBehavior& Add(LogicBehaviorType type);
     PairPxContactEffect& AddPairPxContactEffect();
     PairPxContactEffect* FindPairPxContactEffect() noexcept;
     const PairPxContactEffect* FindPairPxContactEffect() const noexcept;

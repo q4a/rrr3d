@@ -1430,6 +1430,17 @@ targetTag. Copy car/animation child сохраняет новый owner/child bi
 задаётся самим `BehaviorType`. Regression создаёт все 15 типов, проверяет
 concrete RTTI, owner/GameObject и полное listener teardown.
 
+Результат B8cq: восстановлен второй serialized class-list contract из
+`Logic.cpp`: `LogicBehaviors::Add(LogicBehaviorType)` отображает shipped type
+0 ровно на `PairPxContactEffect`. `DataBase::Configure` больше не выбирает
+concrete класс специальным helper-методом; он передаёт numeric source type и
+после construction задаёт effect/sound records.
+
+Один source instance остаётся зарегистрирован ровно один раз в ordered
+`WorldEventPump`, повторная конфигурация не создаёт второго contact listener,
+а неизвестное serialized значение завершается явной ошибкой. Jolt передаёт
+этому объекту только pair/manifold input.
+
 Каждый крупный block commit обязан:
 
 1. назвать точные методы из `eff9338:prog`, которые стали активными;
