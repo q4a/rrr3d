@@ -249,13 +249,18 @@ int main()
     if (halfStep.fixedSteps != 0U ||
         !halfStep.lateProgressWithoutPhysics ||
         std::abs(halfStep.physicsAlpha - 0.5F) > 0.000001F ||
+        source::WorldFrameClock::PhysicsSeconds(halfStep) != 0.0F ||
         fullStep.fixedSteps != 1U ||
         fullStep.lateProgressWithoutPhysics ||
-        std::abs(fullStep.physicsAlpha) > 0.000001F)
+        std::abs(fullStep.physicsAlpha) > 0.000001F ||
+        std::abs(source::WorldFrameClock::PhysicsSeconds(fullStep) -
+                 1.0F / 60.0F) > 0.000001F)
         return fail("source 1/60 accumulator/alpha differs");
     const auto clamped = frameClock.Schedule(1.0F, false);
     if (clamped.fixedSteps != source::WorldFrameClock::maximumFixedSteps ||
         clamped.physicsAlpha != -1.0F ||
+        std::abs(source::WorldFrameClock::PhysicsSeconds(clamped) -
+                 7.0F / 60.0F) > 0.000001F ||
         std::abs(clamped.deltaTime - 7.0F / 60.0F) > 0.000001F)
         return fail("source maximum simulation delta differs");
     frameClock.Reset();

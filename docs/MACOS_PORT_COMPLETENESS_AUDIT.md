@@ -2839,3 +2839,15 @@ destruction lifetime не менялись.
 track plane обязателен, искусственный rebound запрещён. Исправление закрывает
 подтверждённую причину сильного отлёта автомобиля и одного из путей случайного
 подбрасывания над трассой.
+
+### B8cy — World 1/60 clock подключён к Jolt advance — выполнено
+
+Исправлено подтверждённое рассогласование: `sourceFramePlan.physicsAlpha`
+больше не применяется к физике, которая была отдельно продвинута на render
+delta. Jolt получает только `fixedSteps * 1/60`, а нулевой план не меняет
+pose history. Это восстанавливает точную схему Windows
+accumulate→fixed PhysX→alpha render и убирает двоение/размытие автомобиля на
+120-Hz дисплеях.
+
+`WorldFrameClock::PhysicsSeconds` покрыт unit cases 0, 1 и 7 шагов; backend
+остаётся Jolt, renderer — BGFX/Metal, а источник cadence/alpha снова один.

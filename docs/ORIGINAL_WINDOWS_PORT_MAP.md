@@ -1530,6 +1530,20 @@ collision-response/sensor policy сохранены. Physics regression роня
 post-contact подъёма. Это backend-correction исходного material contract, а
 не новая игровая стабилизация.
 
+Результат B8cy: активная гонка снова использует одну временную шкалу
+`World.cpp`. Ранее `WorldFrameClock` правильно считал 1/60 accumulator и
+render alpha, но Jolt независимо шагал на каждом кадре по `frameSeconds`.
+На дисплее быстрее 60 Гц поза сначала продвигалась на неполный шаг, затем
+интерполировалась назад по alpha другой шкалы — источник дрожания и визуального
+двоения движущейся машины.
+
+`WorldFrameClock::PhysicsSeconds` теперь является source owner-ом величины
+backend advance: только целые `fixedSteps * 1/60`. Нулевой Jolt step очищает
+одноразовые контакты, но graph pose history обновляется лишь после реального
+physics advance. Unit regression закрепляет 120-Hz half-step, полный и
+семишаговый clamped cases; BGFX получает только готовую интерполированную
+позу.
+
 Каждый крупный block commit обязан:
 
 1. назвать точные методы из `eff9338:prog`, которые стали активными;

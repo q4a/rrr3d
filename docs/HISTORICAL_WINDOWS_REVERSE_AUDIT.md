@@ -6620,3 +6620,17 @@ meshes и `gotDestrObj` debris, отсутствует в Windows-коде и б
 регрессионный drop-test проверяет, что динамическая декорация касается пола,
 но не получает заметного обратного подъёма; source mass/friction и Jolt как
 замена PhysX остаются без изменений.
+
+### P2.304 — fixed-step и render alpha снова имеют один source clock — выполнено
+
+Сопоставление с `eff9338:World::MainProgress` подтвердило дефект интеграции,
+а не исходной интерполяции. Windows продвигает PhysX только в цикле целых
+`maxTimeStep = 1/60`, затем передаёт остаток `_timeAccum/maxTimeStep` в
+`GameObject::OnFrame`. Порт вычислял тот же alpha, но Jolt уже был продвинут
+на произвольный render `frameSeconds`.
+
+Host теперь получает physics duration из `WorldFrameClock::PhysicsSeconds`.
+При `fixedSteps == 0` backend лишь сбрасывает transient contact batch и не
+сдвигает `GameObjectFrameSync`; при полном шаге новая physics pose входит в
+ту же previous/current пару, которую использует alpha. Это устраняет
+высокочастотное движение вперёд-назад без удаления исходного OnPxSync lerp.

@@ -94,6 +94,11 @@ WorldFrameClock::Plan WorldFrameClock::Schedule(
     return plan;
 }
 
+float WorldFrameClock::PhysicsSeconds(const Plan& plan) noexcept
+{
+    return static_cast<float>(plan.fixedSteps) * fixedStep;
+}
+
 float WorldFrameClock::GetAccumulator() const noexcept
 {
     return static_cast<float>(accumulator_);

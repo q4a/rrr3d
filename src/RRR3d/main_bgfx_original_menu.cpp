@@ -15982,25 +15982,42 @@ int main(int argc, char** argv)
                     }
                 }
 #endif
-                physicsWorld->step(frameSeconds, vehicleInputs);
+                // World.cpp never advances PhysX by the render delta.  It
+                // consumes the 1/60 accumulator in whole fixed steps and
+                // uses the remainder only as OnFrame interpolation alpha.
+                // Advancing Jolt by frameSeconds while feeding it that
+                // independent alpha made high-refresh frames move forward
+                // and then interpolate backwards, which presented the car
+                // as a blurred/doubled pose.  A zero-duration backend step
+                // still clears one-shot contact reports for the source
+                // LateProgress pass without changing pose history.
+                const float physicsSeconds =
+                    r3d::game::originalrace::source::
+                        WorldFrameClock::PhysicsSeconds(sourceFramePlan);
+                physicsWorld->step(physicsSeconds, vehicleInputs);
+                const bool physicsAdvanced =
+                    sourceFramePlan.fixedSteps != 0U;
                 for (std::size_t index = 0;
                      index < physicsWorld->vehicleCount(); ++index)
                 {
                     raceVehicles[index] = physicsWorld->vehicle(index);
                     const auto& state = raceVehicles[index];
-                    raceSession.synchronizeRacerPhysicsState(
-                        index,
-                        {{state.body.position.x,
-                          state.body.position.y,
-                          state.body.position.z},
-                         {state.body.rotation.x,
-                          state.body.rotation.y,
-                          state.body.rotation.z,
-                          state.body.rotation.w}},
-                        {state.linearVelocity.x,
-                         state.linearVelocity.y,
-                         state.linearVelocity.z},
-                        state.bodyAwake);
+                    if (physicsAdvanced)
+                    {
+                        raceSession.synchronizeRacerPhysicsState(
+                            index,
+                            {{state.body.position.x,
+                              state.body.position.y,
+                              state.body.position.z},
+                             {state.body.rotation.x,
+                              state.body.rotation.y,
+                              state.body.rotation.z,
+                              state.body.rotation.w}},
+                            {state.linearVelocity.x,
+                             state.linearVelocity.y,
+                             state.linearVelocity.z},
+                            state.bodyAwake);
+                    }
                     if (options->raceRenderSmokeTest &&
                         index < raceSession.racers().size() &&
                         raceSession.racers()[index].IsComputer())

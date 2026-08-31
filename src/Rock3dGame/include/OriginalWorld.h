@@ -86,6 +86,7 @@ public:
     float SmoothDelta(
         double rawDeltaTime, bool synchronized = true) noexcept;
     Plan Schedule(float deltaTime, bool raceStarted) noexcept;
+    static float PhysicsSeconds(const Plan& plan) noexcept;
     float GetAccumulator() const noexcept;
     std::size_t GetSynchronizedFrameCount() const noexcept;
 
