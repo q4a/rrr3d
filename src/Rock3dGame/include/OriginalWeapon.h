@@ -788,10 +788,11 @@ private:
     bool prepared_ = false;
 };
 
-// GameBase.cpp::ShotEffect receives one OnShot callback only after
-// Weapon::PrepareProj succeeds. The backend may create a child visual and a
-// Source3d, but this owner preserves the callback lifetime per weapon actor.
-class ShotEffect : public EventEffect
+// GameBase.cpp::ShotEffect is itself the concrete btShotEffect entry: one
+// object is simultaneously the GameObject listener, EventEffect owner and
+// OnShot callback. The backend may create a child visual and a Source3d, but
+// their identity remains attached to this source behavior per weapon actor.
+class ShotEffect final : public Behavior, public EventEffect
 {
 public:
     struct SpawnResult
@@ -806,42 +807,30 @@ public:
         bool ignoreRotation = false;
     };
 
+    explicit ShotEffect(Behaviors* owner) noexcept;
+
+    void OnProgress(float deltaTime) noexcept override;
     void Configure(ShotEffectDefinition definition);
     void Reset() noexcept;
     void CopyStateFrom(const ShotEffect& value);
-    SpawnResult OnShot(
-        const std::array<float, 3U>& position) noexcept;
+    std::optional<SpawnResult> ConsumeSpawnResult();
+    std::size_t GetPendingSpawnCount() const noexcept;
+    const std::array<float, 3U>& GetLastShotPosition() const noexcept;
     std::uint64_t GetShotCount() const noexcept;
     const ShotEffectDefinition& GetDefinition() const noexcept;
     std::string_view SelectSound(float randomUnit) const noexcept;
-
-private:
-    ShotEffectDefinition definition_;
-    std::uint64_t shotCount_ = 0U;
-};
-
-class ShotEffectBehavior final : public Behavior
-{
-public:
-    explicit ShotEffectBehavior(Behaviors* owner) noexcept;
-
-    void OnProgress(float deltaTime) noexcept override;
-    void Reset() noexcept;
-    const ShotEffect& GetState() const noexcept;
-    const std::array<float, 3U>& GetLastShotPosition() const noexcept;
-    void Configure(ShotEffectDefinition definition);
-    std::optional<ShotEffect::SpawnResult> ConsumeSpawnResult();
-    std::size_t GetPendingSpawnCount() const noexcept;
-    void CopyStateFrom(const ShotEffectBehavior& value);
 
 protected:
     void OnShot(
         const std::array<float, 3U>& position) noexcept override;
 
 private:
-    ShotEffect state_;
+    SpawnResult BuildSpawn(
+        const std::array<float, 3U>& position) noexcept;
+    ShotEffectDefinition definition_;
+    std::uint64_t shotCount_ = 0U;
     std::array<float, 3U> lastShotPosition_{};
-    std::vector<ShotEffect::SpawnResult> pendingSpawns_;
+    std::vector<SpawnResult> pendingSpawns_;
 };
 
 // Backend-neutral transcription of the original Weapon timer and Desc
@@ -946,7 +935,7 @@ private:
     DescHandle desc_;
     float shotTime_ = 0.0F;
     Proj::Quat drobilkaRotation_{0.0F, 0.0F, 0.0F, 1.0F};
-    ShotEffectBehavior* shotEffect_ = nullptr;
+    ShotEffect* shotEffect_ = nullptr;
 };
 
 // Backend-neutral transcription of Player::WeaponItem. The Windows object

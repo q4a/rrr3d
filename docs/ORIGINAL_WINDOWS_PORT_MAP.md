@@ -1331,6 +1331,19 @@ count, deferred removal, respawn configuration и effect lifetime.
 принадлежит concrete type-14 state и переживает копирование graph. Shipped
 Viper actors закреплены regression-ом как target tags 1 и 2.
 
+Результат B8ci: устранён последний отдельный state-wrapper в каталоге
+`GameBase::Behaviors`. В исходном `GameBase.h/.cpp` `ShotEffect` сам является
+`EventEffect`, type-10 `Behavior` и listener, а portable graph держал два
+объекта: зарегистрированный `ShotEffectBehavior` и вложенный `ShotEffect`.
+
+Теперь один concrete `ShotEffect` одновременно находится через
+`Behaviors::Find(btShotEffect)`, возвращается `Weapon::GetShotEffect`, принимает
+`Behaviors::OnShot` после каждого успешного `PrepareProj` и владеет effect
+identities/очередью backend spawn. Копия `Weapon` сохраняет serialized
+definition, diagnostic shot count и последнюю позицию, но не переносит live
+effect actors или pending callbacks. bgfx/SDL остаются только потребителями
+готового child visual/Source3d запроса.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:

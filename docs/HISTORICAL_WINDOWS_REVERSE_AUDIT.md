@@ -6381,3 +6381,19 @@ behavior entries только обращались к ним по индексу
 перенесён serialized `PodushkaAnim::targetTag`, ранее прочитанный loader-ом,
 но потерянный до runtime. Jolt contact, SDL voices и Metal transforms остались
 payload adapters и не владеют игровым transition state.
+
+### P2.288 — ShotEffect type-10 больше не разделён на два объекта — выполнено
+
+Обратная сверка `eff9338:prog/Rock3dGame/header/game/GameBase.h` и
+`source/game/{GameBase,Weapon}.cpp` подтвердила, что исходный `ShotEffect`
+сам наследует `EventEffect`/`Behavior`, регистрируется как `btShotEffect` и
+получает `Behaviors::OnShot(iter->pos)` только после успешного `PrepareProj`.
+Portable реализация сохраняла корректную транзакцию, но регистрировала
+`ShotEffectBehavior`, который владел вторым объектом `ShotEffect`.
+
+Классы объединены. Один `source::ShotEffect` теперь является найденным
+behavior, EventEffect owner всех transient handles и состоянием owning
+`Weapon`. Copy path сохраняет source configuration/counter/last position,
+но начинает с пустыми live effect/pending списками, как новый cloned MapObj.
+Regression требует pointer identity `Find(btShotEffect) == GetShotEffect()`
+и независимое уничтожение transient effects.

@@ -59,9 +59,10 @@ int main()
     const std::array<std::uint32_t, 2> projectiles{10U, 11U};
     source::Weapon weapon;
     weapon.SetDesc(0.1F, projectiles);
-    auto* shotBehavior = dynamic_cast<source::ShotEffectBehavior*>(
+    auto* shotBehavior = dynamic_cast<source::ShotEffect*>(
         weapon.GetBehaviors().Find(source::BehaviorType::ShotEffect));
     if (shotBehavior == nullptr ||
+        shotBehavior != &weapon.GetShotEffect() ||
         shotBehavior->GetGameObj() != &weapon ||
         weapon.GetBehaviors().GetCount() != 1U ||
         weapon.GetListenerCount() != 1U ||
@@ -133,7 +134,7 @@ int main()
         return 194;
     source::Weapon copiedWithLiveEffects = weapon;
     const auto* copiedLiveBehavior =
-        dynamic_cast<const source::ShotEffectBehavior*>(
+        dynamic_cast<const source::ShotEffect*>(
             copiedWithLiveEffects.GetBehaviors().Find(
                 source::BehaviorType::ShotEffect));
     if (copiedWithLiveEffects.GetShotEffect().GetEffectCount() != 0U ||
@@ -150,7 +151,7 @@ int main()
         return 195;
     source::Weapon copiedWeapon = weapon;
     const auto* copiedShotBehavior =
-        dynamic_cast<const source::ShotEffectBehavior*>(
+        dynamic_cast<const source::ShotEffect*>(
             copiedWeapon.GetBehaviors().Find(
                 source::BehaviorType::ShotEffect));
     if (copiedShotBehavior == nullptr ||

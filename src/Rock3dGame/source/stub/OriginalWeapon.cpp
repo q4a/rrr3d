@@ -2371,6 +2371,13 @@ std::uint32_t AutoProj::GetType() const noexcept
     return autoDescription_.type;
 }
 
+ShotEffect::ShotEffect(Behaviors* owner) noexcept
+    : Behavior(owner)
+{
+}
+
+void ShotEffect::OnProgress(float) noexcept {}
+
 void ShotEffect::Configure(ShotEffectDefinition definition)
 {
     definition_ = std::move(definition);
@@ -2382,6 +2389,8 @@ void ShotEffect::Reset() noexcept
 {
     EventEffect::Reset();
     shotCount_ = 0U;
+    lastShotPosition_ = {};
+    pendingSpawns_.clear();
 }
 
 void ShotEffect::CopyStateFrom(const ShotEffect& value)
@@ -2392,9 +2401,13 @@ void ShotEffect::CopyStateFrom(const ShotEffect& value)
     // an empty effect-object list just like a newly cloned source MapObj.
     Configure(value.definition_);
     shotCount_ = value.shotCount_;
+    lastShotPosition_ = value.lastShotPosition_;
+    // Pending results retain EventEffect identity from the copied behavior
+    // and therefore cannot be replayed by this newly cloned source entry.
+    pendingSpawns_.clear();
 }
 
-ShotEffect::SpawnResult ShotEffect::OnShot(
+ShotEffect::SpawnResult ShotEffect::BuildSpawn(
     const std::array<float, 3U>& position) noexcept
 {
     ++shotCount_;
@@ -2418,6 +2431,34 @@ ShotEffect::SpawnResult ShotEffect::OnShot(
     return result;
 }
 
+void ShotEffect::OnShot(
+    const std::array<float, 3U>& position) noexcept
+{
+    lastShotPosition_ = position;
+    pendingSpawns_.push_back(BuildSpawn(position));
+}
+
+std::optional<ShotEffect::SpawnResult>
+ShotEffect::ConsumeSpawnResult()
+{
+    if (pendingSpawns_.empty())
+        return std::nullopt;
+    auto result = pendingSpawns_.front();
+    pendingSpawns_.erase(pendingSpawns_.begin());
+    return result;
+}
+
+std::size_t ShotEffect::GetPendingSpawnCount() const noexcept
+{
+    return pendingSpawns_.size();
+}
+
+const std::array<float, 3U>&
+ShotEffect::GetLastShotPosition() const noexcept
+{
+    return lastShotPosition_;
+}
+
 std::uint64_t ShotEffect::GetShotCount() const noexcept
 {
     return shotCount_;
@@ -2434,70 +2475,6 @@ std::string_view ShotEffect::SelectSound(
     const auto* sound = SelectSoundPath(randomUnit);
     return sound != nullptr ? std::string_view{*sound}
                             : std::string_view{};
-}
-
-ShotEffectBehavior::ShotEffectBehavior(Behaviors* owner) noexcept
-    : Behavior(owner)
-{
-}
-
-void ShotEffectBehavior::OnProgress(float) noexcept {}
-
-void ShotEffectBehavior::Reset() noexcept
-{
-    state_.Reset();
-    lastShotPosition_ = {};
-    pendingSpawns_.clear();
-}
-
-void ShotEffectBehavior::Configure(ShotEffectDefinition definition)
-{
-    state_.Configure(std::move(definition));
-    lastShotPosition_ = {};
-    pendingSpawns_.clear();
-}
-
-std::optional<ShotEffect::SpawnResult>
-ShotEffectBehavior::ConsumeSpawnResult()
-{
-    if (pendingSpawns_.empty())
-        return std::nullopt;
-    auto result = pendingSpawns_.front();
-    pendingSpawns_.erase(pendingSpawns_.begin());
-    return result;
-}
-
-std::size_t ShotEffectBehavior::GetPendingSpawnCount() const noexcept
-{
-    return pendingSpawns_.size();
-}
-
-const ShotEffect& ShotEffectBehavior::GetState() const noexcept
-{
-    return state_;
-}
-
-const std::array<float, 3U>&
-ShotEffectBehavior::GetLastShotPosition() const noexcept
-{
-    return lastShotPosition_;
-}
-
-void ShotEffectBehavior::CopyStateFrom(
-    const ShotEffectBehavior& value)
-{
-    state_.CopyStateFrom(value.state_);
-    lastShotPosition_ = value.lastShotPosition_;
-    // Pending results contain owner pointers and effect identities belonging
-    // to value.state_. They cannot be replayed by the copied behavior.
-    pendingSpawns_.clear();
-}
-
-void ShotEffectBehavior::OnShot(
-    const std::array<float, 3U>& position) noexcept
-{
-    lastShotPosition_ = position;
-    pendingSpawns_.push_back(state_.OnShot(position));
 }
 
 Weapon::Weapon() : desc_(std::make_shared<Desc>())
@@ -2549,7 +2526,7 @@ Weapon& Weapon::operator=(Weapon&& other)
 void Weapon::BindSourceBehaviors()
 {
     GetBehaviors().Clear();
-    shotEffect_ = &GetBehaviors().Add<ShotEffectBehavior>(
+    shotEffect_ = &GetBehaviors().Add<ShotEffect>(
         BehaviorType::ShotEffect);
 }
 
@@ -2754,8 +2731,7 @@ void Weapon::SetDesc(
 
 const ShotEffect& Weapon::GetShotEffect() const noexcept
 {
-    static const ShotEffect empty;
-    return shotEffect_ != nullptr ? shotEffect_->GetState() : empty;
+    return *shotEffect_;
 }
 
 void Weapon::ConfigureShotEffect(ShotEffectDefinition definition)
@@ -2769,7 +2745,7 @@ Weapon::GetShotEffectDefinition() const noexcept
 {
     static const ShotEffectDefinition empty;
     return shotEffect_ != nullptr
-               ? shotEffect_->GetState().GetDefinition()
+               ? shotEffect_->GetDefinition()
                : empty;
 }
 
@@ -2785,7 +2761,7 @@ std::string_view Weapon::SelectShotEffectSound(
     float randomUnit) const noexcept
 {
     return shotEffect_ != nullptr
-               ? shotEffect_->GetState().SelectSound(randomUnit)
+               ? shotEffect_->SelectSound(randomUnit)
                : std::string_view{};
 }
 

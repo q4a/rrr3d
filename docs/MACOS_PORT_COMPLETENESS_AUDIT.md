@@ -2676,3 +2676,13 @@ consumable spawn, play и speed-limit результаты.
 `PodushkaAnim::targetTag`; car/wheel/renderer получают только готовые
 snapshots. Player передаёт реальные tags source visual nodes вместо одного
 числа cushion actors.
+
+### B8ci — ShotEffect снова является самим type-10 Behavior — выполнено
+
+Удалена portable пара `ShotEffectBehavior`/вложенный `ShotEffect`. Как в
+`eff9338:GameBase::{ShotEffect,Behaviors}` и `Weapon::CreateShot`, один
+concrete объект теперь одновременно listener, type-10 entry и EventEffect
+owner. `Weapon::GetShotEffect()` возвращает тот же объект, который находится
+в `Behaviors`, поэтому callback, `_effObjList` identity, serialized sound/
+visual definition, shot count и очередь адаптера больше не имеют разных
+lifetime. Metal и SDL получают только consumable spawn/audio команды.
