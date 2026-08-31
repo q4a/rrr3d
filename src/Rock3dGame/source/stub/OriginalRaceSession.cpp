@@ -3853,6 +3853,25 @@ void OriginalRaceSession::queueProjectileBodyCreate(
     command.body.dynamic = !attached;
     command.body.kinematic = attached;
     command.body.sensor = true;
+    switch (projectile.sourceObject->RoutePreparation().collisionGroup)
+    {
+    case source::Proj::CollisionGroup::Default:
+        command.body.collisionGroup =
+            r3d::physics::ProjectileCollisionGroup::Default;
+        break;
+    case source::Proj::CollisionGroup::Shot:
+        command.body.collisionGroup =
+            r3d::physics::ProjectileCollisionGroup::Shot;
+        break;
+    case source::Proj::CollisionGroup::ShotBorder:
+        command.body.collisionGroup =
+            r3d::physics::ProjectileCollisionGroup::ShotBorder;
+        break;
+    case source::Proj::CollisionGroup::ShotTrack:
+        command.body.collisionGroup =
+            r3d::physics::ProjectileCollisionGroup::ShotTrack;
+        break;
+    }
     projectileBodyCommands_.push_back(command);
 }
 
@@ -3915,7 +3934,8 @@ void OriginalRaceSession::queueMineBodyCreate(MineRuntime& mine)
     command.body.gravityFactor =
         length3(mine.velocity) > 0.0001F ? 1.0F : 0.0F;
     command.body.sensor = true;
-    command.body.shotTrack = true;
+    command.body.collisionGroup =
+        r3d::physics::ProjectileCollisionGroup::ShotTrack;
     projectileBodyCommands_.push_back(command);
 }
 
@@ -3977,6 +3997,8 @@ void OriginalRaceSession::queueBonusBodyCreate(std::size_t bonus)
     command.body.gravityFactor = 0.0F;
     command.body.dynamic = false;
     command.body.sensor = true;
+    command.body.collisionGroup =
+        r3d::physics::ProjectileCollisionGroup::Default;
     projectileBodyCommands_.push_back(command);
 }
 

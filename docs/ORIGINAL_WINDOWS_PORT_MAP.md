@@ -1696,6 +1696,27 @@ Arm64 build, 32/32 CTest, physics smoke и 1800-frame Metal race прошли:
 player `39.09`, пять AI `37.48–47.39`, четыре wheel contacts и полный
 renderer/audio/menu teardown.
 
+Результат B8dk: восстановлена полная матрица `CollDisGroup` из
+`eff9338:Physx.cpp::Scene`. Ранний projectile bridge сохранял только флаг
+`shotTrack`, поэтому обычные ракеты, Thunder, мины и map bonuses попадали в
+один Jolt filtering path. Это возвращало запрещённые исходником контакты:
+`cdgShot` с track/border/другими shots, `cdgShotBorder` с track и
+`cdgShotTrack` с остальными projectile groups.
+
+`Proj::PreparationRouteFor` теперь является source owner выбора группы:
+обычные `CreatePxBox` получают `Shot`, Thunder — `ShotBorder`, все варианты
+Mine/Maslo/Crater — `ShotTrack`, статические бонусы карты — `Default`.
+Jolt object layer кодирует эту группу отдельно от static/dynamic broad-phase
+состояния и повторяет все 13 отключённых unordered pairs. Wheel tester
+использует исходную `Wheel` группу; track, border и death plane получили
+`TrackPlane`, `ShotTransparency` и `PlaneDeath`. Regression проверяет 64
+направленные пары, симметрию, реальные разрешённые/запрещённые track contacts
+и передачу маршрута оружия.
+
+Arm64 Debug app пересобран и подписан; 32/32 CTest, physics smoke и
+1800-frame bgfx/Metal race прошли. Длинный заезд сохранил четыре wheel
+contacts, player speed `39.093` и прогресс всех пяти AI `37.48–47.39`.
+
 Каждый крупный block commit обязан:
 
 1. назвать точные методы из `eff9338:prog`, которые стали активными;

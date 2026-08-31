@@ -401,9 +401,21 @@ public:
         MineProton,
     };
 
+    // Physx.h::Scene::CollDisGroup selected by each original Prepare method.
+    // Values intentionally match the Windows enum so the game-to-backend
+    // boundary can preserve the source collision matrix without PhysX types.
+    enum class CollisionGroup : std::uint8_t
+    {
+        Default = 0U,
+        Shot = 1U,
+        ShotBorder = 2U,
+        ShotTrack = 5U,
+    };
+
     struct PreparationRoute
     {
         PrepareHandler handler = PrepareHandler::None;
+        CollisionGroup collisionGroup = CollisionGroup::Shot;
         bool valid = false;
         bool initializeModel = false;
         bool initializeSecondaryModel = false;

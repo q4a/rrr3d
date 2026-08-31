@@ -2073,6 +2073,8 @@ int main()
         source::Proj::PreparationRouteFor(17U);
     const auto craterPreparation =
         source::Proj::PreparationRouteFor(20U);
+    const auto thunderPreparation =
+        source::Proj::PreparationRouteFor(22U);
     const auto protonPreparation =
         source::Proj::PreparationRouteFor(24U);
     if (!allPreparationHandlers ||
@@ -2086,15 +2088,23 @@ int main()
         !minePreparation.minePlacement ||
         !minePreparation.lockMineOnPlacement ||
         !minePreparation.mineTestsLock ||
+        minePreparation.collisionGroup !=
+            source::Proj::CollisionGroup::ShotTrack ||
         drobilkaPreparation.initializeModel ||
         !drobilkaPreparation.attached ||
         !drobilkaPreparation.ignoreWeaponContact ||
+        drobilkaPreparation.collisionGroup !=
+            source::Proj::CollisionGroup::Shot ||
         springPreparationRoute.initializeModel ||
         !springPreparationRoute.linkedToWeapon ||
         springPreparationRoute.ignoreWeaponContact ||
         !craterPreparation.minePlacement ||
         craterPreparation.lockMineOnPlacement ||
         !craterPreparation.requiresWeapon ||
+        craterPreparation.collisionGroup !=
+            source::Proj::CollisionGroup::ShotTrack ||
+        thunderPreparation.collisionGroup !=
+            source::Proj::CollisionGroup::ShotBorder ||
         !protonPreparation.minePlacement ||
         !protonPreparation.lockMineOnPlacement ||
         protonPreparation.mineTestsLock ||

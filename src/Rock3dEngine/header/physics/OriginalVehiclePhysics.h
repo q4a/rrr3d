@@ -329,6 +329,17 @@ struct VehicleLinearVelocityCommand
 inline constexpr std::uint64_t invalidProjectileBodyId =
     std::numeric_limits<std::uint64_t>::max();
 
+// Physx.h::Scene::CollDisGroup values used by projectile shapes.  Keep the
+// original numeric values: scene filtering and the game-side preparation
+// routes are one serialized/source contract even though Jolt owns the bodies.
+enum class ProjectileCollisionGroup : std::uint8_t
+{
+    Default = 0U,
+    Shot = 1U,
+    ShotBorder = 2U,
+    ShotTrack = 5U,
+};
+
 struct ProjectileBodyDescription
 {
     std::uint64_t id = invalidProjectileBodyId;
@@ -350,9 +361,10 @@ struct ProjectileBodyDescription
     // RocketPrepare disables PhysX response but keeps contact reports. Jolt
     // sensors provide the same actor boundary without pushing the cars.
     bool sensor = true;
-    // MinePrepare creates its actor in cdgShotTrack. Other projectile and
-    // bonus sensors must not block the mine-placement group query.
-    bool shotTrack = false;
+    // CreatePxBox defaults to cdgShot; Thunder, placed mines/pieces and map
+    // bonuses select their distinct source groups at the game boundary.
+    ProjectileCollisionGroup collisionGroup =
+        ProjectileCollisionGroup::Shot;
 };
 
 enum class ProjectileBodyCommandKind : std::uint8_t

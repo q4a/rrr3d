@@ -35,10 +35,85 @@ namespace r3d::physics
 namespace
 {
 
+// Physx.h::Scene::CollDisGroup. Object layers encode both this source group
+// and whether Jolt must place the body in the moving broad-phase bucket.
+enum class SourceCollisionGroup : JPH::ObjectLayer
+{
+    Default = 0U,
+    Shot = 1U,
+    ShotBorder = 2U,
+    ShotTransparency = 3U,
+    Wheel = 4U,
+    ShotTrack = 5U,
+    TrackPlane = 6U,
+    PlaneDeath = 7U,
+};
+
+constexpr JPH::ObjectLayer sourceObjectLayer(
+    SourceCollisionGroup group, bool moving) noexcept
+{
+    return static_cast<JPH::ObjectLayer>(
+        (static_cast<JPH::ObjectLayer>(group) << 1U) |
+        (moving ? 1U : 0U));
+}
+
+constexpr bool sourceObjectLayerIsMoving(JPH::ObjectLayer layer) noexcept
+{
+    return (layer & 1U) != 0U;
+}
+
+constexpr SourceCollisionGroup sourceObjectLayerGroup(
+    JPH::ObjectLayer layer) noexcept
+{
+    const auto value = static_cast<JPH::ObjectLayer>(layer >> 1U);
+    return value <= static_cast<JPH::ObjectLayer>(
+                        SourceCollisionGroup::PlaneDeath)
+               ? static_cast<SourceCollisionGroup>(value)
+               : SourceCollisionGroup::Default;
+}
+
+constexpr bool sourceCollisionGroupsShouldCollide(
+    SourceCollisionGroup first, SourceCollisionGroup second) noexcept
+{
+    const auto pair = [first, second](SourceCollisionGroup a,
+                                      SourceCollisionGroup b) constexpr {
+        return (first == a && second == b) ||
+               (first == b && second == a);
+    };
+    // Exact setGroupCollisionFlag(..., false) calls from Physx.cpp::Scene.
+    return !(
+        pair(SourceCollisionGroup::Shot, SourceCollisionGroup::Shot) ||
+        pair(SourceCollisionGroup::ShotBorder,
+             SourceCollisionGroup::ShotBorder) ||
+        pair(SourceCollisionGroup::ShotBorder,
+             SourceCollisionGroup::Shot) ||
+        pair(SourceCollisionGroup::ShotTrack,
+             SourceCollisionGroup::Shot) ||
+        pair(SourceCollisionGroup::ShotTrack,
+             SourceCollisionGroup::ShotBorder) ||
+        pair(SourceCollisionGroup::ShotTrack,
+             SourceCollisionGroup::ShotTrack) ||
+        pair(SourceCollisionGroup::ShotTransparency,
+             SourceCollisionGroup::Shot) ||
+        pair(SourceCollisionGroup::Wheel, SourceCollisionGroup::Shot) ||
+        pair(SourceCollisionGroup::Wheel,
+             SourceCollisionGroup::ShotBorder) ||
+        pair(SourceCollisionGroup::Wheel,
+             SourceCollisionGroup::ShotTrack) ||
+        pair(SourceCollisionGroup::Wheel,
+             SourceCollisionGroup::ShotTransparency) ||
+        pair(SourceCollisionGroup::TrackPlane,
+             SourceCollisionGroup::Shot) ||
+        pair(SourceCollisionGroup::TrackPlane,
+             SourceCollisionGroup::ShotBorder));
+}
+
 namespace Layers
 {
-constexpr JPH::ObjectLayer nonMoving = 0;
-constexpr JPH::ObjectLayer moving = 1;
+constexpr JPH::ObjectLayer defaultNonMoving =
+    sourceObjectLayer(SourceCollisionGroup::Default, false);
+constexpr JPH::ObjectLayer defaultMoving =
+    sourceObjectLayer(SourceCollisionGroup::Default, true);
 } // namespace Layers
 
 namespace BroadPhaseLayers
@@ -100,7 +175,11 @@ public:
     bool ShouldCollide(JPH::ObjectLayer first,
                        JPH::ObjectLayer second) const override
     {
-        return first != Layers::nonMoving || second == Layers::moving;
+        if (!sourceObjectLayerIsMoving(first) &&
+            !sourceObjectLayerIsMoving(second))
+            return false;
+        return sourceCollisionGroupsShouldCollide(
+            sourceObjectLayerGroup(first), sourceObjectLayerGroup(second));
     }
 };
 
@@ -115,8 +194,9 @@ public:
     JPH::BroadPhaseLayer GetBroadPhaseLayer(
         JPH::ObjectLayer layer) const override
     {
-        return layer == Layers::nonMoving ? BroadPhaseLayers::nonMoving
-                                         : BroadPhaseLayers::moving;
+        return sourceObjectLayerIsMoving(layer)
+                   ? BroadPhaseLayers::moving
+                   : BroadPhaseLayers::nonMoving;
     }
 };
 
@@ -127,7 +207,7 @@ public:
     bool ShouldCollide(JPH::ObjectLayer layer,
                        JPH::BroadPhaseLayer broadPhase) const override
     {
-        return layer == Layers::moving ||
+        return sourceObjectLayerIsMoving(layer) ||
                broadPhase == BroadPhaseLayers::moving;
     }
 };
@@ -325,7 +405,9 @@ constexpr JPH::uint64 vehicleBodyKind = 0x1000000000000000ULL;
 constexpr JPH::uint64 surfaceBodyKind = 0x2000000000000000ULL;
 constexpr JPH::uint64 decorationBodyKind = 0x3000000000000000ULL;
 constexpr JPH::uint64 projectileBodyKind = 0x4000000000000000ULL;
-constexpr JPH::uint64 projectileShotTrackMask = 0x0800000000000000ULL;
+constexpr JPH::uint64 projectileCollisionGroupMask =
+    0x0f00000000000000ULL;
+constexpr unsigned projectileCollisionGroupShift = 56U;
 
 JPH::uint64 vehicleUserData(std::size_t index)
 {
@@ -342,10 +424,28 @@ JPH::uint64 decorationUserData(std::size_t index)
     return decorationBodyKind | static_cast<JPH::uint64>(index);
 }
 
-JPH::uint64 projectileUserData(std::size_t index, bool shotTrack)
+SourceCollisionGroup sourceCollisionGroup(
+    ProjectileCollisionGroup collisionGroup) noexcept
+{
+    switch (collisionGroup)
+    {
+    case ProjectileCollisionGroup::Shot:
+        return SourceCollisionGroup::Shot;
+    case ProjectileCollisionGroup::ShotBorder:
+        return SourceCollisionGroup::ShotBorder;
+    case ProjectileCollisionGroup::ShotTrack:
+        return SourceCollisionGroup::ShotTrack;
+    default:
+        return SourceCollisionGroup::Default;
+    }
+}
+
+JPH::uint64 projectileUserData(
+    std::size_t index, ProjectileCollisionGroup collisionGroup)
 {
     return projectileBodyKind |
-           (shotTrack ? projectileShotTrackMask : 0ULL) |
+           (static_cast<JPH::uint64>(collisionGroup) <<
+            projectileCollisionGroupShift) |
            static_cast<JPH::uint64>(index);
 }
 
@@ -357,10 +457,30 @@ bool vehicleIndex(JPH::uint64 userData, std::size_t& index)
     return true;
 }
 
+ProjectileCollisionGroup projectileCollisionGroup(JPH::uint64 userData)
+{
+    if ((userData & bodyKindMask) != projectileBodyKind)
+        return ProjectileCollisionGroup::Default;
+    const auto value = static_cast<std::uint8_t>(
+        (userData & projectileCollisionGroupMask) >>
+        projectileCollisionGroupShift);
+    switch (value)
+    {
+    case static_cast<std::uint8_t>(ProjectileCollisionGroup::Shot):
+        return ProjectileCollisionGroup::Shot;
+    case static_cast<std::uint8_t>(ProjectileCollisionGroup::ShotBorder):
+        return ProjectileCollisionGroup::ShotBorder;
+    case static_cast<std::uint8_t>(ProjectileCollisionGroup::ShotTrack):
+        return ProjectileCollisionGroup::ShotTrack;
+    default:
+        return ProjectileCollisionGroup::Default;
+    }
+}
+
 bool projectileIsShotTrack(JPH::uint64 userData)
 {
-    return (userData & bodyKindMask) == projectileBodyKind &&
-           (userData & projectileShotTrackMask) != 0ULL;
+    return projectileCollisionGroup(userData) ==
+           ProjectileCollisionGroup::ShotTrack;
 }
 
 bool projectileIndex(JPH::uint64 userData, std::size_t& index)
@@ -368,7 +488,7 @@ bool projectileIndex(JPH::uint64 userData, std::size_t& index)
     if ((userData & bodyKindMask) != projectileBodyKind)
         return false;
     index = static_cast<std::size_t>(
-        userData & ~(bodyKindMask | projectileShotTrackMask));
+        userData & ~(bodyKindMask | projectileCollisionGroupMask));
     return true;
 }
 
@@ -1658,7 +1778,8 @@ public:
         JPH::BodyCreationSettings settings(
             shape, toJolt(description.transform.position),
             toJolt(description.transform.rotation), motion,
-            description.dynamic ? Layers::moving : Layers::nonMoving);
+            description.dynamic ? Layers::defaultMoving
+                                : Layers::defaultNonMoving);
         if (description.dynamic)
         {
             settings.mOverrideMassProperties =
@@ -2394,7 +2515,9 @@ private:
         JPH::BodyCreationSettings settings(
             shifted.Get(), toJolt(description.transform.position),
             toJolt(description.transform.rotation),
-            motionType, moving ? Layers::moving : Layers::nonMoving);
+            motionType,
+            sourceObjectLayer(
+                sourceCollisionGroup(description.collisionGroup), moving));
         if (motionType == JPH::EMotionType::Dynamic)
         {
             settings.mOverrideMassProperties =
@@ -2415,7 +2538,7 @@ private:
         settings.mFriction = 0.5F;
         settings.mRestitution = 0.5F;
         settings.mUserData = projectileUserData(
-            index, description.shotTrack);
+            index, description.collisionGroup);
         runtime->body = system_.GetBodyInterface().CreateAndAddBody(
             settings, moving
                           ? JPH::EActivation::Activate
@@ -2614,6 +2737,10 @@ private:
             CollisionSurface::TrackPlane,
             CollisionSurface::TrackBorder,
             CollisionSurface::Decoration};
+        constexpr std::array<SourceCollisionGroup, surfaceCount> groups{
+            SourceCollisionGroup::TrackPlane,
+            SourceCollisionGroup::ShotTransparency,
+            SourceCollisionGroup::Default};
         constexpr std::array<float, surfaceCount> frictions{
             0.1F, 4.0F, 0.5F};
         constexpr std::array<float, surfaceCount> restitutions{
@@ -2621,7 +2748,8 @@ private:
         auto createMeshBody = [&](const JPH::TriangleList& source,
                                   float friction,
                                   float restitution, JPH::uint64 userData,
-                                  bool sensor) {
+                                  bool sensor,
+                                  SourceCollisionGroup group) {
             if (source.empty())
                 return JPH::BodyID();
             JPH::MeshShapeSettings shapeSettings(source);
@@ -2632,7 +2760,7 @@ private:
             JPH::BodyCreationSettings settings(
                 shapeResult.Get(), JPH::RVec3::sZero(),
                 JPH::Quat::sIdentity(), JPH::EMotionType::Static,
-                Layers::nonMoving);
+                sourceObjectLayer(group, false));
             settings.mFriction = friction;
             settings.mRestitution = restitution;
             settings.mUserData = userData;
@@ -2652,7 +2780,7 @@ private:
             trackBodies_.push_back(createMeshBody(
                 triangles[index], frictions[index], restitutions[index],
                 surfaceUserData(surfaces[index]),
-                false));
+                false, groups[index]));
         }
         for (std::size_t index = 0;
              index < decorationTriangles.size(); ++index)
@@ -2664,7 +2792,8 @@ private:
                 !description_.decorations[index].collisionResponse;
             decorations_[index].meshBodies.push_back(createMeshBody(
                 decorationTriangles[index], 0.5F, 0.5F,
-                decorationUserData(index), sensor));
+                decorationUserData(index), sensor,
+                SourceCollisionGroup::Default));
         }
         // Map.cpp creates a +Z NxPlaneShape at world Z=0 in the dedicated
         // cdgPlaneDeath group. Jolt is Y-up, so +Y is the same source plane.
@@ -2675,7 +2804,8 @@ private:
                 JPH::Plane(JPH::Vec3::sAxisY(), 0.0F), nullptr,
                 100000.0F),
             JPH::RVec3::sZero(), JPH::Quat::sIdentity(),
-            JPH::EMotionType::Static, Layers::nonMoving);
+            JPH::EMotionType::Static,
+            sourceObjectLayer(SourceCollisionGroup::PlaneDeath, false));
         deathPlaneSettings.mIsSensor = true;
         deathPlaneSettings.mFriction = 0.5F;
         deathPlaneSettings.mRestitution = 0.5F;
@@ -2720,7 +2850,8 @@ private:
                 JPH::BodyCreationSettings settings(
                     shifted.Get(), toJolt(source.transform.position),
                     toJolt(source.transform.rotation), motion,
-                    dynamic ? Layers::moving : Layers::nonMoving);
+                    dynamic ? Layers::defaultMoving
+                            : Layers::defaultNonMoving);
                 if (dynamic)
                 {
                     settings.mOverrideMassProperties =
@@ -2801,7 +2932,7 @@ private:
         JPH::BodyCreationSettings bodySettings(
             shifted.Get(), toJolt(spawn.position),
             JPH::Quat::sIdentity(), JPH::EMotionType::Dynamic,
-            Layers::moving);
+            Layers::defaultMoving);
         bodySettings.mOverrideMassProperties =
             JPH::EOverrideMassProperties::CalculateInertia;
         bodySettings.mMassPropertiesOverride.mMass = source.mass;
@@ -2945,7 +3076,8 @@ private:
         runtime.constraint =
             new JPH::VehicleConstraint(lock.GetBody(), settings);
         runtime.constraint->SetVehicleCollisionTester(
-            new OriginalWheelCollisionTester(Layers::moving));
+            new OriginalWheelCollisionTester(
+                sourceObjectLayer(SourceCollisionGroup::Wheel, true)));
         system_.AddConstraint(runtime.constraint);
         system_.AddStepListener(runtime.constraint);
         runtime.controller = static_cast<JPH::WheeledVehicleController*>(
@@ -3294,6 +3426,53 @@ std::unique_ptr<OriginalVehicleWorld> createOriginalVehicleWorld(
 bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
                                         std::string& error)
 {
+    constexpr std::array<SourceCollisionGroup, 8U> sourceGroups{
+        SourceCollisionGroup::Default,
+        SourceCollisionGroup::Shot,
+        SourceCollisionGroup::ShotBorder,
+        SourceCollisionGroup::ShotTransparency,
+        SourceCollisionGroup::Wheel,
+        SourceCollisionGroup::ShotTrack,
+        SourceCollisionGroup::TrackPlane,
+        SourceCollisionGroup::PlaneDeath};
+    std::size_t disabledDirectedPairs = 0U;
+    bool collisionMatrixSymmetric = true;
+    for (const auto first : sourceGroups)
+    {
+        for (const auto second : sourceGroups)
+        {
+            const bool collide = sourceCollisionGroupsShouldCollide(
+                first, second);
+            disabledDirectedPairs += collide ? 0U : 1U;
+            collisionMatrixSymmetric = collisionMatrixSymmetric &&
+                collide == sourceCollisionGroupsShouldCollide(
+                               second, first);
+        }
+    }
+    if (!collisionMatrixSymmetric || disabledDirectedPairs != 23U ||
+        !sourceCollisionGroupsShouldCollide(
+            SourceCollisionGroup::ShotBorder,
+            SourceCollisionGroup::ShotTransparency) ||
+        !sourceCollisionGroupsShouldCollide(
+            SourceCollisionGroup::ShotTrack,
+            SourceCollisionGroup::TrackPlane) ||
+        sourceCollisionGroupsShouldCollide(
+            SourceCollisionGroup::Shot,
+            SourceCollisionGroup::TrackPlane) ||
+        sourceCollisionGroupsShouldCollide(
+            SourceCollisionGroup::Wheel,
+            SourceCollisionGroup::ShotTransparency) ||
+        sourceObjectLayerGroup(sourceObjectLayer(
+            SourceCollisionGroup::ShotTrack, true)) !=
+            SourceCollisionGroup::ShotTrack ||
+        !sourceObjectLayerIsMoving(sourceObjectLayer(
+            SourceCollisionGroup::ShotBorder, true)) ||
+        sourceObjectLayerIsMoving(sourceObjectLayer(
+            SourceCollisionGroup::TrackPlane, false)))
+    {
+        error = "PhysX projectile collision-group matrix failed";
+        return false;
+    }
     const JPH::Vec3 defaultSkinBox = sourceBoxHalfExtents(
         {1.0F, 2.0F, 3.0F}, 0.025F);
     const JPH::Vec3 crushSkinBox = sourceBoxHalfExtents(
@@ -3563,7 +3742,8 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
                 projectile.body.transform.position = {0.0F, 0.0F, 5.0F};
                 projectile.body.halfExtents = {0.1F, 0.1F, 0.1F};
                 projectile.body.linearVelocity = {10.0F, 0.0F, 0.0F};
-                projectile.body.shotTrack = true;
+                projectile.body.collisionGroup =
+                    ProjectileCollisionGroup::ShotTrack;
                 projectileCommands.push_back(projectile);
                 ProjectileBodyCommand touchingProjectile;
                 touchingProjectile.kind =
@@ -3578,6 +3758,28 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
                 touchingProjectile.body.dynamic = false;
                 touchingProjectile.body.kinematic = true;
                 projectileCommands.push_back(touchingProjectile);
+                constexpr std::array<ProjectileCollisionGroup, 3U>
+                    floorGroups{
+                        ProjectileCollisionGroup::Shot,
+                        ProjectileCollisionGroup::ShotTrack,
+                        ProjectileCollisionGroup::ShotBorder};
+                for (std::size_t index = 0U;
+                     index < floorGroups.size(); ++index)
+                {
+                    ProjectileBodyCommand floorProjectile;
+                    floorProjectile.kind =
+                        ProjectileBodyCommandKind::Create;
+                    floorProjectile.body.id = 44U + index;
+                    floorProjectile.body.transform.position = {
+                        100.0F + 10.0F * static_cast<float>(index),
+                        0.0F, 0.25F};
+                    floorProjectile.body.halfExtents = {
+                        0.5F, 0.5F, 0.5F};
+                    floorProjectile.body.gravityFactor = 0.0F;
+                    floorProjectile.body.collisionGroup =
+                        floorGroups[index];
+                    projectileCommands.push_back(floorProjectile);
+                }
             }
         });
     fixedStepWorld->setVehicleFixedStepController(
@@ -3614,7 +3816,7 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
         fixedStepWorld->vehicle().resetCount !=
             resetCountBeforeWorldCallback + 1U ||
         fixedStepWorld->vehicle().linearVelocity.z <= 1.0F ||
-        fixedStepWorld->projectileBodyCount() != 2U ||
+        fixedStepWorld->projectileBodyCount() != 5U ||
         !fixedStepWorld->projectileBody(0U).active ||
         fixedStepWorld->projectileBody(0U).id != 42U ||
         fixedStepWorld->projectileBody(0U).body.position.x <= 0.05F ||
@@ -3625,6 +3827,24 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
             [](const BodyContact& contact) {
                 return contact.surface == CollisionSurface::Vehicle &&
                        contact.otherVehicle == 0U && contact.hasPoint;
+            }) ||
+        std::any_of(
+            fixedStepWorld->projectileBody(2U).contacts.begin(),
+            fixedStepWorld->projectileBody(2U).contacts.end(),
+            [](const BodyContact& contact) {
+                return contact.surface == CollisionSurface::TrackPlane;
+            }) ||
+        std::none_of(
+            fixedStepWorld->projectileBody(3U).contacts.begin(),
+            fixedStepWorld->projectileBody(3U).contacts.end(),
+            [](const BodyContact& contact) {
+                return contact.surface == CollisionSurface::TrackPlane;
+            }) ||
+        std::any_of(
+            fixedStepWorld->projectileBody(4U).contacts.begin(),
+            fixedStepWorld->projectileBody(4U).contacts.end(),
+            [](const BodyContact& contact) {
+                return contact.surface == CollisionSurface::TrackPlane;
             }))
     {
         error = "source Race world fixed-step/Jolt command bridge failed";

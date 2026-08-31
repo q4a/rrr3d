@@ -3040,3 +3040,26 @@ bounce threshold `2`, а global combine callbacks реализуют прави�
 drop response. Прежняя B8cx zero-restitution трактовка отменена.
 Полная arm64 приёмка прошла: 32/32 CTest, physics smoke и 1800 кадров
 bgfx/Metal с четырьмя wheel contacts и прогрессом всех пяти AI.
+
+### B8dk — перенесена матрица PhysX projectile collision groups — выполнено
+
+`eff9338:Physx.cpp::Scene` содержит 13 отдельных
+`setGroupCollisionFlag(..., false)`, а `Weapon.cpp` выбирает между
+`cdgShot`, `cdgShotBorder` и `cdgShotTrack` в конкретных Prepare-методах.
+Порт свёл это к одному `shotTrack` bit: обычные shots и Thunder были
+неразличимы, а track/border/колёса фильтровались только частичными ручными
+условиями.
+
+Backend-neutral projectile description теперь несёт исходную группу.
+`PreparationRouteFor` сохраняет выбор `CreatePxBox`: Shot для обычных типов,
+ShotBorder для Thunder, ShotTrack для mines/oil/crater/pieces; map bonus
+явно остаётся Default. Jolt layers кодируют group и mobility независимо,
+применяют точную симметричную матрицу и назначают исходные группы track,
+border, death plane и wheel query. Physics regression проверяет все 64 пары
+и фактические Shot/ShotTrack/ShotBorder контакты с track; weapon regression
+фиксирует маршрутизацию типов.
+
+После изменения автономный arm64 Debug bundle пересобран и подписан;
+32/32 CTest, physics smoke и 1800-frame Metal integration прошли. Player
+достиг `39.093`, все пять AI прогрессировали, четыре колеса сохранили
+контакт, renderer/audio/menu teardown завершился полностью.

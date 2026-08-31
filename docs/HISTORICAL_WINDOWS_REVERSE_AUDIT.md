@@ -6819,3 +6819,26 @@ threshold и динамическая декорация с material0/track effe
 `0.25`. Это исправляет ошибочную P2.303, не добавляя ручной стабилизации.
 Arm64 build, 32/32 CTest, physics smoke и 1800-frame Metal integration
 завершились без потери управления, AI progress или lifecycle teardown.
+
+### P2.316 — восстановлена полная `Scene::CollDisGroup` matrix — выполнено
+
+Оригинальный `Physx.cpp::Scene` не использует общий projectile filter. Он
+отключает 13 конкретных unordered pairs между Shot, ShotBorder, ShotTrack,
+ShotTransparency, Wheel и TrackPlane. `Weapon.cpp::CreatePxBox` по умолчанию
+создаёт Shot; `ThunderPrepare` передаёт ShotBorder; Mine/Maslo/Crater и
+MinePiece используют ShotTrack. Статические course bonuses остаются Default.
+Прежний bridge различал только ShotTrack и поэтому менял как trajectory
+weapons, так и набор contact callbacks.
+
+Source `PreparationRoute` теперь переносит исходный выбор до physics command.
+Jolt object layer содержит PhysX group плюс отдельный mobility bit, поэтому
+одинаковая матрица действует для static, dynamic и kinematic actors без
+потери broad-phase semantics. Track mesh назначен TrackPlane, border —
+ShotTransparency, death sensor — PlaneDeath, suspension query — Wheel.
+Regression перечисляет все 64 directed pair results, требует ровно 23
+отключённых направления и проверяет реальные floor contacts: Shot и
+ShotBorder игнорируют track, ShotTrack контактирует с ним.
+
+Arm64 Debug build/signing, 32/32 CTest, physics smoke и 1800 кадров
+bgfx/Metal прошли; player `39.093`, AI `37.48–47.39`, четыре wheel contacts
+и полный lifecycle teardown подтверждены.

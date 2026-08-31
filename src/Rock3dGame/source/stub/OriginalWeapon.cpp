@@ -2089,16 +2089,19 @@ Proj::PreparationRoute Proj::PreparationRouteFor(
     case ProjectileType::Lusha:
         break;
     case ProjectileType::Maslo:
+        result.collisionGroup = CollisionGroup::ShotTrack;
         result.minePlacement = true;
         result.lockMineOnPlacement = true;
         break;
     case ProjectileType::Mine:
     case ProjectileType::MineRip:
+        result.collisionGroup = CollisionGroup::ShotTrack;
         result.minePlacement = true;
         result.lockMineOnPlacement = true;
         result.mineTestsLock = true;
         break;
     case ProjectileType::MinePiece:
+        result.collisionGroup = CollisionGroup::ShotTrack;
         break;
     case ProjectileType::Fire:
         result.rocketPrepare = true;
@@ -2131,6 +2134,7 @@ Proj::PreparationRoute Proj::PreparationRouteFor(
         result.requiresWeapon = true;
         break;
     case ProjectileType::Crater:
+        result.collisionGroup = CollisionGroup::ShotTrack;
         result.minePlacement = true;
         result.requiresWeapon = true;
         break;
@@ -2140,10 +2144,14 @@ Proj::PreparationRoute Proj::PreparationRouteFor(
         result.requiresWeapon = true;
         break;
     case ProjectileType::Thunder:
+        result.collisionGroup = CollisionGroup::ShotBorder;
+        result.rocketPrepare = true;
+        break;
     case ProjectileType::Resonanse:
         result.rocketPrepare = true;
         break;
     case ProjectileType::MineProton:
+        result.collisionGroup = CollisionGroup::ShotTrack;
         result.minePlacement = true;
         result.lockMineOnPlacement = true;
         break;
