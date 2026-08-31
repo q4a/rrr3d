@@ -48,6 +48,13 @@ constexpr JPH::BroadPhaseLayer moving(1);
 constexpr JPH::uint count = 2;
 } // namespace BroadPhaseLayers
 
+// NxBodyDesc leaves maxAngularVelocity at -1 for cars, movable decorations,
+// debris and projectile actors. PhysX then uses the SDK default documented by
+// NX_MAX_ANGULAR_VELOCITY: 7 rad/s. Jolt's default is roughly 47 rad/s, which
+// lets an ordinary off-centre impact spin a chassis fast enough for the next
+// wheel/body contact to turn that rotation into an artificial upward launch.
+constexpr float sourceMaximumAngularVelocity = 7.0F;
+
 class ObjectLayerPairFilter final : public JPH::ObjectLayerPairFilter
 {
 public:
@@ -1427,6 +1434,12 @@ public:
                 JPH::EOverrideMassProperties::CalculateInertia;
             settings.mMassPropertiesOverride.mMass =
                 std::max(description.mass, 1.0F);
+            // NxBodyDesc defaults: zero linear damping, 0.05 angular damping
+            // and the SDK-wide 7 rad/s angular velocity ceiling.
+            settings.mLinearDamping = 0.0F;
+            settings.mAngularDamping = 0.05F;
+            settings.mMaxAngularVelocity =
+                sourceMaximumAngularVelocity;
         }
         settings.mFriction = 0.5F;
         // NxMaterialDesc defaults restitution to zero.  The Windows data
@@ -2126,6 +2139,10 @@ private:
                 JPH::EOverrideMassProperties::CalculateInertia;
             settings.mMassPropertiesOverride.mMass =
                 std::max(description.mass, 0.001F);
+            settings.mLinearDamping = 0.0F;
+            settings.mAngularDamping = 0.05F;
+            settings.mMaxAngularVelocity =
+                sourceMaximumAngularVelocity;
         }
         settings.mGravityFactor = description.gravityFactor;
         settings.mIsSensor = description.sensor;
@@ -2439,6 +2456,10 @@ private:
                         JPH::EOverrideMassProperties::CalculateInertia;
                     settings.mMassPropertiesOverride.mMass =
                         std::max(mass, 1.0F);
+                    settings.mLinearDamping = 0.0F;
+                    settings.mAngularDamping = 0.05F;
+                    settings.mMaxAngularVelocity =
+                        sourceMaximumAngularVelocity;
                 }
                 settings.mFriction = 0.5F;
                 // Unspecified PhysX decoration materials inherit the SDK
@@ -2510,6 +2531,13 @@ private:
         bodySettings.mOverrideMassProperties =
             JPH::EOverrideMassProperties::CalculateInertia;
         bodySettings.mMassPropertiesOverride.mMass = source.mass;
+        // DataBase::AddPxBody uses an otherwise-default NxBodyDesc. Preserve
+        // those SDK defaults instead of inheriting Jolt's 0.05 linear drag
+        // and much larger angular speed ceiling.
+        bodySettings.mLinearDamping = 0.0F;
+        bodySettings.mAngularDamping = 0.05F;
+        bodySettings.mMaxAngularVelocity =
+            sourceMaximumAngularVelocity;
         bodySettings.mFriction = source.bodyFriction;
         bodySettings.mRestitution = 0.0F;
         bodySettings.mEnhancedInternalEdgeRemoval = true;
@@ -3624,6 +3652,39 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
     {
         error = "source JumpProgress extra gravity/pitch acceleration was "
                 "not preserved";
+        return false;
+    }
+
+    // NxBodyDesc::maxAngularVelocity remains -1 for GameCar, so the Windows
+    // runtime inherits NX_MAX_ANGULAR_VELOCITY=7 from the PhysX SDK. Exercise
+    // the backend through the same public velocity path used by off-centre
+    // weapon and collision impulses. Without the explicit source ceiling,
+    // Jolt accepts roughly 47 rad/s and rotates by almost 0.4 rad in one
+    // solver step, which is the launch/spin regression reported in races.
+    auto angularLimitWorld =
+        createOriginalVehicleWorld(airborneDescription, error);
+    if (!angularLimitWorld)
+        return false;
+    const Quat angularLimitBefore =
+        angularLimitWorld->vehicle().body.rotation;
+    angularLimitWorld->addAngularVelocity(
+        0U, {0.0F, 0.0F, 100.0F});
+    angularLimitWorld->step(1.0F / 120.0F, input);
+    const Quat angularLimitAfter =
+        angularLimitWorld->vehicle().body.rotation;
+    const float angularLimitDot = std::abs(
+        angularLimitBefore.x * angularLimitAfter.x +
+        angularLimitBefore.y * angularLimitAfter.y +
+        angularLimitBefore.z * angularLimitAfter.z +
+        angularLimitBefore.w * angularLimitAfter.w);
+    const float angularLimitRotation = 2.0F * std::acos(
+        std::clamp(angularLimitDot, 0.0F, 1.0F));
+    constexpr float sourceAngularStepLimit =
+        sourceMaximumAngularVelocity / 120.0F + 0.005F;
+    if (angularLimitRotation > sourceAngularStepLimit)
+    {
+        error = "PhysX NX_MAX_ANGULAR_VELOCITY=7 body limit was not "
+                "preserved";
         return false;
     }
 

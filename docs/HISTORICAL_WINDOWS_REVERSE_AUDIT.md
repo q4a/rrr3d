@@ -6651,3 +6651,20 @@ stats/money, RaceMain buttons, garage arrows/buy/labels и соответств�
 hit centres. ProgressBar front использует source `sampler.scale=progress`, а
 `carLifeBar` снова получает локальный `(4,-10)` из `HudMenu`. Unit layout
 regression и Metal race-menu smoke закрепляют координаты.
+
+### P2.306 — восстановлен глобальный PhysX предел вращения — выполнено
+
+Обратная проверка `eff9338:prog/Third Party/include/px/Physics/include/
+NxBodyDesc.h` показала, что `DataBase::AddPxBody`, movable decorations,
+debris и projectile actors не задают собственный `maxAngularVelocity`:
+значение `-1` делегирует выбор SDK. В соседнем `Nxp.h` исходный PhysX SDK
+фиксирует `NX_MAX_ANGULAR_VELOCITY=7`. Jolt default около 47 рад/с был
+неявным отклонением порта, позволявшим off-centre impact раскрутить шасси и
+превратить следующий контакт корпуса/колеса в высокий подброс.
+
+Все соответствующие dynamic body settings теперь повторяют полный
+`NxBodyDesc` default contract: linear damping `0`, angular damping `0.05`,
+maximum angular velocity `7`. Source owner параметров остаётся Windows body
+descriptor/SDK, Jolt лишь исполняет ограничение. Regression с заведомо
+избыточной angular velocity отличает исправленный путь от Jolt default;
+длительный Metal-заезд подтверждает сохранение управления и AI.

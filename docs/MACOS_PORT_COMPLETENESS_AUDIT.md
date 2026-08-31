@@ -2866,3 +2866,19 @@ front geometry растёт от исходного края, UV получае�
 World-space `carLifeBar` дополнительно использует исходный локальный offset
 `HudMenu::GetCarLifeBarPos()`, поэтому front и `carLifeBack` больше не
 расходятся над машиной.
+
+### B8da — PhysX angular velocity и body damping defaults — выполнено
+
+Сопоставление `eff9338:NxBodyDesc` и bundled PhysX `Nxp.h` подтвердило ещё
+одну причину чрезмерного вращения и вертикальных запусков после удара.
+Windows оставляет `maxAngularVelocity=-1`, после чего SDK применяет
+`NX_MAX_ANGULAR_VELOCITY=7 rad/s`; Jolt по умолчанию разрешал примерно
+`47 rad/s`. Одновременно Jolt добавлял отсутствующий в `NxBodyDesc` линейный
+damping `0.05`.
+
+Vehicle, movable `ctDecoration`, debris и projectile bodies теперь получают
+исходные defaults: linear damping `0`, angular damping `0.05` и angular
+velocity ceiling `7`. Backend regression прикладывает 100 rad/s через тот же
+public path, что collision/weapon impulses, и проверяет ограничение поворота
+одним solver step. Physics smoke, все 32 CTest и 1800-frame Metal race smoke
+прошли; Jolt остаётся только реализацией исходного PhysX body contract.

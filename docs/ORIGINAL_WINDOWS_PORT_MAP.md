@@ -1560,6 +1560,20 @@ vertical progress-front также уменьшают и геометрию, и 
 растягивания полной текстуры. `HudMenu::GetCarLifeBarPos(4,-10)` подключён к
 полосе над машиной; ранее фон был на месте, а front рисовался в его центре.
 
+Результат B8da: Jolt dynamic bodies больше не наследуют несовместимые с
+PhysX параметры вращения. Оригинальный `NxBodyDesc` оставляет
+`maxAngularVelocity=-1`, а bundled SDK разрешает это значение в глобальный
+`NX_MAX_ANGULAR_VELOCITY=7 rad/s`; Jolt default был около 47 rad/s. Поэтому
+обычный косой удар мог раскрутить автомобиль в несколько раз сильнее
+Windows-версии и на следующем контакте подбросить его над трассой.
+
+Vehicle, movable decoration, destruction debris и projectile actors теперь
+имеют source defaults linear damping `0`, angular damping `0.05` и angular
+velocity limit `7`. Regression подаёт 100 rad/s и проверяет фактический
+поворот после solver step; physics smoke, 32 CTest и 1800-frame Metal race
+smoke прошли. Замена PhysX на Jolt сохранена, но её boundary теперь реализует
+исходный body descriptor contract.
+
 Каждый крупный block commit обязан:
 
 1. назвать точные методы из `eff9338:prog`, которые стали активными;
