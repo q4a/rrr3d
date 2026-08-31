@@ -560,6 +560,17 @@ public:
     {
         std::scoped_lock lock(mutex_);
         projectilePending_.resize(count);
+        projectileIgnoredVehicles_.resize(
+            count, std::numeric_limits<std::size_t>::max());
+    }
+
+    void setProjectileIgnoredVehicle(
+        std::size_t projectile, std::size_t vehicle)
+    {
+        std::scoped_lock lock(mutex_);
+        if (projectile >= projectileIgnoredVehicles_.size())
+            return;
+        projectileIgnoredVehicles_[projectile] = vehicle;
     }
 
     void beginStep()
@@ -871,6 +882,15 @@ private:
         std::scoped_lock lock(mutex_);
         if (projectile >= projectilePending_.size())
             return;
+        if (projectile < projectileIgnoredVehicles_.size())
+        {
+            const auto ignoredVehicle =
+                projectileIgnoredVehicles_[projectile];
+            if (ignoredVehicle !=
+                    std::numeric_limits<std::size_t>::max() &&
+                otherVehicle == ignoredVehicle)
+                return;
+        }
         auto& contacts = projectilePending_[projectile];
         const auto found = std::find_if(
             contacts.begin(), contacts.end(),
@@ -889,6 +909,7 @@ private:
     std::mutex mutex_;
     std::vector<std::vector<BodyContact>> pending_;
     std::vector<std::vector<BodyContact>> projectilePending_;
+    std::vector<std::size_t> projectileIgnoredVehicles_;
 };
 
 // The original PhysX triangle meshes are used both for solid collision and
@@ -2494,6 +2515,8 @@ private:
             contactListener_.resizeProjectiles(
                 projectileBodies_.size());
         }
+        contactListener_.setProjectileIgnoredVehicle(
+            index, description.ignoredVehicle);
 
         const JPH::Vec3 halfExtents{
             std::max(description.halfExtents.x, 0.01F),
@@ -3847,7 +3870,25 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
                 return contact.surface == CollisionSurface::TrackPlane;
             }))
     {
-        error = "source Race world fixed-step/Jolt command bridge failed";
+        error = "source Race world fixed-step/Jolt command bridge failed: "
+                "worldCalls=" + std::to_string(worldFixedStepCalls) +
+                ", vehicleCalls=" + std::to_string(vehicleFixedStepCalls) +
+                ", roster=" + std::to_string(worldFixedStepRosterValid) +
+                ", resets=" + std::to_string(
+                    fixedStepWorld->vehicle().resetCount) +
+                ", vz=" + std::to_string(
+                    fixedStepWorld->vehicle().linearVelocity.z) +
+                ", projectiles=" +
+                std::to_string(fixedStepWorld->projectileBodyCount()) +
+                ", contacts=";
+        for (std::size_t index = 0U;
+             index < fixedStepWorld->projectileBodyCount(); ++index)
+        {
+            if (index != 0U)
+                error += ",";
+            error += std::to_string(
+                fixedStepWorld->projectileBody(index).contacts.size());
+        }
         return false;
     }
     WorldRayCastQuery trackRay;
@@ -3896,6 +3937,45 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
         std::abs(deathPlaneRayHit.distance - 10.0F) > 0.05F)
     {
         error = "source projectile-group Jolt raycast bridge failed";
+        return false;
+    }
+    bool ignorePairCommandIssued = false;
+    fixedStepWorld->setWorldFixedStepController(
+        [&](float, const std::vector<VehicleState>& states,
+            std::vector<VehicleInput>&,
+            std::vector<VehicleResetCommand>&,
+            std::vector<VehicleLinearVelocityCommand>&,
+            const std::vector<ProjectileBodyState>&,
+            std::vector<ProjectileBodyCommand>& projectileCommands) {
+            if (ignorePairCommandIssued || states.empty())
+                return;
+            ProjectileBodyCommand ignoredOwnerProjectile;
+            ignoredOwnerProjectile.kind =
+                ProjectileBodyCommandKind::Create;
+            ignoredOwnerProjectile.body.id = 47U;
+            ignoredOwnerProjectile.body.transform.position =
+                states.front().body.position;
+            ignoredOwnerProjectile.body.halfExtents = {
+                2.0F, 2.0F, 2.0F};
+            ignoredOwnerProjectile.body.dynamic = false;
+            ignoredOwnerProjectile.body.kinematic = true;
+            ignoredOwnerProjectile.body.ignoredVehicle = 0U;
+            projectileCommands.push_back(ignoredOwnerProjectile);
+            ignorePairCommandIssued = true;
+        });
+    fixedStepWorld->step(1.0F / 60.0F, VehicleInput{});
+    if (!ignorePairCommandIssued ||
+        fixedStepWorld->projectileBodyCount() != 6U ||
+        fixedStepWorld->projectileBody(5U).id != 47U ||
+        std::any_of(
+            fixedStepWorld->projectileBody(5U).contacts.begin(),
+            fixedStepWorld->projectileBody(5U).contacts.end(),
+            [](const BodyContact& contact) {
+                return contact.surface == CollisionSurface::Vehicle &&
+                       contact.otherVehicle == 0U;
+            }))
+    {
+        error = "source projectile NX_IGNORE_PAIR Jolt bridge failed";
         return false;
     }
     auto deathPlaneWorld =

@@ -361,6 +361,11 @@ struct ProjectileBodyDescription
     // RocketPrepare disables PhysX response but keeps contact reports. Jolt
     // sensors provide the same actor boundary without pushing the cars.
     bool sensor = true;
+    // Weapon.cpp::Proj::PrepareProj and GameBase.cpp::DeathEffect install a
+    // permanent NX_IGNORE_PAIR against one source car actor.  The game-side
+    // bridge resolves that actor to its portable vehicle index.
+    std::size_t ignoredVehicle =
+        std::numeric_limits<std::size_t>::max();
     // CreatePxBox defaults to cdgShot; Thunder, placed mines/pieces and map
     // bonuses select their distinct source groups at the game boundary.
     ProjectileCollisionGroup collisionGroup =

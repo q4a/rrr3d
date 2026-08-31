@@ -3063,3 +3063,21 @@ border, death plane и wheel query. Physics regression проверяет все
 32/32 CTest, physics smoke и 1800-frame Metal integration прошли. Player
 достиг `39.093`, все пять AI прогрессировали, четыре колеса сохранили
 контакт, renderer/audio/menu teardown завершился полностью.
+
+### B8dl — перенесён `NX_IGNORE_PAIR` для projectile/source actor — выполнено
+
+Оригинальные `Weapon.cpp::Proj::PrepareProj` и
+`GameBase.cpp::DeathEffect::OnDeath` подтвердили постоянное pair exclusion:
+после подготовки projectile/effect PhysX больше никогда не сообщает контакт
+с конкретной машиной-источником. Порт заменял это на собственный
+`ownerCollisionArmed` и включал столкновение после первого разделения actors.
+Это было прямым source divergence и создавало необъяснимые взрывы игрока при
+возврате Thunder или крупном portable vehicle box.
+
+Придуманное состояние удалено. Source `ignoreContactProj` и
+`effectPxIgnoreSenderCar` проходят через session в physics description, а
+Jolt listener хранит индекс исключённой машины отдельно для каждого body.
+Фильтр применяется только к vehicle contact с этим индексом: track, border,
+decorations и соперники сохраняют исходную обработку. Regression фиксирует
+постоянство пары после launch separation и реальный Jolt owner/non-owner
+contact boundary.

@@ -56,6 +56,8 @@ cannot hide a motor defect. It checks:
   contacts and the PhysX `2 m/s` minimum bounce speed.
 - all 64 directed source collision-group pairs, real Shot/ShotBorder/ShotTrack
   contacts with the track, and the wheel/shot-transparent exclusion.
+- permanent `NX_IGNORE_PAIR` filtering for a projectile/effect and its exact
+  source car actor, including a returned Thunder crossing the owner again.
 
 Representative final acceptance also runs tracks 0, 16, 48 and 64 through the
 packaged arm64 Debug executable and a 240-frame bgfx/Metal race integration
@@ -72,3 +74,12 @@ per-body energy sleeper, so its point-movement test is calibrated to the
 uniform `0.05` threshold used by all 95 persistent dynamic bodies in the
 shipped database; short-lived projectile sensors retain their source `0.005`
 provenance but never sleep while acting as sensors.
+
+`eff9338:Weapon.cpp::Proj::PrepareProj` and
+`GameBase.cpp::DeathEffect::OnDeath` also install permanent PhysX
+`NX_IGNORE_PAIR` flags. The earlier portable runtime instead re-enabled owner
+contact once a projectile left a coarse vehicle box. That invented
+`ownerCollisionArmed` state is removed: source `ignoreContactProj` and
+`effectPxIgnoreSenderCar` now resolve the one excluded car actor to a vehicle
+index carried by `ProjectileBodyDescription`. Jolt filters only that pair;
+track, border, decorations and other vehicles keep their normal contacts.

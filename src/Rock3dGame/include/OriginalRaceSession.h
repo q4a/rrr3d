@@ -380,12 +380,6 @@ struct ProjectileRuntime
     // that callback must not receive its first Proj progress pass until the
     // next frame, matching World fixed-step -> PhysX Compute ordering.
     bool deferProgressOnce = false;
-    // PhysX can report the shooter's car after a free projectile has left
-    // its launch overlap (for example a reflected ptThunder).  The portable
-    // vehicle box is coarser than the source shapes, so arm that contact only
-    // after the projectile has separated once instead of ignoring the owner
-    // for its entire lifetime.
-    bool ownerCollisionArmed = false;
     // Source Logic owns every successfully prepared Proj. Runtime keeps the
     // same non-owning pointer that the original optional ProjList exposed.
     source::Proj* sourceObject = nullptr;

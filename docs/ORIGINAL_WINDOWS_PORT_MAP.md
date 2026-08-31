@@ -1717,6 +1717,20 @@ Arm64 Debug app пересобран и подписан; 32/32 CTest, physics s
 1800-frame bgfx/Metal race прошли. Длинный заезд сохранил четыре wheel
 contacts, player speed `39.093` и прогресс всех пяти AI `37.48–47.39`.
 
+Результат B8dl: перенесены постоянные PhysX actor-pair исключения из
+`Proj::PrepareProj` и `DeathEffect::OnDeath`. Ранее порт временно игнорировал
+владельца лишь до выхода projectile из грубого bounding box, затем включал
+самоповреждение обратно. В оригинале `NX_IGNORE_PAIR` живёт до уничтожения
+одного из двух actors и не зависит от расстояния или отражения снаряда.
+
+`Proj::GetIgnoreContactProj()` и source-флаг эффекта теперь доходят до
+backend-neutral `ProjectileBodyDescription::ignoredVehicle`; Jolt фильтрует
+только найденный vehicle pair. Обычные shots без source-флага продолжают
+контактировать с владельцем, другие машины и track/decorations не исключены.
+Headless route использует тот же source-флаг. Отдельная интеграционная
+регрессия возвращает Thunder в машину стрелявшего, а physics regression
+проверяет обе стороны фильтра на реальных Jolt contacts.
+
 Каждый крупный block commit обязан:
 
 1. назвать точные методы из `eff9338:prog`, которые стали активными;

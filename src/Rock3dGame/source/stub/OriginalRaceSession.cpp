@@ -1918,7 +1918,6 @@ void OriginalRaceSession::releaseRacerProjectileReferences(
             projectile.sourceObject->GetSourceWeapon() == nullptr;
         if (!sourceWeaponCleared)
             continue;
-        projectile.ownerCollisionArmed = true;
         if (projectile.sourceObject != nullptr &&
             projectile.sourceObject->destroyed)
             continue;
@@ -3853,6 +3852,11 @@ void OriginalRaceSession::queueProjectileBodyCreate(
     command.body.dynamic = !attached;
     command.body.kinematic = attached;
     command.body.sensor = true;
+    if (projectile.sourceObject->GetIgnoreContactProj() &&
+        projectile.owner < racers_.size())
+    {
+        command.body.ignoredVehicle = projectile.owner;
+    }
     switch (projectile.sourceObject->RoutePreparation().collisionGroup)
     {
     case source::Proj::CollisionGroup::Default:
@@ -3934,6 +3938,8 @@ void OriginalRaceSession::queueMineBodyCreate(MineRuntime& mine)
     command.body.gravityFactor =
         length3(mine.velocity) > 0.0001F ? 1.0F : 0.0F;
     command.body.sensor = true;
+    if (mine.ignoreOwnerCollision && mine.owner < racers_.size())
+        command.body.ignoredVehicle = mine.owner;
     command.body.collisionGroup =
         r3d::physics::ProjectileCollisionGroup::ShotTrack;
     projectileBodyCommands_.push_back(command);
@@ -6053,44 +6059,18 @@ void OriginalRaceSession::updateGameplay(
         projectileTransform.rotation = projectile.rotation;
         const OrientedBox projectileBox = orientedBox(
             projectileTransform, projectileDefinition.collision);
-        if (!projectile.ownerCollisionArmed &&
-            sourcePlayerId < vehicles.size() &&
-            sourcePlayerId < race_.racers.size())
-        {
-            if (projectile.physicsBacked)
-            {
-                projectile.ownerCollisionArmed = std::none_of(
-                    projectile.physicsContacts.begin(),
-                    projectile.physicsContacts.end(),
-                    [sourcePlayerId](
-                        const r3d::physics::BodyContact& contact) {
-                        return contact.otherVehicle == sourcePlayerId;
-                    });
-            }
-            else
-            {
-                const auto& ownerVehicle =
-                    vehicleForRacer(sourcePlayerId);
-                // Headless fallback has no PhysX/Jolt manifold. Arm after
-                // the projectile clears its coarse source vehicle box.
-                projectile.ownerCollisionArmed = !boxesOverlap(
-                    projectileBox,
-                    vehicleBox(
-                        vehicles[sourcePlayerId],
-                        ownerVehicle.physics));
-            }
-        }
         const auto projectileContactRoute =
             projectile.sourceObject->RouteContact(false);
         const std::size_t sourceTarget =
             projectileTargetRacer(projectile);
+        const bool ignoresSourceActor =
+            projectile.sourceObject->GetIgnoreContactProj();
 
         for (std::size_t target = 0;
              target < vehicles.size() && target < racers_.size();
              ++target)
         {
-            if ((target == sourcePlayerId &&
-                 !projectile.ownerCollisionArmed) ||
+            if ((target == sourcePlayerId && ignoresSourceActor) ||
                 racers_[target].IsDestroyed())
                 continue;
             if (sourceProgressRoute.handler ==
@@ -14110,12 +14090,11 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 length3(subtract(
                     sourceProjectile->position,
                     thunderLaunchPosition)) <=
-                    thunder->projectiles.front().maximumDistance ||
-                !sourceProjectile->ownerCollisionArmed)
+                    thunder->projectiles.front().maximumDistance)
             {
                 throw std::runtime_error(
                     "source maxDist/speed lifetime was replaced by a "
-                    "distance clamp or owner contact never armed");
+                    "distance clamp");
             }
             const float stepSeconds = 1.0F / 60.0F;
             Transform returnedProjectile;
@@ -14151,13 +14130,13 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                            projectile.weapon == thunderWeapon &&
                            projectile.projectile == 0U;
                 });
-            if (sourceProjectile !=
+            if (sourceProjectile ==
                     thunderSession.projectiles().end() ||
-                thunderSession.racers().front().GetLife() >= ownerLife)
+                thunderSession.racers().front().GetLife() != ownerLife)
             {
                 throw std::runtime_error(
-                    "source projectile-to-owner contact after launch "
-                    "separation failed");
+                    "source permanent projectile-to-owner NX_IGNORE_PAIR "
+                    "failed");
             }
         }
         {

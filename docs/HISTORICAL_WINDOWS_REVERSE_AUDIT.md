@@ -6842,3 +6842,22 @@ ShotBorder игнорируют track, ShotTrack контактирует с н�
 Arm64 Debug build/signing, 32/32 CTest, physics smoke и 1800 кадров
 bgfx/Metal прошли; player `39.093`, AI `37.48–47.39`, четыре wheel contacts
 и полный lifecycle teardown подтверждены.
+
+### P2.317 — восстановлены постоянные projectile actor-pair flags — выполнено
+
+Обратное чтение `eff9338:Weapon.cpp::Proj::PrepareProj` показывает точный
+порядок: после создания PhysX actor и назначения scene исходник вызывает
+`setActorPairFlags(weaponActor, projectileActor, NX_IGNORE_PAIR)`, если
+`_ignoreContactProj` установлен. Пара не переоценивается после выхода из
+launch overlap. `DeathEffect::OnDeath` тем же способом исключает actor
+порождённой мины из контактов с машиной sender при
+`_effectPxIgnoreSenderCar`.
+
+Portable runtime нарушал этот контракт полем `ownerCollisionArmed` и после
+первого разделения разрешал возвращённому снаряду повредить владельца. Поле
+и distance/contact arming удалены. Source flags теперь передают индекс actor
+в `ProjectileBodyDescription`; Jolt listener сохраняет постоянную пару на
+весь lifecycle body. Это backend mapping actor→vehicle index, а не новая
+gameplay эвристика. Регрессии проверяют повторное пересечение Thunder с
+владельцем, неизменную life и отдельные разрешённый/запрещённый vehicle
+contacts без потери ShotTrack contact с трассой.
