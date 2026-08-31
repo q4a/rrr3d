@@ -6207,3 +6207,22 @@ backends, оригинальные ресурсы и значительный о
 `dxvk-glm` — только вспомогательной модернизированной веткой. Закрывать
 подсистему как «портированную» следует лишь после прямого source mapping и
 Windows/macOS trace comparison.
+### P2.276 — `HumanPlayer::_curWeapon` снова единственный owner выбора — выполнено
+
+Прямая сверка `HumanPlayer::{ChangeWeapon,SelectWeapon,Shot,ShotAll}` и
+`Player::WeaponItem` обнаружила ещё один session-суррогат. Хотя source
+`HumanPlayer` уже хранил `_curWeapon`, portable `Player` параллельно держал
+`selectedWeaponSlot`, `selectedWeapon` и `ammunition`; session постоянно
+вызывал `SyncSelectedWeapon` перед human, AI и network shots. В результате
+команда прямого Shot1..4 или ShotAll могла временно либо постоянно менять
+выбранное оружие HUD, чего исходный код не делает.
+
+`fireWeapon` теперь получает физический primary slot явно и разрешает
+weapon/index/item из source loadout только для этой команды. Human current
+shot использует результат `HumanPlayer::SelectWeapon`; direct, all, AI и
+network paths не касаются human selection. HUD получает `_curWeapon` через
+read-only session boundary, а новый race/reset возвращает исходное начальное
+значение 0. Удалены также мёртвые поля `ammunition` и `speedBoostSeconds`:
+первое дублировало `WeaponItem::GetCurCharge`, второе нигде не включалось и
+создавало отсутствующую в Windows throttle-ветвь. Полные 32 CTest и active
+Jolt/Metal smoke подтверждают owner/order.

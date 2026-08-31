@@ -527,17 +527,12 @@ int main()
     player.weaponSlots = {2U, source::Player::invalidWeapon, 4U, 5U};
     player.weaponCapacity = {6U, 0U, 3U, 2U};
     player.weaponCharges = {1U, 0U, 0U, 1U};
-    player.selectedWeaponSlot = 1U;
     player.hyperWeapon = 0U;
     player.hyperCapacity = 2U;
     player.hyperCharge = 0U;
     player.mineWeapon = 1U;
     player.mineCapacity = 4U;
     player.mines = 1U;
-    player.SyncSelectedWeapon(6U);
-    if (player.selectedWeaponSlot != 2U || player.selectedWeapon != 4U ||
-        player.ammunition != 0U)
-        return 2;
 
     const std::vector<std::uint32_t> maximumCharges{
         10U, 8U, 6U, 4U, 3U, 2U};

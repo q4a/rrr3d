@@ -555,7 +555,8 @@ void OriginalRaceHud::update(
     raceStateInput.life = player.GetLife();
     raceStateInput.maximumLife = player.GetMaxLife();
     raceStateInput.carAlive = !player.IsDestroyed();
-    raceStateInput.selectedPrimarySlot = player.selectedWeaponSlot;
+    raceStateInput.selectedPrimarySlot =
+        session.selectedPrimaryWeaponSlot();
     raceStateInput.primaryBoxWidth = weaponSlot_.width;
     raceStateInput.primaryBoxHeight = weaponSlot_.height;
     const auto primaryItems = player.GetPrimaryWeaponItems();

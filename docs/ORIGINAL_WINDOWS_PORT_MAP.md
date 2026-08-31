@@ -59,7 +59,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `GameMode` | source startup/startup-menu/movie/race/music-fade states + one shared menu/game music source on shared World | Source owner, active startup/menu/race/audio-policy path | Config serialization и backend dispatch остаются adapters; bgfx/SDL/CoreAudio исполняют готовые source commands |
 | `GameObject` | `source::GameObject`, event counters, frame sync, listener/contact graph | Source owner, active core | Jolt/bgfx snapshots остаются backend boundary; source fixed/frame registration подключена |
 | `HudMenu` | `source::{HudMenu,MiniMapFrame,PlayerStateFrame}` + `OriginalRaceHud` | Source owner, active HUD/minimap/player-state policy | State/Escape/layout/countdown, MiniMap, weapon/place/life, OnProcessEvent, notifications, car-life и opponents source-owned; FinishMenu не дублируется, bgfx/CoreText payload и camera projection остаются backend boundary |
-| `HumanPlayer` | `source::HumanPlayer` | Source owner | Полный input message order, driving/progress gates и weapon selection перенесены; SDL только переводит source-сообщения |
+| `HumanPlayer` | `source::HumanPlayer` | Source owner, active selection owner | Полный input message order, driving/progress gates и единственное состояние текущего primary weapon перенесены; SDL только переводит source-сообщения |
 | `Logic` | `source::Logic` + shared active `WorldEventPump` registration | Source owner, active object/contact/audio-category/transient lifetime core | Proj/Mine lifetime source-owned; остались network authority и backend pose/contact views, SDL/CoreAudio остаётся submix backend |
 | `MainMenu2` | `mainmenu2::{Controller,FrameController,ProfileFrameState,FinalMenuFrameState}` + `originalmenu::ScreenStack` | Source owner, active Main/Profile/Final path | Остались concrete network callbacks и backend draw submission |
 | `Map` | `source::Map` + shared `source::DataBase` | Source owner, active registry path | XML parsing и backend actor create/destroy остаются adapters |
@@ -67,7 +67,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `Menu` | `originalmenu::MenuSystem` + source Main/Profile/Dialog/Options/Race/Finish/Final owners | Source owner, frame core | Завершить concrete network callbacks; bgfx/CoreText/SDL остаются backend boundary |
 | `MenuSystem` | `originalmenu::{MenuSystem,ScreenStack,FrameState}` | Source owner, active menu path | Подключить concrete navigation graphs; bgfx остаётся draw executor |
 | `OptionsMenu` | `originaloptions::{OptionsMenuState,StartOptionsMenuState}` + backend visuals | Source owner, active options path | Legacy Widget events заменены SDL input, CoreText и bgfx draw submission |
-| `Player` | `source::Player`, `CarState`, behaviors, `PresentationState` | Source owner, active gameplay/presentation/live-car/trace path | `CarState` единолично владеет tile/node/lap/wrong-way/map position; bgfx/Jolt исполняют graph/actor commands, остаётся аудит profile bridges |
+| `Player` | `source::Player`, `CarState`, behaviors, `PresentationState` | Source owner, active gameplay/presentation/live-car/trace path | `CarState` единолично владеет tile/node/lap/wrong-way/map position; weapon items владеют charge, а выбор primary принадлежит HumanPlayer; bgfx/Jolt исполняют graph/actor commands, остаётся аудит profile bridges |
 | `Race` | `OriginalRace`, `source::{RaceRunState,RaceLifecycle,RacePlaceModel}`, session adapter, tournament on shared World | Source owner, active fixed/late/finish/settlement lifecycle | `CompleteRace` Player publication, picked-money reset, block, campaign reward, tournament/pass-reset source-owned; продолжить вынос physics/contact materialization из session |
 | `RaceMenu2` | `originalracemenu::{RaceMenuState,RaceMainFrameState,GamersFrameState,GarageFrameState,WorkshopFrameState,SpaceshipFrameState,AngarFrameState,AchievementFrameState}` | Source owner, all six offline frame paths | Проверить оставшиеся network callbacks и оставить bgfx/CoreText backend boundary |
 | `RecordLib` | `source::{MapObjRecordLibrary,MapObjRecordNode,MapObjRecord}` | Source owner, active hierarchy | Editor-only mutation/serialization API не входит в пользовательский runtime |
@@ -1182,6 +1182,22 @@ Game debug теперь показывает живой `CarState::GetLastNodeRe
 smoke измеряет исходный `CarState::GetLap()` вместо придуманной дроби
 `numLaps + nextPathNode/pathSize`. В session осталась только адаптация
 исходного `lapPassed` в `Race::OnLapPass`/публичные race events.
+
+Результат B8bw: удалена вторая модель выбора primary weapon из `Player` и
+`OriginalRaceSession`. В Windows `_curWeapon` принадлежит `HumanPlayer`, а
+конкретный `WeaponItem` передаётся в Shot напрямую; portable path теперь
+соблюдает тот же owner. `HumanPlayer::{ChangeWeapon,SelectWeapon}` единолично
+меняют текущий слот, HUD читает его через session boundary, а AI, network,
+Shot1..4 и ShotAll передают исполняемый slot в `fireWeapon` без временного
+изменения human selection.
+
+Удалены отсутствующие в Windows `Player::selectedWeaponSlot`,
+`selectedWeapon`, `ammunition`, `speedBoostSeconds` и
+`SyncSelectedWeapon`. Последний был особенно опасен тем, что direct shot и
+AI могли менять HUD selection, а dead boost-ветвь могла принудительно
+подменять throttle. Reset session восстанавливает constructor `_curWeapon=0`.
+Regression закрепляет next/previous, direct-slot selection preservation,
+ShotAll, AI/network slot execution и live WeaponItem charge.
 
 ## Правило обновления карты
 

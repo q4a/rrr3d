@@ -563,6 +563,7 @@ public:
     source::SoundMotorMix racerMotorMix(
         std::size_t racer) const noexcept;
     std::size_t humanRacer() const noexcept;
+    std::size_t selectedPrimaryWeaponSlot() const noexcept;
     // Race::GetTotalPoints and Planet::GetRequestPoints iterate the active
     // PlayerList and include both the local Human and network Opponents.
     // Disconnected portable storage is excluded because NetPlayer's source

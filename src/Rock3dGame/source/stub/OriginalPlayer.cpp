@@ -1150,7 +1150,7 @@ void Player::ReloadWeapons(
         if (item != nullptr)
             item->Reload();
     }
-    SyncSelectedWeapon(weaponDefinitionCount);
+    (void)weaponDefinitionCount;
 }
 
 void Player::BindWeaponItems(
@@ -1321,28 +1321,6 @@ bool Player::Shot(
     if (result && mineSlot && !output->empty())
         InsertBonusProjectile(output->front(), projectileId);
     return result;
-}
-
-void Player::SyncSelectedWeapon(
-    std::size_t weaponDefinitionCount) noexcept
-{
-    for (std::size_t offset = 0U; offset < weaponSlots.size(); ++offset)
-    {
-        const auto slot =
-            (selectedWeaponSlot + offset) % weaponSlots.size();
-        const auto weapon = weaponSlots[slot];
-        if (weapon == invalidWeapon || weapon >= weaponDefinitionCount)
-            continue;
-        selectedWeaponSlot = slot;
-        selectedWeapon = weapon;
-        const auto items = GetPrimaryWeaponItems();
-        ammunition = items[slot] != nullptr
-                         ? items[slot]->GetCurCharge()
-                         : 0U;
-        return;
-    }
-    selectedWeapon = invalidWeapon;
-    ammunition = 0U;
 }
 
 RockCar::Weapons& Player::GetWeaponRack() noexcept
@@ -1602,7 +1580,6 @@ PlayerBonusResult Player::TakeAmmunition(
             target.item->GetCntCharge()));
         result = {target.slot, target.weapon, amount};
     }
-    SyncSelectedWeapon(maximumCharges.size());
     return result;
 }
 

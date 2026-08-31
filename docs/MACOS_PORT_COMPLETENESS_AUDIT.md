@@ -2572,3 +2572,18 @@ build/macos-arm64-m10/Debug/RRR3d.app/Contents/MacOS/RRR3d \
   --data-dir=resources/game-data \
   --race-render-smoke-test --smoke-test-frames=240
 ```
+### B8bw — выбор primary weapon принадлежит HumanPlayer — выполнено
+
+После устранения trace-зеркала следующий owner audit нашёл аналогичную
+двойную модель оружия. Исходный `HumanPlayer::_curWeapon` уже был перенесён,
+но активная session дублировала его публичными полями `Player` и
+`SyncSelectedWeapon`. Эти поля удалены. Human navigation/autoselect и HUD
+используют один `HumanPlayer`; AI, network replay, ShotAll и direct Shot1..4
+передают слот как параметр исполнения и не меняют текущий human slot.
+
+`WeaponItem` остаётся единственным владельцем live charge. Удалены его
+устаревшее зеркало `ammunition` и несуществующий в original
+`speedBoostSeconds` с принудительным throttle. Сброс гонки восстанавливает
+исходный constructor state current=0. Regression проверяет source
+next/previous, сохранение selection после direct shot, ShotAll, charge и
+полный active race path.

@@ -387,7 +387,6 @@ public:
     void FreeCar(bool freeState) noexcept;
     void OnLapPass(std::size_t weaponDefinitionCount) noexcept;
     void ReloadWeapons(std::size_t weaponDefinitionCount) noexcept;
-    void SyncSelectedWeapon(std::size_t weaponDefinitionCount) noexcept;
     void BindWeaponItems(
         std::span<const WeaponDefinition> definitions) noexcept;
     std::array<WeaponItem*, weaponSlotCount>
@@ -519,22 +518,18 @@ public:
     static std::uint32_t BonusCharge(
         std::uint32_t maximumCharge, float value) noexcept;
 
-    std::uint32_t ammunition = 10;
     std::uint32_t mines = 0;
     std::uint32_t mineCapacity = 0;
     std::array<std::size_t, weaponSlotCount> weaponSlots{
         invalidWeapon, invalidWeapon, invalidWeapon, invalidWeapon};
     std::array<std::uint32_t, weaponSlotCount> weaponCharges{};
     std::array<std::uint32_t, weaponSlotCount> weaponCapacity{};
-    std::size_t selectedWeaponSlot = 0;
-    std::size_t selectedWeapon = invalidWeapon;
     std::size_t hyperWeapon = invalidWeapon;
     std::uint32_t hyperCharge = 0;
     std::uint32_t hyperCapacity = 0;
     std::size_t mineWeapon = invalidWeapon;
     std::uint32_t rewardMoney = 0;
     std::uint32_t rewardPoints = 0;
-    float speedBoostSeconds = 0.0F;
     float restoreSeconds = 0.0F;
     float finishTime = -1.0F;
     float blockSeconds = -1.0F;
