@@ -3221,3 +3221,16 @@ target-car parent и автоматический locked-progress resurrection t
 эффектам без исходного record. Regression проверяет sound-owner identity,
 движение голоса вместе с dynamic crush actor и исчезновение identity после
 serialized lifetime.
+
+### B8du — ShotEffect Source3d следует Weapon, а не кузову — выполнено
+
+`ShotEffect` является behavior конкретного `Weapon`, поэтому унаследованный
+`EventEffect::OnProgress` ставит sound position из world pose оружия. Порт
+хранил лишь car-local offset точки первого выстрела. Это теряло собственное
+вращение/placement Weapon и оставляло host voice после уничтожения owner.
+
+Session экспортирует lookup exact Weapon по source physical slot: четыре
+primary, Hyper и Mine. Active SDL `Source3d` каждый frame читает этот
+GameObject; отсутствие Weapon немедленно удаляет voice. Удалены вычисление и
+хранение придуманного car offset. Regression требует совпадения emitted
+ShotEffect position с live source weapon owner.

@@ -582,6 +582,10 @@ public:
     const std::vector<RaceEffect>& effects() const noexcept;
     std::optional<Vec3> effectWorldPosition(
         std::uint64_t runtimeId) const noexcept;
+    // EventEffect::OnProgress positions ShotEffect sources from the exact
+    // installed Weapon GameObject, including its independent local rotation.
+    std::optional<Vec3> weaponEffectWorldPosition(
+        std::size_t racer, std::size_t physicalSlot) const noexcept;
     const std::vector<MineRuntime>& mines() const noexcept;
     const std::vector<ProjectileRuntime>& projectiles() const noexcept;
     std::vector<RespawnRequest> takeRespawns();

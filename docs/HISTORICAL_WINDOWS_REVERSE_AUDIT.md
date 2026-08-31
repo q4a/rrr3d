@@ -6996,3 +6996,17 @@ identity означает исходное уничтожение владель
 `Source3d`. Regression двигает shipped dynamic vehicle DeathEffect через две
 physics poses, сверяет interpolated visual/audio position и затем ждёт
 удаления объекта по его сохранённому `maxTimeLife`.
+
+### P2.326 — ShotEffect audio возвращён Weapon GameObject — выполнено
+
+Следующий участок того же `EventEffect::OnProgress` выявил вторую
+аппроксимацию: persistent ShotEffect `Source3d` следовал car body плюс offset
+первого выстрела. В исходнике behavior принадлежит `Weapon`; его position
+всегда читается из exact owner, включая независимый Drobilka rotation и
+уничтожение оружия при `Player::FreeCar`.
+
+`soundSource` теперь используется не только как ключ persistent voice, но и
+как исходная physical-slot identity. Session разрешает соответствующий live
+`WeaponItem`, возвращает world pose `Weapon GameObject`, а host прекращает
+voice при исчезновении owner. Regression сравнивает sound event с этой позой;
+старый car-local followOffset полностью удалён.

@@ -1853,6 +1853,19 @@ solver pose; `GameObject::OnPxSync/OnFrame` остаётся единствен�
 воронка миномёта является статическим projectile sensor, а не пропущенным
 dynamic effect body.
 
+Результат B8du: постоянные `ShotEffect` voices возвращены точному
+`Weapon GameObject`. Оригинальный `EventEffect::OnProgress` не знает о car
+offset: он каждый tick берёт world pose собственного behavior owner. Старый
+host сохранял смещение от кузова в момент выстрела, поэтому independent
+weapon transform — включая вращение Drobilka — никогда не попадал в звук, а
+уничтожение Weapon не освобождало voice до общего race teardown.
+
+Audio bridge теперь разрешает source physical slot `0..3/Hyper/Mine` в
+реальный установленный `WeaponItem::GetWeapon`, читает его world position и
+удаляет `Source3d`, как только owner исчез. Regression сопоставляет emitted
+ShotEffect event с exact Weapon pose; body/Jolt и SDL остаются backend
+границами, никакая дополнительная transform-модель не введена.
+
 Каждый крупный block commit обязан:
 
 1. назвать точные методы из `eff9338:prog`, которые стали активными;

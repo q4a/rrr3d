@@ -4358,7 +4358,6 @@ int main(int argc, char** argv)
         std::size_t source = 0;
         std::string path;
         r3d::physics::Vec3 position;
-        r3d::physics::Vec3 followOffset;
         rrr3d::audio::OriginalSource3d emitter;
     };
     struct ContactEffectAudio
@@ -15679,27 +15678,6 @@ int main(int argc, char** argv)
                                     {event.position.x, event.position.y,
                                      event.position.z});
                                 source.emitter.Play();
-                                if (source.owner < raceVehicles.size())
-                                {
-                                    const auto& body = raceVehicles[
-                                        source.owner].body;
-                                    const r3d::physics::Quat inverse{
-                                        -body.rotation.x,
-                                        -body.rotation.y,
-                                        -body.rotation.z,
-                                        body.rotation.w};
-                                    source.followOffset = rotateRaceVector(
-                                        inverse,
-                                        {event.position.x - body.position.x,
-                                         event.position.y - body.position.y,
-                                         event.position.z - body.position.z});
-                                    if (std::abs(body.scale.x) > 0.000001F)
-                                        source.followOffset.x /= body.scale.x;
-                                    if (std::abs(body.scale.y) > 0.000001F)
-                                        source.followOffset.y /= body.scale.y;
-                                    if (std::abs(body.scale.z) > 0.000001F)
-                                        source.followOffset.z /= body.scale.z;
-                                }
                                 shotEffectAudio.push_back(std::move(source));
                             }
                             else if (active != shotEffectAudio.end())
@@ -15763,22 +15741,22 @@ int main(int argc, char** argv)
                 for (auto source = shotEffectAudio.begin();
                      source != shotEffectAudio.end();)
                 {
-                    // EventEffect::OnProgress moves all initialized
-                    // ShotEffect sources with their owning weapon/car.
-                    if (source->owner < raceVehicles.size())
+                    // EventEffect::OnProgress moves all initialized sources
+                    // from its exact Weapon GameObject. The weapon may rotate
+                    // independently from its car (notably Drobilka).
+                    const auto weaponPosition =
+                        raceSession.weaponEffectWorldPosition(
+                            source->owner, source->source);
+                    if (!weaponPosition)
                     {
-                        const auto& body =
-                            raceVehicles[source->owner].body;
-                        const auto offset = rotateRaceVector(
-                            body.rotation,
-                            {source->followOffset.x * body.scale.x,
-                             source->followOffset.y * body.scale.y,
-                             source->followOffset.z * body.scale.z});
-                        source->position = {
-                            body.position.x + offset.x,
-                            body.position.y + offset.y,
-                            body.position.z + offset.z};
+                        // Weapon::~Weapon destroys ShotEffect and releases
+                        // all of its persistent Source3d instances.
+                        source = shotEffectAudio.erase(source);
+                        continue;
                     }
+                    source->position = {
+                        weaponPosition->x, weaponPosition->y,
+                        weaponPosition->z};
                     source->emitter.SetPos3d(
                         {source->position.x, source->position.y,
                          source->position.z});

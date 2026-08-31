@@ -3171,6 +3171,32 @@ std::optional<Vec3> OriginalRaceSession::effectWorldPosition(
     return Vec3{position[0], position[1], position[2]};
 }
 
+std::optional<Vec3> OriginalRaceSession::weaponEffectWorldPosition(
+    std::size_t racer, std::size_t physicalSlot) const noexcept
+{
+    if (racer >= racers_.size())
+        return std::nullopt;
+    const source::WeaponItem* item = nullptr;
+    if (physicalSlot < PlayerProfile::weaponSlotCount)
+    {
+        item = racers_[racer]
+                   .GetPrimaryWeaponItems()[physicalSlot];
+    }
+    else if (physicalSlot == PlayerProfile::weaponSlotCount)
+    {
+        item = racers_[racer].GetHyperWeaponItem();
+    }
+    else if (physicalSlot == PlayerProfile::weaponSlotCount + 1U)
+    {
+        item = racers_[racer].GetMineWeaponItem();
+    }
+    const auto* weapon = item != nullptr ? item->GetWeapon() : nullptr;
+    if (weapon == nullptr)
+        return std::nullopt;
+    const auto position = weapon->GetWorldPos();
+    return Vec3{position[0], position[1], position[2]};
+}
+
 const std::vector<MineRuntime>& OriginalRaceSession::mines() const noexcept
 {
     refreshMineView();
@@ -13919,7 +13945,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     sourceWeapon - race.weapons.data());
                 if (!sourceWeapon->shotEffect.soundPaths.empty())
                 {
-                    const bool emittedSound = std::any_of(
+                    const auto emittedSound = std::find_if(
                         weaponSession.events().begin(),
                         weaponSession.events().end(),
                         [&](const RaceEvent& event) {
@@ -13933,10 +13959,23 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                                        event.soundPath) !=
                                        sourceWeapon->shotEffect.soundPaths.end();
                         });
-                    if (!emittedSound)
+                    if (emittedSound == weaponSession.events().end())
                     {
                         throw std::runtime_error(
                             "source ctWeapon ShotEffect sound was not emitted");
+                    }
+                    const auto exactWeaponPosition =
+                        weaponSession.weaponEffectWorldPosition(
+                            emittedSound->racer,
+                            emittedSound->soundSource);
+                    if (!exactWeaponPosition ||
+                        length3(subtract(
+                            *exactWeaponPosition,
+                            emittedSound->position)) > 0.001F)
+                    {
+                        throw std::runtime_error(
+                            "source ShotEffect audio bypassed exact Weapon "
+                            "GameObject");
                     }
                 }
                 if (sourceWeapon->shotEffect.visual.visualNodes.empty() &&
