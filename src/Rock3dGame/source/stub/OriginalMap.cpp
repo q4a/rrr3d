@@ -35,8 +35,9 @@ Map::Map(Logic* logic, DataBase* dataBase)
     {
         categories_[index].SetObserver(this);
     }
-    groundTouchDeath_ = &ground_.GetGameObj().GetBehaviors()
-        .Add<TouchDeath>(BehaviorType::TouchDeath);
+    groundTouchDeath_ = &static_cast<TouchDeath&>(
+        ground_.GetGameObj().GetBehaviors().Add(
+            BehaviorType::TouchDeath));
 }
 
 Map::~Map()

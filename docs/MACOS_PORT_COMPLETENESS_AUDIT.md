@@ -2739,3 +2739,10 @@ effect/sound transition. Jolt передаёт contact/slip, SDL и Metal пот
 entries `Behaviors`, владеют RPM lag, track UV offset, cushion angle и
 targetTag. SDL voices и Metal material/node transforms остаются backend
 consumers; source callback identity и lifetime больше не раздвоены.
+
+### B8cp — serialized BehaviorType factory восстановлен — выполнено
+
+`Behaviors` снова владеет единым mapping всех type 0–14 на exact concrete
+классы, эквивалентным Windows `InitClassList`. Map/Player/Weapon/GameCar
+loaders больше не подменяют serialized type ручным template-class choice;
+Jolt/SDL/Metal bindings применяются только после source construction.

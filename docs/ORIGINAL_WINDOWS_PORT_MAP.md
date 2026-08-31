@@ -1419,6 +1419,17 @@ targetTag. Copy car/animation child сохраняет новый owner/child bi
 копирует только source state. `Behaviors::Find` возвращает concrete классы,
 не промежуточные adapters.
 
+Результат B8cp: восстановлен отсутствовавший portable эквивалент
+`GameBase::Behaviors::InitClassList`. `Behaviors::Add(BehaviorType)` теперь
+имеет точное отображение всех serialized значений 0–14 на concrete source
+классы. Неверный тип не может молча создать соседний utility/wrapper.
+
+Активные Map, Player, Proj/Weapon, GameCar, CarWheel и animation-child paths
+переведены с template-знания вызывающего к общему factory. После создания
+они задают только serialized configuration и backend binding; class identity
+задаётся самим `BehaviorType`. Regression создаёт все 15 типов, проверяет
+concrete RTTI, owner/GameObject и полное listener teardown.
+
 Каждый крупный block commit обязан:
 
 1. назвать точные методы из `eff9338:prog`, которые стали активными;

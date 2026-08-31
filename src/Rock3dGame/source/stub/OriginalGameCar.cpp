@@ -1081,8 +1081,8 @@ void GameCar::BindSoundMotor(
     ReleaseSoundMotor();
     rpmVolumeRange_ = rpmVolumeRange;
     rpmFrequencyRange_ = rpmFrequencyRange;
-    soundMotor_ = &GetBehaviors().Add<SoundMotor>(
-        BehaviorType::SoundMotor, this);
+    soundMotor_ = &static_cast<SoundMotor&>(
+        GetBehaviors().Add(BehaviorType::SoundMotor));
 }
 
 void GameCar::ReleaseSoundMotor() noexcept
@@ -1477,6 +1477,11 @@ float GameCar::GetMineTime() const noexcept
 
 SoundMotor::SoundMotor() noexcept : Behavior(nullptr) {}
 
+SoundMotor::SoundMotor(Behaviors* owner) noexcept
+    : Behavior(owner)
+{
+}
+
 SoundMotor::SoundMotor(
     Behaviors* owner, GameCar* car) noexcept
     : Behavior(owner), car_(car)
@@ -1506,11 +1511,14 @@ void SoundMotor::OnMotor(
     float deltaTime, float rpm,
     float minimumRpm, float maximumRpm) noexcept
 {
-    if (car_ == nullptr)
+    auto* car = car_ != nullptr
+        ? car_
+        : dynamic_cast<GameCar*>(GetGameObj());
+    if (car == nullptr)
         return;
-    car_->soundMotorMix_ = OnMotor(
+    car->soundMotorMix_ = OnMotor(
         deltaTime, rpm, minimumRpm, maximumRpm,
-        car_->rpmVolumeRange_, car_->rpmFrequencyRange_);
+        car->rpmVolumeRange_, car->rpmFrequencyRange_);
 }
 
 void SoundMotor::Reset() noexcept
@@ -1559,11 +1567,23 @@ float SoundMotor::GetCurrentRpm() const noexcept
 
 PxWheelSlipEffect::PxWheelSlipEffect() noexcept : EventEffect() {}
 
+PxWheelSlipEffect::PxWheelSlipEffect(Behaviors* owner) noexcept
+    : EventEffect(owner)
+{
+}
+
 PxWheelSlipEffect::PxWheelSlipEffect(
     Behaviors* owner, CarWheel* wheel,
     std::size_t effect) noexcept
     : EventEffect(owner), wheel_(wheel), effect_(effect)
 {
+}
+
+void PxWheelSlipEffect::BindWheel(
+    CarWheel* wheel, std::size_t effect) noexcept
+{
+    wheel_ = wheel;
+    effect_ = effect;
 }
 
 PxWheelSlipEffect::PxWheelSlipEffect(
@@ -1717,8 +1737,9 @@ CarWheel& CarWheel::operator=(const CarWheel& other) noexcept
     for (std::size_t effect = 0U;
          effect < other.slipBehaviors_.size(); ++effect)
     {
-        auto& behavior = GetBehaviors().Add<PxWheelSlipEffect>(
-            BehaviorType::PxWheelSlipEffect, this, effect);
+        auto& behavior = static_cast<PxWheelSlipEffect&>(
+            GetBehaviors().Add(BehaviorType::PxWheelSlipEffect));
+        behavior.BindWheel(this, effect);
         if (other.slipBehaviors_[effect] != nullptr)
             behavior = *other.slipBehaviors_[effect];
         slipBehaviors_.push_back(&behavior);
@@ -1762,8 +1783,9 @@ void CarWheel::Configure(bool slipEffect, bool slipSound)
     ResetMotion();
     if (slipEffectEnabled_)
     {
-        auto& behavior = GetBehaviors().Add<PxWheelSlipEffect>(
-            BehaviorType::PxWheelSlipEffect, this, 0U);
+        auto& behavior = static_cast<PxWheelSlipEffect&>(
+            GetBehaviors().Add(BehaviorType::PxWheelSlipEffect));
+        behavior.BindWheel(this, 0U);
         behavior.Configure(
             nullptr,
             slipSound ? std::vector<std::string>{"SkidAsphalt.ogg"}
@@ -1811,8 +1833,9 @@ void CarWheel::Configure(
         {
             canonicalDefinition = smokeDefinition;
         }
-        auto& behavior = GetBehaviors().Add<PxWheelSlipEffect>(
-            BehaviorType::PxWheelSlipEffect, this, effect);
+        auto& behavior = static_cast<PxWheelSlipEffect&>(
+            GetBehaviors().Add(BehaviorType::PxWheelSlipEffect));
+        behavior.BindWheel(this, effect);
         behavior.Configure(
             canonicalDefinition, definition.soundPaths,
             {definition.position.x, definition.position.y,
@@ -2073,6 +2096,11 @@ bool CarWheel::HasSlipSound() const noexcept
 
 GusenizaAnim::GusenizaAnim() noexcept : Behavior(nullptr) {}
 
+GusenizaAnim::GusenizaAnim(Behaviors* owner) noexcept
+    : Behavior(owner)
+{
+}
+
 GusenizaAnim::GusenizaAnim(
     Behaviors* owner, CarAnimationChild* child) noexcept
     : Behavior(owner), child_(child)
@@ -2095,10 +2123,13 @@ GusenizaAnim& GusenizaAnim::operator=(
 
 void GusenizaAnim::OnProgress(float deltaTime) noexcept
 {
-    if (child_ == nullptr)
+    auto* child = child_ != nullptr
+        ? child_
+        : dynamic_cast<CarAnimationChild*>(GetGameObj());
+    if (child == nullptr)
         return;
     const auto* car =
-        dynamic_cast<const GameCar*>(child_->GetParent());
+        dynamic_cast<const GameCar*>(child->GetParent());
     OnProgress(
         deltaTime, car != nullptr ? car->GetLeadWheelSpeed() : 0.0F);
 }
@@ -2123,6 +2154,11 @@ float GusenizaAnim::GetTextureOffset() const noexcept
 }
 
 PodushkaAnim::PodushkaAnim() noexcept : Behavior(nullptr) {}
+
+PodushkaAnim::PodushkaAnim(Behaviors* owner) noexcept
+    : Behavior(owner)
+{
+}
 
 PodushkaAnim::PodushkaAnim(
     Behaviors* owner, CarAnimationChild* child,
@@ -2151,10 +2187,13 @@ PodushkaAnim& PodushkaAnim::operator=(
 
 void PodushkaAnim::OnProgress(float deltaTime) noexcept
 {
-    if (child_ == nullptr)
+    auto* child = child_ != nullptr
+        ? child_
+        : dynamic_cast<CarAnimationChild*>(GetGameObj());
+    if (child == nullptr)
         return;
     const auto* car =
-        dynamic_cast<const GameCar*>(child_->GetParent());
+        dynamic_cast<const GameCar*>(child->GetParent());
     OnProgress(
         deltaTime, car != nullptr ? car->GetLeadWheelSpeed() : 0.0F);
 }
@@ -2264,17 +2303,17 @@ void CarAnimationChild::BindBehaviors(
     cushionBehaviors_.clear();
     if (trackAnimation)
     {
-        trackBehavior_ = &GetBehaviors().Add<GusenizaAnim>(
-            BehaviorType::GusenizaAnim, this);
+        trackBehavior_ = &static_cast<GusenizaAnim&>(
+            GetBehaviors().Add(BehaviorType::GusenizaAnim));
     }
     cushionBehaviors_.reserve(cushionTargetTags.size());
     for (std::size_t index = 0U;
          index < cushionTargetTags.size(); ++index)
     {
-        cushionBehaviors_.push_back(
-            &GetBehaviors().Add<PodushkaAnim>(
-                BehaviorType::PodushkaAnim, this,
-                cushionTargetTags[index]));
+        auto& behavior = static_cast<PodushkaAnim&>(
+            GetBehaviors().Add(BehaviorType::PodushkaAnim));
+        behavior.SetTargetTag(cushionTargetTags[index]);
+        cushionBehaviors_.push_back(&behavior);
     }
 }
 

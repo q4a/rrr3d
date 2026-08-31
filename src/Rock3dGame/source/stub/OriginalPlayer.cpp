@@ -60,8 +60,8 @@ void Player::BindSourceBehaviors()
     immortalEffect_ = nullptr;
     slowEffect_ = nullptr;
     behaviors.Clear();
-    lowLifePoints_ = &behaviors.Add<LowLifePoints>(
-        BehaviorType::LowLifePoints);
+    lowLifePoints_ = &static_cast<LowLifePoints&>(
+        behaviors.Add(BehaviorType::LowLifePoints));
     // DataBase::LoadCar inserts every serialized DeathEffect immediately
     // after LowLifePoints. Keep duplicate type-6 entries: each owns a
     // different effect record and all of them receive the same Death event.
@@ -71,10 +71,11 @@ void Player::BindSourceBehaviors()
             carRecord_->deathEffects.size());
         for (const auto& effect : carRecord_->deathEffects)
         {
-            auto& behavior = behaviors.Add<DeathEffect>(
-                BehaviorType::DeathEffect,
-                effect.effectPhysicsIgnoreSenderCar,
-                effect.targetChild);
+            auto& behavior = static_cast<DeathEffect&>(
+                behaviors.Add(BehaviorType::DeathEffect));
+            behavior.SetEffectPxIgnoreSenderCar(
+                effect.effectPhysicsIgnoreSenderCar);
+            behavior.SetTargetChild(effect.targetChild);
             behavior.ConfigureSource(
                 &effect.visual,
                 {effect.position.x, effect.position.y,
@@ -87,10 +88,11 @@ void Player::BindSourceBehaviors()
         }
     }
     // DataBase::LoadCar inserts ImmortalEffect before DamageEffect.
-    immortalEffect_ = &behaviors.Add<ImmortalEffect>(
-        BehaviorType::ImmortalEffect);
-    energyDamageEffect_ = &behaviors.Add<DamageEffect>(
-        BehaviorType::DamageEffect, DamageType::Energy, 0.5F);
+    immortalEffect_ = &static_cast<ImmortalEffect&>(
+        behaviors.Add(BehaviorType::ImmortalEffect));
+    energyDamageEffect_ = &static_cast<DamageEffect&>(
+        behaviors.Add(BehaviorType::DamageEffect));
+    energyDamageEffect_->SetDamageType(DamageType::Energy);
     // Creating/respawning a car rebuilds the serialized behavior collection.
     // The concrete behavior therefore reloads its own record state here,
     // rather than relying on Player fields to survive graph replacement.
@@ -1653,8 +1655,8 @@ bool Player::AttachSlowEffect(
     // ray contacts therefore neither replace the model nor restart lifetime.
     if (behaviors.Find(BehaviorType::SlowEffect) != nullptr)
         return false;
-    auto& behavior = behaviors.Add<SlowEffect>(
-        BehaviorType::SlowEffect);
+    auto& behavior = static_cast<SlowEffect&>(
+        behaviors.Add(BehaviorType::SlowEffect));
     if (!behavior.Attach(
             effectDefinition, maximumTimeLife, weapon, projectile))
     {

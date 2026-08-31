@@ -1,6 +1,8 @@
 #include "OriginalGameObject.h"
+#include "OriginalGameCar.h"
 #include "OriginalLogic.h"
 #include "OriginalMapObj.h"
+#include "OriginalWeapon.h"
 
 #include <cmath>
 #include <iostream>
@@ -159,6 +161,63 @@ int main()
         std::string(source::BehaviorTypeName(
             source::BehaviorType::PodushkaAnim)) != "btPodushkaAnim")
         return 65;
+
+    // GameBase::Behaviors::InitClassList registers these exact concrete
+    // classes for serialized BehaviorType 0..14. Exercise the portable
+    // factory independently from every hand-configured car/effect loader.
+    source::GameObject factoryOwner;
+    auto matchesFactoryType = [](
+        source::BehaviorType type, source::Behavior* behavior) {
+        switch (type)
+        {
+        case source::BehaviorType::TouchDeath:
+            return dynamic_cast<source::TouchDeath*>(behavior) != nullptr;
+        case source::BehaviorType::ResurrectObj:
+            return dynamic_cast<source::ResurrectObj*>(behavior) != nullptr;
+        case source::BehaviorType::FxSystemWaitingEnd:
+            return dynamic_cast<source::FxSystemWaitingEnd*>(behavior) != nullptr;
+        case source::BehaviorType::FxSystemSrcSpeed:
+            return dynamic_cast<source::FxSystemSrcSpeed*>(behavior) != nullptr;
+        case source::BehaviorType::LowLifePoints:
+            return dynamic_cast<source::LowLifePoints*>(behavior) != nullptr;
+        case source::BehaviorType::DamageEffect:
+            return dynamic_cast<source::DamageEffect*>(behavior) != nullptr;
+        case source::BehaviorType::DeathEffect:
+            return dynamic_cast<source::DeathEffect*>(behavior) != nullptr;
+        case source::BehaviorType::LifeEffect:
+            return dynamic_cast<source::LifeEffect*>(behavior) != nullptr;
+        case source::BehaviorType::SlowEffect:
+            return dynamic_cast<source::SlowEffect*>(behavior) != nullptr;
+        case source::BehaviorType::PxWheelSlipEffect:
+            return dynamic_cast<source::PxWheelSlipEffect*>(behavior) != nullptr;
+        case source::BehaviorType::ShotEffect:
+            return dynamic_cast<source::ShotEffect*>(behavior) != nullptr;
+        case source::BehaviorType::ImmortalEffect:
+            return dynamic_cast<source::ImmortalEffect*>(behavior) != nullptr;
+        case source::BehaviorType::SoundMotor:
+            return dynamic_cast<source::SoundMotor*>(behavior) != nullptr;
+        case source::BehaviorType::GusenizaAnim:
+            return dynamic_cast<source::GusenizaAnim*>(behavior) != nullptr;
+        case source::BehaviorType::PodushkaAnim:
+            return dynamic_cast<source::PodushkaAnim*>(behavior) != nullptr;
+        }
+        return false;
+    };
+    for (std::size_t index = 0U; index < 15U; ++index)
+    {
+        const auto type = static_cast<source::BehaviorType>(index);
+        auto& behavior = factoryOwner.GetBehaviors().Add(type);
+        if (!matchesFactoryType(type, &behavior) ||
+            behavior.GetOwner() != &factoryOwner.GetBehaviors() ||
+            behavior.GetGameObj() != &factoryOwner)
+            return 105;
+    }
+    if (factoryOwner.GetBehaviors().GetCount() != 15U ||
+        factoryOwner.GetListenerCount() != 15U)
+        return 106;
+    factoryOwner.GetBehaviors().Clear();
+    if (factoryOwner.GetListenerCount() != 0U)
+        return 107;
 
     source::GameObject behaviorOwner;
     behaviorOwner.ResetGameObject(20.0F);

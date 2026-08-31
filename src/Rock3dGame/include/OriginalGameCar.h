@@ -460,6 +460,7 @@ public:
     using Mix = SoundMotorMix;
 
     SoundMotor() noexcept;
+    explicit SoundMotor(Behaviors* owner) noexcept;
     SoundMotor(Behaviors* owner, GameCar* car) noexcept;
     SoundMotor(const SoundMotor& other) noexcept;
     SoundMotor& operator=(const SoundMotor& other) noexcept;
@@ -493,6 +494,7 @@ public:
     using ProgressResult = WheelSlipProgress;
 
     PxWheelSlipEffect() noexcept;
+    explicit PxWheelSlipEffect(Behaviors* owner) noexcept;
     PxWheelSlipEffect(
         Behaviors* owner, CarWheel* wheel,
         std::size_t effect) noexcept;
@@ -500,6 +502,7 @@ public:
     PxWheelSlipEffect& operator=(const PxWheelSlipEffect& other);
 
     void OnProgress(float deltaTime) noexcept override;
+    void BindWheel(CarWheel* wheel, std::size_t effect) noexcept;
     void Reset() noexcept;
     void Configure(
         const ObjectDefinition* definition,
@@ -624,6 +627,7 @@ public:
     static constexpr float trackLength = 5.0F;
 
     GusenizaAnim() noexcept;
+    explicit GusenizaAnim(Behaviors* owner) noexcept;
     GusenizaAnim(
         Behaviors* owner, CarAnimationChild* child) noexcept;
     GusenizaAnim(const GusenizaAnim& other) noexcept;
@@ -644,6 +648,7 @@ public:
     static constexpr float minimumWheelSpeed = 1.0F;
 
     PodushkaAnim() noexcept;
+    explicit PodushkaAnim(Behaviors* owner) noexcept;
     PodushkaAnim(
         Behaviors* owner, CarAnimationChild* child,
         int targetTag = 0) noexcept;

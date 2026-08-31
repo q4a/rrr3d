@@ -1,8 +1,10 @@
 #include "OriginalGameObject.h"
 
+#include "OriginalGameCar.h"
 #include "OriginalLogic.h"
 #include "OriginalMap.h"
 #include "OriginalMapObj.h"
+#include "OriginalWeapon.h"
 
 #include <algorithm>
 #include <array>
@@ -292,6 +294,47 @@ Behavior& Behaviors::Add(
         throw std::invalid_argument("Behavior listener insertion failed");
     }
     return result;
+}
+
+Behavior& Behaviors::Add(BehaviorType type)
+{
+    // Exact GameBase.cpp::Behaviors::InitClassList order. The portable
+    // collection performs the same type-to-concrete-class construction
+    // directly because the legacy lsl::ClassList serializer is not linked.
+    switch (type)
+    {
+    case BehaviorType::TouchDeath:
+        return Add<TouchDeath>(type);
+    case BehaviorType::ResurrectObj:
+        return Add<ResurrectObj>(type);
+    case BehaviorType::FxSystemWaitingEnd:
+        return Add<FxSystemWaitingEnd>(type);
+    case BehaviorType::FxSystemSrcSpeed:
+        return Add<FxSystemSrcSpeed>(type);
+    case BehaviorType::LowLifePoints:
+        return Add<LowLifePoints>(type);
+    case BehaviorType::DamageEffect:
+        return Add<DamageEffect>(type);
+    case BehaviorType::DeathEffect:
+        return Add<DeathEffect>(type);
+    case BehaviorType::LifeEffect:
+        return Add<LifeEffect>(type);
+    case BehaviorType::SlowEffect:
+        return Add<SlowEffect>(type);
+    case BehaviorType::PxWheelSlipEffect:
+        return Add<PxWheelSlipEffect>(type);
+    case BehaviorType::ShotEffect:
+        return Add<ShotEffect>(type);
+    case BehaviorType::ImmortalEffect:
+        return Add<ImmortalEffect>(type);
+    case BehaviorType::SoundMotor:
+        return Add<SoundMotor>(type);
+    case BehaviorType::GusenizaAnim:
+        return Add<GusenizaAnim>(type);
+    case BehaviorType::PodushkaAnim:
+        return Add<PodushkaAnim>(type);
+    }
+    throw std::invalid_argument("unknown BehaviorType");
 }
 
 Behavior* Behaviors::Find(BehaviorType type) noexcept

@@ -568,9 +568,11 @@ void Proj::ConfigureDeathEffect(
     bool targetChild) noexcept
 {
     GetBehaviors().Clear();
-    deathEffect_ = &GetBehaviors().Add<DeathEffect>(
-        BehaviorType::DeathEffect,
-        effectPhysicsIgnoreSenderCar, targetChild);
+    deathEffect_ = &static_cast<DeathEffect&>(
+        GetBehaviors().Add(BehaviorType::DeathEffect));
+    deathEffect_->SetEffectPxIgnoreSenderCar(
+        effectPhysicsIgnoreSenderCar);
+    deathEffect_->SetTargetChild(targetChild);
 }
 
 DeathEffect::SpawnResult Proj::DestroyWithEffect(
@@ -2526,8 +2528,8 @@ Weapon& Weapon::operator=(Weapon&& other)
 void Weapon::BindSourceBehaviors()
 {
     GetBehaviors().Clear();
-    shotEffect_ = &GetBehaviors().Add<ShotEffect>(
-        BehaviorType::ShotEffect);
+    shotEffect_ = &static_cast<ShotEffect&>(
+        GetBehaviors().Add(BehaviorType::ShotEffect));
 }
 
 const ProjectileDefinition& Weapon::Desc::Front() const noexcept

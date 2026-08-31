@@ -6484,3 +6484,18 @@ SDL/Metal получают только готовый payload. Copy operations 
 копируют owner/child pointer, поэтому новая graph entry не ссылается на
 старый автомобиль. Tests проверяют source inheritance и concrete identity
 всех трёх найденных entries.
+
+### P2.295 — восстановлен Behaviors::InitClassList contract — выполнено
+
+После возврата concrete identity выяснилось, что portable collection всё ещё
+не имела исходного type factory: каждый caller вручную выбирал template C++
+class, а numeric serialized `BehaviorType` был только label. В Windows
+`Behaviors::InitClassList` один раз регистрирует точное отображение 0–14 и
+любой loader создаёт объект через эту таблицу.
+
+Добавлен общий `Behaviors::Add(BehaviorType)` с тем же порядком классов.
+Все активные source loaders переведены на factory; дополнительные flags,
+visual/sound records, wheel slot и targetTag применяются после создания и не
+меняют class selection. Regression материализует каждый type, проверяет его
+concrete RTTI/owner/listener identity и очищает всю коллекцию без остаточных
+callbacks.

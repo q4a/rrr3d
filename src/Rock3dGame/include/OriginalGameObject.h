@@ -152,6 +152,9 @@ public:
     Behaviors& operator=(const Behaviors&) = delete;
 
     Behavior& Add(BehaviorType type, std::unique_ptr<Behavior> value);
+    // Portable counterpart of GameBase::Behaviors::InitClassList. It creates
+    // the exact concrete source class registered for serialized type 0..14.
+    Behavior& Add(BehaviorType type);
     template<class _Behavior, class... _Args>
     _Behavior& Add(BehaviorType type, _Args&&... args)
     {
