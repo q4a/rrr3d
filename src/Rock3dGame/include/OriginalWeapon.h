@@ -718,6 +718,8 @@ public:
     ProjectileCollisionBox ComputeAABB(bool onlyModel) const noexcept;
     GameObject* GetSourceWeapon() const noexcept;
     GameObject* GetSourceTarget() const noexcept;
+    bool IsAttachedToSourceWeapon() const noexcept;
+    bool IsDetachedFromSourceWeapon() const noexcept;
     std::size_t GetSourcePlayerId() const noexcept;
     bool IsPrepared() const noexcept;
     void ConfigureDeathEffect(

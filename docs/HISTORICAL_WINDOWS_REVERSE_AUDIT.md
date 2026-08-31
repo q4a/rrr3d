@@ -6529,3 +6529,18 @@ refresh/connecting/empty/failure hints и точный IP `PushLine`. Transport
 оставляет owner-ам snapshot/callback input, bgfx/CoreText — presentation.
 Unit regression проверяет все ветви, integrated LAN smoke — lifecycle и
 failure/ready transitions.
+
+### P2.298 — projectile attachment identity возвращена Proj — выполнено
+
+Оригинальный `Proj` не хранит внешние `attached/detached` flags. Attachment
+следует из конкретного projectile route и `_weapon`; callback `OnDestroy`
+для linked Hyper/Laser/Spring/Frost вызывает Death, а для unlinked
+Fire/Drobilka очищает weapon pointer и оставляет actor жить с последней
+скоростью. Portable session параллельно хранила два bool и вручную меняла их
+при освобождении машины.
+
+Mirrors удалены. Concrete `Proj` публикует derived attachment identity, а
+session/renderer используют её для progress branch, Jolt body mode/gravity,
+direction and beam presentation. Regression отдельно уничтожает linked Laser
+и unlinked Drobilka weapon: первый мёртв и не detached, второй жив и detached.
+Jolt остаётся владельцем только actor state/contact snapshots.

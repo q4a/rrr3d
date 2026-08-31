@@ -197,6 +197,8 @@ int main()
         linkedProjectile.GetDesc().type != 3U ||
         linkedProjectile.GetSourceWeapon() != &sourceWeapon ||
         linkedProjectile.GetSourceTarget() != &sourceTarget ||
+        !linkedProjectile.IsAttachedToSourceWeapon() ||
+        linkedProjectile.IsDetachedFromSourceWeapon() ||
         linkedProjectile.GetSourcePlayerId() != 7U ||
         !linkedProjectile.GetIgnoreContactProj() ||
         linkedProjectile.GetParent() != &sourceWeapon ||
@@ -296,6 +298,8 @@ int main()
         return 66;
     sourceWeapon.DestroyObject();
     if (linkedProjectile.GetSourceWeapon() != nullptr ||
+        linkedProjectile.IsAttachedToSourceWeapon() ||
+        linkedProjectile.IsDetachedFromSourceWeapon() ||
         linkedProjectile.GetParent() != nullptr ||
         linkedProjectile.GetLiveState() !=
             source::GameObject::LiveState::Death)
@@ -316,6 +320,8 @@ int main()
         return 110;
     mineSourceWeapon.DestroyObject();
     if (unlinkedProjectile.GetSourceWeapon() != nullptr ||
+        unlinkedProjectile.IsAttachedToSourceWeapon() ||
+        unlinkedProjectile.IsDetachedFromSourceWeapon() ||
         unlinkedProjectile.GetParent() != nullptr ||
         unlinkedProjectile.GetLiveState() ==
             source::GameObject::LiveState::Death)
@@ -357,6 +363,15 @@ int main()
     drobilkaProjectile.ProgressDrobilka(0.3F);
     if (drobilkaProjectile.GetSourceModel() != nullptr)
         return 123;
+    if (!drobilkaProjectile.IsAttachedToSourceWeapon() ||
+        drobilkaProjectile.IsDetachedFromSourceWeapon())
+        return 203;
+    drobilkaWeapon.DestroyObject();
+    if (drobilkaProjectile.IsAttachedToSourceWeapon() ||
+        !drobilkaProjectile.IsDetachedFromSourceWeapon() ||
+        drobilkaProjectile.GetLiveState() ==
+            source::GameObject::LiveState::Death)
+        return 204;
 
     source::Weapon rotatedDrobilkaWeapon;
     rotatedDrobilkaWeapon.SetRot(

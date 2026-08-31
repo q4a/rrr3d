@@ -376,17 +376,11 @@ struct ProjectileRuntime
     Vec3 direction{1.0F, 0.0F, 0.0F};
     Vec3 velocity;
     Quat rotation;
-    bool attached = false;
     // Headless/session fallback invokes Race::OnFixedStep inside the frame
     // update after World::Progress has already run. A projectile created by
     // that callback must not receive its first Proj progress pass until the
     // next frame, matching World fixed-step -> PhysX Compute ordering.
     bool deferProgressOnce = false;
-    // Fire and Drobilka follow the weapon without SetParent.  Proj::OnDestroy
-    // clears their weapon pointer but does not kill the projectile actor, so
-    // it continues with its last PhysX velocity instead of following a new
-    // car after respawn.
-    bool detachedFromWeapon = false;
     // PhysX can report the shooter's car after a free projectile has left
     // its launch overlap (for example a reflected ptThunder).  The portable
     // vehicle box is coarser than the source shapes, so arm that contact only

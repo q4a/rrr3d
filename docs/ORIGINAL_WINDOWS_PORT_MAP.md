@@ -1454,6 +1454,18 @@ state, а bgfx/CoreText читают готовые rows/status. 420-frame LAN r
 проходит Create→Local, Client→LAN/IP, close/cancel, host ready gate и failure
 callback.
 
+Результат B8cs: из `ProjectileRuntime` удалены последние два gameplay mirrors
+связи с оружием — `attached` и `detachedFromWeapon`. В original это не поля
+session: attached определяется type route и живым `Proj::_weapon`, а
+`Proj::OnDestroy` либо убивает linked projectile, либо очищает `_weapon` и
+оставляет Fire/Drobilka PhysX actor двигаться с последней скоростью.
+
+`Proj::IsAttachedToSourceWeapon/IsDetachedFromSourceWeapon` теперь являются
+единым источником для progress dispatch, Jolt kinematic/dynamic/gravity
+commands, direction sync, renderer beam/impact и regressions. Jolt runtime
+хранит только body id/pose/contact cache; при respawn он исполняет source
+detach transition без второго bool-state.
+
 Каждый крупный block commit обязан:
 
 1. назвать точные методы из `eff9338:prog`, которые стали активными;

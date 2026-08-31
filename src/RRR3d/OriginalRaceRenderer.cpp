@@ -4842,7 +4842,9 @@ void OriginalRaceRenderer::draw(
         const auto sourceParent = parent;
         const auto& laserVisual =
             projectile.sourceObject->GetLaserVisualState();
-        if (projectile.attached &&
+        const bool sourceAttached =
+            projectile.sourceObject->IsAttachedToSourceWeapon();
+        if (sourceAttached &&
             (definition.type == 3U || definition.type == 18U))
         {
             const float distance =
@@ -4870,7 +4872,7 @@ void OriginalRaceRenderer::draw(
             nullptr, 1.0F,
             std::numeric_limits<float>::infinity(),
             laserVisual.valid ? laserVisual.textureScale : 1.0F);
-        if (projectile.attached)
+        if (sourceAttached)
         {
             const float distance =
                 std::max(

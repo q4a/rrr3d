@@ -1926,7 +1926,8 @@ void OriginalRaceSession::releaseRacerProjectileReferences(
             projectile.active = false;
             continue;
         }
-        if (projectile.attached)
+        if (projectile.sourceObject != nullptr &&
+            projectile.sourceObject->IsDetachedFromSourceWeapon())
         {
             // Proj::OnDestroy releases the mounted weapon pointer but keeps
             // the PhysX actor alive.  Recreate the portable actor as dynamic
@@ -1936,8 +1937,6 @@ void OriginalRaceSession::releaseRacerProjectileReferences(
             projectile.physicsBodyId =
                 r3d::physics::invalidProjectileBodyId;
             projectile.physicsContacts.clear();
-            projectile.attached = false;
-            projectile.detachedFromWeapon = true;
             queueProjectileBodyCreate(projectile);
         }
     }
@@ -2992,7 +2991,10 @@ void OriginalRaceSession::synchronizeProjectilePhysics(
             // contacts, lifetime recovery and renderer snapshots.
             publishRuntimePoseToSource(*projectile);
             const float speed = length3(projectile->velocity);
-            if (!projectile->attached && speed > 0.0001F)
+            if ((projectile->sourceObject == nullptr ||
+                 !projectile->sourceObject
+                      ->IsAttachedToSourceWeapon()) &&
+                speed > 0.0001F)
                 projectile->direction = normalized3(projectile->velocity);
             continue;
         }
@@ -3771,7 +3773,6 @@ ProjectileRuntime OriginalRaceSession::buildWeaponProjectileRuntime(
     runtime.sourceObject = &sourceObject;
 
     const auto route = sourceObject.RoutePreparation();
-    runtime.attached = route.attached;
     if (route.attached && projectile.type == 14U &&
         owner < vehicles.size())
     {
@@ -3846,11 +3847,15 @@ void OriginalRaceSession::queueProjectileBodyCreate(
     command.body.mass = std::max(source.mass, 0.001F);
     const bool ballistic =
         projectile.sourceObject->RoutePreparation().ballistic;
+    const bool attached =
+        projectile.sourceObject->IsAttachedToSourceWeapon();
+    const bool detached =
+        projectile.sourceObject->IsDetachedFromSourceWeapon();
     command.body.gravityFactor =
-        ballistic || projectile.detachedFromWeapon
+        ballistic || detached
             ? 1.0F : 0.0F;
-    command.body.dynamic = !projectile.attached;
-    command.body.kinematic = projectile.attached;
+    command.body.dynamic = !attached;
+    command.body.kinematic = attached;
     command.body.sensor = true;
     projectileBodyCommands_.push_back(command);
 }
@@ -3871,8 +3876,11 @@ void OriginalRaceSession::queueProjectileBodySynchronize(
     const bool ballistic =
         projectile.sourceObject != nullptr &&
         projectile.sourceObject->RoutePreparation().ballistic;
+    const bool detached =
+        projectile.sourceObject != nullptr &&
+        projectile.sourceObject->IsDetachedFromSourceWeapon();
     command.body.gravityFactor =
-        ballistic || projectile.detachedFromWeapon
+        ballistic || detached
             ? 1.0F : 0.0F;
     projectileBodyCommands_.push_back(command);
 }
@@ -4231,7 +4239,6 @@ bool OriginalRaceSession::prepareAiHyperAttack(
         runtimeProjectile.direction = sourceDirection;
         runtimeProjectile.rotation =
             attack.hyperProjectileTransform.rotation;
-        runtimeProjectile.attached = true;
         runtimeProjectile.sourceObject = sourceObject;
         projectiles_.push_back(std::move(runtimeProjectile));
         attack.hyperRuntimeMaterialized = true;
@@ -5466,7 +5473,7 @@ void OriginalRaceSession::updateGameplay(
             projectile.sourceObject->GetSourcePlayerId();
         const auto sourceProgressRoute =
             projectile.sourceObject->RouteProgress();
-        if (projectile.attached)
+        if (projectile.sourceObject->IsAttachedToSourceWeapon())
         {
             if (projectile.owner >= vehicles.size() ||
                 projectile.owner >= racers_.size())
@@ -5910,8 +5917,11 @@ void OriginalRaceSession::updateGameplay(
         if (!projectile.physicsBacked)
         {
             const float speed = length3(projectile.velocity);
+            const bool sourceWeaponDetached =
+                projectile.sourceObject
+                    ->IsDetachedFromSourceWeapon();
             const bool detachedGravity =
-                projectile.detachedFromWeapon &&
+                sourceWeaponDetached &&
                 sourceProgressRoute.handler ==
                     source::Proj::ProgressHandler::Drobilka;
             const bool ballistic =
@@ -5919,7 +5929,7 @@ void OriginalRaceSession::updateGameplay(
             if (ballistic || detachedGravity)
                 projectile.velocity.z -= 20.0F * seconds;
             const Vec3 movement =
-                (ballistic || projectile.detachedFromWeapon)
+                (ballistic || sourceWeaponDetached)
                     ? multiply(projectile.velocity, seconds)
                     : multiply(projectile.direction, speed * seconds);
             projectile.position = add(projectile.position, movement);
@@ -6796,7 +6806,6 @@ void OriginalRaceSession::updateGameplay(
             runtimeProjectile.position = projectileTransform.position;
             runtimeProjectile.direction = sourceDirection;
             runtimeProjectile.rotation = projectileTransform.rotation;
-            runtimeProjectile.attached = true;
             runtimeProjectile.sourceObject = sourceObject;
             preparedHyperProjectile.emplace(
                 std::move(runtimeProjectile));
@@ -13434,8 +13443,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                                    hyperdrive -
                                    race.weapons.begin()) &&
                            projectile.projectile == 0U &&
-                           projectile.attached &&
                            projectile.sourceObject != nullptr &&
+                           projectile.sourceObject
+                               ->IsAttachedToSourceWeapon() &&
                            sourceHyperItem != nullptr &&
                            sourcePrimaryItem != nullptr &&
                            sourceHyperItem->GetWeapon() !=
@@ -13661,7 +13671,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     return projectile.owner == 0U &&
                            projectile.weapon == drobilkaWeapon &&
                            projectile.projectile == 0U &&
-                           projectile.attached &&
+                           projectile.sourceObject != nullptr &&
+                           projectile.sourceObject
+                               ->IsAttachedToSourceWeapon() &&
                            projectile.active;
                 });
             if (activeDrobilka ==
@@ -14594,7 +14606,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     return projectile.owner == 0U &&
                            projectile.weapon == frostWeapon &&
                            projectile.projectile == 0U &&
-                           projectile.attached;
+                           projectile.sourceObject != nullptr &&
+                           projectile.sourceObject
+                               ->IsAttachedToSourceWeapon();
                 });
             if (sourceRay == frostSession.projectiles().end() ||
                 sourceRay->sourceObject == nullptr ||
@@ -14772,7 +14786,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     return projectile.owner == 0U &&
                            projectile.weapon == lifetimeWeapon &&
                            projectile.projectile == 0U &&
-                           projectile.attached;
+                           projectile.sourceObject != nullptr &&
+                           projectile.sourceObject
+                               ->IsAttachedToSourceWeapon();
                 };
             auto lifetimeRay = std::find_if(
                 lifetimeSession.projectiles().begin(),

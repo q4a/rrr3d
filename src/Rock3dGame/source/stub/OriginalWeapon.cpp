@@ -529,6 +529,16 @@ ProjectileCollisionBox Proj::ComputeAABB(bool onlyModel) const noexcept
 
 GameObject* Proj::GetSourceWeapon() const noexcept { return weapon_; }
 GameObject* Proj::GetSourceTarget() const noexcept { return target_; }
+bool Proj::IsAttachedToSourceWeapon() const noexcept
+{
+    return prepared_ && !destroyed &&
+           RoutePreparation().attached && weapon_ != nullptr;
+}
+bool Proj::IsDetachedFromSourceWeapon() const noexcept
+{
+    return prepared_ && !destroyed &&
+           RoutePreparation().attached && weapon_ == nullptr;
+}
 std::size_t Proj::GetSourcePlayerId() const noexcept { return playerId_; }
 bool Proj::IsPrepared() const noexcept { return prepared_; }
 
