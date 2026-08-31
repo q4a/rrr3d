@@ -6715,3 +6715,25 @@ Metal-заезд возвращает ожидаемую динамику и к�
 Адаптер теперь последовательно исполняет source callbacks над временной
 velocity и сворачивает результат в одну Jolt delta. Тест с двумя actor ids
 отличает исходную replacement-семантику от прежнего additive поведения.
+
+### P2.310 — восстановлены inertia и cubic tire model NxWheelShape — выполнено
+
+Сопоставление `eff9338` с bundled `NxWheelShape.h` подтвердило, что поле
+`inverseWheelMass` определяет скорость оси под torque, то есть является
+обратной rotational inertia. Порт ошибочно воспринимал его как обратную массу
+цилиндра и вычислял `0.5 * mass * radius^2`. Для штатного Marauder это меняло
+source inertia `10` на `0.922`, искажая разгон колёс, slip и звук резины.
+Jolt `WheelSettingsWV::mInertia` теперь получает прямое обратное значение.
+
+Одновременно перенесены ранее пропущенные `wheelFlags`,
+`suspension.targetValue`, longitudinal/lateral `NxTireFunctionDesc` и
+`stiffnessFactor`. Все сериализованные колёса имеют flag `64` —
+`NX_WF_CLAMPED_FRICTION`; поэтому точный `NxTireFunctionDesc::hermiteEval`
+исполняется в tire max-impulse callback, а не аппроксимируется тремя точками
+Jolt. Сохраняется source `Player::ApplyMobility`: установленные слоты заново
+суммируют tire coefficients и оставляют stiffness нулевым, который clamped
+model всё равно игнорирует.
+
+Регрессии проверяют raw db.xml descriptor и обе cubic ветви. Полная arm64
+приёмка прошла; 1800-frame заезд сохранил четыре контакта, скорость игрока
+`39.20` и движение всех пяти AI `39.00–41.81`.

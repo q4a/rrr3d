@@ -14,7 +14,8 @@ game-rule differences in the adapter; it does not retune the car by eye.
 | Reverse | `mcBack` brakes forward motion, then selects gear 0 and applies negative torque | Player brake input has a distinct `reverse` command; AI `brake` remains brake-only |
 | Brakes | `brakeTorque` and `restTorque` are per-wheel values | Full braking is preserved; only powered low-speed `restTorque` is omitted at the Jolt boundary because Jolt interprets it as a wheel lock |
 | Workshop tires | `tireSpring` is an overload cutoff in `MyContactModify`, not suspension stiffness | Workshop values no longer alter the coil spring; tire impulse is capped at 1.5g or released above the source cutoff |
-| Tire curves | Serialized longitudinal/lateral functions are used directly | Ground body friction is no longer multiplied into the tire curves |
+| Tire curves | `NxTireFunctionDesc::hermiteEval` supplies two cubic zero-tangent pieces; all game wheels use clamped friction | The max-impulse callback evaluates the exact source cubic from Jolt slip telemetry; ground friction and stiffness are not multiplied in |
+| Wheel inertia | `inverseWheelMass` is inverse axle rotational inertia | Jolt `mInertia` is `1 / inverseWheelMass`, without a synthetic cylinder/radius conversion |
 | Air behavior | With no wheel contact `JumpProgress` adds a second gravity acceleration and local pitch acceleration | The fixed-step adapter applies the same extra gravity and `flyYTorque` |
 | Stabilization | Local angular momentum uses `angDamping`; airborne roll/pitch momentum and pose are clamped | Equivalent local-axis damping and clamp limits run each fixed step |
 | Steering | `steerRot` requires a driven-wheel contact, or any contact when `gravEngine` is set | Contact eligibility, rear-wheel pivot and source yaw correction match that branch |

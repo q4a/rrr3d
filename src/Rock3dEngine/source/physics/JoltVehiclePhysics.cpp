@@ -815,6 +815,55 @@ SourceWheelNormalForce sourceWheelNormalForce(
     return result;
 }
 
+float sourceTireFunction(
+    const WheelDescription::TireFunction& tire, float slip) noexcept
+{
+    if (!std::isfinite(slip) || tire.extremumSlip <= 0.0F ||
+        tire.asymptoteSlip <= tire.extremumSlip ||
+        tire.extremumValue <= 0.0F || tire.asymptoteValue <= 0.0F)
+    {
+        return 0.0F;
+    }
+
+    // NxTireFunctionDesc::hermiteEval is part of the PhysX 2.8 contract
+    // used by the original game. Preserve the two zero-tangent cubic pieces
+    // instead of feeding Jolt a three-point linear approximation.
+    const float magnitude = std::abs(slip);
+    const float sign = slip >= 0.0F ? 1.0F : -1.0F;
+    float force = tire.asymptoteValue;
+    if (magnitude < tire.extremumSlip)
+    {
+        const float a = magnitude / tire.extremumSlip;
+        const float a2 = a * a;
+        const float a3 = a2 * a;
+        force = tire.extremumValue * (-a3 + a2 + a);
+    }
+    else if (magnitude < tire.asymptoteSlip)
+    {
+        const float a =
+            (magnitude - tire.extremumSlip) /
+            (tire.asymptoteSlip - tire.extremumSlip);
+        const float a2 = a * a;
+        const float a3 = a2 * a;
+        const float difference =
+            tire.asymptoteValue - tire.extremumValue;
+        force = -2.0F * difference * a3 +
+                3.0F * difference * a2 + tire.extremumValue;
+    }
+    return sign * force;
+}
+
+float sourceWheelInertia(float inverseWheelMass) noexcept
+{
+    // Despite its historical name, NxWheelShape::inverseWheelMass is the
+    // inverse rotational inertia used to integrate axle torque. Jolt asks
+    // for that inertia directly; treating it as a cylinder mass changes the
+    // original response by a factor that also depends on wheel radius.
+    return std::isfinite(inverseWheelMass) && inverseWheelMass > 0.0F
+               ? 1.0F / inverseWheelMass
+               : 1.0F;
+}
+
 class JoltVehicleWorld final : public OriginalVehicleWorld
 {
 public:
@@ -2589,16 +2638,16 @@ private:
             wheel->mWheelForward = JPH::Vec3::sAxisX();
             wheel->mSuspensionMinLength = 0.0F;
             wheel->mSuspensionMaxLength = sourceWheel.suspensionTravel;
+            // PhysX targetValue == 0 places the spring rest point at the tip
+            // of the suspension ray. Every serialized Motor Rock wheel uses
+            // that value, which is Jolt's zero-preload natural length.
+            wheel->mSuspensionPreloadLength = 0.0F;
             wheel->mSuspensionSpring = JPH::SpringSettings(
                 JPH::ESpringMode::StiffnessAndDamping,
                 sourceWheel.spring, sourceWheel.damper);
             wheel->mRadius = sourceWheel.radius;
             wheel->mWidth = sourceWheel.width;
-            const float wheelMass = sourceWheel.inverseMass > 0.0F
-                                        ? 1.0F / sourceWheel.inverseMass
-                                        : 10.0F;
-            wheel->mInertia =
-                0.5F * wheelMass * sourceWheel.radius * sourceWheel.radius;
+            wheel->mInertia = sourceWheelInertia(sourceWheel.inverseMass);
             // NxWheelShape has no equivalent of Jolt's built-in wheel
             // angular drag. Source rolling resistance comes from restTorque.
             wheel->mAngularDamping = 0.0F;
@@ -2619,15 +2668,18 @@ private:
                     lateral ? 180.0F / 3.14159265358979323846F
                             : 1.0F;
                 output.Clear();
-                output.Reserve(3);
-                output.AddPoint(0.0F, 0.0F);
-                output.AddPoint(input.extremumSlip * slipScale,
-                                input.extremumValue);
-                output.AddPoint(
-                    std::max(input.asymptoteSlip,
-                             input.extremumSlip) *
-                        slipScale,
-                    input.asymptoteValue);
+                constexpr int samples = 24;
+                output.Reserve(samples + 1);
+                for (int sample = 0; sample <= samples; ++sample)
+                {
+                    const float slip =
+                        input.asymptoteSlip *
+                        static_cast<float>(sample) /
+                        static_cast<float>(samples);
+                    output.AddPoint(
+                        slip * slipScale,
+                        std::abs(sourceTireFunction(input, slip)));
+                }
             };
             applyTire(wheel->mLongitudinalFriction,
                       sourceWheel.longitudinalTire, false);
@@ -2725,7 +2777,8 @@ private:
                 JPH::uint wheelIndex, float& longitudinal,
                 float& lateral, float suspensionImpulse,
                 float longitudinalFriction, float lateralFriction,
-                float, float, float deltaTime) {
+                float longitudinalSlip, float lateralSlip,
+                float deltaTime) {
                 auto& vehicle = vehicles_[vehicleIndexValue];
                 const auto& source = vehicle.spawn.vehicle;
                 const auto* wheel =
@@ -2767,6 +2820,27 @@ private:
                                 force.reaction > source.tireSpring;
                         }
                     }
+                }
+                constexpr std::uint32_t clampedFriction = 1U << 6U;
+                if (!vehicle.wheelTractionEnabled)
+                {
+                    longitudinalFriction = 0.0F;
+                    lateralFriction = 0.0F;
+                }
+                else if (wheelIndex < source.wheels.size() &&
+                    (source.wheels[wheelIndex].flags & clampedFriction) != 0U)
+                {
+                    // NX_WF_CLAMPED_FRICTION interprets hermiteEval directly
+                    // as mu and ignores stiffnessFactor. Jolt reports the
+                    // same longitudinal ratio and lateral angle (radians) to
+                    // this callback, so no curve approximation is required.
+                    longitudinalFriction = std::abs(sourceTireFunction(
+                        source.wheels[wheelIndex].longitudinalTire,
+                        longitudinalSlip));
+                    lateralFriction = std::abs(sourceTireFunction(
+                        source.wheels[wheelIndex].lateralTire,
+                        lateralSlip));
+                    lateralFriction *= vehicle.lateralGripScale;
                 }
                 longitudinal =
                     longitudinalFriction * allowedSuspensionImpulse;
@@ -3015,6 +3089,21 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
         releasedClutch.impulse != 0.0F)
     {
         error = "CarWheel::MyContactModify normal-force contract failed";
+        return false;
+    }
+    const WheelDescription::TireFunction hermiteTire{
+        1.0F, 6.5F, 3.0F, 6.4F, 0.0F};
+    if (std::abs(sourceTireFunction(hermiteTire, 0.5F) - 4.0625F) >
+            0.0001F ||
+        std::abs(sourceTireFunction(hermiteTire, 2.0F) - 6.45F) >
+            0.0001F ||
+        std::abs(sourceTireFunction(hermiteTire, 4.0F) - 6.4F) >
+            0.0001F ||
+        std::abs(sourceTireFunction(hermiteTire, -0.5F) + 4.0625F) >
+            0.0001F ||
+        std::abs(sourceWheelInertia(0.1F) - 10.0F) > 0.0001F)
+    {
+        error = "NxWheelShape tire curve/inverse inertia contract failed";
         return false;
     }
     const auto& selectedVehicle =

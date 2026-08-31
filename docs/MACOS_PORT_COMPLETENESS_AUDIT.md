@@ -2927,3 +2927,25 @@ contact batch и отправляет Jolt одну итоговую delta. Ре
 border actor identities проверяет точный source result и запрещает более
 одного velocity request. Это устраняет ещё один подтверждённый путь сильного
 отлёта/подбрасывания без изменения исходного spring-border алгоритма.
+
+### B8de — NxWheelShape inertia и tire Hermite contract — выполнено
+
+Полный аудит wheel descriptor обнаружил два оставшихся приближения раннего
+Jolt-адаптера. `NxWheelShape::inverseWheelMass` в исходном SDK является
+обратной инерцией вращения оси, но порт сначала обращал её как массу, а затем
+повторно вычислял инерцию цилиндра через радиус. Для Marauder это давало
+`0.922` вместо исходных `10` и более чем в десять раз ускоряло реакцию колеса
+на torque. Теперь Jolt `mInertia` получает ровно `1 / inverseWheelMass`.
+
+Загрузчик также терял `wheelFlags`, `suspension.targetValue` и обе
+`NxTireFunctionDesc`, а backend заменял source Hermite тремя линейными
+точками. Все 68 колёс штатной базы используют
+`NX_WF_CLAMPED_FRICTION`, поэтому callback теперь вычисляет оригинальные две
+кубические части `hermiteEval` непосредственно по slip; stiffness и материал
+земли, как в PhysX, не домножаются. Workshop `Player::ApplyMobility` остаётся
+владельцем итоговых tire coefficients и намеренно обнуляет stiffness.
+
+Parser regression закрепляет исходные значения Marauder, backend regression
+— значения обеих ветвей cubic spline и inertia `10`. Прошли arm64 build,
+32/32 CTest, physics smoke и 1800-frame Metal race: player `39.20`, пять AI
+`39.00–41.81`, четыре wheel contacts и полный render/audio/menu teardown.

@@ -3492,8 +3492,36 @@ Vehicle loadVehicle(const resource::ResourceFileSystem& resources,
             scalar(shape, "suspension/spring", source + "/wheel");
         wheel.damper =
             scalar(shape, "suspension/damper", source + "/wheel");
+        wheel.suspensionTarget =
+            scalar(shape, "suspension/targetValue", source + "/wheel");
         wheel.inverseMass =
             scalar(shape, "inverseWheelMass", source + "/wheel");
+        wheel.flags = static_cast<std::uint32_t>(
+            scalar(shape, "wheelFlags", source + "/wheel"));
+        const auto readTireFunction = [&](const char* name) {
+            r3d::physics::WheelDescription::TireFunction result;
+            const std::string prefix = std::string(name) + "/";
+            result.extremumSlip = scalar(
+                shape, (prefix + "extremumSlip").c_str(),
+                source + "/wheel");
+            result.extremumValue = scalar(
+                shape, (prefix + "extremumValue").c_str(),
+                source + "/wheel");
+            result.asymptoteSlip = scalar(
+                shape, (prefix + "asymptoteSlip").c_str(),
+                source + "/wheel");
+            result.asymptoteValue = scalar(
+                shape, (prefix + "asymptoteValue").c_str(),
+                source + "/wheel");
+            result.stiffnessFactor = scalar(
+                shape, (prefix + "stiffnessFactor").c_str(),
+                source + "/wheel");
+            return result;
+        };
+        wheel.longitudinalTire =
+            readTireFunction("longitudalTireForceFunction");
+        wheel.lateralTire =
+            readTireFunction("lateralTireForceFunction");
         wheel.driven = boolean(item, "lead", source + "/wheel");
         wheel.steering = boolean(item, "steer", source + "/wheel");
         std::vector<WheelSlipEffectDefinition> slipBehaviors;
@@ -7013,6 +7041,7 @@ bool runOriginalRaceResourceSmokeTest(
         const auto* gusenizaBoss = vehicleNamed("gusenizaBoss");
         const auto* podushka = vehicleNamed("podushka");
         const auto* podushkaBoss = vehicleNamed("podushkaBoss");
+        const auto* rawMarauder = vehicleNamed("marauder");
         const auto trackMatchesSource = [&](const Vehicle* vehicle) {
             return vehicle != nullptr &&
                    vehicle->trackVisuals.size() == 1U &&
@@ -7292,6 +7321,19 @@ bool runOriginalRaceResourceSmokeTest(
             // wheel1 adds a 2g tire-reaction cutoff, not coil stiffness.
             !near(physics.vehicle.wheels[0].spring, 140000.0F) ||
             !near(physics.vehicle.wheels[0].damper, 1000.0F) ||
+            rawMarauder == nullptr ||
+            rawMarauder->physics.wheels.empty() ||
+            !near(rawMarauder->physics.wheels[0].suspensionTarget, 0.0F) ||
+            !near(rawMarauder->physics.wheels[0].inverseMass, 0.1F) ||
+            rawMarauder->physics.wheels[0].flags != 64U ||
+            !near(rawMarauder->physics.wheels[0]
+                      .longitudinalTire.extremumSlip, 1.0F) ||
+            !near(rawMarauder->physics.wheels[0]
+                      .longitudinalTire.extremumValue, 0.02F) ||
+            !near(rawMarauder->physics.wheels[0]
+                      .lateralTire.asymptoteSlip, 2.0F) ||
+            !near(rawMarauder->physics.wheels[0]
+                      .lateralTire.stiffnessFactor, 1000000.0F) ||
             !near(physics.vehicle.tireSpring, 2.0F) ||
             !physics.vehicle.wheels[0].driven ||
             !physics.vehicle.wheels[0].steering ||

@@ -1620,6 +1620,21 @@ Source owner геометрии rebound, порогов `16/4/14` и tangent о�
 Regression с двумя отдельными border actors фиксирует один request и точную
 скорость, которую дал бы последовательный PhysX callback.
 
+Результат B8de: завершён перенос сериализованного `NxWheelShapeDesc`.
+`inverseWheelMass` больше не трактуется как масса условного цилиндра:
+согласно исходному SDK это inverse axle inertia, поэтому Jolt получает
+`mInertia = 1 / inverseWheelMass`. Для Marauder исправлено `0.922 -> 10`, что
+возвращает исходное отношение torque к angular acceleration.
+
+Загрузчик теперь сохраняет `suspension.targetValue`, `wheelFlags`, обе
+`NxTireFunctionDesc` и stiffness. Вся игровая база использует flag 64
+`NX_WF_CLAMPED_FRICTION`; активный max-impulse boundary вычисляет точную
+двухчастную кубическую `NxTireFunctionDesc::hermiteEval` по longitudinal ratio
+и lateral angle, игнорируя stiffness и ground material ровно как PhysX.
+Исходный `Player::ApplyMobility` остаётся владельцем итоговых коэффициентов
+после установки workshop slots. Parser/backend regressions и полный
+build/CTest/physics/1800-frame Metal набор прошли.
+
 Каждый крупный block commit обязан:
 
 1. назвать точные методы из `eff9338:prog`, которые стали активными;

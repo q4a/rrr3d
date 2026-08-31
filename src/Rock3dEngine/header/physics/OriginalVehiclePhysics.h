@@ -93,6 +93,7 @@ struct WheelDescription
         float extremumValue = 0.0F;
         float asymptoteSlip = 0.0F;
         float asymptoteValue = 0.0F;
+        float stiffnessFactor = 0.0F;
     };
 
     Vec3 position;
@@ -101,7 +102,9 @@ struct WheelDescription
     float suspensionTravel = 0.0F;
     float spring = 0.0F;
     float damper = 0.0F;
+    float suspensionTarget = 0.0F;
     float inverseMass = 0.0F;
+    std::uint32_t flags = 0U;
     bool driven = false;
     bool steering = false;
     TireFunction longitudinalTire;

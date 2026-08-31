@@ -63,6 +63,9 @@ void addTire(const MobilityItem::Tire& input,
     output.extremumValue += input.extremumValue;
     output.asymptoteSlip += input.asymptoteSlip;
     output.asymptoteValue += input.asymptoteValue;
+    // Player::ApplyMobility deliberately zeroes stiffnessFactor and never
+    // restores it. NX_WF_CLAMPED_FRICTION makes that field inactive.
+    output.stiffnessFactor = 0.0F;
 }
 
 } // namespace
