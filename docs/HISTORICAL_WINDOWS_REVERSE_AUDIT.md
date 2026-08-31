@@ -6226,3 +6226,16 @@ read-only session boundary, а новый race/reset возвращает исх
 первое дублировало `WeaponItem::GetCurCharge`, второе нигде не включалось и
 создавало отсутствующую в Windows throttle-ветвь. Полные 32 CTest и active
 Jolt/Metal smoke подтверждают owner/order.
+### P2.277 — live weapon charge возвращён только в WeaponItem — выполнено
+
+После P2.276 прямое сравнение `WeaponItem::{Load,Shot,Reload,GetCurCharge,
+GetCntCharge}` подтвердило второй слой зеркал. Portable `WeaponItem` уже
+хранил source `_curCharge/_cntCharge`, но `Player` публично сохранял ещё
+шесть staging-полей; после bind они становились stale.
+
+Введён одноразовый `Player::WeaponLoadout` для profile/roster import.
+`BindWeaponItems` копирует его значения в concrete primary/hyper/mine items
+и сохраняет только record indices, нужные renderer/network adapters. Все
+живые изменения charge принадлежат WeaponItem. Player, Weapon, lifecycle и
+integrated race regressions переведены на этот owner; 32 CTest, resources,
+Jolt и Metal smoke прошли.

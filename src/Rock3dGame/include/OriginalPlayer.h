@@ -387,8 +387,22 @@ public:
     void FreeCar(bool freeState) noexcept;
     void OnLapPass(std::size_t weaponDefinitionCount) noexcept;
     void ReloadWeapons(std::size_t weaponDefinitionCount) noexcept;
+    struct WeaponLoadout
+    {
+        std::array<std::size_t, weaponSlotCount> primary{
+            invalidWeapon, invalidWeapon, invalidWeapon, invalidWeapon};
+        std::array<std::uint32_t, weaponSlotCount> primaryCountCharge{};
+        std::array<std::uint32_t, weaponSlotCount> primaryCurrentCharge{};
+        std::size_t hyper = invalidWeapon;
+        std::uint32_t hyperCountCharge = 0U;
+        std::uint32_t hyperCurrentCharge = 0U;
+        std::size_t mine = invalidWeapon;
+        std::uint32_t mineCountCharge = 0U;
+        std::uint32_t mineCurrentCharge = 0U;
+    };
     void BindWeaponItems(
-        std::span<const WeaponDefinition> definitions) noexcept;
+        std::span<const WeaponDefinition> definitions,
+        const WeaponLoadout& loadout) noexcept;
     std::array<WeaponItem*, weaponSlotCount>
         GetPrimaryWeaponItems() noexcept;
     std::array<const WeaponItem*, weaponSlotCount>
@@ -518,15 +532,9 @@ public:
     static std::uint32_t BonusCharge(
         std::uint32_t maximumCharge, float value) noexcept;
 
-    std::uint32_t mines = 0;
-    std::uint32_t mineCapacity = 0;
     std::array<std::size_t, weaponSlotCount> weaponSlots{
         invalidWeapon, invalidWeapon, invalidWeapon, invalidWeapon};
-    std::array<std::uint32_t, weaponSlotCount> weaponCharges{};
-    std::array<std::uint32_t, weaponSlotCount> weaponCapacity{};
     std::size_t hyperWeapon = invalidWeapon;
-    std::uint32_t hyperCharge = 0;
-    std::uint32_t hyperCapacity = 0;
     std::size_t mineWeapon = invalidWeapon;
     std::uint32_t rewardMoney = 0;
     std::uint32_t rewardPoints = 0;

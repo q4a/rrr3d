@@ -2587,3 +2587,11 @@ build/macos-arm64-m10/Debug/RRR3d.app/Contents/MacOS/RRR3d \
 исходный constructor state current=0. Regression проверяет source
 next/previous, сохранение selection после direct shot, ShotAll, charge и
 полный active race path.
+### B8bx — profile loadout не дублирует live WeaponItem charge — выполнено
+
+Шесть публичных charge/capacity полей `Player` удалены. Импорт профиля,
+roster и default weapon catalog создаёт transient `Player::WeaponLoadout`,
+который один раз передаётся `BindWeaponItems`. После этого live charge и
+reload capacity принадлежат только concrete `WeaponItem`; HUD, AI, bonuses,
+shots и profile save уже читают его getters. Покрыты primary, hyper, mine,
+Droid, Reflector, ammunition и lap reload paths.

@@ -756,12 +756,13 @@ int main()
         {firstDroidRecord, secondDroidRecord},
         {{firstDroidRecord.record, "stWeapon1", 1U},
          {secondDroidRecord.record, "stWeapon2", 1U}});
-    supportPlayer.weaponSlots[0] = 0U;
-    supportPlayer.weaponSlots[1] = 1U;
-    supportPlayer.weaponCapacity[0] = 1U;
-    supportPlayer.weaponCapacity[1] = 1U;
-    supportPlayer.weaponCharges[0] = 1U;
-    supportPlayer.weaponCharges[1] = 1U;
+    source::Player::WeaponLoadout supportLoadout;
+    supportLoadout.primary[0] = 0U;
+    supportLoadout.primary[1] = 1U;
+    supportLoadout.primaryCountCharge[0] = 1U;
+    supportLoadout.primaryCountCharge[1] = 1U;
+    supportLoadout.primaryCurrentCharge[0] = 1U;
+    supportLoadout.primaryCurrentCharge[1] = 1U;
     std::array<r3d::game::originalrace::WeaponDefinition, 2U>
         droidDefinitions{};
     for (auto& definition : droidDefinitions)
@@ -772,7 +773,7 @@ int main()
         definition.reloadCharge = 1U;
         definition.repairPeriod = 1.0F;
     }
-    supportPlayer.BindWeaponItems(droidDefinitions);
+    supportPlayer.BindWeaponItems(droidDefinitions, supportLoadout);
     supportPlayer.SetLife(80.0F);
     supportPlayer.CreateCar(true);
     auto* firstDroid = dynamic_cast<source::DroidItem*>(
@@ -804,12 +805,13 @@ int main()
         {firstReflectorRecord, secondReflectorRecord},
         {{firstReflectorRecord.record, "stWeapon1", 1U},
          {secondReflectorRecord.record, "stWeapon3", 1U}});
-    damagePlayer.weaponSlots[0] = 0U;
-    damagePlayer.weaponSlots[2] = 1U;
-    damagePlayer.weaponCapacity[0] = 1U;
-    damagePlayer.weaponCapacity[2] = 1U;
-    damagePlayer.weaponCharges[0] = 1U;
-    damagePlayer.weaponCharges[2] = 1U;
+    source::Player::WeaponLoadout reflectorLoadout;
+    reflectorLoadout.primary[0] = 0U;
+    reflectorLoadout.primary[2] = 1U;
+    reflectorLoadout.primaryCountCharge[0] = 1U;
+    reflectorLoadout.primaryCountCharge[2] = 1U;
+    reflectorLoadout.primaryCurrentCharge[0] = 1U;
+    reflectorLoadout.primaryCurrentCharge[2] = 1U;
     std::array<r3d::game::originalrace::WeaponDefinition, 2U>
         reflectorDefinitions{};
     for (auto& definition : reflectorDefinitions)
@@ -821,7 +823,8 @@ int main()
     }
     reflectorDefinitions[0].reflectValue = 0.4F;
     reflectorDefinitions[1].reflectValue = 0.9F;
-    damagePlayer.BindWeaponItems(reflectorDefinitions);
+    damagePlayer.BindWeaponItems(
+        reflectorDefinitions, reflectorLoadout);
     if (std::abs(source::Logic::ResolveDamage(
                      &damagePlayer, 100.0F,
                      r3d::game::originalrace::DamageType::Simple) -

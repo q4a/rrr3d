@@ -67,7 +67,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `Menu` | `originalmenu::MenuSystem` + source Main/Profile/Dialog/Options/Race/Finish/Final owners | Source owner, frame core | Завершить concrete network callbacks; bgfx/CoreText/SDL остаются backend boundary |
 | `MenuSystem` | `originalmenu::{MenuSystem,ScreenStack,FrameState}` | Source owner, active menu path | Подключить concrete navigation graphs; bgfx остаётся draw executor |
 | `OptionsMenu` | `originaloptions::{OptionsMenuState,StartOptionsMenuState}` + backend visuals | Source owner, active options path | Legacy Widget events заменены SDL input, CoreText и bgfx draw submission |
-| `Player` | `source::Player`, `CarState`, behaviors, `PresentationState` | Source owner, active gameplay/presentation/live-car/trace path | `CarState` единолично владеет tile/node/lap/wrong-way/map position; weapon items владеют charge, а выбор primary принадлежит HumanPlayer; bgfx/Jolt исполняют graph/actor commands, остаётся аудит profile bridges |
+| `Player` | `source::Player`, `CarState`, behaviors, `PresentationState` | Source owner, active gameplay/presentation/live-car/trace path | `CarState` владеет trace state, concrete `WeaponItem` — live charge, `HumanPlayer` — primary selection; profile/import передаёт одноразовый `WeaponLoadout`, bgfx/Jolt исполняют graph/actor commands |
 | `Race` | `OriginalRace`, `source::{RaceRunState,RaceLifecycle,RacePlaceModel}`, session adapter, tournament on shared World | Source owner, active fixed/late/finish/settlement lifecycle | `CompleteRace` Player publication, picked-money reset, block, campaign reward, tournament/pass-reset source-owned; продолжить вынос physics/contact materialization из session |
 | `RaceMenu2` | `originalracemenu::{RaceMenuState,RaceMainFrameState,GamersFrameState,GarageFrameState,WorkshopFrameState,SpaceshipFrameState,AngarFrameState,AchievementFrameState}` | Source owner, all six offline frame paths | Проверить оставшиеся network callbacks и оставить bgfx/CoreText backend boundary |
 | `RecordLib` | `source::{MapObjRecordLibrary,MapObjRecordNode,MapObjRecord}` | Source owner, active hierarchy | Editor-only mutation/serialization API не входит в пользовательский runtime |
@@ -1198,6 +1198,17 @@ AI могли менять HUD selection, а dead boost-ветвь могла п
 подменять throttle. Reset session восстанавливает constructor `_curWeapon=0`.
 Regression закрепляет next/previous, direct-slot selection preservation,
 ShotAll, AI/network slot execution и live WeaponItem charge.
+
+Результат B8bx: завершён соседний profile/loadout bridge. Удалены публичные
+`Player::{weaponCharges,weaponCapacity,hyperCharge,hyperCapacity,mines,
+mineCapacity}` — после первоначального `BindWeaponItems` они не обновлялись и
+образовывали ложную вторую копию `_curCharge/_cntCharge`.
+
+Profile, roster и default catalog теперь строят одноразовый
+`Player::WeaponLoadout`. `BindWeaponItems` атомарно переносит из него record
+indices и начальные charge в concrete `WeaponItem`; дальше bonus, Shot,
+Reload, HUD, AI и profile save читают только source item. Regression
+проверяет primary/hyper/mine, Droid/Reflector, reload и ammunition order.
 
 ## Правило обновления карты
 

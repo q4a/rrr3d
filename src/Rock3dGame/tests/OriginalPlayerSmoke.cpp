@@ -441,9 +441,10 @@ int main()
         {droidRecord, hyperRecord},
         {{droidRecord.record, "stWeapon1", 1U},
          {hyperRecord.record, "stHyper", 1U}});
-    player.weaponSlots[0] = 0U;
-    player.weaponCapacity[0] = 1U;
-    player.weaponCharges[0] = 1U;
+    source::Player::WeaponLoadout droidLoadout;
+    droidLoadout.primary[0] = 0U;
+    droidLoadout.primaryCountCharge[0] = 1U;
+    droidLoadout.primaryCurrentCharge[0] = 1U;
     std::array<r3d::game::originalrace::WeaponDefinition, 1U>
         droidDefinitions{};
     droidDefinitions[0].itemType =
@@ -452,7 +453,7 @@ int main()
     droidDefinitions[0].reloadCharge = 1U;
     droidDefinitions[0].repairValue = 17.0F;
     droidDefinitions[0].repairPeriod = 0.1F;
-    player.BindWeaponItems(droidDefinitions);
+    player.BindWeaponItems(droidDefinitions, droidLoadout);
     auto* droidSlot = player.GetSlotInst(source::SlotType::Droid);
     auto* droid = droidSlot == nullptr
                       ? nullptr
@@ -524,15 +525,17 @@ int main()
         return 66;
     player.SetSlot(source::PlayerSlotType::Weapon1, nullptr);
 
-    player.weaponSlots = {2U, source::Player::invalidWeapon, 4U, 5U};
-    player.weaponCapacity = {6U, 0U, 3U, 2U};
-    player.weaponCharges = {1U, 0U, 0U, 1U};
-    player.hyperWeapon = 0U;
-    player.hyperCapacity = 2U;
-    player.hyperCharge = 0U;
-    player.mineWeapon = 1U;
-    player.mineCapacity = 4U;
-    player.mines = 1U;
+    source::Player::WeaponLoadout playerLoadout;
+    playerLoadout.primary = {
+        2U, source::Player::invalidWeapon, 4U, 5U};
+    playerLoadout.primaryCountCharge = {6U, 0U, 3U, 2U};
+    playerLoadout.primaryCurrentCharge = {1U, 0U, 0U, 1U};
+    playerLoadout.hyper = 0U;
+    playerLoadout.hyperCountCharge = 2U;
+    playerLoadout.hyperCurrentCharge = 0U;
+    playerLoadout.mine = 1U;
+    playerLoadout.mineCountCharge = 4U;
+    playerLoadout.mineCurrentCharge = 1U;
 
     const std::vector<std::uint32_t> maximumCharges{
         10U, 8U, 6U, 4U, 3U, 2U};
@@ -546,7 +549,7 @@ int main()
         playerWeaponDefinitions[index].reloadCharge =
             maximumCharges[index];
     }
-    player.BindWeaponItems(playerWeaponDefinitions);
+    player.BindWeaponItems(playerWeaponDefinitions, playerLoadout);
     const auto firstWeaponItems = player.GetPrimaryWeaponItems();
     const auto secondWeaponItems = player.GetPrimaryWeaponItems();
     if (firstWeaponItems[0] == nullptr ||
@@ -568,15 +571,13 @@ int main()
         0.5F, maximumCharges, 0.0F);
     if (hyper.slot != source::PlayerBonusSlot::Hyper ||
         hyper.weapon != 0U ||
-        player.GetHyperWeaponItem()->GetCurCharge() != 2U ||
-        player.hyperCharge != 0U)
+        player.GetHyperWeaponItem()->GetCurCharge() != 2U)
         return 3;
     const auto mine = player.TakeAmmunition(
         0.5F, maximumCharges, 0.0F);
     if (mine.slot != source::PlayerBonusSlot::Mine ||
         mine.weapon != 1U ||
-        player.GetMineWeaponItem()->GetCurCharge() != 4U ||
-        player.mines != 1U)
+        player.GetMineWeaponItem()->GetCurCharge() != 4U)
         return 4;
 
     player.ReloadWeapons(maximumCharges.size());

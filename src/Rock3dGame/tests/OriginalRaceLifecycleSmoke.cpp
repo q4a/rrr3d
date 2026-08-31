@@ -62,10 +62,11 @@ int main()
         player.Reset(80.0F, 1U);
         player.CreateCar(true);
         player.SetFinished(true, 1.0F);
-        player.weaponSlots[0] = 0U;
-        player.weaponCapacity[0] = 4U;
-        player.weaponCharges[0] = 1U;
-        player.BindWeaponItems(runWeaponDefinitions);
+        source::Player::WeaponLoadout loadout;
+        loadout.primary[0] = 0U;
+        loadout.primaryCountCharge[0] = 4U;
+        loadout.primaryCurrentCharge[0] = 1U;
+        player.BindWeaponItems(runWeaponDefinitions, loadout);
     }
     runPlayers.front().SetId(source::Player::humanId);
     runPlayers.back().SetId(1);

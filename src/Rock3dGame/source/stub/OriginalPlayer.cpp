@@ -1154,11 +1154,16 @@ void Player::ReloadWeapons(
 }
 
 void Player::BindWeaponItems(
-    std::span<const WeaponDefinition> definitions) noexcept
+    std::span<const WeaponDefinition> definitions,
+    const WeaponLoadout& loadout) noexcept
 {
     const bool rebuildLiveWeapons = carPresent_;
     if (rebuildLiveWeapons)
         DetachWeaponMapObjects();
+
+    weaponSlots = loadout.primary;
+    hyperWeapon = loadout.hyper;
+    mineWeapon = loadout.mine;
 
     auto itemType = [](const WeaponDefinition& definition) noexcept {
         return static_cast<SlotType>(definition.itemType);
@@ -1206,8 +1211,9 @@ void Player::BindWeaponItems(
         const auto physicalType = static_cast<PlayerSlotType>(
             static_cast<std::size_t>(PlayerSlotType::Weapon1) + slot);
         auto* item = ensureItem(physicalType, weaponSlots[slot]);
-        bind(item, weaponSlots[slot], weaponCapacity[slot],
-             &weaponCharges[slot]);
+        auto currentCharge = loadout.primaryCurrentCharge[slot];
+        bind(item, weaponSlots[slot],
+             loadout.primaryCountCharge[slot], &currentCharge);
         const std::size_t definitionIndex = weaponSlots[slot];
         if (definitionIndex == invalidWeapon ||
             definitionIndex >= definitions.size())
@@ -1217,16 +1223,18 @@ void Player::BindWeaponItems(
         {
             droid->Bind(
                 nullptr,
-                definition.maximumCharge, weaponCapacity[slot],
-                &weaponCharges[slot], definition.repairValue,
+                definition.maximumCharge,
+                loadout.primaryCountCharge[slot], &currentCharge,
+                definition.repairValue,
                 definition.repairPeriod);
         }
         else if (auto* reflector = dynamic_cast<ReflectorItem*>(item))
         {
             reflector->Bind(
                 nullptr,
-                definition.maximumCharge, weaponCapacity[slot],
-                &weaponCharges[slot], definition.reflectValue);
+                definition.maximumCharge,
+                loadout.primaryCountCharge[slot], &currentCharge,
+                definition.reflectValue);
         }
         item->SetMapObjRecord(definition.record);
         item->SetWpnDesc(makeWeaponDescription(definition));
@@ -1235,11 +1243,13 @@ void Player::BindWeaponItems(
         item->SetDamage(definition.damage);
         item->SetChargeCost(definition.chargeCost);
     }
+    auto hyperCurrentCharge = loadout.hyperCurrentCharge;
     bind(ensureItem(PlayerSlotType::Hyper, hyperWeapon),
-         hyperWeapon, hyperCapacity,
-         &hyperCharge);
+         hyperWeapon, loadout.hyperCountCharge,
+         &hyperCurrentCharge);
+    auto mineCurrentCharge = loadout.mineCurrentCharge;
     bind(ensureItem(PlayerSlotType::Mine, mineWeapon),
-         mineWeapon, mineCapacity, &mines);
+         mineWeapon, loadout.mineCountCharge, &mineCurrentCharge);
 
     if (rebuildLiveWeapons)
         AttachWeaponMapObjects();

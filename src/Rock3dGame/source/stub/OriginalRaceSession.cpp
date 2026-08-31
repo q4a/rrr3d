@@ -1439,40 +1439,38 @@ void OriginalRaceSession::reset()
         racers_[index].BindWheelSlipCatalog(
             &race_.wheelTrailEffect, &race_.wheelSmokeEffect);
         racers_[index].SetCar(&vehicle);
+        RacerRuntime::WeaponLoadout weaponLoadout;
         for (std::size_t weaponIndex = 0;
              weaponIndex < race_.weapons.size(); ++weaponIndex)
         {
             const auto& weapon = race_.weapons[weaponIndex];
             if ((weapon.slot == WeaponSlot::Primary ||
                  weapon.slot == WeaponSlot::Support) &&
-                racers_[index].weaponSlots[0] ==
-                    RacerRuntime::invalidWeapon)
+                weaponLoadout.primary[0] == RacerRuntime::invalidWeapon)
             {
-                racers_[index].weaponSlots[0] = weaponIndex;
-                racers_[index].weaponCapacity[0] =
+                weaponLoadout.primary[0] = weaponIndex;
+                weaponLoadout.primaryCountCharge[0] =
                     std::max(weapon.reloadCharge, 1U);
-                racers_[index].weaponCharges[0] =
-                    racers_[index].weaponCapacity[0];
+                weaponLoadout.primaryCurrentCharge[0] =
+                    weaponLoadout.primaryCountCharge[0];
             }
             else if (weapon.slot == WeaponSlot::Hyper &&
-                     racers_[index].hyperWeapon ==
-                         RacerRuntime::invalidWeapon)
+                     weaponLoadout.hyper == RacerRuntime::invalidWeapon)
             {
-                racers_[index].hyperWeapon = weaponIndex;
-                racers_[index].hyperCapacity =
+                weaponLoadout.hyper = weaponIndex;
+                weaponLoadout.hyperCountCharge =
                     std::max(weapon.reloadCharge, 1U);
-                racers_[index].hyperCharge =
-                    racers_[index].hyperCapacity;
+                weaponLoadout.hyperCurrentCharge =
+                    weaponLoadout.hyperCountCharge;
             }
             else if (weapon.slot == WeaponSlot::Mine &&
-                     racers_[index].mineWeapon ==
-                         RacerRuntime::invalidWeapon)
+                     weaponLoadout.mine == RacerRuntime::invalidWeapon)
             {
-                racers_[index].mineWeapon = weaponIndex;
-                racers_[index].mineCapacity =
+                weaponLoadout.mine = weaponIndex;
+                weaponLoadout.mineCountCharge =
                     std::max(weapon.reloadCharge, 1U);
-                racers_[index].mines =
-                    racers_[index].mineCapacity;
+                weaponLoadout.mineCurrentCharge =
+                    weaponLoadout.mineCountCharge;
             }
         }
         if (index == 0)
@@ -1487,20 +1485,7 @@ void OriginalRaceSession::reset()
                     return !slot.record.empty();
                 });
             if (hasProfileLoadout)
-            {
-                runtime.weaponSlots.fill(
-                    RacerRuntime::invalidWeapon);
-                runtime.weaponCharges.fill(0U);
-                runtime.weaponCapacity.fill(0U);
-                runtime.hyperWeapon =
-                    RacerRuntime::invalidWeapon;
-                runtime.hyperCharge = 0;
-                runtime.hyperCapacity = 0;
-                runtime.mineWeapon =
-                    RacerRuntime::invalidWeapon;
-                runtime.mines = 0;
-                runtime.mineCapacity = 0;
-            }
+                weaponLoadout = {};
             for (std::size_t slot = 0;
                  slot < PlayerProfile::weaponSlotCount; ++slot)
             {
@@ -1511,14 +1496,14 @@ void OriginalRaceSession::reset()
                     findWeapon(profileSlot.record, WeaponSlot::Primary);
                 if (weapon != RacerRuntime::invalidWeapon)
                 {
-                    runtime.weaponSlots[slot] = weapon;
-                    runtime.weaponCapacity[slot] =
+                    weaponLoadout.primary[slot] = weapon;
+                    weaponLoadout.primaryCountCharge[slot] =
                         profileSlot.hasCharge
                             ? profileSlot.charge
                             : std::max(
                                   race_.weapons[weapon].reloadCharge, 1U);
-                    runtime.weaponCharges[slot] =
-                        runtime.weaponCapacity[slot];
+                    weaponLoadout.primaryCurrentCharge[slot] =
+                        weaponLoadout.primaryCountCharge[slot];
                 }
             }
             const auto& hyper =
@@ -1527,13 +1512,14 @@ void OriginalRaceSession::reset()
                 findWeapon(hyper.record, WeaponSlot::Hyper);
             if (hyperWeapon != RacerRuntime::invalidWeapon)
             {
-                runtime.hyperWeapon = hyperWeapon;
-                runtime.hyperCapacity =
+                weaponLoadout.hyper = hyperWeapon;
+                weaponLoadout.hyperCountCharge =
                     hyper.hasCharge
                         ? hyper.charge
                         : std::max(
                               race_.weapons[hyperWeapon].reloadCharge, 1U);
-                runtime.hyperCharge = runtime.hyperCapacity;
+                weaponLoadout.hyperCurrentCharge =
+                    weaponLoadout.hyperCountCharge;
             }
             const auto& mine =
                 initialPlayerProfile_.slots[PlayerProfile::mineSlot];
@@ -1541,27 +1527,19 @@ void OriginalRaceSession::reset()
                 findWeapon(mine.record, WeaponSlot::Mine);
             if (mineWeapon != RacerRuntime::invalidWeapon)
             {
-                runtime.mineWeapon = mineWeapon;
-                runtime.mineCapacity =
+                weaponLoadout.mine = mineWeapon;
+                weaponLoadout.mineCountCharge =
                     mine.hasCharge
                         ? mine.charge
                         : std::max(
                               race_.weapons[mineWeapon].reloadCharge, 1U);
-                runtime.mines = runtime.mineCapacity;
+                weaponLoadout.mineCurrentCharge =
+                    weaponLoadout.mineCountCharge;
             }
         }
         else if (!sourceRacer.loadout.empty())
         {
-            auto& runtime = racers_[index];
-            runtime.weaponSlots.fill(RacerRuntime::invalidWeapon);
-            runtime.weaponCharges.fill(0U);
-            runtime.weaponCapacity.fill(0U);
-            runtime.hyperWeapon = RacerRuntime::invalidWeapon;
-            runtime.hyperCharge = 0;
-            runtime.hyperCapacity = 0;
-            runtime.mineWeapon = RacerRuntime::invalidWeapon;
-            runtime.mines = 0;
-            runtime.mineCapacity = 0;
+            weaponLoadout = {};
             for (const auto& slot : sourceRacer.loadout)
             {
                 if (slot.type.rfind("stWeapon", 0) == 0)
@@ -1578,25 +1556,26 @@ void OriginalRaceSession::reset()
                         findWeapon(slot.record, WeaponSlot::Primary);
                     if (weapon != RacerRuntime::invalidWeapon)
                     {
-                        runtime.weaponSlots[target] = weapon;
-                        runtime.weaponCapacity[target] = slot.charge;
-                        runtime.weaponCharges[target] =
-                            runtime.weaponCapacity[target];
+                        weaponLoadout.primary[target] = weapon;
+                        weaponLoadout.primaryCountCharge[target] =
+                            slot.charge;
+                        weaponLoadout.primaryCurrentCharge[target] =
+                            slot.charge;
                     }
                 }
                 else if (slot.type == "stHyper")
                 {
-                    runtime.hyperWeapon =
+                    weaponLoadout.hyper =
                         findWeapon(slot.record, WeaponSlot::Hyper);
-                    runtime.hyperCapacity = slot.charge;
-                    runtime.hyperCharge = runtime.hyperCapacity;
+                    weaponLoadout.hyperCountCharge = slot.charge;
+                    weaponLoadout.hyperCurrentCharge = slot.charge;
                 }
                 else if (slot.type == "stMine")
                 {
-                    runtime.mineWeapon =
+                    weaponLoadout.mine =
                         findWeapon(slot.record, WeaponSlot::Mine);
-                    runtime.mineCapacity = slot.charge;
-                    runtime.mines = runtime.mineCapacity;
+                    weaponLoadout.mineCountCharge = slot.charge;
+                    weaponLoadout.mineCurrentCharge = slot.charge;
                 }
             }
         }
@@ -1630,7 +1609,7 @@ void OriginalRaceSession::reset()
             }
         }
         racers_[index].BindSlots(race_.workshop, activeLoadout);
-        racers_[index].BindWeaponItems(race_.weapons);
+        racers_[index].BindWeaponItems(race_.weapons, weaponLoadout);
         racers_[index].CreateCar(true);
         racers_[index].car.SetSize(vehicle.boundingSize);
     }
@@ -11450,15 +11429,24 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     ammunitionInput);
             auto& ammunitionRuntime = const_cast<RacerRuntime&>(
                 ammunitionSession.racers().front());
+            const auto ammunitionPrimaryItems =
+                ammunitionRuntime.GetPrimaryWeaponItems();
+            const auto* ammunitionHyperItem =
+                ammunitionRuntime.GetHyperWeaponItem();
+            const auto* ammunitionMineItem =
+                ammunitionRuntime.GetMineWeaponItem();
             if (ammunitionRuntime.hyperWeapon ==
                     RacerRuntime::invalidWeapon ||
                 ammunitionRuntime.mineWeapon ==
                     RacerRuntime::invalidWeapon ||
                 ammunitionRuntime.weaponSlots[0] ==
                     RacerRuntime::invalidWeapon ||
-                ammunitionRuntime.hyperCapacity == 0U ||
-                ammunitionRuntime.mineCapacity == 0U ||
-                ammunitionRuntime.weaponCapacity[0] == 0U)
+                ammunitionHyperItem == nullptr ||
+                ammunitionMineItem == nullptr ||
+                ammunitionPrimaryItems[0] == nullptr ||
+                ammunitionHyperItem->GetCntCharge() == 0U ||
+                ammunitionMineItem->GetCntCharge() == 0U ||
+                ammunitionPrimaryItems[0]->GetCntCharge() == 0U)
             {
                 throw std::runtime_error(
                     "source TakeBonus slot-order regression lacks loadout");
