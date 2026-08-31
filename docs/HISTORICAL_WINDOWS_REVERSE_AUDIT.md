@@ -6668,3 +6668,19 @@ maximum angular velocity `7`. Source owner параметров остаётся
 descriptor/SDK, Jolt лишь исполняет ограничение. Regression с заведомо
 избыточной angular velocity отличает исправленный путь от Jolt default;
 длительный Metal-заезд подтверждает сохранение управления и AI.
+
+### P2.307 — StabilizeForce больше не подменяет momentum velocity — выполнено
+
+Сравнение с `eff9338:GameCar.cpp:GameCar::StabilizeForce` подтвердило, что
+порт сохранял лишь внешнюю форму алгоритма. Windows читает мировой angular
+momentum, умножает его на inverse actor orientation, ограничивает локальные
+X/Y величинами `massSpaceInertiaTensor.{x,y} * clamp * 2`, применяет
+`_angDamping` и записывает мировой momentum обратно. Jolt-код вместо этого
+обрабатывал local angular velocity, что эквивалентно только для сферического
+или строго диагонального симметричного тела.
+
+У машин оригинала shape и центр масс смещены, поэтому различие активно при
+косых ударах. Новая реализация использует Jolt local-space inertia matrix,
+сохраняет source mapping осей X/Y/Z и после Euler orientation clamp повторно
+получает velocity из сохранённого мирового momentum. Специальный asymmetric
+body regression доказывает различие и фиксирует source result.

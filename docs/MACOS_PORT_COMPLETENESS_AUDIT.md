@@ -2882,3 +2882,18 @@ velocity ceiling `7`. Backend regression прикладывает 100 rad/s че
 public path, что collision/weapon impulses, и проверяет ограничение поворота
 одним solver step. Physics smoke, все 32 CTest и 1800-frame Metal race smoke
 прошли; Jolt остаётся только реализацией исходного PhysX body contract.
+
+### B8db — GameCar::StabilizeForce перенесён в momentum space — выполнено
+
+Исправлена ранняя Jolt-аппроксимация, которая применяла `_angDamping` и
+airborne clamp к локальной angular velocity. Оригинальный Windows метод
+получает `getAngularMomentum`, переводит его в actor-local space, ограничивает
+X/Y через `getMassSpaceInertiaTensor`, применяет damping и только затем
+вызывает `setAngularMomentum`.
+
+Backend теперь воспроизводит этот порядок через полный локальный тензор
+инерции Jolt. После source Euler clamp сохраняется рассчитанный мировой
+angular momentum, а новая velocity выводится уже из финальной ориентации.
+Регрессия использует смещённый кузов с недиагональным тензором, на котором
+старая velocity-аппроксимация оставляла запрещённый collision impulse. Arm64
+build, physics smoke, 32 CTest и 1800-frame Metal race smoke прошли.

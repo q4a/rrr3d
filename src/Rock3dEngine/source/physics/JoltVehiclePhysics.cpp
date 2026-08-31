@@ -1706,31 +1706,58 @@ private:
         float clampRollAngle, float clampPitchAngle) noexcept
     {
         auto& bodies = system_.GetBodyInterface();
-        const JPH::Quat rotation = bodies.GetRotation(vehicle.body);
-        JPH::Vec3 localAngularVelocity =
-            rotation.Conjugated() *
-            bodies.GetAngularVelocity(vehicle.body);
-        localAngularVelocity.SetX(
-            localAngularVelocity.GetX() * angularDamping[0U]);
-        localAngularVelocity.SetZ(
-            localAngularVelocity.GetZ() * angularDamping[1U]);
-        localAngularVelocity.SetY(
-            localAngularVelocity.GetY() * angularDamping[2U]);
+        JPH::BodyLockRead lock(
+            system_.GetBodyLockInterface(), vehicle.body);
+        if (!lock.Succeeded())
+            return;
+        const JPH::Body& body = lock.GetBody();
+        const JPH::Quat rotation = body.GetRotation();
+        // GameCar::StabilizeForce operates on angular momentum, not angular
+        // velocity. That distinction matters for the original car body: its
+        // translated shape and lowered centre of mass give it a coupled,
+        // non-spherical inertia tensor. Damping local velocity here preserved
+        // an unintended part of an off-centre collision impulse.
+        const JPH::Mat44 localInertia =
+            body.GetMotionProperties()
+                ->GetLocalSpaceInverseInertia()
+                .Inversed3x3();
+        JPH::Vec3 localAngularMomentum =
+            localInertia.Multiply3x3(
+                rotation.Conjugated() * body.GetAngularVelocity());
         if (!anyContact)
         {
             if (clampRollAngle > 0.0F)
-                localAngularVelocity.SetX(std::clamp(
-                    localAngularVelocity.GetX(),
-                    -2.0F * clampRollAngle,
-                    2.0F * clampRollAngle));
+            {
+                const float rollInertia = localInertia
+                    .Multiply3x3(JPH::Vec3::sAxisX())
+                    .GetX();
+                localAngularMomentum.SetX(std::clamp(
+                    localAngularMomentum.GetX(),
+                    -2.0F * rollInertia * clampRollAngle,
+                    2.0F * rollInertia * clampRollAngle));
+            }
             if (clampPitchAngle > 0.0F)
-                localAngularVelocity.SetZ(std::clamp(
-                    localAngularVelocity.GetZ(),
-                    -2.0F * clampPitchAngle,
-                    2.0F * clampPitchAngle));
+            {
+                // Source Y (pitch) maps to Jolt local Z after the Z-up to
+                // Y-up basis conversion.
+                const float pitchInertia = localInertia
+                    .Multiply3x3(JPH::Vec3::sAxisZ())
+                    .GetZ();
+                localAngularMomentum.SetZ(std::clamp(
+                    localAngularMomentum.GetZ(),
+                    -2.0F * pitchInertia * clampPitchAngle,
+                    2.0F * pitchInertia * clampPitchAngle));
+            }
         }
-        bodies.SetAngularVelocity(
-            vehicle.body, rotation * localAngularVelocity);
+        localAngularMomentum.SetX(
+            localAngularMomentum.GetX() * angularDamping[0U]);
+        localAngularMomentum.SetZ(
+            localAngularMomentum.GetZ() * angularDamping[1U]);
+        localAngularMomentum.SetY(
+            localAngularMomentum.GetY() * angularDamping[2U]);
+        const JPH::Vec3 worldAngularMomentum =
+            rotation * localAngularMomentum;
+        lock.ReleaseLock();
 
         if (clampRollAngle > 0.0F || clampPitchAngle > 0.0F)
         {
@@ -1746,6 +1773,13 @@ private:
                 toJolt(quaternionFromEulerXYZ(euler)),
                 JPH::EActivation::Activate);
         }
+        // PhysX setAngularMomentum runs after the optional orientation clamp.
+        // Recalculate velocity with the body's final world-space inertia so
+        // the clamp cannot manufacture or discard angular impulse.
+        bodies.SetAngularVelocity(
+            vehicle.body,
+            bodies.GetInverseInertia(vehicle.body)
+                .Multiply3x3(worldAngularMomentum));
     }
 
     void applySourceSteering(VehicleRuntime& vehicle, float input,
@@ -3652,6 +3686,42 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
     {
         error = "source JumpProgress extra gravity/pitch acceleration was "
                 "not preserved";
+        return false;
+    }
+
+    // GameCar::StabilizeForce transforms angular *momentum* into actor-local
+    // space before applying per-axis damping. Use an intentionally offset
+    // body whose local inertia contains a cross term: damping local angular
+    // velocity (the old port behavior) leaves a substantial X momentum,
+    // while the source algorithm removes it.
+    WorldDescription momentumDescription = airborneDescription;
+    momentumDescription.vehicle.shapePosition = {1.0F, 1.0F, 0.0F};
+    momentumDescription.vehicle.centerOfMass = {0.0F, 0.0F, 0.0F};
+    momentumDescription.vehicle.angularDamping = {0.0F, 1.0F, 1.0F};
+    momentumDescription.vehicle.airbornePitchAcceleration = 0.0F;
+    momentumDescription.vehicle.clampRollAngle = 0.0F;
+    momentumDescription.vehicle.clampPitchAngle = 0.0F;
+    momentumDescription.spawns.front().vehicle =
+        momentumDescription.vehicle;
+    auto momentumWorld =
+        createOriginalVehicleWorld(momentumDescription, error);
+    if (!momentumWorld)
+        return false;
+    momentumWorld->addAngularVelocity(0U, {0.0F, 1.0F, 0.0F});
+    momentumWorld->step(1.0F / 120.0F, input);
+    const auto momentumState = momentumWorld->vehicle();
+    const JPH::Vec3 localMomentum =
+        toJolt(momentumState.body.rotation).Conjugated() *
+        toJoltAngular(momentumState.angularMomentum);
+    const float momentumLength = localMomentum.Length();
+    if (momentumLength < 1.0F ||
+        std::abs(localMomentum.GetX()) > momentumLength * 0.02F)
+    {
+        error = "GameCar::StabilizeForce did not damp local angular "
+                "momentum with the source mass-space inertia tensor: " +
+                std::to_string(localMomentum.GetX()) + "," +
+                std::to_string(localMomentum.GetY()) + "," +
+                std::to_string(localMomentum.GetZ());
         return false;
     }
 

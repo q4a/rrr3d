@@ -1574,6 +1574,19 @@ velocity limit `7`. Regression подаёт 100 rad/s и проверяет фа
 smoke прошли. Замена PhysX на Jolt сохранена, но её boundary теперь реализует
 исходный body descriptor contract.
 
+Результат B8db: активный Jolt vehicle boundary теперь исполняет
+`GameCar::StabilizeForce` над angular momentum, как `eff9338`, а не над
+angular velocity. Momentum переводится в локальные оси автомобиля полным
+mass-space inertia tensor, ограничивается исходными X/Y clamp и умножается на
+`_angDamping`; после source Euler clamp мировой momentum сохраняется, а
+velocity пересчитывается для финальной ориентации.
+
+Это существенно для оригинальных машин со смещёнными shape/centre-of-mass:
+прежняя аппроксимация оставляла связанную компоненту ударного импульса и
+усиливала вращение/подброс. Regression с намеренно недиагональным тензором
+ломается при velocity damping и проходит при source momentum algorithm;
+полный physics/CTest/1800-frame Metal набор также прошёл.
+
 Каждый крупный block commit обязан:
 
 1. назвать точные методы из `eff9338:prog`, которые стали активными;
