@@ -1280,6 +1280,17 @@ Metal читает только этот state; три session-поля удал
 ветка `distort`: FrostRay меняет длину геометрии, но, как и в оригинале, не
 записывает laser UV scale.
 
+Результат B8ce: физический slot projectile снова определяется объектным
+графом `Player -> Slot -> WeaponItem -> Weapon -> Proj`. Удалены
+`ProjectileRuntime::mountSlot` и `directWeapon`, которые повторяли этот граф
+и ошибочно полагались на общий definition index.
+
+`sourceWeaponWorldTransform` теперь принимает точный `PlayerSlotType`, а для
+уже созданного projectile он находится сравнением живого
+`Proj::GetSourceWeapon()` со всеми установленными `WeaponItem`. Поэтому один
+и тот же weapon record может одновременно находиться в Hyper и primary slot:
+transform, Drobilka effect identity и attached update не смешиваются.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:

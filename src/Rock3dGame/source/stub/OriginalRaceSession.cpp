@@ -3647,7 +3647,7 @@ void OriginalRaceSession::progressAi(
 Transform OriginalRaceSession::sourceWeaponWorldTransform(
     const std::vector<r3d::physics::VehicleState>& vehicles,
     std::size_t owner, std::size_t weaponIndex,
-    std::optional<std::size_t> primaryMount) const
+    std::optional<source::PlayerSlotType> physicalSlot) const
 {
     Transform result;
     if (owner >= vehicles.size() || owner >= racers_.size() ||
@@ -3657,24 +3657,8 @@ Transform OriginalRaceSession::sourceWeaponWorldTransform(
     }
 
     result = vehicles[owner].body;
-    std::optional<source::PlayerSlotType> physicalType;
-    if (primaryMount && *primaryMount < PlayerProfile::weaponSlotCount)
-    {
-        physicalType = static_cast<source::PlayerSlotType>(
-            static_cast<std::size_t>(source::PlayerSlotType::Weapon1) +
-            *primaryMount);
-    }
-    else if (racers_[owner].hyperWeapon == weaponIndex)
-    {
-        physicalType = source::PlayerSlotType::Hyper;
-    }
-    else if (racers_[owner].mineWeapon == weaponIndex)
-    {
-        physicalType = source::PlayerSlotType::Mine;
-    }
-
     const source::Slot* installed =
-        physicalType ? racers_[owner].GetSlotInst(*physicalType) : nullptr;
+        physicalSlot ? racers_[owner].GetSlotInst(*physicalSlot) : nullptr;
     if (installed != nullptr &&
         recordName(installed->GetItem().GetRecord()) !=
             recordName(race_.weapons[weaponIndex].record))
@@ -3695,12 +3679,21 @@ Transform OriginalRaceSession::sourceWeaponWorldTransform(
         if (const auto* item = installed->GetItem().IsWeaponItem())
             mountedWeapon = item->GetWeapon();
     }
-    else if (primaryMount)
+    const auto slotIndex = physicalSlot
+        ? static_cast<std::size_t>(*physicalSlot)
+        : static_cast<std::size_t>(source::PlayerSlotType::Count);
+    const auto firstWeaponSlot = static_cast<std::size_t>(
+        source::PlayerSlotType::Weapon1);
+    const bool primarySlot =
+        slotIndex >= firstWeaponSlot &&
+        slotIndex < firstWeaponSlot + PlayerProfile::weaponSlotCount;
+    if (installed == nullptr && primarySlot)
     {
+        const std::size_t primaryMount = slotIndex - firstWeaponSlot;
         const auto& vehicleDefinition = vehicleForRacer(owner);
         const std::size_t physicalMount =
             static_cast<std::size_t>(GarageSlotType::Weapon1) +
-            *primaryMount;
+            primaryMount;
         if (physicalMount < vehicleDefinition.slotMounts.size())
         {
             const auto& mount =
@@ -3737,7 +3730,7 @@ Transform OriginalRaceSession::sourceWeaponWorldTransform(
 ProjectileRuntime OriginalRaceSession::buildWeaponProjectileRuntime(
     const std::vector<r3d::physics::VehicleState>& vehicles,
     std::size_t owner, std::size_t weaponIndex,
-    std::size_t primaryMount, std::size_t preparedOrdinal,
+    std::size_t preparedOrdinal,
     source::Proj& sourceObject)
 {
     const auto& weapon = race_.weapons.at(weaponIndex);
@@ -3766,7 +3759,6 @@ ProjectileRuntime OriginalRaceSession::buildWeaponProjectileRuntime(
         projectile.weaponListIndex < weapon.projectiles.size()
             ? projectile.weaponListIndex
             : fallbackProjectileIndex();
-    runtime.mountSlot = primaryMount;
     const auto& position = sourceObject.GetWorldPos();
     const auto& rotation = sourceObject.GetWorldRot();
     runtime.position = {position[0], position[1], position[2]};
@@ -3796,6 +3788,37 @@ ProjectileRuntime OriginalRaceSession::buildWeaponProjectileRuntime(
         runtime.velocity = multiply(runtime.direction, launch.speed);
     }
     return runtime;
+}
+
+std::optional<source::PlayerSlotType>
+OriginalRaceSession::projectileWeaponSlot(
+    const ProjectileRuntime& projectile) const noexcept
+{
+    if (projectile.owner >= racers_.size() ||
+        projectile.sourceObject == nullptr)
+    {
+        return std::nullopt;
+    }
+    const auto* sourceWeapon =
+        projectile.sourceObject->GetSourceWeapon();
+    if (sourceWeapon == nullptr)
+        return std::nullopt;
+    for (std::size_t index = 0U;
+         index < static_cast<std::size_t>(
+                     source::PlayerSlotType::Count);
+         ++index)
+    {
+        const auto physicalSlot =
+            static_cast<source::PlayerSlotType>(index);
+        const auto* slot =
+            racers_[projectile.owner].GetSlotInst(physicalSlot);
+        const auto* item = slot != nullptr
+            ? slot->GetItem().IsWeaponItem()
+            : nullptr;
+        if (item != nullptr && item->GetWeapon() == sourceWeapon)
+            return physicalSlot;
+    }
+    return std::nullopt;
 }
 
 void OriginalRaceSession::queueProjectileBodyCreate(
@@ -4007,8 +4030,11 @@ bool OriginalRaceSession::prepareAiWeaponAttack(
     attack.weapon = weaponIndex;
     attack.weaponSlot = slot;
     attack.projectileId = runtime.GetNextBonusProjectileId();
+    const auto physicalSlot = static_cast<source::PlayerSlotType>(
+        static_cast<std::size_t>(source::PlayerSlotType::Weapon1) +
+        slot);
     attack.weaponTransform = sourceWeaponWorldTransform(
-        vehicles, racer, weaponIndex, slot);
+        vehicles, racer, weaponIndex, physicalSlot);
     weapon->SetWorldPos(
         {attack.weaponTransform.position.x,
          attack.weaponTransform.position.y,
@@ -4058,7 +4084,7 @@ bool OriginalRaceSession::prepareAiWeaponAttack(
         if (!route.attached && route.ray)
             continue;
         auto backendRuntime = buildWeaponProjectileRuntime(
-            vehicles, racer, weaponIndex, slot, ordinal,
+            vehicles, racer, weaponIndex, ordinal,
             *sourceObject);
         backendRuntime.deferProgressOnce = !externalRaceFixedStep_;
         queueProjectileBodyCreate(backendRuntime);
@@ -4102,7 +4128,8 @@ bool OriginalRaceSession::prepareAiHyperAttack(
     attack.hyperProjectileId = runtime.GetNextBonusProjectileId();
     attack.hyperPosition = vehicles[racer].body.position;
     attack.hyperWeaponTransform = sourceWeaponWorldTransform(
-        vehicles, racer, weaponIndex, std::nullopt);
+        vehicles, racer, weaponIndex,
+        source::PlayerSlotType::Hyper);
     Transform localProjectile;
     localProjectile.position = projectile.position;
     localProjectile.rotation = projectile.rotation;
@@ -4204,7 +4231,6 @@ bool OriginalRaceSession::prepareAiHyperAttack(
         runtimeProjectile.rotation =
             attack.hyperProjectileTransform.rotation;
         runtimeProjectile.attached = true;
-        runtimeProjectile.directWeapon = true;
         runtimeProjectile.sourceObject = sourceObject;
         projectiles_.push_back(std::move(runtimeProjectile));
         attack.hyperRuntimeMaterialized = true;
@@ -4244,7 +4270,8 @@ bool OriginalRaceSession::prepareAiMineAttack(
 
     attack.mineWeapon = weaponIndex;
     attack.mineWeaponTransform = sourceWeaponWorldTransform(
-        vehicles, racer, weaponIndex, std::nullopt);
+        vehicles, racer, weaponIndex,
+        source::PlayerSlotType::Mine);
     Transform localProjectile;
     localProjectile.position = projectile.position;
     localProjectile.rotation = projectile.rotation;
@@ -4944,16 +4971,28 @@ void OriginalRaceSession::updateGameplay(
     const std::vector<r3d::physics::VehicleState>& vehicles,
     const RaceControl& humanControl)
 {
-    auto directWeaponWorldTransform =
+    auto hyperWeaponWorldTransform =
         [&](std::size_t owner, std::size_t weaponIndex) {
             return sourceWeaponWorldTransform(
-                vehicles, owner, weaponIndex, std::nullopt);
+                vehicles, owner, weaponIndex,
+                source::PlayerSlotType::Hyper);
+        };
+    auto mineWeaponWorldTransform =
+        [&](std::size_t owner, std::size_t weaponIndex) {
+            return sourceWeaponWorldTransform(
+                vehicles, owner, weaponIndex,
+                source::PlayerSlotType::Mine);
         };
     auto weaponWorldTransform =
         [&](std::size_t owner, std::size_t weaponIndex,
             std::size_t mountSlot) {
+            const auto physicalSlot =
+                static_cast<source::PlayerSlotType>(
+                    static_cast<std::size_t>(
+                        source::PlayerSlotType::Weapon1) +
+                    mountSlot);
             return sourceWeaponWorldTransform(
-                vehicles, owner, weaponIndex, mountSlot);
+                vehicles, owner, weaponIndex, physicalSlot);
         };
     std::vector<source::Player*> playerList;
     playerList.reserve(racers_.size());
@@ -5435,13 +5474,11 @@ void OriginalRaceSession::updateGameplay(
                 projectile.active = false;
                 continue;
             }
+            const auto physicalSlot = projectileWeaponSlot(projectile);
             const Transform attachedWeaponTransform =
-                projectile.directWeapon
-                    ? directWeaponWorldTransform(
-                          projectile.owner, projectile.weapon)
-                    : weaponWorldTransform(
-                          projectile.owner, projectile.weapon,
-                          projectile.mountSlot);
+                sourceWeaponWorldTransform(
+                    vehicles, projectile.owner, projectile.weapon,
+                    physicalSlot);
             const auto attachedProgress =
                 projectile.sourceObject->ProgressAttached(
                     sourceVec(attachedWeaponTransform.position),
@@ -5609,6 +5646,23 @@ void OriginalRaceSession::updateGameplay(
                         if (sourceContactRoute.handler !=
                             source::Proj::ContactHandler::Drobilka)
                             return;
+                        const auto sourcePhysicalSlot =
+                            projectileWeaponSlot(projectile);
+                        const auto sourceSlotIndex = sourcePhysicalSlot
+                            ? static_cast<std::size_t>(
+                                  *sourcePhysicalSlot)
+                            : static_cast<std::size_t>(
+                                  source::PlayerSlotType::Count);
+                        const auto firstWeaponSlot =
+                            static_cast<std::size_t>(
+                                source::PlayerSlotType::Weapon1);
+                        const std::size_t sourceMount =
+                            sourceSlotIndex >= firstWeaponSlot &&
+                                    sourceSlotIndex <
+                                        firstWeaponSlot +
+                                            PlayerProfile::weaponSlotCount
+                                ? sourceSlotIndex - firstWeaponSlot
+                                : RacerRuntime::invalidWeapon;
                         auto effect = std::find_if(
                             effects_.begin(), effects_.end(),
                             [&](const RaceEffect& value) {
@@ -5623,7 +5677,7 @@ void OriginalRaceSession::updateGameplay(
                                        value.projectile ==
                                            projectile.projectile &&
                                        value.mountSlot ==
-                                           projectile.mountSlot;
+                                           sourceMount;
                             });
                         if (effect == effects_.end())
                         {
@@ -5635,8 +5689,7 @@ void OriginalRaceSession::updateGameplay(
                                 projectile.projectile;
                             contact.visualVariant = 4U;
                             contact.racer = projectile.owner;
-                            contact.mountSlot =
-                                projectile.mountSlot;
+                            contact.mountSlot = sourceMount;
                             effects_.push_back(std::move(contact));
                             effect = std::prev(effects_.end());
                         }
@@ -6490,7 +6543,7 @@ void OriginalRaceSession::updateGameplay(
         const Transform weaponTransform =
             sourcePrepared
                 ? preparedAttack->mineWeaponTransform
-                : directWeaponWorldTransform(owner, weapon);
+                : mineWeaponWorldTransform(owner, weapon);
         Transform placedTransform;
         if (sourcePrepared)
         {
@@ -6652,7 +6705,7 @@ void OriginalRaceSession::updateGameplay(
         const Transform weaponTransform =
             sourcePrepared
                 ? preparedAttack->hyperWeaponTransform
-                : directWeaponWorldTransform(owner, weapon);
+                : hyperWeaponWorldTransform(owner, weapon);
         Transform projectileTransform;
         float duration = 0.0F;
         source::Weapon::ProjList sourceProjectiles;
@@ -6743,7 +6796,6 @@ void OriginalRaceSession::updateGameplay(
             runtimeProjectile.direction = sourceDirection;
             runtimeProjectile.rotation = projectileTransform.rotation;
             runtimeProjectile.attached = true;
-            runtimeProjectile.directWeapon = true;
             runtimeProjectile.sourceObject = sourceObject;
             preparedHyperProjectile.emplace(
                 std::move(runtimeProjectile));
@@ -6961,7 +7013,7 @@ void OriginalRaceSession::updateGameplay(
                 fixedRuntime != projectiles_.end()
                     ? *fixedRuntime
                     : buildWeaponProjectileRuntime(
-                          vehicles, shooter, firedWeapon, firedSlot,
+                          vehicles, shooter, firedWeapon,
                           preparedOrdinal, *sourceObject);
             const std::size_t backendProjectileIndex =
                 runtimeProjectile.projectile;
@@ -13329,6 +13381,14 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             slot.record = hyperdrive->record;
             slot.charge = 2U;
             slot.hasCharge = true;
+            // Install the same definition in a primary slot. The source
+            // Weapon pointer, not its shared definition index, must still
+            // identify the physical Hyper transform.
+            auto& duplicatePrimary = hyperProfile.slots[
+                PlayerProfile::firstWeaponSlot];
+            duplicatePrimary.record = hyperdrive->record;
+            duplicatePrimary.charge = 1U;
+            duplicatePrimary.hasCharge = true;
             hyperSession.applyPlayerProfile(hyperProfile);
             RaceControl hyperInput;
             for (int frame = 0; frame < 250; ++frame)
@@ -13340,6 +13400,12 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 1.0F / 60.0F, hyperVehicles, hyperInput);
             const auto requests =
                 hyperSession.takeVelocityRequests();
+            const auto* sourceHyperItem = hyperSession.racers()
+                                              .front()
+                                              .GetHyperWeaponItem();
+            const auto* sourcePrimaryItem = hyperSession.racers()
+                                                .front()
+                                                .GetPrimaryWeaponItems()[0];
             const bool attachedSourceEffect = std::any_of(
                 hyperSession.projectiles().begin(),
                 hyperSession.projectiles().end(),
@@ -13350,7 +13416,13 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                                    race.weapons.begin()) &&
                            projectile.projectile == 0U &&
                            projectile.attached &&
-                           projectile.directWeapon;
+                           projectile.sourceObject != nullptr &&
+                           sourceHyperItem != nullptr &&
+                           sourcePrimaryItem != nullptr &&
+                           sourceHyperItem->GetWeapon() !=
+                               sourcePrimaryItem->GetWeapon() &&
+                           projectile.sourceObject->GetSourceWeapon() ==
+                               sourceHyperItem->GetWeapon();
                 });
             Transform sourceSlotTransform;
             sourceSlotTransform.position = {3.25F, 1.5F, 1.75F};

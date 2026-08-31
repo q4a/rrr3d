@@ -6324,3 +6324,18 @@ source model2, а Metal renderer читает его напрямую. Удал�
 `impactDistance`, `beamWidthScale`, `beamTextureScale` из runtime. Regression
 проверяет reset/lifetime и различие исходных веток: Laser пишет
 `distance/10` в sampler, FrostRay сохраняет sampler scale 1.
+
+### P2.284 — weapon mount identity возвращена Slot/WeaponItem — выполнено
+
+В Windows каждый `WeaponItem::OnCreateCar` создаёт собственный weapon actor
+в car weapon include-list, а `Proj::_weapon` ссылается именно на этот actor.
+Одинаковые record/Desc в двух физических slots не делают их одним оружием.
+Порт, напротив, сохранял в projectile numeric `mountSlot` и отдельный
+`directWeapon`; оба могли разойтись с source listener graph.
+
+Оба поля удалены. Новый lookup обходит десять source `PlayerSlotType` и
+сопоставляет concrete `Weapon*` по identity. `sourceWeaponWorldTransform`
+получает точный physical slot для primary, Hyper и Mine, а Drobilka contact
+effect выводит primary ordinal из него. Regression намеренно устанавливает
+один hyperdrive record в Hyper и Weapon1 и требует привязки projectile к
+отдельному Hyper `Weapon` и исходному Hyper transform.

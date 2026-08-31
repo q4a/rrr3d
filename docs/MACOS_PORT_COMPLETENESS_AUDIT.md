@@ -2643,3 +2643,11 @@ Sprite: длину луча, множитель ширины и scale sampler-а
 из `ProjectileRuntime`. Позиция impact model2, damage и визуальный луч снова
 обновляются одним `Proj::ProgressLaser` call, как в Windows. Исправлена
 ошибка FrostRay, которому порт ошибочно применял distorted-laser UV scale.
+
+### B8ce — mounted weapon identity принадлежит source Slot graph — выполнено
+
+`ProjectileRuntime::mountSlot/directWeapon` удалены. Attached projectile
+читает concrete `Proj::_weapon` и находит создавший его `WeaponItem` среди
+физических slots игрока; backend получает только вычисленный transform.
+Pointer identity сохраняет различие actors даже для одинаковых weapon
+records и исключает привязку Hyper/Mine к случайному primary mount.

@@ -373,13 +373,11 @@ struct ProjectileRuntime
     std::size_t owner = 0;
     std::size_t weapon = 0;
     std::size_t projectile = 0;
-    std::size_t mountSlot = 0;
     Vec3 position;
     Vec3 direction{1.0F, 0.0F, 0.0F};
     Vec3 velocity;
     Quat rotation;
     bool attached = false;
-    bool directWeapon = false;
     // Headless/session fallback invokes Race::OnFixedStep inside the frame
     // update after World::Progress has already run. A projectile created by
     // that callback must not receive its first Proj progress pass until the
@@ -664,12 +662,14 @@ private:
     Transform sourceWeaponWorldTransform(
         const std::vector<r3d::physics::VehicleState>& vehicles,
         std::size_t owner, std::size_t weapon,
-        std::optional<std::size_t> primaryMount) const;
+        std::optional<source::PlayerSlotType> physicalSlot) const;
     ProjectileRuntime buildWeaponProjectileRuntime(
         const std::vector<r3d::physics::VehicleState>& vehicles,
         std::size_t owner, std::size_t weapon,
-        std::size_t primaryMount, std::size_t preparedOrdinal,
+        std::size_t preparedOrdinal,
         source::Proj& projectile);
+    std::optional<source::PlayerSlotType> projectileWeaponSlot(
+        const ProjectileRuntime& projectile) const noexcept;
     void queueProjectileBodyCreate(ProjectileRuntime& projectile);
     void queueProjectileBodySynchronize(
         const ProjectileRuntime& projectile);
