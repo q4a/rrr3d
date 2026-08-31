@@ -1407,6 +1407,7 @@ void OriginalRaceSession::reset()
         initialAchievementIterations_, achievementMultiplier);
     achievementModel_.SetCampaign(campaign_);
     campaignRewardsApplied_ = false;
+    tournamentAdvanced_ = false;
     raceLifecycle_.Reset();
     raceRunState_.Reset();
     for (std::size_t index = 0; index < racers_.size(); ++index)
@@ -1753,6 +1754,34 @@ void OriginalRaceSession::writeAchievementProfile(
     profile.achievementPoints = achievementModel_.GetPoints();
     profile.achievementIterations = achievementModel_.GetIterations();
     achievementModel_.WriteItems(profile.achievementItems);
+}
+
+std::optional<TournamentAdvance>
+OriginalRaceSession::commitProfileAndTournament(
+    ProfileState& profile, std::size_t trackIndex) noexcept
+{
+    // CompleteRace observes the final Player list rather than the immutable
+    // descriptors used to start the race. Publish that source-owned state
+    // before Tournament::CompleteTrack mutates the persistent selection.
+    writePlayerProfile(profile.player);
+    writeAchievementProfile(profile);
+
+    if (!campaign_ || tournamentAdvanced_ ||
+        trackIndex >= race_.trackCatalog.size() ||
+        humanRacer_ >= racers_.size() ||
+        racers_[humanRacer_].disconnected ||
+        !racers_[humanRacer_].GetFinished())
+    {
+        return std::nullopt;
+    }
+
+    const auto advance = completeOriginalTournamentTrack(
+        race_, trackIndex, profile,
+        totalHumanOrOpponentPoints(), humanOrOpponentCount());
+    if (advance.passComplete)
+        resetTournamentPassPoints();
+    tournamentAdvanced_ = true;
+    return advance;
 }
 
 std::optional<source::AchievmentItemView>
@@ -9412,6 +9441,14 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             auto& exitRacers = const_cast<std::vector<RacerRuntime>&>(
                 exitSession.racers());
             exitRacers.front().TakeMoney(17.0F);
+            ProfileState settlementProfile;
+            if (race.trackCatalog.empty() ||
+                exitSession.commitProfileAndTournament(
+                    settlementProfile, 0U).has_value())
+            {
+                throw std::runtime_error(
+                    "Race tournament settlement ran before Human finish");
+            }
             exitSession.completeRaceForExit(vehicles);
             const auto* humanResult = exitSession.resultForRacer(0U);
             const auto activeCount = static_cast<std::size_t>(std::count_if(
@@ -9449,6 +9486,23 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             {
                 throw std::runtime_error(
                     "Race::ExitRace did not complete/rank/save all players");
+            }
+            const auto tournamentAdvance =
+                exitSession.commitProfileAndTournament(
+                    settlementProfile, 0U);
+            if (!tournamentAdvance.has_value() ||
+                settlementProfile.player.money !=
+                    exitRacers.front().GetMoney() ||
+                settlementProfile.player.points !=
+                    exitRacers.front().GetPoints() ||
+                (tournamentAdvance->passComplete &&
+                 exitSession.totalHumanOrOpponentPoints() != 0U) ||
+                exitSession.commitProfileAndTournament(
+                    settlementProfile, 0U).has_value())
+            {
+                throw std::runtime_error(
+                    "Race::CompleteRace tournament transaction was not "
+                    "source-owned and one-shot");
             }
             const auto settledMoney = exitRacers.front().GetMoney();
             exitSession.completeRaceForExit(vehicles);

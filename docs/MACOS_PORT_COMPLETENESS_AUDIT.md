@@ -2524,6 +2524,14 @@ source lifetime: для живого `Proj` или `Mine` создаётся н�
 регрессии имитируют потерю actor, требуют сохранения source-live state и
 ровно одну create-команду с новым backend ID.
 
+### B8bs — Race::CompleteRace settlement возвращён source owner — выполнено
+
+`OriginalRaceSession` теперь владеет единым окончанием campaign race:
+публикует состояние Player/achievement, считает исходные Human/Opponent
+points, вызывает `Tournament::CompleteTrack`, очищает points завершённого
+прохода и блокирует повторный advance. SDL host только сохраняет уже
+изменённый профиль и выбирает следующий экран по `TournamentAdvance`.
+
 ## Воспроизведение проверки
 
 ```sh

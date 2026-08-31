@@ -1,6 +1,6 @@
 # Карта переноса оригинального Windows-кода
 
-Дата среза: 2026-08-27
+Дата среза: 2026-08-31
 
 Ветка: `macos-arm64`
 
@@ -68,7 +68,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `MenuSystem` | `originalmenu::{MenuSystem,ScreenStack,FrameState}` | Source owner, active menu path | Подключить concrete navigation graphs; bgfx остаётся draw executor |
 | `OptionsMenu` | `originaloptions::{OptionsMenuState,StartOptionsMenuState}` + backend visuals | Source owner, active options path | Legacy Widget events заменены SDL input, CoreText и bgfx draw submission |
 | `Player` | `source::Player`, `CarState`, behaviors, `PresentationState` | Source owner, active gameplay/presentation/live-car path | `CreateCar/FreeCar` владеют точным live `MapObj`; bgfx/Jolt исполняют graph/actor commands, остаётся аудит profile bridges |
-| `Race` | `OriginalRace`, `OriginalRaceSession`, lifecycle/place/tournament on shared World | Source owner, active fixed/late lifecycle, partial orchestration | Продолжить вынос gameplay transactions из session; place sorting уже выполняется после Jolt solver через единственный World late-progress |
+| `Race` | `OriginalRace`, `OriginalRaceSession`, lifecycle/place/tournament on shared World | Source owner, active fixed/late/finish lifecycle, partial orchestration | `CompleteRace` reward/tournament/pass-reset transaction source-owned; продолжить вынос physics/contact materialization из session |
 | `RaceMenu2` | `originalracemenu::{RaceMenuState,RaceMainFrameState,GamersFrameState,GarageFrameState,WorkshopFrameState,SpaceshipFrameState,AngarFrameState,AchievementFrameState}` | Source owner, all six offline frame paths | Проверить оставшиеся network callbacks и оставить bgfx/CoreText backend boundary |
 | `RecordLib` | `source::{MapObjRecordLibrary,MapObjRecordNode,MapObjRecord}` | Source owner, active hierarchy | Editor-only mutation/serialization API не входит в пользовательский runtime |
 | `ResourceManager` | `OriginalResourceManager` + native readers/uploaders | Source owner, active GUI/graph/sound/font/material/string path | Полные 322 Mesh/489 Image/257 Mat/46 eager Sound, 5 TextFont и выбранная String library имеют общие identity, descriptors, language/charset, world tags и lifetime; bgfx/SDL payload остаётся backend boundary |
@@ -1131,6 +1131,19 @@ actor teardown и удаления runtime view.
 Потеря Jolt actor живого projectile/mine приводит к одной create-команде с
 новым backend ID, а не к смерти source object. Две integrated regression
 закрепляют это направление ownership.
+
+Результат B8bs: хвост `Race::CompleteRace(const Results*)` больше не
+выполняется вручную в 22k-line SDL host. `OriginalRaceSession` атомарно
+публикует live `Player`/achievement state, вычисляет исходные
+`Race::GetTotalPoints` и число Human/Opponent, вызывает
+`Tournament::CompleteTrack` и при завершении прохода очищает points всех
+оставшихся в source PlayerList участников. Одноразовый флаг принадлежит
+этому же Race-owner, поэтому повторное сохранение профиля не продвигает
+турнир второй раз.
+
+Главный файл теперь получает только готовый `TournamentAdvance`, сохраняет
+профиль и выбирает следующий UI frame. Regression запрещает settlement до
+финиша Human, проверяет live money/points, pass reset и one-shot вызов.
 
 ## Правило обновления карты
 

@@ -5540,7 +5540,6 @@ int main(int argc, char** argv)
     std::uint32_t maximumActiveSpotLights = 0;
     std::array<bool, 2> raceCameraStylesObserved{};
     std::array<bool, 5> legacyDebugCameraStylesObserved{};
-    bool raceProgressSaved = false;
     bool raceExitLifecycleApplied = false;
     bool finishMenuFrameObserved =
         !options->finishMenuSmokeTest;
@@ -6159,47 +6158,25 @@ int main(int argc, char** argv)
     auto applyRaceProfileState = [&]() {
         if (!raceSession.racers().empty())
         {
-            raceSession.writePlayerProfile(profileState.player);
-            raceSession.writeAchievementProfile(profileState);
-            const auto humanRacer = raceSession.humanRacer();
-            if (championshipMode &&
-                humanRacer < raceSession.racers().size() &&
-                raceSession.racers()[humanRacer].GetFinished() &&
-                !raceProgressSaved)
+            const auto completedTrack = selectedTrack;
+            const auto advance =
+                raceSession.commitProfileAndTournament(
+                    profileState, selectedTrack);
+            if (advance.has_value())
             {
-                // Race::GetTotalPoints includes the local Human and every
-                // live NetPlayer Opponent.  ProfileState owns only the local
-                // profile, so capture the source PlayerList aggregate before
-                // advancing Tournament.
-                const auto tournamentTotalPoints =
-                    raceSession.totalHumanOrOpponentPoints();
-                const auto tournamentHumanCount =
-                    raceSession.humanOrOpponentCount();
-                const auto completedTrack = selectedTrack;
-                const auto advance =
-                    r3d::game::originalrace::
-                        completeOriginalTournamentTrack(
-                            *originalRace, selectedTrack, profileState,
-                            tournamentTotalPoints,
-                            tournamentHumanCount);
-                raceTournamentAdvance = advance;
-                selectedTrack = advance.trackIndex;
-                racePlanetChampion = advance.planetChampion;
-                if (advance.passComplete)
+                raceTournamentAdvance = *advance;
+                selectedTrack = advance->trackIndex;
+                racePlanetChampion = advance->planetChampion;
+                if (advance->passComplete)
                 {
-                    // Race::CompleteRace resets points on the complete
-                    // active PlayerList after Tournament::CompleteTrack.
-                    // This must precede NetRace::ExitRace serialization.
-                    raceSession.resetTournamentPassPoints();
                     weatherNightPassed = false;
                 }
-                raceProgressSaved = true;
                 std::cout
                     << "Original Tournament::CompleteTrack: track "
-                    << completedTrack << " -> " << advance.trackIndex
-                    << ", passComplete=" << advance.passComplete
-                    << ", passChampion=" << advance.passChampion
-                    << ", planetChampion=" << advance.planetChampion
+                    << completedTrack << " -> " << advance->trackIndex
+                    << ", passComplete=" << advance->passComplete
+                    << ", passChampion=" << advance->passChampion
+                    << ", planetChampion=" << advance->planetChampion
                     << '\n';
             }
         }
@@ -6527,7 +6504,6 @@ int main(int argc, char** argv)
         if (!reloadCurrentRace())
             return false;
         championshipPlayerBeforeSkirmish.reset();
-        raceProgressSaved = false;
         refreshProfilePage();
         return true;
     };
@@ -6816,7 +6792,6 @@ int main(int argc, char** argv)
         exitRaceYesFocused = true;
         racePauseElapsedSnapshot = -1.0F;
         raceElapsedSeconds = 0.0F;
-        raceProgressSaved = false;
         raceExitLifecycleApplied = false;
         sourceFinishFrame.hide();
         raceVehicles.resize(physicsWorld->vehicleCount());
@@ -7370,7 +7345,6 @@ int main(int argc, char** argv)
                 r3d::game::originalrace::
                     resolveOriginalTournamentTrack(
                         *originalRace, profileState.player);
-            raceProgressSaved = false;
             if (!reloadCurrentRace())
             {
                 runtimeSmokeFailed = true;

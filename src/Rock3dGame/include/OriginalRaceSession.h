@@ -437,6 +437,11 @@ public:
     void writePlayerProfile(PlayerProfile& profile) const;
     void applyAchievementProfile(const ProfileState& profile);
     void writeAchievementProfile(ProfileState& profile) const;
+    // Race::CompleteRace(const Results*) publishes the live Player state,
+    // advances Tournament and clears completed-pass points atomically.
+    // Persistence and the resulting menu transition remain host boundaries.
+    std::optional<TournamentAdvance> commitProfileAndTournament(
+        ProfileState& profile, std::size_t trackIndex) noexcept;
     std::optional<source::AchievmentItemView> achievementItem(
         std::string_view name) const noexcept;
     std::uint32_t achievementPoints() const noexcept;
@@ -857,6 +862,7 @@ private:
     source::RacePlaceModel racePlaceModel_;
     bool campaign_ = true;
     bool campaignRewardsApplied_ = false;
+    bool tournamentAdvanced_ = false;
     bool enableMineBug_ = true;
     bool springBorders_ = true;
     bool debugHumanAiControl_ = false;

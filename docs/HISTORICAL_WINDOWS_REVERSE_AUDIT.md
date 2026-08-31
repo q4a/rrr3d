@@ -6133,6 +6133,23 @@ body для живого transient Proj либо Mine, старый ID отбр�
 одна create-команда с новым ID; source object не меняется. Integrated smoke
 закрепляет оба recovery пути вместе с fixed-step attack/mine ownership.
 
+### P2.272 — Race владеет завершением турнирного прохода — выполнено
+
+Повторная сверка `Race::CompleteRace(const Results*)`, `Race::GetTotalPoints`
+и `Tournament::CompleteTrack` выявила оставшийся host-owned хвост. Session
+ранжировал участников и начислял награды, но 22k-line SDL entry point отдельно
+решал, когда продвинуть турнир, сам собирал aggregate points/count, очищал
+очки завершённого прохода и удерживал one-shot флаг. Это позволяло сохранению
+профиля обходить исходную атомарную транзакцию Race.
+
+Новый `OriginalRaceSession::commitProfileAndTournament` сначала публикует
+live Player/achievement state, затем один раз выполняет source tournament
+advance на сумме Human/Opponent и очищает points только при `passComplete`.
+Disconnected tombstones, как и удалённые Windows `NetPlayer`, исключены.
+Host получает готовый `TournamentAdvance` и отвечает только за persistence и
+UI transition. Regression проверяет запрет раннего advance, окончательные
+money/points, pass reset и невозможность повторного продвижения.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform
