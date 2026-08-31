@@ -5224,14 +5224,14 @@ void OriginalRaceRenderer::draw(
             racer >= vehicleShieldScales_.size())
             continue;
         const auto& runtime = racerRuntime[racer];
-        if (!runtime.immortalEffect.IsEffectMaked())
+        if (!runtime.GetImmortalEffect().IsEffectMaked())
             continue;
         const auto* definition =
-            runtime.immortalEffect.GetEffectDefinition();
+            runtime.GetImmortalEffect().GetEffectDefinition();
         if (definition == nullptr)
             continue;
-        const auto& scaleK = runtime.immortalEffect.GetScaleK();
-        const float fade = runtime.immortalEffect.GetScale();
+        const auto& scaleK = runtime.GetImmortalEffect().GetScaleK();
+        const float fade = runtime.GetImmortalEffect().GetScale();
         r3d::physics::Transform shield = vehicles[racer].body;
         shield.scale = {
             shield.scale.x * vehicleShieldScales_[racer].x *
@@ -5241,7 +5241,7 @@ void OriginalRaceRenderer::draw(
             shield.scale.z * vehicleShieldScales_[racer].z *
                 scaleK[2] * fade};
         const float damageAlpha =
-            runtime.immortalEffect.GetDamageAlpha();
+            runtime.GetImmortalEffect().GetDamageAlpha();
         const std::array<float, 4> shieldTint{
             1.0F, 1.0F, 1.0F, damageAlpha};
         drawObject(
@@ -5249,7 +5249,7 @@ void OriginalRaceRenderer::draw(
             definition->visualNodes, shield,
             definition->graphOrder, false, 1.0F,
             &shieldTint,
-            runtime.immortalEffect.GetEffectSeconds());
+            runtime.GetImmortalEffect().GetEffectSeconds());
     }
 
     if (sourceEnvironment_->RainVisible() && !vehicles.empty())

@@ -6352,3 +6352,18 @@ model, projectile type, damage, lifetime и DeathEffect. Порт уже соз�
 Metal выбирает secondary/tertiary asset по source visual identity, а death
 adapter вычисляет asset variant из того же descriptor. Regression считает и
 проверяет шесть независимых `AutoProj` без session-тега.
+
+### P2.286 — GameBase behaviors снова владеют собственным state — выполнено
+
+Сверка `eff9338:prog/Rock3dGame/source/game/GameBase.cpp` показала, что
+`LowLifePoints`, `DamageEffect`, `ImmortalEffect` и `SlowEffect` являются
+самими элементами `Behaviors`, listener-ами и владельцами `EventEffect`.
+Portable graph регистрировал соответствующие concrete adapters, но реальные
+state machine оставались четырьмя публичными полями `Player`.
+
+State перенесён внутрь зарегистрированных behavior-объектов. `Player`
+сохраняет лишь consumable результаты для Jolt/bgfx/SDL и типизированные
+accessors, не вторую gameplay-копию. При respawn новый behavior graph заново
+конфигурируется из `Vehicle`, а динамический Frost `SlowEffect` исчезает
+вместе со своим удаляемым listener. Это сохраняет исходные callback order и
+one-entry lifetime без возврата PhysX/Graph/XAudio backend-ов.

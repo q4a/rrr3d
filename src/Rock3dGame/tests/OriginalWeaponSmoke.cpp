@@ -490,10 +490,11 @@ int main()
             &frostTargetPlayer.gameCar, &frostTargetPlayer, 8U, 2U) ||
         concreteFrostProjectile.AttachFrostSlow(
             &frostTargetPlayer.gameCar, &frostTargetPlayer, 9U, 3U) ||
-        frostTargetPlayer.slowEffect.GetRemainingSeconds() != 2.5F ||
-        frostTargetPlayer.slowEffect.GetWeapon() != 8U ||
-        frostTargetPlayer.slowEffect.GetProjectile() != 2U ||
-        frostTargetPlayer.slowEffect.GetEffectDefinition() !=
+        frostTargetPlayer.GetSlowEffect() == nullptr ||
+        frostTargetPlayer.GetSlowEffect()->GetRemainingSeconds() != 2.5F ||
+        frostTargetPlayer.GetSlowEffect()->GetWeapon() != 8U ||
+        frostTargetPlayer.GetSlowEffect()->GetProjectile() != 2U ||
+        frostTargetPlayer.GetSlowEffect()->GetEffectDefinition() !=
             &concreteFrostProjectile.GetDesc().tertiaryVisual ||
         concreteFrostProjectile.AttachFrostSlow(
             &frostNonCarTarget, &frostTargetPlayer, 8U, 2U))

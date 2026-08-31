@@ -506,6 +506,14 @@ public:
     bool ConsumeEnergyDamageEffectCreated() noexcept;
     std::optional<EventEffect::SpawnResult>
         ConsumeEnergyDamageEffectSpawn() noexcept;
+    LowLifePoints& GetLowLifePoints() noexcept;
+    const LowLifePoints& GetLowLifePoints() const noexcept;
+    DamageEffect& GetEnergyDamageEffect() noexcept;
+    const DamageEffect& GetEnergyDamageEffect() const noexcept;
+    ImmortalEffect& GetImmortalEffect() noexcept;
+    const ImmortalEffect& GetImmortalEffect() const noexcept;
+    SlowEffect* GetSlowEffect() noexcept;
+    const SlowEffect* GetSlowEffect() const noexcept;
     std::vector<PlayerGameEvent> TakeGameEvents() noexcept;
 
     void SetFinished(bool value, float time = -1.0F) noexcept;
@@ -542,10 +550,6 @@ public:
     float finishTime = -1.0F;
     float blockSeconds = -1.0F;
     bool disconnected = false;
-    LowLifePoints lowLifePoints;
-    DamageEffect energyDamageEffect{DamageType::Energy, 0.5F};
-    ImmortalEffect immortalEffect;
-    SlowEffect slowEffect;
     RockCar gameCar;
     CarState car;
 
@@ -597,6 +601,10 @@ private:
     std::uint32_t place_ = 1U;
     bool finished_ = false;
     std::vector<DeathEffectBehavior*> vehicleDeathEffects_;
+    LowLifeBehavior* lowLifeBehavior_ = nullptr;
+    EnergyDamageBehavior* energyDamageBehavior_ = nullptr;
+    PlayerImmortalBehavior* immortalBehavior_ = nullptr;
+    SlowBehavior* slowBehavior_ = nullptr;
     HeadLightMode headLight_ = HeadLightMode::None;
     // Exact CarState::mapObj ownership. Map owns the allocation; Player
     // creates/deletes it in CreateCar/FreeCar and retains the live identity.

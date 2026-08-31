@@ -15777,8 +15777,10 @@ int main(int argc, char** argv)
                         racer,
                         !raceSession.racers()[racer]
                              .gameCar.IsClutchLocked());
-                    if (raceSession.racers()[racer]
-                            .slowEffect.IsEffectMaked())
+                    const auto* slowEffect =
+                        raceSession.racers()[racer].GetSlowEffect();
+                    if (slowEffect != nullptr &&
+                        slowEffect->IsEffectMaked())
                     {
                         physicsWorld->clampLinearSpeed(
                             racer,

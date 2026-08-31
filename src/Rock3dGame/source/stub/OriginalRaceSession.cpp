@@ -2146,11 +2146,12 @@ bool OriginalRaceSession::applyRacerDamageInternal(
     // start local shield/damage effects for its outbound request.
     const auto energySpawn =
         runtime.ConsumeEnergyDamageEffectSpawn();
-    if (runtime.energyDamageEffect.HasPlayRequest())
+    if (runtime.GetEnergyDamageEffect().HasPlayRequest())
     {
         const auto& paths =
-            runtime.energyDamageEffect.GetSoundPaths();
-        const auto* path = runtime.energyDamageEffect.ConsumePlayRequest(
+            runtime.GetEnergyDamageEffect().GetSoundPaths();
+        const auto* path =
+            runtime.GetEnergyDamageEffect().ConsumePlayRequest(
             paths.empty()
                 ? 0.0F
                 : static_cast<float>(sourceUniformRandomUnit()));
@@ -8069,10 +8070,10 @@ void OriginalRaceSession::updateGameplay(
         }
         if (!result.playerApplied)
             return false;
-        if (runtime.immortalEffect.HasPlayRequest())
+        if (runtime.GetImmortalEffect().HasPlayRequest())
         {
-            const auto& paths = runtime.immortalEffect.GetSoundPaths();
-            const auto* path = runtime.immortalEffect.ConsumePlayRequest(
+            const auto& paths = runtime.GetImmortalEffect().GetSoundPaths();
+            const auto* path = runtime.GetImmortalEffect().ConsumePlayRequest(
                 paths.empty()
                     ? 0.0F
                     : static_cast<float>(sourceUniformRandomUnit()));
@@ -12026,11 +12027,11 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                                0.001F;
                 });
             if (!lowLifeSession.racers().front()
-                     .lowLifePoints.IsEffectMaked() ||
+                     .GetLowLifePoints().IsEffectMaked() ||
                 lowLifeSession.racers().front().IsDestroyed() ||
                 lowLifeSession.racers().front().GetLife() <= 0.0F ||
                 lowLifeSession.racers().front()
-                        .lowLifePoints.GetEffectSeconds() <= 0.0F ||
+                        .GetLowLifePoints().GetEffectSeconds() <= 0.0F ||
                 !hasLowLifeEvent ||
                 lowLifeEffect == lowLifeSession.effects().end())
             {
@@ -12145,9 +12146,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                                "Data/Sounds/shield-owner-test.ogg";
                 });
             if (std::abs(picked.GetShieldSeconds() - 10.0F) > 0.001F ||
-                picked.immortalEffect.GetEffectSeconds() != 0.0F ||
-                picked.immortalEffect.GetFadeInTime() != 0.0F ||
-                picked.immortalEffect.GetFadeOutTime() >= 0.0F ||
+                picked.GetImmortalEffect().GetEffectSeconds() != 0.0F ||
+                picked.GetImmortalEffect().GetFadeInTime() != 0.0F ||
+                picked.GetImmortalEffect().GetFadeOutTime() >= 0.0F ||
                 !hasShieldOwnerSound)
             {
                 throw std::runtime_error(
@@ -12175,12 +12176,12 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             const auto& damaged = shieldSession.racers().front();
             if (damaged.GetLife() != lifeBeforeShieldDamage ||
                 !hasImmortalDamage ||
-                damaged.immortalEffect.GetDamageTime() != 0.0F ||
+                damaged.GetImmortalEffect().GetDamageTime() != 0.0F ||
                 std::abs(
-                    damaged.immortalEffect.GetFadeInTime() - 0.1F) >
+                    damaged.GetImmortalEffect().GetFadeInTime() - 0.1F) >
                     0.001F ||
                 std::abs(
-                    damaged.immortalEffect.GetEffectSeconds() - 0.1F) >
+                    damaged.GetImmortalEffect().GetEffectSeconds() - 0.1F) >
                     0.001F)
             {
                 throw std::runtime_error(
@@ -12199,23 +12200,23 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             }
             const auto& fading = shieldSession.racers().front();
             if (fading.GetShieldSeconds() != 0.0F ||
-                fading.immortalEffect.GetFadeOutTime() < 0.0F ||
-                fading.immortalEffect.GetFadeOutTime() >= 0.5F ||
-                fading.immortalEffect.GetEffectSeconds() <= 0.0F)
+                fading.GetImmortalEffect().GetFadeOutTime() < 0.0F ||
+                fading.GetImmortalEffect().GetFadeOutTime() >= 0.5F ||
+                fading.GetImmortalEffect().GetEffectSeconds() <= 0.0F)
             {
                 throw std::runtime_error(
                     "source ImmortalEffect fade-out did not start");
             }
             while (shieldSession.racers().front()
-                       .immortalEffect.GetFadeOutTime() >= 0.0F &&
+                       .GetImmortalEffect().GetFadeOutTime() >= 0.0F &&
                    expirySteps++ < 120U)
             {
                 shieldSession.update(
                     0.1F, shieldVehicles, shieldInput);
             }
             const auto& faded = shieldSession.racers().front();
-            if (faded.immortalEffect.GetFadeOutTime() >= 0.0F ||
-                faded.immortalEffect.GetEffectSeconds() != 0.0F)
+            if (faded.GetImmortalEffect().GetFadeOutTime() >= 0.0F ||
+                faded.GetImmortalEffect().GetEffectSeconds() != 0.0F)
             {
                 throw std::runtime_error(
                     "source ImmortalEffect fade-out did not free effect");
@@ -12312,7 +12313,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             if (!deathSession.racers().front().IsDestroyed() ||
                 deathSession.racers().front().GetLife() != 0.0F ||
                 deathSession.racers().front()
-                    .lowLifePoints.IsEffectMaked() ||
+                    .GetLowLifePoints().IsEffectMaked() ||
                 deathSession.racerMapObjectId(0U) !=
                     source::Map::defaultMapObjId ||
                 deathSession.racerForMapObjectId(
@@ -14631,14 +14632,17 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                            event.soundPath ==
                                "Data/Sounds/damage-owner-test.ogg";
                 });
+            const auto* frostSlow =
+                frostSession.racers()[1].GetSlowEffect();
             if (frostSession.racers()[1].GetLife() >= lifeBeforeFrost ||
+                frostSlow == nullptr ||
                 std::abs(frostSession.racers()[1]
-                             .slowEffect.GetRemainingSeconds() - 1.0F) >
+                             .GetSlowEffect()->GetRemainingSeconds() - 1.0F) >
                     0.001F ||
-                frostSession.racers()[1].slowEffect.GetWeapon() !=
+                frostSession.racers()[1].GetSlowEffect()->GetWeapon() !=
                     frostWeapon ||
                 frostSession.racers()[1]
-                        .slowEffect.GetProjectile() != 0U ||
+                        .GetSlowEffect()->GetProjectile() != 0U ||
                 !hasDamageOwnerSound)
             {
                 throw std::runtime_error(
@@ -14685,7 +14689,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                                    effect.sourceDefinitionOwner.get() &&
                                effect.sourceDefinition->record ==
                                    frostSession.racers()[1]
-                                       .energyDamageEffect
+                                       .GetEnergyDamageEffect()
                                        .GetEffectDefinition()->record &&
                                std::abs(effect.totalSeconds - 0.5F) <
                                    0.001F;
@@ -14698,8 +14702,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             }
             frostSession.update(
                 1.0F / 60.0F, frostVehicles, frostInput);
-            if (frostSession.racers()[1]
-                    .slowEffect.GetRemainingSeconds() >= 0.99F ||
+            if (frostSession.racers()[1].GetSlowEffect() == nullptr ||
+                frostSession.racers()[1]
+                    .GetSlowEffect()->GetRemainingSeconds() >= 0.99F ||
                 energyDamageCount() != 1 || slowEffectCount() != 1)
             {
                 throw std::runtime_error(
@@ -14713,15 +14718,9 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 frostSession.update(
                     1.0F / 60.0F, frostVehicles, frostInput);
             }
-            if (frostSession.racers()[1]
-                    .slowEffect.IsEffectMaked() ||
-                frostSession.racers()[1].slowEffect.GetWeapon() !=
-                    RacerRuntime::invalidWeapon ||
+            if (frostSession.racers()[1].GetSlowEffect() != nullptr ||
                 frostSession.racers()[1]
-                        .slowEffect.GetProjectile() !=
-                    RacerRuntime::invalidWeapon ||
-                frostSession.racers()[1]
-                    .energyDamageEffect.IsEffectMaked() ||
+                    .GetEnergyDamageEffect().IsEffectMaked() ||
                 energyDamageCount() != 0 || slowEffectCount() != 0)
             {
                 throw std::runtime_error(

@@ -49,9 +49,10 @@ int main()
         0.25F, 0.35F, 30.0F);
     if (!slowActive.slowSpeedLimited || slowActive.slowReleased ||
         slowActive.gameObject.behaviorsProgressed != 4U ||
-        slowPlayer.slowEffect.GetWeapon() != 4U ||
-        slowPlayer.slowEffect.GetProjectile() != 2U ||
-        slowPlayer.slowEffect.GetEffectDefinition() != &slowDefinition)
+        slowPlayer.GetSlowEffect() == nullptr ||
+        slowPlayer.GetSlowEffect()->GetWeapon() != 4U ||
+        slowPlayer.GetSlowEffect()->GetProjectile() != 2U ||
+        slowPlayer.GetSlowEffect()->GetEffectDefinition() != &slowDefinition)
         return 73;
     const auto slowSpawn = slowPlayer.ConsumeSlowEffectSpawn();
     if (!slowSpawn.has_value() || !slowSpawn->createEffect ||
@@ -61,7 +62,7 @@ int main()
     const auto slowReleased = slowPlayer.ProgressBehaviors(
         0.251F, 0.35F, 30.0F);
     if (!slowReleased.slowSpeedLimited || !slowReleased.slowReleased ||
-        slowPlayer.slowEffect.IsEffectMaked() ||
+        slowPlayer.GetSlowEffect() != nullptr ||
         slowPlayer.gameCar.GetBehaviors().Find(
             source::BehaviorType::SlowEffect) == nullptr)
         return 74;
@@ -79,7 +80,7 @@ int main()
         return 76;
     slowPlayer.ConsumeSlowEffectSpawn();
     slowPlayer.NotifySlowEffectDestroyed();
-    if (slowPlayer.slowEffect.IsEffectMaked() ||
+    if (slowPlayer.GetSlowEffect() != nullptr ||
         slowPlayer.gameCar.GetBehaviors().Find(
             source::BehaviorType::SlowEffect) == nullptr)
         return 96;
@@ -396,19 +397,19 @@ int main()
     player.SetCar(&secondCar);
     if (player.GetCarRecord() != &secondCar || player.HasCar() ||
         player.car.numLaps != 0U ||
-        player.lowLifePoints.GetEffectDefinition() !=
+        player.GetLowLifePoints().GetEffectDefinition() !=
             &secondCar.lowLifeEffect ||
-        player.energyDamageEffect.GetEffectDefinition() !=
+        player.GetEnergyDamageEffect().GetEffectDefinition() !=
             &secondCar.energyDamageEffect ||
-        player.energyDamageEffect.GetSoundPaths() !=
+        player.GetEnergyDamageEffect().GetSoundPaths() !=
             secondCar.energyDamageSoundPaths ||
-        player.immortalEffect.GetEffectDefinition() !=
+        player.GetImmortalEffect().GetEffectDefinition() !=
             &secondCar.shieldEffect ||
-        player.immortalEffect.GetSoundPaths() !=
+        player.GetImmortalEffect().GetSoundPaths() !=
             secondCar.shieldSoundPaths ||
-        player.lowLifePoints.GetEffectPosition()[2] != 0.5F ||
-        player.immortalEffect.GetScaleK()[0] != 1.3F ||
-        player.immortalEffect.GetScaleK()[1] != 1.7F)
+        player.GetLowLifePoints().GetEffectPosition()[2] != 0.5F ||
+        player.GetImmortalEffect().GetScaleK()[0] != 1.3F ||
+        player.GetImmortalEffect().GetScaleK()[1] != 1.7F)
         return 58;
 
     auto& playerWeapons = player.GetWeaponRack();
@@ -663,12 +664,12 @@ int main()
     player.TakeImmortal(4.5F);
     if (player.GetPickMoney() != 19U ||
         std::abs(player.GetShieldSeconds() - 4.5F) > 0.001F ||
-        player.immortalEffect.GetFadeInTime() != 0.0F)
+        player.GetImmortalEffect().GetFadeInTime() != 0.0F)
         return 8;
     const float immortalLife = player.GetLife();
     player.Damage(1U, 5.0F, r3d::game::originalrace::DamageType::Energy);
     if (player.GetLife() != immortalLife ||
-        player.immortalEffect.GetDamageTime() != 0.0F ||
+        player.GetImmortalEffect().GetDamageTime() != 0.0F ||
         !player.ConsumeEnergyDamageEffectCreated())
         return 21;
     const auto immortalDamageEvents = player.TakeGameEvents();

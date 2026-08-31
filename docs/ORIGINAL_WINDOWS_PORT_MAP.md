@@ -54,7 +54,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `Environment` | `source::Environment` + `OriginalRaceRenderer` | Source owner, active race/presentation path | Weather/world/quality/rain lifetime принадлежат source owner; bgfx/Metal исполняет pass/material commands и lamp shadow submission |
 | `FinalMenu` | `mainmenu2::FinalMenuFrameState` + bgfx/CoreText view | Source owner, active frame | Legacy Widget API заменён backend draw/input/audio; credits, 107 s clock, slide alpha, Back и layout принадлежат source owner |
 | `FinishMenu` | `originalracemenu::FinishMenuFrameState` + bgfx/CoreText view | Source owner, active frame | Legacy Widget API заменён backend draw/input; result order, timing, events и layout принадлежат source owner |
-| `GameBase` | `OriginalGameObject`, all serialized behaviors, effects, motor sound state | Source owner, active behavior graph | Все shipped type 0–14 имеют concrete owner/runtime; bgfx/Jolt/SDL исполняют только graph/physics/audio commands |
+| `GameBase` | `OriginalGameObject`, all serialized behaviors, effects, motor sound state | Source owner, active behavior graph | Все shipped type 0–14 имеют concrete owner/runtime; LowLife/Damage/Immortal/Slow state живёт внутри зарегистрированного behavior, bgfx/Jolt/SDL исполняют только graph/physics/audio commands |
 | `GameCar` | `source::GameCar::{OnFixedStepDrive,OnContact,OnPxSync}` + Jolt vehicle adapter | Source owner, active drive/contact frame | Оставшиеся PhysX solver queries и actor operations являются Jolt boundary; продолжить аудит public serialization/editor-only методов |
 | `GameMode` | source startup/startup-menu/movie/race/music-fade states + one shared menu/game music source on shared World | Source owner, active startup/menu/race/audio-policy path | Config serialization и backend dispatch остаются adapters; bgfx/SDL/CoreAudio исполняют готовые source commands |
 | `GameObject` | `source::GameObject`, event counters, frame sync, listener/contact graph | Source owner, active core | Jolt/bgfx snapshots остаются backend boundary; source fixed/frame registration подключена |
@@ -67,7 +67,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `Menu` | `originalmenu::MenuSystem` + source Main/Profile/Dialog/Options/Race/Finish/Final owners | Source owner, frame core | Завершить concrete network callbacks; bgfx/CoreText/SDL остаются backend boundary |
 | `MenuSystem` | `originalmenu::{MenuSystem,ScreenStack,FrameState}` | Source owner, active menu path | Подключить concrete navigation graphs; bgfx остаётся draw executor |
 | `OptionsMenu` | `originaloptions::{OptionsMenuState,StartOptionsMenuState}` + backend visuals | Source owner, active options path | Legacy Widget events заменены SDL input, CoreText и bgfx draw submission |
-| `Player` | `source::Player`, `CarState`, behaviors, `PresentationState` | Source owner, active gameplay/presentation/live-car/trace path | `CarState` владеет trace state, concrete `WeaponItem` — live charge, `HumanPlayer` — primary selection; profile/import передаёт одноразовый `WeaponLoadout`, bgfx/Jolt исполняют graph/actor commands |
+| `Player` | `source::Player`, `CarState`, behaviors, `PresentationState` | Source owner, active gameplay/presentation/live-car/trace path | `CarState` владеет trace state, concrete `WeaponItem` — live charge, `HumanPlayer` — primary selection; Player только выгружает transient behavior results, profile/import передаёт одноразовый `WeaponLoadout`, bgfx/Jolt исполняют graph/actor commands |
 | `Race` | `OriginalRace`, `source::{RaceRunState,RaceLifecycle,RacePlaceModel}`, session adapter, tournament on shared World | Source owner, active fixed/late/finish/settlement lifecycle | `CompleteRace` Player publication, picked-money reset, block, campaign reward, tournament/pass-reset source-owned; продолжить вынос physics/contact materialization из session |
 | `RaceMenu2` | `originalracemenu::{RaceMenuState,RaceMainFrameState,GamersFrameState,GarageFrameState,WorkshopFrameState,SpaceshipFrameState,AngarFrameState,AchievementFrameState}` | Source owner, all six offline frame paths | Проверить оставшиеся network callbacks и оставить bgfx/CoreText backend boundary |
 | `RecordLib` | `source::{MapObjRecordLibrary,MapObjRecordNode,MapObjRecord}` | Source owner, active hierarchy | Editor-only mutation/serialization API не входит в пользовательский runtime |
@@ -1302,6 +1302,21 @@ Split tests, Metal asset selection и выбор nested DeathEffect теперь
 secondary/tertiary descriptor. Числовой `RaceEffect::visualVariant` остаётся
 только кратковременным renderer adapter для выбора уже загруженного death
 asset и вычисляется из source descriptor при создании эффекта.
+
+Результат B8cg: владельцы `LowLifePoints`, `DamageEffect`,
+`ImmortalEffect` и динамического `SlowEffect` возвращены в concrete
+`GameObject::Behaviors`. Раньше зарегистрированные listener-объекты лишь
+делегировали state machine публичным полям `Player`, поэтому source graph и
+его состояние могли иметь разные lifetime. Теперь каждый wrapper сам хранит
+исходный state, обрабатывает `OnProgress/OnDamage/OnImmortalStatus` и выдаёт
+`Player` только одноразовый spawn/audio/backend result.
+
+`BindSourceBehaviors` повторно загружает serialized car record при каждом
+`CreateCar`, как исходное создание новой коллекции behaviors. Frost
+`SlowEffect` создаётся и удаляется вместе с type-8 entry; после `Remove`
+backend больше не может увидеть отдельный Player-owned effect. Player,
+Weapon и integrated race regressions закрепляют record identity, listener
+count, deferred removal, respawn configuration и effect lifetime.
 
 ## Правило обновления карты
 
