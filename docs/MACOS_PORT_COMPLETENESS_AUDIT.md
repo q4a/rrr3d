@@ -2713,3 +2713,15 @@ Life effects больше не получают отдельный Behavior-base
 effect handles, sound catalog и progress lifetime идут через одну цепочку,
 как в Windows. SDL заменяет только обновление/проигрывание Source3d, Metal —
 создание Graph/MapObj presentation; source base остаётся владельцем решения.
+
+### B8cm — LowLife/Damage/Slow/Immortal являются concrete Behavior — выполнено
+
+Удалены оставшиеся Player wrapper-классы типов 4/5/8/11. `LowLifePoints`,
+`DamageEffect`, `SlowEffect` и `ImmortalEffect` теперь сами наследуют
+`EventEffect`, зарегистрированы в `Behaviors` и владеют effect handles,
+serialized configuration и callback lifetime. Типизированные Player accessors
+возвращают ровно объект из `Behaviors::Find`, а не вложенную state-копию.
+
+Low-life notification, Energy damage spawn/sound, shield fade/damage pulse и
+Frost lifetime/speed clamp исполняются concrete source entries. Jolt, SDL и
+Metal остались adapters для velocity, sound source и presentation actor.

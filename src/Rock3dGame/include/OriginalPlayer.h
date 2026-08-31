@@ -568,10 +568,6 @@ protected:
         DamageType damageType) noexcept override;
 
 private:
-    class LowLifeBehavior;
-    class EnergyDamageBehavior;
-    class PlayerImmortalBehavior;
-    class SlowBehavior;
     void BindSourceBehaviors();
     void PrepareVehicleDeathEffects() noexcept;
     void ClearSlowBehavior() noexcept;
@@ -601,10 +597,10 @@ private:
     std::uint32_t place_ = 1U;
     bool finished_ = false;
     std::vector<DeathEffect*> vehicleDeathEffects_;
-    LowLifeBehavior* lowLifeBehavior_ = nullptr;
-    EnergyDamageBehavior* energyDamageBehavior_ = nullptr;
-    PlayerImmortalBehavior* immortalBehavior_ = nullptr;
-    SlowBehavior* slowBehavior_ = nullptr;
+    LowLifePoints* lowLifePoints_ = nullptr;
+    DamageEffect* energyDamageEffect_ = nullptr;
+    ImmortalEffect* immortalEffect_ = nullptr;
+    SlowEffect* slowEffect_ = nullptr;
     HeadLightMode headLight_ = HeadLightMode::None;
     // Exact CarState::mapObj ownership. Map owns the allocation; Player
     // creates/deletes it in CreateCar/FreeCar and retains the live identity.
@@ -621,11 +617,9 @@ private:
     const ObjectDefinition* wheelSmokeEffect_ = nullptr;
     bool reflScene_ = true;
     PresentationState presentation_;
-    std::optional<EventEffect::SpawnResult> energyDamageEffectSpawn_;
     bool lowLifeActivated_ = false;
     bool lowLifeReleased_ = false;
     std::optional<EventEffect::SpawnResult> lowLifeEffectSpawn_;
-    float behaviorLinearSpeed_ = 0.0F;
     bool slowSpeedLimited_ = false;
     bool slowReleased_ = false;
     std::optional<EventEffect::SpawnResult> slowEffectSpawn_;

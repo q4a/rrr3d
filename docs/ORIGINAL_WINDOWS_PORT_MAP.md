@@ -1382,6 +1382,20 @@ Behavior-base или wrapper-а. Теперь он имеет owning `Behaviors*
 наследования. Базовый `OnProgress` остаётся ordered source callback; перенос
 world position в Source3d выполняет SDL boundary по тому же owning GameObject.
 
+Результат B8cm: устранены последние четыре пары «зарегистрированный wrapper +
+вложенный EventEffect state» у типов 4, 5, 8 и 11. `LowLifePoints`,
+`DamageEffect`, `SlowEffect` и `ImmortalEffect` теперь непосредственно
+наследуют `EventEffect`, добавляются в `GameObject::Behaviors` и сами получают
+`OnProgress`, `OnDamage` и `OnImmortalStatus`, как в
+`eff9338:GameBase.h/.cpp`.
+
+`Player` хранит только типизированные non-owning pointers на эти entries и
+забирает consumable backend results после ordered progress. Low-life visual,
+energy hit visual/audio и Frost speed limit больше не принадлежат соседнему
+объекту. Jolt сообщает текущую скорость SlowEffect, SDL/Metal материализуют
+готовый spawn/play result; source behavior сохраняет transition, lifetime и
+effect identity. Regression требует pointer identity для всех четырёх типов.
+
 Каждый крупный block commit обязан:
 
 1. назвать точные методы из `eff9338:prog`, которые стали активными;

@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -40,6 +41,7 @@ class Logic;
 class Map;
 class MapObj;
 class MapObjects;
+class Player;
 
 // Backend-neutral GameObjListener. Reference counting belongs to the legacy
 // lsl owner; portable listeners are non-owning and retain the source callback
@@ -831,10 +833,10 @@ private:
     const std::string* playRequest_ = nullptr;
 };
 
-// Backend-neutral state owned by the original GameBase behavior classes.
-// Effect actors/sounds remain renderer and audio adapters, but their state
-// machines live here instead of being reconstructed in RaceSession.
-class LowLifePoints
+// Direct transcriptions of the four remaining EventEffect-derived Windows
+// behaviors. Effect actors/sounds stay behind portable backend adapters, but
+// the registered behavior and the effect state now have one source identity.
+class LowLifePoints final : public EventEffect
 {
 public:
     struct ProgressResult
@@ -844,7 +846,10 @@ public:
         EventEffect::SpawnResult spawn;
     };
 
-    LowLifePoints(float lifeLevel = 0.35F) noexcept;
+    explicit LowLifePoints(float lifeLevel = 0.35F) noexcept;
+    explicit LowLifePoints(
+        Behaviors* owner, float lifeLevel = 0.35F) noexcept;
+    void OnProgress(float deltaTime) noexcept override;
     void Configure(
         const ObjectDefinition* definition,
         std::array<float, 3U> position,
@@ -853,6 +858,7 @@ public:
     ProgressResult OnProgress(
         GameObject& gameObject, float deltaTime,
         Behavior* behavior = nullptr) noexcept;
+    ProgressResult ConsumeProgressResult() noexcept;
 
     float GetLifeLevel() const noexcept;
     void SetLifeLevel(float value) noexcept;
@@ -864,13 +870,17 @@ public:
 private:
     float lifeLevel_ = 0.35F;
     float effectSeconds_ = 0.0F;
-    EventEffect eventEffect_;
+    ProgressResult pendingProgress_;
 };
 
-class DamageEffect
+class DamageEffect final : public EventEffect
 {
 public:
     explicit DamageEffect(
+        DamageType damageType = DamageType::Simple,
+        float maximumTimeLife = 0.5F) noexcept;
+    DamageEffect(
+        Behaviors* owner,
         DamageType damageType = DamageType::Simple,
         float maximumTimeLife = 0.5F) noexcept;
     void Configure(
@@ -880,7 +890,7 @@ public:
     void ConfigureSounds(std::vector<std::string> soundPaths);
     void Reset() noexcept;
     bool OnDamage(DamageType damageType) noexcept;
-    void OnProgress(float deltaTime) noexcept;
+    void OnProgress(float deltaTime) noexcept override;
 
     DamageType GetDamageType() const noexcept;
     void SetDamageType(DamageType value) noexcept;
@@ -891,29 +901,39 @@ public:
     const std::vector<std::string>& GetSoundPaths() const noexcept;
     bool HasPlayRequest() const noexcept;
     const std::string* ConsumePlayRequest(float randomUnit) noexcept;
+    std::optional<EventEffect::SpawnResult>
+        ConsumeSpawnResult() noexcept;
+
+protected:
+    void OnDamage(
+        GameObject& sender, float value,
+        DamageType damageType) noexcept override;
 
 private:
     DamageType damageType_ = DamageType::Simple;
     float maximumTimeLife_ = 0.5F;
     float effectSeconds_ = 0.0F;
     bool playRequest_ = false;
-    EventEffect eventEffect_;
+    std::optional<EventEffect::SpawnResult> pendingSpawn_;
 };
 
-class ImmortalEffect
+class ImmortalEffect final : public EventEffect
 {
 public:
     static constexpr float fadeSeconds = 0.5F;
     static constexpr float damageSeconds = 0.25F;
+
+    ImmortalEffect() noexcept;
+    explicit ImmortalEffect(Behaviors* owner) noexcept;
 
     void Configure(
         const ObjectDefinition* definition,
         std::array<float, 3U> scaleK) noexcept;
     void ConfigureSounds(std::vector<std::string> soundPaths);
     void Reset() noexcept;
-    void OnImmortalStatus(bool status) noexcept;
+    void OnImmortalStatus(bool status) noexcept override;
     void OnDamage() noexcept;
-    void OnProgress(float deltaTime) noexcept;
+    void OnProgress(float deltaTime) noexcept override;
 
     bool IsEffectMaked() const noexcept;
     float GetEffectSeconds() const noexcept;
@@ -928,6 +948,11 @@ public:
     bool HasPlayRequest() const noexcept;
     const std::string* ConsumePlayRequest(float randomUnit) noexcept;
 
+protected:
+    void OnDamage(
+        GameObject& sender, float value,
+        DamageType damageType) noexcept override;
+
 private:
     float fadeInTime_ = -1.0F;
     float fadeOutTime_ = -1.0F;
@@ -935,10 +960,9 @@ private:
     float effectSeconds_ = 0.0F;
     std::array<float, 3U> scaleK_{1.0F, 1.0F, 1.0F};
     bool playRequest_ = false;
-    EventEffect eventEffect_;
 };
 
-class SlowEffect
+class SlowEffect final : public EventEffect
 {
 public:
     static constexpr float maximumSpeed = 20.0F;
@@ -949,6 +973,9 @@ public:
         bool released = false;
     };
 
+    SlowEffect() noexcept;
+    explicit SlowEffect(Behaviors* owner) noexcept;
+    void OnProgress(float deltaTime) noexcept override;
     void Reset() noexcept;
     bool Attach(const ObjectDefinition* effectDefinition,
                 float maximumTimeLife, std::size_t weapon,
@@ -957,6 +984,8 @@ public:
                 std::size_t projectile) noexcept;
     ProgressResult OnProgress(
         float deltaTime, float linearSpeed) noexcept;
+    void SetLinearSpeed(float value) noexcept;
+    ProgressResult ConsumeProgressResult() noexcept;
 
     bool IsEffectMaked() const noexcept;
     float GetRemainingSeconds() const noexcept;
@@ -970,7 +999,8 @@ private:
     float timeLife_ = 0.0F;
     std::size_t weapon_ = GameObject::undefinedPlayerId;
     std::size_t projectile_ = GameObject::undefinedPlayerId;
-    EventEffect eventEffect_;
+    float linearSpeed_ = 0.0F;
+    ProgressResult pendingProgress_;
 };
 
 } // namespace source

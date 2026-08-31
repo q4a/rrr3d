@@ -17,6 +17,14 @@ int main()
     source::Player player;
     player.Reset(80.0F, 3U);
     static_assert(!std::is_base_of_v<source::GameObject, source::Player>);
+    static_assert(std::is_base_of_v<
+                  source::EventEffect, source::LowLifePoints>);
+    static_assert(std::is_base_of_v<
+                  source::EventEffect, source::DamageEffect>);
+    static_assert(std::is_base_of_v<
+                  source::EventEffect, source::ImmortalEffect>);
+    static_assert(std::is_base_of_v<
+                  source::EventEffect, source::SlowEffect>);
     if (player.gameCar.GetLife() != player.GetLife() ||
         player.gameCar.GetEventSink() != &player ||
         player.gameCar.GetBehaviors().GetCount() != 3U ||
@@ -26,6 +34,15 @@ int main()
             source::BehaviorType::ImmortalEffect) == nullptr ||
         player.gameCar.GetBehaviors().Find(
             source::BehaviorType::DamageEffect) == nullptr ||
+        player.gameCar.GetBehaviors().Find(
+            source::BehaviorType::LowLifePoints) !=
+            &player.GetLowLifePoints() ||
+        player.gameCar.GetBehaviors().Find(
+            source::BehaviorType::ImmortalEffect) !=
+            &player.GetImmortalEffect() ||
+        player.gameCar.GetBehaviors().Find(
+            source::BehaviorType::DamageEffect) !=
+            &player.GetEnergyDamageEffect() ||
         player.gameCar.GetListenerCount() != 4U)
         return 71;
 
@@ -43,6 +60,9 @@ int main()
         slowPlayer.gameCar.GetBehaviors().GetCount() != 4U ||
         slowPlayer.gameCar.GetBehaviors().Find(
             source::BehaviorType::SlowEffect) == nullptr ||
+        slowPlayer.gameCar.GetBehaviors().Find(
+            source::BehaviorType::SlowEffect) !=
+            slowPlayer.GetSlowEffect() ||
         slowPlayer.gameCar.GetListenerCount() != 5U)
         return 72;
     const auto slowActive = slowPlayer.ProgressBehaviors(

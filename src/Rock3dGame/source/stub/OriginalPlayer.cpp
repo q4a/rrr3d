@@ -29,142 +29,6 @@ Weapon::Desc makeWeaponDescription(
 
 } // namespace
 
-class Player::LowLifeBehavior final : public Behavior
-{
-public:
-    LowLifeBehavior(Behaviors* owner, Player* player) noexcept
-        : Behavior(owner), player_(player)
-    {
-    }
-
-    void OnProgress(float deltaTime) noexcept override
-    {
-        if (player_ == nullptr)
-            return;
-        const auto result = state_.OnProgress(
-            player_->gameCar, deltaTime, this);
-        player_->lowLifeActivated_ =
-            player_->lowLifeActivated_ || result.activated;
-        player_->lowLifeReleased_ =
-            player_->lowLifeReleased_ || result.released;
-        if (result.spawn.createEffect)
-            player_->lowLifeEffectSpawn_ = result.spawn;
-    }
-
-    LowLifePoints& State() noexcept { return state_; }
-    const LowLifePoints& State() const noexcept { return state_; }
-
-private:
-    Player* player_ = nullptr;
-    LowLifePoints state_;
-};
-
-class Player::EnergyDamageBehavior final : public Behavior
-{
-public:
-    EnergyDamageBehavior(Behaviors* owner, Player* player) noexcept
-        : Behavior(owner), player_(player),
-          state_(DamageType::Energy, 0.5F)
-    {
-    }
-
-    void OnProgress(float deltaTime) noexcept override
-    {
-        if (player_ != nullptr)
-            state_.OnProgress(deltaTime);
-    }
-
-    void OnDamage(GameObject&, float, DamageType damageType) noexcept override
-    {
-        if (player_ != nullptr)
-        {
-            const bool created =
-                state_.OnDamage(damageType);
-            if (created)
-            {
-                const auto spawn = state_.GetSpawnResult(true);
-                if (spawn.createEffect)
-                    player_->energyDamageEffectSpawn_ = spawn;
-            }
-        }
-    }
-
-    DamageEffect& State() noexcept { return state_; }
-    const DamageEffect& State() const noexcept { return state_; }
-
-private:
-    Player* player_ = nullptr;
-    DamageEffect state_;
-};
-
-class Player::PlayerImmortalBehavior final : public Behavior
-{
-public:
-    PlayerImmortalBehavior(Behaviors* owner, Player* player) noexcept
-        : Behavior(owner), player_(player)
-    {
-    }
-
-    void OnProgress(float deltaTime) noexcept override
-    {
-        if (player_ != nullptr)
-            state_.OnProgress(deltaTime);
-    }
-
-    void OnDamage(GameObject&, float, DamageType) noexcept override
-    {
-        if (player_ != nullptr)
-            state_.OnDamage();
-    }
-
-    ImmortalEffect& State() noexcept { return state_; }
-    const ImmortalEffect& State() const noexcept { return state_; }
-
-protected:
-    void OnImmortalStatus(bool status) noexcept override
-    {
-        if (player_ != nullptr)
-            state_.OnImmortalStatus(status);
-    }
-
-private:
-    Player* player_ = nullptr;
-    ImmortalEffect state_;
-};
-
-class Player::SlowBehavior final : public Behavior
-{
-public:
-    SlowBehavior(Behaviors* owner, Player* player) noexcept
-        : Behavior(owner), player_(player)
-    {
-    }
-
-    void OnProgress(float deltaTime) noexcept override
-    {
-        if (player_ == nullptr)
-            return;
-        const auto result = state_.OnProgress(
-            deltaTime, player_->behaviorLinearSpeed_);
-        player_->slowSpeedLimited_ =
-            player_->slowSpeedLimited_ || result.limitSpeed;
-        player_->slowReleased_ =
-            player_->slowReleased_ || result.released;
-        if (result.released)
-        {
-            player_->slowBehavior_ = nullptr;
-            Remove();
-        }
-    }
-
-    SlowEffect& State() noexcept { return state_; }
-    const SlowEffect& State() const noexcept { return state_; }
-
-private:
-    Player* player_ = nullptr;
-    SlowEffect state_;
-};
-
 Player::Player()
 {
     BindSourceBehaviors();
@@ -191,13 +55,13 @@ void Player::BindSourceBehaviors()
     gameCar.InsertListener(this);
     auto& behaviors = gameCar.GetBehaviors();
     vehicleDeathEffects_.clear();
-    lowLifeBehavior_ = nullptr;
-    energyDamageBehavior_ = nullptr;
-    immortalBehavior_ = nullptr;
-    slowBehavior_ = nullptr;
+    lowLifePoints_ = nullptr;
+    energyDamageEffect_ = nullptr;
+    immortalEffect_ = nullptr;
+    slowEffect_ = nullptr;
     behaviors.Clear();
-    lowLifeBehavior_ = &behaviors.Add<LowLifeBehavior>(
-        BehaviorType::LowLifePoints, this);
+    lowLifePoints_ = &behaviors.Add<LowLifePoints>(
+        BehaviorType::LowLifePoints);
     // DataBase::LoadCar inserts every serialized DeathEffect immediately
     // after LowLifePoints. Keep duplicate type-6 entries: each owns a
     // different effect record and all of them receive the same Death event.
@@ -223,48 +87,48 @@ void Player::BindSourceBehaviors()
         }
     }
     // DataBase::LoadCar inserts ImmortalEffect before DamageEffect.
-    immortalBehavior_ = &behaviors.Add<PlayerImmortalBehavior>(
-        BehaviorType::ImmortalEffect, this);
-    energyDamageBehavior_ = &behaviors.Add<EnergyDamageBehavior>(
-        BehaviorType::DamageEffect, this);
+    immortalEffect_ = &behaviors.Add<ImmortalEffect>(
+        BehaviorType::ImmortalEffect);
+    energyDamageEffect_ = &behaviors.Add<DamageEffect>(
+        BehaviorType::DamageEffect, DamageType::Energy, 0.5F);
     // Creating/respawning a car rebuilds the serialized behavior collection.
     // The concrete behavior therefore reloads its own record state here,
     // rather than relying on Player fields to survive graph replacement.
     if (carRecord_ != nullptr)
     {
-        lowLifeBehavior_->State().Configure(
+        lowLifePoints_->Configure(
             &carRecord_->lowLifeEffect,
             {carRecord_->lowLifeEffectPosition.x,
              carRecord_->lowLifeEffectPosition.y,
              carRecord_->lowLifeEffectPosition.z},
             carRecord_->lowLifeLevel);
-        energyDamageBehavior_->State().Configure(
+        energyDamageEffect_->Configure(
             &carRecord_->energyDamageEffect,
             DamageType::Energy,
             carRecord_->energyDamageEffect.maximumTimeLife > 0.0F
                 ? carRecord_->energyDamageEffect.maximumTimeLife
                 : 0.5F);
-        energyDamageBehavior_->State().ConfigureSounds(
+        energyDamageEffect_->ConfigureSounds(
             carRecord_->energyDamageSoundPaths);
-        immortalBehavior_->State().Configure(
+        immortalEffect_->Configure(
             &carRecord_->shieldEffect,
             {carRecord_->shieldEffectScale.x,
              carRecord_->shieldEffectScale.y,
              carRecord_->shieldEffectScale.z});
-        immortalBehavior_->State().ConfigureSounds(
+        immortalEffect_->ConfigureSounds(
             carRecord_->shieldSoundPaths);
     }
 }
 
 void Player::ClearSlowBehavior() noexcept
 {
-    if (slowBehavior_ != nullptr)
-        slowBehavior_->State().Reset();
+    if (slowEffect_ != nullptr)
+        slowEffect_->Reset();
     slowEffectSpawn_.reset();
     auto& behaviors = gameCar.GetBehaviors();
     if (auto* behavior = behaviors.Find(BehaviorType::SlowEffect))
         behaviors.Delete(behavior);
-    slowBehavior_ = nullptr;
+    slowEffect_ = nullptr;
 }
 
 void Player::AttachWeaponMapObjects() noexcept
@@ -1698,7 +1562,8 @@ void Player::PrepareBehaviors(
     lowLifeActivated_ = false;
     lowLifeReleased_ = false;
     lowLifeEffectSpawn_.reset();
-    behaviorLinearSpeed_ = linearSpeed;
+    if (slowEffect_ != nullptr)
+        slowEffect_->SetLinearSpeed(linearSpeed);
     slowSpeedLimited_ = false;
     slowReleased_ = false;
 }
@@ -1717,6 +1582,28 @@ Player::BehaviorProgressResult Player::FinishBehaviorProgress(
             droid->OnProgress(
                 deltaTime, gameCar.life, gameCar.maximumLife,
                 gameCar.destroyed);
+    }
+    if (lowLifePoints_ != nullptr)
+    {
+        const auto progress =
+            lowLifePoints_->ConsumeProgressResult();
+        lowLifeActivated_ =
+            lowLifeActivated_ || progress.activated;
+        lowLifeReleased_ =
+            lowLifeReleased_ || progress.released;
+        if (progress.spawn.createEffect)
+            lowLifeEffectSpawn_ = progress.spawn;
+    }
+    if (slowEffect_ != nullptr)
+    {
+        const auto progress =
+            slowEffect_->ConsumeProgressResult();
+        slowSpeedLimited_ =
+            slowSpeedLimited_ || progress.limitSpeed;
+        slowReleased_ =
+            slowReleased_ || progress.released;
+        if (progress.released)
+            slowEffect_ = nullptr;
     }
     result.lowLifeActivated = lowLifeActivated_;
     result.lowLifeReleased = lowLifeReleased_;
@@ -1766,16 +1653,16 @@ bool Player::AttachSlowEffect(
     // ray contacts therefore neither replace the model nor restart lifetime.
     if (behaviors.Find(BehaviorType::SlowEffect) != nullptr)
         return false;
-    auto& behavior = behaviors.Add<SlowBehavior>(
-        BehaviorType::SlowEffect, this);
-    if (!behavior.State().Attach(
+    auto& behavior = behaviors.Add<SlowEffect>(
+        BehaviorType::SlowEffect);
+    if (!behavior.Attach(
             effectDefinition, maximumTimeLife, weapon, projectile))
     {
         behaviors.Delete(&behavior);
         return false;
     }
-    slowBehavior_ = &behavior;
-    slowEffectSpawn_ = behavior.State().GetSpawnResult(true);
+    slowEffect_ = &behavior;
+    slowEffectSpawn_ = behavior.GetSpawnResult(true);
     return true;
 }
 
@@ -1789,8 +1676,8 @@ Player::ConsumeSlowEffectSpawn() noexcept
 
 void Player::NotifySlowEffectDestroyed() noexcept
 {
-    if (slowBehavior_ != nullptr)
-        slowBehavior_->State().Reset();
+    if (slowEffect_ != nullptr)
+        slowEffect_->Reset();
     slowEffectSpawn_.reset();
     slowSpeedLimited_ = false;
     slowReleased_ = true;
@@ -1799,47 +1686,47 @@ void Player::NotifySlowEffectDestroyed() noexcept
     {
         behavior->Remove();
     }
-    slowBehavior_ = nullptr;
+    slowEffect_ = nullptr;
 }
 
 LowLifePoints& Player::GetLowLifePoints() noexcept
 {
-    return lowLifeBehavior_->State();
+    return *lowLifePoints_;
 }
 
 const LowLifePoints& Player::GetLowLifePoints() const noexcept
 {
-    return lowLifeBehavior_->State();
+    return *lowLifePoints_;
 }
 
 DamageEffect& Player::GetEnergyDamageEffect() noexcept
 {
-    return energyDamageBehavior_->State();
+    return *energyDamageEffect_;
 }
 
 const DamageEffect& Player::GetEnergyDamageEffect() const noexcept
 {
-    return energyDamageBehavior_->State();
+    return *energyDamageEffect_;
 }
 
 ImmortalEffect& Player::GetImmortalEffect() noexcept
 {
-    return immortalBehavior_->State();
+    return *immortalEffect_;
 }
 
 const ImmortalEffect& Player::GetImmortalEffect() const noexcept
 {
-    return immortalBehavior_->State();
+    return *immortalEffect_;
 }
 
 SlowEffect* Player::GetSlowEffect() noexcept
 {
-    return slowBehavior_ != nullptr ? &slowBehavior_->State() : nullptr;
+    return slowEffect_;
 }
 
 const SlowEffect* Player::GetSlowEffect() const noexcept
 {
-    return slowBehavior_ != nullptr ? &slowBehavior_->State() : nullptr;
+    return slowEffect_;
 }
 
 Player::CheatResult Player::CheatUpdate(
@@ -2109,9 +1996,9 @@ bool Player::ConsumeEnergyDamageEffectCreated() noexcept
 std::optional<EventEffect::SpawnResult>
 Player::ConsumeEnergyDamageEffectSpawn() noexcept
 {
-    auto result = energyDamageEffectSpawn_;
-    energyDamageEffectSpawn_.reset();
-    return result;
+    return energyDamageEffect_ != nullptr
+               ? energyDamageEffect_->ConsumeSpawnResult()
+               : std::nullopt;
 }
 
 std::vector<PlayerGameEvent> Player::TakeGameEvents() noexcept

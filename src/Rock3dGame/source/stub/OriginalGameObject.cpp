@@ -2102,8 +2102,31 @@ const std::string* LifeEffect::ConsumePlayRequest() noexcept
 }
 
 LowLifePoints::LowLifePoints(float lifeLevel) noexcept
+    : EventEffect()
 {
     Reset(lifeLevel);
+}
+
+LowLifePoints::LowLifePoints(
+    Behaviors* owner, float lifeLevel) noexcept
+    : EventEffect(owner)
+{
+    Reset(lifeLevel);
+}
+
+void LowLifePoints::OnProgress(float deltaTime) noexcept
+{
+    EventEffect::OnProgress(deltaTime);
+    auto* gameObject = GetGameObj();
+    if (gameObject == nullptr)
+        return;
+    const auto result = OnProgress(*gameObject, deltaTime, this);
+    pendingProgress_.activated =
+        pendingProgress_.activated || result.activated;
+    pendingProgress_.released =
+        pendingProgress_.released || result.released;
+    if (result.spawn.createEffect)
+        pendingProgress_.spawn = result.spawn;
 }
 
 void LowLifePoints::Configure(
@@ -2111,16 +2134,18 @@ void LowLifePoints::Configure(
     std::array<float, 3U> position,
     float lifeLevel) noexcept
 {
-    eventEffect_.Configure(definition, position);
+    EventEffect::Configure(definition, position);
     lifeLevel_ = lifeLevel;
     effectSeconds_ = 0.0F;
+    pendingProgress_ = {};
 }
 
 void LowLifePoints::Reset(float lifeLevel) noexcept
 {
     lifeLevel_ = lifeLevel;
     effectSeconds_ = 0.0F;
-    eventEffect_.Reset();
+    pendingProgress_ = {};
+    EventEffect::Reset();
 }
 
 LowLifePoints::ProgressResult LowLifePoints::OnProgress(
@@ -2136,20 +2161,28 @@ LowLifePoints::ProgressResult LowLifePoints::OnProgress(
         life / maximumLife < lifeLevel_;
     if (lowLife)
     {
-        if (!eventEffect_.IsEffectMaked())
+        if (!EventEffect::IsEffectMaked())
             gameObject.LowLife(behavior);
-        if (eventEffect_.MakeEffect())
+        if (EventEffect::MakeEffect())
         {
             result.activated = true;
-            result.spawn = eventEffect_.GetSpawnResult(true);
+            result.spawn = EventEffect::GetSpawnResult(true);
         }
         effectSeconds_ += deltaTime;
     }
-    else if (eventEffect_.FreeEffect())
+    else if (EventEffect::FreeEffect())
     {
         effectSeconds_ = 0.0F;
         result.released = true;
     }
+    return result;
+}
+
+LowLifePoints::ProgressResult
+LowLifePoints::ConsumeProgressResult() noexcept
+{
+    const auto result = pendingProgress_;
+    pendingProgress_ = {};
     return result;
 }
 
@@ -2165,7 +2198,7 @@ void LowLifePoints::SetLifeLevel(float value) noexcept
 
 bool LowLifePoints::IsEffectMaked() const noexcept
 {
-    return eventEffect_.IsEffectMaked();
+    return EventEffect::IsEffectMaked();
 }
 
 float LowLifePoints::GetEffectSeconds() const noexcept
@@ -2176,18 +2209,27 @@ float LowLifePoints::GetEffectSeconds() const noexcept
 const ObjectDefinition*
 LowLifePoints::GetEffectDefinition() const noexcept
 {
-    return eventEffect_.GetEffectDefinition();
+    return EventEffect::GetEffectDefinition();
 }
 
 const std::array<float, 3U>&
 LowLifePoints::GetEffectPosition() const noexcept
 {
-    return eventEffect_.GetPosition();
+    return EventEffect::GetPosition();
 }
 
 DamageEffect::DamageEffect(
     DamageType damageType, float maximumTimeLife) noexcept
-    : damageType_(damageType), maximumTimeLife_(maximumTimeLife)
+    : EventEffect(), damageType_(damageType),
+      maximumTimeLife_(maximumTimeLife)
+{
+}
+
+DamageEffect::DamageEffect(
+    Behaviors* owner, DamageType damageType,
+    float maximumTimeLife) noexcept
+    : EventEffect(owner), damageType_(damageType),
+      maximumTimeLife_(maximumTimeLife)
 {
 }
 
@@ -2198,21 +2240,23 @@ void DamageEffect::Configure(
 {
     damageType_ = damageType;
     maximumTimeLife_ = maximumTimeLife;
-    eventEffect_.Configure(definition);
+    EventEffect::Configure(definition);
     effectSeconds_ = 0.0F;
+    pendingSpawn_.reset();
 }
 
 void DamageEffect::ConfigureSounds(
     std::vector<std::string> soundPaths)
 {
-    eventEffect_.ConfigureSounds(std::move(soundPaths));
+    EventEffect::ConfigureSounds(std::move(soundPaths));
 }
 
 void DamageEffect::Reset() noexcept
 {
     effectSeconds_ = 0.0F;
     playRequest_ = false;
-    eventEffect_.Reset();
+    pendingSpawn_.reset();
+    EventEffect::Reset();
 }
 
 bool DamageEffect::OnDamage(DamageType damageType) noexcept
@@ -2223,22 +2267,33 @@ bool DamageEffect::OnDamage(DamageType damageType) noexcept
     // previous visual actor is still alive. The adapter consumes this
     // independently from the one-live-effect MakeEffect result.
     playRequest_ = true;
-    const bool created = eventEffect_.MakeEffect();
+    const bool created = EventEffect::MakeEffect();
     if (created)
         effectSeconds_ = 0.0F;
     return created;
 }
 
+void DamageEffect::OnDamage(
+    GameObject&, float, DamageType damageType) noexcept
+{
+    if (!OnDamage(damageType))
+        return;
+    const auto spawn = GetSpawnResult(true);
+    if (spawn.createEffect)
+        pendingSpawn_ = spawn;
+}
+
 void DamageEffect::OnProgress(float deltaTime) noexcept
 {
-    if (!eventEffect_.IsEffectMaked())
+    EventEffect::OnProgress(deltaTime);
+    if (!EventEffect::IsEffectMaked())
         return;
     effectSeconds_ += deltaTime;
     if (maximumTimeLife_ > 0.0F &&
         effectSeconds_ > maximumTimeLife_)
     {
         effectSeconds_ = 0.0F;
-        eventEffect_.FreeEffect();
+        EventEffect::FreeEffect();
     }
 }
 
@@ -2254,7 +2309,7 @@ void DamageEffect::SetDamageType(DamageType value) noexcept
 
 bool DamageEffect::IsEffectMaked() const noexcept
 {
-    return eventEffect_.IsEffectMaked();
+    return EventEffect::IsEffectMaked();
 }
 
 float DamageEffect::GetEffectSeconds() const noexcept
@@ -2265,19 +2320,19 @@ float DamageEffect::GetEffectSeconds() const noexcept
 EventEffect::SpawnResult DamageEffect::GetSpawnResult(
     bool created) noexcept
 {
-    return eventEffect_.GetSpawnResult(created);
+    return EventEffect::GetSpawnResult(created);
 }
 
 const ObjectDefinition*
 DamageEffect::GetEffectDefinition() const noexcept
 {
-    return eventEffect_.GetEffectDefinition();
+    return EventEffect::GetEffectDefinition();
 }
 
 const std::vector<std::string>&
 DamageEffect::GetSoundPaths() const noexcept
 {
-    return eventEffect_.GetSoundPaths();
+    return EventEffect::GetSoundPaths();
 }
 
 bool DamageEffect::HasPlayRequest() const noexcept
@@ -2291,7 +2346,22 @@ const std::string* DamageEffect::ConsumePlayRequest(
     if (!playRequest_)
         return nullptr;
     playRequest_ = false;
-    return eventEffect_.SelectSoundPath(randomUnit);
+    return EventEffect::SelectSoundPath(randomUnit);
+}
+
+std::optional<EventEffect::SpawnResult>
+DamageEffect::ConsumeSpawnResult() noexcept
+{
+    auto result = pendingSpawn_;
+    pendingSpawn_.reset();
+    return result;
+}
+
+ImmortalEffect::ImmortalEffect() noexcept : EventEffect() {}
+
+ImmortalEffect::ImmortalEffect(Behaviors* owner) noexcept
+    : EventEffect(owner)
+{
 }
 
 void ImmortalEffect::Configure(
@@ -2299,14 +2369,14 @@ void ImmortalEffect::Configure(
     std::array<float, 3U> scaleK) noexcept
 {
     scaleK_ = scaleK;
-    eventEffect_.Configure(definition);
+    EventEffect::Configure(definition);
     Reset();
 }
 
 void ImmortalEffect::ConfigureSounds(
     std::vector<std::string> soundPaths)
 {
-    eventEffect_.ConfigureSounds(std::move(soundPaths));
+    EventEffect::ConfigureSounds(std::move(soundPaths));
 }
 
 void ImmortalEffect::Reset() noexcept
@@ -2316,7 +2386,7 @@ void ImmortalEffect::Reset() noexcept
     damageTime_ = -1.0F;
     effectSeconds_ = 0.0F;
     playRequest_ = false;
-    eventEffect_.Reset();
+    EventEffect::Reset();
 }
 
 void ImmortalEffect::OnImmortalStatus(bool status) noexcept
@@ -2325,7 +2395,7 @@ void ImmortalEffect::OnImmortalStatus(bool status) noexcept
     {
         // EventEffect::MakeEffect keeps an existing fading actor. The source
         // deliberately does not cancel fadeOutTime_ when a new shield starts.
-        eventEffect_.MakeEffect();
+        EventEffect::MakeEffect();
         // Like the Windows GiveSource3d path, sound playback belongs to the
         // activation callback and is not conditional on creating a new
         // shield actor.
@@ -2340,13 +2410,20 @@ void ImmortalEffect::OnImmortalStatus(bool status) noexcept
 
 void ImmortalEffect::OnDamage() noexcept
 {
-    if (eventEffect_.IsEffectMaked())
+    if (EventEffect::IsEffectMaked())
         damageTime_ = 0.0F;
+}
+
+void ImmortalEffect::OnDamage(
+    GameObject&, float, DamageType) noexcept
+{
+    OnDamage();
 }
 
 void ImmortalEffect::OnProgress(float deltaTime) noexcept
 {
-    if (eventEffect_.IsEffectMaked() && damageTime_ >= 0.0F)
+    EventEffect::OnProgress(deltaTime);
+    if (EventEffect::IsEffectMaked() && damageTime_ >= 0.0F)
     {
         const float alpha = std::clamp(
             damageTime_ / damageSeconds, 0.0F, 1.0F);
@@ -2355,13 +2432,13 @@ void ImmortalEffect::OnProgress(float deltaTime) noexcept
         else
             damageTime_ += deltaTime;
     }
-    if (eventEffect_.IsEffectMaked() && fadeInTime_ >= 0.0F)
+    if (EventEffect::IsEffectMaked() && fadeInTime_ >= 0.0F)
     {
         fadeInTime_ += deltaTime;
         if (fadeInTime_ / fadeSeconds >= 1.0F)
             fadeInTime_ = -1.0F;
     }
-    if (eventEffect_.IsEffectMaked() && fadeOutTime_ >= 0.0F)
+    if (EventEffect::IsEffectMaked() && fadeOutTime_ >= 0.0F)
     {
         fadeOutTime_ += deltaTime;
         if (fadeOutTime_ / fadeSeconds >= 1.0F)
@@ -2369,16 +2446,16 @@ void ImmortalEffect::OnProgress(float deltaTime) noexcept
             fadeOutTime_ = -1.0F;
             damageTime_ = -1.0F;
             effectSeconds_ = 0.0F;
-            eventEffect_.FreeEffect();
+            EventEffect::FreeEffect();
         }
     }
-    if (eventEffect_.IsEffectMaked())
+    if (EventEffect::IsEffectMaked())
         effectSeconds_ += deltaTime;
 }
 
 bool ImmortalEffect::IsEffectMaked() const noexcept
 {
-    return eventEffect_.IsEffectMaked();
+    return EventEffect::IsEffectMaked();
 }
 
 float ImmortalEffect::GetEffectSeconds() const noexcept
@@ -2430,7 +2507,7 @@ float ImmortalEffect::GetDamageAlpha() const noexcept
 const ObjectDefinition*
 ImmortalEffect::GetEffectDefinition() const noexcept
 {
-    return eventEffect_.GetEffectDefinition();
+    return EventEffect::GetEffectDefinition();
 }
 
 const std::array<float, 3U>& ImmortalEffect::GetScaleK() const noexcept
@@ -2441,7 +2518,7 @@ const std::array<float, 3U>& ImmortalEffect::GetScaleK() const noexcept
 const std::vector<std::string>&
 ImmortalEffect::GetSoundPaths() const noexcept
 {
-    return eventEffect_.GetSoundPaths();
+    return EventEffect::GetSoundPaths();
 }
 
 bool ImmortalEffect::HasPlayRequest() const noexcept
@@ -2455,7 +2532,26 @@ const std::string* ImmortalEffect::ConsumePlayRequest(
     if (!playRequest_)
         return nullptr;
     playRequest_ = false;
-    return eventEffect_.SelectSoundPath(randomUnit);
+    return EventEffect::SelectSoundPath(randomUnit);
+}
+
+SlowEffect::SlowEffect() noexcept : EventEffect() {}
+
+SlowEffect::SlowEffect(Behaviors* owner) noexcept
+    : EventEffect(owner)
+{
+}
+
+void SlowEffect::OnProgress(float deltaTime) noexcept
+{
+    EventEffect::OnProgress(deltaTime);
+    const auto result = OnProgress(deltaTime, linearSpeed_);
+    pendingProgress_.limitSpeed =
+        pendingProgress_.limitSpeed || result.limitSpeed;
+    pendingProgress_.released =
+        pendingProgress_.released || result.released;
+    if (result.released)
+        Remove();
 }
 
 void SlowEffect::Reset() noexcept
@@ -2464,7 +2560,8 @@ void SlowEffect::Reset() noexcept
     timeLife_ = 0.0F;
     weapon_ = GameObject::undefinedPlayerId;
     projectile_ = GameObject::undefinedPlayerId;
-    eventEffect_.Reset();
+    pendingProgress_ = {};
+    EventEffect::Reset();
 }
 
 bool SlowEffect::Attach(
@@ -2474,14 +2571,14 @@ bool SlowEffect::Attach(
 {
     // FrostRayUpdate only adds the behavior when Find<SlowEffect>() fails;
     // repeated ray contacts do not refresh the child effect's lifetime.
-    if (eventEffect_.IsEffectMaked())
+    if (EventEffect::IsEffectMaked())
         return false;
     maximumTimeLife_ = maximumTimeLife;
     timeLife_ = 0.0F;
     weapon_ = weapon;
     projectile_ = projectile;
-    eventEffect_.Configure(effectDefinition);
-    eventEffect_.MakeEffect();
+    EventEffect::Configure(effectDefinition);
+    EventEffect::MakeEffect();
     return true;
 }
 
@@ -2496,7 +2593,7 @@ SlowEffect::ProgressResult SlowEffect::OnProgress(
     float deltaTime, float linearSpeed) noexcept
 {
     ProgressResult result;
-    if (!eventEffect_.IsEffectMaked())
+    if (!EventEffect::IsEffectMaked())
         return result;
     // SlowEffect::OnProgress normalizes and clamps the actor velocity to 20
     // only while it is moving faster than both source thresholds.
@@ -2511,14 +2608,27 @@ SlowEffect::ProgressResult SlowEffect::OnProgress(
     return result;
 }
 
+void SlowEffect::SetLinearSpeed(float value) noexcept
+{
+    linearSpeed_ = value;
+}
+
+SlowEffect::ProgressResult
+SlowEffect::ConsumeProgressResult() noexcept
+{
+    const auto result = pendingProgress_;
+    pendingProgress_ = {};
+    return result;
+}
+
 bool SlowEffect::IsEffectMaked() const noexcept
 {
-    return eventEffect_.IsEffectMaked();
+    return EventEffect::IsEffectMaked();
 }
 
 float SlowEffect::GetRemainingSeconds() const noexcept
 {
-    if (!eventEffect_.IsEffectMaked() || maximumTimeLife_ <= 0.0F)
+    if (!EventEffect::IsEffectMaked() || maximumTimeLife_ <= 0.0F)
         return 0.0F;
     return std::max(maximumTimeLife_ - timeLife_, 0.0F);
 }
@@ -2535,13 +2645,13 @@ std::size_t SlowEffect::GetProjectile() const noexcept
 
 const ObjectDefinition* SlowEffect::GetEffectDefinition() const noexcept
 {
-    return eventEffect_.GetEffectDefinition();
+    return EventEffect::GetEffectDefinition();
 }
 
 EventEffect::SpawnResult SlowEffect::GetSpawnResult(
     bool created) noexcept
 {
-    return eventEffect_.GetSpawnResult(created);
+    return EventEffect::GetSpawnResult(created);
 }
 
 } // namespace r3d::game::originalrace::source

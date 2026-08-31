@@ -6438,3 +6438,21 @@ base progress boundary. `ShotEffect`, `DeathEffect` и `LifeEffect`
 переведены с временного multiple inheritance на единственную исходную базу.
 Copy utility сохраняет независимый effect state, но не переносит owner,
 тогда как active concrete objects всегда конструируются своей коллекцией.
+
+### P2.292 — типы 4/5/8/11 являются concrete EventEffect behaviors — выполнено
+
+После восстановления `EventEffect : Behavior` повторная сверка с
+`eff9338:prog/Rock3dGame/header/game/GameBase.h` показала, что промежуточные
+`Player::{LowLife,EnergyDamage,Immortal,Slow}Behavior` больше не нужны. В
+Windows соответствующие `LowLifePoints`, `DamageEffect`, `ImmortalEffect` и
+`SlowEffect` сами являются entries коллекции и listener-ами. До этого блока
+P2.286 переносил state внутрь wrappers, но ещё не восстанавливал concrete
+class identity.
+
+Wrappers удалены. Все четыре класса наследуют `EventEffect`, конструируются
+owning `Behaviors*` и исполняют source callbacks напрямую. Portable мост
+ограничен consumable spawn/play/progress results и входной scalar speed для
+Jolt; он не владеет gameplay state. Player regressions проверяют, что
+`Find(btLowLifePoints/btDamageEffect/btImmortalEffect/btSlowEffect)` возвращает
+ровно адрес объекта, доступного через typed Player accessor, включая
+deferred removal динамического SlowEffect.
