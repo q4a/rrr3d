@@ -6979,3 +6979,20 @@ targetChild DeathEffect — под contacted car. `MapObjects::Extract` разр
 из include-list в Map без смены адреса, Map назначает global ID, world pose
 остаётся прежней. Это source ownership/lifetime перенос; renderer и Jolt
 границы не расширены.
+
+### P2.325 — LifeEffect audio возвращён exact spawned GameObject — выполнено
+
+После P2.324 source MapObj уже существовал, но SDL audio продолжал обходить
+его: `TimedEffectAudio` хранил spawn point и optional car offset. Прямое
+сравнение с `eff9338:GameBase.cpp::EventEffect::OnProgress` подтвердило, что
+оригинал на каждом progress берёт `GetOwner()->GetGameObj()->GetWorldPos()`.
+Это важно и для движущегося crush actor, и для child, который resurrected из
+include-list в global Map.
+
+Введена стабильная runtime identity spawned effect, не совпадающая намеренно
+с изменяемым global Map ID. `LifeEffect` sound event передаёт её host-слою;
+каждый audio update разрешает exact live `GameObject` pose, а отсутствие
+identity означает исходное уничтожение владельца и немедленное освобождение
+`Source3d`. Regression двигает shipped dynamic vehicle DeathEffect через две
+physics poses, сверяет interpolated visual/audio position и затем ждёт
+удаления объекта по его сохранённому `maxTimeLife`.

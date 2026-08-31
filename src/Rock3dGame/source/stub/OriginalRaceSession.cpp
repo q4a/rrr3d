@@ -1253,6 +1253,12 @@ void OriginalRaceSession::bindWorldEffectMapObjects()
 {
     for (auto& effect : effects_)
     {
+        if (effect.runtimeId == 0U)
+        {
+            effect.runtimeId = nextEffectRuntimeId_++;
+            if (effect.runtimeId == 0U)
+                effect.runtimeId = nextEffectRuntimeId_++;
+        }
         if (effect.sourceMapObject != nullptr ||
             effect.sourceDefinition == nullptr ||
             effect.sourceDefinition->record.empty())
@@ -3147,6 +3153,22 @@ const std::vector<RaceEvent>& OriginalRaceSession::events() const noexcept
 const std::vector<RaceEffect>& OriginalRaceSession::effects() const noexcept
 {
     return effects_;
+}
+
+std::optional<Vec3> OriginalRaceSession::effectWorldPosition(
+    std::uint64_t runtimeId) const noexcept
+{
+    if (runtimeId == 0U)
+        return std::nullopt;
+    const auto effect = std::find_if(
+        effects_.begin(), effects_.end(),
+        [&](const RaceEffect& value) {
+            return value.runtimeId == runtimeId;
+        });
+    if (effect == effects_.end() || effect->effectOwner == nullptr)
+        return std::nullopt;
+    const auto position = effect->effectOwner->GetWorldPos();
+    return Vec3{position[0], position[1], position[2]};
 }
 
 const std::vector<MineRuntime>& OriginalRaceSession::mines() const noexcept
@@ -9321,11 +9343,11 @@ void OriginalRaceSession::update(
             sound.kind = RaceEventKind::EffectSound;
             sound.racer = effect.lifeSoundRacer;
             sound.position = effect.origin;
-            if (effect.parentRacer < vehicles.size())
+            if (effect.effectOwner != nullptr)
             {
-                sound.position = compose(
-                    vehicles[effect.parentRacer].body,
-                    effect.transform).position;
+                const auto position = effect.effectOwner->GetWorldPos();
+                sound.position = {
+                    position[0], position[1], position[2]};
             }
             sound.soundPath = *lifeSound;
             sound.soundLifetimeSeconds =
@@ -9334,6 +9356,7 @@ void OriginalRaceSession::update(
                 effect.parentRacer < vehicles.size()
                     ? effect.parentRacer
                     : effect.lifeSoundFollowRacer;
+            sound.soundEffectId = effect.runtimeId;
             events_.push_back(std::move(sound));
         }
         if (effect.waitingEnd != nullptr &&
@@ -12881,6 +12904,19 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                                event.soundPath.find("carcrash05.ogg") !=
                                    std::string::npos;
                     }));
+            const bool sourceDeathSoundOwners = std::all_of(
+                deathSession.events().begin(),
+                deathSession.events().end(),
+                [&](const RaceEvent& event) {
+                    if (event.kind != RaceEventKind::EffectSound ||
+                        event.soundLifetimeSeconds <= 0.0F)
+                    {
+                        return true;
+                    }
+                    return event.soundEffectId != 0U &&
+                        deathSession.effectWorldPosition(
+                            event.soundEffectId).has_value();
+                });
             const auto expectedDeathSoundCount = static_cast<std::size_t>(
                 std::count_if(
                     sourceVehicle.deathEffects.begin(),
@@ -12926,7 +12962,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 sourceDeathEffectCount !=
                     sourceVehicle.deathEffects.size() ||
                 sourceDeathSoundCount != expectedDeathSoundCount ||
-                !sourceDeathMetadata)
+                !sourceDeathMetadata || !sourceDeathSoundOwners)
             {
                 throw std::runtime_error(
                     "source vehicle death effects/sounds/immediate removal failed");
@@ -12954,6 +12990,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                            effect.vehicleEffect == dynamicDeathEffectIndex;
                 });
             if (dynamicDeathRuntime == deathSession.effects().end() ||
+                dynamicDeathRuntime->runtimeId == 0U ||
                 dynamicDeathRuntime->effectOwner == nullptr ||
                 dynamicDeathRuntime->sourceMapObject == nullptr ||
                 dynamicDeathRuntime->sourceMapObjectId == 0U ||
@@ -12965,6 +13002,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 throw std::runtime_error(
                     "source dynamic DeathEffect MapObj owner is missing");
             }
+            const std::uint64_t dynamicDeathRuntimeId =
+                dynamicDeathRuntime->runtimeId;
             r3d::physics::DebrisState firstDeathBody;
             firstDeathBody.active = true;
             firstDeathBody.bodyAwake = true;
@@ -12983,10 +13022,16 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             const auto interpolatedDeathBody =
                 deathSession.vehicleDeathDebrisFrameTransform(
                     0U, dynamicDeathEffectIndex);
+            const auto interpolatedDeathSound =
+                deathSession.effectWorldPosition(dynamicDeathRuntimeId);
             if (!interpolatedDeathBody ||
+                !interpolatedDeathSound ||
                 std::abs(
                     interpolatedDeathBody->position.x -
                     (firstDeathBody.body.position.x + 2.0F)) > 0.001F ||
+                std::abs(
+                    interpolatedDeathSound->x -
+                    interpolatedDeathBody->position.x) > 0.001F ||
                 !dynamicDeathRuntime->effectOwner
                      ->IsBodyProgressEvent())
             {
@@ -13072,6 +13117,21 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             {
                 throw std::runtime_error(
                     "source restored vehicle did not receive a new MapObj");
+            }
+            for (int step = 0;
+                 step < 100 &&
+                 deathSession.effectWorldPosition(
+                     dynamicDeathRuntimeId).has_value();
+                 ++step)
+            {
+                deathSession.update(0.1F, deathVehicles, deathInput);
+            }
+            if (deathSession.effectWorldPosition(
+                    dynamicDeathRuntimeId).has_value())
+            {
+                throw std::runtime_error(
+                    "source DeathEffect MapObj/audio identity outlived its "
+                    "serialized lifetime");
             }
         }
 

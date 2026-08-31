@@ -4380,6 +4380,7 @@ int main(int argc, char** argv)
     };
     struct TimedEffectAudio
     {
+        std::uint64_t effectId = 0U;
         std::size_t followRacer =
             r3d::game::originalrace::RacerRuntime::invalidWeapon;
         float remainingSeconds = 0.0F;
@@ -15717,6 +15718,7 @@ int main(int argc, char** argv)
                             if (sound != r3d::audio::invalidSound)
                             {
                                 TimedEffectAudio source;
+                                source.effectId = event.soundEffectId;
                                 source.followRacer =
                                     event.soundFollowRacer;
                                 source.remainingSeconds =
@@ -15797,29 +15799,50 @@ int main(int argc, char** argv)
                 for (auto source = timedEffectAudio.begin();
                      source != timedEffectAudio.end();)
                 {
-                    if (raceSession.phase() !=
-                        r3d::game::originalrace::RacePhase::Paused)
+                    const auto effectPosition =
+                        raceSession.effectWorldPosition(source->effectId);
+                    if (source->effectId != 0U && !effectPosition)
                     {
-                        source->remainingSeconds -= frameSeconds;
-                    }
-                    if (source->remainingSeconds <= 0.0F)
-                    {
+                        // EventEffect::~EventEffect releases its Source3d
+                        // together with the exact spawned MapObj. Do not let
+                        // the host-side voice outlive that source owner.
                         source = timedEffectAudio.erase(source);
                         continue;
                     }
-                    if (source->followRacer < raceVehicles.size())
+                    if (effectPosition)
                     {
-                        const auto& body =
-                            raceVehicles[source->followRacer].body;
-                        const auto offset = rotateRaceVector(
-                            body.rotation,
-                            {source->followOffset.x * body.scale.x,
-                             source->followOffset.y * body.scale.y,
-                             source->followOffset.z * body.scale.z});
                         source->position = {
-                            body.position.x + offset.x,
-                            body.position.y + offset.y,
-                            body.position.z + offset.z};
+                            effectPosition->x, effectPosition->y,
+                            effectPosition->z};
+                    }
+                    else
+                    {
+                        // Compatibility fallback for synthetic effects which
+                        // have no source MapObj record.
+                        if (raceSession.phase() !=
+                            r3d::game::originalrace::RacePhase::Paused)
+                        {
+                            source->remainingSeconds -= frameSeconds;
+                        }
+                        if (source->remainingSeconds <= 0.0F)
+                        {
+                            source = timedEffectAudio.erase(source);
+                            continue;
+                        }
+                        if (source->followRacer < raceVehicles.size())
+                        {
+                            const auto& body =
+                                raceVehicles[source->followRacer].body;
+                            const auto offset = rotateRaceVector(
+                                body.rotation,
+                                {source->followOffset.x * body.scale.x,
+                                 source->followOffset.y * body.scale.y,
+                                 source->followOffset.z * body.scale.z});
+                            source->position = {
+                                body.position.x + offset.x,
+                                body.position.y + offset.y,
+                                body.position.z + offset.z};
+                        }
                     }
                     source->emitter.SetPos3d(
                         {source->position.x, source->position.y,

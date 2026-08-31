@@ -197,6 +197,10 @@ struct RaceEvent
     // contacted racer for that lifetime.
     float soundLifetimeSeconds = -1.0F;
     std::size_t soundFollowRacer = RacerRuntime::invalidWeapon;
+    // Stable identity of the exact MapObj which owns a LifeEffect source.
+    // Unlike soundFollowRacer this remains valid after a child effect is
+    // resurrected into the world and also follows dynamic death debris.
+    std::uint64_t soundEffectId = 0U;
     float authoritativeLife = 0.0F;
     bool authoritativeDeath = false;
     // NetRace::OnDamage1/2 applies authoritative packets through the same
@@ -258,6 +262,10 @@ struct ReplicatedRaceResult
 
 struct RaceEffect
 {
+    // Renderer/audio bridge identity. The source MapObj may acquire a new
+    // world ID when FxSystemWaitingEnd resurrects it, while this identity
+    // remains unchanged for the complete spawned-object lifetime.
+    std::uint64_t runtimeId = 0U;
     RaceEffect() = default;
     RaceEffect(const RaceEffect&) = delete;
     RaceEffect& operator=(const RaceEffect&) = delete;
@@ -572,6 +580,8 @@ public:
         std::uint32_t mapObjectId) const noexcept;
     const std::vector<RaceEvent>& events() const noexcept;
     const std::vector<RaceEffect>& effects() const noexcept;
+    std::optional<Vec3> effectWorldPosition(
+        std::uint64_t runtimeId) const noexcept;
     const std::vector<MineRuntime>& mines() const noexcept;
     const std::vector<ProjectileRuntime>& projectiles() const noexcept;
     std::vector<RespawnRequest> takeRespawns();
@@ -838,6 +848,7 @@ private:
     std::vector<Vec3> previousPositions_;
     std::vector<RaceEvent> events_;
     std::vector<RaceEffect> effects_;
+    std::uint64_t nextEffectRuntimeId_ = 1U;
     // Backend pose/contact views. The source Proj registered in Logic owns
     // lifetime; Jolt body activity is deliberately not mirrored here.
     mutable std::vector<MineRuntime> mines_;

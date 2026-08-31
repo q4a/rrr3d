@@ -1835,6 +1835,24 @@ include-list, сохраняя allocation/world pose, и тут же встав�
 `FreeEffect` удаляет объект из текущего include owner; Jolt остаётся только
 backend-ом для тех effect records, у которых действительно есть actor.
 
+Результат B8dt: восстановлено точное пространственное владение звуком
+`LifeEffect`. `eff9338:GameBase.cpp::EventEffect::OnProgress` каждый кадр
+переносит каждый созданный `Source3d` в `GetOwner()->GetGameObj()->
+GetWorldPos()`, а `LifeEffect::OnProgress` лишь запускает этот source один раз.
+Portable audio до этого запоминал исходную точку либо приближение car-local и
+завершал голос по renderer-duration, поэтому звук отделялся от летящего
+разбитого кузова и от resurrected child effect.
+
+Каждый `RaceEffect` теперь имеет стабильную lifetime identity, не зависящую от
+смены Map ID при include→world resurrection. `EffectSound` передаёт её в
+host, а active `Source3d` запрашивает world pose exact source `GameObject` и
+удаляется только после исчезновения этого объекта. Jolt по-прежнему владеет
+solver pose; `GameObject::OnPxSync/OnFrame` остаётся единственным мостом к
+позиции звука. Аудит `db.xml` дополнительно подтвердил: все динамические
+`ctEffects` — девять исходных crush-body, уже покрытых vehicle DeathEffect;
+воронка миномёта является статическим projectile sensor, а не пропущенным
+dynamic effect body.
+
 Каждый крупный block commit обязан:
 
 1. назвать точные методы из `eff9338:prog`, которые стали активными;

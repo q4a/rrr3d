@@ -3204,3 +3204,20 @@ MapObj. После `FxSystemWaitingEnd` lifetime-Death тот же allocation м
 world pose и новый Map ID сохраняются, следующий progress выполняется только
 в следующем Logic pass. Regression проверяет car parent, weapon parent,
 target-car parent и автоматический locked-progress resurrection transfer.
+
+### B8dt — LifeEffect Source3d следует exact effect MapObj — выполнено
+
+В Windows `EventEffect::OnProgress` обновляет позицию всех созданных
+трёхмерных sources из world pose GameObject-владельца. Старый portable bridge
+вместо этого держал звук в spawn point либо следовал только за кузовом через
+сохранённый local offset. Это расходилось для физического vehicle death body,
+для Weapon child и после `FxSystemWaitingEnd::Resurrect`.
+
+Добавлена стабильная identity срока жизни `RaceEffect`. Событие первого
+`LifeEffect::OnProgress` передаёт эту identity аудио-слою; далее position
+берётся из exact source `GameObject`, включая alpha-interpolated Jolt pose.
+Смена include-list на global Map не меняет identity, а удаление MapObj сразу
+закрывает host voice. Временной fallback оставлен только синтетическим
+эффектам без исходного record. Regression проверяет sound-owner identity,
+движение голоса вместе с dynamic crush actor и исчезновение identity после
+serialized lifetime.
