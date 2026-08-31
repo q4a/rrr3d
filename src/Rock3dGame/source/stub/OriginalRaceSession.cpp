@@ -5419,9 +5419,11 @@ void OriginalRaceSession::ingestPairContacts(
             const auto contactSound =
                 logic_.GetPairPxContactEffect().GetSound(
                     contactResult.sound);
-            if (contactResult.pairCreated &&
-                contactResult.playSound && !contactSound.empty())
+            if (contactResult.playSound && !contactSound.empty())
             {
+                // PairPxContactEffect::OnContact calls SetPos3d(firstPoint)
+                // and Play on every accepted PhysX contact callback, not
+                // only while constructing a new ContactNode.
                 RaceEvent sound;
                 sound.kind = RaceEventKind::EffectSound;
                 sound.racer = racer;
@@ -12617,6 +12619,29 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             {
                 throw std::runtime_error(
                     "source PairPxContactEffect create/sound failed");
+            }
+            const auto repeatedContactSoundPosition =
+                add(contact.points.front(), {0.125F, 0.0F, 0.0F});
+            contact.points.front() = repeatedContactSoundPosition;
+            contactVehicles[0].bodyContacts = {contact};
+            contactSession.update(
+                1.0F / 60.0F, contactVehicles,
+                contactInput);
+            const bool repeatedContactSound = std::any_of(
+                contactSession.events().begin(),
+                contactSession.events().end(),
+                [&](const RaceEvent& event) {
+                    return event.kind == RaceEventKind::EffectSound &&
+                           event.soundContactActor == 77U &&
+                           length3(subtract(
+                               event.position,
+                               repeatedContactSoundPosition)) < 0.001F;
+                });
+            if (!repeatedContactSound)
+            {
+                throw std::runtime_error(
+                    "source PairPxContactEffect did not reposition/replay "
+                    "its pair-owned Source3d on a repeated callback");
             }
             contactVehicles[0].bodyContacts.clear();
             contactSession.update(

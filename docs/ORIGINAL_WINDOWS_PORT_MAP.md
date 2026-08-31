@@ -1880,6 +1880,19 @@ contract всех car children.
 bgfx и SDL сохраняются как solver/render/audio backends соответственно;
 source object graph снова является общей игровой границей между ними.
 
+Результат B8dw: закрыт звуковой lifecycle
+`PairPxContactEffect::GetOrCreateContact/OnContact/ReleaseContact`.
+Оригинал держит один `Source3d` на actor pair, но на каждом callback снова
+ставит его в первую contact point и вызывает Play. Portable session теперь
+выдаёт этот transition не только при создании пары; host повторно использует
+тот же source до исходного 0.1-second release.
+
+Также восстановлен общий XAudio2 proxy contract: естественный конец
+`pmOnce` сбрасывает playback position в ноль, а explicit Stop и 30/45 m
+distance hysteresis сохраняют позицию для resume. Listener следует target
+graph pose human car из source CameraManager path. Физический manifold,
+backend voice и вывод остаются соответственно за Jolt и SDL.
+
 Каждый крупный block commit обязан:
 
 1. назвать точные методы из `eff9338:prog`, которые стали активными;

@@ -3253,3 +3253,21 @@ bgfx — потребителем возвращённого frame state, SDL �
 дополнительной transform-модели в адаптере больше нет. Regression проверяет,
 что renderer state и `GetWorldPos()` кузова/каждого колеса совпадают после
 source frame dispatch, включая session lookup и invalid owner lifetime.
+
+### B8dw — PairPxContactEffect replay и source listener — выполнено
+
+`eff9338:Logic.cpp::PairPxContactEffect::OnContact` вызывает
+`SetPos3d` по первой точке и `Play` на каждом принятом contact callback, даже
+если `ContactNode` уже существует. Порт выдавал звуковое событие только при
+создании пары, поэтому завершившийся короткий impact не мог повторно
+запуститься при продолжающемся трении. Кроме того, portable once-source не
+повторял автоматический `Proxy::OnStreamEnd(pmOnce) -> SetPos(0)`.
+
+Session теперь публикует pair-owned sound transition на каждый callback, а
+один стабильный host `Source3d` обновляет позицию и выполняет идемпотентный
+`Play`. Естественный конец once voice сбрасывает PCM cursor в ноль; explicit
+Stop и distance-lag по-прежнему сохраняют cursor. Позиция listener берётся из
+source graph pose human `RockCar`, как `CameraManager`, а не из сырого Jolt
+body. Regression проверяет повторный callback с новой точкой, повторный
+запуск once-source с нулевого кадра и lifetime пары после 0.1-секундного
+release.

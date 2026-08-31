@@ -2401,6 +2401,7 @@ int main()
     const auto refreshed = logic.OnContact(
         contactKey, 10001.0F, false, false, onePoint, 0.0F);
     if (refreshed.pairCreated || refreshed.points.size() != 1U ||
+        !refreshed.playSound ||
         refreshed.points.front().createdEffect ||
         refreshed.points.front().effect !=
             firstContact.points.front().effect ||

@@ -7028,3 +7028,20 @@ lookup этих owners. Audio update использует car owner для `Soun
 удалении owner останавливает/освобождает голос. Unit regression проверяет
 публикацию graph pose; race regression сопоставляет session lookup с
 renderer-facing alpha frame и проверяет invalid car/wheel identities.
+
+### P2.328 — восстановлен повторный Play pair-contact Source3d — выполнено
+
+Прямая сверка `eff9338:Logic.cpp::PairPxContactEffect::OnContact` показала,
+что `ContactNode::source` создаётся один раз на actor pair, но его позиция и
+`Play()` обновляются на каждом PhysX callback. Условие portable session
+`pairCreated && playSound` ошибочно превращало это в одноразовое событие на
+весь непрерывный контакт.
+
+Условие исправлено до исходного `playSound`: host сохраняет единственный
+pair-owned source, переносит его в первую текущую contact point и повторяет
+идемпотентный Play. `OriginalSource3d` теперь также воспроизводит
+`Proxy::VoiceCallback::OnStreamEnd(pmOnce)`: естественное завершение очищает
+play intent и возвращает cursor к frame 0, тогда как остановка по дальности
+сохраняет cursor. `CameraManager` listener position разрешается из
+интерполированного source `RockCar`. Jolt поставляет manifolds, SDL — voice;
+pair cursor, replay и release остаются в source logic.

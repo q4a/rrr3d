@@ -15559,8 +15559,15 @@ int main(int argc, char** argv)
 #ifdef RRR3D_AUDIO
             if (humanRacer < raceVehicles.size())
             {
-                const auto listener =
-                    raceVehicles[humanRacer].body.position;
+                auto listener = raceVehicles[humanRacer].body.position;
+                if (const auto sourceListener =
+                        raceSession.racerGameObjectWorldPosition(humanRacer))
+                {
+                    // CameraManager installs the target RockCar graph pose,
+                    // not the raw PhysX/Jolt actor pose, as snd::Listener.
+                    listener = {sourceListener->x, sourceListener->y,
+                                sourceListener->z};
+                }
                 for (const auto& event : raceSession.events())
                 {
                     if (event.kind ==
@@ -15646,6 +15653,18 @@ int main(int argc, char** argv)
                                 source.emitter.Play();
                                 contactEffectAudio.push_back(
                                     std::move(source));
+                            }
+                            else if (active != contactEffectAudio.end())
+                            {
+                                // Windows SetPos3d(first contact point) and
+                                // Play execute on every callback. Play stays
+                                // idempotent while the once-source is live,
+                                // but restarts it after a natural stream end.
+                                active->position = event.position;
+                                active->emitter.SetPos3d(
+                                    {event.position.x, event.position.y,
+                                     event.position.z});
+                                active->emitter.Play();
                             }
                         }
                         else if (event.soundSource !=
@@ -16177,8 +16196,13 @@ int main(int argc, char** argv)
 #ifdef RRR3D_AUDIO
             if (humanRacer < raceVehicles.size())
             {
-                const auto& listener =
-                    raceVehicles[humanRacer].body.position;
+                auto listener = raceVehicles[humanRacer].body.position;
+                if (const auto sourceListener =
+                        raceSession.racerGameObjectWorldPosition(humanRacer))
+                {
+                    listener = {sourceListener->x, sourceListener->y,
+                                sourceListener->z};
+                }
                 const bool audioPaused =
                     raceSession.phase() ==
                     r3d::game::originalrace::RacePhase::Paused;

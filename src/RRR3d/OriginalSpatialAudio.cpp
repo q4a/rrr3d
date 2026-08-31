@@ -410,9 +410,14 @@ bool OriginalSource3d::Update(
     {
         voice_ = invalidVoice;
         proxyPlaying_ = false;
-        // Source3d::MyReport clears _play only for pmOnce.
+        // Proxy::VoiceCallback::OnStreamEnd resets a pmOnce proxy to frame
+        // zero before Source3d::MyReport clears its play request. Retain a
+        // non-zero cursor only for explicit distance-lag or Stop() resumes.
         if (!loop_)
+        {
             play_ = false;
+            playbackPositionFrames_ = 0U;
+        }
     }
     if (!play_)
     {
@@ -689,7 +694,11 @@ bool runOriginalSpatialAudioSmokeTest() noexcept
     fake.finish(onceVoice);
     const bool onceReportedEnd =
         once.Update({}, false, error) && !once.IsPlaying() &&
-        once.GetVoice() == invalidVoice;
+        once.GetVoice() == invalidVoice &&
+        once.GetPlaybackPositionFrames() == 0U;
+    const bool onceRestarted =
+        once.Play() && once.Update({}, false, error) &&
+        once.GetVoice() != invalidVoice && fake.startFrame == 0U;
 
     return initial.started && initial.proxyPlaying &&
            nearlyEqual(initial.gain, 1.0F) &&
@@ -726,7 +735,8 @@ bool runOriginalSpatialAudioSmokeTest() noexcept
            sourceResumed && moveKeptProxy &&
            explicitStopKeptPosition && explicitSeekRestarted &&
            fake.stops == 4U &&
-           onceStarted && onceVoice != invalidVoice && onceReportedEnd;
+           onceStarted && onceVoice != invalidVoice && onceReportedEnd &&
+           onceRestarted;
 }
 
 } // namespace rrr3d::audio
