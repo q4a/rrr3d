@@ -195,10 +195,15 @@ public:
         std::size_t item) noexcept;
     DifficultySelection difficulty() const noexcept;
     std::string_view difficultyName() const noexcept;
+    void deferStartUntilVideo() noexcept;
+    void cancelDeferredStart() noexcept;
+    std::optional<DifficultyFrameCommand> onVideoStopped() noexcept;
+    bool waitingForVideo() const noexcept;
     const std::vector<bool>& enabledItems() const noexcept;
 
 private:
     DifficultySelection difficulty_ = DifficultySelection::Normal;
+    bool waitingForVideo_ = false;
     std::vector<bool> enabled_{true, true, true, true};
 };
 

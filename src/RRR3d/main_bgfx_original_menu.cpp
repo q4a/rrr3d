@@ -14054,7 +14054,21 @@ int main(int argc, char** argv)
                         // DifficultyFrame::OnClick hides the menu, plays
                         // main/main_eng, and calls StartMatch only from
                         // cVideoStopped.
-                        originalMovieStartMatch = startSelectedMatch;
+                        sourceDifficultyFrameState.deferStartUntilVideo();
+                        originalMovieStartMatch =
+                            [&, startSelectedMatch]() mutable {
+                                const auto deferred =
+                                    sourceDifficultyFrameState
+                                        .onVideoStopped();
+                                if (deferred &&
+                                    deferred->type ==
+                                        r3d::game::mainmenu2::
+                                            DifficultyFrameCommandType::
+                                                StartMatch)
+                                {
+                                    startSelectedMatch();
+                                }
+                            };
                         const auto movie =
                             activeLanguage == "russian"
                                 ? "Data/Video/Main.avi"
@@ -14067,6 +14081,7 @@ int main(int argc, char** argv)
                             break;
                         }
                         originalMovieStartMatch = {};
+                        sourceDifficultyFrameState.cancelDeferredStart();
                     }
 #endif
                     startSelectedMatch();

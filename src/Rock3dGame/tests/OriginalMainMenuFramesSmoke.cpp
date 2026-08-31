@@ -104,6 +104,19 @@ int main()
         difficultyFrame.difficulty() != DifficultySelection::Hard ||
         difficultyFrame.activate(4U))
         return fail("DifficultyFrame selection/deferred state differs");
+    difficultyFrame.deferStartUntilVideo();
+    const auto deferredDifficulty = difficultyFrame.onVideoStopped();
+    if (!deferredDifficulty || difficultyFrame.waitingForVideo() ||
+        deferredDifficulty->type !=
+            DifficultyFrameCommandType::StartMatch ||
+        deferredDifficulty->difficulty != DifficultySelection::Hard ||
+        difficultyFrame.onVideoStopped())
+        return fail("DifficultyFrame cVideoStopped ownership differs");
+    difficultyFrame.deferStartUntilVideo();
+    difficultyFrame.cancelDeferredStart();
+    if (difficultyFrame.waitingForVideo() ||
+        difficultyFrame.onVideoStopped())
+        return fail("DifficultyFrame failed movie cancellation differs");
 
     NetworkFrameState network;
     network.show({"10.0.0.1", "10.0.0.2", "10.0.0.3",

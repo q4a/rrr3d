@@ -2814,3 +2814,15 @@ video completion использует то же состояние, что Windo
 Main loop только выполняет push/back/start/profile/video операции. Unit
 перебирает все command values, disabled cases и сохранение difficulty;
 300-frame Metal smoke проходит Main→GameMode→Tournament→RaceMenu.
+
+### B8cw — Difficulty movie completion возвращён frame state — выполнено
+
+`DifficultyFrameState` теперь владеет не только OnClick command и выбранной
+сложностью, но и pending transition до `cVideoStopped`. Успешное видео
+завершается одной StartMatch-командой; повторный stop ничего не делает, а
+ошибка запуска снимает gate перед немедленным fallback start.
+
+AVFoundation остаётся video backend, profile/Race mutation — executor готовой
+команды. Unit проверяет Hard/one-shot/cancel, bundle smoke из штатного
+`Contents/Resources/video-cache` подтверждает видео, звук, seek и tournament
+completion за 600 кадров.

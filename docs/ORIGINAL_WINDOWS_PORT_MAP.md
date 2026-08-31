@@ -1505,6 +1505,18 @@ difficulty значения. `FrameController` оставлен общей ре�
 решение OnClick. Unit regression проверяет все commands/gates и сохранение
 Hard через Back; 300-frame Metal smoke проходит campaign menu flow.
 
+Результат B8cw: `DifficultyFrame::OnProcessEvent(cVideoStopped)` также
+возвращён frame owner-у. `DifficultyFrameState` хранит pending-video gate,
+выдаёт StartMatch ровно один раз после stop event и умеет отменить deferred
+transition, если AVFoundation не начал playback. Выбранная difficulty при
+этом остаётся тем же полем frame, что было задано OnClick.
+
+Host `std::function` остаётся только executor-ом длинной profile/Race
+транзакции после готовой source-команды; он больше не решает, допустим ли
+start. Unit проверяет one-shot/cancel и сохранение Hard. 600-frame bundle
+video smoke подтвердил H.264/AAC playback, кадр, звук, seek, `cVideoStopped`
+и tournament callback.
+
 Каждый крупный block commit обязан:
 
 1. назвать точные методы из `eff9338:prog`, которые стали активными;

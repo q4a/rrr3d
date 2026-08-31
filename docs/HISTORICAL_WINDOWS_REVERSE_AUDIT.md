@@ -6592,3 +6592,17 @@ commands, блокируют Skirmish/Continue/Load на source условиях
 команду и сохраняет только profile/video/platform transactions.
 `FrameController` теперь ровно общий layout/navigation слой. Regression и
 Metal menu flow закрепляют новые boundaries.
+
+### P2.302 — DifficultyFrame владеет cVideoStopped gate — выполнено
+
+После P2.301 Difficulty уже выбиралась concrete frame state, но отложенный
+championship start всё ещё безусловно запускал сохранённый host callback при
+завершении AVFoundation movie. В Windows решение принадлежит тому же
+`DifficultyFrame::OnProcessEvent(cVideoStopped)`, который хранит
+`_difficulty`.
+
+Frame state теперь отдельно armed на video start, выдаёт typed StartMatch
+только при первом stop и снимает gate при backend failure. SDL closure лишь
+исполняет profile/Race transaction после этой команды. Unit покрывает
+one-shot и cancel; автономный bundle video smoke проходит frame/audio/seek/
+completion/tournament path на remuxed `Main_eng.mp4`.

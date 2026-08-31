@@ -471,6 +471,7 @@ const std::vector<bool>& TournamentFrameState::enabledItems() const noexcept
 void DifficultyFrameState::show() noexcept
 {
     enabled_.assign(4U, true);
+    waitingForVideo_ = false;
 }
 
 std::optional<DifficultyFrameCommand> DifficultyFrameState::activate(
@@ -479,8 +480,12 @@ std::optional<DifficultyFrameCommand> DifficultyFrameState::activate(
     if (item >= enabled_.size())
         return std::nullopt;
     if (item == 3U)
+    {
+        waitingForVideo_ = false;
         return DifficultyFrameCommand{};
+    }
     difficulty_ = static_cast<DifficultySelection>(item);
+    waitingForVideo_ = false;
     return DifficultyFrameCommand{
         DifficultyFrameCommandType::StartMatch, difficulty_};
 }
@@ -502,6 +507,31 @@ std::string_view DifficultyFrameState::difficultyName() const noexcept
         return "gdHard";
     }
     return "gdNormal";
+}
+
+void DifficultyFrameState::deferStartUntilVideo() noexcept
+{
+    waitingForVideo_ = true;
+}
+
+void DifficultyFrameState::cancelDeferredStart() noexcept
+{
+    waitingForVideo_ = false;
+}
+
+std::optional<DifficultyFrameCommand>
+DifficultyFrameState::onVideoStopped() noexcept
+{
+    if (!waitingForVideo_)
+        return std::nullopt;
+    waitingForVideo_ = false;
+    return DifficultyFrameCommand{
+        DifficultyFrameCommandType::StartMatch, difficulty_};
+}
+
+bool DifficultyFrameState::waitingForVideo() const noexcept
+{
+    return waitingForVideo_;
 }
 
 const std::vector<bool>& DifficultyFrameState::enabledItems() const noexcept
