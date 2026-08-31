@@ -473,7 +473,7 @@ private:
 // Source PxWheelSlipEffect state. The graphics/audio backends realize the
 // spawned effect and Source3d, but both consume this exact slip calculation
 // and MakeEffect/FreeEffect transition.
-class PxWheelSlipEffect
+class PxWheelSlipEffect final : public EventEffect
 {
 public:
     static constexpr float longitudinalThreshold = 0.4F;
@@ -482,6 +482,14 @@ public:
 
     using ProgressResult = WheelSlipProgress;
 
+    PxWheelSlipEffect() noexcept;
+    PxWheelSlipEffect(
+        Behaviors* owner, CarWheel* wheel,
+        std::size_t effect) noexcept;
+    PxWheelSlipEffect(const PxWheelSlipEffect& other);
+    PxWheelSlipEffect& operator=(const PxWheelSlipEffect& other);
+
+    void OnProgress(float deltaTime) noexcept override;
     void Reset() noexcept;
     void Configure(
         const ObjectDefinition* definition,
@@ -500,7 +508,8 @@ public:
     const std::vector<std::string>& GetSoundPaths() const noexcept;
 
 private:
-    EventEffect eventEffect_;
+    CarWheel* wheel_ = nullptr;
+    std::size_t effect_ = 0U;
 };
 
 // GameCar owns one source CarWheel GameObject per serialized wheel. The Jolt
@@ -573,9 +582,9 @@ public:
     bool HasSlipSound() const noexcept;
 
 private:
-    class WheelSlipBehavior;
+    friend class PxWheelSlipEffect;
 
-    std::vector<WheelSlipBehavior*> slipBehaviors_;
+    std::vector<PxWheelSlipEffect*> slipBehaviors_;
     std::vector<WheelSlipProgress> slipResults_;
     float longitudinalSlip_ = 0.0F;
     float lateralSlip_ = 0.0F;

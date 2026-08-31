@@ -6456,3 +6456,16 @@ Jolt; он не владеет gameplay state. Player regressions проверя
 `Find(btLowLifePoints/btDamageEffect/btImmortalEffect/btSlowEffect)` возвращает
 ровно адрес объекта, доступного через typed Player accessor, включая
 deferred removal динамического SlowEffect.
+
+### P2.293 — PxWheelSlipEffect является concrete type-9 behavior — выполнено
+
+`eff9338:GameBase.h/.cpp` определяет `PxWheelSlipEffect : EventEffect` и
+регистрирует этот класс напрямую. Portable колесо уже хранило корректный
+source slip threshold и state внутри entry, но entry оставался отдельным
+`WheelSlipBehavior` wrapper-ом.
+
+Wrapper удалён. Concrete `PxWheelSlipEffect` получает ordered progress,
+использует Jolt `NxWheelContactData`-эквивалент только как input и сам решает
+Make/Free visual и Play/Stop sound transitions. Copy path сохраняет новое
+`Behaviors` owner binding и независимую effect identity. Regression проверяет
+`EventEffect` inheritance и concrete dynamic identity найденного type-9.

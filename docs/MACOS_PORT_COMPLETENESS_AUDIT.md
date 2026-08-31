@@ -2725,3 +2725,10 @@ serialized configuration и callback lifetime. Типизированные Play
 Low-life notification, Energy damage spawn/sound, shield fade/damage pulse и
 Frost lifetime/speed clamp исполняются concrete source entries. Jolt, SDL и
 Metal остались adapters для velocity, sound source и presentation actor.
+
+### B8cn — PxWheelSlipEffect является type-9 EventEffect behavior — выполнено
+
+Убран `CarWheel::WheelSlipBehavior` wrapper. `PxWheelSlipEffect` теперь
+одновременно является registered listener, source slip state и владельцем
+effect/sound transition. Jolt передаёт contact/slip, SDL и Metal потребляют
+готовый `WheelSlipProgress`; дополнительного state-owner больше нет.

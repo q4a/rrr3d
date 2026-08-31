@@ -9,6 +9,8 @@ namespace source = r3d::game::originalrace::source;
 
 int main()
 {
+    static_assert(std::is_base_of_v<
+                  source::EventEffect, source::PxWheelSlipEffect>);
     source::GameCar car;
     source::GameObject ordinaryObject;
     const source::GameObject& genericCar = car;
@@ -287,6 +289,9 @@ int main()
         firstWheel->GetListenerCount() != 1U ||
         firstWheel->GetBehaviors().Find(
             source::BehaviorType::PxWheelSlipEffect) == nullptr ||
+        dynamic_cast<const source::PxWheelSlipEffect*>(
+            firstWheel->GetBehaviors().Find(
+                source::BehaviorType::PxWheelSlipEffect)) == nullptr ||
         secondWheel->HasSlipEffect() ||
         secondWheel->GetBehaviors().GetCount() != 0U ||
         !firstWheel->IsDriven() || firstWheel->IsSteering() ||

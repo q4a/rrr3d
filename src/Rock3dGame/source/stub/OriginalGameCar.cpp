@@ -1553,9 +1553,41 @@ float SoundMotor::GetCurrentRpm() const noexcept
     return currentRpm_;
 }
 
+PxWheelSlipEffect::PxWheelSlipEffect() noexcept : EventEffect() {}
+
+PxWheelSlipEffect::PxWheelSlipEffect(
+    Behaviors* owner, CarWheel* wheel,
+    std::size_t effect) noexcept
+    : EventEffect(owner), wheel_(wheel), effect_(effect)
+{
+}
+
+PxWheelSlipEffect::PxWheelSlipEffect(
+    const PxWheelSlipEffect& other)
+    : EventEffect(other)
+{
+}
+
+PxWheelSlipEffect& PxWheelSlipEffect::operator=(
+    const PxWheelSlipEffect& other)
+{
+    EventEffect::operator=(other);
+    return *this;
+}
+
+void PxWheelSlipEffect::OnProgress(float deltaTime) noexcept
+{
+    EventEffect::OnProgress(deltaTime);
+    if (wheel_ == nullptr || effect_ >= wheel_->slipResults_.size())
+        return;
+    wheel_->slipResults_[effect_] = OnProgress(
+        wheel_->hasContact_, wheel_->longitudinalSlip_,
+        wheel_->lateralSlip_);
+}
+
 void PxWheelSlipEffect::Reset() noexcept
 {
-    eventEffect_.Reset();
+    EventEffect::Reset();
 }
 
 void PxWheelSlipEffect::Configure(
@@ -1565,9 +1597,9 @@ void PxWheelSlipEffect::Configure(
     std::array<float, 3U> impulse,
     bool ignoreRotation) noexcept
 {
-    eventEffect_.Configure(
+    EventEffect::Configure(
         definition, position, impulse, ignoreRotation);
-    eventEffect_.ConfigureSounds(soundPaths);
+    EventEffect::ConfigureSounds(soundPaths);
 }
 
 float PxWheelSlipEffect::SourceSlip(
@@ -1588,25 +1620,25 @@ PxWheelSlipEffect::ProgressResult PxWheelSlipEffect::OnProgress(
     bool hasSound) noexcept
 {
     ProgressResult result;
-    const auto* definition = eventEffect_.GetEffectDefinition();
+    const auto* definition = EventEffect::GetEffectDefinition();
     result.definition = definition;
-    result.position = eventEffect_.GetPosition();
-    result.impulse = eventEffect_.GetImpulse();
-    result.ignoreRotation = eventEffect_.GetIgnoreRotation();
-    if (hasSound && !eventEffect_.GetSoundPaths().empty())
-        result.soundPath = &eventEffect_.GetSoundPaths().front();
+    result.position = EventEffect::GetPosition();
+    result.impulse = EventEffect::GetImpulse();
+    result.ignoreRotation = EventEffect::GetIgnoreRotation();
+    if (hasSound && !EventEffect::GetSoundPaths().empty())
+        result.soundPath = &EventEffect::GetSoundPaths().front();
     result.slip = SourceSlip(
         hasContact, longitudinalSlip, lateralSlip);
     result.volume = std::clamp(result.slip * volumeScale, 0.0F, 1.0F);
     result.active = result.slip > 0.0F;
     if (result.active)
     {
-        result.makeEffect = eventEffect_.MakeEffect();
+        result.makeEffect = EventEffect::MakeEffect();
         result.playSound = result.soundPath != nullptr;
     }
     else
     {
-        result.freeEffect = eventEffect_.FreeEffect();
+        result.freeEffect = EventEffect::FreeEffect();
         // PxWheelSlipEffect calls Source3d::Stop even when no visual actor
         // was active, provided this behavior owns a sound.
         result.stopSound = result.soundPath != nullptr;
@@ -1616,51 +1648,20 @@ PxWheelSlipEffect::ProgressResult PxWheelSlipEffect::OnProgress(
 
 bool PxWheelSlipEffect::IsEffectMaked() const noexcept
 {
-    return eventEffect_.IsEffectMaked();
+    return EventEffect::IsEffectMaked();
 }
 
 const ObjectDefinition*
 PxWheelSlipEffect::GetEffectDefinition() const noexcept
 {
-    return eventEffect_.GetEffectDefinition();
+    return EventEffect::GetEffectDefinition();
 }
 
 const std::vector<std::string>&
 PxWheelSlipEffect::GetSoundPaths() const noexcept
 {
-    return eventEffect_.GetSoundPaths();
+    return EventEffect::GetSoundPaths();
 }
-
-class CarWheel::WheelSlipBehavior final : public Behavior
-{
-public:
-    WheelSlipBehavior(
-        Behaviors* owner, CarWheel* wheel,
-        std::size_t effect) noexcept
-        : Behavior(owner), wheel_(wheel), effect_(effect)
-    {
-    }
-
-    void OnProgress(float) noexcept override
-    {
-        if (wheel_ == nullptr)
-            return;
-        if (effect_ >= wheel_->slipResults_.size())
-            return;
-        wheel_->slipResults_[effect_] =
-            state_.OnProgress(
-            wheel_->hasContact_, wheel_->longitudinalSlip_,
-            wheel_->lateralSlip_);
-    }
-
-    PxWheelSlipEffect& State() noexcept { return state_; }
-    const PxWheelSlipEffect& State() const noexcept { return state_; }
-
-private:
-    CarWheel* wheel_ = nullptr;
-    std::size_t effect_ = 0U;
-    PxWheelSlipEffect state_;
-};
 
 CarWheel::CarWheel() = default;
 
@@ -1712,17 +1713,17 @@ CarWheel& CarWheel::operator=(const CarWheel& other) noexcept
     for (std::size_t effect = 0U;
          effect < other.slipBehaviors_.size(); ++effect)
     {
-        auto& behavior = GetBehaviors().Add<WheelSlipBehavior>(
+        auto& behavior = GetBehaviors().Add<PxWheelSlipEffect>(
             BehaviorType::PxWheelSlipEffect, this, effect);
         if (other.slipBehaviors_[effect] != nullptr)
-            behavior.State() = other.slipBehaviors_[effect]->State();
+            behavior = *other.slipBehaviors_[effect];
         slipBehaviors_.push_back(&behavior);
         if (effect < slipResults_.size() &&
             slipResults_[effect].soundPath != nullptr &&
-            !behavior.State().GetSoundPaths().empty())
+            !behavior.GetSoundPaths().empty())
         {
             slipResults_[effect].soundPath =
-                &behavior.State().GetSoundPaths().front();
+                &behavior.GetSoundPaths().front();
         }
     }
     return *this;
@@ -1757,9 +1758,9 @@ void CarWheel::Configure(bool slipEffect, bool slipSound)
     ResetMotion();
     if (slipEffectEnabled_)
     {
-        auto& behavior = GetBehaviors().Add<WheelSlipBehavior>(
+        auto& behavior = GetBehaviors().Add<PxWheelSlipEffect>(
             BehaviorType::PxWheelSlipEffect, this, 0U);
-        behavior.State().Configure(
+        behavior.Configure(
             nullptr,
             slipSound ? std::vector<std::string>{"SkidAsphalt.ogg"}
                       : std::vector<std::string>{});
@@ -1806,9 +1807,9 @@ void CarWheel::Configure(
         {
             canonicalDefinition = smokeDefinition;
         }
-        auto& behavior = GetBehaviors().Add<WheelSlipBehavior>(
+        auto& behavior = GetBehaviors().Add<PxWheelSlipEffect>(
             BehaviorType::PxWheelSlipEffect, this, effect);
-        behavior.State().Configure(
+        behavior.Configure(
             canonicalDefinition, definition.soundPaths,
             {definition.position.x, definition.position.y,
              definition.position.z},
@@ -2050,7 +2051,7 @@ const ObjectDefinition* CarWheel::GetSlipEffectDefinition(
 {
     return effect < slipBehaviors_.size() &&
                    slipBehaviors_[effect] != nullptr
-               ? slipBehaviors_[effect]->State().GetEffectDefinition()
+               ? slipBehaviors_[effect]->GetEffectDefinition()
                : nullptr;
 }
 

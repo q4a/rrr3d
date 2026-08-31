@@ -1396,6 +1396,18 @@ energy hit visual/audio и Frost speed limit больше не принадле�
 готовый spawn/play result; source behavior сохраняет transition, lifetime и
 effect identity. Regression требует pointer identity для всех четырёх типов.
 
+Результат B8cn: type-9 wheel behavior также возвращён к исходной concrete
+identity. Удалён `CarWheel::WheelSlipBehavior` с вложенным state;
+`PxWheelSlipEffect` теперь сам наследует `EventEffect`, зарегистрирован на
+`CarWheel`, читает переданный Jolt contact/slip snapshot и владеет
+MakeEffect/FreeEffect и Source3d request.
+
+Один и тот же объект теперь находится через
+`Behaviors::Find(btPxWheelSlipEffect)`, хранится типизированным указателем
+колеса и выдаёт Metal/SDL result. Copy wheel создаёт новую owning entry и
+копирует только source configuration/state, сохраняя новое owner binding и
+независимые effect handles.
+
 Каждый крупный block commit обязан:
 
 1. назвать точные методы из `eff9338:prog`, которые стали активными;
