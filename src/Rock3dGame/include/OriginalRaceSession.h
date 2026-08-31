@@ -540,9 +540,7 @@ public:
         source::GameObjectFrameSync::Quaternion targetRotation) noexcept;
     void synchronizeRacerPhysicsState(
         std::size_t racer,
-        source::GameObjectFrameSync::Pose pose,
-        source::GameObjectFrameSync::Vector linearVelocity,
-        bool awake) noexcept;
+        const r3d::physics::VehicleState& state) noexcept;
     r3d::physics::VehicleState racerFrameState(
         std::size_t racer,
         const r3d::physics::VehicleState& physicsState,

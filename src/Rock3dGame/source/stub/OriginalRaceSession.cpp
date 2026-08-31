@@ -2922,14 +2922,29 @@ OriginalRaceSession::synchronizeRacerNetworkPose(
 
 void OriginalRaceSession::synchronizeRacerPhysicsState(
     std::size_t racer,
-    source::GameObjectFrameSync::Pose pose,
-    source::GameObjectFrameSync::Vector linearVelocity,
-    bool awake) noexcept
+    const physics::VehicleState& state) noexcept
 {
     if (racer >= racers_.size())
         return;
+    const source::GameObjectFrameSync::Pose pose{
+        {state.body.position.x, state.body.position.y,
+         state.body.position.z},
+        {state.body.rotation.x, state.body.rotation.y,
+         state.body.rotation.z, state.body.rotation.w}};
+    std::vector<source::GameObjectFrameSync::Pose> wheels;
+    wheels.reserve(state.wheels.size());
+    for (const auto& wheel : state.wheels)
+    {
+        wheels.push_back({
+            {wheel.position.x, wheel.position.y, wheel.position.z},
+            {wheel.rotation.x, wheel.rotation.y,
+             wheel.rotation.z, wheel.rotation.w}});
+    }
     racers_[racer].gameCar.SynchronizePhysicsState(
-        pose, linearVelocity, awake);
+        pose,
+        {state.linearVelocity.x, state.linearVelocity.y,
+         state.linearVelocity.z},
+        state.bodyAwake, wheels);
 }
 
 physics::VehicleState OriginalRaceSession::racerFrameState(
@@ -9768,15 +9783,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     poseVehicle.body.position.z - 0.5F};
             }
             poseSession.synchronizeRacerPhysicsState(
-                0U,
-                {{poseVehicle.body.position.x,
-                  poseVehicle.body.position.y,
-                  poseVehicle.body.position.z},
-                 {poseVehicle.body.rotation.x,
-                  poseVehicle.body.rotation.y,
-                  poseVehicle.body.rotation.z,
-                  poseVehicle.body.rotation.w}},
-                {}, true);
+                0U, poseVehicle);
             const auto graphVehicle = poseSession.racerFrameState(
                 0U, poseVehicle, 1.0F / 60.0F, 1.0F);
             const auto carPosition =

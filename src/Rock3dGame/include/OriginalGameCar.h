@@ -271,7 +271,8 @@ public:
     void SynchronizePhysicsState(
         GameObjectFrameSync::Pose pose,
         GameObjectFrameSync::Vector linearVelocity,
-        bool awake) noexcept;
+        bool awake,
+        const std::vector<GameObjectFrameSync::Pose>& wheels = {}) noexcept;
     void ConfigureMotor(MotorDescription description) noexcept;
     void ConfigureDynamics(
         DynamicsDescription description,
@@ -553,7 +554,13 @@ public:
     const GameObjectFrameSync::Pose& PxSyncWheel(
         GameObjectFrameSync::Pose physicalBody,
         GameObjectFrameSync::Pose graphBody,
-        GameObjectFrameSync::Pose physicalWheel) noexcept;
+        GameObjectFrameSync::Pose physicalWheel,
+        float deltaTime = 0.0F,
+        float physicsAlpha = 1.0F) noexcept;
+    void SynchronizePhysicsState(
+        GameObjectFrameSync::Pose physicalBody,
+        GameObjectFrameSync::Pose physicalWheel,
+        bool awake) noexcept;
     const GameObjectFrameSync::Pose& GetPxSyncPose() const noexcept;
     void ConfigureDynamics(
         float positionX, bool driven, bool steering,
@@ -597,6 +604,10 @@ public:
 private:
     friend class PxWheelSlipEffect;
 
+    GameObjectFrameSync::Pose SourceLocalPose(
+        GameObjectFrameSync::Pose physicalBody,
+        GameObjectFrameSync::Pose physicalWheel) const noexcept;
+
     std::vector<PxWheelSlipEffect*> slipBehaviors_;
     std::vector<WheelSlipProgress> slipResults_;
     float longitudinalSlip_ = 0.0F;
@@ -609,6 +620,7 @@ private:
     bool hasContact_ = false;
     bool slipEffectEnabled_ = false;
     bool slipSoundEnabled_ = false;
+    GameObjectFrameSync pxFrameSync_;
     GameObjectFrameSync::Pose pxSyncPose_;
     float positionX_ = 0.0F;
     float radius_ = 0.0F;

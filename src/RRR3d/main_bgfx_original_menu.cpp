@@ -16076,18 +16076,7 @@ int main(int argc, char** argv)
                         raceVehicles[index] = physicsWorld->vehicle(index);
                         const auto& state = raceVehicles[index];
                         raceSession.synchronizeRacerPhysicsState(
-                            index,
-                            {{state.body.position.x,
-                              state.body.position.y,
-                              state.body.position.z},
-                             {state.body.rotation.x,
-                              state.body.rotation.y,
-                              state.body.rotation.z,
-                              state.body.rotation.w}},
-                            {state.linearVelocity.x,
-                             state.linearVelocity.y,
-                             state.linearVelocity.z},
-                            state.bodyAwake);
+                            index, state);
                     }
                     for (std::size_t index = 0U;
                          index < physicsWorld->decorationCount() &&

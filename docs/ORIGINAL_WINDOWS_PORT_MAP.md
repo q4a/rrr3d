@@ -1893,6 +1893,18 @@ distance hysteresis сохраняют позицию для resume. Listener с
 graph pose human car из source CameraManager path. Физический manifold,
 backend voice и вывод остаются соответственно за Jolt и SDL.
 
+Результат B8dx: уточнён и завершён wheel graph-sync из
+`eff9338:GameCar.cpp::CarWheel::PxSyncWheel`. Одной публикации вычисленной
+world pose в source `CarWheel` было недостаточно: оригинал хранит отдельные
+`_pxPrevPos/_pxPrevRot` и смешивает local suspension/steer/spin pose по тому
+же physics alpha, что кузов.
+
+Jolt теперь передаёт полный `VehicleState` на каждой завершённой границе
+source fixed step. `CarWheel` хранит последние две локальные pose, а bgfx
+получает результат после их interpolation и применения graph body/offset.
+Это устраняет рассинхрон кузова и колёс при нескольких fixed steps за кадр,
+не перенося backend wheel quaternion в source visual rotation.
+
 Каждый крупный block commit обязан:
 
 1. назвать точные методы из `eff9338:prog`, которые стали активными;

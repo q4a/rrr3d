@@ -645,6 +645,37 @@ int main()
         return 68;
     animatedWheel->SetLead(true);
     animatedWheel->SetSteer(false);
+
+    // Windows CarWheel retains its own previous local suspension position
+    // and visual rotation. A slow render frame may publish several completed
+    // physics steps; the wheel must interpolate only the final pair, exactly
+    // like the car body, rather than snapping to Jolt's newest wheel pose.
+    source::GameCar interpolatedWheelCar;
+    interpolatedWheelCar.BindWheels({false}, {true});
+    interpolatedWheelCar.ConfigureDynamics(
+        {}, {{0.0F, false, true, false, 0.5F}});
+    const source::GameObjectFrameSync::Pose interpolationBody{};
+    auto synchronizeWheel = [&](float x, float steering) {
+        interpolatedWheelCar.GetWheel(0U)->SetSteerAngle(steering);
+        interpolatedWheelCar.SynchronizePhysicsState(
+            interpolationBody, {}, true,
+            {{{x, 0.0F, 0.0F}, {}}});
+    };
+    synchronizeWheel(0.0F, 0.0F);
+    synchronizeWheel(10.0F, 0.5F);
+    synchronizeWheel(20.0F, 1.0F);
+    const auto interpolatedWheel = interpolatedWheelCar.OnPxSync(
+        interpolationBody, {{{20.0F, 0.0F, 0.0F}, {}}},
+        0.0F, 0.5F);
+    if (interpolatedWheel.wheels.size() != 1U ||
+        std::abs(interpolatedWheel.wheels.front().position.x - 15.0F) >
+            0.0001F ||
+        std::abs(interpolatedWheel.wheels.front().rotation.z -
+                 std::sin(0.375F)) > 0.0001F ||
+        std::abs(interpolatedWheel.wheels.front().rotation.w -
+                 std::cos(0.375F)) > 0.0001F)
+        return 83;
+
     car.GetFrameSync().Reset();
     car.GetFrameSync().SetPosSync2(
         {2.0F, 0.0F, 0.0F}, {1.0F, 0.0F, 0.0F});

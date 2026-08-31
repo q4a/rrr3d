@@ -451,7 +451,8 @@ GameCar::PxSyncState GameCar::OnPxSync(
             continue;
         auto& wheel = *wheels_[index];
         const auto wheelPose = wheel.PxSyncWheel(
-            physicalBody, state.body, physicalWheels[index]);
+            physicalBody, state.body, physicalWheels[index],
+            deltaTime, physicsAlpha);
         // CarWheel::PxSyncWheel writes its local graph actor in Windows.
         // SetWorld* performs the equivalent parent-relative conversion while
         // retaining the already computed renderer-facing world pose.
@@ -507,10 +508,21 @@ GameObjectFrameSync::NetworkCorrection GameCar::SynchronizeNetworkPose(
 void GameCar::SynchronizePhysicsState(
     GameObjectFrameSync::Pose pose,
     GameObjectFrameSync::Vector linearVelocity,
-    bool awake) noexcept
+    bool awake,
+    const std::vector<GameObjectFrameSync::Pose>& physicalWheels) noexcept
 {
     GetFrameSync().OnPhysicsState(pose, linearVelocity, awake);
     SetBodyProgressEvent(GetFrameSync().IsBodyProgressEvent());
+    const std::size_t count = std::min(
+        wheels_.size(), physicalWheels.size());
+    for (std::size_t index = 0U; index < count; ++index)
+    {
+        if (wheels_[index] != nullptr)
+        {
+            wheels_[index]->SynchronizePhysicsState(
+                pose, physicalWheels[index], awake);
+        }
+    }
 }
 
 void GameCar::ConfigureMotor(MotorDescription description) noexcept
@@ -1740,6 +1752,7 @@ CarWheel& CarWheel::operator=(const CarWheel& other) noexcept
     hasContact_ = other.hasContact_;
     slipEffectEnabled_ = other.slipEffectEnabled_;
     slipSoundEnabled_ = other.slipSoundEnabled_;
+    pxFrameSync_ = other.pxFrameSync_;
     pxSyncPose_ = other.pxSyncPose_;
     positionX_ = other.positionX_;
     radius_ = other.radius_;
@@ -1869,20 +1882,14 @@ void CarWheel::Configure(
 const GameObjectFrameSync::Pose& CarWheel::PxSyncWheel(
     GameObjectFrameSync::Pose physicalBody,
     GameObjectFrameSync::Pose graphBody,
-    GameObjectFrameSync::Pose physicalWheel) noexcept
+    GameObjectFrameSync::Pose physicalWheel,
+    float deltaTime, float physicsAlpha) noexcept
 {
-    const SyncQuaternion physicalRotation =
-        normalizedSync(physicalBody.rotation);
-    const SyncQuaternion graphFromPhysical = multiplySync(
-        graphBody.rotation,
-        {-physicalRotation.x, -physicalRotation.y,
-         -physicalRotation.z, physicalRotation.w});
-    const SyncVector relative{
-        physicalWheel.position.x - physicalBody.position.x,
-        physicalWheel.position.y - physicalBody.position.y,
-        physicalWheel.position.z - physicalBody.position.z};
+    const auto localPose = pxFrameSync_.OnFrame(
+        SourceLocalPose(physicalBody, physicalWheel),
+        deltaTime, physicsAlpha);
     const SyncVector rotated = rotateSync(
-        relative, graphFromPhysical);
+        localPose.position, graphBody.rotation);
     pxSyncPose_.position = {
         graphBody.position.x + rotated.x,
         graphBody.position.y + rotated.y,
@@ -1893,6 +1900,26 @@ const GameObjectFrameSync::Pose& CarWheel::PxSyncWheel(
     pxSyncPose_.position.x += graphOffset.x;
     pxSyncPose_.position.y += graphOffset.y;
     pxSyncPose_.position.z += graphOffset.z;
+    pxSyncPose_.rotation = multiplySync(
+        graphBody.rotation, localPose.rotation);
+    return pxSyncPose_;
+}
+
+GameObjectFrameSync::Pose CarWheel::SourceLocalPose(
+    GameObjectFrameSync::Pose physicalBody,
+    GameObjectFrameSync::Pose physicalWheel) const noexcept
+{
+    const SyncQuaternion physicalRotation =
+        normalizedSync(physicalBody.rotation);
+    const SyncQuaternion inversePhysicalRotation{
+        -physicalRotation.x, -physicalRotation.y,
+        -physicalRotation.z, physicalRotation.w};
+    const SyncVector relative{
+        physicalWheel.position.x - physicalBody.position.x,
+        physicalWheel.position.y - physicalBody.position.y,
+        physicalWheel.position.z - physicalBody.position.z};
+    GameObjectFrameSync::Pose result;
+    result.position = rotateSync(relative, inversePhysicalRotation);
     // Windows CarWheel::PxSyncWheel never copies the PhysX wheel shape
     // orientation into the graph. The source object builds its local graph
     // rotation from steering about Z and accumulated axle spin about Y.
@@ -1910,9 +1937,17 @@ const GameObjectFrameSync::Pose& CarWheel::PxSyncWheel(
                 {0.0F, 0.0F, 1.0F},
                 3.14159265358979323846F));
     }
-    pxSyncPose_.rotation = multiplySync(
-        graphBody.rotation, localRotation);
-    return pxSyncPose_;
+    result.rotation = localRotation;
+    return result;
+}
+
+void CarWheel::SynchronizePhysicsState(
+    GameObjectFrameSync::Pose physicalBody,
+    GameObjectFrameSync::Pose physicalWheel,
+    bool awake) noexcept
+{
+    pxFrameSync_.OnPhysicsState(
+        SourceLocalPose(physicalBody, physicalWheel), {}, awake);
 }
 
 const GameObjectFrameSync::Pose& CarWheel::GetPxSyncPose() const noexcept
@@ -1949,6 +1984,7 @@ void CarWheel::ResetMotion() noexcept
     steerAngle_ = 0.0F;
     axleSpeed_ = 0.0F;
     summAngle_ = 0.0F;
+    pxFrameSync_.Reset();
 }
 
 float CarWheel::GetSteerAngle() const noexcept

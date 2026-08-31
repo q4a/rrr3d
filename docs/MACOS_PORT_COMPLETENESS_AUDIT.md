@@ -3271,3 +3271,21 @@ source graph pose human `RockCar`, как `CameraManager`, а не из сыро
 body. Regression проверяет повторный callback с новой точкой, повторный
 запуск once-source с нулевого кадра и lifetime пары после 0.1-секундного
 release.
+
+### B8dx — локальная pose-history каждого CarWheel — выполнено
+
+Повторная сверка `eff9338:GameCar.cpp::CarWheel::PxSyncWheel` исправила
+слишком широкий прежний вывод B8dv/P2.107: source graph pose колеса уже
+публиковалась, но собственные `_pxPrevPos/_pxPrevRot` колеса перенесены не
+были. Поэтому кузов интерполировался между двумя последними шагами, а центр
+подвески и steer/spin колеса сразу брались из новейшего `VehicleState`; на
+движении это давало независимое двоение/размытие колёс относительно кузова.
+
+Каждый завершённый Jolt fixed step теперь передаёт в `GameCar` полный
+`VehicleState`. `CarWheel` переводит world suspension centre в локальные
+координаты physical body, сохраняет собственную пару завершённых local pose
+и в `PxSyncWheel(alpha)` интерполирует именно её, после чего применяет
+интерполированный graph body и исходный visual offset. Rotation по-прежнему
+строится исходным кодом из steer и накопленного axle spin; ориентация Jolt
+wheel shape не становится игровой моделью. Regression публикует три physics
+step до одного кадра и требует позицию/rotation между последними двумя.

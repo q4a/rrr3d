@@ -7045,3 +7045,20 @@ play intent и возвращает cursor к frame 0, тогда как ост�
 сохраняет cursor. `CameraManager` listener position разрешается из
 интерполированного source `RockCar`. Jolt поставляет manifolds, SDL — voice;
 pair cursor, replay и release остаются в source logic.
+
+### P2.329 — восстановлены `_pxPrevPos/_pxPrevRot` каждого колеса — выполнено
+
+В Windows `GameObject::OnLateProgress(pxStep)` вызывает `OnPxSync(1)` перед
+каждым следующим `Compute`: `CarWheel::PxSyncWheel` запоминает текущие
+локальные suspension position и steer/spin quaternion. Кадровый вызов с
+`alpha < 1` выполняет `D3DXVec3Lerp/D3DXQuaternionSlerp` от этой пары к
+новому состоянию PhysX. Portable path ранее имел pose-history только кузова;
+колёса всегда отображались в последнем состоянии Jolt.
+
+В `CarWheel` добавлен отдельный `GameObjectFrameSync` для локальной pose.
+Session больше не урезает completed physics publication до body: полный
+`VehicleState`, включая все wheel transforms, проходит после каждого source
+fixed step. Рендерная world pose получается только после local interpolation
+и преобразования интерполированным graph body. Трёхшаговый regression
+подтверждает, что slow-frame alpha смешивает только предпоследнее и последнее
+положения и вращения колеса, а reset очищает историю.
