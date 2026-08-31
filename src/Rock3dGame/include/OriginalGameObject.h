@@ -756,7 +756,7 @@ private:
 // Backend-neutral transcription of GameBase::DeathEffect.  The caller owns
 // the transform/actor boundary; this class owns the original one-live-effect
 // rule and decides the two PhysX-era relationship flags at the death event.
-class DeathEffect : public EventEffect
+class DeathEffect final : public Behavior, public EventEffect
 {
 public:
     struct SpawnResult
@@ -772,10 +772,14 @@ public:
         bool ignoreRotation = false;
     };
 
-    DeathEffect() = default;
+    DeathEffect() noexcept;
     DeathEffect(bool effectPhysicsIgnoreSenderCar,
                 bool targetChild) noexcept;
+    DeathEffect(Behaviors* owner,
+                bool effectPhysicsIgnoreSenderCar = false,
+                bool targetChild = false) noexcept;
 
+    void OnProgress(float deltaTime) noexcept override;
     void Reset(bool effectPhysicsIgnoreSenderCar = false,
                bool targetChild = false) noexcept;
     void ConfigureSource(
@@ -791,81 +795,42 @@ public:
     void SetEffectPxIgnoreSenderCar(bool value) noexcept;
     bool GetTargetChild() const noexcept;
     void SetTargetChild(bool value) noexcept;
+    void SetSpawnContext(bool logicAvailable,
+                         bool senderIsWeaponProjectile) noexcept;
+    SpawnResult ConsumeSpawnResult() noexcept;
+    bool HasLiveEffects() const noexcept;
+
+protected:
+    void OnDeath(GameObject& sender, DamageType damageType,
+                 GameObject* target) noexcept override;
 
 private:
     bool effectPhysicsIgnoreSenderCar_ = false;
     bool targetChild_ = false;
-};
-
-// Concrete type-6 listener used by projectile and vehicle GameObjects. The
-// backend supplies only the two relationships which depended on PhysX actor
-// identity; the spawn decision itself is produced by the Death callback.
-class DeathEffectBehavior final : public Behavior
-{
-public:
-    explicit DeathEffectBehavior(
-        Behaviors* owner,
-        bool effectPhysicsIgnoreSenderCar = false,
-        bool targetChild = false) noexcept;
-
-    void OnProgress(float deltaTime) noexcept override;
-    void OnDeath(GameObject& sender, DamageType damageType,
-                 GameObject* target) noexcept override;
-
-    void Reset(bool effectPhysicsIgnoreSenderCar = false,
-               bool targetChild = false) noexcept;
-    void ConfigureSource(
-        const ObjectDefinition* definition,
-        std::array<float, 3U> position,
-        std::array<float, 3U> impulse,
-        bool ignoreRotation,
-        std::vector<std::string> soundPaths);
-    void SetSpawnContext(bool logicAvailable,
-                         bool senderIsWeaponProjectile) noexcept;
-    DeathEffect::SpawnResult ConsumeSpawnResult() noexcept;
-    bool IsEffectMaked() const noexcept;
-    bool HasLiveEffects() const noexcept;
-    bool GetEffectPxIgnoreSenderCar() const noexcept;
-    bool GetTargetChild() const noexcept;
-
-private:
-    DeathEffect state_;
-    DeathEffect::SpawnResult pending_;
+    SpawnResult pending_;
     bool logicAvailable_ = false;
     bool senderIsWeaponProjectile_ = false;
 };
 
-class LifeEffect : public EventEffect
+class LifeEffect final : public Behavior, public EventEffect
 {
 public:
+    LifeEffect() noexcept;
+    explicit LifeEffect(Behaviors* owner) noexcept;
+
     void Reset() noexcept;
     // LifeEffect retries until GiveSource3d can supply a source and then
     // plays that source exactly once for the lifetime of the object.
     bool OnProgress(bool sourceAvailable) noexcept;
-    bool HasPlayed() const noexcept;
-
-private:
-    bool play_ = false;
-};
-
-// Concrete Behavior counterpart of GameBase.cpp::LifeEffect. SDL owns the
-// Source3d equivalent, but availability is sampled by this behavior and the
-// one-shot Play transition is consumed by the audio adapter.
-class LifeEffectBehavior final : public Behavior
-{
-public:
-    explicit LifeEffectBehavior(Behaviors* owner) noexcept;
-
     void OnProgress(float deltaTime) noexcept override;
     void ConfigureSounds(std::vector<std::string> soundPaths);
     void SetSourceAvailable(bool value) noexcept;
     void SetSoundSelectionUnit(float value) noexcept;
     bool HasPlayed() const noexcept;
-    const std::vector<std::string>& GetSoundPaths() const noexcept;
     const std::string* ConsumePlayRequest() noexcept;
 
 private:
-    LifeEffect state_;
+    bool play_ = false;
     bool sourceAvailable_ = false;
     float soundSelectionUnit_ = 0.0F;
     const std::string* playRequest_ = nullptr;

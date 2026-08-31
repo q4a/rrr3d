@@ -470,7 +470,7 @@ public:
         float lowLifeLevel, float linearSpeed) noexcept;
     BehaviorProgressResult FinishBehaviorProgress(
         float deltaTime) noexcept;
-    std::size_t GetVehicleDeathEffectBehaviorCount() const noexcept;
+    std::size_t GetVehicleDeathEffectCount() const noexcept;
     std::vector<DeathEffect::SpawnResult>
         ConsumeVehicleDeathEffectSpawns() noexcept;
     bool AttachSlowEffect(
@@ -600,7 +600,7 @@ private:
     std::uint32_t pickedMoney_ = 0U;
     std::uint32_t place_ = 1U;
     bool finished_ = false;
-    std::vector<DeathEffectBehavior*> vehicleDeathEffects_;
+    std::vector<DeathEffect*> vehicleDeathEffects_;
     LowLifeBehavior* lowLifeBehavior_ = nullptr;
     EnergyDamageBehavior* energyDamageBehavior_ = nullptr;
     PlayerImmortalBehavior* immortalBehavior_ = nullptr;

@@ -506,7 +506,7 @@ int main()
     projectileObject.SetTimeLife(0.5F);
     projectileObject.ConfigureDeathEffect(true, true);
     auto* projectileDeathBehavior =
-        projectileObject.GetDeathEffectBehavior();
+        projectileObject.GetDeathEffect();
     source::GameObject projectileTarget;
     projectileTarget.ResetGameObject(100.0F);
     if (projectileDeathBehavior == nullptr ||
@@ -527,7 +527,9 @@ int main()
         !projectileDeath.createEffect ||
         !projectileDeath.targetChild ||
         !projectileDeath.ignoreSenderCar ||
-        projectileDeath.owner == nullptr ||
+        projectileDeath.owner !=
+            static_cast<source::EventEffect*>(
+                projectileDeathBehavior) ||
         projectileDeath.effectId ==
             source::EventEffect::invalidEffect ||
         !projectileDeath.owner->HasEffect(
@@ -1024,9 +1026,9 @@ int main()
         autoOil.GetModelScale() != 0.0F ||
         autoOil.GetDesc().type != 10U ||
         autoOil.GetDesc().damage != 1.5F ||
-        autoOil.GetDeathEffectBehavior() == nullptr ||
-        !autoOil.GetDeathEffectBehavior()->GetTargetChild() ||
-        !autoOil.GetDeathEffectBehavior()
+        autoOil.GetDeathEffect() == nullptr ||
+        !autoOil.GetDeathEffect()->GetTargetChild() ||
+        !autoOil.GetDeathEffect()
              ->GetEffectPxIgnoreSenderCar() ||
         autoOil.GetSourceModel() == nullptr ||
         autoOil.GetSourceModel()->GetParent() != &autoOil ||

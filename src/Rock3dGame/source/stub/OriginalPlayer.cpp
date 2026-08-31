@@ -207,7 +207,7 @@ void Player::BindSourceBehaviors()
             carRecord_->deathEffects.size());
         for (const auto& effect : carRecord_->deathEffects)
         {
-            auto& behavior = behaviors.Add<DeathEffectBehavior>(
+            auto& behavior = behaviors.Add<DeathEffect>(
                 BehaviorType::DeathEffect,
                 effect.effectPhysicsIgnoreSenderCar,
                 effect.targetChild);
@@ -1736,7 +1736,7 @@ void Player::PrepareVehicleDeathEffects() noexcept
     }
 }
 
-std::size_t Player::GetVehicleDeathEffectBehaviorCount() const noexcept
+std::size_t Player::GetVehicleDeathEffectCount() const noexcept
 {
     return vehicleDeathEffects_.size();
 }

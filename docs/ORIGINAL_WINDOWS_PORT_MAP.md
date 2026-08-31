@@ -1331,7 +1331,7 @@ count, deferred removal, respawn configuration и effect lifetime.
 принадлежит concrete type-14 state и переживает копирование graph. Shipped
 Viper actors закреплены regression-ом как target tags 1 и 2.
 
-Результат B8ci: устранён последний отдельный state-wrapper в каталоге
+Результат B8ci: устранён отдельный state-wrapper в каталоге
 `GameBase::Behaviors`. В исходном `GameBase.h/.cpp` `ShotEffect` сам является
 `EventEffect`, type-10 `Behavior` и listener, а portable graph держал два
 объекта: зарегистрированный `ShotEffectBehavior` и вложенный `ShotEffect`.
@@ -1343,6 +1343,19 @@ identities/очередью backend spawn. Копия `Weapon` сохраняе�
 definition, diagnostic shot count и последнюю позицию, но не переносит live
 effect actors или pending callbacks. bgfx/SDL остаются только потребителями
 готового child visual/Source3d запроса.
+
+Результат B8cj: тем же способом восстановлены сами source type 6 и 7.
+`DeathEffectBehavior` с вложенным `DeathEffect` и `LifeEffectBehavior` с
+вложенным `LifeEffect` удалены. Concrete `DeathEffect` теперь одновременно
+получает listener `OnDeath`, владеет distinguished `_makeEffect`, target-child
+и ignore-sender-car flags и отдаёт backend spawn. Concrete `LifeEffect`
+является progress behavior, владеет serialized sound catalog и выполняет
+исходный retry-until-Source3d/one-shot Play transition.
+
+Standalone overloads обоих классов сохранены только для unit-проверки чистой
+source state machine; активный object graph всегда создаёт их с owning
+`Behaviors*`. Jolt, Metal и SDL по-прежнему реализуют только actor,
+presentation и voice.
 
 ## Правило обновления карты
 

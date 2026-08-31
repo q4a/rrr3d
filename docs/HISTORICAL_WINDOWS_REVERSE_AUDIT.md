@@ -6397,3 +6397,18 @@ behavior, EventEffect owner всех transient handles и состоянием o
 но начинает с пустыми live effect/pending списками, как новый cloned MapObj.
 Regression требует pointer identity `Find(btShotEffect) == GetShotEffect()`
 и независимое уничтожение transient effects.
+
+### P2.289 — DeathEffect и LifeEffect возвращены в concrete Behaviors — выполнено
+
+Следующая сверка исходного `GameBase.cpp` показала такие же двойные объекты
+для типов 6 и 7. В Windows `DeathEffect::OnDeath` и
+`LifeEffect::OnProgress` исполняются непосредственно объектами коллекции
+`Behaviors`; portable graph регистрировал соседний wrapper, внутри которого
+жил реальный EventEffect state.
+
+Обе пары объединены. `DeathEffect` сам принимает death callback, хранит
+serialized flags/configuration, pending backend plan и все effect handles.
+`LifeEffect` сам принимает ordered progress, повторяет запрос звукового
+источника до его доступности и выдаёт единственный Play request. В source
+tests закреплены `Find(type)==concrete Behavior`, owning GameObject и
+`SpawnResult::owner==EventEffect` subobject того же DeathEffect.

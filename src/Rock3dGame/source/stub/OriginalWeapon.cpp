@@ -568,7 +568,7 @@ void Proj::ConfigureDeathEffect(
     bool targetChild) noexcept
 {
     GetBehaviors().Clear();
-    deathEffect_ = &GetBehaviors().Add<DeathEffectBehavior>(
+    deathEffect_ = &GetBehaviors().Add<DeathEffect>(
         BehaviorType::DeathEffect,
         effectPhysicsIgnoreSenderCar, targetChild);
 }
@@ -588,12 +588,12 @@ DeathEffect::SpawnResult Proj::DestroyWithEffect(
     return deathEffect_->ConsumeSpawnResult();
 }
 
-DeathEffectBehavior* Proj::GetDeathEffectBehavior() noexcept
+DeathEffect* Proj::GetDeathEffect() noexcept
 {
     return deathEffect_;
 }
 
-const DeathEffectBehavior* Proj::GetDeathEffectBehavior() const noexcept
+const DeathEffect* Proj::GetDeathEffect() const noexcept
 {
     return deathEffect_;
 }

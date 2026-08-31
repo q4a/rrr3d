@@ -227,7 +227,7 @@ void attachSourceLifeEffect(
     if (!sounds.empty())
     {
         effect.lifeEffect = &effect.effectOwner->GetBehaviors()
-            .Add<source::LifeEffectBehavior>(
+            .Add<source::LifeEffect>(
                 source::BehaviorType::LifeEffect);
         effect.lifeEffect->ConfigureSounds(sounds);
     }
@@ -8033,7 +8033,7 @@ void OriginalRaceSession::updateGameplay(
                 ? sourceRandomUnit()
                 : 0.0F;
         auto* deathEffect =
-            bonusProjectile->GetDeathEffectBehavior();
+            bonusProjectile->GetDeathEffect();
         if (deathEffect != nullptr)
         {
             // Player::TakeBonus invokes bonus.Death() before applying the
@@ -11292,7 +11292,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 autoProjBodyCommands.front().kind !=
                     r3d::physics::ProjectileBodyCommandKind::Create ||
                 autoProjSource == nullptr ||
-                autoProjSource->GetDeathEffectBehavior() == nullptr ||
+                autoProjSource->GetDeathEffect() == nullptr ||
                 autoProjSession.bonusScales().size() != 1U ||
                 autoProjSession.bonusScales().front() != 0.0F)
             {
@@ -12322,7 +12322,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 !deathSession.takeRespawns().empty() ||
                 sourceVehicle.deathEffects.size() != 2U ||
                 deathSession.racers().front()
-                        .GetVehicleDeathEffectBehaviorCount() !=
+                        .GetVehicleDeathEffectCount() !=
                     sourceVehicle.deathEffects.size() ||
                 sourceDeathEffectCount !=
                     sourceVehicle.deathEffects.size() ||
@@ -12366,7 +12366,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 deathSession.racers().front().IsDestroyed() ||
                 !deathSession.racers().front().HasCar() ||
                 deathSession.racers().front()
-                        .GetVehicleDeathEffectBehaviorCount() !=
+                        .GetVehicleDeathEffectCount() !=
                     sourceVehicle.deathEffects.size() ||
                 deathRestoredMapObjectId <= deathInitialMapObjectId ||
                 deathSession.racerForMapObjectId(
@@ -15821,7 +15821,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                         object != nullptr &&
                         dynamic_cast<const source::AutoProj*>(object) !=
                             nullptr &&
-                        object->GetDeathEffectBehavior() !=
+                        object->GetDeathEffect() !=
                             nullptr &&
                         object->GetDesc().type == 11U &&
                         std::abs(
@@ -15843,7 +15843,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                         object != nullptr &&
                         dynamic_cast<const source::AutoProj*>(object) !=
                             nullptr &&
-                        object->GetDeathEffectBehavior() !=
+                        object->GetDeathEffect() !=
                             nullptr &&
                         object->GetDesc().type == 13U &&
                         std::abs(

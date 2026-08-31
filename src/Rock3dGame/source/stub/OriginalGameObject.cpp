@@ -1922,11 +1922,24 @@ const std::string* EventEffect::SelectSoundPath(
     return &soundPaths_[index];
 }
 
+DeathEffect::DeathEffect() noexcept : Behavior(nullptr) {}
+
 DeathEffect::DeathEffect(bool effectPhysicsIgnoreSenderCar,
                          bool targetChild) noexcept
+    : Behavior(nullptr)
 {
     Reset(effectPhysicsIgnoreSenderCar, targetChild);
 }
+
+DeathEffect::DeathEffect(
+    Behaviors* owner, bool effectPhysicsIgnoreSenderCar,
+    bool targetChild) noexcept
+    : Behavior(owner)
+{
+    Reset(effectPhysicsIgnoreSenderCar, targetChild);
+}
+
+void DeathEffect::OnProgress(float) noexcept {}
 
 void DeathEffect::Reset(bool effectPhysicsIgnoreSenderCar,
                         bool targetChild) noexcept
@@ -1934,6 +1947,9 @@ void DeathEffect::Reset(bool effectPhysicsIgnoreSenderCar,
     EventEffect::Reset();
     effectPhysicsIgnoreSenderCar_ = effectPhysicsIgnoreSenderCar;
     targetChild_ = targetChild;
+    pending_ = {};
+    logicAvailable_ = false;
+    senderIsWeaponProjectile_ = false;
 }
 
 void DeathEffect::ConfigureSource(
@@ -1946,6 +1962,7 @@ void DeathEffect::ConfigureSource(
     EventEffect::Configure(
         definition, position, impulse, ignoreRotation);
     EventEffect::ConfigureSounds(std::move(soundPaths));
+    pending_ = {};
 }
 
 DeathEffect::SpawnResult DeathEffect::OnDeath(
@@ -1988,20 +2005,10 @@ void DeathEffect::SetTargetChild(bool value) noexcept
     targetChild_ = value;
 }
 
-DeathEffectBehavior::DeathEffectBehavior(
-    Behaviors* owner, bool effectPhysicsIgnoreSenderCar,
-    bool targetChild) noexcept
-    : Behavior(owner),
-      state_(effectPhysicsIgnoreSenderCar, targetChild)
-{
-}
-
-void DeathEffectBehavior::OnProgress(float) noexcept {}
-
-void DeathEffectBehavior::OnDeath(
+void DeathEffect::OnDeath(
     GameObject&, DamageType, GameObject* target) noexcept
 {
-    const auto result = state_.OnDeath(
+    const auto result = OnDeath(
         logicAvailable_ || GetLogic() != nullptr,
         target != nullptr,
         senderIsWeaponProjectile_);
@@ -2009,30 +2016,7 @@ void DeathEffectBehavior::OnDeath(
         pending_ = result;
 }
 
-void DeathEffectBehavior::Reset(
-    bool effectPhysicsIgnoreSenderCar,
-    bool targetChild) noexcept
-{
-    state_.Reset(effectPhysicsIgnoreSenderCar, targetChild);
-    pending_ = {};
-    logicAvailable_ = false;
-    senderIsWeaponProjectile_ = false;
-}
-
-void DeathEffectBehavior::ConfigureSource(
-    const ObjectDefinition* definition,
-    std::array<float, 3U> position,
-    std::array<float, 3U> impulse,
-    bool ignoreRotation,
-    std::vector<std::string> soundPaths)
-{
-    state_.ConfigureSource(
-        definition, position, impulse, ignoreRotation,
-        std::move(soundPaths));
-    pending_ = {};
-}
-
-void DeathEffectBehavior::SetSpawnContext(
+void DeathEffect::SetSpawnContext(
     bool logicAvailable,
     bool senderIsWeaponProjectile) noexcept
 {
@@ -2041,37 +2025,29 @@ void DeathEffectBehavior::SetSpawnContext(
 }
 
 DeathEffect::SpawnResult
-DeathEffectBehavior::ConsumeSpawnResult() noexcept
+DeathEffect::ConsumeSpawnResult() noexcept
 {
     const auto result = pending_;
     pending_ = {};
     return result;
 }
 
-bool DeathEffectBehavior::IsEffectMaked() const noexcept
+bool DeathEffect::HasLiveEffects() const noexcept
 {
-    return state_.IsEffectMaked();
+    return GetEffectCount() != 0U;
 }
 
-bool DeathEffectBehavior::HasLiveEffects() const noexcept
-{
-    return state_.GetEffectCount() != 0U;
-}
+LifeEffect::LifeEffect() noexcept : Behavior(nullptr) {}
 
-bool DeathEffectBehavior::GetEffectPxIgnoreSenderCar() const noexcept
-{
-    return state_.GetEffectPxIgnoreSenderCar();
-}
-
-bool DeathEffectBehavior::GetTargetChild() const noexcept
-{
-    return state_.GetTargetChild();
-}
+LifeEffect::LifeEffect(Behaviors* owner) noexcept : Behavior(owner) {}
 
 void LifeEffect::Reset() noexcept
 {
     EventEffect::Reset();
     play_ = false;
+    sourceAvailable_ = false;
+    soundSelectionUnit_ = 0.0F;
+    playRequest_ = nullptr;
 }
 
 bool LifeEffect::OnProgress(bool sourceAvailable) noexcept
@@ -2087,48 +2063,32 @@ bool LifeEffect::HasPlayed() const noexcept
     return play_;
 }
 
-LifeEffectBehavior::LifeEffectBehavior(Behaviors* owner) noexcept
-    : Behavior(owner)
+void LifeEffect::OnProgress(float) noexcept
 {
+    if (OnProgress(sourceAvailable_))
+        playRequest_ = SelectSoundPath(soundSelectionUnit_);
 }
 
-void LifeEffectBehavior::OnProgress(float) noexcept
-{
-    if (state_.OnProgress(sourceAvailable_))
-        playRequest_ = state_.SelectSoundPath(soundSelectionUnit_);
-}
-
-void LifeEffectBehavior::ConfigureSounds(
+void LifeEffect::ConfigureSounds(
     std::vector<std::string> soundPaths)
 {
-    state_.Reset();
-    state_.ConfigureSounds(std::move(soundPaths));
-    sourceAvailable_ = !state_.GetSoundPaths().empty();
+    Reset();
+    EventEffect::ConfigureSounds(std::move(soundPaths));
+    sourceAvailable_ = !GetSoundPaths().empty();
     playRequest_ = nullptr;
 }
 
-void LifeEffectBehavior::SetSourceAvailable(bool value) noexcept
+void LifeEffect::SetSourceAvailable(bool value) noexcept
 {
     sourceAvailable_ = value;
 }
 
-void LifeEffectBehavior::SetSoundSelectionUnit(float value) noexcept
+void LifeEffect::SetSoundSelectionUnit(float value) noexcept
 {
     soundSelectionUnit_ = value;
 }
 
-bool LifeEffectBehavior::HasPlayed() const noexcept
-{
-    return state_.HasPlayed();
-}
-
-const std::vector<std::string>&
-LifeEffectBehavior::GetSoundPaths() const noexcept
-{
-    return state_.GetSoundPaths();
-}
-
-const std::string* LifeEffectBehavior::ConsumePlayRequest() noexcept
+const std::string* LifeEffect::ConsumePlayRequest() noexcept
 {
     const auto* result = playRequest_;
     playRequest_ = nullptr;

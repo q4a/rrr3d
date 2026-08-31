@@ -758,8 +758,12 @@ int main()
     behaviorSoundOwner.ResetGameObject(-1.0F);
     auto& lifeBehavior =
         behaviorSoundOwner.GetBehaviors()
-            .Add<source::LifeEffectBehavior>(
+            .Add<source::LifeEffect>(
                 source::BehaviorType::LifeEffect);
+    if (behaviorSoundOwner.GetBehaviors().Find(
+            source::BehaviorType::LifeEffect) != &lifeBehavior ||
+        lifeBehavior.GetGameObj() != &behaviorSoundOwner)
+        return 195;
     lifeBehavior.ConfigureSounds({"life0.ogg", "life1.ogg"});
     lifeBehavior.SetSourceAvailable(false);
     behaviorSoundOwner.OnProgress(0.1F);

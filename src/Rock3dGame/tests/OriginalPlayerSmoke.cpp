@@ -124,7 +124,7 @@ int main()
     deathBehaviorPlayer.SetCar(&deathBehaviorVehicle);
     deathBehaviorPlayer.CreateCar(true);
     deathBehaviorPlayer.gameCar.SetLogic(&deathBehaviorLogic);
-    if (deathBehaviorPlayer.GetVehicleDeathEffectBehaviorCount() != 2U ||
+    if (deathBehaviorPlayer.GetVehicleDeathEffectCount() != 2U ||
         deathBehaviorPlayer.gameCar.GetBehaviors().GetCount() != 6U ||
         deathBehaviorPlayer.gameCar.GetBehaviors().Find(
             source::BehaviorType::DeathEffect) == nullptr)
@@ -165,7 +165,7 @@ int main()
     deathBehaviorPlayer.CreateCar(false);
     deathBehaviorPlayer.gameCar.SetLogic(&deathBehaviorLogic);
     if (!deathBehaviorPlayer.Death() ||
-        deathBehaviorPlayer.GetVehicleDeathEffectBehaviorCount() != 2U)
+        deathBehaviorPlayer.GetVehicleDeathEffectCount() != 2U)
         return 89;
     const auto respawnDeathPlans =
         deathBehaviorPlayer.ConsumeVehicleDeathEffectSpawns();

@@ -336,7 +336,7 @@ struct RaceEffect
     // Sounds serialized on an effect object belong to its LifeEffect, not
     // to the event which spawned it. They start from the first progress
     // callback and share the spawned object's lifetime/attachment.
-    source::LifeEffectBehavior* lifeEffect = nullptr;
+    source::LifeEffect* lifeEffect = nullptr;
     std::size_t lifeSoundRacer = RacerRuntime::invalidWeapon;
     std::size_t lifeSoundFollowRacer = RacerRuntime::invalidWeapon;
 };

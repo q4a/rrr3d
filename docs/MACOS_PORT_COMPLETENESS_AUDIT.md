@@ -2686,3 +2686,13 @@ owner. `Weapon::GetShotEffect()` возвращает тот же объект, 
 в `Behaviors`, поэтому callback, `_effObjList` identity, serialized sound/
 visual definition, shot count и очередь адаптера больше не имеют разных
 lifetime. Metal и SDL получают только consumable spawn/audio команды.
+
+### B8cj — DeathEffect/LifeEffect являются type-6/type-7 Behavior — выполнено
+
+Убраны пары `DeathEffectBehavior/DeathEffect` и
+`LifeEffectBehavior/LifeEffect`. Зарегистрированные concrete source-классы
+теперь сами владеют EventEffect handles, serialized configuration и своими
+listener/progress callbacks. Для Death сохранены один live make-effect,
+target-child и PhysX-era ignore-sender relationship; для Life — ленивое
+получение Source3d и один Play за lifetime. Regression сверяет найденный
+behavior с тем же concrete объектом и его EventEffect owner identity.

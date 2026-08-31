@@ -727,8 +727,8 @@ public:
         GameObject* target, bool logicAvailable,
         bool senderIsWeaponProjectile,
         DamageType damageType = DamageType::Simple) noexcept;
-    DeathEffectBehavior* GetDeathEffectBehavior() noexcept;
-    const DeathEffectBehavior* GetDeathEffectBehavior() const noexcept;
+    DeathEffect* GetDeathEffect() noexcept;
+    const DeathEffect* GetDeathEffect() const noexcept;
 
 protected:
     void OnDestroy(GameObject& sender) noexcept override;
@@ -755,7 +755,7 @@ private:
     LaserVisualState laserVisualState_;
     MapObj* sourceModel_ = nullptr;
     MapObj* sourceModel2_ = nullptr;
-    DeathEffectBehavior* deathEffect_ = nullptr;
+    DeathEffect* deathEffect_ = nullptr;
 };
 
 // MapObj.cpp registers gotProj as AutoProj.  Unlike a weapon shot, this

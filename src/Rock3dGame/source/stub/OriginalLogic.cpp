@@ -615,7 +615,7 @@ Logic::GameObjectProgress Logic::ProgressGameObjs(
         if (object->GetLiveState() == GameObject::LiveState::Death)
         {
             const auto* deathEffect = dynamic_cast<
-                const DeathEffectBehavior*>(
+                const DeathEffect*>(
                     object->GetBehaviors().Find(
                         BehaviorType::DeathEffect));
             if (deathEffect != nullptr &&
