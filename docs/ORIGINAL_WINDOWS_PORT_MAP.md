@@ -1820,6 +1820,21 @@ Logic pass в его concrete behaviors публикуются particle count, s
 Standalone owner оставлен только у синтетических render spans без MapObjRec;
 дочерний `EffectDesc::child == true` переносится следующим блоком.
 
+Результат B8ds: перенесены оба include-list пути
+`EventEffect::CreateEffect`: default `desc.child` помещает effect record в
+include-list GameObject-владельца, а `desc.parent` — в include-list указанной
+цели. LowLife/EnergyDamage/Slow и target-child DeathEffect теперь принадлежат
+concrete `RockCar`; `ShotEffect` разрешает физический слот и принадлежит
+точному установленному `Weapon` MapObj, а не условной машине.
+
+Перенесён и критический `FxSystemWaitingEnd::Resurrect` переход: при
+lifetime-Death дочерний MapObj извлекается из заблокированного progress-pass
+include-list, сохраняя allocation/world pose, и тут же вставляется в глобальную
+категорию Effects с новым source ID. Session находит тот же pointer в Map,
+переключает attachment metadata и не прогрессирует эффект повторно. Explicit
+`FreeEffect` удаляет объект из текущего include owner; Jolt остаётся только
+backend-ом для тех effect records, у которых действительно есть actor.
+
 Каждый крупный block commit обязан:
 
 1. назвать точные методы из `eff9338:prog`, которые стали активными;

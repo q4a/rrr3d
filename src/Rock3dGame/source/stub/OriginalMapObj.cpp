@@ -683,7 +683,7 @@ MapObj& MapObjects::Insert(std::unique_ptr<MapObj> value)
 
 std::unique_ptr<MapObj> MapObjects::Extract(MapObj* value) noexcept
 {
-    if (locked_ || value == nullptr)
+    if (value == nullptr)
         return {};
     const auto found = std::find_if(
         objects_.begin(), objects_.end(),

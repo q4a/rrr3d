@@ -3186,3 +3186,21 @@ runtime определяет это по ID, очищает borrowed pointers и
 уведомляет исходный EventEffect handle. Regression требует настоящий
 `ctEffects MapObj` для двух PairPxContactEffect points и для dynamic vehicle
 DeathEffect. Jolt остаётся владельцем только физического body/solver.
+
+### B8ds — дочерние EventEffect возвращены в include lists — выполнено
+
+Default `EffectDesc` в оригинале имеет `child=true`. Поэтому
+`EventEffect::CreateEffect` добавляет record не в глобальный Map, а в
+`GetGameObj()->GetIncludeList()`; `DeathEffect::targetChild` аналогично
+использует include-list contacted target. Порт до этого лишь хранил
+`parentRacer` и вручную пересчитывал render transform, но source MapObj,
+родитель, порядок прогресса и удаление отсутствовали.
+
+LowLifePoints, DamageEffect, SlowEffect и target-child projectile death теперь
+создают настоящий child MapObj под `RockCar`. Weapon ShotEffect дополнительно
+сохраняет physical slot и добавляется в include-list точного live `Weapon`
+MapObj. После `FxSystemWaitingEnd` lifetime-Death тот же allocation может быть
+извлечён во время locked include progress и вставлен в global Effects list;
+world pose и новый Map ID сохраняются, следующий progress выполняется только
+в следующем Logic pass. Regression проверяет car parent, weapon parent,
+target-car parent и автоматический locked-progress resurrection transfer.

@@ -775,7 +775,9 @@ private:
                        float finishTime) noexcept;
     void notifyEffectDestroyed(RaceEffect& effect) noexcept;
     void bindWorldEffectMapObjects();
-    bool worldEffectMapObjectAlive(const RaceEffect& effect) const noexcept;
+    source::MapObjects* findEffectIncludeOwner(
+        const RaceEffect& effect) noexcept;
+    bool worldEffectMapObjectAlive(RaceEffect& effect) noexcept;
     void clearEffects() noexcept;
 
     const Race& race_;

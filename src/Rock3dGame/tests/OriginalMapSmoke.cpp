@@ -478,6 +478,44 @@ int main()
         resurrectionMap.GetMapObj(detachedEffectId, true) != nullptr)
         return 29;
 
+    // A timed child reaches Death from inside IncludeList::OnProgress while
+    // that collection is locked. Windows ResurrectObj still extracts the
+    // same MapObj and inserts it into the global effect list during this
+    // callback; this must not require a second/manual Death invocation.
+    auto& timedIncludedEffect = effectParent.GetIncludeList().Add(
+        effectRecord, 88U);
+    auto& timedEffectObject = timedIncludedEffect.GetGameObj();
+    timedEffectObject.ResetGameObject(-1.0F);
+    timedEffectObject.SetMaxTimeLife(0.01F);
+    timedEffectObject.SetPos({0.0F, 2.0F, 0.0F});
+    auto& timedWaitingEnd = timedEffectObject.GetBehaviors()
+        .Add<source::FxSystemWaitingEnd>(
+            source::BehaviorType::FxSystemWaitingEnd);
+    timedWaitingEnd.SetLiveParticleCount(1U);
+    const auto timedProgress =
+        effectParent.GetIncludeList().OnProgress(0.02F);
+    const auto timedEffectId = timedIncludedEffect.GetId();
+    if (timedProgress.progressed != 1U ||
+        timedProgress.removed != 0U ||
+        !timedWaitingEnd.ConsumeBeginFading() ||
+        !timedWaitingEnd.IsResurrect() || timedEffectObject.destroyed ||
+        effectParent.GetIncludeList().GetLiveCount() != 0U ||
+        timedIncludedEffect.GetOwner() !=
+            &resurrectionMap.GetMapObjList(
+                source::MapObjCategory::Effects) ||
+        timedIncludedEffect.GetParent() != nullptr ||
+        timedEffectId == source::Map::defaultMapObjId ||
+        resurrectionMap.GetMapObj(timedEffectId, true) !=
+            &timedIncludedEffect)
+        return 34;
+    timedWaitingEnd.SetLiveParticleCount(0U);
+    const auto removedTimedEffect =
+        resurrectionMap.GetMapObjList(source::MapObjCategory::Effects)
+            .OnProgress(0.0F);
+    if (removedTimedEffect.removed != 1U ||
+        resurrectionMap.GetMapObj(timedEffectId, true) != nullptr)
+        return 34;
+
     source::Logic progressLogic;
     {
         source::Map progressMap(&progressLogic);

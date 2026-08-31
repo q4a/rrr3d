@@ -6961,3 +6961,21 @@ Map ID, поэтому безопасно распознаёт удаление 
 MapObj generation одного actor pair; death regression подтверждает source
 Map owner динамического кузовного эффекта. Следующий блок карты — точный
 include-list path для `EffectDesc::child/parent`.
+
+### P2.324 — восстановлены EventEffect include-list и resurrection — выполнено
+
+Обратная проверка `EventEffect::EffectDesc` показала, что его constructor
+задаёт `child=true`. `CreateEffect` выбирает include-list собственного
+GameObject, либо include-list `desc.parent`; только явно сброшенный child идёт
+в global Map. Следовательно, хранить одну числовую `parentRacer` связь было
+недостаточно: source parent владеет MapObj, прогрессирует его до собственных
+behaviors и уничтожает вместе с собой.
+
+Session теперь разрешает exact parent: car-owned effects вставляются под
+`RockCar`, ShotEffect — под установленный `Weapon` выбранного physical slot,
+targetChild DeathEffect — под contacted car. `MapObjects::Extract` разрешён
+для текущего элемента locked progress, как требует
+`FxSystemWaitingEnd::OnDeath → ResurrectObj::Resurrect`: unique_ptr переносится
+из include-list в Map без смены адреса, Map назначает global ID, world pose
+остаётся прежней. Это source ownership/lifetime перенос; renderer и Jolt
+границы не расширены.

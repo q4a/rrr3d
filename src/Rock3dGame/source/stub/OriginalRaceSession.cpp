@@ -1151,6 +1151,7 @@ void OriginalRaceSession::notifyEffectDestroyed(
 {
     if (effect.sourceMapObject != nullptr)
     {
+        worldEffectMapObjectAlive(effect);
         // Logic::OnProgress may already have removed the object after its
         // Death callback. Resolve by ID before asking Map to delete it so a
         // stale pointer is never dereferenced.
@@ -1158,6 +1159,10 @@ void OriginalRaceSession::notifyEffectDestroyed(
             effect.sourceMapObject)
         {
             map_.DelMapObj(effect.sourceMapObject);
+        }
+        else if (auto* includeOwner = findEffectIncludeOwner(effect))
+        {
+            includeOwner->Remove(effect.sourceMapObject);
         }
         effect.sourceMapObject = nullptr;
         effect.sourceMapObjectId = 0U;
@@ -1186,24 +1191,69 @@ void OriginalRaceSession::notifyEffectDestroyed(
     }
 }
 
-bool OriginalRaceSession::worldEffectMapObjectAlive(
-    const RaceEffect& effect) const noexcept
+source::MapObjects* OriginalRaceSession::findEffectIncludeOwner(
+    const RaceEffect& effect) noexcept
 {
-    return effect.sourceMapObject != nullptr &&
-           effect.sourceMapObjectId != 0U &&
-           map_.GetMapObj(effect.sourceMapObjectId, true) ==
-               effect.sourceMapObject;
+    if (effect.sourceMapObject == nullptr)
+        return nullptr;
+    const auto contains = [&](source::MapObjects& objects) {
+        for (std::size_t slot = 0U;
+             slot < objects.GetSlotCount(); ++slot)
+        {
+            if (objects.Get(slot) == effect.sourceMapObject)
+                return true;
+        }
+        return false;
+    };
+    for (auto& racer : racers_)
+    {
+        auto& carIncludes = racer.gameCar.GetIncludeList();
+        if (contains(carIncludes))
+            return &carIncludes;
+        auto& weapons = racer.gameCar.GetWeapons();
+        for (std::size_t slot = 0U;
+             slot < weapons.GetSlotCount(); ++slot)
+        {
+            auto* weaponObject = weapons.Get(slot);
+            if (weaponObject == nullptr)
+                continue;
+            auto& weaponIncludes =
+                weaponObject->GetGameObj().GetIncludeList();
+            if (contains(weaponIncludes))
+                return &weaponIncludes;
+        }
+    }
+    return nullptr;
+}
+
+bool OriginalRaceSession::worldEffectMapObjectAlive(
+    RaceEffect& effect) noexcept
+{
+    if (effect.sourceMapObject == nullptr)
+        return false;
+    if (effect.sourceMapObjectId != 0U &&
+        map_.GetMapObj(effect.sourceMapObjectId, true) ==
+            effect.sourceMapObject)
+    {
+        return true;
+    }
+    // FxSystemWaitingEnd::Resurrect transfers the same MapObj allocation
+    // from an include list to the global Map and assigns its world ID there.
+    for (const auto& [id, object] : map_.GetObjects())
+    {
+        if (object != effect.sourceMapObject)
+            continue;
+        effect.sourceMapObjectId = id;
+        return true;
+    }
+    return findEffectIncludeOwner(effect) != nullptr;
 }
 
 void OriginalRaceSession::bindWorldEffectMapObjects()
 {
     for (auto& effect : effects_)
     {
-        // Default EventEffect objects are children of their behavior owner.
-        // Their include-list transfer is handled separately; this pass is
-        // the exact desc.child == false global Map::AddMapObj path.
         if (effect.sourceMapObject != nullptr ||
-            effect.parentRacer != RacerRuntime::invalidWeapon ||
             effect.sourceDefinition == nullptr ||
             effect.sourceDefinition->record.empty())
         {
@@ -1229,32 +1279,114 @@ void OriginalRaceSession::bindWorldEffectMapObjects()
                 ? effect.lifeEffect->GetSoundPaths()
                 : std::vector<std::string>{};
 
-        auto& mapObject = map_.AddMapObj(
-            source::MapObjCategory::Effects, record->GetType(),
-            record->GetPath());
+        source::GameObject* sourceParent = nullptr;
+        if (effect.parentRacer < racers_.size())
+        {
+            if (effect.kind == RaceEventKind::WeaponShotEffect)
+            {
+                source::WeaponItem* item = nullptr;
+                if (effect.mountSlot < PlayerProfile::weaponSlotCount)
+                {
+                    item = racers_[effect.parentRacer]
+                               .GetPrimaryWeaponItems()[effect.mountSlot];
+                }
+                else if (effect.mountSlot ==
+                         PlayerProfile::weaponSlotCount)
+                {
+                    item = racers_[effect.parentRacer]
+                               .GetHyperWeaponItem();
+                }
+                else if (effect.mountSlot ==
+                         PlayerProfile::weaponSlotCount + 1U)
+                {
+                    item = racers_[effect.parentRacer]
+                               .GetMineWeaponItem();
+                }
+                auto* weapon = item != nullptr ? item->GetWeapon() : nullptr;
+                sourceParent = weapon != nullptr ? weapon : nullptr;
+            }
+            else
+            {
+                sourceParent = &racers_[effect.parentRacer].gameCar;
+            }
+            if (sourceParent == nullptr)
+            {
+                // A child effect can never silently become a world effect.
+                // If its source Weapon vanished during the same transaction,
+                // its EventEffect owner will release the pending handle.
+                continue;
+            }
+        }
+
+        source::MapObj* createdMapObject = nullptr;
+        Transform objectTransform = effect.transform;
+        if (sourceParent != nullptr)
+        {
+            if (effect.kind == RaceEventKind::WeaponShotEffect)
+            {
+                const auto makeTransform = [](source::GameObject& object) {
+                    const auto position = object.GetWorldPos();
+                    const auto rotation = object.GetWorldRot();
+                    const auto scale = object.GetWorldScale();
+                    Transform result;
+                    result.position = {
+                        position[0], position[1], position[2]};
+                    result.rotation = {
+                        rotation[0], rotation[1], rotation[2], rotation[3]};
+                    result.scale = {scale[0], scale[1], scale[2]};
+                    return result;
+                };
+                auto worldTransform = effect.transform;
+                if (auto* car = sourceParent->GetParent())
+                    worldTransform = compose(
+                        makeTransform(*car), effect.transform);
+                objectTransform = relativeTransform(
+                    makeTransform(*sourceParent), worldTransform);
+            }
+            createdMapObject = &sourceParent->GetIncludeList().Add(
+                *record, 0U);
+        }
+        else
+        {
+            createdMapObject = &map_.AddMapObj(
+                source::MapObjCategory::Effects, record->GetType(),
+                record->GetPath());
+            if (!effect.sourceDefinitionUsesExactTransform &&
+                effect.kind != RaceEventKind::VehicleDestroyed)
+            {
+                objectTransform.position = effect.origin;
+                objectTransform.rotation = {};
+                if (effect.kind == RaceEventKind::ProjectileImpact &&
+                    !effect.ignoreRotation)
+                {
+                    objectTransform.rotation = shortestArcFromX(
+                        subtract(effect.target, effect.origin));
+                }
+            }
+        }
+        auto& mapObject = *createdMapObject;
         auto& owner = mapObject.GetGameObj();
         configureSourceEffectOwner(
             effect, effect.waitForParticleEnd, maximumTimeLife, &owner);
         owner.SetTimeLife(timeLife);
-        auto worldTransform = effect.transform;
-        if (!effect.sourceDefinitionUsesExactTransform &&
-            effect.kind != RaceEventKind::VehicleDestroyed)
+        if (sourceParent != nullptr)
         {
-            worldTransform.position = effect.origin;
-            worldTransform.rotation = {};
-            if (effect.kind == RaceEventKind::ProjectileImpact &&
-                !effect.ignoreRotation)
-            {
-                worldTransform.rotation = shortestArcFromX(
-                    subtract(effect.target, effect.origin));
-            }
+            owner.SetPos(
+                {objectTransform.position.x, objectTransform.position.y,
+                 objectTransform.position.z});
+            owner.SetRot(
+                {objectTransform.rotation.x, objectTransform.rotation.y,
+                 objectTransform.rotation.z, objectTransform.rotation.w});
         }
-        owner.SetWorldPos(
-            {worldTransform.position.x, worldTransform.position.y,
-             worldTransform.position.z});
-        owner.SetWorldRot(
-            {worldTransform.rotation.x, worldTransform.rotation.y,
-             worldTransform.rotation.z, worldTransform.rotation.w});
+        else
+        {
+            owner.SetWorldPos(
+                {objectTransform.position.x, objectTransform.position.y,
+                 objectTransform.position.z});
+            owner.SetWorldRot(
+                {objectTransform.rotation.x, objectTransform.rotation.y,
+                 objectTransform.rotation.z, objectTransform.rotation.w});
+        }
         if (hasSourceSpeed)
         {
             effect.sourceSpeed = &owner.GetBehaviors()
@@ -1269,7 +1401,8 @@ void OriginalRaceSession::bindWorldEffectMapObjects()
             effect.lifeEffect->ConfigureSounds(lifeSounds);
         }
         effect.sourceMapObject = &mapObject;
-        effect.sourceMapObjectId = mapObject.GetId();
+        effect.sourceMapObjectId =
+            sourceParent == nullptr ? mapObject.GetId() : 0U;
         effect.effectOwnerStorage.reset();
     }
 }
@@ -6739,6 +6872,10 @@ void OriginalRaceSession::updateGameplay(
                 source.visual, source.duration);
             applySourceEffectTiming(effect, timing, source.visual);
             effect.weapon = weapon;
+            // pushShotEffect receives the physical Player::_slot identity:
+            // primary 0..3, Hyper 4, Mine 5. Retain it so the source effect
+            // can be inserted into the exact Weapon GameObject include list.
+            effect.mountSlot = soundSource;
             if (spawn->owner != nullptr)
                 effect.sourceEvent = spawn->owner->ObserveEffect(
                     spawn->effectId);
@@ -9319,6 +9456,11 @@ void OriginalRaceSession::update(
             seconds, vehicles, vehicleInputs_, nullptr, false);
 
     updateGameplay(seconds, vehicles, sourceHumanControl);
+    // Player/Weapon callbacks run after this frame's Logic pass and may
+    // create EventEffect objects immediately. Insert those new objects into
+    // their exact source Map/include owner now; their first OnProgress still
+    // occurs in the next Logic pass, as on Windows.
+    bindWorldEffectMapObjects();
     updateAchievements(seconds);
     if (phase_ == RacePhase::Finished &&
         gameModeRaceState_.IsFinishPresentationReady())
@@ -12473,6 +12615,12 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                                effect.sourceDefinitionOwner.get() &&
                            effect.sourceDefinition->record ==
                                sourceVehicle.lowLifeEffect.record &&
+                           effect.sourceMapObject != nullptr &&
+                           effect.sourceMapObjectId == 0U &&
+                           effect.effectOwner ==
+                               &effect.sourceMapObject->GetGameObj() &&
+                           effect.sourceMapObject->GetParent() ==
+                               &lowLifeSession.racers().front().gameCar &&
                            std::abs(effect.transform.position.z -
                                     sourceVehicle.lowLifeEffectPosition.z) <
                                0.001F;
@@ -13745,6 +13893,16 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                                effect.sourceDefinition != nullptr &&
                                effect.sourceDefinition->record ==
                                    sourceWeapon->shotEffect.visual.record &&
+                               effect.sourceMapObject != nullptr &&
+                               effect.sourceMapObjectId == 0U &&
+                               effect.effectOwner ==
+                                   &effect.sourceMapObject->GetGameObj() &&
+                               effect.sourceMapObject->GetParent() !=
+                                   nullptr &&
+                               effect.sourceMapObject->GetParent()
+                                       ->GetMapObj() != nullptr &&
+                               effect.sourceMapObject->GetParent()
+                                       ->GetMapObj()->GetWeapon() != nullptr &&
                                std::abs(
                                effect.totalSeconds -
                                    sourceEffectTiming(
@@ -15544,7 +15702,13 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                            effect.sourceEvent.HasEffect();
                 });
             if (attachedDeath == childEffectSession.effects().end() ||
-                attachedDeath->parentRacer != 1U)
+                attachedDeath->parentRacer != 1U ||
+                attachedDeath->sourceMapObject == nullptr ||
+                attachedDeath->sourceMapObjectId != 0U ||
+                attachedDeath->effectOwner !=
+                    &attachedDeath->sourceMapObject->GetGameObj() ||
+                attachedDeath->sourceMapObject->GetParent() !=
+                    &childEffectSession.racers()[1].gameCar)
             {
                 throw std::runtime_error(
                     "source DeathEffect targetChild did not attach to the "
