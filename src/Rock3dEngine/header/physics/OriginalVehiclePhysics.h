@@ -264,6 +264,10 @@ struct WheelContactState
     float normalReaction = 0.0F;
     float normalImpulse = 0.0F;
     bool normalForceReleased = false;
+    // PhysX switches the default/clamped wheel solver to static friction
+    // while the world contact point remains within NX_SKIN_WIDTH of its
+    // position in the preceding source simulation step.
+    bool lowSpeedFriction = false;
     bool hasContact = false;
 };
 

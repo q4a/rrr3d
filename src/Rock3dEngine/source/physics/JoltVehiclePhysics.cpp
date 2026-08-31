@@ -853,6 +853,32 @@ float sourceTireFunction(
     return sign * force;
 }
 
+constexpr float sourceSkinWidth = 0.025F;
+
+bool sourceLowSpeedWheelContact(
+    Vec3 previous, Vec3 current, bool previousValid) noexcept
+{
+    if (!previousValid)
+        return false;
+    const float x = current.x - previous.x;
+    const float y = current.y - previous.y;
+    const float z = current.z - previous.z;
+    return x * x + y * y + z * z <=
+           sourceSkinWidth * sourceSkinWidth;
+}
+
+float sourceClampedTireFriction(
+    const WheelDescription::TireFunction& tire, float slip,
+    bool lowSpeedFriction) noexcept
+{
+    // NxWheelShapeDesc documents a separate static-friction branch. In the
+    // clamped model its coefficient is extremumValue in both directions;
+    // the Hermite curve (and its zero at zero slip) is not used there.
+    if (lowSpeedFriction)
+        return std::max(tire.extremumValue, 0.0F);
+    return std::abs(sourceTireFunction(tire, slip));
+}
+
 float sourceWheelInertia(float inverseWheelMass) noexcept
 {
     // Despite its historical name, NxWheelShape::inverseWheelMass is the
@@ -1012,6 +1038,12 @@ public:
         vehicle.wheelNormalImpulses.assign(
             vehicle.constraint->GetWheels().size(), 0.0F);
         vehicle.wheelTireReleaseActive.assign(
+            vehicle.constraint->GetWheels().size(), false);
+        vehicle.previousWheelContactPositions.assign(
+            vehicle.constraint->GetWheels().size(), {});
+        vehicle.previousWheelContactValid.assign(
+            vehicle.constraint->GetWheels().size(), false);
+        vehicle.wheelLowSpeedFrictionActive.assign(
             vehicle.constraint->GetWheels().size(), false);
         vehicle.currentGear = -1;
         vehicle.motorTorque = 0.0F;
@@ -1249,17 +1281,17 @@ public:
         const bool sourceFixedStepEnabled =
             static_cast<bool>(worldFixedStepController_) ||
             static_cast<bool>(fixedStepController_);
-        std::size_t sourceStepsDue = 0U;
-        if (sourceFixedStepEnabled)
-        {
-            sourceFixedStepAccumulator_ += simulationSeconds;
-            sourceStepsDue = static_cast<std::size_t>(std::floor(
+        // Contact-point history is part of NxWheelShape itself, not of the
+        // optional game callbacks, so retain the source cadence even in the
+        // standalone physics smoke path.
+        sourceFixedStepAccumulator_ += simulationSeconds;
+        const std::size_t sourceStepsDue =
+            static_cast<std::size_t>(std::floor(
                 (sourceFixedStepAccumulator_ + 0.000001F) / sourceStep));
-            sourceFixedStepAccumulator_ -=
-                static_cast<float>(sourceStepsDue) * sourceStep;
-            sourceFixedStepAccumulator_ = std::max(
-                sourceFixedStepAccumulator_, 0.0F);
-        }
+        sourceFixedStepAccumulator_ -=
+            static_cast<float>(sourceStepsDue) * sourceStep;
+        sourceFixedStepAccumulator_ = std::max(
+            sourceFixedStepAccumulator_, 0.0F);
         float simulatedSeconds = 0.0F;
         std::size_t sourceStepsDispatched = 0U;
         contactListener_.beginStep();
@@ -1272,6 +1304,32 @@ public:
                     static_cast<float>(sourceStepsDispatched) * sourceStep;
             if (dispatchSourceFixedStep)
             {
+                // NxWheelShape compares the world contact point with the one
+                // from the preceding PhysX 1/60 step. Capture once at this
+                // source boundary so both internal Jolt 1/120 solves retain
+                // the same static-friction history.
+                for (auto& vehicle : vehicles_)
+                {
+                    const auto wheelCount =
+                        vehicle.constraint->GetWheels().size();
+                    vehicle.previousWheelContactPositions.resize(
+                        wheelCount);
+                    vehicle.previousWheelContactValid.resize(
+                        wheelCount, false);
+                    for (JPH::uint index = 0U;
+                         index < wheelCount; ++index)
+                    {
+                        const auto* wheel =
+                            vehicle.constraint->GetWheel(index);
+                        vehicle.previousWheelContactValid[index] =
+                            vehicle.enabled && wheel->HasContact();
+                        if (vehicle.previousWheelContactValid[index])
+                        {
+                            vehicle.previousWheelContactPositions[index] =
+                                fromJolt(wheel->GetContactPosition());
+                        }
+                    }
+                }
                 sourceFixedInputs_.assign(
                     rawInputs.begin(), rawInputs.end());
                 sourceFixedInputs_.resize(vehicles_.size());
@@ -1690,6 +1748,9 @@ private:
         std::vector<float> wheelNormalReactions;
         std::vector<float> wheelNormalImpulses;
         std::vector<bool> wheelTireReleaseActive;
+        std::vector<Vec3> previousWheelContactPositions;
+        std::vector<bool> previousWheelContactValid;
+        std::vector<bool> wheelLowSpeedFrictionActive;
         int currentGear = -1;
         std::uint32_t resetCount = 0;
         bool wheelTractionEnabled = true;
@@ -1911,6 +1972,8 @@ private:
         if (!vehicle.enabled)
             return;
         vehicle.wheelTireReleaseActive.assign(
+            vehicle.constraint->GetWheels().size(), false);
+        vehicle.wheelLowSpeedFrictionActive.assign(
             vehicle.constraint->GetWheels().size(), false);
         input.throttle = std::clamp(input.throttle, 0.0F, 1.0F);
         input.reverse = std::clamp(input.reverse, 0.0F, 1.0F);
@@ -2748,6 +2811,13 @@ private:
         runtime.controller = static_cast<JPH::WheeledVehicleController*>(
             runtime.constraint->GetController());
         runtime.controller->GetTransmission().Set(0, 0.0F);
+        const auto wheelCount = runtime.constraint->GetWheels().size();
+        runtime.wheelNormalReactions.assign(wheelCount, 0.0F);
+        runtime.wheelNormalImpulses.assign(wheelCount, 0.0F);
+        runtime.wheelTireReleaseActive.assign(wheelCount, false);
+        runtime.previousWheelContactPositions.assign(wheelCount, {});
+        runtime.previousWheelContactValid.assign(wheelCount, false);
+        runtime.wheelLowSpeedFrictionActive.assign(wheelCount, false);
         vehicles_.push_back(std::move(runtime));
         const std::size_t vehicleIndexValue = vehicles_.size() - 1U;
         vehicles_.back().constraint->SetCombineFriction(
@@ -2830,16 +2900,33 @@ private:
                 else if (wheelIndex < source.wheels.size() &&
                     (source.wheels[wheelIndex].flags & clampedFriction) != 0U)
                 {
+                    const bool lowSpeedFriction =
+                        wheel->HasContact() &&
+                        wheelIndex <
+                            vehicle.previousWheelContactPositions.size() &&
+                        wheelIndex <
+                            vehicle.previousWheelContactValid.size() &&
+                        sourceLowSpeedWheelContact(
+                            vehicle.previousWheelContactPositions[wheelIndex],
+                            fromJolt(wheel->GetContactPosition()),
+                            vehicle.previousWheelContactValid[wheelIndex]);
+                    if (wheelIndex <
+                        vehicle.wheelLowSpeedFrictionActive.size())
+                    {
+                        vehicle.wheelLowSpeedFrictionActive[wheelIndex] =
+                            lowSpeedFriction;
+                    }
                     // NX_WF_CLAMPED_FRICTION interprets hermiteEval directly
                     // as mu and ignores stiffnessFactor. Jolt reports the
                     // same longitudinal ratio and lateral angle (radians) to
-                    // this callback, so no curve approximation is required.
-                    longitudinalFriction = std::abs(sourceTireFunction(
+                    // this callback. At low speed PhysX instead uses the
+                    // documented static mu=extremumValue branch.
+                    longitudinalFriction = sourceClampedTireFriction(
                         source.wheels[wheelIndex].longitudinalTire,
-                        longitudinalSlip));
-                    lateralFriction = std::abs(sourceTireFunction(
+                        longitudinalSlip, lowSpeedFriction);
+                    lateralFriction = sourceClampedTireFriction(
                         source.wheels[wheelIndex].lateralTire,
-                        lateralSlip));
+                        lateralSlip, lowSpeedFriction);
                     lateralFriction *= vehicle.lateralGripScale;
                 }
                 longitudinal =
@@ -2971,6 +3058,12 @@ private:
                     contact.normalForceReleased =
                         vehicle.wheelTireReleaseActive[index];
                 }
+                if (index <
+                    vehicle.wheelLowSpeedFrictionActive.size())
+                {
+                    contact.lowSpeedFriction =
+                        vehicle.wheelLowSpeedFrictionActive[index];
+                }
                 ++contacts;
             }
             state.wheelContacts.push_back(contact);
@@ -3101,9 +3194,19 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
             0.0001F ||
         std::abs(sourceTireFunction(hermiteTire, -0.5F) + 4.0625F) >
             0.0001F ||
+        !sourceLowSpeedWheelContact(
+            {}, {0.0249F, 0.0F, 0.0F}, true) ||
+        sourceLowSpeedWheelContact(
+            {}, {0.0251F, 0.0F, 0.0F}, true) ||
+        sourceLowSpeedWheelContact({}, {}, false) ||
+        std::abs(sourceClampedTireFriction(
+                     hermiteTire, 0.0F, true) - 6.5F) > 0.0001F ||
+        std::abs(sourceClampedTireFriction(
+                     hermiteTire, 0.0F, false)) > 0.0001F ||
         std::abs(sourceWheelInertia(0.1F) - 10.0F) > 0.0001F)
     {
-        error = "NxWheelShape tire curve/inverse inertia contract failed";
+        error = "NxWheelShape tire curve/static friction/inertia contract "
+                "failed";
         return false;
     }
     const auto& selectedVehicle =
@@ -3378,9 +3481,16 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
             [](const WheelContactState& contact) {
                 return contact.hasContact;
             }));
+    const auto settledStaticWheelContacts = static_cast<std::uint32_t>(
+        std::count_if(
+            settled.wheelContacts.begin(), settled.wheelContacts.end(),
+            [](const WheelContactState& contact) {
+                return contact.hasContact && contact.lowSpeedFriction;
+            }));
     if (settled.contactCount == 0 ||
         settled.wheelContacts.size() != settled.wheels.size() ||
-        settledWheelContacts != settled.contactCount)
+        settledWheelContacts != settled.contactCount ||
+        settledStaticWheelContacts == 0U)
     {
         error = "original per-wheel contact state did not match map1 "
                 "collision; "

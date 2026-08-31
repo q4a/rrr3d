@@ -2970,3 +2970,22 @@ history. Регрессия с тремя завершёнными позами 
 Arm64 Debug build, 32/32 CTest, physics smoke и 1800-frame bgfx/Metal race
 smoke прошли. Длинный заезд сохранил четыре wheel contacts, скорость игрока
 `39.20`, прогресс всех пяти AI и полный renderer/audio/menu teardown.
+
+### B8dg — восстановлена low-speed static friction NxWheelShape — выполнено
+
+В `eff9338` SDK-заголовок `NxWheelShapeDesc.h` задаёт отдельную ветвь, которой
+не было в Jolt boundary: если мировая точка контакта осталась в пределах
+`skinWidth` от позиции прошлого шага, колесо моделируется как статический
+контакт. Для используемого игрой `NX_WF_CLAMPED_FRICTION` обе компоненты
+получают `mu=extremumValue`; Hermite-кривая с нулём при zero slip в этой ветви
+не вычисляется. `Physx.cpp` устанавливает глобальный `NX_SKIN_WIDTH=0.025`.
+
+Каждое колесо теперь хранит предыдущую точку и valid-флаг на границе source
+1/60, а не Jolt 1/120. Оба внутренних solver substep сравнивают с одной
+исходной позицией; respawn сбрасывает историю. Диагностика экспортирует
+активность static branch. Регрессии проверяют границу `0.0249/0.0251`,
+`extremumValue` при zero slip и реальный установившийся автомобиль.
+
+Arm64 build, 32/32 CTest, physics smoke и 1800-frame Metal race прошли. В
+длинном заезде все пять AI прогрессировали, четыре колеса оставались в
+контакте, а player достиг `47.78` без regressions renderer/audio/menu.

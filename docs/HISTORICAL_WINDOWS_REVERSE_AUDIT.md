@@ -6754,3 +6754,18 @@ source-step и после серии catch-up шагов интерполиру�
 фиксирует результат `25` при последней паре `20/30` и alpha `0.5`.
 Полная arm64 приёмка (32 CTest, physics smoke и 1800-frame Metal race)
 прошла без регрессии динамики, AI, звука или render-pass teardown.
+
+### P2.312 — возвращён static-friction режим NxWheelShape — выполнено
+
+Ранее порт считал clamped tire budget только через `hermiteEval(slip)`. Это
+даёт нулевой коэффициент при нулевом slip и теряет явно документированное
+поведение PhysX 2.8.4. Bundled `NxWheelShapeDesc.h` переключает колесо в
+static friction, когда contact point находится не дальше `skinWidth` от
+предыдущей позиции; для flag 64 коэффициент равен `extremumValue` без
+stiffness/material scaling. Оригинальный `Physx.cpp` задаёт threshold `0.025`.
+
+Jolt runtime теперь захватывает contact history один раз на source 1/60 и
+использует её в обоих solver substeps. История является частью backend wheel
+contract даже в standalone smoke, но никогда не переживает reset. Unit
+boundary и settled-vehicle regression подтверждают обе стороны порога и
+активацию реальной ветви; полный arm64/CTest/physics/Metal набор прошёл.
