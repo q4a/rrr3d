@@ -57,8 +57,18 @@ int main()
         main.command(3U) != RaceMainCommand::Angar ||
         !close(main.itemX(1920.0F, 0U), 480.0F) ||
         !close(main.itemX(1920.0F, 6U), 1440.0F) ||
-        !close(main.itemY(1080.0F, 254.0F), 881.0F))
+        !close(main.itemY(1080.0F, 94.0F), 1008.0F))
         return fail("RaceMainFrame navigation/layout/command differs");
+    const auto mainLayout = main.layout(1920.0F, 1080.0F, 158.0F);
+    if (!close(mainLayout.topOriginX, 960.0F) ||
+        !close(mainLayout.topOriginY, 0.0F) ||
+        !close(mainLayout.bottomOriginX, 960.0F) ||
+        !close(mainLayout.bottomOriginY, 1080.0F) ||
+        !close(mainLayout.statsOriginX, -1.0F) ||
+        !close(mainLayout.statsOriginY, 927.0F) ||
+        !close(mainLayout.moneyOriginX, 1921.0F) ||
+        !close(mainLayout.moneyOriginY, 927.0F))
+        return fail("RaceMainFrame widget-origin layout differs");
 
     GamersFrameState gamers;
     gamers.show({{10U, true}, {11U, false}, {12U, true}}, 11U);
@@ -164,8 +174,16 @@ int main()
     const auto garageLayout = rangeGarage.layout(
         1920.0F, 1080.0F, 90.0F, 250.0F, 120.0F, 130.0F);
     if (!close(garageLayout.topPanelX, 960.0F) ||
+        !close(garageLayout.topPanelY, 0.0F) ||
+        !close(garageLayout.bottomPanelX, 960.0F) ||
+        !close(garageLayout.bottomPanelY, 1080.0F) ||
+        !close(garageLayout.leftPanelX, -1.0F) ||
         !close(garageLayout.rightPanelX, 1921.0F) ||
         !close(garageLayout.sidePanelY, 460.0F) ||
+        !close(garageLayout.statsOriginX, 1378.0F) ||
+        !close(garageLayout.statsOriginY, 890.0F) ||
+        !close(garageLayout.moneyOriginX, 1921.0F) ||
+        !close(garageLayout.moneyOriginY, 868.0F) ||
         !close(garageLayout.leftArrowX, 165.0F) ||
         !close(garageLayout.rightArrowX, 1745.0F) ||
         !close(garageLayout.arrowY, 540.0F))

@@ -65,6 +65,22 @@ enum class RaceMainCommand : std::uint8_t
     Exit,
 };
 
+// Exact widget origins produced by RaceMainFrame::OnAdjustLayout.  The
+// Windows GUI keeps a widget's origin separate from the alignment offset of
+// its texture; children are positioned from these origins, not from the
+// centre of the panel image.
+struct RaceMainLayout
+{
+    float topOriginX = 0.0F;
+    float topOriginY = 0.0F;
+    float bottomOriginX = 0.0F;
+    float bottomOriginY = 0.0F;
+    float statsOriginX = 0.0F;
+    float statsOriginY = 0.0F;
+    float moneyOriginX = 0.0F;
+    float moneyOriginY = 0.0F;
+};
+
 class RaceMainFrameState
 {
 public:
@@ -85,7 +101,9 @@ public:
     float itemX(float viewportWidth, std::size_t item,
                 float itemWidth = 110.0F,
                 float spacing = 50.0F) const noexcept;
-    float itemY(float viewportHeight, float bottomPanelHeight) const noexcept;
+    float itemY(float viewportHeight, float itemHeight = 94.0F) const noexcept;
+    RaceMainLayout layout(float viewportWidth, float viewportHeight,
+                          float bottomPanelHeight) const noexcept;
 
 private:
     std::array<bool, itemCount> enabled_{};
@@ -199,8 +217,16 @@ struct GarageVisibleRange
 struct GarageLayout
 {
     float topPanelX = 0.0F;
+    float topPanelY = 0.0F;
+    float bottomPanelX = 0.0F;
+    float bottomPanelY = 0.0F;
+    float leftPanelX = 0.0F;
     float rightPanelX = 0.0F;
     float sidePanelY = 0.0F;
+    float statsOriginX = 0.0F;
+    float statsOriginY = 0.0F;
+    float moneyOriginX = 0.0F;
+    float moneyOriginY = 0.0F;
     float leftArrowX = 0.0F;
     float rightArrowX = 0.0F;
     float arrowY = 0.0F;

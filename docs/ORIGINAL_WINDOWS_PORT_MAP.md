@@ -1544,6 +1544,22 @@ physics advance. Unit regression закрепляет 120-Hz half-step, полн
 семишаговый clamped cases; BGFX получает только готовую интерполированную
 позу.
 
+Результат B8cz: восстановлена исходная система координат
+`RaceMainFrame::OnAdjustLayout`, `GarageFrame::OnAdjustLayout` и
+`PlayerStateFrame` progress-bars. Ранний BGFX host смешивал widget origin с
+центром выровненной текстуры: все дети `_topPanel` получали лишние 74.5 px,
+`statFrame` использовал свой центр как начало координат, а garage stats были
+зашиты в абсолютные `418/949` независимо от viewport. Поэтому рамка, полосы,
+числа, кнопки и их mouse hit areas расходились с Windows GUI.
+
+`RaceMainFrameState::layout` и расширенный `GarageLayout` теперь выдают
+исходные top/bottom/stats/money widget origins. Host применяет `waTop`,
+`waBottom`, `waLeftBottom`, `waRightBottom` и `waLeftTop` только как
+графические offsets, ровно как `gui::Widget::GetAlignPos`. Horizontal и
+vertical progress-front также уменьшают и геометрию, и UV sampler, вместо
+растягивания полной текстуры. `HudMenu::GetCarLifeBarPos(4,-10)` подключён к
+полосе над машиной; ранее фон был на месте, а front рисовался в его центре.
+
 Каждый крупный block commit обязан:
 
 1. назвать точные методы из `eff9338:prog`, которые стали активными;

@@ -142,9 +142,33 @@ float RaceMainFrameState::itemX(float viewportWidth, std::size_t item,
 }
 
 float RaceMainFrameState::itemY(float viewportHeight,
-                                float bottomPanelHeight) const noexcept
+                                float itemHeight) const noexcept
 {
-    return viewportHeight - bottomPanelHeight * 0.5F - 72.0F;
+    // The buttons are children of the waBottom-anchored panel, whose widget
+    // origin is the bottom-centre viewport point.  OnAdjustLayout uses the
+    // normal 110x94 button widget size, not the bottom-panel texture size.
+    return viewportHeight - itemHeight * 0.5F - 25.0F;
+}
+
+RaceMainLayout RaceMainFrameState::layout(
+    float viewportWidth, float viewportHeight,
+    float bottomPanelHeight) const noexcept
+{
+    RaceMainLayout result;
+    // _topPanel is anchored at waTop, _bottomPanel at waBottom.  Their
+    // positions are widget origins; SetAlign only moves each panel's own
+    // graphic around that origin.
+    result.topOriginX = viewportWidth * 0.5F;
+    result.topOriginY = 0.0F;
+    result.bottomOriginX = viewportWidth * 0.5F;
+    result.bottomOriginY = viewportHeight;
+    result.statsOriginX = -1.0F;
+    result.statsOriginY =
+        viewportHeight - bottomPanelHeight + 5.0F;
+    result.moneyOriginX = viewportWidth + 1.0F;
+    result.moneyOriginY =
+        viewportHeight - bottomPanelHeight + 5.0F;
+    return result;
 }
 
 void GamersFrameState::show(std::vector<GamerEntry> entries,
@@ -599,9 +623,19 @@ GarageLayout GarageFrameState::layout(
 {
     GarageLayout result;
     result.topPanelX = viewportWidth * 0.5F;
+    result.topPanelY = 0.0F;
+    result.bottomPanelX = viewportWidth * 0.5F;
+    result.bottomPanelY = viewportHeight;
+    result.leftPanelX = -1.0F;
     result.rightPanelX = viewportWidth + 1.0F;
     result.sidePanelY =
         (topPanelHeight + viewportHeight - bottomPanelHeight) * 0.5F;
+    result.statsOriginX = viewportWidth * 0.5F + 418.0F;
+    result.statsOriginY =
+        viewportHeight - bottomPanelHeight + 60.0F;
+    result.moneyOriginX = viewportWidth + 1.0F;
+    result.moneyOriginY =
+        viewportHeight - bottomPanelHeight + 38.0F;
     result.leftArrowX = leftPanelWidth + 45.0F;
     result.rightArrowX = viewportWidth - rightPanelWidth - 45.0F;
     result.arrowY = viewportHeight * 0.5F;

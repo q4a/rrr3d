@@ -1143,6 +1143,27 @@ void drawQuadTinted(GraphicsDevice& device, Mesh quad, Shader shader,
                 pipeline, {}, material);
 }
 
+void drawProgressQuad(GraphicsDevice& device, Mesh quad, Shader shader,
+                      Texture texture, float width, float height,
+                      float centerX, float centerY, float depth,
+                      const PipelineState& pipeline, float progress,
+                      bool vertical = false)
+{
+    if (width <= 0.0F || height <= 0.0F || progress <= 0.0F)
+        return;
+    MaterialState material;
+    const float clamped = std::clamp(progress, 0.0F, 1.0F);
+    // gui::ProgressBar shrinks the front plane and applies the same factor
+    // to its sampler.  Keep the source portion of the image instead of
+    // stretching the complete bar into the remaining geometry.
+    material.textureTransform =
+        vertical ? std::array<float, 4>{1.0F, clamped, 0.0F, 0.0F}
+                 : std::array<float, 4>{clamped, 1.0F, 0.0F, 0.0F};
+    device.draw(quad, shader, texture,
+                makeTransform(width, height, centerX, centerY, depth),
+                pipeline, {}, material);
+}
+
 void drawQuadRotated(GraphicsDevice& device, Mesh quad, Shader shader,
                      Texture texture, float width, float height,
                      float centerX, float centerY, float depth,
@@ -11660,15 +11681,42 @@ int main(int argc, char** argv)
                     const auto viewCoord = sourceView.ScreenToView({pointerX, pointerY});
                     const float virtualX = viewCoord.x;
                     const float virtualY = viewCoord.y;
-                        const float bottomCenterY =
-                            menu::virtualHeight -
+                        const auto garagePointerLayout =
+                            sourceGarageFrame.layout(
+                                menu::virtualWidth, menu::virtualHeight,
+                                static_cast<float>(
+                                    garageTopPanelImage.height),
+                                static_cast<float>(
+                                    garageBottomPanelImage.height),
+                                static_cast<float>(
+                                    garageSidePanelImage.width),
+                                static_cast<float>(
+                                    garageSidePanelImage.width));
+                        const float backCenterY =
+                            garagePointerLayout.bottomPanelY -
                             static_cast<float>(
-                                garageBottomPanelImage.height) *
+                                garageBottomPanelImage.height) -
+                            8.0F +
+                            static_cast<float>(
+                                garageBackImage.height) * 0.5F;
+                        const float buyCenterY =
+                            garagePointerLayout.bottomPanelY -
+                            static_cast<float>(
+                                garageBottomPanelImage.height) -
+                            static_cast<float>(
+                                garageBuyImage.height) * 0.5F;
+                        const float leftArrowCenterX =
+                            garagePointerLayout.leftArrowX +
+                            static_cast<float>(garageArrowImage.width) *
+                                0.5F;
+                        const float rightArrowCenterX =
+                            garagePointerLayout.rightArrowX -
+                            static_cast<float>(garageArrowImage.width) *
                                 0.5F;
                         if (virtualX <= 250.0F &&
                             std::abs(
                                 virtualY -
-                                (bottomCenterY + 8.0F)) <= 45.0F)
+                                backCenterY) <= 45.0F)
                         {
                             hoveredGarageItem = 0U;
                         }
@@ -11679,15 +11727,13 @@ int main(int argc, char** argv)
                                  15.0F)) <= 135.0F &&
                             std::abs(
                                 virtualY -
-                                (menu::virtualHeight -
-                                 static_cast<float>(
-                                     garageBottomPanelImage.height))) <=
+                                buyCenterY) <=
                                 40.0F)
                         {
                             hoveredGarageItem = 1U;
                         }
                         else if (
-                            std::abs(virtualX - 181.0F) <= 58.0F &&
+                            std::abs(virtualX - leftArrowCenterX) <= 58.0F &&
                             std::abs(
                                 virtualY -
                                 menu::virtualHeight * 0.5F) <= 80.0F)
@@ -11696,8 +11742,7 @@ int main(int argc, char** argv)
                         }
                         else if (
                             std::abs(
-                                virtualX -
-                                (menu::virtualWidth - 181.0F)) <=
+                                virtualX - rightArrowCenterX) <=
                                 58.0F &&
                             std::abs(
                                 virtualY -
@@ -12285,7 +12330,7 @@ int main(int argc, char** argv)
                             sourceRaceMainFrame.itemY(
                                 menu::virtualHeight,
                                 static_cast<float>(
-                                    raceBottomPanelImage.height));
+                                    raceMenuButtonImage.height));
                         if (std::abs(virtualX - itemX) <= 68.0F &&
                             std::abs(virtualY - itemY) <= 62.0F)
                         {
@@ -18037,11 +18082,15 @@ int main(int argc, char** argv)
         else if (drawingOriginalRaceMenu)
         {
             raceMainFrameObserved = true;
-            const float centerX = menu::virtualWidth * 0.5F;
+            const auto sourceLayout = sourceRaceMainFrame.layout(
+                menu::virtualWidth, menu::virtualHeight,
+                static_cast<float>(raceBottomPanelImage.height));
+            const float centerX = sourceLayout.topOriginX;
             const float topCenterY =
+                sourceLayout.topOriginY +
                 static_cast<float>(raceTopPanelImage.height) * 0.5F;
             const float bottomCenterY =
-                menu::virtualHeight -
+                sourceLayout.bottomOriginY -
                 static_cast<float>(raceBottomPanelImage.height) *
                     0.5F;
             drawQuad(
@@ -18058,8 +18107,9 @@ int main(int argc, char** argv)
                 *device, quad, shader, raceStats,
                 static_cast<float>(raceStatsImage.width),
                 static_cast<float>(raceStatsImage.height),
-                static_cast<float>(raceStatsImage.width) * 0.5F,
-                menu::virtualHeight -
+                sourceLayout.statsOriginX +
+                    static_cast<float>(raceStatsImage.width) * 0.5F,
+                sourceLayout.statsOriginY -
                     static_cast<float>(raceStatsImage.height) *
                         0.5F,
                 45.0F, transparent);
@@ -18067,10 +18117,10 @@ int main(int argc, char** argv)
                 *device, quad, shader, raceMoney,
                 static_cast<float>(raceMoneyImage.width),
                 static_cast<float>(raceMoneyImage.height),
-                menu::virtualWidth -
+                sourceLayout.moneyOriginX -
                     static_cast<float>(raceMoneyImage.width) *
                         0.5F,
-                menu::virtualHeight -
+                sourceLayout.moneyOriginY -
                     static_cast<float>(raceMoneyImage.height) *
                         0.5F,
                 45.0F, transparent);
@@ -18185,7 +18235,8 @@ int main(int argc, char** argv)
                     *device, quad, shader, text.texture,
                     text.width, text.height,
                     centerX + headerOffsets[index],
-                    topCenterY + 18.0F, 20.0F, transparent);
+                    sourceLayout.topOriginY + 18.0F, 20.0F,
+                    transparent);
             }
 
             bool sourcePortraitsDrawn = false;
@@ -18209,7 +18260,7 @@ int main(int argc, char** argv)
                         *device, quad, shader, texture,
                         static_cast<float>(image.width) * scale,
                         static_cast<float>(image.height) * scale,
-                        x, topCenterY + 87.0F, 40.0F,
+                        x, sourceLayout.topOriginY + 87.0F, 40.0F,
                         transparent);
                 };
             const auto playerGamer = std::find_if(
@@ -18255,7 +18306,7 @@ int main(int argc, char** argv)
                     workshopRenderer.drawCar(
                         *device, raceShader, bossCar,
                         centerX + 605.0F,
-                        topCenterY + 87.0F,
+                        sourceLayout.topOriginY + 87.0F,
                         viewportSize, viewportSize,
                         garageSceneSeconds * bx::kPi * 0.5F,
                         racePipeline);
@@ -18274,7 +18325,8 @@ int main(int argc, char** argv)
                     *device, quad, shader, raceImageFrame,
                     static_cast<float>(raceImageFrameImage.width),
                     static_cast<float>(raceImageFrameImage.height),
-                    centerX + offset, topCenterY + 87.0F,
+                    centerX + offset,
+                    sourceLayout.topOriginY + 87.0F,
                     35.0F, transparent);
             }
             const auto& passInfo = raceMainInfoPage.normal[0];
@@ -18297,16 +18349,16 @@ int main(int argc, char** argv)
                 };
             drawInfoLeft(
                 passInfo, centerX - 377.0F,
-                topCenterY + 86.0F, 260.0F);
+                sourceLayout.topOriginY + 86.0F, 260.0F);
             drawInfoLeft(
                 tournamentInfo, centerX - 102.0F,
-                topCenterY + 86.0F, 260.0F);
+                sourceLayout.topOriginY + 86.0F, 260.0F);
             drawQuad(
                 *device, quad, shader, money.texture,
                 money.width, money.height,
-                menu::virtualWidth - 53.0F -
+                sourceLayout.moneyOriginX - 53.0F -
                     money.width * 0.5F,
-                menu::virtualHeight - 29.0F, 15.0F,
+                sourceLayout.moneyOriginY - 29.0F, 15.0F,
                 transparent);
 
             std::size_t weatherIndex = 0U;
@@ -18330,7 +18382,8 @@ int main(int argc, char** argv)
                     raceWeatherImages[weatherIndex].width),
                 static_cast<float>(
                     raceWeatherImages[weatherIndex].height),
-                centerX - 282.0F, topCenterY + 112.0F,
+                centerX - 282.0F,
+                sourceLayout.topOriginY + 112.0F,
                 15.0F, transparent);
 
             constexpr std::array<std::size_t, 6> sourceChargeSlots{
@@ -18383,22 +18436,21 @@ int main(int argc, char** argv)
                     static_cast<float>(raceChargeBarImage.height);
                 if (progress > 0.0F)
                 {
-                    drawQuad(
+                    drawProgressQuad(
                         *device, quad, shader, raceChargeBar,
                         static_cast<float>(
                             raceChargeBarImage.width),
                         fullHeight * progress, chargeX,
-                        topCenterY + 120.0F +
-                            fullHeight * (1.0F - progress) *
-                                0.5F,
-                        18.0F, transparent);
+                        sourceLayout.topOriginY + 120.0F -
+                            fullHeight * progress * 0.5F,
+                        18.0F, transparent, progress, true);
                 }
                 if (const auto* item =
                         originalGarage->findItem(slot.record))
                 {
                     workshopRenderer.drawItem(
                         *device, raceShader, *item,
-                        chargeX, topCenterY + 65.0F,
+                        chargeX, sourceLayout.topOriginY + 65.0F,
                         50.0F, 50.0F,
                         garageSceneSeconds * bx::kPi * 0.5F,
                         racePipeline);
@@ -18429,11 +18481,6 @@ int main(int argc, char** argv)
                 128.0F, 150.0F, 173.0F};
             constexpr std::array<float, 3> statOffsetY{
                 -98.0F, -61.0F, -23.0F};
-            const float statsCenterX =
-                static_cast<float>(raceStatsImage.width) * 0.5F;
-            const float statsCenterY =
-                menu::virtualHeight -
-                static_cast<float>(raceStatsImage.height) * 0.5F;
             for (std::size_t index = 0U;
                  index < statProgress.size(); ++index)
             {
@@ -18442,18 +18489,18 @@ int main(int argc, char** argv)
                 const float barWidth =
                     static_cast<float>(raceStatBarImage.width);
                 const float barCenterX =
-                    statsCenterX + statOffsetX[index];
+                    sourceLayout.statsOriginX + statOffsetX[index];
                 const float barCenterY =
-                    statsCenterY + statOffsetY[index];
+                    sourceLayout.statsOriginY + statOffsetY[index];
                 if (progress > 0.0F)
                 {
-                    drawQuad(
+                    drawProgressQuad(
                         *device, quad, shader, raceStatBar,
                         barWidth * progress,
                         static_cast<float>(raceStatBarImage.height),
                         barCenterX - barWidth * 0.5F +
                             barWidth * progress * 0.5F,
-                        barCenterY, 30.0F, transparent);
+                        barCenterY, 30.0F, transparent, progress);
                 }
                 const auto& value =
                     raceMainStatsPage.normal[index];
@@ -18471,7 +18518,7 @@ int main(int argc, char** argv)
 
             const float itemY = sourceRaceMainFrame.itemY(
                 menu::virtualHeight,
-                static_cast<float>(raceBottomPanelImage.height));
+                static_cast<float>(raceMenuButtonImage.height));
             for (std::size_t index = 0U;
                  index < raceMenuIcons.size(); ++index)
             {
@@ -18524,22 +18571,24 @@ int main(int argc, char** argv)
             raceGarageFrameObserved = true;
             if (options->gamersFrameSmokeTest)
                 gamersGarageObserved = true;
-            const float centerX = menu::virtualWidth * 0.5F;
+            const auto garageLayout = sourceGarageFrame.layout(
+                menu::virtualWidth, menu::virtualHeight,
+                static_cast<float>(garageTopPanelImage.height),
+                static_cast<float>(garageBottomPanelImage.height),
+                static_cast<float>(garageSidePanelImage.width),
+                static_cast<float>(garageSidePanelImage.width));
+            const float centerX = garageLayout.topPanelX;
             const float centerY = menu::virtualHeight * 0.5F;
             const float topCenterY =
+                garageLayout.topPanelY +
                 static_cast<float>(garageTopPanelImage.height) *
                 0.5F;
             const float bottomCenterY =
-                menu::virtualHeight -
+                garageLayout.bottomPanelY -
                 static_cast<float>(
                     garageBottomPanelImage.height) *
-                    0.5F;
-            const float sideCenterY =
-                (static_cast<float>(garageTopPanelImage.height) +
-                 menu::virtualHeight -
-                 static_cast<float>(
-                     garageBottomPanelImage.height)) *
                 0.5F;
+            const float sideCenterY = garageLayout.sidePanelY;
             drawQuad(
                 *device, quad, shader, garageTopPanel,
                 static_cast<float>(garageTopPanelImage.width),
@@ -18555,14 +18604,15 @@ int main(int argc, char** argv)
                 *device, quad, shader, garageSidePanel,
                 static_cast<float>(garageSidePanelImage.width),
                 static_cast<float>(garageSidePanelImage.height),
-                static_cast<float>(garageSidePanelImage.width) *
-                    0.5F,
+                garageLayout.leftPanelX +
+                    static_cast<float>(garageSidePanelImage.width) *
+                        0.5F,
                 sideCenterY, 55.0F, bx::kPi, transparent);
             drawQuad(
                 *device, quad, shader, garageSidePanel,
                 static_cast<float>(garageSidePanelImage.width),
                 static_cast<float>(garageSidePanelImage.height),
-                menu::virtualWidth -
+                garageLayout.rightPanelX -
                     static_cast<float>(
                         garageSidePanelImage.width) *
                         0.5F,
@@ -18572,16 +18622,16 @@ int main(int argc, char** argv)
                 *device, quad, shader, garageMoney,
                 static_cast<float>(garageMoneyImage.width),
                 static_cast<float>(garageMoneyImage.height),
-                menu::virtualWidth -
+                garageLayout.moneyOriginX -
                     static_cast<float>(garageMoneyImage.width) *
                         0.5F,
-                menu::virtualHeight -
+                garageLayout.moneyOriginY -
                     static_cast<float>(
                         garageMoneyImage.height) *
                         0.5F,
                 42.0F, transparent);
-            constexpr float statsLeft = 418.0F;
-            constexpr float statsTop = 889.0F + 60.0F;
+            const float statsLeft = garageLayout.statsOriginX;
+            const float statsTop = garageLayout.statsOriginY;
             drawQuad(
                 *device, quad, shader, garageStats,
                 static_cast<float>(garageStatsImage.width),
@@ -18620,7 +18670,7 @@ int main(int argc, char** argv)
                 {
                     const float fullWidth = static_cast<float>(
                         garageStatBarImage.width);
-                    drawQuad(
+                    drawProgressQuad(
                         *device, quad, shader, garageStatBar,
                         fullWidth * progress,
                         static_cast<float>(
@@ -18631,7 +18681,7 @@ int main(int argc, char** argv)
                             static_cast<float>(
                                 garageStatBarImage.height) *
                                 0.5F,
-                        30.0F, transparent);
+                        30.0F, transparent, progress);
                 }
                 const auto& value =
                     garageStatsPage.normal[index];
@@ -18719,7 +18769,10 @@ int main(int argc, char** argv)
                         selected
                             ? garageArrowSelectedImage.height
                             : garageArrowImage.height),
-                    181.0F, centerY, 35.0F, transparent);
+                    garageLayout.leftArrowX +
+                        static_cast<float>(garageArrowImage.width) *
+                            0.5F,
+                    garageLayout.arrowY, 35.0F, transparent);
             }
             if (rightArrowVisible)
             {
@@ -18736,7 +18789,10 @@ int main(int argc, char** argv)
                         selected
                             ? garageArrowSelectedImage.height
                             : garageArrowImage.height),
-                    menu::virtualWidth - 181.0F, centerY,
+                    garageLayout.rightArrowX -
+                        static_cast<float>(garageArrowImage.width) *
+                            0.5F,
+                    garageLayout.arrowY,
                     35.0F, bx::kPi, transparent);
             }
 
@@ -18815,7 +18871,8 @@ int main(int argc, char** argv)
                 }
             }
 
-            const float carNameY = bottomCenterY - 155.0F;
+            const float carNameY =
+                garageLayout.bottomPanelY - 155.0F;
             const auto& carName = garagePage.normal[0];
             drawQuad(
                 *device, quad, shader, carName.texture,
@@ -18836,15 +18893,16 @@ int main(int argc, char** argv)
             drawQuad(
                 *device, quad, shader, money.texture,
                 money.width, money.height,
-                menu::virtualWidth - 53.0F -
+                garageLayout.moneyOriginX - 53.0F -
                     money.width * 0.5F,
-                menu::virtualHeight - 29.0F, 15.0F,
+                garageLayout.moneyOriginY - 29.0F, 15.0F,
                 transparent);
             const auto& price = garagePage.normal[2];
             drawQuad(
                 *device, quad, shader, price.texture,
                 price.width, price.height, centerX - 523.0F,
-                bottomCenterY - 80.0F, 15.0F, transparent);
+                garageLayout.bottomPanelY - 80.0F, 15.0F,
+                transparent);
 
             const bool backFocused = menuSelection == 0U;
             const float backX =
@@ -18877,9 +18935,8 @@ int main(int argc, char** argv)
             const bool buyFocused = menuSelection == 1U;
             const float buyX = centerX + 15.0F;
             const float buyY =
-                menu::virtualHeight -
-                static_cast<float>(
-                    garageBottomPanelImage.height) +
+                garageLayout.bottomPanelY -
+                static_cast<float>(garageBottomPanelImage.height) -
                 static_cast<float>(garageBuyImage.height) *
                     0.5F;
             drawQuad(

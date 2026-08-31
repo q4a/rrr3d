@@ -6634,3 +6634,20 @@ Host теперь получает physics duration из `WorldFrameClock::Physi
 сдвигает `GameObjectFrameSync`; при полном шаге новая physics pose входит в
 ту же previous/current пару, которую использует alpha. Это устраняет
 высокочастотное движение вперёд-назад без удаления исходного OnPxSync lerp.
+
+### P2.305 — widget-origin layout и progress sampler восстановлены — выполнено
+
+Сравнение с `eff9338:RaceMenu2.cpp::{RaceMainFrame,GarageFrame}::
+OnAdjustLayout` подтвердило системную ошибку координат. `SetAlign` в старом
+GUI смещает собственную graphic относительно widget origin, но не превращает
+центр изображения в origin для детей. Host делал именно это: прибавлял
+`topPanel.height/2`, размещал RaceMain stats от центра `statFrame`, оставлял
+garage stats в абсолютной точке и вычислял menu-button Y от высоты bottom
+panel. Mouse hit areas повторяли часть ошибочных центров.
+
+Concrete frame states теперь возвращают исходные widget origins, после чего
+BGFX отдельно применяет alignment offset. Возвращены точные top contents,
+stats/money, RaceMain buttons, garage arrows/buy/labels и соответствующие
+hit centres. ProgressBar front использует source `sampler.scale=progress`, а
+`carLifeBar` снова получает локальный `(4,-10)` из `HudMenu`. Unit layout
+regression и Metal race-menu smoke закрепляют координаты.

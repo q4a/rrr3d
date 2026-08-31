@@ -77,6 +77,26 @@ void drawTintedAsset(
                 pipeline, {}, material);
 }
 
+void drawTintedProgressAsset(
+    GraphicsDevice& device, Mesh quad, Shader shader, Texture texture,
+    float width, float height, float centerX, float centerY, float depth,
+    const PipelineState& pipeline, const std::array<float, 4>& color,
+    float progress)
+{
+    if (!valid(texture) || width <= 0.0F || height <= 0.0F ||
+        progress <= 0.0F)
+        return;
+    MaterialState material;
+    material.color = color;
+    material.emissive = 1.0F;
+    material.specular = 0.0F;
+    material.textureTransform = {
+        std::clamp(progress, 0.0F, 1.0F), 1.0F, 0.0F, 0.0F};
+    device.draw(quad, shader, texture,
+                transform(width, height, centerX, centerY, depth),
+                pipeline, {}, material);
+}
+
 std::string formatNamePlace(std::string format, std::uint32_t place,
                             std::string_view name)
 {
@@ -1090,13 +1110,15 @@ void OriginalRaceHud::draw(GraphicsDevice& device, Mesh quad,
             overlay.position.x, overlay.position.y, 42.0F, pipeline,
             backgroundTint);
         const float width = opponentLifeBar_.width * overlay.life;
-        drawTintedAsset(
+        const auto barOffset = source::HudMenu::GetCarLifeBarPos();
+        drawTintedProgressAsset(
             device, quad, shader, opponentLifeBar_.texture, width,
             opponentLifeBar_.height,
-            overlay.position.x - opponentLifeBar_.width * 0.5F +
+            overlay.position.x + barOffset.x -
+                opponentLifeBar_.width * 0.5F +
                 width * 0.5F,
-            overlay.position.y, 34.0F, pipeline,
-            {1.0F, 1.0F, 1.0F, overlay.barAlpha});
+            overlay.position.y + barOffset.y, 34.0F, pipeline,
+            {1.0F, 1.0F, 1.0F, overlay.barAlpha}, overlay.life);
     }
 
     // PlayerStateFrame::_raceState and MiniMapFrame's lap widgets obey
@@ -1122,12 +1144,14 @@ void OriginalRaceHud::draw(GraphicsDevice& device, Mesh quad,
                   lifePos.y + lifeBack_.height * 0.5F, 28.0F,
                   pipeline);
         const float lifeWidth = lifeBar_.width * raceState.life;
-        drawAsset(device, quad, shader, lifeBar_.texture, lifeWidth,
-                  lifeBar_.height,
-                  lifePos.x + lifeBack_.width * 0.5F -
-                      lifeBar_.width * 0.5F + lifeWidth * 0.5F,
-                  lifePos.y + lifeBack_.height * 0.5F,
-                  18.0F, pipeline);
+        drawTintedProgressAsset(
+            device, quad, shader, lifeBar_.texture, lifeWidth,
+            lifeBar_.height,
+            lifePos.x + lifeBack_.width * 0.5F -
+                lifeBar_.width * 0.5F + lifeWidth * 0.5F,
+            lifePos.y + lifeBack_.height * 0.5F,
+            18.0F, pipeline, {1.0F, 1.0F, 1.0F, 1.0F},
+            raceState.life);
 
         for (const auto& weapon : raceState.weapons)
         {

@@ -2851,3 +2851,18 @@ accumulate→fixed PhysX→alpha render и убирает двоение/раз�
 
 `WorldFrameClock::PhysicsSeconds` покрыт unit cases 0, 1 и 7 шагов; backend
 остаётся Jolt, renderer — BGFX/Metal, а источник cadence/alpha снова один.
+
+### B8cz — RaceMain/Garage/HUD alignment contract — выполнено
+
+Порт больше не использует центр panel texture как родительский origin.
+`RaceMainFrameState::layout` и `GarageFrameState::layout` воспроизводят
+`OnAdjustLayout` из `eff9338`, включая anchor origin, `statFrame`, `moneyBg`,
+arrows, buy/back и hit areas. Верхние RaceMain children потеряли ошибочный
+offset в половину высоты top panel, а stats bars снова находятся внутри
+своих оригинальных рамок на любом viewport.
+
+BGFX progress draw теперь повторяет `gui::ProgressBar::StructureChanged`:
+front geometry растёт от исходного края, UV получает тот же progress scale.
+World-space `carLifeBar` дополнительно использует исходный локальный offset
+`HudMenu::GetCarLifeBarPos()`, поэтому front и `carLifeBack` больше не
+расходятся над машиной.
