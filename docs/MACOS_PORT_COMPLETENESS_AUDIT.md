@@ -3167,3 +3167,22 @@ LifeEffect и Jolt body lifetime остаются у прежних владел
 
 Regression на shipped vehicle death выбирает реальный dynamic DeathEffect,
 проверяет half-alpha transform, body-progress registration и sleep final pose.
+
+### B8dr — глобальные EventEffect возвращены в source Map — выполнено
+
+В `eff9338:GameBase.cpp::EventEffect::CreateEffect` путь с
+`EffectDesc::child == false` создаёт объект через `GetLogic()->GetMap()->
+AddMapObj(_effect)`. Его срок жизни поэтому принадлежит `ctEffects` collection:
+`Logic::OnProgress` прогрессирует Effects между Decoration и Car, а мёртвый
+MapObj удаляется тем же проходом. Portable `RaceEffect` до этого создавал
+анонимный `GameObject` и вызывал `OnProgress` вручную после Logic, меняя
+порядок событий и обходя map identity.
+
+Global projectile/death/contact effects теперь разрешают исходный record в
+`DataBase`, создают concrete `MapObj`, хранят его map ID и используют его
+`GameObject` как owner всех WaitingEnd/SrcSpeed/LifeEffect behaviors. Входы
+behaviors готовятся перед Logic pass. Если source collection удалила объект,
+runtime определяет это по ID, очищает borrowed pointers и только затем
+уведомляет исходный EventEffect handle. Regression требует настоящий
+`ctEffects MapObj` для двух PairPxContactEffect points и для dynamic vehicle
+DeathEffect. Jolt остаётся владельцем только физического body/solver.

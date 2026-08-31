@@ -324,11 +324,18 @@ struct RaceEffect
         source::LogicEventEffect::invalidEffect;
     float ageSeconds = 0.0F;
     float emissionEndSeconds = -1.0F;
-    // A source effect is a real GameObject with concrete serialized
-    // behaviors. Keeping it behind stable storage preserves listener and
-    // Behavior owner identity while RaceEffect entries move in the vector.
-    std::unique_ptr<source::GameObject> effectOwner =
+    // Synthetic renderer-only spans have no MapObjRec and retain this
+    // standalone GameObject.  Every ordinary world EventEffect is rebound
+    // to the concrete MapObj owned by source::Map below.
+    std::unique_ptr<source::GameObject> effectOwnerStorage =
         std::make_unique<source::GameObject>();
+    source::GameObject* effectOwner = effectOwnerStorage.get();
+    // EventEffect::CreateEffect(desc.child == false) calls Map::AddMapObj.
+    // Keep both the stable source pointer and ID so Logic may remove a dead
+    // effect during its map pass without leaving a dereferenceable dangling
+    // pointer in this renderer-facing runtime record.
+    source::MapObj* sourceMapObject = nullptr;
+    std::uint32_t sourceMapObjectId = 0U;
     source::FxSystemWaitingEnd* waitingEnd = nullptr;
     source::FxSystemSrcSpeed* sourceSpeed = nullptr;
     bool waitForParticleEnd = false;
@@ -767,6 +774,8 @@ private:
     void completeRacer(const source::RaceResult& result,
                        float finishTime) noexcept;
     void notifyEffectDestroyed(RaceEffect& effect) noexcept;
+    void bindWorldEffectMapObjects();
+    bool worldEffectMapObjectAlive(const RaceEffect& effect) const noexcept;
     void clearEffects() noexcept;
 
     const Race& race_;

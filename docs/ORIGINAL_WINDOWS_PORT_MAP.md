@@ -1805,6 +1805,21 @@ Owner теперь получает spawn world transform, shared Logic/World re
 Jolt; render interpolation ни в один из этих gameplay/backend states не
 записывается обратно.
 
+Результат B8dr: восстановлен глобальный `EventEffect::CreateEffect` lifecycle.
+Оригинал при `EffectDesc::child == false` вызывает `Map::AddMapObj(_effect)`,
+после чего `Logic::OnProgress` обходит объект именно в списке `ctEffects` и
+`MapObjects` удаляет его после `Death`. Порт вместо этого держал отдельный
+`unique_ptr<GameObject>` и вручную прогрессировал его после всего Logic pass.
+
+Теперь world-effect получает точный `MapObjRecord` из source `DataBase`,
+создаётся через `source::Map::AddMapObj`, сохраняет source ID и прогрессируется
+в исходном порядке Decoration → Effects → Car → Bonus → transient. Перед
+Logic pass в его concrete behaviors публикуются particle count, source speed
+и LifeEffect input; после автоматического удаления ID проверяется через Map,
+поэтому renderer-facing запись не разыменовывает уничтоженный объект.
+Standalone owner оставлен только у синтетических render spans без MapObjRec;
+дочерний `EffectDesc::child == true` переносится следующим блоком.
+
 Каждый крупный block commit обязан:
 
 1. назвать точные методы из `eff9338:prog`, которые стали активными;

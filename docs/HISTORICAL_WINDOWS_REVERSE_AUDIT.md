@@ -6943,3 +6943,21 @@ Portable runtime сохранял source behavior/lifetime в `RaceEffect::effec
 `SynchronizePhysicsState`. `VehicleDeathFragmentState` создаётся только после
 frame dispatch из graph pose. Jolt остаётся единственным solver/body owner;
 source сохраняет event ordering, effect lifetime и render interpolation.
+
+### P2.323 — восстановлена Map-идентичность глобальных EventEffect — выполнено
+
+`EventEffect::CreateEffect` в оригинале выбирает один из трёх owners: include
+родителя, include собственного GameObject либо глобальный `Map`. Для
+`child == false` это всегда `Map::AddMapObj`, а значит эффект участвует в
+`Logic::OnProgress` как элемент `ctEffects` и удаляется `MapObjects` после
+исходного `Death` callback.
+
+В portable session глобальные эффекты ошибочно жили в standalone storage и
+прогрессировались отдельным циклом после Logic. Теперь record разрешается в
+source `DataBase`, concrete `MapObj` создаётся в `Map`, а WaitingEnd,
+FxSystemSrcSpeed и LifeEffect принадлежат его `GameObject`. Session хранит
+Map ID, поэтому безопасно распознаёт удаление внутри Logic pass и не использует
+висячие behavior pointers. Contact regression подтверждает две независимые
+MapObj generation одного actor pair; death regression подтверждает source
+Map owner динамического кузовного эффекта. Следующий блок карты — точный
+include-list path для `EffectDesc::child/parent`.

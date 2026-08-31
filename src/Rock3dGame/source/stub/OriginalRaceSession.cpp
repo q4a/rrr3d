@@ -181,8 +181,11 @@ EffectTiming sourceEffectTiming(const ObjectDefinition& definition,
 
 void configureSourceEffectOwner(
     RaceEffect& effect, bool waitForParticleEnd,
-    float maximumTimeLife)
+    float maximumTimeLife,
+    source::GameObject* concreteOwner = nullptr)
 {
+    if (concreteOwner != nullptr)
+        effect.effectOwner = concreteOwner;
     auto& owner = *effect.effectOwner;
     owner.GetBehaviors().Clear();
     owner.ResetGameObject(-1.0F);
@@ -1146,6 +1149,20 @@ const source::WorldEventPump& OriginalRaceSession::sourceWorld() const noexcept
 void OriginalRaceSession::notifyEffectDestroyed(
     RaceEffect& effect) noexcept
 {
+    if (effect.sourceMapObject != nullptr)
+    {
+        // Logic::OnProgress may already have removed the object after its
+        // Death callback. Resolve by ID before asking Map to delete it so a
+        // stale pointer is never dereferenced.
+        if (map_.GetMapObj(effect.sourceMapObjectId, true) ==
+            effect.sourceMapObject)
+        {
+            map_.DelMapObj(effect.sourceMapObject);
+        }
+        effect.sourceMapObject = nullptr;
+        effect.sourceMapObjectId = 0U;
+        effect.effectOwner = nullptr;
+    }
     // GameObjEvent::OnDestroy first tells its live EventEffect owner that the
     // distinguished child died. If Logic already destroyed that behavior,
     // the weak identity expires exactly like the Windows listener detachment
@@ -1166,6 +1183,94 @@ void OriginalRaceSession::notifyEffectDestroyed(
             effect.logicEffectId);
         effect.logicEffectId =
             source::LogicEventEffect::invalidEffect;
+    }
+}
+
+bool OriginalRaceSession::worldEffectMapObjectAlive(
+    const RaceEffect& effect) const noexcept
+{
+    return effect.sourceMapObject != nullptr &&
+           effect.sourceMapObjectId != 0U &&
+           map_.GetMapObj(effect.sourceMapObjectId, true) ==
+               effect.sourceMapObject;
+}
+
+void OriginalRaceSession::bindWorldEffectMapObjects()
+{
+    for (auto& effect : effects_)
+    {
+        // Default EventEffect objects are children of their behavior owner.
+        // Their include-list transfer is handled separately; this pass is
+        // the exact desc.child == false global Map::AddMapObj path.
+        if (effect.sourceMapObject != nullptr ||
+            effect.parentRacer != RacerRuntime::invalidWeapon ||
+            effect.sourceDefinition == nullptr ||
+            effect.sourceDefinition->record.empty())
+        {
+            continue;
+        }
+        const auto* record = dataBase_.GetRecord(
+            source::MapObjCategory::Effects,
+            effect.sourceDefinition->record, false);
+        if (record == nullptr)
+            continue;
+
+        const float maximumTimeLife =
+            effect.effectOwner != nullptr
+                ? effect.effectOwner->GetMaxTimeLife()
+                : -1.0F;
+        const float timeLife =
+            effect.effectOwner != nullptr
+                ? effect.effectOwner->GetTimeLife()
+                : 0.0F;
+        const bool hasSourceSpeed = effect.sourceSpeed != nullptr;
+        const auto lifeSounds =
+            effect.lifeEffect != nullptr
+                ? effect.lifeEffect->GetSoundPaths()
+                : std::vector<std::string>{};
+
+        auto& mapObject = map_.AddMapObj(
+            source::MapObjCategory::Effects, record->GetType(),
+            record->GetPath());
+        auto& owner = mapObject.GetGameObj();
+        configureSourceEffectOwner(
+            effect, effect.waitForParticleEnd, maximumTimeLife, &owner);
+        owner.SetTimeLife(timeLife);
+        auto worldTransform = effect.transform;
+        if (!effect.sourceDefinitionUsesExactTransform &&
+            effect.kind != RaceEventKind::VehicleDestroyed)
+        {
+            worldTransform.position = effect.origin;
+            worldTransform.rotation = {};
+            if (effect.kind == RaceEventKind::ProjectileImpact &&
+                !effect.ignoreRotation)
+            {
+                worldTransform.rotation = shortestArcFromX(
+                    subtract(effect.target, effect.origin));
+            }
+        }
+        owner.SetWorldPos(
+            {worldTransform.position.x, worldTransform.position.y,
+             worldTransform.position.z});
+        owner.SetWorldRot(
+            {worldTransform.rotation.x, worldTransform.rotation.y,
+             worldTransform.rotation.z, worldTransform.rotation.w});
+        if (hasSourceSpeed)
+        {
+            effect.sourceSpeed = &owner.GetBehaviors()
+                .Add<source::FxSystemSrcSpeed>(
+                    source::BehaviorType::FxSystemSrcSpeed);
+        }
+        if (!lifeSounds.empty())
+        {
+            effect.lifeEffect = &owner.GetBehaviors()
+                .Add<source::LifeEffect>(
+                    source::BehaviorType::LifeEffect);
+            effect.lifeEffect->ConfigureSounds(lifeSounds);
+        }
+        effect.sourceMapObject = &mapObject;
+        effect.sourceMapObjectId = mapObject.GetId();
+        effect.effectOwnerStorage.reset();
     }
 }
 
@@ -5152,6 +5257,9 @@ void OriginalRaceSession::ingestPairContacts(
                         source::PairPxContactEffect::
                             contactReleaseSeconds;
                     created.waitForParticleEnd = true;
+                    // LogicEventEffect::CreateEffect uses the configured
+                    // ctEffects record and inserts it into the world Map.
+                    created.sourceDefinition = &race_.contactEffect;
                     configureSourceEffectOwner(
                         created, true, -1.0F);
                     effects_.push_back(std::move(created));
@@ -8998,18 +9106,16 @@ void OriginalRaceSession::update(
     // Logic.cpp progresses exactly Decoration::_specialList, then Effects,
     // Car, Bonus and finally its separately registered transient objects.
     ingestPairContacts(vehicles);
-    gameplayWorld_->Progress(seconds);
-    releasePairContacts();
+    bindWorldEffectMapObjects();
+    // Prepare renderer-backed behavior inputs before Logic progresses the
+    // real ctEffects MapObj collection. Previously these standalone owners
+    // ran after Logic and therefore escaped the source ordering entirely.
     for (auto& effect : effects_)
     {
         effect.seconds -= seconds;
         effect.ageSeconds += seconds;
         if (effect.waitingEnd != nullptr)
         {
-            // FxParticleSystem::GetCntParticle is a renderer boundary. The
-            // source behavior only needs to know whether any emitted
-            // particles remain, so the parsed visible lifetime supplies the
-            // equivalent count here.
             effect.waitingEnd->SetLiveParticleCount(
                 effect.seconds > 0.0F ? 1U : 0U);
         }
@@ -9042,7 +9148,26 @@ void OriginalRaceSession::update(
             effect.sourceSpeed->SetPhysicsInput(
                 true, {velocity.x, velocity.y, velocity.z}, parentPtr);
         }
-        effect.effectOwner->OnProgress(seconds);
+    }
+    gameplayWorld_->Progress(seconds);
+    releasePairContacts();
+    for (auto& effect : effects_)
+    {
+        if (effect.sourceMapObject != nullptr &&
+            !worldEffectMapObjectAlive(effect))
+        {
+            // MapObjects::OnProgress has already destroyed and removed it.
+            // Clear every borrowed behavior pointer before the common
+            // RaceEffect listener cleanup below.
+            effect.effectOwner = nullptr;
+            effect.waitingEnd = nullptr;
+            effect.sourceSpeed = nullptr;
+            effect.lifeEffect = nullptr;
+            continue;
+        }
+        if (effect.sourceMapObject == nullptr &&
+            effect.effectOwner != nullptr)
+            effect.effectOwner->OnProgress(seconds);
         if (effect.sourceSpeed != nullptr)
         {
             const auto& velocity =
@@ -9098,7 +9223,12 @@ void OriginalRaceSession::update(
     effects_.erase(
         std::remove_if(effects_.begin(), effects_.end(),
                        [&](RaceEffect& effect) {
-                           if (!effect.effectOwner->destroyed)
+                           const bool destroyed =
+                               effect.sourceMapObject != nullptr
+                                   ? !worldEffectMapObjectAlive(effect)
+                                   : effect.effectOwner == nullptr ||
+                                         effect.effectOwner->destroyed;
+                           if (!destroyed)
                                return false;
                            notifyEffectDestroyed(effect);
                            return true;
@@ -12195,9 +12325,17 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             const bool sourceContactMetadata = std::all_of(
                 contactSession.effects().begin(),
                 contactSession.effects().end(),
-                [](const RaceEffect& effect) {
+                [&](const RaceEffect& effect) {
                     return effect.kind != RaceEventKind::ContactImpact ||
                            (effect.contactActor == 77U &&
+                            effect.sourceDefinition ==
+                                &race.contactEffect &&
+                            effect.sourceMapObject != nullptr &&
+                            effect.sourceMapObjectId != 0U &&
+                            effect.effectOwner ==
+                                &effect.sourceMapObject->GetGameObj() &&
+                            effect.sourceMapObject->GetCategory() ==
+                                source::MapObjCategory::Effects &&
                             std::abs(
                                 effect.emissionEndSeconds - 0.1F) <
                                 0.0001F &&
@@ -12668,10 +12806,16 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                            effect.vehicleEffect == dynamicDeathEffectIndex;
                 });
             if (dynamicDeathRuntime == deathSession.effects().end() ||
-                dynamicDeathRuntime->effectOwner == nullptr)
+                dynamicDeathRuntime->effectOwner == nullptr ||
+                dynamicDeathRuntime->sourceMapObject == nullptr ||
+                dynamicDeathRuntime->sourceMapObjectId == 0U ||
+                dynamicDeathRuntime->effectOwner !=
+                    &dynamicDeathRuntime->sourceMapObject->GetGameObj() ||
+                dynamicDeathRuntime->sourceMapObject->GetCategory() !=
+                    source::MapObjCategory::Effects)
             {
                 throw std::runtime_error(
-                    "source dynamic DeathEffect owner is missing");
+                    "source dynamic DeathEffect MapObj owner is missing");
             }
             r3d::physics::DebrisState firstDeathBody;
             firstDeathBody.active = true;
