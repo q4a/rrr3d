@@ -6166,6 +6166,24 @@ identity из closest-ray. Session лишь преобразует вектор�
 Regression покрывает построение всех трёх запросов, Jolt distinction между
 TrackPlane и ShotTrack и запрет stacking без расхода второй charge.
 
+### P2.274 — RaceLifecycle владеет Player/result/reward settlement — выполнено
+
+После возврата tournament advance аудит `Race::CompleteRace(Player*)` и
+`Race::CompleteRace(const Results*)` обнаружил оставшийся split: session
+сама меняла `Player`, сбрасывала pickMoney, ставила finish block, начисляла
+campaign rewards и удерживала второй one-shot-флаг. В `Player` при этом был
+неоригинальный `ApplyRaceReward`, который брал текущее pickMoney уже после
+reset и не входил в Windows API.
+
+`source::RaceLifecycle` теперь выполняет обе source-транзакции: публикует
+`RaceResult` в Player и после materialization всех результатов один раз
+начисляет деньги из сохранённого `result.pickedMoney` и points. Session
+занимается только pending Jolt/AI/input cleanup. Из Player удалён придуманный
+метод, а one-shot reward state перенесён к владельцу `_results`.
+
+Lifecycle regression закрепляет порядок AI/Human результатов, exact reward
+для мест 1–3, pickMoney reset, 0.3-second block и отсутствие double award.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

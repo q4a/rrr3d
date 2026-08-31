@@ -744,10 +744,6 @@ int main()
     bonusProjectilePlayer.Disconnect();
     if (bonusProjectilePlayer.HasBonusProjectile(12U))
         return 37;
-    player.ApplyRaceReward();
-    if (player.GetMoney() != 119U || player.GetPoints() != 20U)
-        return 10;
-
     player.Destroy();
     if (!player.IsDestroyed() || player.GetLife() != 0.0F ||
         player.HasCar() ||

@@ -783,7 +783,6 @@ private:
         const std::vector<r3d::physics::VehicleState>& vehicles);
     void completeRacer(const source::RaceResult& result,
                        float finishTime) noexcept;
-    void applyCampaignRewards() noexcept;
     void notifyEffectDestroyed(RaceEffect& effect) noexcept;
     void clearEffects() noexcept;
 
@@ -866,7 +865,6 @@ private:
     source::RaceLifecycle raceLifecycle_;
     source::RacePlaceModel racePlaceModel_;
     bool campaign_ = true;
-    bool campaignRewardsApplied_ = false;
     bool tournamentAdvanced_ = false;
     bool enableMineBug_ = true;
     bool springBorders_ = true;

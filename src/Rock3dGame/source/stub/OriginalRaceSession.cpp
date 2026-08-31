@@ -1406,7 +1406,6 @@ void OriginalRaceSession::reset()
         &race_.achievements, initialAchievementPoints_,
         initialAchievementIterations_, achievementMultiplier);
     achievementModel_.SetCampaign(campaign_);
-    campaignRewardsApplied_ = false;
     tournamentAdvanced_ = false;
     raceLifecycle_.Reset();
     raceRunState_.Reset();
@@ -8694,7 +8693,16 @@ void OriginalRaceSession::completeRemainingRacers(
             elapsedSeconds_ + static_cast<float>(finishOffset++) * 0.001F;
         completeRacer(result, finishTime);
     }
-    applyCampaignRewards();
+    std::vector<source::Player*> rewardPlayers;
+    rewardPlayers.reserve(racers_.size());
+    for (auto& player : racers_)
+    {
+        // Windows removes a disconnected NetPlayer from _playerList, so it
+        // is absent from the subsequent GetPlayerById reward lookup.
+        if (!player.disconnected)
+            rewardPlayers.push_back(&player);
+    }
+    raceLifecycle_.ApplyCampaignRewards(rewardPlayers, campaign_);
 }
 
 void OriginalRaceSession::completeRacer(
@@ -8710,15 +8718,8 @@ void OriginalRaceSession::completeRacer(
             discardPendingAiAttack(attack);
     }
     auto& runtime = racers_[racer];
-    runtime.Complete(
-        result.place, result.money, result.points, finishTime);
-    // Race::CompleteRace captures this value in Result and immediately calls
-    // Player::ResetPickMoney. Finish UI and network use RaceLifecycle::Result.
-    runtime.ResetPickMoney();
-    // Race::CompleteRace always follows SetFinished/SetPlace with this
-    // finite control block. Player::OnProgress owns the countdown and then
-    // leaves the surviving physical car under mcBrake.
-    runtime.SetBlockTime(source::Player::finishBlockSeconds);
+    if (!raceLifecycle_.CompletePlayer(result, runtime, finishTime))
+        return;
     if (racer < vehicleInputs_.size())
         vehicleInputs_[racer] = {};
     std::erase_if(pendingAiAttacks_, [racer](const auto& attack) {
@@ -8735,24 +8736,6 @@ void OriginalRaceSession::completeRacer(
     {
         aiPlayers_[racer].FreeCar();
     }
-}
-
-void OriginalRaceSession::applyCampaignRewards() noexcept
-{
-    if (!campaign_ || campaignRewardsApplied_)
-        return;
-    for (const auto& result : raceLifecycle_.GetResults())
-    {
-        if (result.playerId >= racers_.size())
-            continue;
-        auto& runtime = racers_[result.playerId];
-        if (runtime.disconnected || !runtime.GetFinished())
-            continue;
-        runtime.AddMoney(static_cast<std::int32_t>(
-            result.money + result.pickedMoney));
-        runtime.AddPoints(static_cast<std::int32_t>(result.points));
-    }
-    campaignRewardsApplied_ = true;
 }
 
 void OriginalRaceSession::completeRaceForExit(

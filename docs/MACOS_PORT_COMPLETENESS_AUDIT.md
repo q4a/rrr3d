@@ -2539,6 +2539,14 @@ offset/range/group, а session больше не дублирует эту polic
 обычные projectile sensors и mine `cdgShotTrack`; MinePrepare вновь запрещает
 размещать вторую мину поверх первой и не расходует charge при отказе.
 
+### B8bu — полный Player/result/reward settlement принадлежит Race — выполнено
+
+`source::RaceLifecycle` забрал оставшиеся `Race::CompleteRace` переходы:
+Player finish/place, captured pickMoney reset, 0.3-second block и одноразовую
+campaign-выдачу money/points. Session больше не владеет reward one-shot.
+Удалён отсутствующий в Windows коде `Player::ApplyRaceReward`, который мог
+прочитать pickMoney после его исходного сброса.
+
 ## Воспроизведение проверки
 
 ```sh

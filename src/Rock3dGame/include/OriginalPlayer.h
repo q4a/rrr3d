@@ -502,7 +502,6 @@ public:
                   float time) noexcept;
     void AddMoney(std::int32_t value) noexcept;
     void AddPoints(std::int32_t value) noexcept;
-    void ApplyRaceReward() noexcept;
 
     void Destroy() noexcept;
     PlayerRestoreStep ProgressRestore(float seconds);

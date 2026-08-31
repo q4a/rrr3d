@@ -142,18 +142,55 @@ int main()
     remaining[0].playerId = 0U;
     remaining[0].human = true;
     remaining[0].lapPosition = 2.8F;
+    remaining[0].pickedMoney = 7U;
     remaining[1].playerId = 1U;
     remaining[1].lapPosition = 1.1F;
+    remaining[1].pickedMoney = 4U;
     remaining[2].playerId = 2U;
     remaining[2].lapPosition = 0.7F;
+    remaining[2].pickedMoney = 9U;
     const auto completed =
         race.CompleteRemaining(remaining, 3U, money, points);
     if (completed.size() != 3U || completed[0].playerId != 1U ||
         completed[1].playerId != 2U || completed[2].playerId != 0U ||
         completed[2].place != 3U)
         return 4;
+    std::array<source::Player, 3U> resultPlayers{};
+    for (std::size_t index = 0U; index < resultPlayers.size(); ++index)
+    {
+        resultPlayers[index].Reset(80.0F, 1U);
+        resultPlayers[index].SetId(static_cast<int>(index));
+        resultPlayers[index].TakeMoney(remaining[index].pickedMoney);
+    }
+    for (const auto& result : race.GetResults())
+    {
+        if (!race.CompletePlayer(
+                result, resultPlayers[result.playerId], 12.0F) ||
+            resultPlayers[result.playerId].GetPickMoney() != 0U ||
+            resultPlayers[result.playerId].GetBlockTime() !=
+                source::Player::finishBlockSeconds)
+        {
+            return 25;
+        }
+    }
+    std::array<source::Player*, 3U> rewardPlayers{
+        &resultPlayers[0], &resultPlayers[1], &resultPlayers[2]};
+    if (!race.ApplyCampaignRewards(rewardPlayers, true) ||
+        !race.CampaignRewardsApplied() ||
+        race.ApplyCampaignRewards(rewardPlayers, true) ||
+        resultPlayers[0].GetMoney() != 37U ||
+        resultPlayers[0].GetPoints() != 3U ||
+        resultPlayers[1].GetMoney() != 104U ||
+        resultPlayers[1].GetPoints() != 10U ||
+        resultPlayers[2].GetMoney() != 69U ||
+        resultPlayers[2].GetPoints() != 6U)
+    {
+        return 26;
+    }
 
     race.Reset();
+    if (race.CampaignRewardsApplied())
+        return 27;
     source::RaceLifecyclePlayer firstAi;
     firstAi.playerId = 4U;
     firstAi.laps = 1U;

@@ -68,7 +68,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `MenuSystem` | `originalmenu::{MenuSystem,ScreenStack,FrameState}` | Source owner, active menu path | Подключить concrete navigation graphs; bgfx остаётся draw executor |
 | `OptionsMenu` | `originaloptions::{OptionsMenuState,StartOptionsMenuState}` + backend visuals | Source owner, active options path | Legacy Widget events заменены SDL input, CoreText и bgfx draw submission |
 | `Player` | `source::Player`, `CarState`, behaviors, `PresentationState` | Source owner, active gameplay/presentation/live-car path | `CreateCar/FreeCar` владеют точным live `MapObj`; bgfx/Jolt исполняют graph/actor commands, остаётся аудит profile bridges |
-| `Race` | `OriginalRace`, `OriginalRaceSession`, lifecycle/place/tournament on shared World | Source owner, active fixed/late/finish lifecycle, partial orchestration | `CompleteRace` reward/tournament/pass-reset transaction source-owned; продолжить вынос physics/contact materialization из session |
+| `Race` | `OriginalRace`, `source::{RaceRunState,RaceLifecycle,RacePlaceModel}`, session adapter, tournament on shared World | Source owner, active fixed/late/finish/settlement lifecycle | `CompleteRace` Player publication, picked-money reset, block, campaign reward, tournament/pass-reset source-owned; продолжить вынос physics/contact materialization из session |
 | `RaceMenu2` | `originalracemenu::{RaceMenuState,RaceMainFrameState,GamersFrameState,GarageFrameState,WorkshopFrameState,SpaceshipFrameState,AngarFrameState,AchievementFrameState}` | Source owner, all six offline frame paths | Проверить оставшиеся network callbacks и оставить bgfx/CoreText backend boundary |
 | `RecordLib` | `source::{MapObjRecordLibrary,MapObjRecordNode,MapObjRecord}` | Source owner, active hierarchy | Editor-only mutation/serialization API не входит в пользовательский runtime |
 | `ResourceManager` | `OriginalResourceManager` + native readers/uploaders | Source owner, active GUI/graph/sound/font/material/string path | Полные 322 Mesh/489 Image/257 Mat/46 eager Sound, 5 TextFont и выбранная String library имеют общие identity, descriptors, language/charset, world tags и lifetime; bgfx/SDL payload остаётся backend boundary |
@@ -1156,6 +1156,19 @@ Jolt raycast получил отдельную идентичность `cdgShot
 bonus sensors её не загрязняют. `MinePrepare` снова отклоняет ближайшее
 попадание по уже существующей мине без расхода charge. Headless OBB fallback,
 Jolt smoke и integrated race regression закрепляют одинаковое правило.
+
+Результат B8bu: оставшаяся часть `Race::CompleteRace` перенесена из session
+в `source::RaceLifecycle`. Он теперь публикует один `Result` в concrete
+`Player` точным порядком `SetFinished/SetPlace -> ResetPickMoney ->
+SetBlockTime(0.3)` и после завершения всех участников ровно один раз выдаёт
+campaign `money + captured pickMoney` и points.
+
+Session оставляет только отмену pending backend attacks, очистку input и
+`AIPlayer::FreeCar` adapter. Отдельный `campaignRewardsApplied_` удалён из
+session; one-shot принадлежит Race lifecycle. Также удалён придуманный
+`Player::ApplyRaceReward`, отсутствующий в Windows API и читавший pickMoney
+уже после исходного reset. Regression проверяет разный порядок финиша,
+captured pickMoney, block, все три награды и запрет повторного начисления.
 
 ## Правило обновления карты
 

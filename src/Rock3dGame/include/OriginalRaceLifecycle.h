@@ -107,6 +107,16 @@ public:
         const std::array<std::uint32_t, 3>& rewardMoney,
         const std::array<std::uint32_t, 3>& rewardPoints);
 
+    // Remaining source-owned parts of Race::CompleteRace: publish one
+    // Result to its Player in the original order, then apply all campaign
+    // rewards exactly once after every unfinished Player was completed.
+    bool CompletePlayer(
+        const RaceResult& result, Player& player,
+        float finishTime) const noexcept;
+    bool ApplyCampaignRewards(
+        std::span<Player* const> players, bool campaign) noexcept;
+    bool CampaignRewardsApplied() const noexcept;
+
     void LoadResults(std::vector<RaceResult> results);
     const RaceResult* GetResult(std::size_t playerId) const noexcept;
     const std::vector<RaceResult>& GetResults() const noexcept;
@@ -118,6 +128,7 @@ private:
         const std::array<std::uint32_t, 3>& rewardPoints);
 
     std::vector<RaceResult> results_;
+    bool campaignRewardsApplied_ = false;
 };
 
 struct RacePlacePlayer

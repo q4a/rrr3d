@@ -2134,13 +2134,6 @@ void Player::AddPoints(std::int32_t value) noexcept
         std::max<std::int64_t>(result, 0)));
 }
 
-void Player::ApplyRaceReward() noexcept
-{
-    AddMoney(static_cast<std::int32_t>(
-        rewardMoney + GetPickMoney()));
-    AddPoints(static_cast<std::int32_t>(rewardPoints));
-}
-
 void Player::Destroy() noexcept
 {
     SetLife(0.0F);

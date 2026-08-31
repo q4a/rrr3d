@@ -74,6 +74,7 @@ bool RaceRunState::IsRaceGo() const noexcept
 void RaceLifecycle::Reset() noexcept
 {
     results_.clear();
+    campaignRewardsApplied_ = false;
 }
 
 std::optional<RaceResult> RaceLifecycle::CompleteRace(
@@ -185,6 +186,54 @@ std::vector<RaceResult> RaceLifecycle::CompleteRemaining(
             completed.push_back(*result);
     }
     return completed;
+}
+
+bool RaceLifecycle::CompletePlayer(
+    const RaceResult& result, Player& player,
+    float finishTime) const noexcept
+{
+    if (player.GetId() < 0 ||
+        static_cast<std::size_t>(player.GetId()) != result.playerId)
+    {
+        return false;
+    }
+    player.Complete(
+        result.place, result.money, result.points, finishTime);
+    // Race::CompleteRace(Player*) captures pickMoney in Result before this
+    // reset and installs the finite 0.3-second finish control block.
+    player.ResetPickMoney();
+    player.SetBlockTime(Player::finishBlockSeconds);
+    return true;
+}
+
+bool RaceLifecycle::ApplyCampaignRewards(
+    std::span<Player* const> players, bool campaign) noexcept
+{
+    if (!campaign || campaignRewardsApplied_)
+        return false;
+    for (const auto& result : results_)
+    {
+        const auto found = std::find_if(
+            players.begin(), players.end(),
+            [&](const Player* player) {
+                return player != nullptr && player->GetId() >= 0 &&
+                       static_cast<std::size_t>(player->GetId()) ==
+                           result.playerId;
+            });
+        if (found == players.end())
+            continue;
+        Player& player = **found;
+        player.AddMoney(static_cast<std::int32_t>(
+            result.money + result.pickedMoney));
+        player.AddPoints(static_cast<std::int32_t>(result.points));
+    }
+    campaignRewardsApplied_ = true;
+    return true;
+}
+
+bool RaceLifecycle::CampaignRewardsApplied() const noexcept
+{
+    return campaignRewardsApplied_;
 }
 
 void RaceLifecycle::LoadResults(std::vector<RaceResult> results)
