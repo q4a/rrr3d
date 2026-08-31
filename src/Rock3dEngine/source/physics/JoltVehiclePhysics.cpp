@@ -149,6 +149,10 @@ constexpr float sourceTimeBeforeSleep = 0.4F;
 // PhysX 2.8 NX_BOUNCE_THRESHOLD defaults to -2 m/s. Jolt stores the positive
 // magnitude below which restitution is suppressed.
 constexpr float sourceMinimumBounceVelocity = 2.0F;
+// World::cMaxSimStep is the interval represented by one PhysX contact report.
+// Jolt runs two 1/120 solver updates inside that interval, but the gameplay
+// still consumes one NxContactPair::sumNormalForce/sumFrictionForce value.
+constexpr float sourceContactReportStep = 1.0F / 60.0F;
 
 JPH::Vec3 sourceBoxHalfExtents(Vec3 halfExtents, float skinWidth) noexcept
 {
@@ -261,6 +265,44 @@ Vec3 fromJolt(JPH::Vec3Arg value)
 Vec3 fromJoltAngular(JPH::Vec3Arg value)
 {
     return {-value.GetX(), -value.GetZ(), -value.GetY()};
+}
+
+float sourceContactForceFromImpulse(float impulse) noexcept
+{
+    return impulse / sourceContactReportStep;
+}
+
+void accumulateSourceContactForces(BodyContact& accumulated,
+                                   BodyContact&& contact)
+{
+    // PhysX reports the vector sum for the complete actor pair. A Jolt actor
+    // pair can arrive once per internal half-step (and once per sub-shape),
+    // so selecting the strongest callback changes both damage magnitude and
+    // spring-border direction at mesh seams.
+    const JPH::Vec3 normalForce =
+        toJolt(accumulated.normal) * accumulated.force +
+        toJolt(contact.normal) * contact.force;
+    accumulated.force = normalForce.Length();
+    if (accumulated.force > 1.0e-6F)
+    {
+        accumulated.normal = fromJolt(
+            normalForce / accumulated.force);
+    }
+    accumulated.normalSpeed = std::max(
+        accumulated.normalSpeed, contact.normalSpeed);
+
+    const JPH::Vec3 frictionForce =
+        toJolt(accumulated.frictionForceVector) +
+        toJolt(contact.frictionForceVector);
+    accumulated.frictionForce = frictionForce.Length();
+    accumulated.frictionForceVector = fromJolt(frictionForce);
+
+    if (!accumulated.hasPoint && contact.hasPoint)
+    {
+        accumulated.point = contact.point;
+        accumulated.points = std::move(contact.points);
+        accumulated.hasPoint = true;
+    }
 }
 
 Quat fromJolt(JPH::QuatArg value)
@@ -649,8 +691,8 @@ private:
 
     void recordOne(std::size_t vehicle, const JPH::Body& body,
                    const JPH::Body& other, JPH::Vec3Arg outwardNormal,
-                   float estimatedForce, float estimatedFrictionForce,
-                   JPH::Vec3Arg estimatedFrictionForceVector,
+                   float estimatedNormalImpulse,
+                   JPH::Vec3Arg estimatedFrictionImpulseVector,
                    const JPH::ContactManifold& manifold)
     {
         const JPH::Vec3 bodyVelocity = body.GetLinearVelocity();
@@ -674,13 +716,12 @@ private:
                 ? other.GetMotionProperties()->GetInverseMass()
                 : 0.0F;
         const float inverseMass = bodyInverseMass + otherInverseMass;
-        constexpr float originalContactStep = 1.0F / 120.0F;
-        const float effectiveMassForce =
+        const float effectiveMassImpulse =
             inverseMass > 0.0F
-                ? normalSpeed / (inverseMass * originalContactStep)
+                ? normalSpeed / inverseMass
                 : 0.0F;
-        const float force =
-            std::max(effectiveMassForce, estimatedForce);
+        const float normalImpulse =
+            std::max(effectiveMassImpulse, estimatedNormalImpulse);
 
         BodyContact contact;
         contact.surface =
@@ -690,12 +731,13 @@ private:
         contact.otherDecoration = otherDecoration;
         contact.normal = fromJolt(outwardNormal);
         contact.normalSpeed = normalSpeed;
-        contact.force = force;
+        contact.force = sourceContactForceFromImpulse(normalImpulse);
         contact.otherActor =
             other.GetID().GetIndexAndSequenceNumber();
-        contact.frictionForce = estimatedFrictionForce;
-        contact.frictionForceVector =
-            fromJolt(estimatedFrictionForceVector);
+        const JPH::Vec3 frictionForceVector =
+            estimatedFrictionImpulseVector / sourceContactReportStep;
+        contact.frictionForce = frictionForceVector.Length();
+        contact.frictionForceVector = fromJolt(frictionForceVector);
         const auto pointCount = std::min<std::size_t>(
             {manifold.mRelativeContactPointsOn1.size(),
              manifold.mRelativeContactPointsOn2.size(), 2U});
@@ -730,25 +772,9 @@ private:
                        value.otherActor == contact.otherActor;
             });
         if (found == contacts.end())
-            contacts.push_back(contact);
+            contacts.push_back(std::move(contact));
         else
-        {
-            if (contact.force > found->force)
-            {
-                found->normal = contact.normal;
-                found->normalSpeed = contact.normalSpeed;
-                found->force = contact.force;
-            }
-            if (contact.frictionForce > found->frictionForce)
-            {
-                found->frictionForce = contact.frictionForce;
-                found->frictionForceVector =
-                    contact.frictionForceVector;
-                found->point = contact.point;
-                found->points = std::move(contact.points);
-                found->hasPoint = contact.hasPoint;
-            }
-        }
+            accumulateSourceContactForces(*found, std::move(contact));
     }
 
     void record(const JPH::Body& first, const JPH::Body& second,
@@ -762,30 +788,25 @@ private:
                 settings.mCombinedFriction,
                 settings.mCombinedFriction2),
             settings.mCombinedRestitution, 1.0F, 4U);
-        float estimatedForce = 0.0F;
+        float estimatedNormalImpulse = 0.0F;
         float frictionImpulse1 = 0.0F;
         float frictionImpulse2 = 0.0F;
-        constexpr float originalContactStep = 1.0F / 120.0F;
         for (const auto& impulse : estimation.mImpulses)
         {
-            estimatedForce +=
-                std::abs(impulse.mContactImpulse) / originalContactStep;
+            estimatedNormalImpulse +=
+                std::abs(impulse.mContactImpulse);
             frictionImpulse1 += impulse.mFrictionImpulse1;
             frictionImpulse2 += impulse.mFrictionImpulse2;
         }
-        const float estimatedFrictionForce =
-            std::sqrt(
-                frictionImpulse1 * frictionImpulse1 +
-                frictionImpulse2 * frictionImpulse2) /
-            originalContactStep;
         // EstimateCollisionResponse stores the impulse applied against
         // body 1 along its two contact tangents.  Body 2 receives the
         // opposite impulse.  PhysX exposed the corresponding vector as
-        // sumFrictionForce and GameCar consumes its Z sign at borders.
-        const JPH::Vec3 estimatedFrictionForceVector =
+        // sumFrictionForce and GameCar consumes its Z sign at borders. Keep
+        // this as an impulse until all Jolt callbacks for the source 1/60
+        // contact-report interval have been accumulated.
+        const JPH::Vec3 estimatedFrictionImpulseVector =
             -(frictionImpulse1 * estimation.mTangent1 +
-              frictionImpulse2 * estimation.mTangent2) /
-            originalContactStep;
+              frictionImpulse2 * estimation.mTangent2);
         std::size_t firstVehicle = 0;
         std::size_t secondVehicle = 0;
         const bool firstIsProjectile =
@@ -796,17 +817,17 @@ private:
             !secondIsProjectile)
         {
             recordOne(firstVehicle, first, second,
-                      -manifold.mWorldSpaceNormal, estimatedForce,
-                      estimatedFrictionForce,
-                      estimatedFrictionForceVector, manifold);
+                      -manifold.mWorldSpaceNormal,
+                      estimatedNormalImpulse,
+                      estimatedFrictionImpulseVector, manifold);
         }
         if (vehicleIndex(second.GetUserData(), secondVehicle) &&
             !firstIsProjectile)
         {
             recordOne(secondVehicle, second, first,
-                      manifold.mWorldSpaceNormal, estimatedForce,
-                      estimatedFrictionForce,
-                      -estimatedFrictionForceVector, manifold);
+                      manifold.mWorldSpaceNormal,
+                      estimatedNormalImpulse,
+                      -estimatedFrictionImpulseVector, manifold);
         }
         std::size_t firstProjectile = 0;
         std::size_t secondProjectile = 0;
@@ -3494,6 +3515,39 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
             SourceCollisionGroup::TrackPlane, false)))
     {
         error = "PhysX projectile collision-group matrix failed";
+        return false;
+    }
+    BodyContact firstContact;
+    firstContact.normal = {1.0F, 0.0F, 0.0F};
+    firstContact.normalSpeed = 2.0F;
+    firstContact.force = 60.0F;
+    firstContact.frictionForceVector = {10.0F, 0.0F, 0.0F};
+    firstContact.frictionForce = 10.0F;
+    BodyContact secondContact;
+    secondContact.normal = {0.0F, 1.0F, 0.0F};
+    secondContact.normalSpeed = 5.0F;
+    secondContact.force = 80.0F;
+    secondContact.frictionForceVector = {-2.0F, 4.0F, 0.0F};
+    secondContact.frictionForce = std::sqrt(20.0F);
+    secondContact.point = {3.0F, 4.0F, 5.0F};
+    secondContact.points = {secondContact.point};
+    secondContact.hasPoint = true;
+    accumulateSourceContactForces(
+        firstContact, std::move(secondContact));
+    if (std::abs(sourceContactReportStep - 1.0F / 60.0F) > 0.0001F ||
+        std::abs(sourceContactForceFromImpulse(2.0F) - 120.0F) >
+            0.0001F ||
+        std::abs(firstContact.force - 100.0F) > 0.0001F ||
+        std::abs(firstContact.normal.x - 0.6F) > 0.0001F ||
+        std::abs(firstContact.normal.y - 0.8F) > 0.0001F ||
+        std::abs(firstContact.normalSpeed - 5.0F) > 0.0001F ||
+        std::abs(firstContact.frictionForce - std::sqrt(80.0F)) >
+            0.0001F ||
+        std::abs(firstContact.frictionForceVector.x - 8.0F) > 0.0001F ||
+        std::abs(firstContact.frictionForceVector.y - 4.0F) > 0.0001F ||
+        !firstContact.hasPoint || firstContact.points.size() != 1U)
+    {
+        error = "PhysX actor-pair contact-force aggregation failed";
         return false;
     }
     const JPH::Vec3 defaultSkinBox = sourceBoxHalfExtents(
