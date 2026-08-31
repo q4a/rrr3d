@@ -1268,6 +1268,18 @@ fragment-ов читают `Proj::GetSourceWeapon()`, поэтому невоз�
 он фиксирует необходимость пересоздать ранее kinematic Jolt body как dynamic
 после того, как source listener уже очистил оружие.
 
+Результат B8cd: перенесена недостающая graph-часть
+`Proj::LaserUpdate`. В Windows concrete `Proj` меняет позицию и размеры
+primary `Sprite`, позицию `_model2` и scale первого sampler-а. Portable
+`Proj::ProgressLaser` раньше владел только `_model2`, а distance/width/UV
+копировались в `ProjectileRuntime`.
+
+Теперь `Proj::LaserVisualState` представляет отсутствующий portable Graph
+Sprite и обновляется в том же source-вызове, что damage и impact model.
+Metal читает только этот state; три session-поля удалены. Также восстановлена
+ветка `distort`: FrostRay меняет длину геометрии, но, как и в оригинале, не
+записывает laser UV scale.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:

@@ -378,11 +378,6 @@ struct ProjectileRuntime
     Vec3 direction{1.0F, 0.0F, 0.0F};
     Vec3 velocity;
     Quat rotation;
-    float impactDistance = 0.0F;
-    float beamWidthScale = 1.0F;
-    // LaserUpdate writes sampler[0].scale.x = beamLength / 10 for the
-    // distorted laser only; geometry scale and UV scale are independent.
-    float beamTextureScale = 1.0F;
     bool attached = false;
     bool directWeapon = false;
     // Headless/session fallback invokes Race::OnFixedStep inside the frame

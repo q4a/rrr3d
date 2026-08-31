@@ -241,6 +241,17 @@ public:
         bool applyDamage = false;
     };
 
+    // Portable graph state owned by the concrete Proj. In the Windows
+    // renderer LaserUpdate writes these values directly to _model's Sprite
+    // position/sizes and sampler[0] scale.
+    struct LaserVisualState
+    {
+        float distance = 0.0F;
+        float beamWidthScale = 1.0F;
+        float textureScale = 1.0F;
+        bool valid = false;
+    };
+
     struct ContinuousContactResult
     {
         Vec3 impulse;
@@ -703,6 +714,7 @@ public:
     const MapObj* GetSourceModel() const noexcept;
     MapObj* GetSourceModel2() noexcept;
     const MapObj* GetSourceModel2() const noexcept;
+    const LaserVisualState& GetLaserVisualState() const noexcept;
     const ProjectileDefinition& GetDesc() const noexcept;
     ProjectileCollisionBox ComputeAABB(bool onlyModel) const noexcept;
     GameObject* GetSourceWeapon() const noexcept;
@@ -741,6 +753,7 @@ private:
     Vec3 sourceVector_{};
     bool ignoreContactProj_ = false;
     bool externalLifetimeManaged_ = false;
+    LaserVisualState laserVisualState_;
     MapObj* sourceModel_ = nullptr;
     MapObj* sourceModel2_ = nullptr;
     DeathEffectBehavior* deathEffect_ = nullptr;

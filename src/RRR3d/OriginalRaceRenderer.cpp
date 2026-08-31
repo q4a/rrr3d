@@ -4840,13 +4840,15 @@ void OriginalRaceRenderer::draw(
         parent.position = projectile.position;
         parent.rotation = projectile.rotation;
         const auto sourceParent = parent;
+        const auto& laserVisual =
+            projectile.sourceObject->GetLaserVisualState();
         if (projectile.attached &&
             (definition.type == 3U || definition.type == 18U))
         {
             const float distance =
                 std::max(
-                    projectile.impactDistance > 0.0F
-                        ? projectile.impactDistance
+                    laserVisual.valid && laserVisual.distance > 0.0F
+                        ? laserVisual.distance
                         : (definition.maximumDistance > 0.0F
                                ? definition.maximumDistance
                                : 100.0F),
@@ -4859,7 +4861,7 @@ void OriginalRaceRenderer::draw(
                 projectile.direction.z * distance * 0.5F;
             parent.scale.x = distance;
             if (definition.type == 3U)
-                parent.scale.y = projectile.beamWidthScale;
+                parent.scale.y = laserVisual.beamWidthScale;
         }
         drawDefinition(
             asset, definition.visual, parent,
@@ -4867,13 +4869,13 @@ void OriginalRaceRenderer::draw(
             projectile.velocity,
             nullptr, 1.0F,
             std::numeric_limits<float>::infinity(),
-            projectile.beamTextureScale);
+            laserVisual.valid ? laserVisual.textureScale : 1.0F);
         if (projectile.attached)
         {
             const float distance =
                 std::max(
-                    projectile.impactDistance > 0.0F
-                        ? projectile.impactDistance
+                    laserVisual.valid && laserVisual.distance > 0.0F
+                        ? laserVisual.distance
                         : (definition.maximumDistance > 0.0F
                                ? definition.maximumDistance
                                : 100.0F),

@@ -6310,3 +6310,17 @@ Jolt gravity и portable fallback выводятся из живого
 body: при потере weapon он обеспечивает ровно один переход
 kinematic-to-dynamic, которого у source `Proj` после listener callback уже
 нельзя восстановить.
+
+### P2.283 — Laser Sprite state перенесён в concrete Proj — выполнено
+
+Исходный `Proj::LaserUpdate` одновременно выполняет raycast/damage и пишет
+`scaleLaser`, `sizes.y`, local sprite position и sampler scale в `_model`;
+impact `_model2` также принадлежит projectile. В порте последнее уже было
+source-owned, но первые три значения жили как независимые поля session.
+
+Добавлен `Proj::LaserVisualState`, моделирующий ровно состояние отсутствующего
+portable Graph Sprite. `ProgressLaser/ProgressFrostRay` обновляют его рядом с
+source model2, а Metal renderer читает его напрямую. Удалены
+`impactDistance`, `beamWidthScale`, `beamTextureScale` из runtime. Regression
+проверяет reset/lifetime и различие исходных веток: Laser пишет
+`distance/10` в sampler, FrostRay сохраняет sampler scale 1.

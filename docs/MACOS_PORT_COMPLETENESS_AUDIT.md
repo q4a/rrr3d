@@ -2635,3 +2635,11 @@ magnitude live velocity. Это соответствует PhysX actor contract 
 Jolt boundary: body id, physics snapshots и одноразовый attached-body
 transition. Поэтому source и backend больше не могут расходиться по типу
 траектории либо lifetime связи с уничтоженным оружием.
+
+### B8cd — Laser/Frost visual state принадлежит Proj — выполнено
+
+Portable concrete `Proj` теперь хранит результат исходных записей в Graph
+Sprite: длину луча, множитель ширины и scale sampler-а. Metal не получает их
+из `ProjectileRuntime`. Позиция impact model2, damage и визуальный луч снова
+обновляются одним `Proj::ProgressLaser` call, как в Windows. Исправлена
+ошибка FrostRay, которому порт ошибочно применял distorted-laser UV scale.

@@ -5508,18 +5508,10 @@ void OriginalRaceSession::updateGameplay(
                             maximumDistance, rayHit.hit,
                             rayHit.distance, seconds, true,
                             sourceVec(projectile.direction));
-            projectile.impactDistance =
-                sourceRay ? laserUpdate.distance : 0.0F;
-            projectile.beamWidthScale =
-                sourceRay ? laserUpdate.beamWidthScale : 1.0F;
-            projectile.beamTextureScale =
-                sourceRay && laserUpdate.textureScale > 0.0F
-                    ? laserUpdate.textureScale
-                    : 1.0F;
             const Vec3 end = add(
                 projectile.position,
                 multiply(projectile.direction,
-                         sourceRay ? projectile.impactDistance : 0.0F));
+                         sourceRay ? laserUpdate.distance : 0.0F));
             RaceEffect fired;
             fired.kind = RaceEventKind::WeaponFired;
             fired.origin = projectile.position;
@@ -14717,10 +14709,15 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     lifetimeRay->sourceObject->GetMaxTimeLife() -
                     lifetimeRay->sourceObject->GetTimeLife()) >
                     0.001F ||
-                lifetimeRay->impactDistance <= 0.0F ||
+                !lifetimeRay->sourceObject->GetLaserVisualState().valid ||
+                lifetimeRay->sourceObject->GetLaserVisualState().distance <=
+                    0.0F ||
                 std::abs(
-                    lifetimeRay->beamTextureScale -
-                    lifetimeRay->impactDistance / 10.0F) > 0.001F)
+                    lifetimeRay->sourceObject->GetLaserVisualState()
+                            .textureScale -
+                    lifetimeRay->sourceObject->GetLaserVisualState()
+                            .distance /
+                        10.0F) > 0.001F)
             {
                 throw std::runtime_error(
                     "source GameObject lifetime/laser sampler state "

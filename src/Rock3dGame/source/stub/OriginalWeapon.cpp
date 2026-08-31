@@ -429,6 +429,7 @@ void Proj::ResetSourceRuntimeState() noexcept
     sourceState_ = false;
     sourceVector_ = {};
     ignoreContactProj_ = false;
+    laserVisualState_ = {};
 }
 
 float Proj::GetSourceTimer() const noexcept { return sourceTimer_; }
@@ -509,6 +510,11 @@ MapObj* Proj::GetSourceModel2() noexcept { return sourceModel2_; }
 const MapObj* Proj::GetSourceModel2() const noexcept
 {
     return sourceModel2_;
+}
+
+const Proj::LaserVisualState& Proj::GetLaserVisualState() const noexcept
+{
+    return laserVisualState_;
 }
 
 const ProjectileDefinition& Proj::GetDesc() const noexcept
@@ -1345,6 +1351,15 @@ Proj::LaserUpdateResult Proj::ProgressLaser(
         maximumDistance, hit, hitDistance, deltaTime,
         description_.damage, distort, GetTimeLife(),
         GetMaxTimeLife());
+    laserVisualState_.distance = result.distance;
+    laserVisualState_.beamWidthScale = result.beamWidthScale;
+    // FrostRay calls the same geometry path with distort=false. The source
+    // only writes sampler[0].scale from the distorted Laser branch.
+    laserVisualState_.textureScale =
+        distort && result.textureScale > 0.0F
+            ? result.textureScale
+            : 1.0F;
+    laserVisualState_.valid = true;
     if (sourceModel2_ != nullptr)
     {
         if (hit)

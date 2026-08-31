@@ -230,13 +230,19 @@ int main()
     const auto concreteLaser = linkedProjectile.ProgressLaser(
         100.0F, true, 40.0F, 0.1F, true,
         {1.0F, 0.0F, 0.0F});
+    const auto& concreteLaserVisual =
+        linkedProjectile.GetLaserVisualState();
     if (concreteLaser.distance != 40.0F ||
         linkedProjectile.GetSourceModel2() == nullptr ||
         !nearVector(
             linkedProjectile.GetSourceModel2()->GetGameObj().GetWorldPos(),
             {54.0F, 15.0F, 16.0F}) ||
         std::abs(concreteLaser.damage - 0.9F) > 0.001F ||
-        std::abs(concreteLaser.beamWidthScale - 0.5F) > 0.001F)
+        std::abs(concreteLaser.beamWidthScale - 0.5F) > 0.001F ||
+        !concreteLaserVisual.valid ||
+        std::abs(concreteLaserVisual.distance - 40.0F) > 0.001F ||
+        std::abs(concreteLaserVisual.beamWidthScale - 0.5F) > 0.001F ||
+        std::abs(concreteLaserVisual.textureScale - 4.0F) > 0.001F)
         return 120;
     const auto sourceModelReleasePlan =
         linkedProjectile.BuildSourceModelReleasePlan();
@@ -273,7 +279,8 @@ int main()
         linkedProjectile.GetSourceVector() != source::Proj::Vec3{} ||
         linkedProjectile.GetSourceTick() != 0U ||
         linkedProjectile.GetSourceState() ||
-        linkedProjectile.GetIgnoreContactProj())
+        linkedProjectile.GetIgnoreContactProj() ||
+        linkedProjectile.GetLaserVisualState().valid)
         return 99;
     auto* primaryModel = linkedProjectile.GetSourceModel();
     primaryModel->GetGameObj().DestroyObject();
@@ -472,7 +479,13 @@ int main()
     const auto concreteFrost = concreteFrostProjectile.ProgressFrostRay(
         100.0F, true, 20.0F, 0.1F,
         {1.0F, 0.0F, 0.0F});
+    const auto& concreteFrostVisual =
+        concreteFrostProjectile.GetLaserVisualState();
     if (!concreteFrost.applyDamage || concreteFrost.distance != 20.0F ||
+        !concreteFrostVisual.valid ||
+        concreteFrostVisual.distance != 20.0F ||
+        concreteFrostVisual.beamWidthScale != 1.0F ||
+        concreteFrostVisual.textureScale != 1.0F ||
         !concreteFrostProjectile.AttachFrostSlow(
             &frostTargetPlayer.gameCar, &frostTargetPlayer, 8U, 2U) ||
         concreteFrostProjectile.AttachFrostSlow(
