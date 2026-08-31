@@ -4744,13 +4744,12 @@ int main(int argc, char** argv)
     std::uint64_t renderedNetworkRevision =
         std::numeric_limits<std::uint64_t>::max();
     std::uint64_t handledNetworkFailureRevision = 0U;
-    enum class NetworkFailureDialogAction
-    {
-        None,
-        ExitMatch,
-    };
+    using NetworkFailureDialogAction =
+        r3d::game::mainmenu2::NetworkFailureDialogAction;
     NetworkFailureDialogAction networkFailureDialogAction =
         NetworkFailureDialogAction::None;
+    r3d::game::mainmenu2::NetworkCallbackState
+        sourceNetworkCallbacks;
     r3d::game::mainmenu2::NetworkFrameState sourceNetworkFrame;
     r3d::game::mainmenu2::ServerTypeFrameState sourceServerTypeFrame;
     r3d::game::mainmenu2::ClientTypeFrameState sourceClientTypeFrame;
@@ -4920,6 +4919,7 @@ int main(int argc, char** argv)
         renderedNetworkRevision =
             std::numeric_limits<std::uint64_t>::max();
         handledNetworkFailureRevision = 0U;
+        sourceNetworkCallbacks.reset();
         networkFailureDialogAction =
             NetworkFailureDialogAction::None;
         refreshNetworkRuntimePages();
@@ -5221,6 +5221,7 @@ int main(int argc, char** argv)
             renderedNetworkRevision =
                 std::numeric_limits<std::uint64_t>::max();
             handledNetworkFailureRevision = 0U;
+            sourceNetworkCallbacks.reset();
             networkFailureDialogAction =
                 NetworkFailureDialogAction::None;
         }
@@ -7329,6 +7330,7 @@ int main(int argc, char** argv)
         renderedNetworkRevision =
             std::numeric_limits<std::uint64_t>::max();
         handledNetworkFailureRevision = 0U;
+        sourceNetworkCallbacks.reset();
         bool restoredNetworkProfile = false;
         if (networkClientOfflineProfile)
         {
@@ -7379,8 +7381,6 @@ int main(int argc, char** argv)
                             "ExitRace/ExitMatch\n");
     };
     auto presentNetworkFailure = [&]() {
-        using SessionFailure =
-            r3d::game::originalnetwork::SessionFailure;
         using SessionState =
             r3d::game::originalnetwork::SessionState;
         if (networkSnapshot.state != SessionState::Failed ||
@@ -7392,30 +7392,31 @@ int main(int argc, char** argv)
         const bool matchActive =
             networkMatchStarted || networkClientMatchEntered ||
             inRace || gameModeState.IsRaceLoading();
-        const bool critical =
-            networkSnapshot.failure == SessionFailure::Critical;
-        const bool lostActiveHost =
-            networkSnapshot.failure ==
-                SessionFailure::HostDisconnected &&
-            matchActive;
-
-        hideInfoDialog();
-        networkFailureDialogAction =
-            critical || lostActiveHost
-                ? NetworkFailureDialogAction::ExitMatch
-                : NetworkFailureDialogAction::None;
-        if (networkFailureDialogAction ==
-            NetworkFailureDialogAction::ExitMatch)
+        const auto callback =
+            sourceNetworkCallbacks.onSessionFailure(
+                networkSnapshot.failure, matchActive);
+        if (callback.hideMessage)
+            hideInfoDialog();
+        networkFailureDialogAction = callback.dialogAction;
+        if (callback.pause)
         {
             setRacePaused(true);
             clearRaceControls();
         }
-        const auto message =
-            critical
-                ? localized("svCriticalNetError")
-                : (lostActiveHost
-                       ? localized("svHintDisconnect")
-                       : localized("svHintHostConnectionFailed"));
+        std::string message;
+        switch (callback.message)
+        {
+        case r3d::game::mainmenu2::NetworkCallbackMessage::Disconnected:
+            message = localized("svHintDisconnect");
+            break;
+        case r3d::game::mainmenu2::NetworkCallbackMessage::CriticalError:
+            message = localized("svCriticalNetError");
+            break;
+        case r3d::game::mainmenu2::NetworkCallbackMessage::HostConnectionFailed:
+        case r3d::game::mainmenu2::NetworkCallbackMessage::None:
+            message = localized("svHintHostConnectionFailed");
+            break;
+        }
         showInfoDialog(
             localized("svWarning"), message, localized("svOk"),
             menu::virtualWidth * 0.5F,
@@ -9071,7 +9072,12 @@ int main(int argc, char** argv)
         networkLastLifecycleEventSequence =
             networkLastIdentityEventSequence;
         networkPendingGamerId.reset();
-        hideInfoDialog();
+        const auto callback =
+            sourceNetworkCallbacks.onConnectedPlayer(owner->owner);
+        if (!callback.matchConnected)
+            return false;
+        if (callback.hideMessage)
+            hideInfoDialog();
         networkFailureDialogAction =
             NetworkFailureDialogAction::None;
         menuStack = {MenuScreen::Main};
@@ -10297,6 +10303,10 @@ int main(int argc, char** argv)
                     std::cerr
                         << "Network menu smoke refused-connect start: "
                         << error << '\n';
+                }
+                else
+                {
+                    sourceNetworkCallbacks.beginConnecting();
                 }
 #endif
                 break;
@@ -14181,6 +14191,7 @@ int main(int argc, char** argv)
                         }
                         else
                         {
+                            sourceNetworkCallbacks.beginConnecting();
                             // MainMenu keeps its non-dismissable wait
                             // message until OnConnectedPlayer or a failure
                             // callback resolves the asynchronous connect.
@@ -14213,6 +14224,7 @@ int main(int argc, char** argv)
                         }
                         else
                         {
+                            sourceNetworkCallbacks.beginConnecting();
                             sourceNetIpFrame.startWaiting(
                                 true,
                                 r3d::game::mainmenu2::

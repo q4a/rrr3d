@@ -4,6 +4,7 @@
 #include "MainMenu2Spec.h"
 #include "OriginalGameData.h"
 #include "OriginalMenuSystem.h"
+#include "OriginalNetwork.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -259,6 +260,55 @@ private:
     std::string text_ = "_";
     bool waiting_ = false;
     NetworkHint hint_ = NetworkHint::EnterIpAddress;
+};
+
+enum class NetworkCallbackMessage : std::uint8_t
+{
+    None,
+    HostConnectionFailed,
+    Disconnected,
+    CriticalError,
+};
+
+enum class NetworkFailureDialogAction : std::uint8_t
+{
+    None,
+    ExitMatch,
+};
+
+struct NetworkCallbackDecision
+{
+    bool hideMessage = false;
+    bool showCursor = false;
+    bool pause = false;
+    bool matchConnected = false;
+    NetworkCallbackMessage message = NetworkCallbackMessage::None;
+    NetworkFailureDialogAction dialogAction =
+        NetworkFailureDialogAction::None;
+};
+
+// Source owner for MainMenu2.cpp::MainMenu network callbacks together with
+// Menu.cpp's active-match disconnect/critical callbacks. The transport
+// supplies event identity; this object owns the original UI/lifecycle policy.
+class NetworkCallbackState
+{
+public:
+    void reset() noexcept;
+    void beginConnecting() noexcept;
+    bool connecting() const noexcept;
+
+    NetworkCallbackDecision onDisconnected() noexcept;
+    NetworkCallbackDecision onConnectionFailed() noexcept;
+    NetworkCallbackDecision onConnectedPlayer(bool owner) noexcept;
+    NetworkCallbackDecision onDisconnectedPlayer(
+        bool owner, bool client, bool mainMenuActive) noexcept;
+    NetworkCallbackDecision onFailed() noexcept;
+    NetworkCallbackDecision onSessionFailure(
+        originalnetwork::SessionFailure failure,
+        bool matchActive) noexcept;
+
+private:
+    bool connecting_ = false;
 };
 
 enum class ProfileFocus : std::uint8_t

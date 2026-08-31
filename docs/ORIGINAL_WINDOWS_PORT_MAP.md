@@ -61,15 +61,15 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `HudMenu` | `source::{HudMenu,MiniMapFrame,PlayerStateFrame}` + `OriginalRaceHud` | Source owner, active HUD/minimap/player-state policy | State/Escape/layout/countdown, MiniMap, weapon/place/life, OnProcessEvent, notifications, car-life и opponents source-owned; FinishMenu не дублируется, bgfx/CoreText payload и camera projection остаются backend boundary |
 | `HumanPlayer` | `source::HumanPlayer` | Source owner, active selection owner | Полный input message order, driving/progress gates и единственное состояние текущего primary weapon перенесены; SDL только переводит source-сообщения |
 | `Logic` | `source::Logic` + shared active `WorldEventPump` registration | Source owner, active object/contact/audio-category/transient lifetime core | Proj/Mine lifetime source-owned; остались network authority и backend pose/contact views, SDL/CoreAudio остаётся submix backend |
-| `MainMenu2` | `mainmenu2::{Controller,FrameController,ProfileFrameState,FinalMenuFrameState}` + `originalmenu::ScreenStack` | Source owner, active Main/Profile/Final path | Остались concrete network callbacks и backend draw submission |
+| `MainMenu2` | `mainmenu2::{Controller,FrameController,ProfileFrameState,FinalMenuFrameState,NetworkCallbackState}` + `originalmenu::ScreenStack` | Source owner, active Main/Profile/Final/network path | Все non-Steam network frames и callbacks source-owned; transport, dialog drawing и backend submission остаются adapters |
 | `Map` | `source::Map` + shared `source::DataBase` | Source owner, active registry path | XML parsing и backend actor create/destroy остаются adapters |
 | `MapObj` | `source::MapObj*` record/list hierarchy | Source owner, active live-ID/runtime hierarchy | Global ID и decoration/bonus lifetime выдаёт только live `Map::MapObjList`/`GameObject`; AutoProj владеет arming scale, `sourceIndex` остаётся backend mapping |
-| `Menu` | `originalmenu::MenuSystem` + source Main/Profile/Dialog/Options/Race/Finish/Final owners | Source owner, frame core | Завершить concrete network callbacks; bgfx/CoreText/SDL остаются backend boundary |
+| `Menu` | `originalmenu::MenuSystem` + source Main/Profile/Dialog/Options/Race/Finish/Final/network callback owners | Source owner, frame core | Disconnect/critical pause/exit policy source-owned; bgfx/CoreText/SDL остаются backend boundary |
 | `MenuSystem` | `originalmenu::{MenuSystem,ScreenStack,FrameState}` | Source owner, active menu path | Подключить concrete navigation graphs; bgfx остаётся draw executor |
 | `OptionsMenu` | `originaloptions::{OptionsMenuState,StartOptionsMenuState}` + backend visuals | Source owner, active options path | Legacy Widget events заменены SDL input, CoreText и bgfx draw submission |
 | `Player` | `source::Player`, `CarState`, behaviors, `PresentationState` | Source owner, active gameplay/presentation/live-car/trace path | `CarState` владеет trace state, concrete `WeaponItem` — live charge, `HumanPlayer` — primary selection; Player только выгружает transient behavior results, profile/import передаёт одноразовый `WeaponLoadout`, bgfx/Jolt исполняют graph/actor commands |
 | `Race` | `OriginalRace`, `source::{RaceRunState,RaceLifecycle,RacePlaceModel}`, session adapter, tournament on shared World | Source owner, active fixed/late/finish/settlement lifecycle | `CompleteRace` Player publication, picked-money reset, block, campaign reward, tournament/pass-reset source-owned; продолжить вынос physics/contact materialization из session |
-| `RaceMenu2` | `originalracemenu::{RaceMenuState,RaceMainFrameState,GamersFrameState,GarageFrameState,WorkshopFrameState,SpaceshipFrameState,AngarFrameState,AchievementFrameState}` | Source owner, all six offline frame paths | Проверить оставшиеся network callbacks и оставить bgfx/CoreText backend boundary |
+| `RaceMenu2` | `originalracemenu::{RaceMenuState,RaceMainFrameState,GamersFrameState,GarageFrameState,WorkshopFrameState,SpaceshipFrameState,AngarFrameState,AchievementFrameState}` | Source owner, all six offline frame paths | Network disconnect policy закрыт общим callback owner; bgfx/CoreText остаётся backend boundary |
 | `RecordLib` | `source::{MapObjRecordLibrary,MapObjRecordNode,MapObjRecord}` | Source owner, active hierarchy | Editor-only mutation/serialization API не входит в пользовательский runtime |
 | `ResourceManager` | `OriginalResourceManager` + native readers/uploaders | Source owner, active GUI/graph/sound/font/material/string path | Полные 322 Mesh/489 Image/257 Mat/46 eager Sound, 5 TextFont и выбранная String library имеют общие identity, descriptors, language/charset, world tags и lifetime; bgfx/SDL payload остаётся backend boundary |
 | `RockCar` | `source::RockCar`, dynamic `Weapons`, Player listener/contact sink | Source owner, active gameplay graph | PhysX actor/solver calls заменены Jolt; editor/legacy serializer остаётся parser boundary |
@@ -1477,6 +1477,20 @@ backend body. Если body потерян при живом source object, sess
 старый ID и выдаёт Create; если source object умер, session выдаёт Destroy и
 удаляет view. Таким образом, ни один bool в portable runtime больше не может
 скрыть или воскресить projectile/mine вопреки original `Logic` registry.
+
+Результат B8cu: возвращён последний host-owned network callback block из
+`MainMenu2.cpp` и `Menu.cpp`. `NetworkCallbackState` теперь владеет
+`MainMenu::{OnDisconnected,OnConnectionFailed,OnConnectedPlayer,
+OnDisconnectedPlayer}` и активными `Menu::{OnDisconnectedPlayer,OnFailed}`:
+connecting lifetime, owner-player gate, hide-message, warning identity,
+cursor/pause и ExitMatch-after-dialog являются одним source decision.
+
+`OriginalNetworkSession` сообщает только typed `SessionFailure`; SDL host
+локализует/рисует выбранное сообщение и исполняет готовые pause/exit/match
+commands. Active LAN/IP connect и replicated owner arrival проходят через
+этот owner. Unit regression покрывает обычный failure, non-owner, inactive и
+active host disconnect, critical error; 420-frame network smoke подтверждает
+failure dialog и host-ready lifecycle.
 
 Каждый крупный block commit обязан:
 

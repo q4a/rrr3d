@@ -134,6 +134,52 @@ int main()
     if (ipAddress.displayText() != "_" || !ipAddress.address().empty())
         return fail("NetIPAddressFrame backspace sentinel differs");
 
+    NetworkCallbackState networkCallbacks;
+    networkCallbacks.beginConnecting();
+    if (!networkCallbacks.connecting())
+        return fail("MainMenu connecting owner was not armed");
+    const auto connected = networkCallbacks.onConnectedPlayer(true);
+    if (networkCallbacks.connecting() || !connected.hideMessage ||
+        !connected.matchConnected || connected.pause ||
+        connected.message != NetworkCallbackMessage::None)
+        return fail("MainMenu OnConnectedPlayer policy differs");
+    networkCallbacks.beginConnecting();
+    const auto failed = networkCallbacks.onConnectionFailed();
+    if (networkCallbacks.connecting() || !failed.hideMessage ||
+        failed.message !=
+            NetworkCallbackMessage::HostConnectionFailed ||
+        failed.dialogAction != NetworkFailureDialogAction::None)
+        return fail("MainMenu OnConnectionFailed policy differs");
+    const auto ignoredPeer =
+        networkCallbacks.onConnectedPlayer(false);
+    if (ignoredPeer.hideMessage || ignoredPeer.matchConnected)
+        return fail("MainMenu accepted a non-owner connected player");
+    const auto inactiveDisconnect =
+        networkCallbacks.onDisconnectedPlayer(true, true, true);
+    if (!inactiveDisconnect.hideMessage || inactiveDisconnect.pause ||
+        inactiveDisconnect.message != NetworkCallbackMessage::None)
+        return fail("MainMenu OnDisconnectedPlayer policy differs");
+    const auto activeDisconnect = networkCallbacks.onSessionFailure(
+        r3d::game::originalnetwork::SessionFailure::HostDisconnected,
+        true);
+    if (!activeDisconnect.hideMessage || !activeDisconnect.showCursor ||
+        !activeDisconnect.pause ||
+        activeDisconnect.message !=
+            NetworkCallbackMessage::Disconnected ||
+        activeDisconnect.dialogAction !=
+            NetworkFailureDialogAction::ExitMatch)
+        return fail("Menu active owner disconnect policy differs");
+    const auto critical = networkCallbacks.onSessionFailure(
+        r3d::game::originalnetwork::SessionFailure::Critical, false);
+    if (!critical.hideMessage || !critical.showCursor ||
+        !critical.pause ||
+        critical.message != NetworkCallbackMessage::CriticalError ||
+        critical.dialogAction != NetworkFailureDialogAction::ExitMatch)
+        return fail("Menu OnFailed critical policy differs");
+    networkCallbacks.reset();
+    if (networkCallbacks.connecting())
+        return fail("MainMenu callback reset retained connecting state");
+
     ProfileFrameState profiles;
     profiles.show(6U);
     if (profiles.focus() != ProfileFocus::Back ||

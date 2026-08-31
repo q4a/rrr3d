@@ -655,6 +655,97 @@ void NetIpAddressFrameState::pushLine(std::string text)
     text_ = std::move(text);
 }
 
+void NetworkCallbackState::reset() noexcept
+{
+    connecting_ = false;
+}
+
+void NetworkCallbackState::beginConnecting() noexcept
+{
+    connecting_ = true;
+}
+
+bool NetworkCallbackState::connecting() const noexcept
+{
+    return connecting_;
+}
+
+NetworkCallbackDecision NetworkCallbackState::onDisconnected() noexcept
+{
+    connecting_ = false;
+    NetworkCallbackDecision result;
+    result.hideMessage = true;
+    result.message = NetworkCallbackMessage::HostConnectionFailed;
+    return result;
+}
+
+NetworkCallbackDecision
+NetworkCallbackState::onConnectionFailed() noexcept
+{
+    return onDisconnected();
+}
+
+NetworkCallbackDecision NetworkCallbackState::onConnectedPlayer(
+    bool owner) noexcept
+{
+    NetworkCallbackDecision result;
+    if (!owner)
+        return result;
+    connecting_ = false;
+    result.hideMessage = true;
+    result.matchConnected = true;
+    return result;
+}
+
+NetworkCallbackDecision NetworkCallbackState::onDisconnectedPlayer(
+    bool owner, bool client, bool mainMenuActive) noexcept
+{
+    connecting_ = false;
+    NetworkCallbackDecision result;
+    result.hideMessage = true;
+    if (owner && client && !mainMenuActive)
+    {
+        result.showCursor = true;
+        result.pause = true;
+        result.message = NetworkCallbackMessage::Disconnected;
+        result.dialogAction = NetworkFailureDialogAction::ExitMatch;
+    }
+    return result;
+}
+
+NetworkCallbackDecision NetworkCallbackState::onFailed() noexcept
+{
+    connecting_ = false;
+    NetworkCallbackDecision result;
+    result.hideMessage = true;
+    result.showCursor = true;
+    result.pause = true;
+    result.message = NetworkCallbackMessage::CriticalError;
+    result.dialogAction = NetworkFailureDialogAction::ExitMatch;
+    return result;
+}
+
+NetworkCallbackDecision NetworkCallbackState::onSessionFailure(
+    originalnetwork::SessionFailure failure,
+    bool matchActive) noexcept
+{
+    using originalnetwork::SessionFailure;
+    switch (failure)
+    {
+    case SessionFailure::HostDisconnected:
+        return matchActive
+                   ? onDisconnectedPlayer(true, true, false)
+                   : onDisconnected();
+    case SessionFailure::ConnectionFailed:
+        return onConnectionFailed();
+    case SessionFailure::Critical:
+        return onFailed();
+    case SessionFailure::None:
+        return {};
+    }
+    return {};
+}
+
 void ProfileFrameState::show(std::size_t profileCount) noexcept
 {
     profileCount_ = profileCount;

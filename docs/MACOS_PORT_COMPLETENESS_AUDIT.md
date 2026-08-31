@@ -2784,3 +2784,18 @@ Jolt `ProjectileBodyState::active` остаётся отдельным backend c
 `false` означает потерю actor и приводит к Create с новым ID, пока source
 `Proj` жив; source Death приводит к Destroy/erase. Обратной записи из physics
 activity в gameplay lifetime нет.
+
+### B8cu — network callback policy перенесён из host — выполнено
+
+Кадры Network/ServerType/ClientType/Browser/IP уже были source-owned, однако
+асинхронный результат соединения всё ещё разбирала host-лямбда. Новый
+`NetworkCallbackState` представляет точные callbacks MainMenu2 и Menu:
+владеет connecting state, игнорирует connected non-owner, выдаёт
+MatchConnected для owner, выбирает HostConnectionFailed/Disconnected/
+CriticalError и задаёт pause/cursor/ExitMatch для активного разрыва и
+критической ошибки.
+
+Transport оставляет только `SessionFailure` и replicated player snapshot;
+SDL/bgfx локализуют и показывают готовое решение. Main loop использует owner
+при LAN/IP connect, failure presentation и входе client owner в match. Unit
+и 420-frame network smoke подтверждают callback order и диалоговый lifecycle.

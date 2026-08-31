@@ -6560,3 +6560,20 @@ assertions проверяют source live state, а session дополнител
 переименован и не смешан с gameplay lifetime: это входной сигнал о потере
 Jolt actor, после которого живому source object выдаётся новая Create-команда.
 Death/erase по-прежнему движутся только от original source owner к backend.
+
+### P2.300 — MainMenu/Menu network callbacks возвращены source owner — выполнено
+
+После B8cr пять сетевых frame-state уже владели navigation/grid/IP policy,
+но active host всё ещё самостоятельно интерпретировал `SessionFailure` в
+лямбде `presentNetworkFailure`. Тем самым исходные
+`MainMenu::{OnDisconnected,OnConnectionFailed,OnConnectedPlayer,
+OnDisconnectedPlayer}` и `Menu::{OnDisconnectedPlayer,OnFailed}` оставались
+формально описаны, но не представлены собственным объектом.
+
+Добавлен `NetworkCallbackState` с исходным `_steamConnecting`-эквивалентом и
+единым `NetworkCallbackDecision`. Он отличает connected owner от remote peer,
+обычный connection failure от потери host в активном client match и critical
+failure; решения hide message, MatchConnected, warning kind, cursor, pause и
+ExitMatch принадлежат source. Boost.Asio выдаёт только typed failure/event,
+а SDL/bgfx исполняют decision. Отдельный unit и LAN smoke проверяют обе
+стороны callback boundary.
