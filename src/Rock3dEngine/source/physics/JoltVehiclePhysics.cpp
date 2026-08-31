@@ -231,6 +231,7 @@ constexpr JPH::uint64 vehicleBodyKind = 0x1000000000000000ULL;
 constexpr JPH::uint64 surfaceBodyKind = 0x2000000000000000ULL;
 constexpr JPH::uint64 decorationBodyKind = 0x3000000000000000ULL;
 constexpr JPH::uint64 projectileBodyKind = 0x4000000000000000ULL;
+constexpr JPH::uint64 projectileShotTrackMask = 0x0800000000000000ULL;
 
 JPH::uint64 vehicleUserData(std::size_t index)
 {
@@ -247,9 +248,11 @@ JPH::uint64 decorationUserData(std::size_t index)
     return decorationBodyKind | static_cast<JPH::uint64>(index);
 }
 
-JPH::uint64 projectileUserData(std::size_t index)
+JPH::uint64 projectileUserData(std::size_t index, bool shotTrack)
 {
-    return projectileBodyKind | static_cast<JPH::uint64>(index);
+    return projectileBodyKind |
+           (shotTrack ? projectileShotTrackMask : 0ULL) |
+           static_cast<JPH::uint64>(index);
 }
 
 bool vehicleIndex(JPH::uint64 userData, std::size_t& index)
@@ -260,11 +263,18 @@ bool vehicleIndex(JPH::uint64 userData, std::size_t& index)
     return true;
 }
 
+bool projectileIsShotTrack(JPH::uint64 userData)
+{
+    return (userData & bodyKindMask) == projectileBodyKind &&
+           (userData & projectileShotTrackMask) != 0ULL;
+}
+
 bool projectileIndex(JPH::uint64 userData, std::size_t& index)
 {
     if ((userData & bodyKindMask) != projectileBodyKind)
         return false;
-    index = static_cast<std::size_t>(userData & ~bodyKindMask);
+    index = static_cast<std::size_t>(
+        userData & ~(bodyKindMask | projectileShotTrackMask));
     return true;
 }
 
@@ -1522,6 +1532,8 @@ public:
                     std::numeric_limits<std::size_t>::max();
                 std::size_t decoration =
                     std::numeric_limits<std::size_t>::max();
+                std::size_t projectileBody =
+                    std::numeric_limits<std::size_t>::max();
                 CollisionSurface surface = CollisionSurface::TrackPlane;
                 if (kind == vehicleBodyKind)
                 {
@@ -1548,6 +1560,17 @@ public:
                         surface != CollisionSurface::TrackPlane)
                         return;
                 }
+                else if (kind == projectileBodyKind)
+                {
+                    if (!query.includeProjectileBodies ||
+                        !projectileIsShotTrack(userData))
+                        return;
+                    projectileIndex(userData, projectileBody);
+                    // ShotTrack is not a world material.  Its independent
+                    // identity is carried by projectileBody while the query
+                    // remains in the track-plane family.
+                    surface = CollisionSurface::TrackPlane;
+                }
                 else
                 {
                     return;
@@ -1566,6 +1589,7 @@ public:
                 hit.surface = surface;
                 hit.vehicle = vehicle;
                 hit.decoration = decoration;
+                hit.projectileBody = projectileBody;
                 hit.actor = body.GetID().GetIndexAndSequenceNumber();
                 UpdateEarlyOutFraction(value.mFraction);
             }
@@ -2103,7 +2127,8 @@ private:
         settings.mMotionQuality = JPH::EMotionQuality::LinearCast;
         settings.mFriction = 0.0F;
         settings.mRestitution = 0.0F;
-        settings.mUserData = projectileUserData(index);
+        settings.mUserData = projectileUserData(
+            index, description.shotTrack);
         runtime->body = system_.GetBodyInterface().CreateAndAddBody(
             settings, moving
                           ? JPH::EActivation::Activate
@@ -3027,6 +3052,7 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
                 projectile.body.transform.position = {0.0F, 0.0F, 5.0F};
                 projectile.body.halfExtents = {0.1F, 0.1F, 0.1F};
                 projectile.body.linearVelocity = {10.0F, 0.0F, 0.0F};
+                projectile.body.shotTrack = true;
                 projectileCommands.push_back(projectile);
                 ProjectileBodyCommand touchingProjectile;
                 touchingProjectile.kind =
@@ -3099,6 +3125,12 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
     trackRay.maximumDistance = 20.0F;
     trackRay.trackPlaneOnly = true;
     const auto trackRayHit = fixedStepWorld->raycast(trackRay);
+    WorldRayCastQuery shotTrackRay = trackRay;
+    shotTrackRay.origin.x =
+        fixedStepWorld->projectileBody(0U).body.position.x;
+    shotTrackRay.includeProjectileBodies = true;
+    const auto shotTrackRayHit =
+        fixedStepWorld->raycast(shotTrackRay);
     WorldRayCastQuery vehicleRay;
     vehicleRay.origin = {-10.0F, 0.0F, 3.0F};
     vehicleRay.direction = {1.0F, 0.0F, 0.0F};
@@ -3120,6 +3152,9 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
     if (!trackRayHit.hit ||
         trackRayHit.surface != CollisionSurface::TrackPlane ||
         std::abs(trackRayHit.distance - 10.0F) > 0.05F ||
+        !shotTrackRayHit.hit ||
+        shotTrackRayHit.projectileBody != 0U ||
+        shotTrackRayHit.distance >= trackRayHit.distance ||
         !vehicleRayHit.hit ||
         vehicleRayHit.surface != CollisionSurface::Vehicle ||
         vehicleRayHit.vehicle != 0U ||

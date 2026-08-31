@@ -3018,7 +3018,8 @@ void OriginalRaceSession::setWorldRaycast(
 r3d::physics::WorldRayCastHit OriginalRaceSession::queryWorldRay(
     const std::vector<r3d::physics::VehicleState>& vehicles,
     Vec3 origin, Vec3 direction, float maximumDistance,
-    std::size_t ignoredVehicle, bool trackPlaneOnly) const
+    std::size_t ignoredVehicle, bool trackPlaneOnly,
+    bool includeProjectileBodies) const
 {
     r3d::physics::WorldRayCastQuery query;
     query.origin = origin;
@@ -3026,6 +3027,7 @@ r3d::physics::WorldRayCastHit OriginalRaceSession::queryWorldRay(
     query.maximumDistance = maximumDistance;
     query.ignoredVehicle = ignoredVehicle;
     query.trackPlaneOnly = trackPlaneOnly;
+    query.includeProjectileBodies = includeProjectileBodies;
     if (worldRaycast_)
         return worldRaycast_(query);
 
@@ -3034,14 +3036,51 @@ r3d::physics::WorldRayCastHit OriginalRaceSession::queryWorldRay(
     if (trackPlaneOnly)
     {
         const auto hit = raycastTrackPlane(race_, origin);
-        if (!hit.hit || hit.distance > maximumDistance)
-            return result;
-        result.hit = true;
-        result.position = hit.position;
-        result.normal = hit.normal;
-        result.surface =
-            r3d::physics::CollisionSurface::TrackPlane;
-        result.distance = hit.distance;
+        if (hit.hit && hit.distance <= maximumDistance)
+        {
+            result.hit = true;
+            result.position = hit.position;
+            result.normal = hit.normal;
+            result.surface =
+                r3d::physics::CollisionSurface::TrackPlane;
+            result.distance = hit.distance;
+        }
+        if (includeProjectileBodies)
+        {
+            const Vec3 normalizedDirection = normalized3(direction);
+            for (std::size_t index = 0U; index < mines_.size(); ++index)
+            {
+                const auto& mine = mines_[index];
+                if (!mineIsActive(mine) ||
+                    mine.weapon >= race_.weapons.size() ||
+                    mine.projectile >=
+                        race_.weapons[mine.weapon].projectiles.size())
+                {
+                    continue;
+                }
+                Transform transform;
+                transform.position = mine.position;
+                transform.rotation = mine.rotation;
+                float mineDistance = result.distance;
+                if (!raycastBox(
+                        origin, normalizedDirection, result.distance,
+                        orientedBox(
+                            transform,
+                            race_.weapons[mine.weapon]
+                                .projectiles[mine.projectile]
+                                .collision),
+                        mineDistance))
+                {
+                    continue;
+                }
+                result.hit = true;
+                result.distance = mineDistance;
+                result.position = add(
+                    origin,
+                    multiply(normalizedDirection, mineDistance));
+                result.projectileBody = index;
+            }
+        }
         return result;
     }
 
@@ -3066,6 +3105,26 @@ r3d::physics::WorldRayCastHit OriginalRaceSession::queryWorldRay(
             ? r3d::physics::CollisionSurface::Decoration
             : r3d::physics::CollisionSurface::TrackPlane;
     return result;
+}
+
+r3d::physics::WorldRayCastHit OriginalRaceSession::queryWorldRay(
+    const std::vector<r3d::physics::VehicleState>& vehicles,
+    const source::Proj::SceneRayQuery& query,
+    std::size_t ignoredVehicle) const
+{
+    if (!query.valid)
+        return {};
+    const bool trackPlaneOnly =
+        query.group == source::Proj::SceneRayGroup::TrackPlane ||
+        query.group ==
+            source::Proj::SceneRayGroup::TrackPlaneAndShotTrack;
+    const bool includeProjectileBodies =
+        query.group ==
+        source::Proj::SceneRayGroup::TrackPlaneAndShotTrack;
+    return queryWorldRay(
+        vehicles, runtimeVec(query.origin), runtimeVec(query.direction),
+        query.maximumDistance, ignoredVehicle, trackPlaneOnly,
+        includeProjectileBodies);
 }
 
 source::ResetCarRayKind OriginalRaceSession::queryResetWorld(
@@ -3855,6 +3914,7 @@ void OriginalRaceSession::queueMineBodyCreate(MineRuntime& mine)
     command.body.gravityFactor =
         length3(mine.velocity) > 0.0001F ? 1.0F : 0.0F;
     command.body.sensor = true;
+    command.body.shotTrack = true;
     projectileBodyCommands_.push_back(command);
 }
 
@@ -4224,10 +4284,13 @@ bool OriginalRaceSession::prepareAiMineAttack(
     localProjectile.rotation = projectile.rotation;
     const Vec3 rayPosition = compose(
         attack.mineWeaponTransform, localProjectile).position;
-    const auto hit = queryWorldRay(
-        vehicles, add(rayPosition, {0.0F, 0.0F, 2.0F}),
-        {0.0F, 0.0F, -1.0F}, 1000000.0F, racer, true);
-    if (!hit.hit)
+    const auto sceneQuery = source::Proj::MinePlacementSceneRay(
+        sourceVec(rayPosition));
+    const auto hit = queryWorldRay(vehicles, sceneQuery, racer);
+    if (!source::Proj::AcceptSceneRayHit(
+            sceneQuery, hit.hit,
+            hit.projectileBody !=
+                std::numeric_limits<std::size_t>::max()))
         return false;
 
     attack.mineTransform.position = add(
@@ -5451,11 +5514,13 @@ void OriginalRaceSession::updateGameplay(
             }
             if (projectile.physicsBacked)
                 queueProjectileBodySynchronize(projectile);
-            const float maximumDistance =
-                projectileDefinition.maximumDistance > 0.0F
-                    ? projectileDefinition.maximumDistance
-                    : 3.0F;
             const bool sourceRay = sourceProgressRoute.ray;
+            const auto sceneQuery =
+                projectile.sourceObject->ProgressSceneRay(
+                    sourceVec(projectile.position),
+                    sourceVec(projectile.direction));
+            const float maximumDistance =
+                sceneQuery.valid ? sceneQuery.maximumDistance : 0.0F;
             const auto sourceContactRoute =
                 projectile.sourceObject->RouteContact(false);
             const bool sourceContact =
@@ -5463,14 +5528,10 @@ void OriginalRaceSession::updateGameplay(
                     source::Proj::ContactHandler::Fire ||
                 sourceContactRoute.handler ==
                     source::Proj::ContactHandler::Drobilka;
-            const Vec3 rayOrigin =
-                add(projectile.position,
-                    projectileDefinition.sizeAddPx);
             const auto rayHit =
                 sourceRay
                     ? queryWorldRay(
-                          vehicles, rayOrigin, projectile.direction,
-                          maximumDistance, projectile.owner, false)
+                          vehicles, sceneQuery, projectile.owner)
                     : r3d::physics::WorldRayCastHit{};
             const auto laserUpdate = !sourceRay
                 ? source::Proj::LaserUpdateResult{}
@@ -5862,13 +5923,14 @@ void OriginalRaceSession::updateGameplay(
         TrackRayHit trackHit;
         if (sourceProgressRoute.rocketHeight)
         {
-            // Proj::RocketUpdate casts from pos + Z*4 against TrackPlane and
-            // preserves the projectile's lowest established clearance.
+            // The concrete Proj owns its original pos + Z*4 TrackPlane
+            // query; this session only executes it through the backend.
+            const auto sceneQuery =
+                projectile.sourceObject->ProgressSceneRay(
+                    sourceVec(projectile.position),
+                    sourceVec(projectile.direction));
             const auto physicsTrackHit = queryWorldRay(
-                vehicles,
-                add(projectile.position, {0.0F, 0.0F, 4.0F}),
-                {0.0F, 0.0F, -1.0F}, 1000000.0F,
-                sourcePlayerId, true);
+                vehicles, sceneQuery, sourcePlayerId);
             trackHit.hit = physicsTrackHit.hit;
             trackHit.position = physicsTrackHit.position;
             trackHit.normal = physicsTrackHit.normal;
@@ -6490,12 +6552,15 @@ void OriginalRaceSession::updateGameplay(
             localProjectile.rotation = projectile->rotation;
             const Vec3 rayPosition =
                 compose(weaponTransform, localProjectile).position;
+            const auto sceneQuery =
+                source::Proj::MinePlacementSceneRay(
+                    sourceVec(rayPosition));
             const auto hit = queryWorldRay(
-                vehicles,
-                add(rayPosition, {0.0F, 0.0F, 2.0F}),
-                {0.0F, 0.0F, -1.0F}, 1000000.0F,
-                owner, true);
-            if (!hit.hit)
+                vehicles, sceneQuery, owner);
+            if (!source::Proj::AcceptSceneRayHit(
+                    sceneQuery, hit.hit,
+                    hit.projectileBody !=
+                        std::numeric_limits<std::size_t>::max()))
                 return false;
             // Source MinePrepare uses ComputeAABB(true), while CreatePxBox
             // uses ComputeAABB(false). The contact box would lift Maslo.
@@ -6966,16 +7031,21 @@ void OriginalRaceSession::updateGameplay(
                 projectile.maximumDistance > 0.0F
                     ? projectile.maximumDistance
                     : 100.0F;
-            float targetDistance = projectileDistance;
+            const auto sceneQuery =
+                sourceObject->ProgressSceneRay(
+                    sourceVec(projectileOrigin),
+                    sourceVec(sourceDirection));
+            float targetDistance =
+                rayProjectile && sceneQuery.valid
+                    ? sceneQuery.maximumDistance
+                    : projectileDistance;
             std::size_t projectileTarget = racers_.size();
             std::size_t projectileDecoration =
                 RacerRuntime::invalidWeapon;
             if (rayProjectile && !attachedProjectile)
             {
                 const auto rayHit = queryWorldRay(
-                    vehicles,
-                    add(projectileOrigin, projectile.sizeAddPx),
-                    sourceDirection, projectileDistance, shooter, false);
+                    vehicles, sceneQuery, shooter);
                 if (rayHit.hit)
                 {
                     targetDistance = rayHit.distance;
@@ -15279,6 +15349,52 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             {
                 throw std::runtime_error(
                     "source MinePrepare failed raycast consumed a mine");
+            }
+        }
+        {
+            // MinePrepare includes cdgShotTrack and rejects the closest
+            // shape when it is an existing mine. This is independent of the
+            // later mine-lock/contact window and must not consume charge.
+            OriginalRaceSession stackedMineSession(race);
+            PlayerProfile mineProfile;
+            auto& mineSlot =
+                mineProfile.slots[PlayerProfile::mineSlot];
+            mineSlot.record = mineRip->record;
+            mineSlot.charge = 2U;
+            mineSlot.hasCharge = true;
+            stackedMineSession.applyPlayerProfile(mineProfile);
+            auto stackedVehicles = vehicles;
+            for (std::size_t racer = 1U;
+                 racer < stackedVehicles.size(); ++racer)
+            {
+                stackedVehicles[racer].body.position.x +=
+                    1000.0F + 100.0F * static_cast<float>(racer);
+                stackedVehicles[racer].body.position.y += 1000.0F;
+            }
+            RaceControl mineInput;
+            for (int frame = 0; frame < 250; ++frame)
+            {
+                stackedMineSession.update(
+                    1.0F / 60.0F, stackedVehicles, mineInput);
+            }
+            mineInput.useMine = true;
+            stackedMineSession.update(
+                1.0F / 60.0F, stackedVehicles, mineInput);
+            mineInput.useMine = false;
+            stackedMineSession.update(
+                1.0F / 60.0F, stackedVehicles, mineInput);
+            mineInput.useMine = true;
+            stackedMineSession.update(
+                1.0F / 60.0F, stackedVehicles, mineInput);
+            const auto* item = stackedMineSession.racers()
+                                   .front()
+                                   .GetMineWeaponItem();
+            if (stackedMineSession.mines().size() != 1U ||
+                item == nullptr || item->GetCurCharge() != 1U)
+            {
+                throw std::runtime_error(
+                    "source MinePrepare cdgShotTrack stacking rejection "
+                    "was not preserved");
             }
         }
 

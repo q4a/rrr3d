@@ -76,7 +76,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `Trace` | `source::{Trace,WayPath,WayNode,WayPoint}` | Source owner, active race/debug path | Editor serialization остаётся вне пользовательской игры; gameplay geometry и TraceGfx используют один owner |
 | `TraceGfx` | `source::TraceGfx` + transient bgfx submission | Source owner, active F6 path | Selection/link/geometry/material policy source-owned; D3D9 Box/Sprite/DrawPrimitiveUP заменены backend triangles |
 | `View` | `originalview::ViewState` + SDL/bgfx adapters | Source owner, active input/display path | `ScreenToView`, projection conversion и mouse click/move snapshots source-owned; SDL сообщает logical client/drawable sizes, bgfx исполняет resize |
-| `Weapon` | `source::{Weapon,Proj,AutoProj,WeaponItem...}` | Source owner, active shot/contact/progress core | Shot preparation и все active Proj progress dispatch выполнены; остались Jolt actor integration/query, nested spawning и network authority adapters |
+| `Weapon` | `source::{Weapon,Proj,AutoProj,WeaponItem...}` | Source owner, active shot/contact/progress/query core | `Proj` владеет Laser/FrostRay/Rocket/Mine scene-query masks/offsets/range и shot-track rejection; Jolt исполняет raycast/actor writes, network authority остаётся adapter boundary |
 | `World` | one active `source::WorldFrameClock`/`WorldEventPump`/`Environment` + native `WorldHost` | Source owner, active timing/event/environment core | GameMode, Logic, Race/place, GameObject registrations и `Environment::ProcessScene` используют один owner; SDL clock, Jolt substeps и bgfx submission остаются backend boundaries |
 
 ## Очередь крупных блоков
@@ -1144,6 +1144,18 @@ actor teardown и удаления runtime view.
 Главный файл теперь получает только готовый `TournamentAdvance`, сохраняет
 профиль и выбирает следующий UI frame. Regression запрещает settlement до
 финиша Human, проверяет live money/points, pass reset и one-shot вызов.
+
+Результат B8bt: параметры scene-query больше не собираются вручную в
+`OriginalRaceSession`. Concrete `source::Proj` формирует исходные запросы
+`LaserUpdate`/`FrostRayUpdate` (offset `sizeAddPx`, projectile group и
+`maxDist`), `RocketUpdate` (`pos + Z*4`, только TrackPlane) и
+`MinePrepare` (`pos + Z*2`, TrackPlane | ShotTrack).
+
+Jolt raycast получил отдельную идентичность `cdgShotTrack`: в эту группу
+попадают только actor-ы размещённых mine projectiles, а обычные projectile и
+bonus sensors её не загрязняют. `MinePrepare` снова отклоняет ближайшее
+попадание по уже существующей мине без расхода charge. Headless OBB fallback,
+Jolt smoke и integrated race regression закрепляют одинаковое правило.
 
 ## Правило обновления карты
 

@@ -6150,6 +6150,22 @@ Host получает готовый `TournamentAdvance` и отвечает т�
 UI transition. Regression проверяет запрет раннего advance, окончательные
 money/points, pass reset и невозможность повторного продвижения.
 
+### P2.273 — Proj владеет исходными scene-query — выполнено
+
+Повторная сверка `Proj::{LaserUpdate,RocketUpdate,MinePrepare}` выявила, что
+session всё ещё вручную выбирал origin, distance и collision group. При этом
+`MinePrepare` был фактически урезан с `cdgTrackPlane | cdgShotTrack` до одной
+TrackPlane: уже размещённая мина не могла отклонить установку второй.
+
+Concrete `source::Proj` теперь выдаёт backend-neutral `SceneRayQuery` для
+Laser/FrostRay, Rocket и Mine, включая точные offsets и group policy. Jolt
+сохраняет `ShotTrack` bit только у mine actor-ов и возвращает их отдельную
+identity из closest-ray. Session лишь преобразует векторы и применяет
+исходный `AcceptSceneRayHit`; CPU fallback проверяет те же live mine OBB.
+
+Regression покрывает построение всех трёх запросов, Jolt distinction между
+TrackPlane и ShotTrack и запрет stacking без расхода второй charge.
+
 ## Итоговое решение
 
 Текущий порт не следует выбрасывать: в нём уже есть native platform

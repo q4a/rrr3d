@@ -330,6 +330,9 @@ struct ProjectileBodyDescription
     // RocketPrepare disables PhysX response but keeps contact reports. Jolt
     // sensors provide the same actor boundary without pushing the cars.
     bool sensor = true;
+    // MinePrepare creates its actor in cdgShotTrack. Other projectile and
+    // bonus sensors must not block the mine-placement group query.
+    bool shotTrack = false;
 };
 
 enum class ProjectileBodyCommandKind : std::uint8_t
@@ -366,6 +369,9 @@ struct WorldRayCastQuery
     // MinePrepare and Proj::RocketUpdate use the original track-plane group,
     // while Laser/FrostRay query the complete projectile collision group.
     bool trackPlaneOnly = false;
+    // MinePrepare adds cdgShotTrack to cdgTrackPlane so an existing mine is
+    // the closest hit and rejects stacking another mine on top of it.
+    bool includeProjectileBodies = false;
     // Player::ResetCar additionally includes cdgPlaneDeath. Ordinary
     // projectile queries deliberately exclude it.
     bool includeDeathPlane = false;
@@ -379,6 +385,8 @@ struct WorldRayCastHit
     float distance = std::numeric_limits<float>::max();
     std::size_t vehicle = std::numeric_limits<std::size_t>::max();
     std::size_t decoration = std::numeric_limits<std::size_t>::max();
+    std::size_t projectileBody =
+        std::numeric_limits<std::size_t>::max();
     std::uint32_t actor = std::numeric_limits<std::uint32_t>::max();
     bool hit = false;
 };

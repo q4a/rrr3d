@@ -1361,6 +1361,23 @@ int main()
     if (concreteRocket.clearance != 7.0F ||
         rocketProjectile.GetSourceVector().z != 7.0F)
         return 115;
+    const auto rocketSceneRay = rocketProjectile.ProgressSceneRay(
+        {1.0F, 2.0F, 3.0F}, {1.0F, 0.0F, 0.0F});
+    const auto mineSceneRay = source::Proj::MinePlacementSceneRay(
+        {4.0F, 5.0F, 6.0F});
+    if (!rocketSceneRay.valid ||
+        rocketSceneRay.group !=
+            source::Proj::SceneRayGroup::TrackPlane ||
+        !nearVector(rocketSceneRay.origin, 1.0F, 2.0F, 7.0F) ||
+        !mineSceneRay.valid ||
+        mineSceneRay.group !=
+            source::Proj::SceneRayGroup::TrackPlaneAndShotTrack ||
+        !nearVector(mineSceneRay.origin, 4.0F, 5.0F, 8.0F) ||
+        !source::Proj::AcceptSceneRayHit(
+            mineSceneRay, true, false) ||
+        source::Proj::AcceptSceneRayHit(
+            mineSceneRay, true, true))
+        return 227;
 
     const auto waitingTorpeda = source::Proj::TorpedaUpdate(
         0.1F, {}, {}, {12.0F, 0.0F, 0.0F}, 0.4F,
@@ -1927,6 +1944,21 @@ int main()
         laser.textureScale != 8.0F ||
         maximumRangeLaser.applyDamage)
         return 57;
+    auto laserDescription = sourceDescription;
+    laserDescription.type = 3U;
+    laserDescription.maximumDistance = 100.0F;
+    laserDescription.sizeAddPx = {2.0F, 3.0F, 4.0F};
+    source::Proj sceneLaser;
+    sceneLaser.PrepareSource(
+        laserDescription, nullptr, source::Proj::ShotContext{});
+    const auto laserSceneRay = sceneLaser.ProgressSceneRay(
+        {10.0F, 20.0F, 30.0F}, {0.0F, 1.0F, 0.0F});
+    if (!laserSceneRay.valid ||
+        laserSceneRay.group != source::Proj::SceneRayGroup::Projectile ||
+        !nearVector(laserSceneRay.origin, 12.0F, 23.0F, 34.0F) ||
+        laserSceneRay.direction != source::Proj::Vec3{0.0F, 1.0F, 0.0F} ||
+        laserSceneRay.maximumDistance != 100.0F)
+        return 228;
     const auto fireContact = source::Proj::FireContact(
         true, 8.0F, 0.25F);
     const auto drobilkaContact = source::Proj::DrobilkaContact(

@@ -2532,6 +2532,13 @@ points, вызывает `Tournament::CompleteTrack`, очищает points за
 прохода и блокирует повторный advance. SDL host только сохраняет уже
 изменённый профиль и выбирает следующий экран по `TournamentAdvance`.
 
+### B8bt — Proj scene-query и Mine ShotTrack — выполнено
+
+`source::Proj` формирует запросы Laser/FrostRay/Rocket/Mine с исходными
+offset/range/group, а session больше не дублирует эту policy. Jolt различает
+обычные projectile sensors и mine `cdgShotTrack`; MinePrepare вновь запрещает
+размещать вторую мину поверх первой и не расходует charge при отказе.
+
 ## Воспроизведение проверки
 
 ```sh

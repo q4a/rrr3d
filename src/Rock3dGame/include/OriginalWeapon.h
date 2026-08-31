@@ -119,6 +119,28 @@ public:
         float clearance = 0.0F;
     };
 
+    // Proj owns the PhysX scene-query shape in the Windows source.  The
+    // portable Race session only adapts this request to Jolt (or to the
+    // headless collision fallback); it must not reconstruct offsets, masks
+    // or maximum distances independently.
+    enum class SceneRayGroup : std::uint8_t
+    {
+        None,
+        Projectile,
+        TrackPlane,
+        TrackPlaneAndShotTrack,
+    };
+
+    struct SceneRayQuery
+    {
+        Vec3 origin;
+        Vec3 direction{1.0F, 0.0F, 0.0F};
+        float maximumDistance = 0.0F;
+        SceneRayGroup group = SceneRayGroup::None;
+        bool rejectShotTrack = false;
+        bool valid = false;
+    };
+
     struct TorpedaUpdateResult
     {
         Vec3 direction;
@@ -463,6 +485,11 @@ public:
     static RocketUpdateResult RocketUpdate(
         float projectileZ, float trackZ, float boxHalfExtentZ,
         float clearance, bool trackHit) noexcept;
+    static SceneRayQuery MinePlacementSceneRay(
+        Vec3 projectileWorldPosition) noexcept;
+    static bool AcceptSceneRayHit(
+        const SceneRayQuery& query, bool hit,
+        bool shotTrackHit) noexcept;
     static TorpedaUpdateResult TorpedaUpdate(
         float deltaTime, Vec3 position, Quat rotation,
         Vec3 storedVelocity, float homingDelay, bool hasTarget,
@@ -619,6 +646,8 @@ public:
     ContactRoute RouteContact(bool targetDestroyed) const noexcept;
     ProgressRoute RouteProgress() const noexcept;
     PreparationRoute RoutePreparation() const noexcept;
+    SceneRayQuery ProgressSceneRay(
+        Vec3 worldPosition, Vec3 worldDirection) const noexcept;
     AttachedProgressResult ProgressAttached(
         Vec3 weaponPosition, Quat weaponRotation,
         Vec3 weaponScale, Vec3 weaponLinearVelocity,

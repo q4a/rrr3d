@@ -664,6 +664,63 @@ Proj::RocketUpdateResult Proj::RocketUpdate(
     return result;
 }
 
+Proj::SceneRayQuery Proj::MinePlacementSceneRay(
+    Vec3 projectileWorldPosition) noexcept
+{
+    SceneRayQuery query;
+    query.origin = {
+        projectileWorldPosition.x,
+        projectileWorldPosition.y,
+        projectileWorldPosition.z + 2.0F};
+    query.direction = {0.0F, 0.0F, -1.0F};
+    // NX_MAX_F32 is not a useful broad-phase extent outside PhysX. This
+    // bound exceeds every serialized map coordinate while remaining finite
+    // in Jolt's ray representation.
+    query.maximumDistance = 1000000.0F;
+    query.group = SceneRayGroup::TrackPlaneAndShotTrack;
+    query.rejectShotTrack = true;
+    query.valid = true;
+    return query;
+}
+
+bool Proj::AcceptSceneRayHit(
+    const SceneRayQuery& query, bool hit,
+    bool shotTrackHit) noexcept
+{
+    return query.valid && hit &&
+           !(query.rejectShotTrack && shotTrackHit);
+}
+
+Proj::SceneRayQuery Proj::ProgressSceneRay(
+    Vec3 worldPosition, Vec3 worldDirection) const noexcept
+{
+    SceneRayQuery query;
+    const auto route = RouteProgress();
+    if (route.ray)
+    {
+        query.origin = {
+            worldPosition.x + description_.sizeAddPx.x,
+            worldPosition.y + description_.sizeAddPx.y,
+            worldPosition.z + description_.sizeAddPx.z};
+        query.direction = worldDirection;
+        query.maximumDistance = description_.maximumDistance;
+        query.group = SceneRayGroup::Projectile;
+        query.valid = true;
+        return query;
+    }
+    if (route.rocketHeight)
+    {
+        query.origin = {
+            worldPosition.x, worldPosition.y,
+            worldPosition.z + 4.0F};
+        query.direction = {0.0F, 0.0F, -1.0F};
+        query.maximumDistance = 1000000.0F;
+        query.group = SceneRayGroup::TrackPlane;
+        query.valid = true;
+    }
+    return query;
+}
+
 Proj::TorpedaUpdateResult Proj::TorpedaUpdate(
     float deltaTime, Vec3 position, Quat rotation,
     Vec3 storedVelocity, float homingDelay, bool hasTarget,

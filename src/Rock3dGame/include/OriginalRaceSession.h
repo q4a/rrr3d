@@ -703,7 +703,12 @@ private:
     r3d::physics::WorldRayCastHit queryWorldRay(
         const std::vector<r3d::physics::VehicleState>& vehicles,
         Vec3 origin, Vec3 direction, float maximumDistance,
-        std::size_t ignoredVehicle, bool trackPlaneOnly) const;
+        std::size_t ignoredVehicle, bool trackPlaneOnly,
+        bool includeProjectileBodies = false) const;
+    r3d::physics::WorldRayCastHit queryWorldRay(
+        const std::vector<r3d::physics::VehicleState>& vehicles,
+        const source::Proj::SceneRayQuery& query,
+        std::size_t ignoredVehicle) const;
     source::ResetCarRayKind queryResetWorld(
         const std::vector<r3d::physics::VehicleState>& vehicles,
         std::size_t ownVehicle, Vec3 origin) const;
