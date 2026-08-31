@@ -5156,13 +5156,13 @@ void OriginalRaceRenderer::draw(
                 }
                 else
                 {
-                    parent = effect.sourceDefinitionOwner != nullptr
+                    parent = effect.sourceDefinitionUsesExactTransform
                         ? effect.transform
                         : r3d::physics::Transform{};
                     parent.position = effect.origin;
                     parentVelocity = effect.sourceVelocity;
                     if (!effect.ignoreRotation &&
-                        effect.sourceDefinitionOwner == nullptr)
+                        !effect.sourceDefinitionUsesExactTransform)
                     {
                         parent.rotation = directionRotation(
                             {effect.target.x - effect.origin.x,

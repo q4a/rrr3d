@@ -279,19 +279,31 @@ struct RaceEffect
     // Current shipped ShotEffect records use zero, but source ownership is
     // retained for the Jolt adapter instead of dropping the serialized field.
     Vec3 sourceImpulse;
-    // Exact MapObj record selected by the owning EventEffect behavior. This
-    // is a non-owning source record reference; Race owns the catalog for the
-    // complete session just as MapObjRec::Object did on Windows.
+    // Exact MapObj record selected by the owning EventEffect behavior.
+    // Catalog-backed records may remain non-owning for the complete Race;
+    // records copied into a transient Proj/AutoProj are retained below.
     const ObjectDefinition* sourceDefinition = nullptr;
-    // Resurrected Proj include models outlive their concrete Proj owner.
-    // Windows MapObjRec is reference-counted; retain the equivalent parsed
-    // record when the portable source owner is about to be released.
+    // Windows MapObjRec is reference-counted. Retain the equivalent parsed
+    // record whenever its concrete Proj, AutoProj or behavior can disappear
+    // before the renderer finishes the spawned effect.
     std::shared_ptr<const ObjectDefinition> sourceDefinitionOwner;
+    // A released include carries an exact source world pose. Definition
+    // ownership is independent: ordinary death effects retain their record
+    // but still derive rotation from the contact direction.
+    bool sourceDefinitionUsesExactTransform = false;
     // EventEffect::GameObjEvent identity. This weak reference mirrors the
     // listener detachment performed by the Windows EventEffect destructor:
     // transient actors may finish after their source behavior has gone, but
     // can never call back through a dangling behavior pointer.
     source::EventEffect::EffectReference sourceEvent;
+
+    void retainSourceDefinition(const ObjectDefinition& definition)
+    {
+        sourceDefinitionOwner =
+            std::make_shared<ObjectDefinition>(definition);
+        sourceDefinition = sourceDefinitionOwner.get();
+        sourceDefinitionUsesExactTransform = false;
+    }
     std::size_t racer = RacerRuntime::invalidWeapon;
     std::size_t vehicleEffect = RacerRuntime::invalidWeapon;
     Transform transform;
