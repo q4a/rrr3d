@@ -6607,19 +6607,13 @@ Frame state теперь отдельно armed на video start, выдаёт t
 one-shot и cancel; автономный bundle video smoke проходит frame/audio/seek/
 completion/tournament path на remuxed `Main_eng.mp4`.
 
-### P2.303 — restitution декораций возвращена к PhysX-оригиналу — выполнено
+### P2.303 — прежний zero-restitution вывод — опровергнут P2.315
 
-Обратная проверка `eff9338:DataBase::DataBase` подтвердила нулевую упругость
-всех явно создаваемых гоночных материалов и нулевой PhysX default для
-декораций. Значение `0.5`, найденное в Jolt `ctDecoration`, owned collision
-meshes и `gotDestrObj` debris, отсутствует в Windows-коде и было заглушкой
-раннего порта. Оно подтверждает жалобу на чрезмерный отлёт и вертикальный
-запуск после контакта.
-
-Заглушка удалена по всей цепочке intact/dynamic/destruction bodies. Новый
-регрессионный drop-test проверяет, что динамическая декорация касается пола,
-но не получает заметного обратного подъёма; source mass/friction и Jolt как
-замена PhysX остаются без изменений.
+Этот ранний этап посмотрел constructor defaults и созданные в `DataBase`
+car/track материалы, но не прочитал последующую настройку scene material 0
+в `Physx.cpp`. Вывод о нулевой restitution декораций оказался неверным;
+временная реализация удалена. Точный material graph и причина ошибки
+зафиксированы в P2.315.
 
 ### P2.304 — fixed-step и render alpha снова имеют один source clock — выполнено
 
@@ -6807,3 +6801,21 @@ backend-адаптацией: PhysX интегрирует полную translat
 Jolt наблюдает COM и две удалённые точки. Двусторонний тест фиксирует точную
 линейную границу и исключает преждевременный сон; реальные состояния awake
 публикуются для movable decorations и detached debris.
+
+### P2.315 — восстановлен scene material graph PhysX — выполнено
+
+`eff9338:Physx.cpp::Scene` сразу после `createScene` меняет material index 0:
+static/dynamic friction `0.5`, restitution `0.5`. Это итоговое значение для
+всех shapes без override, включая декорации, обломки и projectiles. В
+`DataBase` car materials задают `MIN`, track — `AVERAGE`, border — `MAX`, а
+эффективный режим пары PhysX выбирает максимальный enum. Restitution mode
+нигде не меняется и остаётся `AVERAGE`; `NX_BOUNCE_THRESHOLD` равен `-2`.
+
+Portable scene теперь повторяет этот graph вместо Jolt geometric-mean
+friction и maximum restitution. Двухосная car anisotropy (`0.08/0.02` и
+`2.0`) сохраняется для препятствий и автомобилей; source track callback
+обнуляет только primary axis. Проверены exact combine results, bounce-speed
+threshold и динамическая декорация с material0/track effective restitution
+`0.25`. Это исправляет ошибочную P2.303, не добавляя ручной стабилизации.
+Arm64 build, 32/32 CTest, physics smoke и 1800-frame Metal integration
+завершились без потери управления, AI progress или lifecycle teardown.

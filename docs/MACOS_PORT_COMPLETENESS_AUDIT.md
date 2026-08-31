@@ -2827,18 +2827,14 @@ AVFoundation остаётся video backend, profile/Race mutation — executor 
 `Contents/Resources/video-cache` подтверждает видео, звук, seek и tournament
 completion за 600 кадров.
 
-### B8cx — PhysX zero-restitution contract для препятствий — выполнено
+### B8cx — прежний вывод о zero restitution — отменён B8dj
 
-В Jolt boundary исправлено историческое отклонение: decoration meshes,
-динамические `ctDecoration` и отделившиеся destruction pieces больше не
-получают выдуманную restitution `0.5`. Они наследуют фактическую нулевую
-упругость Windows PhysX material path; mass, friction, sensor/response и
-destruction lifetime не менялись.
-
-Добавлен backend regression с падением динамической декорации: контакт с
-track plane обязателен, искусственный rebound запрещён. Исправление закрывает
-подтверждённую причину сильного отлёта автомобиля и одного из путей случайного
-подбрасывания над трассой.
+Этот промежуточный блок неверно принял constructor default
+`NxMaterialDesc::restitution=0` за итоговый material 0 сцены. Он не учёл
+`Physx.cpp::Scene`, где после `createScene` material 0 явно меняется на
+friction/restitution `0.5`. Zero-restitution изменение полностью заменено
+точным контрактом B8dj; запись сохранена как объяснение причины ошибки
+обратного аудита.
 
 ### B8cy — World 1/60 clock подключён к Jolt advance — выполнено
 
@@ -3026,3 +3022,21 @@ Jolt representative-point sleeper выполнено явное backend-сопо
 проверки и для будущего source-style progress suppression. Physics regression
 проверяет `K/m=0.02` до и после границы времени и не допускает сон при
 `K/m=0.08`.
+
+### B8dj — восстановлены material 0 и PhysX combine modes — выполнено
+
+Прямое чтение `eff9338:Rock3dEngine/source/px/Physx.cpp` подтвердило, что
+scene material 0 не остаётся SDK default: friction и restitution равны
+`0.5`. Им пользуются decoration boxes/meshes, detached debris, projectile
+shapes и death plane. Car/track/border имеют restitution `0`, но все пары
+используют default `NX_CM_AVERAGE`; порог отскока сцены —
+`NX_BOUNCE_THRESHOLD=-2 m/s`.
+
+Jolt теперь получает исходные body coefficients, положительный эквивалент
+bounce threshold `2`, а global combine callbacks реализуют правило PhysX
+`max(mode0, mode1)`: Average/Min/Multiply/Max. Car contacts снова
+анизотропны: primary `0.08/0.02`, secondary `2.0`; source track callback
+обнуляет только primary. Regression проверяет exact scalar pairs и реальный
+drop response. Прежняя B8cx zero-restitution трактовка отменена.
+Полная arm64 приёмка прошла: 32/32 CTest, physics smoke и 1800 кадров
+bgfx/Metal с четырьмя wheel contacts и прогрессом всех пяти AI.

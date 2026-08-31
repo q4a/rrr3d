@@ -1517,18 +1517,11 @@ start. Unit проверяет one-shot/cancel и сохранение Hard. 600
 video smoke подтвердил H.264/AAC playback, кадр, звук, seek, `cVideoStopped`
 и tournament callback.
 
-Результат B8cx: устранена придуманная Jolt-упругость столкновений декораций.
-В `eff9338:DataBase::DataBase` restitution материалов автомобиля, колёс,
-трассы и бордюров равна нулю, а не имеющие собственного material override
-`ctDecoration` и `gotDestrObj` используют нулевой PhysX default. Portable
-backend ошибочно задавал `0.5` для decoration mesh/box и debris, из-за чего
-препятствие возвращало половину нормальной скорости и подбрасывало машину.
-
-Все эти Jolt bodies теперь имеют restitution `0.0`; масса, friction и source
-collision-response/sensor policy сохранены. Physics regression роняет
-динамическую декорацию на трассу и проверяет отсутствие искусственного
-post-contact подъёма. Это backend-correction исходного material contract, а
-не новая игровая стабилизация.
+Результат B8cx был ошибочным промежуточным выводом и исправлен в B8dj.
+Проверка тогда учла нулевой constructor default `NxMaterialDesc` и явно
+созданные car/track материалы, но пропустила последующую мутацию scene
+material 0 в `Physx.cpp` до friction/restitution `0.5`. Поэтому временный
+zero-restitution patch не соответствовал оригиналу и больше не действует.
 
 Результат B8cy: активная гонка снова использует одну временную шкалу
 `World.cpp`. Ранее `WorldFrameClock` правильно считал 1/60 accumulator и
@@ -1683,6 +1676,25 @@ Loader теперь сохраняет порог из всех 95 body-запи
 `0.5*sqrt(2*0.05)` и исходные `0.4 s`. Экспортирован реальный awake state
 декораций/обломков. Regression требует, чтобы тело с `K/m=0.02` бодрствовало
 до 0.4 s и затем уснуло, а `K/m=0.08` продолжало вычисляться.
+
+Результат B8dj: восстановлен полный material contract PhysX 2.8.4. В
+`eff9338:Physx.cpp::Scene` material 0 после создания сцены явно получает
+static/dynamic friction `0.5` и restitution `0.5`; им пользуются обычные
+декорации, destruction pieces, projectiles и death plane. Все игровые
+материалы оставляют restitution combine в `NX_CM_AVERAGE`, поэтому контакт
+material 0 с track даёт `0.25`, а не Jolt default `MAX=0.5` и не ошибочный
+ноль B8cx. Возвращён и source `NX_BOUNCE_THRESHOLD=-2 m/s`.
+
+Friction combine теперь выбирает режим PhysX по правилу максимального enum:
+default/track — `AVERAGE`, кузов — `MIN`, border — `MAX`. Анизотропный кузов
+сохраняет primary `0.08/0.02`, secondary `2.0`; только
+`GameCar::OnContactModify` для track triangles обнуляет primary, не теряя
+secondary. Jolt остаётся contact solver, но больше не подставляет geometric
+mean/max. Regression фиксирует коэффициенты `0.3/0.08/4.0/0.25`, обе оси
+car contact и ограниченный source-style rebound динамической декорации.
+Arm64 build, 32/32 CTest, physics smoke и 1800-frame Metal race прошли:
+player `39.09`, пять AI `37.48–47.39`, четыре wheel contacts и полный
+renderer/audio/menu teardown.
 
 Каждый крупный block commit обязан:
 

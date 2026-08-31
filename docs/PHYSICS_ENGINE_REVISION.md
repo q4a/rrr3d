@@ -21,7 +21,7 @@ game-rule differences in the adapter; it does not retune the car by eye.
 | Steering | `steerRot` requires a driven-wheel contact, or any contact when `gravEngine` is set | Contact eligibility, rear-wheel pivot and source yaw correction match that branch |
 | Clutch | Oil disables tire reaction; selected cars ignore it through `clutchImmunity` | Traction suppression and immunity are both preserved; immune cars do not receive the oil spin |
 | Coordinates | Linear and angular vectors transform differently across the reflected Z-up/Y-up basis | Angular velocity now uses the axial-vector sign transform |
-| Materials | Cars use 0.08 or 0.02 friction and zero restitution; track uses 0.1, border uses dynamic 4.0 | Source scalar coefficients and combine behavior are assigned by collision surface |
+| Materials | Scene material 0 is friction/restitution 0.5; cars use 0.08 or 0.02 primary and 2.0 secondary friction with `MIN`; track uses 0.1/`AVERAGE`, border uses dynamic 4.0/`MAX`; restitution always combines with `AVERAGE` | Jolt bodies carry the same coefficients, global callbacks reproduce PhysX combine-mode priority, and car contacts retain two-direction anisotropy |
 | Shape skin/solver | `Physx.cpp` sets `NX_SKIN_WIDTH=0.025`; `LoadCrushObj` raises movable crush boxes to `0.1`; `NxBodyDesc` uses four solver iterations | Jolt uses `0.05` penetration slop for a pair of default skins and four velocity iterations; the excess `0.075` of each explicit crush skin is represented by a per-shape collision inset |
 | Body sleep | `DataBase::AddPxBody` sets mass-normalized `sleepEnergyThreshold=0.05`; `NX_SLEEP_INTERVAL` is `0.4 s` | Jolt's representative-point movement test uses the equivalent enclosing-sphere radius rate `0.5*sqrt(2*0.05)` and the same `0.4 s`; awake state is exported for cars, decorations and debris |
 | Wheel queries | Wheels do not collide with shot-transparent borders or other cars | Suspension raycasts reject border and vehicle bodies |
@@ -51,6 +51,8 @@ cannot hide a motor defect. It checks:
 - border contact metadata/force, debris bodies and respawn lifecycle.
 - both sides of the source mass-normalized sleep-energy boundary and the
   exact `0.4 s` wake-counter interval.
+- material-0 restitution, Average/Min/Max combine priority, anisotropic car
+  contacts and the PhysX `2 m/s` minimum bounce speed.
 
 Representative final acceptance also runs tracks 0, 16, 48 and 64 through the
 packaged arm64 Debug executable and a 240-frame bgfx/Metal race integration

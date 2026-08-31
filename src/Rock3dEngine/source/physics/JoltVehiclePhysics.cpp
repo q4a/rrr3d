@@ -71,6 +71,9 @@ constexpr float sourceSleepEnergyThreshold = 0.05F;
 constexpr float sourcePointVelocitySleepThreshold = 0.15811388300841897F;
 // NX_SLEEP_INTERVAL is exactly 20 frames at the PhysX standard 0.02 step.
 constexpr float sourceTimeBeforeSleep = 0.4F;
+// PhysX 2.8 NX_BOUNCE_THRESHOLD defaults to -2 m/s. Jolt stores the positive
+// magnitude below which restitution is suppressed.
+constexpr float sourceMinimumBounceVelocity = 2.0F;
 
 JPH::Vec3 sourceBoxHalfExtents(Vec3 halfExtents, float skinWidth) noexcept
 {
@@ -243,9 +246,39 @@ struct SourceBodyFriction
     float second = 0.0F;
 };
 
-SourceBodyFriction sourceTrackBodyFriction(
+enum class SourceCombineMode : std::uint8_t
+{
+    Average = 0U,
+    Minimum = 1U,
+    Multiply = 2U,
+    Maximum = 3U,
+};
+
+float sourceCombineCoefficient(float first, SourceCombineMode firstMode,
+                               float second,
+                               SourceCombineMode secondMode) noexcept
+{
+    const auto mode = static_cast<SourceCombineMode>(std::max(
+        static_cast<std::uint8_t>(firstMode),
+        static_cast<std::uint8_t>(secondMode)));
+    switch (mode)
+    {
+    case SourceCombineMode::Minimum:
+        return std::min(first, second);
+    case SourceCombineMode::Multiply:
+        return first * second;
+    case SourceCombineMode::Maximum:
+        return std::max(first, second);
+    case SourceCombineMode::Average:
+    default:
+        return 0.5F * (first + second);
+    }
+}
+
+SourceBodyFriction sourceVehicleBodyFriction(
     JPH::QuatArg carRotation, JPH::Vec3Arg contactNormal,
-    CollisionSurface surface) noexcept
+    float carPrimaryFriction, float otherFriction,
+    SourceCombineMode otherMode, bool sourceTrackContact) noexcept
 {
     // DataBase.cpp gives the car material an anisotropy direction of local
     // game +Z (Jolt +Y). GameCar::OnContactModify projects it onto the
@@ -265,8 +298,26 @@ SourceBodyFriction sourceTrackBodyFriction(
     else
         first = first.Normalized();
     return {
-        first, 0.0F,
-        surface == CollisionSurface::TrackBorder ? 4.0F : 0.1F};
+        first,
+        sourceTrackContact
+            ? 0.0F
+            : sourceCombineCoefficient(
+                  carPrimaryFriction, SourceCombineMode::Minimum,
+                  otherFriction, otherMode),
+        sourceCombineCoefficient(2.0F, SourceCombineMode::Minimum,
+                                 otherFriction, otherMode)};
+}
+
+SourceBodyFriction sourceTrackBodyFriction(
+    JPH::QuatArg carRotation, JPH::Vec3Arg contactNormal,
+    CollisionSurface surface) noexcept
+{
+    const bool border = surface == CollisionSurface::TrackBorder;
+    return sourceVehicleBodyFriction(
+        carRotation, contactNormal, 0.08F, border ? 4.0F : 0.1F,
+        border ? SourceCombineMode::Maximum
+               : SourceCombineMode::Average,
+        true);
 }
 
 constexpr JPH::uint64 bodyKindMask = 0xf000000000000000ULL;
@@ -339,6 +390,41 @@ CollisionSurface collisionSurface(JPH::uint64 userData)
     return value <= static_cast<std::uint8_t>(CollisionSurface::DeathPlane)
                ? static_cast<CollisionSurface>(value)
                : CollisionSurface::TrackPlane;
+}
+
+SourceCombineMode sourceFrictionCombineMode(const JPH::Body& body) noexcept
+{
+    const JPH::uint64 userData = body.GetUserData();
+    if ((userData & bodyKindMask) == vehicleBodyKind)
+        return SourceCombineMode::Minimum;
+    if ((userData & bodyKindMask) == surfaceBodyKind &&
+        collisionSurface(userData) == CollisionSurface::TrackBorder)
+    {
+        return SourceCombineMode::Maximum;
+    }
+    return SourceCombineMode::Average;
+}
+
+float sourceCombineFriction(const JPH::Body& first,
+                            const JPH::SubShapeID&,
+                            const JPH::Body& second,
+                            const JPH::SubShapeID&) noexcept
+{
+    return sourceCombineCoefficient(
+        first.GetFriction(), sourceFrictionCombineMode(first),
+        second.GetFriction(), sourceFrictionCombineMode(second));
+}
+
+float sourceCombineRestitution(const JPH::Body& first,
+                               const JPH::SubShapeID&,
+                               const JPH::Body& second,
+                               const JPH::SubShapeID&) noexcept
+{
+    // No original game material changes NxMaterialDesc's default
+    // restitution combine mode, therefore every pair uses NX_CM_AVERAGE.
+    return sourceCombineCoefficient(
+        first.GetRestitution(), SourceCombineMode::Average,
+        second.GetRestitution(), SourceCombineMode::Average);
 }
 
 class OriginalContactListener final : public JPH::ContactListener
@@ -417,24 +503,17 @@ private:
         const auto surface = collisionSurface(other.GetUserData());
         const bool sourceTrackActor =
             (other.GetUserData() & bodyKindMask) == surfaceBodyKind;
-        if (sourceTrackActor &&
+        const bool sourceTrackContact =
+            sourceTrackActor &&
             (surface == CollisionSurface::TrackPlane ||
-             surface == CollisionSurface::TrackBorder))
-        {
-            const auto source = sourceTrackBodyFriction(
-                car.GetRotation(), manifold.mWorldSpaceNormal, surface);
-            settings.mCombinedFriction = source.first;
-            settings.mCombinedFriction2 = source.second;
-            settings.mFrictionDirection1 = source.firstDirection;
-        }
-        else
-        {
-            // Car materials use NX_CM_MIN (0.08 or the 0.02 wake model).
-            settings.mCombinedFriction =
-                std::min(first.GetFriction(), second.GetFriction());
-            settings.mCombinedFriction2 = -1.0F;
-            settings.mFrictionDirection1 = JPH::Vec3::sZero();
-        }
+             surface == CollisionSurface::TrackBorder);
+        const auto source = sourceVehicleBodyFriction(
+            car.GetRotation(), manifold.mWorldSpaceNormal,
+            car.GetFriction(), other.GetFriction(),
+            sourceFrictionCombineMode(other), sourceTrackContact);
+        settings.mCombinedFriction = source.first;
+        settings.mCombinedFriction2 = source.second;
+        settings.mFrictionDirection1 = source.firstDirection;
     }
 
     void recordOne(std::size_t vehicle, const JPH::Body& body,
@@ -942,9 +1021,15 @@ public:
         validate();
         system_.Init(4096, 0, 16384, 4096, broadPhaseInterface_,
                      objectVsBroadPhase_, objectLayerPairs_);
+        system_.SetCombineFriction(sourceCombineFriction);
+        system_.SetCombineRestitution(sourceCombineRestitution);
         auto physicsSettings = system_.GetPhysicsSettings();
         physicsSettings.mPenetrationSlop = sourcePenetrationSlop;
         physicsSettings.mNumVelocitySteps = sourceSolverIterations;
+        // PhysX 2.8 suppresses restitution below NX_BOUNCE_THRESHOLD (-2).
+        // Jolt expresses the same threshold as a positive speed magnitude.
+        physicsSettings.mMinVelocityForRestitution =
+            sourceMinimumBounceVelocity;
         physicsSettings.mPointVelocitySleepThreshold =
             sourcePointVelocitySleepThreshold;
         physicsSettings.mTimeBeforeSleep = sourceTimeBeforeSleep;
@@ -1590,12 +1675,9 @@ public:
                 description.sleepEnergyThreshold > 0.0F;
         }
         settings.mFriction = 0.5F;
-        // NxMaterialDesc defaults restitution to zero.  The Windows data
-        // only overrides restitution for the car, wheel, track and border
-        // materials, and every one of those overrides is also zero.  The
-        // old portable 0.5 value made wreckage and movable obstacles behave
-        // like rubber balls and could launch a contacting vehicle upwards.
-        settings.mRestitution = 0.0F;
+        // Physx.cpp mutates scene material 0 from the SDK defaults to this
+        // exact pair. Destruction pieces and unqualified objects use it.
+        settings.mRestitution = 0.5F;
         settings.mEnhancedInternalEdgeRemoval = true;
         settings.mUserData = surfaceUserData(
             CollisionSurface::Decoration);
@@ -2329,8 +2411,9 @@ private:
         settings.mGravityFactor = description.gravityFactor;
         settings.mIsSensor = description.sensor;
         settings.mMotionQuality = JPH::EMotionQuality::LinearCast;
-        settings.mFriction = 0.0F;
-        settings.mRestitution = 0.0F;
+        // Original projectile shapes do not override material index 0.
+        settings.mFriction = 0.5F;
+        settings.mRestitution = 0.5F;
         settings.mUserData = projectileUserData(
             index, description.shotTrack);
         runtime->body = system_.GetBodyInterface().CreateAndAddBody(
@@ -2534,7 +2617,7 @@ private:
         constexpr std::array<float, surfaceCount> frictions{
             0.1F, 4.0F, 0.5F};
         constexpr std::array<float, surfaceCount> restitutions{
-            0.0F, 0.0F, 0.0F};
+            0.0F, 0.0F, 0.5F};
         auto createMeshBody = [&](const JPH::TriangleList& source,
                                   float friction,
                                   float restitution, JPH::uint64 userData,
@@ -2580,7 +2663,7 @@ private:
                 index < description_.decorations.size() &&
                 !description_.decorations[index].collisionResponse;
             decorations_[index].meshBodies.push_back(createMeshBody(
-                decorationTriangles[index], 0.5F, 0.0F,
+                decorationTriangles[index], 0.5F, 0.5F,
                 decorationUserData(index), sensor));
         }
         // Map.cpp creates a +Z NxPlaneShape at world Z=0 in the dedicated
@@ -2594,6 +2677,8 @@ private:
             JPH::RVec3::sZero(), JPH::Quat::sIdentity(),
             JPH::EMotionType::Static, Layers::nonMoving);
         deathPlaneSettings.mIsSensor = true;
+        deathPlaneSettings.mFriction = 0.5F;
+        deathPlaneSettings.mRestitution = 0.5F;
         deathPlaneSettings.mUserData = surfaceUserData(
             CollisionSurface::DeathPlane);
         const auto deathPlane =
@@ -2650,10 +2735,9 @@ private:
                         source.sleepEnergyThreshold > 0.0F;
                 }
                 settings.mFriction = 0.5F;
-                // Unspecified PhysX decoration materials inherit the SDK
-                // default zero restitution.  Do not synthesize rebound in
-                // the replacement backend.
-                settings.mRestitution = 0.0F;
+                // These shapes retain scene material 0. Physx.cpp explicitly
+                // sets its restitution to 0.5 (and its friction to 0.5).
+                settings.mRestitution = 0.5F;
                 settings.mEnhancedInternalEdgeRemoval = true;
                 settings.mUserData = decorationUserData(index);
                 settings.mIsSensor = !collisionResponse;
@@ -3218,6 +3302,7 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
         {0.048F, 1.0F, 1.0F}, 0.1F);
     if (std::abs(sourcePenetrationSlop - 0.05F) > 0.0001F ||
         sourceSolverIterations != 4U ||
+        std::abs(sourceMinimumBounceVelocity - 2.0F) > 0.0001F ||
         std::abs(0.5F * (2.0F * sourcePointVelocitySleepThreshold) *
                          (2.0F * sourcePointVelocitySleepThreshold) -
                      sourceSleepEnergyThreshold) > 0.0001F ||
@@ -3229,12 +3314,31 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
         error = "PhysX skin-width/solver scene contract failed";
         return false;
     }
+    if (std::abs(sourceCombineCoefficient(
+                     0.5F, SourceCombineMode::Average,
+                     0.1F, SourceCombineMode::Average) - 0.3F) > 0.0001F ||
+        std::abs(sourceCombineCoefficient(
+                     0.08F, SourceCombineMode::Minimum,
+                     0.5F, SourceCombineMode::Average) - 0.08F) > 0.0001F ||
+        std::abs(sourceCombineCoefficient(
+                     0.5F, SourceCombineMode::Average,
+                     4.0F, SourceCombineMode::Maximum) - 4.0F) > 0.0001F ||
+        std::abs(sourceCombineCoefficient(
+                     0.5F, SourceCombineMode::Average,
+                     0.0F, SourceCombineMode::Average) - 0.25F) > 0.0001F)
+    {
+        error = "PhysX material combine-mode contract failed";
+        return false;
+    }
     const auto flatBodyFriction = sourceTrackBodyFriction(
         JPH::Quat::sIdentity(), JPH::Vec3::sAxisY(),
         CollisionSurface::TrackPlane);
     const auto borderBodyFriction = sourceTrackBodyFriction(
         JPH::Quat::sIdentity(), JPH::Vec3::sAxisZ(),
         CollisionSurface::TrackBorder);
+    const auto decorationBodyFriction = sourceVehicleBodyFriction(
+        JPH::Quat::sIdentity(), JPH::Vec3::sAxisY(), 0.08F, 0.5F,
+        SourceCombineMode::Average, false);
     if (std::abs(flatBodyFriction.first) > 0.0001F ||
         std::abs(flatBodyFriction.second - 0.1F) > 0.0001F ||
         std::abs(flatBodyFriction.firstDirection.Dot(
@@ -3242,7 +3346,9 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
         std::abs(borderBodyFriction.first) > 0.0001F ||
         std::abs(borderBodyFriction.second - 4.0F) > 0.0001F ||
         std::abs(borderBodyFriction.firstDirection.Dot(
-            JPH::Vec3::sAxisX())) < 0.999F)
+            JPH::Vec3::sAxisX())) < 0.999F ||
+        std::abs(decorationBodyFriction.first - 0.08F) > 0.0001F ||
+        std::abs(decorationBodyFriction.second - 0.5F) > 0.0001F)
     {
         error = "GameCar::OnContactModify anisotropic friction failed";
         return false;
@@ -4254,10 +4360,11 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
         error = "source dynamic decoration did not enter Jolt physics";
         return false;
     }
-    if (barrelPostContactRise > 0.25F)
+    if (barrelPostContactRise < 0.02F ||
+        barrelPostContactRise > 0.75F)
     {
-        error = "source zero-restitution decoration gained artificial "
-                "post-contact bounce";
+        error = "source material-0 restitution response diverged from "
+                "PhysX";
         return false;
     }
     contactWorld->setDecorationEnabled(0U, false);
