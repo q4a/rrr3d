@@ -733,10 +733,13 @@ int main()
     behaviorEffectOwner.ResetGameObject(-1.0F);
     auto& waitingBehavior =
         behaviorEffectOwner.GetBehaviors()
-            .Add<source::FxSystemWaitingEndBehavior>(
+            .Add<source::FxSystemWaitingEnd>(
                 source::BehaviorType::FxSystemWaitingEnd);
     waitingBehavior.SetLiveParticleCount(2U);
     if (behaviorEffectOwner.GetBehaviors().GetCount() != 1U ||
+        behaviorEffectOwner.GetBehaviors().Find(
+            source::BehaviorType::FxSystemWaitingEnd) !=
+            &waitingBehavior ||
         behaviorEffectOwner.GetListenerCount() != 1U ||
         !behaviorEffectOwner.Death() ||
         behaviorEffectOwner.destroyed ||
@@ -844,7 +847,7 @@ int main()
     sourceSpeedOwner.ResetGameObject(-1.0F);
     auto& sourceSpeedBehavior =
         sourceSpeedOwner.GetBehaviors()
-            .Add<source::FxSystemSrcSpeedBehavior>(
+            .Add<source::FxSystemSrcSpeed>(
                 source::BehaviorType::FxSystemSrcSpeed);
     sourceSpeedBehavior.SetPhysicsInput(
         true, {0.0F, 4.0F, 10.0F}, &speedParent);
@@ -854,6 +857,10 @@ int main()
     const auto behaviorWorldSpeed =
         sourceSpeedBehavior.GetWorldSourceSpeed();
     if (sourceSpeedOwner.GetBehaviors().GetCount() != 1U ||
+        sourceSpeedOwner.GetBehaviors().Find(
+            source::BehaviorType::FxSystemSrcSpeed) !=
+            &sourceSpeedBehavior ||
+        sourceSpeedBehavior.GetGameObj() != &sourceSpeedOwner ||
         sourceSpeedOwner.GetListenerCount() != 1U ||
         !sourceSpeedBehavior.HasPhysicsActor() ||
         std::abs(behaviorLocalSpeed.x - 2.0F) > 0.0001F ||

@@ -437,7 +437,7 @@ int main()
         !near(worldEffectRotation[3], 0.7071068F))
         return 25;
     auto& waitingEnd = effectObject.GetBehaviors()
-        .Add<source::FxSystemWaitingEndBehavior>(
+        .Add<source::FxSystemWaitingEnd>(
             source::BehaviorType::FxSystemWaitingEnd);
     waitingEnd.SetLiveParticleCount(1U);
     if (!effectObject.Death())

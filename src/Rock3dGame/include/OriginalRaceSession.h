@@ -329,8 +329,8 @@ struct RaceEffect
     // Behavior owner identity while RaceEffect entries move in the vector.
     std::unique_ptr<source::GameObject> effectOwner =
         std::make_unique<source::GameObject>();
-    source::FxSystemWaitingEndBehavior* waitingEnd = nullptr;
-    source::FxSystemSrcSpeedBehavior* sourceSpeed = nullptr;
+    source::FxSystemWaitingEnd* waitingEnd = nullptr;
+    source::FxSystemSrcSpeed* sourceSpeed = nullptr;
     bool waitForParticleEnd = false;
     Vec3 sourceVelocity;
     // Sounds serialized on an effect object belong to its LifeEffect, not

@@ -567,10 +567,10 @@ private:
 // The graphics backend supplies only the current live-particle count; death
 // interception, resurrection and the final Death notification remain in the
 // GameObject listener/progress graph.
-class FxSystemWaitingEndBehavior final : public ResurrectObj
+class FxSystemWaitingEnd final : public ResurrectObj
 {
 public:
-    explicit FxSystemWaitingEndBehavior(Behaviors* owner) noexcept;
+    explicit FxSystemWaitingEnd(Behaviors* owner) noexcept;
 
     void OnProgress(float deltaTime) noexcept override;
     void OnDeath(GameObject& sender, DamageType damageType,
@@ -594,7 +594,7 @@ private:
 // included below another object, the source first converts that velocity
 // through the parent's complete inverse world matrix.  The renderer later
 // performs FxFlowEmitter's matching local-to-world conversion.
-class FxSystemSrcSpeed
+class FxSystemSrcSpeed final : public Behavior
 {
 public:
     struct Vector
@@ -618,37 +618,26 @@ public:
         Quaternion rotation;
     };
 
+    FxSystemSrcSpeed() noexcept;
+    explicit FxSystemSrcSpeed(Behaviors* owner) noexcept;
+
     void Reset() noexcept;
     bool OnProgress(
         bool physicsActorAvailable, Vector actorLinearVelocity,
         const ParentTransform* parent = nullptr) noexcept;
-    const Vector& GetSourceSpeed() const noexcept;
-
-private:
-    Vector sourceSpeed_;
-};
-
-// Concrete type-3 behavior. Jolt supplies the owning actor velocity and the
-// optional parent transform; the behavior owns the source WorldToLocalNorm
-// calculation while bgfx consumes the resulting inherited velocity.
-class FxSystemSrcSpeedBehavior final : public Behavior
-{
-public:
-    explicit FxSystemSrcSpeedBehavior(Behaviors* owner) noexcept;
-
     void OnProgress(float deltaTime) noexcept override;
     void SetPhysicsInput(
-        bool actorAvailable, FxSystemSrcSpeed::Vector velocity,
-        const FxSystemSrcSpeed::ParentTransform* parent = nullptr) noexcept;
-    const FxSystemSrcSpeed::Vector& GetSourceSpeed() const noexcept;
-    const FxSystemSrcSpeed::Vector& GetWorldSourceSpeed() const noexcept;
+        bool actorAvailable, Vector velocity,
+        const ParentTransform* parent = nullptr) noexcept;
+    const Vector& GetSourceSpeed() const noexcept;
+    const Vector& GetWorldSourceSpeed() const noexcept;
     bool HasPhysicsActor() const noexcept;
 
 private:
-    FxSystemSrcSpeed state_;
-    FxSystemSrcSpeed::Vector actorVelocity_;
-    FxSystemSrcSpeed::Vector worldSourceSpeed_;
-    FxSystemSrcSpeed::ParentTransform parent_;
+    Vector sourceSpeed_;
+    Vector actorVelocity_;
+    Vector worldSourceSpeed_;
+    ParentTransform parent_;
     bool actorAvailable_ = false;
     bool hasParent_ = false;
 };

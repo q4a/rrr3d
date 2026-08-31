@@ -2696,3 +2696,12 @@ listener/progress callbacks. Для Death сохранены один live make-
 target-child и PhysX-era ignore-sender relationship; для Life — ленивое
 получение Source3d и один Play за lifetime. Regression сверяет найденный
 behavior с тем же concrete объектом и его EventEffect owner identity.
+
+### B8ck — FxSystemWaitingEnd/FxSystemSrcSpeed являются source Behavior — выполнено
+
+Type 2 переименован в исходный `FxSystemWaitingEnd` без изменения уже
+перенесённого resurrection/fading/final-death порядка. У type 3 удалена
+пара state/wrapper: `FxSystemSrcSpeed` сам зарегистрирован в `Behaviors`,
+владеет physics input и результатом inverse parent transform. Jolt сообщает
+velocity, bgfx читает готовый emitter snapshot; ни один backend не повторяет
+source transition. Regression закрепляет exact behavior pointer identity.

@@ -6412,3 +6412,16 @@ serialized flags/configuration, pending backend plan и все effect handles.
 источника до его доступности и выдаёт единственный Play request. В source
 tests закреплены `Find(type)==concrete Behavior`, owning GameObject и
 `SpawnResult::owner==EventEffect` subobject того же DeathEffect.
+
+### P2.290 — FxSystem types 2/3 возвращены к исходной identity — выполнено
+
+`eff9338:GameBase.h/.cpp` регистрирует `FxSystemWaitingEnd` и
+`FxSystemSrcSpeed` непосредственно в class list. Portable type 2 был
+функционально полон, но назывался adapter-типом; type 3 дополнительно хранил
+source-speed state во вложенном объекте wrapper-а.
+
+Теперь оба concrete класса сами являются entries коллекции. Type 2 владеет
+resurrection/fading/final-death, type 3 — actor availability, world velocity,
+parent transform и local particle speed. Tests требуют, что
+`Behaviors::Find` возвращает именно эти объекты и что отсутствие Jolt actor
+сохраняет последнее source значение, как ранний return Windows.

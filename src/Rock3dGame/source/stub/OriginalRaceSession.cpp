@@ -186,7 +186,7 @@ void configureSourceEffectOwner(
     if (waitForParticleEnd)
     {
         effect.waitingEnd = &owner.GetBehaviors()
-            .Add<source::FxSystemWaitingEndBehavior>(
+            .Add<source::FxSystemWaitingEnd>(
                 source::BehaviorType::FxSystemWaitingEnd);
     }
 }
@@ -212,7 +212,7 @@ void applySourceEffectTiming(
             }))
     {
         effect.sourceSpeed = &effect.effectOwner->GetBehaviors()
-            .Add<source::FxSystemSrcSpeedBehavior>(
+            .Add<source::FxSystemSrcSpeed>(
                 source::BehaviorType::FxSystemSrcSpeed);
     }
 }

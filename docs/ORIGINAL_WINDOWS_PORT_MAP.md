@@ -1357,6 +1357,18 @@ source state machine; активный object graph всегда создаёт 
 `Behaviors*`. Jolt, Metal и SDL по-прежнему реализуют только actor,
 presentation и voice.
 
+Результат B8ck: source types 2/3 больше не имеют portable adapter-классов с
+другой identity. `FxSystemWaitingEnd` сам является наследником
+`ResurrectObj`, перехватывает первую смерть, переводит particle nodes в
+fading и посылает финальную Death после нулевого live count.
+`FxSystemSrcSpeed` теперь сам является type-3 `Behavior`: Jolt передаёт ему
+actor velocity/parent transform, source выполняет точный
+`WorldToLocalNorm`, а renderer получает готовые local/world snapshots.
+
+Имена `FxSystemWaitingEndBehavior` и `FxSystemSrcSpeedBehavior` удалены из
+активного кода. Standalone constructor type 3 сохранён только для чистой
+проверки transform math; объект в гонке всегда принадлежит `Behaviors`.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:

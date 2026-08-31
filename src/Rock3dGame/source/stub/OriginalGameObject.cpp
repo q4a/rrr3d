@@ -1510,13 +1510,13 @@ bool ResurrectObj::IsResurrect() const noexcept
     return resurrect_;
 }
 
-FxSystemWaitingEndBehavior::FxSystemWaitingEndBehavior(
+FxSystemWaitingEnd::FxSystemWaitingEnd(
     Behaviors* owner) noexcept
     : ResurrectObj(owner)
 {
 }
 
-void FxSystemWaitingEndBehavior::OnProgress(float) noexcept
+void FxSystemWaitingEnd::OnProgress(float) noexcept
 {
     auto* owner = GetGameObj();
     if (owner == nullptr || !IsResurrect() ||
@@ -1525,7 +1525,7 @@ void FxSystemWaitingEndBehavior::OnProgress(float) noexcept
     finalDeath_ = owner->Death() || finalDeath_;
 }
 
-void FxSystemWaitingEndBehavior::OnDeath(
+void FxSystemWaitingEnd::OnDeath(
     GameObject& sender, DamageType, GameObject*) noexcept
 {
     if (Resurrect(sender))
@@ -1535,30 +1535,30 @@ void FxSystemWaitingEndBehavior::OnDeath(
     }
 }
 
-void FxSystemWaitingEndBehavior::SetLiveParticleCount(
+void FxSystemWaitingEnd::SetLiveParticleCount(
     std::size_t value) noexcept
 {
     liveParticles_ = value;
 }
 
-bool FxSystemWaitingEndBehavior::IsResurrect() const noexcept
+bool FxSystemWaitingEnd::IsResurrect() const noexcept
 {
     return ResurrectObj::IsResurrect();
 }
 
-bool FxSystemWaitingEndBehavior::IsFading() const noexcept
+bool FxSystemWaitingEnd::IsFading() const noexcept
 {
     return fading_;
 }
 
-bool FxSystemWaitingEndBehavior::ConsumeBeginFading() noexcept
+bool FxSystemWaitingEnd::ConsumeBeginFading() noexcept
 {
     const bool result = beginFading_;
     beginFading_ = false;
     return result;
 }
 
-bool FxSystemWaitingEndBehavior::ConsumeFinalDeath() noexcept
+bool FxSystemWaitingEnd::ConsumeFinalDeath() noexcept
 {
     const bool result = finalDeath_;
     finalDeath_ = false;
@@ -1568,6 +1568,11 @@ bool FxSystemWaitingEndBehavior::ConsumeFinalDeath() noexcept
 void FxSystemSrcSpeed::Reset() noexcept
 {
     sourceSpeed_ = {};
+    actorVelocity_ = {};
+    worldSourceSpeed_ = {};
+    parent_ = {};
+    actorAvailable_ = false;
+    hasParent_ = false;
 }
 
 bool FxSystemSrcSpeed::OnProgress(
@@ -1633,15 +1638,16 @@ FxSystemSrcSpeed::GetSourceSpeed() const noexcept
     return sourceSpeed_;
 }
 
-FxSystemSrcSpeedBehavior::FxSystemSrcSpeedBehavior(
-    Behaviors* owner) noexcept
+FxSystemSrcSpeed::FxSystemSrcSpeed() noexcept : Behavior(nullptr) {}
+
+FxSystemSrcSpeed::FxSystemSrcSpeed(Behaviors* owner) noexcept
     : Behavior(owner)
 {
 }
 
-void FxSystemSrcSpeedBehavior::OnProgress(float) noexcept
+void FxSystemSrcSpeed::OnProgress(float) noexcept
 {
-    if (!state_.OnProgress(
+    if (!OnProgress(
             actorAvailable_, actorVelocity_,
             hasParent_ ? &parent_ : nullptr))
         return;
@@ -1651,9 +1657,9 @@ void FxSystemSrcSpeedBehavior::OnProgress(float) noexcept
     worldSourceSpeed_ = actorVelocity_;
 }
 
-void FxSystemSrcSpeedBehavior::SetPhysicsInput(
-    bool actorAvailable, FxSystemSrcSpeed::Vector velocity,
-    const FxSystemSrcSpeed::ParentTransform* parent) noexcept
+void FxSystemSrcSpeed::SetPhysicsInput(
+    bool actorAvailable, Vector velocity,
+    const ParentTransform* parent) noexcept
 {
     actorAvailable_ = actorAvailable;
     actorVelocity_ = velocity;
@@ -1663,18 +1669,12 @@ void FxSystemSrcSpeedBehavior::SetPhysicsInput(
 }
 
 const FxSystemSrcSpeed::Vector&
-FxSystemSrcSpeedBehavior::GetSourceSpeed() const noexcept
-{
-    return state_.GetSourceSpeed();
-}
-
-const FxSystemSrcSpeed::Vector&
-FxSystemSrcSpeedBehavior::GetWorldSourceSpeed() const noexcept
+FxSystemSrcSpeed::GetWorldSourceSpeed() const noexcept
 {
     return worldSourceSpeed_;
 }
 
-bool FxSystemSrcSpeedBehavior::HasPhysicsActor() const noexcept
+bool FxSystemSrcSpeed::HasPhysicsActor() const noexcept
 {
     return actorAvailable_;
 }
