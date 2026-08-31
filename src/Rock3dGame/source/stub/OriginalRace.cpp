@@ -2370,6 +2370,8 @@ ObjectDefinition objectDefinition(
                 {
                     destructionPiece.mass =
                         optionalScalar(body, "mass", 0.0F);
+                    destructionPiece.sleepEnergyThreshold = optionalScalar(
+                        body, "sleepEnergyThreshold", 0.005F);
                     for (auto* shape = shapes->FirstChildElement();
                          shape != nullptr;
                          shape = shape->NextSiblingElement())
@@ -2427,6 +2429,8 @@ ObjectDefinition objectDefinition(
     if (auto* body = child(dbRecord, "pxActor/body"))
     {
         result.bodyMass = optionalScalar(body, "mass", 0.0F);
+        result.bodySleepEnergyThreshold = optionalScalar(
+            body, "sleepEnergyThreshold", 0.005F);
         if (auto* shapes = child(dbRecord, "pxActor/shapes/items"))
         {
             for (auto* shape = shapes->FirstChildElement(); shape != nullptr;
@@ -3433,6 +3437,8 @@ Vehicle loadVehicle(const resource::ResourceFileSystem& resources,
 
     auto& vehicle = result.physics;
     vehicle.mass = scalar(car, "pxActor/body/mass", source);
+    vehicle.bodySleepEnergyThreshold = scalar(
+        car, "pxActor/body/sleepEnergyThreshold", source);
     vehicle.halfExtents =
         vector3(car, "pxActor/shapes/items/item0/dimensions", source);
     vehicle.shapePosition =
@@ -5330,6 +5336,7 @@ std::vector<DecorationDebrisDefinition> makeDecorationDestruction(
             std::abs(piece.halfExtents.z * instance.transform.scale.z)};
         debris.skinWidth = piece.skinWidth;
         debris.mass = piece.mass;
+        debris.sleepEnergyThreshold = piece.sleepEnergyThreshold;
         if (!piece.dynamic)
         {
             for (const auto& shape : piece.collisionShapes)
@@ -5446,6 +5453,8 @@ r3d::physics::WorldDescription makePhysicsDescription(
                      instance.transform.scale.z)};
         decoration.skinWidth = definition.bodySkinWidth;
         decoration.mass = definition.bodyMass;
+        decoration.sleepEnergyThreshold =
+            definition.bodySleepEnergyThreshold;
         decoration.hasBodyShape =
             decoration.halfExtents.x > 0.0F &&
             decoration.halfExtents.y > 0.0F &&
@@ -6334,6 +6343,8 @@ bool runOriginalRaceResourceSmokeTest(
                         return parentPose && sourceLifetimeAndImpulse &&
                                near(physicsBody.skinWidth,
                                     source.skinWidth) &&
+                               near(physicsBody.sleepEnergyThreshold,
+                                    source.sleepEnergyThreshold) &&
                                physicsBody.dynamic == source.dynamic &&
                                (source.dynamic
                                     ? physicsBody.collisionMeshes.empty() &&
@@ -6380,6 +6391,7 @@ bool runOriginalRaceResourceSmokeTest(
                 ++dynamicCount;
                 if (!near(piece.mass, 200.0F) ||
                     !near(piece.skinWidth, 0.1F) ||
+                    !near(piece.sleepEnergyThreshold, 0.05F) ||
                     piece.halfExtents.x <= 0.0F ||
                     piece.halfExtents.y <= 0.0F ||
                     piece.halfExtents.z <= 0.0F)
@@ -6391,6 +6403,7 @@ bool runOriginalRaceResourceSmokeTest(
             !sourcePiecesMatch(reklama, 11U, 10U) ||
             bochka == nullptr || bochka->destructible ||
             !near(bochka->bodySkinWidth, 0.1F) ||
+            !near(bochka->bodySleepEnergyThreshold, 0.05F) ||
             !bochka->destructionPieces.empty() ||
             !intactDestructionBodiesMatch ||
             !destructionBodiesMatch ||
@@ -7316,6 +7329,7 @@ bool runOriginalRaceResourceSmokeTest(
             !near(physics.vehicle.angularDamping.x, 1.0F) ||
             !near(physics.vehicle.angularDamping.y, 1.0F) ||
             !near(physics.vehicle.angularDamping.z, 0.0F) ||
+            !near(physics.vehicle.bodySleepEnergyThreshold, 0.05F) ||
             !near(physics.vehicle.bodyFriction, 0.08F) ||
             !near(physics.vehicle.brakeTorque, 7500.0F) ||
             !near(physics.vehicle.differentialRatio, 3.42F) ||

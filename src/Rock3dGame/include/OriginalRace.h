@@ -338,6 +338,7 @@ struct DestructionPieceDefinition
     // 0.1 for every movable destruction piece.
     float skinWidth = 0.025F;
     float mass = 0.0F;
+    float sleepEnergyThreshold = 0.05F;
     bool dynamic = false;
 };
 
@@ -357,6 +358,7 @@ struct ObjectDefinition
     Vec3 bodyHalfExtents;
     float bodySkinWidth = 0.025F;
     float bodyMass = 0.0F;
+    float bodySleepEnergyThreshold = 0.05F;
     bool dynamicBody = false;
     float maximumLife = -1.0F;
     float maximumTimeLife = -1.0F;

@@ -6788,3 +6788,22 @@ penetration slop `0.05`, а excess `0.075` explicit crush skin — inset-ом
 проверяют raw catalog provenance и backend mapping; 32 CTest, physics smoke и
 1800-frame Metal race завершились без потери контактов, AI-прогресса или
 устойчивости автомобиля.
+
+### P2.314 — восстановлен NxBody energy sleep contract — выполнено
+
+Оригинальный `DataBase::AddPxBody` всегда меняет SDK default `0.005` на
+`sleepEnergyThreshold=0.05` для постоянных динамических игровых тел. Согласно
+bundled `NxBodyDesc/Nxp.h`, включённый по умолчанию
+`NX_BF_ENERGY_SLEEP_TEST` сравнивает mass-normalized kinetic energy, а
+начальный wake counter равен `NX_SLEEP_INTERVAL=0.4 s`. Все 95 сериализованных
+тел подтверждают порог `0.05`. Порт до аудита оставлял Jolt defaults:
+point velocity `0.03` и время `0.5`, поэтому слабое остаточное движение
+обломков дольше сохраняло solver islands и могло усиливать падение FPS.
+
+Сериализованный порог теперь не отбрасывается на object/vehicle/debris
+границах. Jolt enclosing-sphere sleeper откалиброван по формуле
+`radiusRate=0.5*sqrt(2*K/m)` и исходному времени. Это остаётся документированной
+backend-адаптацией: PhysX интегрирует полную translational+rotational energy,
+Jolt наблюдает COM и две удалённые точки. Двусторонний тест фиксирует точную
+линейную границу и исключает преждевременный сон; реальные состояния awake
+публикуются для movable decorations и detached debris.

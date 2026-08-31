@@ -72,6 +72,9 @@ struct DecorationDescription
     Vec3 halfExtents;
     float skinWidth = 0.025F;
     float mass = 0.0F;
+    // DataBase::AddPxBody overrides the PhysX 2.8.4 mass-normalized kinetic
+    // energy sleep threshold for every persistent dynamic game body.
+    float sleepEnergyThreshold = 0.05F;
     bool hasBodyShape = false;
     bool dynamic = false;
     bool collisionResponse = true;
@@ -85,6 +88,7 @@ struct DecorationState
 {
     Transform body;
     bool active = false;
+    bool bodyAwake = false;
 };
 
 struct WheelDescription
@@ -121,6 +125,7 @@ struct VehicleDescription
     Vec3 centerOfMass;
     Vec3 angularDamping{1.0F, 1.0F, 1.0F};
     float bodySkinWidth = 0.025F;
+    float bodySleepEnergyThreshold = 0.05F;
     float bodyFriction = 0.08F;
     float brakeTorque = 0.0F;
     float differentialRatio = 0.0F;
@@ -333,6 +338,9 @@ struct ProjectileBodyDescription
     Vec3 halfExtents{0.05F, 0.05F, 0.05F};
     Vec3 linearVelocity;
     float mass = 1.0F;
+    // Weapon.cpp constructs a default NxBodyDesc rather than using
+    // DataBase::AddPxBody, so projectile bodies retain the SDK default.
+    float sleepEnergyThreshold = 0.005F;
     float gravityFactor = 0.0F;
     bool dynamic = true;
     // Fire/Drobilka own PhysX actors which are repositioned from the mounted
@@ -429,6 +437,7 @@ struct DebrisDescription
     float skinWidth = 0.025F;
     Vec3 localImpulse;
     float mass = 1.0F;
+    float sleepEnergyThreshold = 0.05F;
     float lifetime = -1.0F;
     bool dynamic = true;
 };
@@ -437,6 +446,7 @@ struct DebrisState
 {
     Transform body;
     bool active = false;
+    bool bodyAwake = false;
 };
 
 class OriginalVehicleWorld

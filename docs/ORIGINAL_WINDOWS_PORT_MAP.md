@@ -1669,6 +1669,21 @@ constraint order остаются backend boundary. Parser/backend regressions �
 полный arm64 build, 32 CTest, physics smoke, 1800-frame Metal race прошли;
 пять AI сохранили скорость `37.48–40.50`, player — `39.09`.
 
+Результат B8di: восстановлен energy-based sleep контракт PhysX. Оригинальный
+`DataBase::AddPxBody` задаёт каждому постоянному динамическому телу
+`sleepEnergyThreshold=0.05`, то есть разрешает сон при `K/m < 0.05`, а
+`NxBodyDesc::wakeUpCounter` использует `NX_SLEEP_INTERVAL=0.4 s`. Ранний
+Jolt boundary оставлял свои `0.03 m/s` и `0.5 s`, из-за чего медленно
+колеблющиеся обломки и препятствия существенно дольше оставались в active
+islands и создавали накопительную нагрузку после разрушений.
+
+Loader теперь сохраняет порог из всех 95 body-записей `db.xml` через машины,
+динамические декорации и detached debris. Jolt не имеет energy-based sleeper:
+его enclosing-sphere test откалиброван на эквивалентный радиусный темп
+`0.5*sqrt(2*0.05)` и исходные `0.4 s`. Экспортирован реальный awake state
+декораций/обломков. Regression требует, чтобы тело с `K/m=0.02` бодрствовало
+до 0.4 s и затем уснуло, а `K/m=0.08` продолжало вычисляться.
+
 Каждый крупный block commit обязан:
 
 1. назвать точные методы из `eff9338:prog`, которые стали активными;

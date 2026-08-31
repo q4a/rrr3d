@@ -3007,3 +3007,22 @@ box-формы. Это не подмена convex radius: последний т�
 четыре velocity iterations. Resource regression проверяет `crush1`,
 `reklama`, `bochka` и передачу в debris; physics regression — default,
 explicit и thin-box адаптацию. Полный arm64/CTest/physics/Metal набор прошёл.
+
+### B8di — перенесены PhysX sleep energy и wake counter — выполнено
+
+`eff9338:DataBase::AddPxBody` не оставляет SDK sleep defaults: для машин,
+бочек, знаков и динамических частей он явно записывает mass-normalized
+`sleepEnergyThreshold=0.05`. Все 95 сохранённых body-записей штатной базы
+подтверждают это значение. `NxBodyDesc` одновременно начинает с
+`NX_SLEEP_INTERVAL=20*0.02=0.4 s`. Порт терял оба параметра и использовал
+Jolt `0.03 m/s`/`0.5 s`, удерживая медленные debris active значительно
+дольше Windows.
+
+Порог теперь проходит из `db.xml` через `ObjectDefinition`,
+`VehicleDescription`, `DecorationDescription` и `DebrisDescription`. Для
+Jolt representative-point sleeper выполнено явное backend-сопоставление:
+радиус накопительной сферы растёт на половину линейного пути, поэтому его
+порог равен `0.5*sqrt(2*0.05)`, время — `0.4 s`. Awake state доступен для
+проверки и для будущего source-style progress suppression. Physics regression
+проверяет `K/m=0.02` до и после границы времени и не допускает сон при
+`K/m=0.08`.

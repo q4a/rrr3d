@@ -60,6 +60,17 @@ constexpr float sourceMaximumAngularVelocity = 7.0F;
 constexpr float sourceSkinWidth = 0.025F;
 constexpr float sourcePenetrationSlop = 2.0F * sourceSkinWidth;
 constexpr JPH::uint sourceSolverIterations = 4U;
+// DataBase::AddPxBody explicitly replaces the PhysX 2.8.4 default 0.005
+// with 0.05 for cars, movable decorations and detached crush pieces.
+// NxBodyDesc uses mass-normalized kinetic energy: K / m < threshold. Jolt
+// tracks the movement range of representative body points. Its enclosing
+// sphere radius is half the distance travelled at constant velocity, so the
+// configured radius/time boundary is 0.5 * sqrt(2E). The rotational half
+// remains conservatively handled by Jolt's two off-centre test points.
+constexpr float sourceSleepEnergyThreshold = 0.05F;
+constexpr float sourcePointVelocitySleepThreshold = 0.15811388300841897F;
+// NX_SLEEP_INTERVAL is exactly 20 frames at the PhysX standard 0.02 step.
+constexpr float sourceTimeBeforeSleep = 0.4F;
 
 JPH::Vec3 sourceBoxHalfExtents(Vec3 halfExtents, float skinWidth) noexcept
 {
@@ -934,6 +945,9 @@ public:
         auto physicsSettings = system_.GetPhysicsSettings();
         physicsSettings.mPenetrationSlop = sourcePenetrationSlop;
         physicsSettings.mNumVelocitySteps = sourceSolverIterations;
+        physicsSettings.mPointVelocitySleepThreshold =
+            sourcePointVelocitySleepThreshold;
+        physicsSettings.mTimeBeforeSleep = sourceTimeBeforeSleep;
         system_.SetPhysicsSettings(physicsSettings);
         contactListener_.resize(description_.spawns.size());
         system_.SetContactListener(&contactListener_);
@@ -1485,6 +1499,8 @@ public:
             setBodyEnabled(body);
         setBodyEnabled(decoration.shapeBody);
         decoration.state.active = enabled;
+        if (!enabled)
+            decoration.state.bodyAwake = false;
         if (enabled)
             updateState(index);
     }
@@ -1570,6 +1586,8 @@ public:
             settings.mAngularDamping = 0.05F;
             settings.mMaxAngularVelocity =
                 sourceMaximumAngularVelocity;
+            settings.mAllowSleeping =
+                description.sleepEnergyThreshold > 0.0F;
         }
         settings.mFriction = 0.5F;
         // NxMaterialDesc defaults restitution to zero.  The Windows data
@@ -1590,6 +1608,7 @@ public:
             return std::numeric_limits<std::size_t>::max();
         runtime.state.body = description.transform;
         runtime.state.active = true;
+        runtime.state.bodyAwake = description.dynamic;
         runtime.lifetime = description.lifetime;
         if (description.dynamic &&
             (description.localImpulse.x != 0.0F ||
@@ -2304,6 +2323,8 @@ private:
             settings.mAngularDamping = 0.05F;
             settings.mMaxAngularVelocity =
                 sourceMaximumAngularVelocity;
+            settings.mAllowSleeping =
+                description.sleepEnergyThreshold > 0.0F;
         }
         settings.mGravityFactor = description.gravityFactor;
         settings.mIsSensor = description.sensor;
@@ -2408,6 +2429,7 @@ private:
         bodies.DestroyBody(debris.body);
         debris.body = JPH::BodyID();
         debris.state.active = false;
+        debris.state.bodyAwake = false;
     }
 
     void clearDebris() noexcept
@@ -2438,6 +2460,7 @@ private:
             decoration.childShapeBodies.clear();
             destroyBody(decoration.shapeBody);
             decoration.state.active = false;
+            decoration.state.bodyAwake = false;
         }
     }
 
@@ -2623,6 +2646,8 @@ private:
                     settings.mAngularDamping = 0.05F;
                     settings.mMaxAngularVelocity =
                         sourceMaximumAngularVelocity;
+                    settings.mAllowSleeping =
+                        source.sleepEnergyThreshold > 0.0F;
                 }
                 settings.mFriction = 0.5F;
                 // Unspecified PhysX decoration materials inherit the SDK
@@ -2703,6 +2728,8 @@ private:
         bodySettings.mAngularDamping = 0.05F;
         bodySettings.mMaxAngularVelocity =
             sourceMaximumAngularVelocity;
+        bodySettings.mAllowSleeping =
+            source.bodySleepEnergyThreshold > 0.0F;
         bodySettings.mFriction = source.bodyFriction;
         bodySettings.mRestitution = 0.0F;
         bodySettings.mEnhancedInternalEdgeRemoval = true;
@@ -3108,6 +3135,7 @@ private:
         if (!lock.Succeeded())
             return;
         const JPH::Body& body = lock.GetBody();
+        debris.state.bodyAwake = body.IsActive();
         debris.state.body.position = fromJolt(body.GetPosition());
         debris.state.body.rotation = fromJolt(body.GetRotation());
     }
@@ -3124,6 +3152,7 @@ private:
         if (!lock.Succeeded())
             return;
         const JPH::Body& body = lock.GetBody();
+        decoration.state.bodyAwake = body.IsActive();
         decoration.state.body.position = fromJolt(body.GetPosition());
         decoration.state.body.rotation = fromJolt(body.GetRotation());
     }
@@ -3189,6 +3218,10 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
         {0.048F, 1.0F, 1.0F}, 0.1F);
     if (std::abs(sourcePenetrationSlop - 0.05F) > 0.0001F ||
         sourceSolverIterations != 4U ||
+        std::abs(0.5F * (2.0F * sourcePointVelocitySleepThreshold) *
+                         (2.0F * sourcePointVelocitySleepThreshold) -
+                     sourceSleepEnergyThreshold) > 0.0001F ||
+        std::abs(sourceTimeBeforeSleep - 0.4F) > 0.0001F ||
         !defaultSkinBox.IsClose({1.0F, 3.0F, 2.0F}, 0.0001F) ||
         !crushSkinBox.IsClose({0.925F, 2.925F, 1.925F}, 0.0001F) ||
         !thinCrushSkinBox.IsClose({0.005F, 0.925F, 0.925F}, 0.0001F))
@@ -3280,6 +3313,57 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
     drivetrainFloor.indices = {0U, 1U, 2U, 0U, 2U, 3U};
     drivetrainDescription.collisionMeshes.push_back(
         std::move(drivetrainFloor));
+
+    // PhysX's default body flag selects its energy sleep test. Verify the
+    // adapter's mass-normalized 0.05 boundary with isolated debris: v=0.2
+    // gives K/m=0.02 and must sleep after the 0.4 second wake counter, while
+    // v=0.4 gives K/m=0.08 and must remain awake.
+    WorldDescription sleepDescription = drivetrainDescription;
+    sleepDescription.gravity = 0.0F;
+    sleepDescription.startPosition = {0.0F, 0.0F, 20.0F};
+    sleepDescription.spawns.front().position =
+        sleepDescription.startPosition;
+    auto sleepWorld = createOriginalVehicleWorld(sleepDescription, error);
+    if (!sleepWorld)
+        return false;
+    DebrisDescription sleepingDebris;
+    sleepingDebris.transform.position = {0.0F, 0.0F, 10.0F};
+    sleepingDebris.halfExtents = {0.2F, 0.2F, 0.2F};
+    sleepingDebris.mass = 10.0F;
+    sleepingDebris.localImpulse = {2.0F, 0.0F, 0.0F};
+    const auto sleepingDebrisIndex =
+        sleepWorld->addDebris(sleepingDebris);
+    if (sleepingDebrisIndex == std::numeric_limits<std::size_t>::max())
+    {
+        error = "PhysX energy-sleep fixture could not create low-energy body";
+        return false;
+    }
+    for (int step = 0; step < 23; ++step)
+        sleepWorld->step(1.0F / 60.0F, VehicleInput{});
+    if (!sleepWorld->debris(sleepingDebrisIndex).bodyAwake)
+    {
+        error = "PhysX wakeUpCounter expired before 0.4 seconds";
+        return false;
+    }
+    for (int step = 0; step < 13; ++step)
+        sleepWorld->step(1.0F / 60.0F, VehicleInput{});
+    if (sleepWorld->debris(sleepingDebrisIndex).bodyAwake)
+    {
+        error = "PhysX low-energy body did not sleep after wakeUpCounter";
+        return false;
+    }
+    DebrisDescription movingDebris = sleepingDebris;
+    movingDebris.transform.position = {0.0F, 5.0F, 10.0F};
+    movingDebris.localImpulse = {4.0F, 0.0F, 0.0F};
+    const auto movingDebrisIndex = sleepWorld->addDebris(movingDebris);
+    for (int step = 0; step < 60; ++step)
+        sleepWorld->step(1.0F / 60.0F, VehicleInput{});
+    if (movingDebrisIndex == std::numeric_limits<std::size_t>::max() ||
+        !sleepWorld->debris(movingDebrisIndex).bodyAwake)
+    {
+        error = "PhysX above-threshold kinetic body went to sleep";
+        return false;
+    }
 
     auto world =
         createOriginalVehicleWorld(drivetrainDescription, error);

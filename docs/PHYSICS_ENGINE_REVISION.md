@@ -23,13 +23,15 @@ game-rule differences in the adapter; it does not retune the car by eye.
 | Coordinates | Linear and angular vectors transform differently across the reflected Z-up/Y-up basis | Angular velocity now uses the axial-vector sign transform |
 | Materials | Cars use 0.08 or 0.02 friction and zero restitution; track uses 0.1, border uses dynamic 4.0 | Source scalar coefficients and combine behavior are assigned by collision surface |
 | Shape skin/solver | `Physx.cpp` sets `NX_SKIN_WIDTH=0.025`; `LoadCrushObj` raises movable crush boxes to `0.1`; `NxBodyDesc` uses four solver iterations | Jolt uses `0.05` penetration slop for a pair of default skins and four velocity iterations; the excess `0.075` of each explicit crush skin is represented by a per-shape collision inset |
+| Body sleep | `DataBase::AddPxBody` sets mass-normalized `sleepEnergyThreshold=0.05`; `NX_SLEEP_INTERVAL` is `0.4 s` | Jolt's representative-point movement test uses the equivalent enclosing-sphere radius rate `0.5*sqrt(2*0.05)` and the same `0.4 s`; awake state is exported for cars, decorations and debris |
 | Wheel queries | Wheels do not collide with shot-transparent borders or other cars | Suspension raycasts reject border and vehicle bodies |
 | Reset | Pose, velocities, gear and wheel state are reset | Wheel angular/rotation/steer state, neutral gear and idle RPM are explicitly restored |
 
 Additional serialized fields now loaded from every original `ctCar` record are
 `angDamping`, `autoGear`, `flyYTorque`, `clampXTorque`, `clampYTorque`,
 `gravEngine`, `clutchImmunity`, `maxSpeed`, `tireSpring` and the body material
-index. `tireSpring` supplied by the workshop is accumulated separately from
+index. Body `sleepEnergyThreshold` is also preserved through cars, movable
+decorations and detached pieces. `tireSpring` supplied by the workshop is accumulated separately from
 the suspension spring.
 
 ## Validation
@@ -47,6 +49,8 @@ cannot hide a motor defect. It checks:
 - simultaneous acceleration/contact state for all racers selected from the
   original tournament data;
 - border contact metadata/force, debris bodies and respawn lifecycle.
+- both sides of the source mass-normalized sleep-energy boundary and the
+  exact `0.4 s` wake-counter interval.
 
 Representative final acceptance also runs tracks 0, 16, 48 and 64 through the
 packaged arm64 Debug executable and a 240-frame bgfx/Metal race integration
@@ -58,4 +62,8 @@ Jolt and PhysX 2.8.4 use different suspension/contact solvers, so trajectories
 cannot be bit-identical. The adapter preserves the source two-direction track
 contact, scalar coefficients, combine mode, tire curves, shape skin distances,
 iteration count, impulse cutoff and game-side state machine. Constraint order
-and the inner contact implementation remain Jolt-specific.
+and the inner contact implementation remain Jolt-specific. Jolt has no
+per-body energy sleeper, so its point-movement test is calibrated to the
+uniform `0.05` threshold used by all 95 persistent dynamic bodies in the
+shipped database; short-lived projectile sensors retain their source `0.005`
+provenance but never sleep while acting as sensors.
