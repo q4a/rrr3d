@@ -395,6 +395,11 @@ struct ProjectileBodyState
     // does not have to reconstruct contacts from rendered snapshot boxes.
     std::vector<BodyContact> contacts;
     bool active = false;
+    // Scene::UserNotify forwards the real PhysX actor wake/sleep state to
+    // GameObject::OnWake/OnSleep.  Keep this distinct from actor existence:
+    // placed mines are active static actors, while MinePiece is dynamic and
+    // may eventually sleep.
+    bool bodyAwake = false;
 };
 
 struct WorldRayCastQuery

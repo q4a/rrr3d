@@ -448,6 +448,49 @@ int main()
         !object.OnProgress(0.001F).lifetimeDeath)
         return 13;
 
+    source::WorldEventPump physicsObjectWorld;
+    source::Logic physicsObjectLogic;
+    physicsObjectLogic.AttachWorld(&physicsObjectWorld);
+    source::GameObject physicsObject;
+    physicsObject.SetLogic(&physicsObjectLogic);
+    physicsObject.SynchronizePhysicsState(
+        {2.0F, 4.0F, 6.0F},
+        {0.0F, 0.0F, 0.0F, 1.0F},
+        {1.0F, 0.0F, 0.0F}, true);
+    if (!physicsObject.IsBodyProgressEvent() ||
+        physicsObject.GetLateProgressEventCount() != 1U ||
+        physicsObject.GetFrameEventCount() != 1U ||
+        !physicsObjectWorld.HasLateProgressEvent(&physicsObject) ||
+        !physicsObjectWorld.HasFrameEvent(&physicsObject))
+        return 114;
+    physicsObjectWorld.LateProgress(1.0F / 60.0F, true);
+    if (std::abs(physicsObject.GetWorldPos()[0] - 2.0F) > 0.0001F ||
+        std::abs(physicsObject.GetWorldPos()[1] - 4.0F) > 0.0001F)
+        return 115;
+    physicsObject.SynchronizePhysicsState(
+        {6.0F, 8.0F, 10.0F},
+        {0.0F, 0.0F, 0.0F, 1.0F},
+        {3.0F, 0.0F, 0.0F}, true);
+    physicsObjectWorld.FrameStep(0.0F, 0.5F);
+    if (std::abs(physicsObject.GetWorldPos()[0] - 4.0F) > 0.0001F ||
+        std::abs(physicsObject.GetWorldPos()[1] - 6.0F) > 0.0001F ||
+        std::abs(
+            physicsObject.GetFrameSync().GetRenderVelocity().x - 2.0F) >
+            0.0001F)
+        return 116;
+    physicsObject.SynchronizePhysicsState(
+        {7.0F, 9.0F, 11.0F},
+        {0.0F, 0.0F, 0.0F, 1.0F}, {}, false);
+    if (physicsObject.IsBodyProgressEvent() ||
+        physicsObject.GetLateProgressEventCount() != 0U ||
+        physicsObject.GetFrameEventCount() != 0U ||
+        physicsObjectWorld.HasLateProgressEvent(&physicsObject) ||
+        physicsObjectWorld.HasFrameEvent(&physicsObject) ||
+        std::abs(physicsObject.GetWorldPos()[0] - 7.0F) > 0.0001F ||
+        std::abs(physicsObject.GetWorldPos()[2] - 11.0F) > 0.0001F)
+        return 117;
+    physicsObject.SetLogic(nullptr);
+
     source::GameObject frameSyncOwner;
     auto& frameSync = frameSyncOwner.GetFrameSync();
     constexpr float halfQuarterTurn =

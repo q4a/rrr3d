@@ -1748,6 +1748,24 @@ discrete collision detection. Jolt остаётся владельцем solver/
 выбор типа тела, гравитации и collision quality теперь принадлежит source
 `Proj::PreparationRoute` и исходному PhysX descriptor contract.
 
+Результат B8dn: восстановлен базовый PhysX→`GameObject` pose lifecycle из
+`Scene::UserNotify`, `GameObject::OnWake`, `OnSleep`, `OnLateProgress`,
+`OnFrame` и `OnPxSync`. Хотя `GameObjectFrameSync` уже содержал source
+интерполяцию, сами базовые event handlers оставались пустыми, а
+`ProjectileBodyState` не передавал awake/sleep. Поэтому Jolt projectile и
+динамические MinePiece перескакивали сразу в конечную позу fixed step; static
+mine и sleeping body не отличались на source event boundary.
+
+Jolt теперь публикует существование body и реальный `Body::IsActive()` двумя
+отдельными признаками. `GameObject::SynchronizePhysicsState` повторяет
+регистрацию late/frame events, `OnLateProgress` выдаёт последний завершённый
+шаг без расходования network correction, а `OnFrame` интерполирует две
+source-позы по `WorldFrameClock::physicsAlpha`. При переходе в sleep финальная
+поза публикуется до снятия событий. Renderer берёт для physics-backed
+projectile/mine именно интерполированную позу concrete `Proj`; gameplay и
+contacts продолжают использовать конечную Jolt pose. Static placed mines
+остаются active actors, но никогда не получают body-progress event.
+
 Каждый крупный block commit обязан:
 
 1. назвать точные методы из `eff9338:prog`, которые стали активными;

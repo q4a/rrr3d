@@ -6876,3 +6876,21 @@ Portable Jolt adapter принудительно назначал каждому
 заменена на `Discrete`. При этом точные source gravity flags сохранены:
 Rocket/Fire без gravity, MinePiece/Drobilka/Mortira с gravity; размещённые
 Mine/Maslo/MineRip/MineProton/Crater остаются static sensor actors.
+
+### P2.319 — восстановлен `GameObject::OnPxSync` lifecycle снарядов — выполнено
+
+Исходная цепочка состоит из `Scene::UserNotify::onWake/onSleep`,
+`GameObject::SetBodyProgressEvent`, `OnLateProgress`, `OnFrame` и `OnPxSync`.
+Она синхронизирует graph actor только для бодрствующего PhysX body и
+интерполирует предыдущую/текущую позу по alpha. В порте математический
+`GameObjectFrameSync` существовал отдельно, но базовые handlers были no-op;
+projectile renderer читал конечную runtime pose напрямую.
+
+`ProjectileBodyState` теперь экспортирует `Body::IsActive()` отдельно от
+флага существования actor. Source `Proj` получает те же late/frame
+регистрации; sleeping transition сохраняет последнюю solved pose перед
+unregister. Renderer использует интерполированную source pose только для
+physics-backed projectile/mine, не возвращая render transform обратно в
+Jolt или gameplay. Static placed mine подтверждена как active/non-awake,
+динамический shot — как active/awake. Это устраняет ещё один фиксированный
+шаговый источник дрожания без изменения траектории или collision timing.

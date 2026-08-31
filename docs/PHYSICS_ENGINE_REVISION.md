@@ -26,6 +26,7 @@ game-rule differences in the adapter; it does not retune the car by eye.
 | Projectile motion quality | Projectile shapes have no `NxCCDSkeleton` and the scene never enables `NX_CONTINUOUS_CD`, so PhysX uses discrete collision detection | Projectile bodies use Jolt `EMotionQuality::Discrete`; the previously forced `LinearCast` mode has been removed |
 | Shape skin/solver | `Physx.cpp` sets `NX_SKIN_WIDTH=0.025`; `LoadCrushObj` raises movable crush boxes to `0.1`; `NxBodyDesc` uses four solver iterations | Jolt uses `0.05` penetration slop for a pair of default skins and four velocity iterations; the excess `0.075` of each explicit crush skin is represented by a per-shape collision inset |
 | Body sleep | `DataBase::AddPxBody` sets mass-normalized `sleepEnergyThreshold=0.05`; `NX_SLEEP_INTERVAL` is `0.4 s` | Jolt's representative-point movement test uses the equivalent enclosing-sphere radius rate `0.5*sqrt(2*0.05)` and the same `0.4 s`; awake state is exported for cars, decorations and debris |
+| Projectile graph sync | `Scene::UserNotify` drives `GameObject::OnWake/OnSleep`; awake bodies run `OnPxSync(1)` in late progress and alpha interpolation in frame progress | Jolt exports projectile `Body::IsActive()` separately from actor existence; concrete `Proj` owns the same event registration and Metal consumes its interpolated source pose |
 | Wheel queries | Wheels do not collide with shot-transparent borders or other cars | Suspension raycasts reject border and vehicle bodies |
 | Reset | Pose, velocities, gear and wheel state are reset | Wheel angular/rotation/steer state, neutral gear and idle RPM are explicitly restored |
 
@@ -59,6 +60,8 @@ cannot hide a motor defect. It checks:
   contacts with the track, and the wheel/shot-transparent exclusion.
 - permanent `NX_IGNORE_PAIR` filtering for a projectile/effect and its exact
   source car actor, including a returned Thunder crossing the owner again.
+- dynamic-projectile awake and static-mine non-awake states, plus the base
+  GameObject late/frame registration, half-alpha pose and sleep transition.
 
 Representative final acceptance also runs tracks 0, 16, 48 and 64 through the
 packaged arm64 Debug executable and a 240-frame bgfx/Metal race integration
@@ -90,3 +93,10 @@ The Windows code never supplies CCD skeletons and never enables continuous CCD,
 so Jolt uses discrete motion quality rather than the earlier invented
 `LinearCast` sweep. This deliberately preserves gameplay contact cadence; it is
 not a renderer or solver optimization.
+
+Projectile pose publication follows the source graph boundary as well. Jolt
+retains only actor storage, contacts and the completed solver transform;
+`ProjectileBodyState::bodyAwake` drives the concrete `Proj` frame-event
+lifecycle. The renderer reads its interpolated graph pose, while gameplay
+continues to use the completed physics pose and therefore cannot feed render
+interpolation back into the solver.

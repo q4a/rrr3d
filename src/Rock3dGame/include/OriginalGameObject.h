@@ -324,6 +324,12 @@ public:
     const Behaviors& GetBehaviors() const noexcept;
     GameObjectFrameSync& GetFrameSync() noexcept;
     const GameObjectFrameSync& GetFrameSync() const noexcept;
+    // Portable Scene::UserNotify/OnPxSync boundary for every GameObject,
+    // not only GameCar. Position/rotation remain source graph state while
+    // Jolt supplies the completed actor pose and its real awake bit.
+    void SynchronizePhysicsState(
+        Vector3 position, Quaternion rotation,
+        Vector3 linearVelocity, bool awake) noexcept;
 
     void SetImmortalFlag(bool value) noexcept;
     bool GetImmortalFlag() const noexcept;
@@ -470,6 +476,10 @@ public:
         Vector physicsPosition, Vector graphPosition,
         Quaternion graphRotation, Vector targetPosition,
         Quaternion targetRotation) noexcept;
+    // GameObject::OnLateProgress calls OnPxSync(1) without consuming either
+    // network correction channel. Return the newest completed body pose for
+    // that exact boundary.
+    Pose OnLatePhysicsStep(Pose fallback) noexcept;
     Pose OnFrame(Pose physicsPose, float deltaTime,
                  float physicsAlpha = 1.0F) noexcept;
 

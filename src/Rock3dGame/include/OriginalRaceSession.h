@@ -364,6 +364,7 @@ struct MineRuntime
     Vec3 physicsPreviousPosition;
     std::vector<r3d::physics::BodyContact> physicsContacts;
     bool physicsBacked = false;
+    bool physicsAwake = false;
 };
 
 struct ProjectileRuntime
@@ -388,6 +389,7 @@ struct ProjectileRuntime
     Vec3 physicsPreviousPosition;
     std::vector<r3d::physics::BodyContact> physicsContacts;
     bool physicsBacked = false;
+    bool physicsAwake = false;
 };
 
 class OriginalRaceSession

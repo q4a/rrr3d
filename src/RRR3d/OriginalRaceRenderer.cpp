@@ -4841,6 +4841,18 @@ void OriginalRaceRenderer::draw(
         r3d::physics::Transform parent;
         parent.position = projectile.position;
         parent.rotation = projectile.rotation;
+        if (projectile.physicsBacked)
+        {
+            const auto sourcePosition =
+                projectile.sourceObject->GetWorldPos();
+            const auto sourceRotation =
+                projectile.sourceObject->GetWorldRot();
+            parent.position = {
+                sourcePosition[0], sourcePosition[1], sourcePosition[2]};
+            parent.rotation = {
+                sourceRotation[0], sourceRotation[1],
+                sourceRotation[2], sourceRotation[3]};
+        }
         const auto sourceParent = parent;
         const auto& laserVisual =
             projectile.sourceObject->GetLaserVisualState();
@@ -4953,6 +4965,16 @@ void OriginalRaceRenderer::draw(
         r3d::physics::Transform parent;
         parent.position = mine.position;
         parent.rotation = mine.rotation;
+        if (mine.physicsBacked)
+        {
+            const auto sourcePosition = mine.sourceObject->GetWorldPos();
+            const auto sourceRotation = mine.sourceObject->GetWorldRot();
+            parent.position = {
+                sourcePosition[0], sourcePosition[1], sourcePosition[2]};
+            parent.rotation = {
+                sourceRotation[0], sourceRotation[1],
+                sourceRotation[2], sourceRotation[3]};
+        }
         if (definition.type == 10U)
         {
             // Windows Proj::MasloUpdate changes the included model's local

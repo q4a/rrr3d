@@ -782,14 +782,64 @@ void GameObject::OnLateProgress(
     float deltaTime, bool physicsStep) noexcept
 {
     static_cast<void>(deltaTime);
-    static_cast<void>(physicsStep);
+    if (!bodyProgressEvent_ || !physicsStep ||
+        !frameSync_->HasPhysicsState())
+        return;
+
+    // Windows GameObject::OnLateProgress calls OnPxSync(1) immediately
+    // before the final PhysX step. The portable history already contains
+    // completed source steps, so selecting the newest completed pose is the
+    // equivalent source-side graph publication.
+    const auto pose = frameSync_->OnLatePhysicsStep(
+        {{GetWorldPos()[0], GetWorldPos()[1], GetWorldPos()[2]},
+         {GetWorldRot()[0], GetWorldRot()[1],
+          GetWorldRot()[2], GetWorldRot()[3]}});
+    SetWorldPos({pose.position.x, pose.position.y, pose.position.z});
+    SetWorldRot({
+        pose.rotation.x, pose.rotation.y,
+        pose.rotation.z, pose.rotation.w});
 }
 
 void GameObject::OnFrame(
     float deltaTime, float physicsAlpha) noexcept
 {
-    static_cast<void>(deltaTime);
-    static_cast<void>(physicsAlpha);
+    const bool syncPhysics =
+        bodyProgressEvent_ && physicsAlpha != -1.0F;
+    if (!syncPhysics && !syncFrameEvent_)
+        return;
+
+    const auto worldPosition = GetWorldPos();
+    const auto worldRotation = GetWorldRot();
+    const auto pose = frameSync_->OnFrame(
+        {{worldPosition[0], worldPosition[1], worldPosition[2]},
+         {worldRotation[0], worldRotation[1],
+          worldRotation[2], worldRotation[3]}},
+        deltaTime, syncPhysics ? physicsAlpha : 1.0F);
+    SetWorldPos({pose.position.x, pose.position.y, pose.position.z});
+    SetWorldRot({
+        pose.rotation.x, pose.rotation.y,
+        pose.rotation.z, pose.rotation.w});
+}
+
+void GameObject::SynchronizePhysicsState(
+    Vector3 position, Quaternion rotation,
+    Vector3 linearVelocity, bool awake) noexcept
+{
+    const bool wasAwake = bodyProgressEvent_;
+    frameSync_->OnPhysicsState(
+        {{position[0], position[1], position[2]},
+         {rotation[0], rotation[1], rotation[2], rotation[3]}},
+        {linearVelocity[0], linearVelocity[1], linearVelocity[2]},
+        awake);
+    SetBodyProgressEvent(frameSync_->IsBodyProgressEvent());
+    if (wasAwake && !awake)
+    {
+        // PhysX sends OnSleep after the solver has written the final actor
+        // pose. Once the frame event is unregistered there is no later
+        // OnPxSync, so publish that terminal pose at the transition.
+        SetWorldPos(position);
+        SetWorldRot(rotation);
+    }
 }
 
 Proj* GameObject::IsProj() noexcept { return nullptr; }
@@ -1250,6 +1300,16 @@ GameObjectFrameSync::OnNetworkPose(
         result.snapRotation = true;
     }
     return result;
+}
+
+GameObjectFrameSync::Pose GameObjectFrameSync::OnLatePhysicsStep(
+    Pose fallback) noexcept
+{
+    if (!physicsStateInitialized_)
+        return fallback;
+    renderPhysicsPose_ = currentPhysicsPose_;
+    renderPhysicsVelocity_ = currentPhysicsVelocity_;
+    return currentPhysicsPose_;
 }
 
 GameObjectFrameSync::Pose GameObjectFrameSync::OnFrame(

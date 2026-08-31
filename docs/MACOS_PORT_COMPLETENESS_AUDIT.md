@@ -3095,3 +3095,20 @@ projectile body. Это меняло время контакта быстрых 
 `EMotionQuality::Discrete`; выбор gravity и dynamic/static состояния по-прежнему
 приходит из точных Prepare-маршрутов исходника. Никакая новая gameplay
 эвристика в backend не добавлена.
+
+### B8dn — подключён исходный GameObject wake/sleep и pose sync — выполнено
+
+`eff9338:Physx.cpp::Scene::UserNotify` вызывает `OnWake/OnSleep` для owner-а
+каждого PhysX actor. Базовый `GameObject` регистрирует late/frame events лишь
+пока body бодрствует; `OnLateProgress(..., true)` выполняет `OnPxSync(1)`, а
+`OnFrame` интерполирует позу по physics alpha. Portable frame-sync математика
+была перенесена ранее, но оба event handler оставались пустыми и Jolt
+projectile state вообще не содержал awake bit.
+
+Теперь backend различает `active` actor и `bodyAwake`. Concrete `Proj`
+получает source event registration и две последние физические позы; Metal
+рисует physics-backed projectile/MinePiece из интерполированной source graph
+pose, тогда как столкновения остаются на конечной solver pose. Static
+Mine/Maslo/MineRip/MineProton/Crater остаются active sensor actors с
+`bodyAwake=false`. Regression проверяет регистрацию, late publication,
+half-alpha frame, sleep transition и static/dynamic Jolt states.

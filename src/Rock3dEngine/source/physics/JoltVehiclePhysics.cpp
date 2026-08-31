@@ -2505,6 +2505,7 @@ private:
         if (projectile.body.IsInvalid())
         {
             projectile.state.active = false;
+            projectile.state.bodyAwake = false;
             return;
         }
         auto& bodies = system_.GetBodyInterface();
@@ -2513,6 +2514,7 @@ private:
         bodies.DestroyBody(projectile.body);
         projectile.body = JPH::BodyID();
         projectile.state.active = false;
+        projectile.state.bodyAwake = false;
     }
 
     bool createProjectileBody(
@@ -2603,6 +2605,7 @@ private:
         runtime->state.body = description.transform;
         runtime->state.linearVelocity = description.linearVelocity;
         runtime->state.active = true;
+        runtime->state.bodyAwake = moving;
         return true;
     }
 
@@ -2652,6 +2655,9 @@ private:
         if (!lock.Succeeded())
             return;
         const JPH::Body& body = lock.GetBody();
+        projectile.state.bodyAwake =
+            body.GetMotionType() != JPH::EMotionType::Static &&
+            body.IsActive();
         projectile.state.body.position = fromJolt(body.GetPosition());
         projectile.state.body.rotation = fromJolt(body.GetRotation());
         projectile.state.body.scale = {1.0F, 1.0F, 1.0F};
@@ -3837,7 +3843,6 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
                 touchingProjectile.body.halfExtents = {
                     0.5F, 0.5F, 0.5F};
                 touchingProjectile.body.dynamic = false;
-                touchingProjectile.body.kinematic = true;
                 projectileCommands.push_back(touchingProjectile);
                 constexpr std::array<ProjectileCollisionGroup, 3U>
                     floorGroups{
@@ -3899,9 +3904,11 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
         fixedStepWorld->vehicle().linearVelocity.z <= 1.0F ||
         fixedStepWorld->projectileBodyCount() != 5U ||
         !fixedStepWorld->projectileBody(0U).active ||
+        !fixedStepWorld->projectileBody(0U).bodyAwake ||
         fixedStepWorld->projectileBody(0U).id != 42U ||
         fixedStepWorld->projectileBody(0U).body.position.x <= 0.05F ||
         fixedStepWorld->projectileBody(1U).id != 43U ||
+        fixedStepWorld->projectileBody(1U).bodyAwake ||
         std::none_of(
             fixedStepWorld->projectileBody(1U).contacts.begin(),
             fixedStepWorld->projectileBody(1U).contacts.end(),
