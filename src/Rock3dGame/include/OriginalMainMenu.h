@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace r3d::resource
@@ -103,6 +104,161 @@ public:
 private:
     originalmenu::MenuScreen screen_ = originalmenu::MenuScreen::Main;
     std::vector<bool> enabled_;
+};
+
+enum class NetworkFrameCommand : std::uint8_t
+{
+    Create,
+    Connect,
+    Back,
+};
+
+// Source-owned state of MainMenu2.cpp::NetworkFrame. Network discovery and
+// socket lifetime stay in the platform transport; this object owns the menu
+// policy and the six-address presentation payload.
+class NetworkFrameState
+{
+public:
+    void show(std::vector<std::string> adapterAddresses);
+    std::optional<NetworkFrameCommand> activate(
+        std::size_t item) const noexcept;
+    const std::vector<std::string>& addressLines() const noexcept;
+
+private:
+    std::vector<std::string> addressLines_;
+};
+
+enum class MainMenuServerType : std::uint8_t
+{
+    None,
+    Local,
+    Steam,
+    Lobby,
+};
+
+enum class ServerTypeCommand : std::uint8_t
+{
+    StartGameMode,
+    Back,
+};
+
+struct ServerTypeResult
+{
+    ServerTypeCommand command = ServerTypeCommand::Back;
+    MainMenuServerType type = MainMenuServerType::None;
+};
+
+class ServerTypeFrameState
+{
+public:
+    void show(bool steamAvailable = false,
+              bool lobbyAvailable = false) noexcept;
+    std::size_t itemCount() const noexcept;
+    std::optional<ServerTypeResult> activate(std::size_t item) noexcept;
+    MainMenuServerType type() const noexcept;
+    void reset() noexcept;
+
+private:
+    std::vector<MainMenuServerType> choices_;
+    MainMenuServerType type_ = MainMenuServerType::None;
+};
+
+enum class ClientTypeCommand : std::uint8_t
+{
+    BrowseLan,
+    EnterIpAddress,
+    BrowseSteam,
+    BrowseSteamLan,
+    Matchmaking,
+    Back,
+};
+
+class ClientTypeFrameState
+{
+public:
+    void show(bool steamAvailable = false,
+              bool lobbyAvailable = false) noexcept;
+    std::size_t itemCount() const noexcept;
+    std::optional<ClientTypeCommand> activate(
+        std::size_t item) const noexcept;
+
+private:
+    std::vector<ClientTypeCommand> choices_;
+};
+
+enum class NetworkHint : std::uint8_t
+{
+    None,
+    Refreshing,
+    Connecting,
+    HostListEmpty,
+    ConnectionFailed,
+    EnterIpAddress,
+};
+
+enum class NetBrowserCommandType : std::uint8_t
+{
+    Connect,
+    Back,
+};
+
+struct NetBrowserCommand
+{
+    NetBrowserCommandType type = NetBrowserCommandType::Back;
+    std::size_t endpoint = 0U;
+};
+
+class NetBrowserFrameState
+{
+public:
+    static constexpr std::size_t visibleRows = 4U;
+
+    void show() noexcept;
+    void update(std::vector<std::string> endpoints,
+                bool waiting, NetworkHint hint);
+    std::optional<NetBrowserCommand> activate(
+        std::size_t item) const noexcept;
+    bool scroll(int step) noexcept;
+    std::size_t scrollOffset() const noexcept;
+    bool canScrollUp() const noexcept;
+    bool canScrollDown() const noexcept;
+    bool waiting() const noexcept;
+    NetworkHint hint() const noexcept;
+    const std::vector<std::string>& endpoints() const noexcept;
+
+private:
+    std::vector<std::string> endpoints_;
+    std::size_t scroll_ = 0U;
+    bool waiting_ = false;
+    NetworkHint hint_ = NetworkHint::None;
+};
+
+enum class NetIpCommand : std::uint8_t
+{
+    Connect,
+    Back,
+};
+
+class NetIpAddressFrameState
+{
+public:
+    void show() noexcept;
+    void startWaiting(bool waiting, NetworkHint hint) noexcept;
+    bool append(std::string_view text);
+    bool backspace() noexcept;
+    std::optional<NetIpCommand> activate(
+        std::size_t item) const noexcept;
+    const std::string& displayText() const noexcept;
+    std::string address() const;
+    bool waiting() const noexcept;
+    NetworkHint hint() const noexcept;
+
+private:
+    void pushLine(std::string text);
+
+    std::string text_ = "_";
+    bool waiting_ = false;
+    NetworkHint hint_ = NetworkHint::EnterIpAddress;
 };
 
 enum class ProfileFocus : std::uint8_t

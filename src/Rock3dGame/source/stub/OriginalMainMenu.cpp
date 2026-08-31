@@ -13,6 +13,7 @@
 #include <array>
 #include <charconv>
 #include <cctype>
+#include <iterator>
 #include <limits>
 #include <memory>
 #include <sstream>
@@ -409,6 +410,249 @@ float FrameController::itemY(float viewportHeight, std::size_t item,
         return viewportHeight * 0.5F + 150.0F;
     return viewportHeight * 0.5F + firstItemOffsetY +
            static_cast<float>(item) * (itemHeight + 5.0F);
+}
+
+void NetworkFrameState::show(
+    std::vector<std::string> adapterAddresses)
+{
+    addressLines_.clear();
+    if (adapterAddresses.empty())
+        return;
+    addressLines_.emplace_back("My IP:");
+    const auto count = std::min<std::size_t>(
+        adapterAddresses.size(), 6U);
+    addressLines_.insert(
+        addressLines_.end(),
+        std::make_move_iterator(adapterAddresses.begin()),
+        std::make_move_iterator(adapterAddresses.begin() +
+                                static_cast<std::ptrdiff_t>(count)));
+}
+
+std::optional<NetworkFrameCommand> NetworkFrameState::activate(
+    std::size_t item) const noexcept
+{
+    if (item > 2U)
+        return std::nullopt;
+    return static_cast<NetworkFrameCommand>(item);
+}
+
+const std::vector<std::string>&
+NetworkFrameState::addressLines() const noexcept
+{
+    return addressLines_;
+}
+
+void ServerTypeFrameState::show(
+    bool steamAvailable, bool lobbyAvailable) noexcept
+{
+    choices_.clear();
+    choices_.push_back(MainMenuServerType::Local);
+    if (steamAvailable)
+        choices_.push_back(MainMenuServerType::Steam);
+    if (lobbyAvailable)
+        choices_.push_back(MainMenuServerType::Lobby);
+}
+
+std::size_t ServerTypeFrameState::itemCount() const noexcept
+{
+    return choices_.size() + 1U;
+}
+
+std::optional<ServerTypeResult> ServerTypeFrameState::activate(
+    std::size_t item) noexcept
+{
+    if (item < choices_.size())
+    {
+        type_ = choices_[item];
+        return ServerTypeResult{
+            ServerTypeCommand::StartGameMode, type_};
+    }
+    if (item == choices_.size())
+        return ServerTypeResult{};
+    return std::nullopt;
+}
+
+MainMenuServerType ServerTypeFrameState::type() const noexcept
+{
+    return type_;
+}
+
+void ServerTypeFrameState::reset() noexcept
+{
+    type_ = MainMenuServerType::None;
+}
+
+void ClientTypeFrameState::show(
+    bool steamAvailable, bool lobbyAvailable) noexcept
+{
+    choices_ = {
+        ClientTypeCommand::BrowseLan,
+        ClientTypeCommand::EnterIpAddress};
+    if (steamAvailable)
+    {
+        choices_.push_back(ClientTypeCommand::BrowseSteam);
+        choices_.push_back(ClientTypeCommand::BrowseSteamLan);
+    }
+    if (lobbyAvailable)
+        choices_.push_back(ClientTypeCommand::Matchmaking);
+    choices_.push_back(ClientTypeCommand::Back);
+}
+
+std::size_t ClientTypeFrameState::itemCount() const noexcept
+{
+    return choices_.size();
+}
+
+std::optional<ClientTypeCommand> ClientTypeFrameState::activate(
+    std::size_t item) const noexcept
+{
+    return item < choices_.size()
+               ? std::optional<ClientTypeCommand>{choices_[item]}
+               : std::nullopt;
+}
+
+void NetBrowserFrameState::show() noexcept
+{
+    endpoints_.clear();
+    scroll_ = 0U;
+    waiting_ = true;
+    hint_ = NetworkHint::Refreshing;
+}
+
+void NetBrowserFrameState::update(
+    std::vector<std::string> endpoints, bool waiting,
+    NetworkHint hint)
+{
+    endpoints_ = std::move(endpoints);
+    waiting_ = waiting;
+    hint_ = hint;
+    const auto maximumScroll = endpoints_.size() > visibleRows
+        ? endpoints_.size() - visibleRows
+        : 0U;
+    scroll_ = std::min(scroll_, maximumScroll);
+}
+
+std::optional<NetBrowserCommand> NetBrowserFrameState::activate(
+    std::size_t item) const noexcept
+{
+    if (!waiting_ && item < endpoints_.size())
+        return NetBrowserCommand{
+            NetBrowserCommandType::Connect, item};
+    if (item == endpoints_.size())
+        return NetBrowserCommand{};
+    return std::nullopt;
+}
+
+bool NetBrowserFrameState::scroll(int step) noexcept
+{
+    const auto maximumScroll = endpoints_.size() > visibleRows
+        ? endpoints_.size() - visibleRows
+        : 0U;
+    const auto old = scroll_;
+    if (step < 0)
+    {
+        const auto magnitude = static_cast<std::size_t>(-step);
+        scroll_ = magnitude > scroll_ ? 0U : scroll_ - magnitude;
+    }
+    else
+    {
+        scroll_ = std::min(
+            maximumScroll,
+            scroll_ + static_cast<std::size_t>(step));
+    }
+    return old != scroll_;
+}
+
+std::size_t NetBrowserFrameState::scrollOffset() const noexcept
+{
+    return scroll_;
+}
+
+bool NetBrowserFrameState::canScrollUp() const noexcept
+{
+    return scroll_ > 0U;
+}
+
+bool NetBrowserFrameState::canScrollDown() const noexcept
+{
+    return scroll_ + visibleRows < endpoints_.size();
+}
+
+bool NetBrowserFrameState::waiting() const noexcept { return waiting_; }
+NetworkHint NetBrowserFrameState::hint() const noexcept { return hint_; }
+const std::vector<std::string>&
+NetBrowserFrameState::endpoints() const noexcept { return endpoints_; }
+
+void NetIpAddressFrameState::show() noexcept
+{
+    text_ = "_";
+    waiting_ = false;
+    hint_ = NetworkHint::EnterIpAddress;
+}
+
+void NetIpAddressFrameState::startWaiting(
+    bool waiting, NetworkHint hint) noexcept
+{
+    waiting_ = waiting;
+    hint_ = hint;
+}
+
+bool NetIpAddressFrameState::append(std::string_view text)
+{
+    bool changed = false;
+    for (const char character : text)
+    {
+        if ((character < '0' || character > '9') && character != '.')
+            continue;
+        const auto previous = text_;
+        pushLine(text_ + character);
+        changed = changed || text_ != previous;
+    }
+    return changed;
+}
+
+bool NetIpAddressFrameState::backspace() noexcept
+{
+    if (text_ == "_" || text_.empty())
+        return false;
+    text_.pop_back();
+    pushLine(std::move(text_));
+    return true;
+}
+
+std::optional<NetIpCommand> NetIpAddressFrameState::activate(
+    std::size_t item) const noexcept
+{
+    if (item == 0U && !waiting_)
+        return NetIpCommand::Connect;
+    if (item == 1U)
+        return NetIpCommand::Back;
+    return std::nullopt;
+}
+
+const std::string& NetIpAddressFrameState::displayText() const noexcept
+{
+    return text_;
+}
+
+std::string NetIpAddressFrameState::address() const
+{
+    return text_ == "_" ? std::string{} : text_;
+}
+
+bool NetIpAddressFrameState::waiting() const noexcept { return waiting_; }
+NetworkHint NetIpAddressFrameState::hint() const noexcept { return hint_; }
+
+void NetIpAddressFrameState::pushLine(std::string text)
+{
+    if (!text.empty() && text.front() == '_')
+        text.erase(text.begin());
+    else if (text.empty())
+        text = "_";
+    else if (text.size() >= 2U && text.back() == '.' &&
+             text[text.size() - 2U] == '.')
+        return;
+    text_ = std::move(text);
 }
 
 void ProfileFrameState::show(std::size_t profileCount) noexcept

@@ -6513,3 +6513,19 @@ factory через специальный `AddPairPxContactEffect`, поэтом
 Повторный Add возвращает тот же source owner без второго progress listener,
 invalid type отклоняется, а regression проверяет concrete RTTI, owner и
 ordered World registration. Jolt остаётся только contact-input adapter.
+
+### P2.297 — concrete MainMenu2 network frames — выполнено
+
+Windows `MainMenu2.cpp` разделяет сетевую ветвь между `NetworkFrame`,
+`ServerTypeFrame`, `ClientTypeFrame`, `NetBrowserFrame` и
+`NetIPAddressFrame`. Portable runtime уже имел рабочий Boost.Asio transport,
+но renderer entry point сам интерпретировал menu indices, хранил IP string и
+собирал browser/wait state — это была параллельная реализация GUI logic.
+
+Добавлены пять source frame-state owners и активный SDL путь переведён на их
+commands. Перенесены optional Steam/Lobby ordering, local/LAN/IP/back,
+ограничение вывода шести adapter addresses, четыре browser rows/scroll,
+refresh/connecting/empty/failure hints и точный IP `PushLine`. Transport
+оставляет owner-ам snapshot/callback input, bgfx/CoreText — presentation.
+Unit regression проверяет все ветви, integrated LAN smoke — lifecycle и
+failure/ready transitions.

@@ -4751,7 +4751,11 @@ int main(int argc, char** argv)
     };
     NetworkFailureDialogAction networkFailureDialogAction =
         NetworkFailureDialogAction::None;
-    std::string networkIpInput = "_";
+    r3d::game::mainmenu2::NetworkFrameState sourceNetworkFrame;
+    r3d::game::mainmenu2::ServerTypeFrameState sourceServerTypeFrame;
+    r3d::game::mainmenu2::ClientTypeFrameState sourceClientTypeFrame;
+    r3d::game::mainmenu2::NetBrowserFrameState sourceNetBrowserFrame;
+    r3d::game::mainmenu2::NetIpAddressFrameState sourceNetIpFrame;
     bool networkHostRequested = false;
     bool networkMatchStarted = false;
     bool networkRaceStarted = false;
@@ -4824,24 +4828,15 @@ int main(int argc, char** argv)
         page = std::move(replacement);
     };
     auto refreshNetworkAddressPage = [&]() {
-        std::vector<std::string> lines;
-        if (!networkSnapshot.adapterAddresses.empty())
-        {
-            lines.emplace_back("My IP:");
-            const auto count = std::min<std::size_t>(
-                networkSnapshot.adapterAddresses.size(), 6U);
-            lines.insert(
-                lines.end(), networkSnapshot.adapterAddresses.begin(),
-                networkSnapshot.adapterAddresses.begin() +
-                    static_cast<std::ptrdiff_t>(count));
-        }
+        sourceNetworkFrame.show(networkSnapshot.adapterAddresses);
         replaceNetworkAuxPage(
-            networkAddressInfoPage, std::move(lines),
+            networkAddressInfoPage,
+            sourceNetworkFrame.addressLines(),
             menu::smallFontHeight);
     };
     auto refreshNetworkIpPage = [&]() {
         replaceNetworkAuxPage(
-            networkIpValuePage, {networkIpInput},
+            networkIpValuePage, {sourceNetIpFrame.displayText()},
             menu::headerFontHeight);
     };
     auto refreshNetworkRuntimePages = [&]() {
@@ -4851,45 +4846,60 @@ int main(int argc, char** argv)
         renderedNetworkRevision = networkSnapshot.revision;
         refreshNetworkAddressPage();
 
-        std::vector<std::string> hostLabels;
-        hostLabels.reserve(
-            networkSnapshot.discoveredHosts.size() + 1U);
+        std::vector<std::string> endpoints;
+        endpoints.reserve(networkSnapshot.discoveredHosts.size());
         for (const auto& endpoint : networkSnapshot.discoveredHosts)
-            hostLabels.push_back(endpoint.address);
-        hostLabels.push_back(localized("svBack"));
-        auto browserReplacement = createPage(std::move(hostLabels));
-        destroyPage(networkBrowserPage);
-        networkBrowserPage = std::move(browserReplacement);
+            endpoints.push_back(endpoint.address);
 
         std::string status;
+        bool waiting = false;
+        auto hint = r3d::game::mainmenu2::NetworkHint::None;
         using State = r3d::game::originalnetwork::SessionState;
         switch (networkSnapshot.state)
         {
         case State::Searching:
+            waiting = true;
+            hint = r3d::game::mainmenu2::NetworkHint::Refreshing;
             status = localized("svHintRefreshing");
             break;
         case State::Connecting:
+            waiting = true;
+            hint = r3d::game::mainmenu2::NetworkHint::Connecting;
             status = localized("svHintConnecting");
             break;
         case State::Connected:
             // MainMenu::OnConnectedPlayer leaves the source loading hint
             // visible until the replicated NetPlayer model exists.
+            waiting = true;
+            hint = r3d::game::mainmenu2::NetworkHint::Connecting;
             status = localized("svHintConnecting");
             break;
         case State::Hosting:
             break;
         case State::Failed:
+            hint = r3d::game::mainmenu2::NetworkHint::ConnectionFailed;
             status = localized("svHintHostConnectionFailed");
             if (!networkSnapshot.lastErrorMessage.empty())
                 status += ": " + networkSnapshot.lastErrorMessage;
             break;
         case State::Idle:
             if (networkSnapshot.discoveredHosts.empty())
+            {
+                hint = r3d::game::mainmenu2::NetworkHint::HostListEmpty;
                 status = localized("svHintHostListEmpty");
+            }
             break;
         case State::Stopped:
             break;
         }
+        sourceNetBrowserFrame.update(
+            std::move(endpoints), waiting, hint);
+        std::vector<std::string> hostLabels =
+            sourceNetBrowserFrame.endpoints();
+        hostLabels.push_back(localized("svBack"));
+        auto browserReplacement = createPage(std::move(hostLabels));
+        destroyPage(networkBrowserPage);
+        networkBrowserPage = std::move(browserReplacement);
         replaceNetworkAuxPage(
             networkStatusPage, {std::move(status)},
             menu::smallFontHeight);
@@ -10201,10 +10211,12 @@ int main(int argc, char** argv)
             switch (networkSmokeStep)
             {
             case 0U:
+                sourceServerTypeFrame.show();
                 pushMenu(MenuScreen::NetworkServerType);
                 break;
             case 1U:
                 backMenu();
+                sourceClientTypeFrame.show();
                 pushMenu(MenuScreen::NetworkClientType);
                 break;
             case 2U:
@@ -10215,6 +10227,7 @@ int main(int argc, char** argv)
                               << error << '\n';
                     runtimeSmokeFailed = true;
                 }
+                sourceNetBrowserFrame.show();
                 pushMenu(MenuScreen::NetworkBrowser);
                 renderedNetworkRevision =
                     std::numeric_limits<std::uint64_t>::max();
@@ -10222,7 +10235,8 @@ int main(int argc, char** argv)
                 break;
             case 3U:
                 backMenu();
-                networkIpInput = "127.0.0.1";
+                sourceNetIpFrame.show();
+                sourceNetIpFrame.append("127.0.0.1");
                 refreshNetworkIpPage();
                 replaceNetworkAuxPage(
                     networkStatusPage,
@@ -11093,43 +11107,17 @@ int main(int argc, char** argv)
 #ifdef RRR3D_NETWORK
             if (menuStack.back() == MenuScreen::NetworkIpAddress)
             {
-                bool changed = false;
                 if (event.type == SDL_EVENT_TEXT_INPUT)
                 {
-                    if (networkIpInput == "_")
-                        networkIpInput.clear();
-                    for (const char* character = event.text.text;
-                         *character != '\0'; ++character)
-                    {
-                        if ((std::isdigit(
-                                 static_cast<unsigned char>(*character)) ||
-                             *character == '.') &&
-                            networkIpInput.size() < 15U &&
-                            !(*character == '.' &&
-                              !networkIpInput.empty() &&
-                              networkIpInput.back() == '.'))
-                        {
-                            networkIpInput.push_back(*character);
-                            changed = true;
-                        }
-                    }
-                    if (networkIpInput.empty())
-                        networkIpInput = "_";
-                    if (changed)
+                    if (sourceNetIpFrame.append(event.text.text))
                         refreshNetworkIpPage();
                     continue;
                 }
                 if (event.type == SDL_EVENT_KEY_DOWN &&
                     event.key.scancode == SDL_SCANCODE_BACKSPACE)
                 {
-                    if (networkIpInput != "_" &&
-                        !networkIpInput.empty())
-                    {
-                        networkIpInput.pop_back();
-                        if (networkIpInput.empty())
-                            networkIpInput = "_";
+                    if (sourceNetIpFrame.backspace())
                         refreshNetworkIpPage();
-                    }
                     continue;
                 }
             }
@@ -14067,13 +14055,25 @@ int main(int argc, char** argv)
                     }
                     break;
                 case MenuScreen::Network:
-                    if (menuSelection + 1U >= page.labels.size())
+                {
+                    const auto command =
+                        sourceNetworkFrame.activate(menuSelection);
+                    if (!command ||
+                        *command == r3d::game::mainmenu2::
+                            NetworkFrameCommand::Back)
                         backMenu();
 #ifdef RRR3D_NETWORK
-                    else if (menuSelection == 0U)
+                    else if (*command == r3d::game::mainmenu2::
+                                             NetworkFrameCommand::Create)
+                    {
+                        sourceServerTypeFrame.show();
                         pushMenu(MenuScreen::NetworkServerType);
+                    }
                     else
+                    {
+                        sourceClientTypeFrame.show();
                         pushMenu(MenuScreen::NetworkClientType);
+                    }
 #else
                     else
                         std::cout
@@ -14081,9 +14081,15 @@ int main(int argc, char** argv)
                                "non-Windows NetLib transport port\n";
 #endif
                     break;
+                }
 #ifdef RRR3D_NETWORK
                 case MenuScreen::NetworkServerType:
-                    if (menuSelection + 1U >= page.labels.size())
+                {
+                    const auto result =
+                        sourceServerTypeFrame.activate(menuSelection);
+                    if (!result || result->command ==
+                                       r3d::game::mainmenu2::
+                                           ServerTypeCommand::Back)
                     {
                         backMenu();
                     }
@@ -14102,13 +14108,19 @@ int main(int argc, char** argv)
                             << "Original ServerTypeFrame: stLocal\n";
                     }
                     break;
+                }
                 case MenuScreen::NetworkClientType:
-                    if (menuSelection == 0U)
+                {
+                    const auto command =
+                        sourceClientTypeFrame.activate(menuSelection);
+                    if (command == r3d::game::mainmenu2::
+                                       ClientTypeCommand::BrowseLan)
                     {
                         std::string error;
                         if (networkSession.beginLanSearch(
                                 error, options->legacyWindowsDebug))
                         {
+                            sourceNetBrowserFrame.show();
                             pushMenu(MenuScreen::NetworkBrowser);
                             renderedNetworkRevision =
                                 std::numeric_limits<std::uint64_t>::max();
@@ -14121,9 +14133,10 @@ int main(int argc, char** argv)
                                 << error << '\n';
                         }
                     }
-                    else if (menuSelection == 1U)
+                    else if (command == r3d::game::mainmenu2::
+                                            ClientTypeCommand::EnterIpAddress)
                     {
-                        networkIpInput = "_";
+                        sourceNetIpFrame.show();
                         refreshNetworkIpPage();
                         replaceNetworkAuxPage(
                             networkStatusPage,
@@ -14142,17 +14155,23 @@ int main(int argc, char** argv)
                         backMenu();
                     }
                     break;
+                }
                 case MenuScreen::NetworkBrowser:
-                    if (menuSelection + 1U >= page.labels.size())
+                {
+                    const auto command =
+                        sourceNetBrowserFrame.activate(menuSelection);
+                    if (!command || command->type ==
+                                        r3d::game::mainmenu2::
+                                            NetBrowserCommandType::Back)
                     {
                         backMenu();
                     }
-                    else if (
-                        menuSelection <
-                        networkSnapshot.discoveredHosts.size())
+                    else if (command->endpoint <
+                             networkSnapshot.discoveredHosts.size())
                     {
                         const auto endpoint =
-                            networkSnapshot.discoveredHosts[menuSelection];
+                            networkSnapshot.discoveredHosts[
+                                command->endpoint];
                         std::string error;
                         if (!networkSession.connect(endpoint, error))
                         {
@@ -14172,12 +14191,16 @@ int main(int argc, char** argv)
                         refreshNetworkRuntimePages();
                     }
                     break;
+                }
                 case MenuScreen::NetworkIpAddress:
-                    if (menuSelection == 0U)
+                {
+                    const auto command =
+                        sourceNetIpFrame.activate(menuSelection);
+                    if (command == r3d::game::mainmenu2::
+                                       NetIpCommand::Connect)
                     {
-                        std::string address = networkIpInput;
-                        if (!address.empty() && address.front() == '_')
-                            address.erase(address.begin());
+                        const std::string address =
+                            sourceNetIpFrame.address();
                         std::string error;
                         if (!networkSession.connect(
                                 {address,
@@ -14190,6 +14213,10 @@ int main(int argc, char** argv)
                         }
                         else
                         {
+                            sourceNetIpFrame.startWaiting(
+                                true,
+                                r3d::game::mainmenu2::
+                                    NetworkHint::Connecting);
                             showLoadingInfoDialog();
                         }
                         renderedNetworkRevision =
@@ -14201,6 +14228,7 @@ int main(int argc, char** argv)
                         backMenu();
                     }
                     break;
+                }
 #endif
                 case MenuScreen::Options:
 #ifdef RRR3D_PHYSICS
@@ -20008,7 +20036,7 @@ int main(int argc, char** argv)
                 networkIpObserved =
                     networkIpObserved ||
                     (activePage.labels.size() == 2U &&
-                     networkIpInput == "127.0.0.1");
+                     sourceNetIpFrame.displayText() == "127.0.0.1");
             }
 #endif
 #ifdef RRR3D_PHYSICS

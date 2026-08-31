@@ -1441,6 +1441,19 @@ concrete класс специальным helper-методом; он пере�
 а неизвестное serialized значение завершается явной ошибкой. Jolt передаёт
 этому объекту только pair/manifold input.
 
+Результат B8cr: крупным блоком возвращены concrete state owners сетевой
+ветви `MainMenu2.cpp`: `NetworkFrame`, `ServerTypeFrame`, `ClientTypeFrame`,
+`NetBrowserFrame` и `NetIPAddressFrame`. Они владеют source command mapping,
+`stLocal/stSteam/stLobby`, шестью adapter-address rows, endpoint list,
+four-row browser scroll/wait/hint state и точным `PushLine` для IP (`_`,
+digits, точка, запрет `..`, Backspace).
+
+Активный main loop больше не выбирает переход по сырым индексам и не хранит
+свою IP-строку. Boost.Asio snapshot преобразуется во вход OnPing/connection
+state, а bgfx/CoreText читают готовые rows/status. 420-frame LAN regression
+проходит Create→Local, Client→LAN/IP, close/cancel, host ready gate и failure
+callback.
+
 Каждый крупный block commit обязан:
 
 1. назвать точные методы из `eff9338:prog`, которые стали активными;

@@ -56,6 +56,84 @@ int main()
     if (!frame.enabled(0U) || frame.enabled(2U))
         return fail("TournamentFrame continue/load ownership differs");
 
+    NetworkFrameState network;
+    network.show({"10.0.0.1", "10.0.0.2", "10.0.0.3",
+                  "10.0.0.4", "10.0.0.5", "10.0.0.6",
+                  "10.0.0.7"});
+    if (network.addressLines().size() != 7U ||
+        network.addressLines().front() != "My IP:" ||
+        network.addressLines().back() != "10.0.0.6" ||
+        network.activate(0U) != NetworkFrameCommand::Create ||
+        network.activate(1U) != NetworkFrameCommand::Connect ||
+        network.activate(2U) != NetworkFrameCommand::Back ||
+        network.activate(3U))
+        return fail("NetworkFrame source command/address policy differs");
+
+    ServerTypeFrameState serverType;
+    serverType.show();
+    const auto localServer = serverType.activate(0U);
+    if (serverType.itemCount() != 2U || !localServer ||
+        localServer->command != ServerTypeCommand::StartGameMode ||
+        localServer->type != MainMenuServerType::Local ||
+        serverType.type() != MainMenuServerType::Local ||
+        serverType.activate(1U)->command != ServerTypeCommand::Back)
+        return fail("ServerTypeFrame local/back policy differs");
+    serverType.reset();
+    serverType.show(true, true);
+    if (serverType.itemCount() != 4U ||
+        serverType.activate(1U)->type != MainMenuServerType::Steam ||
+        serverType.activate(2U)->type != MainMenuServerType::Lobby)
+        return fail("ServerTypeFrame optional source choices differ");
+
+    ClientTypeFrameState clientType;
+    clientType.show();
+    if (clientType.itemCount() != 3U ||
+        clientType.activate(0U) != ClientTypeCommand::BrowseLan ||
+        clientType.activate(1U) != ClientTypeCommand::EnterIpAddress ||
+        clientType.activate(2U) != ClientTypeCommand::Back)
+        return fail("ClientTypeFrame local/IP/back policy differs");
+
+    NetBrowserFrameState browser;
+    browser.show();
+    if (!browser.waiting() ||
+        browser.hint() != NetworkHint::Refreshing)
+        return fail("NetBrowserFrame refresh state differs");
+    browser.update(
+        {"host0", "host1", "host2", "host3", "host4"},
+        false, NetworkHint::None);
+    if (browser.endpoints().size() != 5U ||
+        !browser.canScrollDown() || browser.canScrollUp() ||
+        !browser.scroll(1) || browser.scrollOffset() != 1U ||
+        !browser.canScrollUp() || browser.canScrollDown() ||
+        browser.activate(4U)->type != NetBrowserCommandType::Connect ||
+        browser.activate(5U)->type != NetBrowserCommandType::Back)
+        return fail("NetBrowserFrame grid/selection state differs");
+    browser.update({}, false, NetworkHint::HostListEmpty);
+    if (browser.scrollOffset() != 0U ||
+        browser.hint() != NetworkHint::HostListEmpty ||
+        browser.activate(0U)->type != NetBrowserCommandType::Back)
+        return fail("NetBrowserFrame empty completion differs");
+
+    NetIpAddressFrameState ipAddress;
+    ipAddress.show();
+    if (ipAddress.displayText() != "_" ||
+        ipAddress.hint() != NetworkHint::EnterIpAddress ||
+        !ipAddress.append("127..0a.0.1") ||
+        ipAddress.displayText() != "127.0.0.1" ||
+        ipAddress.address() != "127.0.0.1")
+        return fail("NetIPAddressFrame PushLine/input differs");
+    ipAddress.startWaiting(true, NetworkHint::Connecting);
+    if (ipAddress.activate(0U) ||
+        ipAddress.activate(1U) != NetIpCommand::Back ||
+        ipAddress.hint() != NetworkHint::Connecting)
+        return fail("NetIPAddressFrame waiting gate differs");
+    ipAddress.startWaiting(false, NetworkHint::EnterIpAddress);
+    while (ipAddress.backspace())
+    {
+    }
+    if (ipAddress.displayText() != "_" || !ipAddress.address().empty())
+        return fail("NetIPAddressFrame backspace sentinel differs");
+
     ProfileFrameState profiles;
     profiles.show(6U);
     if (profiles.focus() != ProfileFocus::Back ||
