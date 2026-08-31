@@ -6367,3 +6367,17 @@ accessors, не вторую gameplay-копию. При respawn новый beha
 конфигурируется из `Vehicle`, а динамический Frost `SlowEffect` исчезает
 вместе со своим удаляемым listener. Это сохраняет исходные callback order и
 one-entry lifetime без возврата PhysX/Graph/XAudio backend-ов.
+
+### P2.287 — car behavior state и Podushka targetTag — выполнено
+
+Следующая сверка `GameBase.cpp` подтвердила аналогичные split owners у типов
+9, 12, 13 и 14. `SoundMotor`, `PxWheelSlipEffect`, `GusenizaAnim` и
+`PodushkaAnim` хранились в owning car/wheel/child, а зарегистрированные
+behavior entries только обращались к ним по индексу.
+
+Все четыре state перенесены внутрь concrete behavior. Сохранены исходные
+`SoundMotor::OnMotor` RPM lag, slip threshold/MakeEffect/FreeEffect,
+гусеничный sampler offset и вращение tagged cushion submesh. Дополнительно
+перенесён serialized `PodushkaAnim::targetTag`, ранее прочитанный loader-ом,
+но потерянный до runtime. Jolt contact, SDL voices и Metal transforms остались
+payload adapters и не владеют игровым transition state.

@@ -378,9 +378,12 @@ public:
         std::size_t wheel) const noexcept;
     void BindAnimationChildren(
         bool trackAnimation, std::size_t cushionAnimations);
+    void BindAnimationChildren(
+        bool trackAnimation, const std::vector<int>& cushionTargetTags);
     void ReleaseAnimationChildren() noexcept;
     float GetTrackTextureOffset() const noexcept;
     float GetCushionAngle(std::size_t index) const noexcept;
+    float GetCushionAngleForTag(int targetTag) const noexcept;
     std::size_t GetAnimationChildCount() const noexcept;
     CarAnimationChild* GetAnimationChild(std::size_t index) noexcept;
     const CarAnimationChild* GetAnimationChild(
@@ -411,7 +414,7 @@ private:
     float clutchTime_ = 0.0F;
     float springTime_ = 0.0F;
     float mineTime_ = 0.0F;
-    std::unique_ptr<SoundMotor> soundMotor_;
+    SoundMotorBehavior* soundMotorBehavior_ = nullptr;
     SoundMotorMix soundMotorMix_;
     std::array<float, 2> rpmVolumeRange_{0.0F, 1.0F};
     std::array<float, 2> rpmFrequencyRange_{0.0F, 1.0F};
@@ -572,7 +575,7 @@ public:
 private:
     class WheelSlipBehavior;
 
-    std::vector<PxWheelSlipEffect> slipEffects_;
+    std::vector<WheelSlipBehavior*> slipBehaviors_;
     std::vector<WheelSlipProgress> slipResults_;
     float longitudinalSlip_ = 0.0F;
     float lateralSlip_ = 0.0F;
@@ -615,11 +618,14 @@ public:
     static constexpr float minimumWheelSpeed = 1.0F;
 
     void Reset() noexcept;
+    void SetTargetTag(int value) noexcept;
+    int GetTargetTag() const noexcept;
     float OnProgress(float deltaTime, float leadWheelSpeed) noexcept;
     float GetAngle() const noexcept;
 
 private:
     float angle_ = 0.0F;
+    int targetTag_ = 0;
 };
 
 // Serialized car include actors keep their own behavior owners. Guseniza has
@@ -631,6 +637,8 @@ public:
     CarAnimationChild();
     CarAnimationChild(bool trackAnimation,
                       std::size_t cushionAnimations);
+    CarAnimationChild(
+        bool trackAnimation, const std::vector<int>& cushionTargetTags);
     CarAnimationChild(const CarAnimationChild& other);
     CarAnimationChild& operator=(
         const CarAnimationChild& other) noexcept;
@@ -640,20 +648,24 @@ public:
 
     void Configure(bool trackAnimation,
                    std::size_t cushionAnimations);
+    void Configure(
+        bool trackAnimation, const std::vector<int>& cushionTargetTags);
     GameObject::ProgressResult OnProgress(float deltaTime) noexcept;
     bool HasTrackAnimation() const noexcept;
     std::size_t GetCushionAnimationCount() const noexcept;
     float GetTrackTextureOffset() const noexcept;
     float GetCushionAngle(std::size_t index) const noexcept;
+    float GetCushionAngleForTag(int targetTag) const noexcept;
+    int GetCushionTargetTag(std::size_t index) const noexcept;
 
 private:
     class TrackBehavior;
     class CushionBehavior;
-    void BindBehaviors();
+    void BindBehaviors(
+        bool trackAnimation, const std::vector<int>& cushionTargetTags);
 
-    GusenizaAnim trackAnimation_;
-    std::vector<PodushkaAnim> cushionAnimations_;
-    bool hasTrackAnimation_ = false;
+    TrackBehavior* trackBehavior_ = nullptr;
+    std::vector<CushionBehavior*> cushionBehaviors_;
 };
 
 } // namespace r3d::game::originalrace::source

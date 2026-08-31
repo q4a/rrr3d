@@ -54,8 +54,8 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `Environment` | `source::Environment` + `OriginalRaceRenderer` | Source owner, active race/presentation path | Weather/world/quality/rain lifetime принадлежат source owner; bgfx/Metal исполняет pass/material commands и lamp shadow submission |
 | `FinalMenu` | `mainmenu2::FinalMenuFrameState` + bgfx/CoreText view | Source owner, active frame | Legacy Widget API заменён backend draw/input/audio; credits, 107 s clock, slide alpha, Back и layout принадлежат source owner |
 | `FinishMenu` | `originalracemenu::FinishMenuFrameState` + bgfx/CoreText view | Source owner, active frame | Legacy Widget API заменён backend draw/input; result order, timing, events и layout принадлежат source owner |
-| `GameBase` | `OriginalGameObject`, all serialized behaviors, effects, motor sound state | Source owner, active behavior graph | Все shipped type 0–14 имеют concrete owner/runtime; LowLife/Damage/Immortal/Slow state живёт внутри зарегистрированного behavior, bgfx/Jolt/SDL исполняют только graph/physics/audio commands |
-| `GameCar` | `source::GameCar::{OnFixedStepDrive,OnContact,OnPxSync}` + Jolt vehicle adapter | Source owner, active drive/contact frame | Оставшиеся PhysX solver queries и actor operations являются Jolt boundary; продолжить аудит public serialization/editor-only методов |
+| `GameBase` | `OriginalGameObject`, all serialized behaviors, effects, motor sound state | Source owner, active behavior graph | Все shipped type 0–14 имеют concrete owner/runtime; LowLife/Damage/Immortal/Slow/Motor/WheelSlip/Guseniza/Podushka state живёт внутри зарегистрированного behavior, bgfx/Jolt/SDL исполняют только graph/physics/audio commands |
+| `GameCar` | `source::GameCar::{OnFixedStepDrive,OnContact,OnPxSync}` + Jolt vehicle adapter | Source owner, active drive/contact/behavior frame | SoundMotor, каждый wheel-slip и included track/cushion animation имеют concrete source owner; Jolt/SDL/bgfx получают telemetry/mix/result, оставшиеся PhysX solver queries и actor operations являются Jolt boundary |
 | `GameMode` | source startup/startup-menu/movie/race/music-fade states + one shared menu/game music source on shared World | Source owner, active startup/menu/race/audio-policy path | Config serialization и backend dispatch остаются adapters; bgfx/SDL/CoreAudio исполняют готовые source commands |
 | `GameObject` | `source::GameObject`, event counters, frame sync, listener/contact graph | Source owner, active core | Jolt/bgfx snapshots остаются backend boundary; source fixed/frame registration подключена |
 | `HudMenu` | `source::{HudMenu,MiniMapFrame,PlayerStateFrame}` + `OriginalRaceHud` | Source owner, active HUD/minimap/player-state policy | State/Escape/layout/countdown, MiniMap, weapon/place/life, OnProcessEvent, notifications, car-life и opponents source-owned; FinishMenu не дублируется, bgfx/CoreText payload и camera projection остаются backend boundary |
@@ -1317,6 +1317,19 @@ asset и вычисляется из source descriptor при создании �
 backend больше не может увидеть отдельный Player-owned effect. Player,
 Weapon и integrated race regressions закрепляют record identity, listener
 count, deferred removal, respawn configuration и effect lifetime.
+
+Результат B8ch: оставшиеся car behavior mirrors удалены. `SoundMotorBehavior`
+теперь сам хранит RPM lag/mix state; каждый `WheelSlipBehavior` — свой
+`PxWheelSlipEffect/EventEffect`; каждый `TrackBehavior` и `CushionBehavior` —
+свои `GusenizaAnim` и `PodushkaAnim`. `GameCar`, `CarWheel` и
+`CarAnimationChild` сохраняют только pointers к зарегистрированным entries и
+готовые backend snapshots.
+
+Одновременно восстановлен потерянный `PodushkaAnim::targetTag`: loader уже
+читал теги из `db.xml`, но runtime сводил их к количеству behaviors. Теперь
+`Vehicle::cushionVisuals[*].tag` передаётся при создании car include actor,
+принадлежит concrete type-14 state и переживает копирование graph. Shipped
+Viper actors закреплены regression-ом как target tags 1 и 2.
 
 ## Правило обновления карты
 

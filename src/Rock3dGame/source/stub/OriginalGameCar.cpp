@@ -148,19 +148,23 @@ public:
         // positions. SDL applies that backend boundary from the car pose.
     }
 
+    SoundMotor& State() noexcept { return state_; }
+    const SoundMotor& State() const noexcept { return state_; }
+
 protected:
     void OnMotor(float deltaTime, float rpm,
                  float minimumRpm, float maximumRpm) noexcept override
     {
-        if (car_ == nullptr || car_->soundMotor_ == nullptr)
+        if (car_ == nullptr)
             return;
-        car_->soundMotorMix_ = car_->soundMotor_->OnMotor(
+        car_->soundMotorMix_ = state_.OnMotor(
             deltaTime, rpm, minimumRpm, maximumRpm,
             car_->rpmVolumeRange_, car_->rpmFrequencyRange_);
     }
 
 private:
     GameCar* car_ = nullptr;
+    SoundMotor state_;
 };
 
 GameCar::GameCar()
@@ -209,7 +213,8 @@ GameCar& GameCar::operator=(const GameCar& other) noexcept
     if (other.HasSoundMotor())
     {
         BindSoundMotor(rpmVolumeRange_, rpmFrequencyRange_);
-        *soundMotor_ = *other.soundMotor_;
+        soundMotorBehavior_->State() =
+            other.soundMotorBehavior_->State();
         soundMotorMix_ = other.soundMotorMix_;
     }
     else
@@ -422,8 +427,8 @@ void GameCar::Reset() noexcept
     SetSyncFrameEvent(false);
     SetBodyProgressEvent(false);
     GetFrameSync().Reset();
-    if (soundMotor_ != nullptr)
-        soundMotor_->Reset();
+    if (soundMotorBehavior_ != nullptr)
+        soundMotorBehavior_->State().Reset();
     soundMotorMix_ = {};
 }
 
@@ -1110,8 +1115,7 @@ void GameCar::BindSoundMotor(
     ReleaseSoundMotor();
     rpmVolumeRange_ = rpmVolumeRange;
     rpmFrequencyRange_ = rpmFrequencyRange;
-    soundMotor_ = std::make_unique<SoundMotor>();
-    GetBehaviors().Add<SoundMotorBehavior>(
+    soundMotorBehavior_ = &GetBehaviors().Add<SoundMotorBehavior>(
         BehaviorType::SoundMotor, this);
 }
 
@@ -1120,7 +1124,7 @@ void GameCar::ReleaseSoundMotor() noexcept
     if (auto* behavior =
             GetBehaviors().Find(BehaviorType::SoundMotor))
         GetBehaviors().Delete(behavior);
-    soundMotor_.reset();
+    soundMotorBehavior_ = nullptr;
     soundMotorMix_ = {};
 }
 
@@ -1140,7 +1144,7 @@ const SoundMotorMix& GameCar::GetSoundMotorMix() const noexcept
 
 bool GameCar::HasSoundMotor() const noexcept
 {
-    return soundMotor_ != nullptr &&
+    return soundMotorBehavior_ != nullptr &&
            GetBehaviors().Find(BehaviorType::SoundMotor) != nullptr;
 }
 
@@ -1353,6 +1357,13 @@ const CarWheel* GameCar::GetSteerGroupWheel(
 void GameCar::BindAnimationChildren(
     bool trackAnimation, std::size_t cushionAnimations)
 {
+    BindAnimationChildren(
+        trackAnimation, std::vector<int>(cushionAnimations, 0));
+}
+
+void GameCar::BindAnimationChildren(
+    bool trackAnimation, const std::vector<int>& cushionTargetTags)
+{
     ReleaseAnimationChildren();
     if (trackAnimation)
     {
@@ -1360,10 +1371,10 @@ void GameCar::BindAnimationChildren(
         child->SetParent(this);
         animationChildren_.push_back(std::move(child));
     }
-    if (cushionAnimations > 0U)
+    if (!cushionTargetTags.empty())
     {
         auto child = std::make_unique<CarAnimationChild>(
-            false, cushionAnimations);
+            false, cushionTargetTags);
         child->SetParent(this);
         animationChildren_.push_back(std::move(child));
     }
@@ -1397,6 +1408,22 @@ float GameCar::GetCushionAngle(std::size_t index) const noexcept
             index < child->GetCushionAnimationCount())
         {
             return child->GetCushionAngle(index);
+        }
+    }
+    return 0.0F;
+}
+
+float GameCar::GetCushionAngleForTag(int targetTag) const noexcept
+{
+    for (const auto& child : animationChildren_)
+    {
+        if (child == nullptr)
+            continue;
+        for (std::size_t index = 0U;
+             index < child->GetCushionAnimationCount(); ++index)
+        {
+            if (child->GetCushionTargetTag(index) == targetTag)
+                return child->GetCushionAngleForTag(targetTag);
         }
     }
     return 0.0F;
@@ -1618,18 +1645,21 @@ public:
     {
         if (wheel_ == nullptr)
             return;
-        if (effect_ >= wheel_->slipEffects_.size() ||
-            effect_ >= wheel_->slipResults_.size())
+        if (effect_ >= wheel_->slipResults_.size())
             return;
         wheel_->slipResults_[effect_] =
-            wheel_->slipEffects_[effect_].OnProgress(
+            state_.OnProgress(
             wheel_->hasContact_, wheel_->longitudinalSlip_,
             wheel_->lateralSlip_);
     }
 
+    PxWheelSlipEffect& State() noexcept { return state_; }
+    const PxWheelSlipEffect& State() const noexcept { return state_; }
+
 private:
     CarWheel* wheel_ = nullptr;
     std::size_t effect_ = 0U;
+    PxWheelSlipEffect state_;
 };
 
 CarWheel::CarWheel() = default;
@@ -1659,19 +1689,8 @@ CarWheel& CarWheel::operator=(const CarWheel& other) noexcept
     if (this == &other)
         return *this;
     GameObject::operator=(other);
-    slipEffects_ = other.slipEffects_;
+    slipBehaviors_.clear();
     slipResults_ = other.slipResults_;
-    for (std::size_t effect = 0U;
-         effect < slipEffects_.size() &&
-         effect < slipResults_.size(); ++effect)
-    {
-        if (slipResults_[effect].soundPath != nullptr &&
-            !slipEffects_[effect].GetSoundPaths().empty())
-        {
-            slipResults_[effect].soundPath =
-                &slipEffects_[effect].GetSoundPaths().front();
-        }
-    }
     longitudinalSlip_ = other.longitudinalSlip_;
     lateralSlip_ = other.lateralSlip_;
     normalReaction_ = other.normalReaction_;
@@ -1689,11 +1708,22 @@ CarWheel& CarWheel::operator=(const CarWheel& other) noexcept
     driven_ = other.driven_;
     steering_ = other.steering_;
     inverted_ = other.inverted_;
+    slipBehaviors_.reserve(other.slipBehaviors_.size());
     for (std::size_t effect = 0U;
-         effect < slipEffects_.size(); ++effect)
+         effect < other.slipBehaviors_.size(); ++effect)
     {
-        GetBehaviors().Add<WheelSlipBehavior>(
+        auto& behavior = GetBehaviors().Add<WheelSlipBehavior>(
             BehaviorType::PxWheelSlipEffect, this, effect);
+        if (other.slipBehaviors_[effect] != nullptr)
+            behavior.State() = other.slipBehaviors_[effect]->State();
+        slipBehaviors_.push_back(&behavior);
+        if (effect < slipResults_.size() &&
+            slipResults_[effect].soundPath != nullptr &&
+            !behavior.State().GetSoundPaths().empty())
+        {
+            slipResults_[effect].soundPath =
+                &behavior.State().GetSoundPaths().front();
+        }
     }
     return *this;
 }
@@ -1714,7 +1744,7 @@ CarWheel::~CarWheel()
 void CarWheel::Configure(bool slipEffect, bool slipSound)
 {
     GetBehaviors().Clear();
-    slipEffects_.clear();
+    slipBehaviors_.clear();
     slipResults_.clear();
     hasContact_ = false;
     longitudinalSlip_ = 0.0F;
@@ -1727,14 +1757,14 @@ void CarWheel::Configure(bool slipEffect, bool slipSound)
     ResetMotion();
     if (slipEffectEnabled_)
     {
-        slipEffects_.emplace_back();
-        slipEffects_.back().Configure(
+        auto& behavior = GetBehaviors().Add<WheelSlipBehavior>(
+            BehaviorType::PxWheelSlipEffect, this, 0U);
+        behavior.State().Configure(
             nullptr,
             slipSound ? std::vector<std::string>{"SkidAsphalt.ogg"}
                       : std::vector<std::string>{});
+        slipBehaviors_.push_back(&behavior);
         slipResults_.resize(1U);
-        GetBehaviors().Add<WheelSlipBehavior>(
-            BehaviorType::PxWheelSlipEffect, this, 0U);
     }
 }
 
@@ -1745,7 +1775,7 @@ void CarWheel::Configure(
     const ObjectDefinition* smokeDefinition)
 {
     GetBehaviors().Clear();
-    slipEffects_.clear();
+    slipBehaviors_.clear();
     slipResults_.clear();
     hasContact_ = false;
     longitudinalSlip_ = 0.0F;
@@ -1758,7 +1788,7 @@ void CarWheel::Configure(
     ResetMotion();
     if (!slipEffectEnabled_)
         return;
-    slipEffects_.reserve(slipEffects.size());
+    slipBehaviors_.reserve(slipEffects.size());
     slipResults_.resize(slipEffects.size());
     for (std::size_t effect = 0U;
          effect < slipEffects.size(); ++effect)
@@ -1776,8 +1806,9 @@ void CarWheel::Configure(
         {
             canonicalDefinition = smokeDefinition;
         }
-        auto& state = slipEffects_.emplace_back();
-        state.Configure(
+        auto& behavior = GetBehaviors().Add<WheelSlipBehavior>(
+            BehaviorType::PxWheelSlipEffect, this, effect);
+        behavior.State().Configure(
             canonicalDefinition, definition.soundPaths,
             {definition.position.x, definition.position.y,
              definition.position.z},
@@ -1786,8 +1817,7 @@ void CarWheel::Configure(
             definition.ignoreRotation);
         slipSoundEnabled_ =
             slipSoundEnabled_ || !definition.soundPaths.empty();
-        GetBehaviors().Add<WheelSlipBehavior>(
-            BehaviorType::PxWheelSlipEffect, this, effect);
+        slipBehaviors_.push_back(&behavior);
     }
 }
 
@@ -2012,14 +2042,15 @@ CarWheel::GetSlipResults() const noexcept
 
 std::size_t CarWheel::GetSlipEffectCount() const noexcept
 {
-    return slipEffects_.size();
+    return slipBehaviors_.size();
 }
 
 const ObjectDefinition* CarWheel::GetSlipEffectDefinition(
     std::size_t effect) const noexcept
 {
-    return effect < slipEffects_.size()
-               ? slipEffects_[effect].GetEffectDefinition()
+    return effect < slipBehaviors_.size() &&
+                   slipBehaviors_[effect] != nullptr
+               ? slipBehaviors_[effect]->State().GetEffectDefinition()
                : nullptr;
 }
 
@@ -2059,6 +2090,16 @@ void PodushkaAnim::Reset() noexcept
     angle_ = 0.0F;
 }
 
+void PodushkaAnim::SetTargetTag(int value) noexcept
+{
+    targetTag_ = value;
+}
+
+int PodushkaAnim::GetTargetTag() const noexcept
+{
+    return targetTag_;
+}
+
 float PodushkaAnim::OnProgress(
     float deltaTime, float leadWheelSpeed) noexcept
 {
@@ -2088,36 +2129,43 @@ public:
         if (child_ == nullptr)
             return;
         const auto* car = dynamic_cast<const GameCar*>(child_->GetParent());
-        child_->trackAnimation_.OnProgress(
+        state_.OnProgress(
             deltaTime, car != nullptr ? car->GetLeadWheelSpeed() : 0.0F);
     }
 
+    GusenizaAnim& State() noexcept { return state_; }
+    const GusenizaAnim& State() const noexcept { return state_; }
+
 private:
     CarAnimationChild* child_ = nullptr;
+    GusenizaAnim state_;
 };
 
 class CarAnimationChild::CushionBehavior final : public Behavior
 {
 public:
     CushionBehavior(Behaviors* owner, CarAnimationChild* child,
-                    std::size_t index) noexcept
-        : Behavior(owner), child_(child), index_(index)
+                    int targetTag) noexcept
+        : Behavior(owner), child_(child)
     {
+        state_.SetTargetTag(targetTag);
     }
 
     void OnProgress(float deltaTime) noexcept override
     {
-        if (child_ == nullptr ||
-            index_ >= child_->cushionAnimations_.size())
+        if (child_ == nullptr)
             return;
         const auto* car = dynamic_cast<const GameCar*>(child_->GetParent());
-        child_->cushionAnimations_[index_].OnProgress(
+        state_.OnProgress(
             deltaTime, car != nullptr ? car->GetLeadWheelSpeed() : 0.0F);
     }
 
+    PodushkaAnim& State() noexcept { return state_; }
+    const PodushkaAnim& State() const noexcept { return state_; }
+
 private:
     CarAnimationChild* child_ = nullptr;
-    std::size_t index_ = 0U;
+    PodushkaAnim state_;
 };
 
 CarAnimationChild::CarAnimationChild() = default;
@@ -2126,6 +2174,12 @@ CarAnimationChild::CarAnimationChild(
     bool trackAnimation, std::size_t cushionAnimations)
 {
     Configure(trackAnimation, cushionAnimations);
+}
+
+CarAnimationChild::CarAnimationChild(
+    bool trackAnimation, const std::vector<int>& cushionTargetTags)
+{
+    Configure(trackAnimation, cushionTargetTags);
 }
 
 CarAnimationChild::CarAnimationChild(
@@ -2140,10 +2194,28 @@ CarAnimationChild& CarAnimationChild::operator=(
     if (this == &other)
         return *this;
     GameObject::operator=(other);
-    trackAnimation_ = other.trackAnimation_;
-    cushionAnimations_ = other.cushionAnimations_;
-    hasTrackAnimation_ = other.hasTrackAnimation_;
-    BindBehaviors();
+    std::vector<int> targetTags;
+    targetTags.reserve(other.cushionBehaviors_.size());
+    for (const auto* behavior : other.cushionBehaviors_)
+    {
+        targetTags.push_back(
+            behavior != nullptr
+                ? behavior->State().GetTargetTag() : 0);
+    }
+    BindBehaviors(other.trackBehavior_ != nullptr, targetTags);
+    if (trackBehavior_ != nullptr && other.trackBehavior_ != nullptr)
+        trackBehavior_->State() = other.trackBehavior_->State();
+    for (std::size_t index = 0U;
+         index < cushionBehaviors_.size() &&
+         index < other.cushionBehaviors_.size(); ++index)
+    {
+        if (cushionBehaviors_[index] != nullptr &&
+            other.cushionBehaviors_[index] != nullptr)
+        {
+            cushionBehaviors_[index]->State() =
+                other.cushionBehaviors_[index]->State();
+        }
+    }
     return *this;
 }
 
@@ -2162,29 +2234,39 @@ CarAnimationChild::~CarAnimationChild()
     SetParent(nullptr);
 }
 
-void CarAnimationChild::BindBehaviors()
+void CarAnimationChild::BindBehaviors(
+    bool trackAnimation, const std::vector<int>& cushionTargetTags)
 {
     GetBehaviors().Clear();
-    if (hasTrackAnimation_)
+    trackBehavior_ = nullptr;
+    cushionBehaviors_.clear();
+    if (trackAnimation)
     {
-        GetBehaviors().Add<TrackBehavior>(
+        trackBehavior_ = &GetBehaviors().Add<TrackBehavior>(
             BehaviorType::GusenizaAnim, this);
     }
+    cushionBehaviors_.reserve(cushionTargetTags.size());
     for (std::size_t index = 0U;
-         index < cushionAnimations_.size(); ++index)
+         index < cushionTargetTags.size(); ++index)
     {
-        GetBehaviors().Add<CushionBehavior>(
-            BehaviorType::PodushkaAnim, this, index);
+        cushionBehaviors_.push_back(
+            &GetBehaviors().Add<CushionBehavior>(
+                BehaviorType::PodushkaAnim, this,
+                cushionTargetTags[index]));
     }
 }
 
 void CarAnimationChild::Configure(
     bool trackAnimation, std::size_t cushionAnimations)
 {
-    trackAnimation_.Reset();
-    cushionAnimations_.assign(cushionAnimations, PodushkaAnim{});
-    hasTrackAnimation_ = trackAnimation;
-    BindBehaviors();
+    Configure(
+        trackAnimation, std::vector<int>(cushionAnimations, 0));
+}
+
+void CarAnimationChild::Configure(
+    bool trackAnimation, const std::vector<int>& cushionTargetTags)
+{
+    BindBehaviors(trackAnimation, cushionTargetTags);
 }
 
 GameObject::ProgressResult CarAnimationChild::OnProgress(
@@ -2195,25 +2277,48 @@ GameObject::ProgressResult CarAnimationChild::OnProgress(
 
 bool CarAnimationChild::HasTrackAnimation() const noexcept
 {
-    return hasTrackAnimation_ &&
+    return trackBehavior_ != nullptr &&
            GetBehaviors().Find(BehaviorType::GusenizaAnim) != nullptr;
 }
 
 std::size_t CarAnimationChild::GetCushionAnimationCount() const noexcept
 {
-    return cushionAnimations_.size();
+    return cushionBehaviors_.size();
 }
 
 float CarAnimationChild::GetTrackTextureOffset() const noexcept
 {
-    return trackAnimation_.GetTextureOffset();
+    return trackBehavior_ != nullptr
+               ? trackBehavior_->State().GetTextureOffset() : 1.0F;
 }
 
 float CarAnimationChild::GetCushionAngle(
     std::size_t index) const noexcept
 {
-    return index < cushionAnimations_.size()
-               ? cushionAnimations_[index].GetAngle() : 0.0F;
+    return index < cushionBehaviors_.size() &&
+                   cushionBehaviors_[index] != nullptr
+               ? cushionBehaviors_[index]->State().GetAngle() : 0.0F;
+}
+
+int CarAnimationChild::GetCushionTargetTag(
+    std::size_t index) const noexcept
+{
+    return index < cushionBehaviors_.size() &&
+                   cushionBehaviors_[index] != nullptr
+               ? cushionBehaviors_[index]->State().GetTargetTag() : 0;
+}
+
+float CarAnimationChild::GetCushionAngleForTag(
+    int targetTag) const noexcept
+{
+    const auto found = std::find_if(
+        cushionBehaviors_.begin(), cushionBehaviors_.end(),
+        [targetTag](const CushionBehavior* behavior) {
+            return behavior != nullptr &&
+                   behavior->State().GetTargetTag() == targetTag;
+        });
+    return found != cushionBehaviors_.end()
+               ? (*found)->State().GetAngle() : 0.0F;
 }
 
 } // namespace r3d::game::originalrace::source

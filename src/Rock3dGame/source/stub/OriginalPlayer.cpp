@@ -1124,9 +1124,14 @@ void Player::CreateCar(bool newRace)
                  carRecord_->physics.tireSpring,
                  carRecord_->disableColor},
                 wheelDynamics);
+            std::vector<int> cushionTargetTags;
+            cushionTargetTags.reserve(
+                carRecord_->cushionVisuals.size());
+            for (const auto& visual : carRecord_->cushionVisuals)
+                cushionTargetTags.push_back(visual.tag);
             gameCar.BindAnimationChildren(
                 !carRecord_->trackVisuals.empty(),
-                carRecord_->cushionVisuals.size());
+                cushionTargetTags);
         }
         car.OnCreateCar(newRace);
         Resc();

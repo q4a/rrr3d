@@ -4514,10 +4514,10 @@ void OriginalRaceRenderer::draw(
                 definition.cushionVisuals.size());
             for (std::size_t index = 0; index < count; ++index)
             {
+                const auto& node = definition.cushionVisuals[index];
                 const float halfAngle =
                     racerRuntime[racer].gameCar
-                        .GetCushionAngle(index) * 0.5F;
-                const auto& node = definition.cushionVisuals[index];
+                        .GetCushionAngleForTag(node.tag) * 0.5F;
                 const auto center =
                     meshGroupCenter(animatedAsset.nodes[index]);
                 r3d::physics::Transform toCenter;
@@ -5461,10 +5461,10 @@ void OriginalRaceRenderer::drawShadowCasters(
                 definition.cushionVisuals.size());
             for (std::size_t index = 0; index < count; ++index)
             {
+                const auto& node = definition.cushionVisuals[index];
                 const float halfAngle =
                     racerRuntime[racer].gameCar
-                        .GetCushionAngle(index) * 0.5F;
-                const auto& node = definition.cushionVisuals[index];
+                        .GetCushionAngleForTag(node.tag) * 0.5F;
                 const auto center = meshGroupCenter(
                     vehicleCushionVisuals_[racer].nodes[index]);
                 r3d::physics::Transform toCenter;

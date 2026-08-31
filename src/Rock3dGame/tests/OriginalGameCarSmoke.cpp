@@ -651,7 +651,7 @@ int main()
 
     car.BindWheels({false}, {false});
     car.ConfigureDynamics({}, {{0.0F, true, false, false, 0.5F}});
-    car.BindAnimationChildren(true, 2U);
+    car.BindAnimationChildren(true, std::vector<int>{1, 2});
     const auto* trackChild = car.GetAnimationChild(0U);
     const auto* cushionChild = car.GetAnimationChild(1U);
     if (car.GetAnimationChildCount() != 2U ||
@@ -663,6 +663,8 @@ int main()
         trackChild->GetBehaviors().Find(
             source::BehaviorType::GusenizaAnim) == nullptr ||
         cushionChild->GetCushionAnimationCount() != 2U ||
+        cushionChild->GetCushionTargetTag(0U) != 1 ||
+        cushionChild->GetCushionTargetTag(1U) != 2 ||
         cushionChild->GetBehaviors().GetCount() != 2U ||
         cushionChild->GetListenerCount() != 2U ||
         cushionChild->GetBehaviors().Find(
@@ -675,7 +677,10 @@ int main()
         std::abs(car.GetTrackTextureOffset() - 0.5F) > 0.0001F ||
         std::abs(car.GetCushionAngle(0U) -
                  0.25F * 3.14159265358979323846F) > 0.0001F ||
-        car.GetCushionAngle(0U) != car.GetCushionAngle(1U))
+        car.GetCushionAngle(0U) != car.GetCushionAngle(1U) ||
+        car.GetCushionAngleForTag(1) != car.GetCushionAngle(0U) ||
+        car.GetCushionAngleForTag(2) != car.GetCushionAngle(1U) ||
+        car.GetCushionAngleForTag(99) != 0.0F)
         return 31;
     car.GetWheel(0U)->SetAxleSpeed(0.2F);
     if (car.GetLeadWheelSpeed() != 0.0F)
@@ -685,6 +690,10 @@ int main()
         copiedAnimationCar.GetAnimationChild(0U)->GetParent() !=
             &copiedAnimationCar ||
         copiedAnimationCar.GetAnimationChild(1U)->GetListenerCount() != 2U ||
+        copiedAnimationCar.GetAnimationChild(1U)
+                ->GetCushionTargetTag(0U) != 1 ||
+        copiedAnimationCar.GetAnimationChild(1U)
+                ->GetCushionTargetTag(1U) != 2 ||
         copiedAnimationCar.GetTrackTextureOffset() !=
             car.GetTrackTextureOffset() ||
         copiedAnimationCar.GetCushionAngle(1U) !=
