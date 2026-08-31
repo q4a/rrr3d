@@ -3928,8 +3928,17 @@ void OriginalRaceSession::queueMineBodyCreate(MineRuntime& mine)
     command.body.halfExtents = source.collision.halfExtents;
     command.body.linearVelocity = mine.velocity;
     command.body.mass = std::max(source.mass, 0.001F);
-    command.body.gravityFactor =
-        length3(mine.velocity) > 0.0001F ? 1.0F : 0.0F;
+    // Proj::MinePrepare only calls CreatePxBox, so placed Mine, Maslo,
+    // MineRip, MineProton and Crater actors are static PhysX sensors.
+    // MinePiecePrepare is the exception: it follows CreatePxBox with a
+    // default NxBodyDesc and therefore owns a dynamic, gravity-enabled body.
+    // Velocity is not a reliable discriminator because the split piece can
+    // momentarily be at rest and a static actor may be placed with a carried
+    // velocity in a replicated snapshot.
+    const bool bodyGravity =
+        mine.sourceObject->RoutePreparation().bodyGravity;
+    command.body.dynamic = bodyGravity;
+    command.body.gravityFactor = bodyGravity ? 1.0F : 0.0F;
     command.body.sensor = true;
     if (mine.ignoreOwnerCollision && mine.owner < racers_.size())
         command.body.ignoredVehicle = mine.owner;
@@ -3942,7 +3951,9 @@ void OriginalRaceSession::queueMineBodySynchronize(
     const MineRuntime& mine)
 {
     if (!mine.physicsBacked ||
-        mine.physicsBodyId == r3d::physics::invalidProjectileBodyId)
+        mine.physicsBodyId == r3d::physics::invalidProjectileBodyId ||
+        mine.sourceObject == nullptr ||
+        !mine.sourceObject->RoutePreparation().bodyGravity)
         return;
     r3d::physics::ProjectileBodyCommand command;
     command.kind =
@@ -3951,8 +3962,7 @@ void OriginalRaceSession::queueMineBodySynchronize(
     command.body.transform.position = mine.position;
     command.body.transform.rotation = mine.rotation;
     command.body.linearVelocity = mine.velocity;
-    command.body.gravityFactor =
-        length3(mine.velocity) > 0.0001F ? 1.0F : 0.0F;
+    command.body.gravityFactor = 1.0F;
     projectileBodyCommands_.push_back(command);
 }
 
@@ -7612,8 +7622,11 @@ void OriginalRaceSession::updateGameplay(
             mine.sourceObject->GetTimeLife();
         const float mineMaximumLife =
             mine.sourceObject->GetMaxTimeLife();
-        if (length2(mine.velocity) > 0.0F ||
-            std::abs(mine.velocity.z) > 0.0F)
+        const bool dynamicMineBody =
+            mine.sourceObject->RoutePreparation().bodyGravity;
+        if (dynamicMineBody &&
+            (length2(mine.velocity) > 0.0F ||
+             std::abs(mine.velocity.z) > 0.0F))
         {
             if (!mine.physicsBacked)
             {
@@ -10309,6 +10322,10 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 if (mineBodyCommands.size() != 1U ||
                     mineBodyCommands.front().kind !=
                         r3d::physics::ProjectileBodyCommandKind::Create ||
+                    mineBodyCommands.front().body.dynamic ||
+                    std::abs(
+                        mineBodyCommands.front().body.gravityFactor) >
+                        1.0e-6F ||
                     !fixedMineSession.mines().front().physicsBacked ||
                     mineBodyCommands.front().body.id !=
                         fixedMineSession.mines().front().physicsBodyId)
