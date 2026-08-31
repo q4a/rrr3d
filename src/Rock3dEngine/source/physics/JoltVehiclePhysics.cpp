@@ -962,8 +962,6 @@ public:
             vehicle.constraint->GetWheels().size(), 0.0F);
         vehicle.wheelNormalImpulses.assign(
             vehicle.constraint->GetWheels().size(), 0.0F);
-        vehicle.wheelTireReleaseConsumed.assign(
-            vehicle.constraint->GetWheels().size(), false);
         vehicle.wheelTireReleaseActive.assign(
             vehicle.constraint->GetWheels().size(), false);
         vehicle.currentGear = -1;
@@ -1642,7 +1640,6 @@ private:
         VehicleDriveCommand sourceDriveCommand;
         std::vector<float> wheelNormalReactions;
         std::vector<float> wheelNormalImpulses;
-        std::vector<bool> wheelTireReleaseConsumed;
         std::vector<bool> wheelTireReleaseActive;
         int currentGear = -1;
         std::uint32_t resetCount = 0;
@@ -1864,15 +1861,8 @@ private:
     {
         if (!vehicle.enabled)
             return;
-        const auto wheelCount = vehicle.constraint->GetWheels().size();
-        if (vehicle.wheelTireReleaseConsumed.size() != wheelCount)
-            vehicle.wheelTireReleaseConsumed.assign(wheelCount, false);
-        vehicle.wheelTireReleaseActive.assign(wheelCount, false);
-        for (JPH::uint index = 0U; index < wheelCount; ++index)
-        {
-            if (!vehicle.constraint->GetWheel(index)->HasContact())
-                vehicle.wheelTireReleaseConsumed[index] = false;
-        }
+        vehicle.wheelTireReleaseActive.assign(
+            vehicle.constraint->GetWheels().size(), false);
         input.throttle = std::clamp(input.throttle, 0.0F, 1.0F);
         input.reverse = std::clamp(input.reverse, 0.0F, 1.0F);
         input.brake = std::clamp(input.brake, 0.0F, 1.0F);
@@ -2708,50 +2698,6 @@ private:
         runtime.controller->GetTransmission().Set(0, 0.0F);
         vehicles_.push_back(std::move(runtime));
         const std::size_t vehicleIndexValue = vehicles_.size() - 1U;
-        vehicles_.back().constraint->SetSuspensionMaxImpulseCallback(
-            [this, vehicleIndexValue](
-                JPH::uint wheelIndex, float suspensionImpulse,
-                JPH::Vec3Arg contactNormal, float deltaTime) {
-                auto& vehicle = vehicles_[vehicleIndexValue];
-                const auto& source = vehicle.spawn.vehicle;
-                const auto wheelCount =
-                    vehicle.constraint->GetWheels().size();
-                if (wheelIndex >= wheelCount || wheelCount == 0U)
-                    return 0.0F;
-                const float normalReactionImpulse =
-                    source.mass *
-                    std::abs(system_.GetGravity().Dot(contactNormal)) *
-                    deltaTime / static_cast<float>(wheelCount);
-                auto force = sourceWheelNormalForce(
-                    suspensionImpulse, normalReactionImpulse,
-                    vehicle.wheelTractionEnabled, 0.0F);
-                if (vehicle.wheelTractionEnabled &&
-                    source.tireSpring > 0.0F &&
-                    wheelIndex <
-                        vehicle.wheelTireReleaseConsumed.size())
-                {
-                    auto consumed =
-                        vehicle.wheelTireReleaseConsumed[wheelIndex];
-                    auto active =
-                        vehicle.wheelTireReleaseActive[wheelIndex];
-                    if (active ||
-                        (!consumed &&
-                         force.reaction > source.tireSpring))
-                    {
-                        consumed = true;
-                        active = true;
-                        force.impulse = 0.0F;
-                    }
-                }
-                if (wheelIndex < vehicle.wheelNormalReactions.size())
-                {
-                    vehicle.wheelNormalReactions[wheelIndex] =
-                        force.reaction;
-                }
-                if (wheelIndex < vehicle.wheelNormalImpulses.size())
-                    vehicle.wheelNormalImpulses[wheelIndex] = force.impulse;
-                return force.impulse;
-            });
         vehicles_.back().constraint->SetCombineFriction(
             [this, vehicleIndexValue](JPH::uint, float& longitudinal,
                                       float& lateral, const JPH::Body&,
@@ -2780,7 +2726,7 @@ private:
                 float& lateral, float suspensionImpulse,
                 float longitudinalFriction, float lateralFriction,
                 float, float, float deltaTime) {
-                const auto& vehicle = vehicles_[vehicleIndexValue];
+                auto& vehicle = vehicles_[vehicleIndexValue];
                 const auto& source = vehicle.spawn.vehicle;
                 const auto* wheel =
                     vehicle.constraint->GetWheel(wheelIndex);
@@ -2795,15 +2741,31 @@ private:
                         static_cast<float>(source.wheels.size());
                     if (normalReactionImpulse > 1.0e-6F)
                     {
-                        const float reactionRatio =
-                            suspensionImpulse / normalReactionImpulse;
-                        if (source.tireSpring > 0.0F &&
-                            reactionRatio > source.tireSpring)
-                            allowedSuspensionImpulse = 0.0F;
-                        else
-                            allowedSuspensionImpulse = std::min(
-                                suspensionImpulse,
-                                normalReactionImpulse * 1.5F);
+                        const auto force = sourceWheelNormalForce(
+                            suspensionImpulse, normalReactionImpulse,
+                            vehicle.wheelTractionEnabled,
+                            source.tireSpring);
+                        allowedSuspensionImpulse = force.impulse;
+                        if (wheelIndex <
+                            vehicle.wheelNormalReactions.size())
+                        {
+                            vehicle.wheelNormalReactions[wheelIndex] =
+                                force.reaction;
+                        }
+                        if (wheelIndex <
+                            vehicle.wheelNormalImpulses.size())
+                        {
+                            vehicle.wheelNormalImpulses[wheelIndex] =
+                                force.impulse;
+                        }
+                        if (wheelIndex <
+                            vehicle.wheelTireReleaseActive.size())
+                        {
+                            vehicle.wheelTireReleaseActive[wheelIndex] =
+                                vehicle.wheelTractionEnabled &&
+                                source.tireSpring > 0.0F &&
+                                force.reaction > source.tireSpring;
+                        }
                     }
                 }
                 longitudinal =
@@ -2929,6 +2891,11 @@ private:
                 {
                     contact.normalImpulse =
                         vehicle.wheelNormalImpulses[index];
+                }
+                if (index < vehicle.wheelTireReleaseActive.size())
+                {
+                    contact.normalForceReleased =
+                        vehicle.wheelTireReleaseActive[index];
                 }
                 ++contacts;
             }
@@ -3082,6 +3049,54 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
         createOriginalVehicleWorld(drivetrainDescription, error);
     if (!world)
         return false;
+    WorldDescription overloadDescription = drivetrainDescription;
+    overloadDescription.vehicle.tireSpring = 0.2F;
+    overloadDescription.spawns.front().vehicle.tireSpring = 0.2F;
+    overloadDescription.startPosition.z = 4.0F;
+    overloadDescription.spawns.front().position =
+        overloadDescription.startPosition;
+    auto overloadWorld =
+        createOriginalVehicleWorld(overloadDescription, error);
+    if (!overloadWorld)
+        return false;
+    std::size_t overloadSamples = 0U;
+    for (int step = 0; step < 180; ++step)
+    {
+        // One public 60 Hz step contains two Jolt solver substeps. Observe
+        // the exported tire-force budget only after both have completed.
+        overloadWorld->step(1.0F / 60.0F, VehicleInput{});
+        for (const auto& contact :
+             overloadWorld->vehicle().wheelContacts)
+        {
+            if (!contact.hasContact ||
+                contact.normalReaction <=
+                    overloadDescription.vehicle.tireSpring)
+                continue;
+            ++overloadSamples;
+            if (contact.normalImpulse > 0.0001F)
+            {
+                error = "CarWheel::MyContactModify restored tire force "
+                        "after a repeated tireSpring overload";
+                return false;
+            }
+        }
+    }
+    if (overloadSamples < 2U)
+    {
+        error = "Jolt tireSpring fixture did not sustain repeated source "
+                "overload contacts";
+        return false;
+    }
+    const auto& overloadSupported = overloadWorld->vehicle();
+    const float chassisRestHeight =
+        overloadDescription.vehicle.halfExtents.z + 0.1F;
+    if (overloadSupported.body.position.z <= chassisRestHeight)
+    {
+        error = "NxUserWheelContactModify tire release incorrectly removed "
+                "vertical suspension support: z=" +
+                std::to_string(overloadSupported.body.position.z);
+        return false;
+    }
     auto fixedStepWorld =
         createOriginalVehicleWorld(drivetrainDescription, error);
     if (!fixedStepWorld)

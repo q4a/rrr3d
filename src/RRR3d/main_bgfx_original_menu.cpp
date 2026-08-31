@@ -5582,6 +5582,9 @@ int main(int argc, char** argv)
     float racePauseElapsedSnapshot = -1.0F;
     r3d::physics::Vec3 racePausePositionSnapshot;
     float maximumRaceSmokeSpeed = 0.0F;
+    float maximumRaceWheelReaction = 0.0F;
+    std::uint64_t raceWheelContactSamples = 0U;
+    std::uint64_t raceWheelReleaseSamples = 0U;
     std::vector<float> maximumRaceAiSpeeds(raceVehicles.size(), 0.0F);
     std::vector<float> maximumRaceAiProgress(raceVehicles.size(), 0.0F);
     std::vector<std::uint32_t> raceAiThrottleFrames(raceVehicles.size(), 0U);
@@ -16290,6 +16293,20 @@ int main(int argc, char** argv)
             maximumRaceSmokeContacts = std::max(
                 maximumRaceSmokeContacts,
                 physicsWorld->vehicle(humanRacer).contactCount);
+            for (const auto& vehicle : raceVehicles)
+            {
+                for (const auto& contact : vehicle.wheelContacts)
+                {
+                    if (!contact.hasContact)
+                        continue;
+                    ++raceWheelContactSamples;
+                    maximumRaceWheelReaction = std::max(
+                        maximumRaceWheelReaction,
+                        contact.normalReaction);
+                    if (contact.normalForceReleased)
+                        ++raceWheelReleaseSamples;
+                }
+            }
             if (!raceSession.racers().empty() &&
                 raceSession.finishPresentationReady())
             {
@@ -21021,6 +21038,10 @@ int main(int argc, char** argv)
                         << minimumRacePlayerLife << ", contacts="
                         << maximumRaceSmokeContacts << ", maxSpeed="
                         << maximumRaceSmokeSpeed
+                        << ", wheelReaction/releases="
+                        << maximumRaceWheelReaction << '/'
+                        << raceWheelReleaseSamples << '/'
+                        << raceWheelContactSamples
                         << ", resourceCache="
                         << originalResourceManager.GetCacheHitCount() << '/'
                         << originalResourceManager.GetRequestCount()
@@ -21062,6 +21083,10 @@ int main(int argc, char** argv)
                         << renderedFrames << " frames; max speed "
                         << maximumRaceSmokeSpeed << ", wheel contacts "
                         << maximumRaceSmokeContacts
+                        << ", wheel reaction/releases "
+                        << maximumRaceWheelReaction << '/'
+                        << raceWheelReleaseSamples << '/'
+                        << raceWheelContactSamples
                         << ", AI=";
                     for (std::size_t index = 1U;
                          index < maximumRaceAiSpeeds.size(); ++index)

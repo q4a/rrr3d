@@ -2897,3 +2897,19 @@ angular momentum, а новая velocity выводится уже из фина
 Регрессия использует смещённый кузов с недиагональным тензором, на котором
 старая velocity-аппроксимация оставляла запрещённый collision impulse. Arm64
 build, physics smoke, 32 CTest и 1800-frame Metal race smoke прошли.
+
+### B8dc — wheel-contact normalForce отделён от suspension support — выполнено
+
+Документация bundled PhysX 2.8.4 и сигнатура
+`NxUserWheelContactModify::onWheelContact` подтвердили ошибку boundary:
+`normalForce` приходит с прошлого simulation step и используется при
+построении wheel/tire constraints. Оригинальные `tireSpring`, clutch и 1.5g
+меняют доступную шине силу сцепления; они не выключают вертикальную пружину.
+Созданный портом Jolt `SuspensionMaxImpulseCallback` смешивал эти два канала.
+
+Самодельное расширение Jolt и его FetchContent patch удалены. Единственным
+owner-ом contact modifier теперь служит tire max-impulse callback, а обычный
+Jolt spring сохраняет поддержку кузова. Regression с порогом 0.2g требует
+нулевой tire impulse при устойчивой высоте шасси. Physics smoke, 32 CTest и
+1800-frame Metal race прошли; max speed восстановилась с 14 до 40.79, все
+пять AI снова имеют progress и скорости 40.4–44.8.

@@ -6684,3 +6684,20 @@ X/Y величинами `massSpaceInertiaTensor.{x,y} * clamp * 2`, приме�
 сохраняет source mapping осей X/Y/Z и после Euler orientation clamp повторно
 получает velocity из сохранённого мирового momentum. Специальный asymmetric
 body regression доказывает различие и фиксирует source result.
+
+### P2.308 — normalForce wheel callback больше не обнуляет подвеску — выполнено
+
+Обратная проверка `eff9338:GameCar.cpp:CarWheel::MyContactModify` вместе с
+bundled `NxUserContactReport.h` уточнила критичную семантику PhysX:
+`normalForce` — результат предыдущего шага, доступный callback-у до настройки
+wheel constraints. Его изменение ограничивает tire traction; пружина
+подвески продолжает поддерживать автомобиль. Порт ошибочно расширил Jolt
+общим suspension-lambda clamp и применил к нему `tireSpring`/clutch/1.5g.
+
+После первого overload это создавало самоподдерживающееся проседание:
+99.8% наблюдённых контактов были released, машина ехала со скоростью 14, а
+жёсткий контакт кузова усиливал подбросы. Ненужный Jolt patch удалён;
+`sourceWheelNormalForce` теперь питает только tire friction callback и
+экспортирует диагностическое reaction/release состояние. Отдельный тест
+фиксирует нулевое сцепление при сохранённой высоте на подвеске, а длинный
+Metal-заезд возвращает ожидаемую динамику и конкурентный AI.
