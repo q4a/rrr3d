@@ -792,7 +792,7 @@ private:
 // object is simultaneously the GameObject listener, EventEffect owner and
 // OnShot callback. The backend may create a child visual and a Source3d, but
 // their identity remains attached to this source behavior per weapon actor.
-class ShotEffect final : public Behavior, public EventEffect
+class ShotEffect final : public EventEffect
 {
 public:
     struct SpawnResult

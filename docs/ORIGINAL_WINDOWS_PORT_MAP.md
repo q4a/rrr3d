@@ -1371,6 +1371,17 @@ actor velocity/parent transform, source выполняет точный
 
 ## Правило обновления карты
 
+Результат B8cl: восстановлена сама базовая иерархия
+`EventEffect : Behavior` из `GameBase.h`. Ранее portable `EventEffect` был
+только utility-state, из-за чего concrete effects требовали отдельного
+Behavior-base или wrapper-а. Теперь он имеет owning `Behaviors*`, участвует
+в listener/progress graph и сохраняет backend-neutral effect/sound identity.
+
+Уже объединённые `ShotEffect`, `DeathEffect` и `LifeEffect` наследуют
+только `EventEffect`, как Windows, без искусственного множественного
+наследования. Базовый `OnProgress` остаётся ordered source callback; перенос
+world position в Source3d выполняет SDL boundary по тому же owning GameObject.
+
 Каждый крупный block commit обязан:
 
 1. назвать точные методы из `eff9338:prog`, которые стали активными;

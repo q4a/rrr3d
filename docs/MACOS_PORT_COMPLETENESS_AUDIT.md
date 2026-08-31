@@ -2705,3 +2705,11 @@ Type 2 переименован в исходный `FxSystemWaitingEnd` без 
 владеет physics input и результатом inverse parent transform. Jolt сообщает
 velocity, bgfx читает готовый emitter snapshot; ни один backend не повторяет
 source transition. Regression закрепляет exact behavior pointer identity.
+
+### B8cl — EventEffect снова наследует Behavior — выполнено
+
+Восстановлена исходная базовая связь `EventEffect : Behavior`. Shot, Death и
+Life effects больше не получают отдельный Behavior-base: их listener owner,
+effect handles, sound catalog и progress lifetime идут через одну цепочку,
+как в Windows. SDL заменяет только обновление/проигрывание Source3d, Metal —
+создание Graph/MapObj presentation; source base остаётся владельцем решения.

@@ -6425,3 +6425,16 @@ resurrection/fading/final-death, type 3 — actor availability, world velocity,
 parent transform и local particle speed. Tests требуют, что
 `Behaviors::Find` возвращает именно эти объекты и что отсутствие Jolt actor
 сохраняет последнее source значение, как ранний return Windows.
+
+### P2.291 — восстановлен базовый EventEffect : Behavior — выполнено
+
+Аудит следующих type 4/5/8/9/11 показал системную причину оставшихся
+wrapper-ов: portable `EventEffect` не был `Behavior`, хотя исходный
+`GameBase.h` определяет именно такую иерархию и через неё регистрирует
+listener/progress callbacks.
+
+`EventEffect` теперь сам хранит owning `Behaviors*` и реализует ordered
+base progress boundary. `ShotEffect`, `DeathEffect` и `LifeEffect`
+переведены с временного multiple inheritance на единственную исходную базу.
+Copy utility сохраняет независимый effect state, но не переносит owner,
+тогда как active concrete objects всегда конструируются своей коллекцией.

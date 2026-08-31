@@ -1679,13 +1679,19 @@ bool FxSystemSrcSpeed::HasPhysicsActor() const noexcept
     return actorAvailable_;
 }
 
+EventEffect::EventEffect() noexcept : Behavior(nullptr) {}
+
+EventEffect::EventEffect(Behaviors* owner) noexcept : Behavior(owner) {}
+
 EventEffect::EventEffect(const EventEffect& other)
-    : definition_(other.definition_), position_(other.position_),
+    : Behavior(nullptr), definition_(other.definition_), position_(other.position_),
       impulse_(other.impulse_), ignoreRotation_(other.ignoreRotation_),
       effectState_(std::make_shared<EffectState>(*other.effectState_)),
       soundPaths_(other.soundPaths_)
 {
 }
+
+void EventEffect::OnProgress(float) noexcept {}
 
 EventEffect& EventEffect::operator=(const EventEffect& other)
 {
@@ -1922,11 +1928,11 @@ const std::string* EventEffect::SelectSoundPath(
     return &soundPaths_[index];
 }
 
-DeathEffect::DeathEffect() noexcept : Behavior(nullptr) {}
+DeathEffect::DeathEffect() noexcept : EventEffect() {}
 
 DeathEffect::DeathEffect(bool effectPhysicsIgnoreSenderCar,
                          bool targetChild) noexcept
-    : Behavior(nullptr)
+    : EventEffect()
 {
     Reset(effectPhysicsIgnoreSenderCar, targetChild);
 }
@@ -1934,7 +1940,7 @@ DeathEffect::DeathEffect(bool effectPhysicsIgnoreSenderCar,
 DeathEffect::DeathEffect(
     Behaviors* owner, bool effectPhysicsIgnoreSenderCar,
     bool targetChild) noexcept
-    : Behavior(owner)
+    : EventEffect(owner)
 {
     Reset(effectPhysicsIgnoreSenderCar, targetChild);
 }
@@ -2037,9 +2043,9 @@ bool DeathEffect::HasLiveEffects() const noexcept
     return GetEffectCount() != 0U;
 }
 
-LifeEffect::LifeEffect() noexcept : Behavior(nullptr) {}
+LifeEffect::LifeEffect() noexcept : EventEffect() {}
 
-LifeEffect::LifeEffect(Behaviors* owner) noexcept : Behavior(owner) {}
+LifeEffect::LifeEffect(Behaviors* owner) noexcept : EventEffect(owner) {}
 
 void LifeEffect::Reset() noexcept
 {

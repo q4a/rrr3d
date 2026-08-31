@@ -646,7 +646,7 @@ private:
 // transient actors created by ShotEffect. These operations preserve the
 // original MakeEffect/FreeEffect/OnDestroy identity rules independently of
 // the renderer object which realizes the actor.
-class EventEffect
+class EventEffect : public Behavior
 {
 public:
     using EffectId = std::uint64_t;
@@ -687,7 +687,8 @@ public:
         EffectId effect_ = invalidEffect;
     };
 
-    EventEffect() = default;
+    EventEffect() noexcept;
+    explicit EventEffect(Behaviors* owner) noexcept;
     EventEffect(const EventEffect& other);
     EventEffect& operator=(const EventEffect& other);
     EventEffect(EventEffect&&) noexcept = default;
@@ -704,6 +705,11 @@ public:
         std::array<float, 3U> impulse{};
         bool ignoreRotation = false;
     };
+
+    // The source base updates Source3d position. SDL performs that backend
+    // operation from the owning GameObject; the ordered behavior callback
+    // remains here to preserve the original class/listener hierarchy.
+    void OnProgress(float deltaTime) noexcept override;
 
     void Configure(
         const ObjectDefinition* definition,
@@ -745,7 +751,7 @@ private:
 // Backend-neutral transcription of GameBase::DeathEffect.  The caller owns
 // the transform/actor boundary; this class owns the original one-live-effect
 // rule and decides the two PhysX-era relationship flags at the death event.
-class DeathEffect final : public Behavior, public EventEffect
+class DeathEffect final : public EventEffect
 {
 public:
     struct SpawnResult
@@ -801,7 +807,7 @@ private:
     bool senderIsWeaponProjectile_ = false;
 };
 
-class LifeEffect final : public Behavior, public EventEffect
+class LifeEffect final : public EventEffect
 {
 public:
     LifeEffect() noexcept;

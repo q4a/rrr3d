@@ -2372,7 +2372,7 @@ std::uint32_t AutoProj::GetType() const noexcept
 }
 
 ShotEffect::ShotEffect(Behaviors* owner) noexcept
-    : Behavior(owner)
+    : EventEffect(owner)
 {
 }
 
