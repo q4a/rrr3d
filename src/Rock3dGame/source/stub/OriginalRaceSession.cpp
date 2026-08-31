@@ -2991,8 +2991,8 @@ void OriginalRaceSession::synchronizeProjectilePhysics(
             // GameObject remains the world-pose owner used by effects,
             // contacts, lifetime recovery and renderer snapshots.
             publishRuntimePoseToSource(*projectile);
-            projectile->speed = length3(projectile->velocity);
-            if (!projectile->attached && projectile->speed > 0.0001F)
+            const float speed = length3(projectile->velocity);
+            if (!projectile->attached && speed > 0.0001F)
                 projectile->direction = normalized3(projectile->velocity);
             continue;
         }
@@ -3775,8 +3775,7 @@ ProjectileRuntime OriginalRaceSession::buildWeaponProjectileRuntime(
         rotation[0], rotation[1], rotation[2], rotation[3]};
     runtime.direction = normalized3(rotate(
         runtime.rotation, {1.0F, 0.0F, 0.0F}));
-    runtime.speed = projectile.speed;
-    runtime.velocity = multiply(runtime.direction, runtime.speed);
+    runtime.velocity = multiply(runtime.direction, projectile.speed);
     runtime.sourceObject = &sourceObject;
 
     const auto route = sourceObject.RoutePreparation();
@@ -3796,8 +3795,7 @@ ProjectileRuntime OriginalRaceSession::buildWeaponProjectileRuntime(
             sourceVec(runtime.direction),
             sourceVec(vehicles[owner].linearVelocity));
         runtime.direction = runtimeVec(launch.direction);
-        runtime.speed = launch.speed;
-        runtime.velocity = multiply(runtime.direction, runtime.speed);
+        runtime.velocity = multiply(runtime.direction, launch.speed);
     }
     return runtime;
 }
@@ -5473,7 +5471,6 @@ void OriginalRaceSession::updateGameplay(
                 // subtract the correct source motion.
                 projectile.velocity =
                     runtimeVec(attachedProgress.linearVelocity);
-                projectile.speed = length3(projectile.velocity);
             }
             if (projectile.physicsBacked)
                 queueProjectileBodySynchronize(projectile);
@@ -5856,7 +5853,6 @@ void OriginalRaceSession::updateGameplay(
                 projectile.rotation = runtimeQuat(update.rotation);
                 projectile.direction = runtimeVec(update.direction);
                 projectile.velocity = runtimeVec(update.linearVelocity);
-                projectile.speed = length3(projectile.velocity);
             }
         }
         const Vec3 previous = projectile.physicsBacked
@@ -5864,7 +5860,7 @@ void OriginalRaceSession::updateGameplay(
             : projectile.position;
         if (!projectile.physicsBacked)
         {
-            const float speed = std::max(projectile.speed, 1.0F);
+            const float speed = length3(projectile.velocity);
             const bool detachedGravity =
                 projectile.detachedFromWeapon &&
                 sourceProgressRoute.handler ==
@@ -7026,7 +7022,8 @@ void OriginalRaceSession::updateGameplay(
             }
             else if (!rayProjectile)
             {
-                const float speed = runtimeProjectile.speed;
+                const float speed =
+                    length3(runtimeProjectile.velocity);
                 if (!runtimeAlreadyMaterialized)
                 {
                     queueProjectileBodyCreate(runtimeProjectile);
@@ -12967,7 +12964,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 if (firedProjectile ==
                         descriptorSession.projectiles().end() ||
                     firedProjectile->sourceObject == nullptr ||
-                    std::abs(firedProjectile->speed - 77.0F) >
+                    std::abs(
+                        length3(firedProjectile->velocity) - 77.0F) >
                         0.001F ||
                     std::abs(
                         firedProjectile->sourceObject->GetDesc()
@@ -13919,7 +13917,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             if (sourceProjectile ==
                     thunderSession.projectiles().end() ||
                 std::abs(
-                    sourceProjectile->speed - expectedSourceSpeed) >
+                    length3(sourceProjectile->velocity) -
+                    expectedSourceSpeed) >
                     0.001F ||
                 sourceProjectile->sourceObject == nullptr ||
                 std::abs(
@@ -13967,10 +13966,10 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             const float stepSeconds = 1.0F / 60.0F;
             Transform returnedProjectile;
             returnedProjectile.position = add(
-                sourceProjectile->position,
-                multiply(
-                    sourceProjectile->direction,
-                    std::max(sourceProjectile->speed, 1.0F) *
+                    sourceProjectile->position,
+                    multiply(
+                        sourceProjectile->direction,
+                        length3(sourceProjectile->velocity) *
                         stepSeconds));
             returnedProjectile.rotation = sourceProjectile->rotation;
             const OrientedBox returnedBox = orientedBox(
@@ -14395,7 +14394,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 std::abs(
                     projectile->rotation.w - expectedRotation.w) >
                     0.001F ||
-                std::abs(projectile->speed - expectedSpeed) >
+                std::abs(
+                    length3(projectile->velocity) - expectedSpeed) >
                     0.001F)
             {
                 throw std::runtime_error(
@@ -14879,7 +14879,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     ? multiply(nextVelocity, contactStep)
                     : multiply(
                           launched.direction,
-                          std::max(launched.speed, 1.0F) *
+                          length3(launched.velocity) *
                               contactStep);
             Transform expectedProjectile;
             expectedProjectile.position =

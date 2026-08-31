@@ -2618,3 +2618,10 @@ Torpeda и Impulse теперь используют только listener-manag
 `Proj::MasloPrepare/MasloUpdate` изменяют scale включённой модели, и Metal
 рисует масло с этим live значением. Мёртвые session distance и split
 armingScale также удалены; они не управляли ни Windows gameplay, ни backend.
+
+### B8cb — Jolt velocity является единственной скоростью projectile — выполнено
+
+`ProjectileRuntime::speed` удалён как производное зеркало. Launch,
+Torpeda, Thunder, ballistic update, contact preview и tests используют
+magnitude live velocity. Это соответствует PhysX actor contract и исключает
+расхождение scalar/vector после отражения или backend sync.

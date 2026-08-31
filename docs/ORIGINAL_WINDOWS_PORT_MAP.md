@@ -1245,6 +1245,16 @@ Impulse проверяет сам source pointer, а не удалённое з�
 приписывало core/piece scale исходному split plan. Distance regression теперь
 сравнивает реальные source world positions.
 
+Результат B8cb: удалён второй live scalar скорости projectile. Оригинальный
+`Proj::CalcSpeed` создаёт один velocity vector и передаёт его PhysX actor;
+отдельного `Proj::speed` в Windows нет. Jolt boundary теперь аналогично
+хранит только `ProjectileRuntime::velocity`.
+
+Homing, reflection, attached fire, ballistic gravity, spawn preview и
+регрессии вычисляют длину этого вектора по месту. Удалён портовый минимум
+скорости 1 для свободного actor-а: нулевой source/Jolt velocity больше не
+создаёт выдуманное самодвижение.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:

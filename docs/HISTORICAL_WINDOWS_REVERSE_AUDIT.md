@@ -6281,3 +6281,15 @@ source identity для AI 3D selection, sphereGun и Impulse handoff.
 `MineRipChildSpawn::armingScale`, отсутствующие в Windows call graph.
 Regression проверяет, что активное масло завершает arming именно в source
 model, а проверка max-distance использует разность реальных world poses.
+
+### P2.281 — projectile speed принадлежит одному velocity vector — выполнено
+
+В Windows `CalcSpeed` возвращает `D3DXVECTOR3`, который становится
+`NxBodyDesc::linearVelocity`; дополнительного scalar live-state нет.
+`ProjectileRuntime::speed` был портовым зеркалом, которое приходилось
+обновлять после Jolt sync, Torpeda, Fire и launch.
+
+Поле удалено. Единственный backend owner — velocity, как единственным PhysX
+owner был actor velocity. Все потребители используют его magnitude. Вместе
+с зеркалом удалён отсутствующий в оригинале fallback `max(speed, 1)`,
+заставлявший projectile с нулевой скоростью ползти вперёд.

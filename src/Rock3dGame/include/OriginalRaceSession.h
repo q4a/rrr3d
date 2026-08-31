@@ -381,7 +381,6 @@ struct ProjectileRuntime
     Vec3 direction{1.0F, 0.0F, 0.0F};
     Vec3 velocity;
     Quat rotation;
-    float speed = 0.0F;
     float impactDistance = 0.0F;
     float beamWidthScale = 1.0F;
     // LaserUpdate writes sampler[0].scale.x = beamLength / 10 for the
