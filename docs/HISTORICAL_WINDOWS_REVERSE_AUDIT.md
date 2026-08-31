@@ -6293,3 +6293,20 @@ model, а проверка max-distance использует разность р
 owner был actor velocity. Все потребители используют его magnitude. Вместе
 с зеркалом удалён отсутствующий в оригинале fallback `max(speed, 1)`,
 заставлявший projectile с нулевой скоростью ползти вперёд.
+
+### P2.282 — projectile route и weapon link возвращены concrete Proj — выполнено
+
+Сверка `eff9338:prog/Rock3dGame/source/game/Weapon.cpp` подтвердила два
+параллельных owner-а в session. `MortiraPrepare` включает обычную PhysX
+гравитацию параметром `disableGravity=false` у `RocketPrepare`; отдельного
+live-поля ballistic в projectile нет. Аналогично, mine/MineRip lifetime
+связан только с `Proj::_weapon`: `Proj::OnDestroy` вызывает `SetWeapon(0)`.
+
+`ProjectileRuntime::ballistic` и `MineRuntime::linkedToOwner` удалены.
+Jolt gravity и portable fallback выводятся из живого
+`Proj::RoutePreparation()`, а regression автономных model2/model3 объектов
+проверяет `GetSourceWeapon()==nullptr`. `ProjectileRuntime::attached` не
+является новым gameplay owner-ом и сохранён как конечное состояние backend
+body: при потере weapon он обеспечивает ровно один переход
+kinematic-to-dynamic, которого у source `Proj` после listener callback уже
+нельзя восстановить.

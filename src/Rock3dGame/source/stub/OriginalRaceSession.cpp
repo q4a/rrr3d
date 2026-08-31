@@ -1950,7 +1950,6 @@ void OriginalRaceSession::releaseRacerProjectileReferences(
         if (mine.sourceObject != nullptr &&
             mine.sourceObject->GetSourceWeapon() != nullptr)
             continue;
-        mine.linkedToOwner = false;
         mine.ignoreOwnerCollision = false;
     }
 }
@@ -3780,7 +3779,6 @@ ProjectileRuntime OriginalRaceSession::buildWeaponProjectileRuntime(
 
     const auto route = sourceObject.RoutePreparation();
     runtime.attached = route.attached;
-    runtime.ballistic = route.ballistic;
     if (route.attached && projectile.type == 14U &&
         owner < vehicles.size())
     {
@@ -3822,8 +3820,10 @@ void OriginalRaceSession::queueProjectileBodyCreate(
     command.body.halfExtents = source.collision.halfExtents;
     command.body.linearVelocity = projectile.velocity;
     command.body.mass = std::max(source.mass, 0.001F);
+    const bool ballistic =
+        projectile.sourceObject->RoutePreparation().ballistic;
     command.body.gravityFactor =
-        projectile.ballistic || projectile.detachedFromWeapon
+        ballistic || projectile.detachedFromWeapon
             ? 1.0F : 0.0F;
     command.body.dynamic = !projectile.attached;
     command.body.kinematic = projectile.attached;
@@ -3844,8 +3844,11 @@ void OriginalRaceSession::queueProjectileBodySynchronize(
     command.body.transform.position = projectile.position;
     command.body.transform.rotation = projectile.rotation;
     command.body.linearVelocity = projectile.velocity;
+    const bool ballistic =
+        projectile.sourceObject != nullptr &&
+        projectile.sourceObject->RoutePreparation().ballistic;
     command.body.gravityFactor =
-        projectile.ballistic || projectile.detachedFromWeapon
+        ballistic || projectile.detachedFromWeapon
             ? 1.0F : 0.0F;
     projectileBodyCommands_.push_back(command);
 }
@@ -5865,10 +5868,12 @@ void OriginalRaceSession::updateGameplay(
                 projectile.detachedFromWeapon &&
                 sourceProgressRoute.handler ==
                     source::Proj::ProgressHandler::Drobilka;
-            if (projectile.ballistic || detachedGravity)
+            const bool ballistic =
+                projectile.sourceObject->RoutePreparation().ballistic;
+            if (ballistic || detachedGravity)
                 projectile.velocity.z -= 20.0F * seconds;
             const Vec3 movement =
-                (projectile.ballistic || projectile.detachedFromWeapon)
+                (ballistic || projectile.detachedFromWeapon)
                     ? multiply(projectile.velocity, seconds)
                     : multiply(projectile.direction, speed * seconds);
             projectile.position = add(projectile.position, movement);
@@ -7600,7 +7605,6 @@ void OriginalRaceSession::updateGameplay(
             {
                 MineRuntime spawned = mine;
                 spawned.owner = RacerRuntime::invalidWeapon;
-                spawned.linkedToOwner = false;
                 spawned.visualVariant = child.visualVariant;
                 spawned.velocity = runtimeVec(child.linearVelocity);
                 spawned.physicsBodyId =
@@ -14872,10 +14876,13 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             const auto launched = *launchedChildProjectile;
             constexpr float contactStep = 1.0F / 600.0F;
             Vec3 nextVelocity = launched.velocity;
-            if (launched.ballistic)
+            const bool launchedBallistic =
+                launched.sourceObject != nullptr &&
+                launched.sourceObject->RoutePreparation().ballistic;
+            if (launchedBallistic)
                 nextVelocity.z -= 20.0F * contactStep;
             const Vec3 movement =
-                launched.ballistic
+                launchedBallistic
                     ? multiply(nextVelocity, contactStep)
                     : multiply(
                           launched.direction,
@@ -15732,7 +15739,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                             0.001F &&
                         mine.owner ==
                             RacerRuntime::invalidWeapon &&
-                        !mine.linkedToOwner &&
+                        object->GetSourceWeapon() == nullptr &&
                         object->GetMaxTimeLife() >= 4.0F &&
                         object->GetMaxTimeLife() <= 4.5F;
                 }
@@ -15755,7 +15762,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                             0.001F &&
                         mine.owner ==
                             RacerRuntime::invalidWeapon &&
-                        !mine.linkedToOwner &&
+                        object->GetSourceWeapon() == nullptr &&
                         object->GetMaxTimeLife() >= 4.0F &&
                         object->GetMaxTimeLife() <= 4.5F &&
                         std::abs(

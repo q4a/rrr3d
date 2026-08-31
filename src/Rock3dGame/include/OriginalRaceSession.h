@@ -357,9 +357,6 @@ struct MineRuntime
     Vec3 velocity;
     std::uint32_t networkProjectileId = 0U;
     std::size_t networkPendingContact = RacerRuntime::invalidWeapon;
-    // Weapon-created mines retain their source car pointer during the
-    // 0.25-second MineUpdate arming window.  AutoProj fragments do not.
-    bool linkedToOwner = true;
     // DeathEffect::effectPxIgnoreSenderCar is permanent for the spawned
     // effect actor, unlike the ordinary mine arming delay.
     bool ignoreOwnerCollision = false;
@@ -388,7 +385,6 @@ struct ProjectileRuntime
     float beamTextureScale = 1.0F;
     bool attached = false;
     bool directWeapon = false;
-    bool ballistic = false;
     // Headless/session fallback invokes Race::OnFixedStep inside the frame
     // update after World::Progress has already run. A projectile created by
     // that callback must not receive its first Proj progress pass until the

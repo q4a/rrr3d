@@ -2625,3 +2625,13 @@ armingScale также удалены; они не управляли ни Windo
 Torpeda, Thunder, ballistic update, contact preview и tests используют
 magnitude live velocity. Это соответствует PhysX actor contract и исключает
 расхождение scalar/vector после отражения или backend sync.
+
+### B8cc — Jolt читает route и weapon lifetime из Proj — выполнено
+
+Убраны портовые `ProjectileRuntime::ballistic` и
+`MineRuntime::linkedToOwner`. Гравитация Mortira определяется оригинальным
+`Proj::RoutePreparation`, а отсоединение mine/MineRip — listener-managed
+`Proj::GetSourceWeapon`. Session хранит только состояние, необходимое самому
+Jolt boundary: body id, physics snapshots и одноразовый attached-body
+transition. Поэтому source и backend больше не могут расходиться по типу
+траектории либо lifetime связи с уничтоженным оружием.

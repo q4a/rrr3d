@@ -1255,6 +1255,19 @@ Homing, reflection, attached fire, ballistic gravity, spawn preview и
 скорости 1 для свободного actor-а: нулевой source/Jolt velocity больше не
 создаёт выдуманное самодвижение.
 
+Результат B8cc: из session удалены производные `ballistic` и
+`linkedToOwner`. В исходном `Proj::MortiraPrepare` гравитация задаётся
+единственным вызовом `RocketPrepare(weapon, false)`, а принадлежность оружию
+хранится в `Proj::_weapon` и снимается `Proj::OnDestroy -> SetWeapon(0)`.
+
+Jolt create/synchronize и fallback integration теперь каждый раз получают
+ballistic route из `Proj::RoutePreparation()`. Проверки автономных MineRip
+fragment-ов читают `Proj::GetSourceWeapon()`, поэтому невозможна комбинация,
+в которой session считает мину отсоединённой, а source listener graph — ещё
+связанной. `attached` оставлен только как backend transition state:
+он фиксирует необходимость пересоздать ранее kinematic Jolt body как dynamic
+после того, как source listener уже очистил оружие.
+
 ## Правило обновления карты
 
 Каждый крупный block commit обязан:
