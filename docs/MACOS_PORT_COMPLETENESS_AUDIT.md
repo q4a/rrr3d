@@ -2826,3 +2826,16 @@ AVFoundation остаётся video backend, profile/Race mutation — executor 
 команды. Unit проверяет Hard/one-shot/cancel, bundle smoke из штатного
 `Contents/Resources/video-cache` подтверждает видео, звук, seek и tournament
 completion за 600 кадров.
+
+### B8cx — PhysX zero-restitution contract для препятствий — выполнено
+
+В Jolt boundary исправлено историческое отклонение: decoration meshes,
+динамические `ctDecoration` и отделившиеся destruction pieces больше не
+получают выдуманную restitution `0.5`. Они наследуют фактическую нулевую
+упругость Windows PhysX material path; mass, friction, sensor/response и
+destruction lifetime не менялись.
+
+Добавлен backend regression с падением динамической декорации: контакт с
+track plane обязателен, искусственный rebound запрещён. Исправление закрывает
+подтверждённую причину сильного отлёта автомобиля и одного из путей случайного
+подбрасывания над трассой.

@@ -6606,3 +6606,17 @@ Frame state теперь отдельно armed на video start, выдаёт t
 исполняет profile/Race transaction после этой команды. Unit покрывает
 one-shot и cancel; автономный bundle video smoke проходит frame/audio/seek/
 completion/tournament path на remuxed `Main_eng.mp4`.
+
+### P2.303 — restitution декораций возвращена к PhysX-оригиналу — выполнено
+
+Обратная проверка `eff9338:DataBase::DataBase` подтвердила нулевую упругость
+всех явно создаваемых гоночных материалов и нулевой PhysX default для
+декораций. Значение `0.5`, найденное в Jolt `ctDecoration`, owned collision
+meshes и `gotDestrObj` debris, отсутствует в Windows-коде и было заглушкой
+раннего порта. Оно подтверждает жалобу на чрезмерный отлёт и вертикальный
+запуск после контакта.
+
+Заглушка удалена по всей цепочке intact/dynamic/destruction bodies. Новый
+регрессионный drop-test проверяет, что динамическая декорация касается пола,
+но не получает заметного обратного подъёма; source mass/friction и Jolt как
+замена PhysX остаются без изменений.

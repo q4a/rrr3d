@@ -1517,6 +1517,19 @@ start. Unit проверяет one-shot/cancel и сохранение Hard. 600
 video smoke подтвердил H.264/AAC playback, кадр, звук, seek, `cVideoStopped`
 и tournament callback.
 
+Результат B8cx: устранена придуманная Jolt-упругость столкновений декораций.
+В `eff9338:DataBase::DataBase` restitution материалов автомобиля, колёс,
+трассы и бордюров равна нулю, а не имеющие собственного material override
+`ctDecoration` и `gotDestrObj` используют нулевой PhysX default. Portable
+backend ошибочно задавал `0.5` для decoration mesh/box и debris, из-за чего
+препятствие возвращало половину нормальной скорости и подбрасывало машину.
+
+Все эти Jolt bodies теперь имеют restitution `0.0`; масса, friction и source
+collision-response/sensor policy сохранены. Physics regression роняет
+динамическую декорацию на трассу и проверяет отсутствие искусственного
+post-contact подъёма. Это backend-correction исходного material contract, а
+не новая игровая стабилизация.
+
 Каждый крупный block commit обязан:
 
 1. назвать точные методы из `eff9338:prog`, которые стали активными;

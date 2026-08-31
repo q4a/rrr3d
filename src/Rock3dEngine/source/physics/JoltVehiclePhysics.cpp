@@ -1429,7 +1429,12 @@ public:
                 std::max(description.mass, 1.0F);
         }
         settings.mFriction = 0.5F;
-        settings.mRestitution = 0.5F;
+        // NxMaterialDesc defaults restitution to zero.  The Windows data
+        // only overrides restitution for the car, wheel, track and border
+        // materials, and every one of those overrides is also zero.  The
+        // old portable 0.5 value made wreckage and movable obstacles behave
+        // like rubber balls and could launch a contacting vehicle upwards.
+        settings.mRestitution = 0.0F;
         settings.mEnhancedInternalEdgeRemoval = true;
         settings.mUserData = surfaceUserData(
             CollisionSurface::Decoration);
@@ -2328,7 +2333,7 @@ private:
         constexpr std::array<float, surfaceCount> frictions{
             0.1F, 4.0F, 0.5F};
         constexpr std::array<float, surfaceCount> restitutions{
-            0.0F, 0.0F, 0.5F};
+            0.0F, 0.0F, 0.0F};
         auto createMeshBody = [&](const JPH::TriangleList& source,
                                   float friction,
                                   float restitution, JPH::uint64 userData,
@@ -2374,7 +2379,7 @@ private:
                 index < description_.decorations.size() &&
                 !description_.decorations[index].collisionResponse;
             decorations_[index].meshBodies.push_back(createMeshBody(
-                decorationTriangles[index], 0.5F, 0.5F,
+                decorationTriangles[index], 0.5F, 0.0F,
                 decorationUserData(index), sensor));
         }
         // Map.cpp creates a +Z NxPlaneShape at world Z=0 in the dedicated
@@ -2436,7 +2441,10 @@ private:
                         std::max(mass, 1.0F);
                 }
                 settings.mFriction = 0.5F;
-                settings.mRestitution = 0.5F;
+                // Unspecified PhysX decoration materials inherit the SDK
+                // default zero restitution.  Do not synthesize rebound in
+                // the replacement backend.
+                settings.mRestitution = 0.0F;
                 settings.mEnhancedInternalEdgeRemoval = true;
                 settings.mUserData = decorationUserData(index);
                 settings.mIsSensor = !collisionResponse;
@@ -3749,12 +3757,34 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
     const float barrelStartHeight =
         contactWorld->decoration(0U).body.position.z;
     input = {};
-    for (int step = 0; step < 120; ++step)
+    bool barrelLanded = false;
+    float barrelLowestHeight = barrelStartHeight;
+    float barrelPostContactRise = 0.0F;
+    for (int step = 0; step < 240; ++step)
+    {
         contactWorld->step(1.0F / 120.0F, input);
-    if (contactWorld->decoration(0U).body.position.z >=
-        barrelStartHeight - 0.1F)
+        const float height =
+            contactWorld->decoration(0U).body.position.z;
+        if (height <= 0.4F)
+            barrelLanded = true;
+        if (barrelLanded)
+        {
+            barrelLowestHeight = std::min(barrelLowestHeight, height);
+            barrelPostContactRise = std::max(
+                barrelPostContactRise, height - barrelLowestHeight);
+        }
+    }
+    if (!barrelLanded ||
+        contactWorld->decoration(0U).body.position.z >=
+            barrelStartHeight - 0.1F)
     {
         error = "source dynamic decoration did not enter Jolt physics";
+        return false;
+    }
+    if (barrelPostContactRise > 0.25F)
+    {
+        error = "source zero-restitution decoration gained artificial "
+                "post-contact bounce";
         return false;
     }
     contactWorld->setDecorationEnabled(0U, false);
