@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch-lib: [x64-bullet, x86-bullet, x86-physx28]
+        arch-lib: [x64-bullet, x86-bullet, x86-physx283, x86-physx284]
         config: [debug, release]
     steps:
     - uses: actions/checkout@main
@@ -29,7 +29,7 @@ jobs:
     - name: Install Windows libs
       shell: cmd
       run: |
-        curl -LJO https://github.com/q4a/rrr3d/releases/download/1.3.1-dev4/extern.7z
+        curl -LJO https://github.com/q4a/rrr3d/releases/download/1.3.1-dev5/extern.7z
         7z x extern.7z
         dir
     - uses: TheMrMilchmann/setup-msvc-dev@v4
