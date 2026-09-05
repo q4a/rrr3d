@@ -19,7 +19,7 @@ if (MSVC)
     add_compile_definitions("$<$<CONFIG:Debug>:_DEBUG>")
 
     if (CMAKE_SIZEOF_VOID_P EQUAL 4)
-        set(LIBSUFFIX "")
+        set(LIBSUFFIX "32")
     else()
         set(LIBSUFFIX "64")
     endif()
@@ -49,10 +49,13 @@ endif()
 # Linux variant that does not ship), so the shim is forced on.
 #
 # Declared before add_subdirectory(PhysX28) because it now gates it.
-if (MSVC)
-    option(RRR3D_PHYSX28_SHIM "Use the PhysX 2.8 shim instead of the real SDK" OFF)
-else()
+if (APPLE)
     set(RRR3D_PHYSX28_SHIM ON)
+else()
+    option(RRR3D_PHYSX28_SHIM "Use the PhysX 2.8 shim instead of the real SDK" OFF)
+    if (NOT DEFINED RRR3D_PHYSX_VER)
+        set(RRR3D_PHYSX_VER "284")
+    endif()
 endif()
 
 # The PhysX 2.8 compatibility shim. Independent of the rest of the tree -- it
@@ -73,12 +76,13 @@ if (RRR3D_PHYSX28_SHIM)
     message(STATUS "physics: PhysX 2.8 shim (over Bullet)")
 else()
     set(RRR3D_PHYSX_INCLUDE_DIRS
-        ${CMAKE_SOURCE_DIR}/extern/physx/include/Cooking
-        ${CMAKE_SOURCE_DIR}/extern/physx/include/Foundation
-        ${CMAKE_SOURCE_DIR}/extern/physx/include/Physics
-        ${CMAKE_SOURCE_DIR}/extern/physx/include/PhysXLoader
+        ${CMAKE_SOURCE_DIR}/extern/physx${RRR3D_PHYSX_VER}/include
+        ${CMAKE_SOURCE_DIR}/extern/physx${RRR3D_PHYSX_VER}/include/Cooking
+        ${CMAKE_SOURCE_DIR}/extern/physx${RRR3D_PHYSX_VER}/include/Foundation
+        ${CMAKE_SOURCE_DIR}/extern/physx${RRR3D_PHYSX_VER}/include/Physics
+        ${CMAKE_SOURCE_DIR}/extern/physx${RRR3D_PHYSX_VER}/include/PhysXLoader
     )
-    message(STATUS "physics: real PhysX 2.8 SDK")
+    message(STATUS "physics: real PhysX ${RRR3D_PHYSX_VER} SDK")
 endif()
 
 if (NOT MSVC)

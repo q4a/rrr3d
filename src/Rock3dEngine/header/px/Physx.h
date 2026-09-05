@@ -11,6 +11,9 @@
 	#undef free
 #endif
 
+#ifdef RRR3D_PHYSX_283
+#include "Prefix.h"
+#endif
 #include "NxPhysics.h"
 #include "NxCooking.h"
 

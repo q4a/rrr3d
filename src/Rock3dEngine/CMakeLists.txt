@@ -1,6 +1,9 @@
 project(Rock3dEngine)
 
 add_definitions(-DNOMINMAX) # Use std::max()/std::min()
+if (RRR3D_PHYSX_VER STREQUAL "283")
+    add_definitions(-DRRR3D_PHYSX_283)
+endif()
 
 list(APPEND PROJECT_DIRS
     "header"

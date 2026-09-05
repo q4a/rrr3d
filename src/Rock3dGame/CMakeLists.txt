@@ -2,7 +2,6 @@ project(Rock3dGame)
 
 add_definitions(-DNOMINMAX) # Use std::max()/std::min()
 
-
 list(APPEND PROJECT_DIRS
     "header"
     "header/edit"
@@ -118,9 +117,20 @@ if (MSVC)
     # wins silently. Rock3dEngine already links PhysX28 when the shim is on.
     if (NOT RRR3D_PHYSX28_SHIM)
         target_link_libraries(${PROJECT_NAME} PRIVATE
-            PhysXLoader.lib
             PhysXCooking.lib
+            PhysXLoader.lib
         )
+        if (RRR3D_PHYSX_VER STREQUAL "283")
+        target_link_libraries(${PROJECT_NAME} PRIVATE
+                legacy_stdio_definitions.lib
+                AgPerfMon.lib
+                Foundation.lib
+                Framework.lib
+                LowLevel.lib
+                Opcode.lib
+                PhysXCore.lib
+            )
+        endif()
     endif()
 
     target_link_directories(${PROJECT_NAME} PRIVATE
@@ -128,7 +138,7 @@ if (MSVC)
         "$<$<CONFIG:Debug>:${CMAKE_SOURCE_DIR}/extern/ogg/lib${LIBSUFFIX}/debug>"
         "$<$<CONFIG:Release>:${CMAKE_SOURCE_DIR}/extern/vorbis/lib${LIBSUFFIX}/release>"
         "$<$<CONFIG:Debug>:${CMAKE_SOURCE_DIR}/extern/vorbis/lib${LIBSUFFIX}/debug>"
-        ${CMAKE_SOURCE_DIR}/extern/physx/lib
+        ${CMAKE_SOURCE_DIR}/extern/physx${RRR3D_PHYSX_VER}/lib${LIBSUFFIX}
         ${CMAKE_SOURCE_DIR}/extern/directx/lib${LIBSUFFIX}
     )
 else()

@@ -23,6 +23,16 @@
       "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
     },
     {
+      "name": "use_physx284",
+      "hidden": true,
+      "cacheVariables": { "RRR3D_PHYSX_VER": "284" }
+    },
+    {
+      "name": "use_physx283",
+      "hidden": true,
+      "cacheVariables": { "RRR3D_PHYSX_VER": "283" }
+    },
+    {
       "name": "use_bullet",
       "hidden": true,
       "cacheVariables": { "RRR3D_PHYSX28_SHIM": true }
@@ -59,14 +69,34 @@
       }
     },
     {
-      "name": "msvc-x86-physx28-debug",
-      "displayName": "MSVC x86 PhysX 2.8 Debug",
-      "inherits": ["msvc-x86", "debug"]
+      "name": "msvc-x86-physx284-debug",
+      "displayName": "MSVC x86 PhysX 2.8.4 Debug",
+      "inherits": ["msvc-x86", "debug", "use_physx284"]
     },
     {
-      "name": "msvc-x86-physx28-release",
-      "displayName": "MSVC x86 PhysX 2.8 Release",
-      "inherits": ["msvc-x86", "release"]
+      "name": "msvc-x86-physx284-release",
+      "displayName": "MSVC x86 PhysX 2.8.4 Release",
+      "inherits": ["msvc-x86", "release", "use_physx284"]
+    },
+    {
+      "name": "msvc-x86-physx283-debug",
+      "displayName": "MSVC x86 PhysX 2.8.3 Debug",
+      "inherits": ["msvc-x86", "debug", "use_physx283"]
+    },
+    {
+      "name": "msvc-x86-physx283-release",
+      "displayName": "MSVC x86 PhysX 2.8.3 Release",
+      "inherits": ["msvc-x86", "release", "use_physx283"]
+    },
+    {
+      "name": "msvc-x64-physx283-debug",
+      "displayName": "MSVC x64 PhysX 2.8.3 Debug",
+      "inherits": ["msvc-x64", "debug", "use_physx283"]
+    },
+    {
+      "name": "msvc-x64-physx283-release",
+      "displayName": "MSVC x64 PhysX 2.8.3 Release",
+      "inherits": ["msvc-x64", "release", "use_physx283"]
     },
     {
       "name": "msvc-x86-bullet-debug",
@@ -126,8 +156,12 @@
     }
   ],
   "buildPresets": [
-    { "name": "msvc-x86-physx28-debug", "configurePreset": "msvc-x86-physx28-debug" },
-    { "name": "msvc-x86-physx28-release", "configurePreset": "msvc-x86-physx28-release" },
+    { "name": "msvc-x86-physx284-debug", "configurePreset": "msvc-x86-physx284-debug" },
+    { "name": "msvc-x86-physx284-release", "configurePreset": "msvc-x86-physx284-release" },
+    { "name": "msvc-x86-physx283-debug", "configurePreset": "msvc-x86-physx283-debug" },
+    { "name": "msvc-x86-physx283-release", "configurePreset": "msvc-x86-physx283-release" },
+    { "name": "msvc-x64-physx283-debug", "configurePreset": "msvc-x64-physx283-debug" },
+    { "name": "msvc-x64-physx283-release", "configurePreset": "msvc-x64-physx283-release" },
     { "name": "msvc-x86-bullet-debug", "configurePreset": "msvc-x86-bullet-debug" },
     { "name": "msvc-x86-bullet-release", "configurePreset": "msvc-x86-bullet-release" },
     { "name": "msvc-x64-bullet-debug", "configurePreset": "msvc-x64-bullet-debug" },
