@@ -1,6 +1,7 @@
 build*
 bin
 extern
+.qtcreator
 .vs
 *.vcxproj.*
 
