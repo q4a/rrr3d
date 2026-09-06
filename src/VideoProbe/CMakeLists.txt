@@ -11,7 +11,7 @@ add_executable(${PROJECT_NAME}
     main.cpp
     ${CMAKE_SOURCE_DIR}/src/Rock3dGame/source/video/avi_reader.cpp
     ${CMAKE_SOURCE_DIR}/src/Rock3dGame/source/video/h264_poc.cpp
-    ${CMAKE_SOURCE_DIR}/src/Rock3dGame/source/video/h264_decoder.mm
+    ${CMAKE_SOURCE_DIR}/src/Rock3dGame/source/video/apple/h264_decoder.cpp
 )
 
 # The two sources above are compiled here rather than linked from Rock3dGame,

@@ -334,7 +334,6 @@ int WideCharToMultiByte(UINT codePage, DWORD flags, LPCWSTR src, int srcLen,
 
 /* ------------------------------------------------------------- module --- */
 
-DWORD GetModuleFileNameA(void* module, LPSTR filename, DWORD size);
 DWORD GetModuleFileNameW(void* module, LPWSTR filename, DWORD size);
 
 /* --------------------------------------------------------------- misc --- */

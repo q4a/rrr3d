@@ -1,9 +1,6 @@
 project(Rock3dEngine)
 
 add_definitions(-DNOMINMAX) # Use std::max()/std::min()
-if (RRR3D_PHYSX_VER STREQUAL "283")
-    add_definitions(-DRRR3D_PHYSX_283)
-endif()
 
 list(APPEND PROJECT_DIRS
     "header"
@@ -40,11 +37,19 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/src/LexStd/header
     ${CMAKE_SOURCE_DIR}/src/MathLib/header
     ${RRR3D_PHYSX_INCLUDE_DIRS}
-    ${CMAKE_SOURCE_DIR}/extern/directx/include
 )
+
+if (MSVC)
+    target_include_directories(${PROJECT_NAME} PRIVATE
+        ${CMAKE_SOURCE_DIR}/extern/directx/include
+    )
+else()
+    target_link_libraries(${PROJECT_NAME} PUBLIC XPlatform)
+endif()
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     LexStd
+    MathLib
 )
 
 # PUBLIC, because px/Physx.h is part of Rock3dEngine's own interface: it reaches

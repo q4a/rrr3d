@@ -45,6 +45,10 @@ else()
     pkg_check_modules(SDL3 REQUIRED IMPORTED_TARGET sdl3)
 
     target_link_libraries(${PROJECT_NAME} PRIVATE PkgConfig::SDL3)
+    if (LINUX)
+        add_dependencies(${PROJECT_NAME} dxvk)
+        target_link_libraries(${PROJECT_NAME} PRIVATE ${DIRECTX_LIBS})
+    endif()
 endif()
 
 # Retina drawables need NSHighResolutionCapable; see cmake/utils.cmake.

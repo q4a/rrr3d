@@ -120,6 +120,32 @@
     },
 
     {
+      "name": "linux-x64-clang",
+      "hidden": true,
+      "inherits": "base",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
+      "architecture": { "value": "x64", "strategy": "external" },
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++"
+      }
+    },
+    {
+      "name": "linux-x64-clang-physx283-debug",
+      "displayName": "Linux x64 Clang PhysX 2.8.3 Debug",
+      "inherits": ["linux-x64-clang", "debug", "use_physx283"]
+    },
+    {
+      "name": "linux-x64-clang-physx283-release",
+      "displayName": "Linux x64 Clang PhysX 2.8.3 Release",
+      "inherits": ["linux-x64-clang", "release", "use_physx283"]
+    },
+
+    {
       "name": "macos-arm64",
       "hidden": true,
       "inherits": "base",
@@ -166,6 +192,8 @@
     { "name": "msvc-x86-bullet-release", "configurePreset": "msvc-x86-bullet-release" },
     { "name": "msvc-x64-bullet-debug", "configurePreset": "msvc-x64-bullet-debug" },
     { "name": "msvc-x64-bullet-release", "configurePreset": "msvc-x64-bullet-release" },
+    { "name": "linux-x64-clang-physx283-debug", "configurePreset": "linux-x64-clang-physx283-debug" },
+    { "name": "linux-x64-clang-physx283-release", "configurePreset": "linux-x64-clang-physx283-release" },
     { "name": "macos-arm64-debug", "configurePreset": "macos-arm64-debug" },
     { "name": "macos-arm64-release", "configurePreset": "macos-arm64-release" },
     { "name": "macos-arm64-asan", "configurePreset": "macos-arm64-asan" }

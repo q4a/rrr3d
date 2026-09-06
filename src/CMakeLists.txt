@@ -17,13 +17,6 @@ if (MSVC)
     # defines _DEBUG, so match it everywhere rather than only where it happens
     # to arrive by accident.
     add_compile_definitions("$<$<CONFIG:Debug>:_DEBUG>")
-
-    if (CMAKE_SIZEOF_VOID_P EQUAL 4)
-        set(LIBSUFFIX "32")
-    else()
-        set(LIBSUFFIX "64")
-    endif()
-    message(STATUS "LIBSUFFIX=${LIBSUFFIX}")
 else()
     add_compile_options(-fPIC)
 
@@ -31,6 +24,14 @@ else()
     # the PhysX headers both key off _DEBUG.
     add_compile_definitions("$<$<CONFIG:Debug>:_DEBUG>")
 endif()
+
+if (CMAKE_SIZEOF_VOID_P EQUAL 4)
+    set(LIBSUFFIX "32")
+else()
+    set(LIBSUFFIX "64")
+endif()
+message(STATUS "LIBSUFFIX=${LIBSUFFIX}")
+message(STATUS "CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}")
 
 # The Win32 substitute layer. On Windows the real headers are used and this
 # whole target is absent, so nothing here can shadow them.
@@ -75,6 +76,9 @@ if (RRR3D_PHYSX28_SHIM)
     set(RRR3D_PHYSX_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/src/PhysX28/include)
     message(STATUS "physics: PhysX 2.8 shim (over Bullet)")
 else()
+    if (RRR3D_PHYSX_VER STREQUAL "283")
+        add_definitions(-DRRR3D_PHYSX_283)
+    endif()
     set(RRR3D_PHYSX_INCLUDE_DIRS
         ${CMAKE_SOURCE_DIR}/extern/physx${RRR3D_PHYSX_VER}/include
         ${CMAKE_SOURCE_DIR}/extern/physx${RRR3D_PHYSX_VER}/include/Cooking
@@ -96,8 +100,7 @@ if (NOT MSVC)
     # The cutscene demuxer and decoder, likewise without the game. Apple-only,
     # because VideoToolbox is.
     if (APPLE)
-        add_subdirectory(VideoProbe)
-    endif()
+    add_subdirectory(VideoProbe)
 
     # The Metal backend. Apple-only by construction, and absent on Windows
     # where the real D3D9 runtime is what draws.
@@ -123,6 +126,7 @@ if (NOT MSVC)
     else()
         message(STATUS "d3d9metal: extern/ not populated -- "
                        "run tools/setup-d3d9metal-macos.sh for the D3D9 backend")
+    endif()
     endif()
 endif()
 

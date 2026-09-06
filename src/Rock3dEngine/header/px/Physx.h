@@ -12,8 +12,12 @@
 #endif
 
 #ifdef RRR3D_PHYSX_283
+#ifdef __linux__
+	#define LINUX
+#endif
 #include "Prefix.h"
 #endif
+
 #include "NxPhysics.h"
 #include "NxCooking.h"
 

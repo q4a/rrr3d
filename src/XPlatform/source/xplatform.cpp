@@ -20,7 +20,9 @@
 #include <dlfcn.h>
 #include <unistd.h>
 
+#ifdef __APPLE__
 #include <mach-o/dyld.h>
+#endif
 #include <sys/mman.h>
 #include <sys/stat.h>
 
@@ -1127,25 +1129,18 @@ int WideCharToMultiByte(UINT, DWORD, LPCWSTR src, int srcLen,
 
 /* ------------------------------------------------------------------ module */
 
-DWORD GetModuleFileNameA(void*, LPSTR filename, DWORD size)
-{
-	if (!filename || size == 0) return 0;
-	uint32_t needed = size;
-	if (_NSGetExecutablePath(filename, &needed) != 0)
-	{
-		filename[0] = '\0';
-		return 0;
-	}
-	return static_cast<DWORD>(strlen(filename));
-}
-
 DWORD GetModuleFileNameW(void*, LPWSTR filename, DWORD size)
 {
 	if (!filename || size == 0) return 0;
 
 	char narrow[4096];
+#ifdef __APPLE__
 	uint32_t needed = sizeof(narrow);
 	if (_NSGetExecutablePath(narrow, &needed) != 0)
+#else
+	ssize_t len = readlink("/proc/self/exe", narrow, sizeof(narrow) - 1);
+	if (len == -1)
+#endif
 	{
 		filename[0] = L'\0';
 		return 0;

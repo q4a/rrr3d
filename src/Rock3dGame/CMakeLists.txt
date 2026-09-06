@@ -58,13 +58,16 @@ else()
     )
 endif()
 
-# The Objective-C++ half of the cutscene player. Listed rather than globbed
-# because cmake/utils.cmake's add_dir does not match .mm -- nothing else in the
-# tree needed it until now.
+# The Objective-C++ half of the cutscene player.
 if (APPLE)
     list(APPEND ${PROJECT_NAME}_SOURCE
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/video/h264_decoder.mm"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/video/mp3_decoder.mm"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/video/apple/h264_decoder.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/video/apple/mp3_decoder.cpp"
+    )
+else()
+    list(APPEND ${PROJECT_NAME}_SOURCE
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/video/linux/h264_decoder.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/video/linux/mp3_decoder.cpp"
     )
 endif()
 
@@ -172,6 +175,15 @@ else()
         # archive, so linking it here gives the process exactly one copy of
         # DXVK's device and its state.
         target_link_libraries(${PROJECT_NAME} PRIVATE D3D9Metal)
+    elseif (LINUX)
+        target_link_directories(${PROJECT_NAME} PRIVATE
+            ${CMAKE_SOURCE_DIR}/extern/physx${RRR3D_PHYSX_VER}/linux${LIBSUFFIX}
+        )
+        target_link_libraries(${PROJECT_NAME} PRIVATE
+            libPhysXLoader.a
+            libPhysXCore.a
+            libPhysXCooking.a
+        )
     endif()
 
     # Deliberately nothing here for XAudio2/X3DAudio, DirectShow or XInput.

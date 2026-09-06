@@ -1,7 +1,7 @@
 #ifndef LSL_COMMON
 #define LSL_COMMON
 
-#ifdef _DEBUG
+#if defined(_DEBUG) && !defined(__linux__)
 	#define DEBUG_MEMORY
 #endif
 
