@@ -16,7 +16,6 @@
 #include <functional>
 #include <memory>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 namespace rrr3d::race
@@ -263,15 +262,6 @@ private:
     r3d::physics::Vec3 cameraViewDirection_{1.0F, 0.0F, 0.0F};
     r3d::physics::Quat cameraRotation_;
     RaceCameraStyle cameraStyle_ = RaceCameraStyle::Isometric;
-    struct WheelTrailRuntime
-    {
-        std::vector<r3d::physics::Vec3> points;
-        std::vector<float> sampleTimes;
-    };
-    // One FxTrailManager history per concrete PxWheelSlipEffect MapObj.
-    // Fading and newly-created generations can coexist for the same wheel.
-    std::unordered_map<std::uint64_t, WheelTrailRuntime>
-        wheelTrailRuntimes_;
     // Each source group retains its own material age in the Metal batch.
     std::vector<TrailSample> wheelTrailBatchPoints_;
     // ActorManager::RayUser fade timers for original gpCullOpacity actors.
@@ -285,7 +275,6 @@ private:
     // FxPointSpritesManager multiplies the particle scale length by 0.75
     // for the orthographic camera and by 0.25 for perspective cameras.
     float pointSpriteScale_ = 0.25F;
-    float wheelTrailUpdateSeconds_ = -1.0F;
     bool adaptedLuminanceAIsCurrent_ = false;
     bool luminanceAdaptationInitialized_ = false;
     bool sunShaftResourcesEnabled_ = false;

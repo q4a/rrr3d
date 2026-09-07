@@ -3330,3 +3330,33 @@ physics smoke и 33/33 заново собранных CTest. Заезд 1800 к
 не измерение пользовательского FPS. Исправлен и build preset M10: он теперь
 собирает `all`, поскольку прежний список целей оставлял старые CTest binaries
 и не собирал добавленные тесты.
+
+### B8dz — исходные sotDist/capacity и particle-count lifetime — выполнено
+
+Сверены `eff9338:FxManager.cpp::FxEmitter::{OnProgress,QueryCreateGroup,
+QueryCreateParticles}` и `GameBase.cpp::FxSystemWaitingEnd::OnProgress`.
+Предыдущая history добавляла максимум одну точку за кадр, удаляла oldest при
+100 samples и сохраняла actor ещё 10 секунд от прекращения slip. Windows
+создаёт группы для пропущенных distance intervals, ограничивает догоняющий
+проход 20 интервалами и в `mnaWaitingFree` ждёт свободного места.
+
+Добавлен `r3d::effects::FxTrailEmitter` для исходного shipped `trail` profile:
+world coordinates, zero flow, density 1 и постоянные значения distance/life
+из записи. Сохранены strict distance comparison, positional catch-up,
+различие particle time и group life, maxNum=0/unlimited, waiting-free и fade.
+Его конкретное состояние принадлежит отдельному `RaceEffect`/MapObj и
+прогрессирует после gameplay, как source GraphManager::ProgressTime.
+
+Renderer больше не хранит particle history и не создаёт новые samples.
+Он читает source groups и собирает готовые strips. `FxSystemWaitingEnd`
+получает действительное число частиц; эффект удаляется после последней
+группы, включая headless session. Regression проверяет 1-метровую границу,
+несколько births за кадр, capacity без вытеснения, 20-interval bound,
+независимые поколения и реальное удаление MapObj после particle end.
+Общий FxFlowEmitter для произвольных smoke/projectile records этим блоком
+не объявлен полностью перенесённым: их scheduled rendering остаётся
+следующей отдельной границей.
+
+Проверено 2026-09-07: полная arm64 Debug сборка/подпись, 33/33 CTest,
+physics smoke и 1800-frame Metal/Jolt заезд прошли. Max transient draws
+остаётся 1; speed 39.1393, четыре wheel contacts и пять активных AI сохранены.

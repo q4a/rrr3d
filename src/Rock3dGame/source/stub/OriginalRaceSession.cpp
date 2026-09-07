@@ -5432,6 +5432,16 @@ void OriginalRaceSession::synchronizeWheelSlipEffects(
                                 return emitter.waitForParticleEnd;
                             });
                         effect.waitForParticleEnd = waitsForParticles;
+                        if (recordName(result.definition->record) == "trail" &&
+                            !result.definition->particleEmitters.empty())
+                        {
+                            const auto& emitter =
+                                result.definition->particleEmitters.front();
+                            effect.trailEmitter.emplace(
+                                emitter.startTimeMinimum,
+                                emitter.lifeMinimum,
+                                emitter.maximumParticles);
+                        }
                         configureSourceEffectOwner(
                             effect, waitsForParticles, -1.0F);
                         effects_.push_back(std::move(effect));
@@ -5461,12 +5471,16 @@ void OriginalRaceSession::synchronizeWheelSlipEffects(
                 }
                 const auto timing = sourceEffectTiming(
                     *live->sourceDefinition, 0.6F);
-                live->seconds = std::max(timing.visibleSeconds, 0.001F);
+                live->seconds = live->trailEmitter
+                    ? live->trailEmitter->GetRemainingLife()
+                    : std::max(timing.visibleSeconds, 0.001F);
                 live->totalSeconds =
                     live->ageSeconds + live->seconds;
                 live->emissionEndSeconds = live->ageSeconds;
                 if (live->waitingEnd != nullptr)
-                    live->waitingEnd->SetLiveParticleCount(1U);
+                    live->waitingEnd->SetLiveParticleCount(
+                        live->trailEmitter
+                            ? live->trailEmitter->GetCntParticle() : 1U);
                 live->effectOwner->Death();
             }
         }
@@ -9449,7 +9463,9 @@ void OriginalRaceSession::update(
         if (effect.waitingEnd != nullptr)
         {
             effect.waitingEnd->SetLiveParticleCount(
-                effect.seconds > 0.0F ? 1U : 0U);
+                effect.trailEmitter
+                    ? effect.trailEmitter->GetCntParticle()
+                    : (effect.seconds > 0.0F ? 1U : 0U));
         }
         if (effect.lifeEffect != nullptr)
         {
@@ -9664,6 +9680,19 @@ void OriginalRaceSession::update(
     // occurs in the next Logic pass, as on Windows.
     bindWorldEffectMapObjects();
     updateAchievements(seconds);
+    // GraphManager::Render -> ProgressTime runs FxEmitter after this
+    // frame's gameplay has moved/released the global slip MapObj. The next
+    // Logic pass sees this particle count through FxSystemWaitingEnd.
+    // Keep this progression available in headless sessions as well.
+    for (auto& effect : effects_)
+    {
+        if (!effect.trailEmitter || effect.effectOwner == nullptr)
+            continue;
+        const auto position = effect.effectOwner->GetWorldPos();
+        effect.trailEmitter->OnProgress(
+            seconds, {position[0U], position[1U], position[2U]},
+            effect.emissionEndSeconds >= 0.0F);
+    }
     if (phase_ == RacePhase::Finished &&
         gameModeRaceState_.IsFinishPresentationReady())
     {
@@ -9908,6 +9937,8 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 });
             if (trail == slipSession.effects().end() ||
                 !trail->sourceEvent.HasEffect() ||
+                !trail->trailEmitter ||
+                trail->trailEmitter->GetCntParticle() != 1U ||
                 trail->sourceMapObject == nullptr ||
                 trail->sourceMapObjectId == 0U ||
                 trail->effectOwner !=
@@ -9921,6 +9952,11 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     "source PxWheelSlipEffect global MapObj/contact pose "
                     "was not materialized");
             }
+            const auto firstTrailId = trail->runtimeId;
+            const auto firstTrailReference = trail->sourceEvent;
+            for (int frame = 0; frame < 60; ++frame)
+                slipSession.update(
+                    1.0F / 60.0F, slipVehicles, RaceControl{});
             contact.longitudinalSlip = 0.0F;
             contact.lateralSlip = 0.0F;
             slipSession.update(
@@ -9940,6 +9976,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                 !fadingTrail->sourceEvent.HasEffect() ||
                 fadingTrail->sourceEvent.IsEffectMaked() ||
                 fadingTrail->emissionEndSeconds < 0.0F ||
+                fadingTrail->seconds >= 9.1F ||
                 fadingTrail->waitingEnd == nullptr ||
                 !fadingTrail->waitingEnd->IsFading())
             {
@@ -9962,6 +9999,34 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                                fadingTrail->waitingEnd != nullptr &&
                                fadingTrail->waitingEnd->IsFading())));
             }
+            contact.position = {131.0F, 47.0F, 2.0F};
+            contact.longitudinalSlip = 1.0F;
+            slipSession.update(1.0F / 60.0F, slipVehicles, RaceControl{});
+            const auto newTrail = std::find_if(
+                slipSession.effects().begin(), slipSession.effects().end(),
+                [firstTrailId](const RaceEffect& effect) {
+                    return effect.trailEmitter &&
+                           effect.runtimeId != firstTrailId &&
+                           effect.emissionEndSeconds < 0.0F;
+                });
+            if (!firstTrailReference.HasEffect() ||
+                newTrail == slipSession.effects().end() ||
+                newTrail->trailEmitter->GetCntParticle() != 1U ||
+                std::abs(newTrail->trailEmitter->GetGroups().front()
+                             .position.x - 131.0F) > 0.001F)
+                throw std::runtime_error(
+                    "new skid merged into the previous fading MapObj");
+            contact.longitudinalSlip = 0.0F;
+            for (int frame = 0; frame < 650; ++frame)
+                slipSession.update(
+                    1.0F / 60.0F, slipVehicles, RaceControl{});
+            if (firstTrailReference.HasEffect() ||
+                std::any_of(slipSession.effects().begin(),
+                    slipSession.effects().end(), [](const RaceEffect& effect) {
+                        return effect.trailEmitter.has_value();
+                    }))
+                throw std::runtime_error(
+                    "source trail MapObj outlived its last particle without a renderer");
         }
         {
             // GameObject::OnPxSync publishes the graph actor pose before

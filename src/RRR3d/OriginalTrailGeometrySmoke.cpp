@@ -1,4 +1,5 @@
 #include "OriginalTrailGeometry.h"
+#include "effects/OriginalTrailEmitter.h"
 
 #include <cmath>
 #include <iostream>
@@ -58,8 +59,56 @@ int main()
         build(std::vector<TrailSample>{});
         if (!vertices.empty() || !indices.empty())
             throw std::runtime_error("expired effects kept old batch geometry");
+        r3d::effects::FxTrailEmitter emitter(1.0F, 10.0F, 100U);
+        emitter.OnProgress(0.1F, {}, false);
+        emitter.OnProgress(0.1F, {1.0F, 0.0F, 0.0F}, false);
+        if (emitter.GetCntParticle() != 1U)
+            throw std::runtime_error("sotDist emitted at the exact distance boundary");
+        emitter.OnProgress(0.1F, {4.0F, 0.0F, 0.0F}, false);
+        if (emitter.GetCntParticle() != 4U)
+            throw std::runtime_error("sotDist did not catch up after a slow frame");
+        for (std::size_t group = 1U; group < 4U; ++group)
+        {
+            const auto& particle = emitter.GetGroups()[group];
+            if (std::abs(particle.position.x - static_cast<float>(group)) >
+                    0.001F || particle.GetFrame() != 0.0F ||
+                particle.particleTime <= 0.0F)
+                throw std::runtime_error("source group birth/particle offset changed");
+        }
+        const float oldLife = emitter.GetGroups().front().life;
+        emitter.OnProgress(0.1F, {4.0F, 0.0F, 0.0F}, false);
+        if (emitter.GetCntParticle() != 4U ||
+            emitter.GetGroups().front().life >= oldLife)
+            throw std::runtime_error("stationary trail emitted or stopped aging");
+
+        r3d::effects::FxTrailEmitter capacity(1.0F, 1.0F, 3U);
+        capacity.OnProgress(0.0F, {}, false);
+        capacity.OnProgress(0.1F, {3.1F, 0.0F, 0.0F}, false);
+        capacity.OnProgress(0.1F, {50.0F, 0.0F, 0.0F}, false);
+        if (capacity.GetCntParticle() != 3U ||
+            capacity.GetGroups().front().index != 0U ||
+            capacity.GetGroups().back().index != 2U)
+            throw std::runtime_error("mnaWaitingFree replaced live particles");
+        capacity.OnProgress(0.85F, {51.0F, 0.0F, 0.0F}, false);
+        if (capacity.GetCntParticle() != 3U ||
+            capacity.GetGroups().front().index != 1U ||
+            capacity.GetGroups().back().index != 3U)
+            throw std::runtime_error("expired source capacity was not reused");
+        capacity.OnProgress(1.0F, {55.0F, 0.0F, 0.0F}, true);
+        if (capacity.GetCntParticle() != 0U ||
+            capacity.GetRemainingLife() != 0.0F)
+            throw std::runtime_error("fading source emitted or failed to expire");
+
+        r3d::effects::FxTrailEmitter catchUp(1.0F, 10.0F, 0U);
+        catchUp.OnProgress(0.0F, {}, false);
+        catchUp.OnProgress(0.1F, {100.0F, 0.0F, 0.0F}, false);
+        if (catchUp.GetCntParticle() != 21U ||
+            std::abs(catchUp.GetGroups()[1U].position.x - 80.0F) > 0.001F ||
+            std::abs(catchUp.GetGroups().back().position.x - 99.0F) > 0.001F)
+            throw std::runtime_error("sotDist source 20-interval catch-up limit changed");
         std::cout << "FxTrail source group fade, strip boundaries, direction, "
-                     "UV restart and empty/stationary geometry passed\n";
+                     "UV restart, sotDist catch-up, waiting-free capacity "
+                     "and particle lifetime passed\n";
         return 0;
     }
     catch (const std::exception& error)

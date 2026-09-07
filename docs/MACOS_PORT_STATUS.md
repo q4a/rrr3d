@@ -2917,3 +2917,14 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   разрывы между source MapObj без роста submit count.
 - `CarWheel::OnProgress` снова выполняет behaviors до накопления axle spin;
   backend-границы остаются Jolt contact / bgfx particles / SDL Source3d.
+
+### Source FxEmitter wheel-trail follow-up
+
+- Перенесён source `sotDist`: несколько точек за пропущенный кадр,
+  интерполяция позиции, strict threshold и максимум 20 intervals catch-up.
+- `mnaWaitingFree` сохраняет живые частицы при заполнении 100 slots;
+  group life и initial particle time учитываются раздельно, как Windows.
+- Particle state перемещён из renderer к конкретному effect runtime.
+  Renderer читает готовые группы; пауза и lifetime работают без Metal.
+- `FxSystemWaitingEnd` получает реальное число частиц, поэтому прекращение
+  скольжения не продлевает старые следы искусственно ещё на 10 секунд.

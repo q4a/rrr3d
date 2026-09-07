@@ -7090,3 +7090,23 @@ draw submissions не зависит от числа одновременно з
 разрывы между исходными генерациями. `sotDist`/capacity history пока остаётся
 отдельной backend-границей для следующего B8dz, а не объявлена полностью
 эквивалентной FxEmitter.
+
+### P2.331 — восстановлены source FxEmitter distance/capacity и trail end — выполнено
+
+`eff9338:FxEmitter::OnProgress(sotDist)` использует расстояние до последней
+частицы и создаёт все пропущенные группы (до 20 intervals за кадр). Их
+позиции интерполируются из `_lastPosQGroup`; group life начинается с maxLife,
+хотя particle time может быть ненулевым. `QueryCreateParticles` при
+`mnaWaitingFree` не вытесняет живые группы, а `maxNum=0` снимает ограничение.
+
+Этот алгоритм перенесён для constant zero-flow wheel-trail profile в
+`effects::FxTrailEmitter`, размещённый в concrete effect runtime. Из
+OriginalRaceRenderer удалены distance thresholds, age arrays, capacity
+eviction и произвольный 10-метровый history reset. Lifetime разных skid
+generations разделяет исходный EventEffect/MapObj.
+
+`FxSystemWaitingEnd` теперь получает реальный `GetCntParticle()` и завершает
+MapObj на исходном порядке Logic → graph progress → следующий Logic.
+Headless regression проверяет, что неподвижный slip не обновляет возраст
+частицы, новый skid получает иной actor, а оба удаляются после исчерпания
+своих groups. Произвольные FxFlowEmitter records требуют отдельного переноса.

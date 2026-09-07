@@ -13,6 +13,7 @@
 #include "OriginalRaceLifecycle.h"
 #include "OriginalTrace.h"
 #include "OriginalWeapon.h"
+#include "effects/OriginalTrailEmitter.h"
 
 #include <array>
 #include <cstddef>
@@ -316,6 +317,9 @@ struct RaceEffect
     std::size_t vehicleEffect = RacerRuntime::invalidWeapon;
     std::size_t wheel = RacerRuntime::invalidWeapon;
     std::size_t wheelEffect = RacerRuntime::invalidWeapon;
+    // Concrete source FxEmitter state for the world-space wheel trail.
+    // Its particle count drives FxSystemWaitingEnd; rendering only reads it.
+    std::optional<r3d::effects::FxTrailEmitter> trailEmitter;
     Transform transform;
     // DeathEffect::targetChild stores the effect in the contacted car's
     // include list.  transform is target-local while this index is valid.

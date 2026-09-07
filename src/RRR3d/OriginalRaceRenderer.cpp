@@ -2737,11 +2737,9 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
     grassTexture_ = {};
     effectMesh_ = {};
     grassMesh_ = {};
-    wheelTrailRuntimes_.clear();
     wheelTrailBatchPoints_.clear();
     trackCullOpacityTimes_.clear();
     decorationCullOpacityTimes_.clear();
-    wheelTrailUpdateSeconds_ = -1.0F;
     environmentSurfaceCenter_ = {};
     environmentSurfaceSize_ = {};
     sceneWorldCenter_ = {};
@@ -5512,123 +5510,21 @@ void OriginalRaceRenderer::renderFrame(
     std::int32_t countdownStage,
     const r3d::game::originalrace::source::TraceGfx* debugTrace)
 {
-    if (wheelTrailUpdateSeconds_ < 0.0F ||
-        elapsedSeconds < wheelTrailUpdateSeconds_)
-    {
-        wheelTrailRuntimes_.clear();
-    }
-    wheelTrailUpdateSeconds_ = elapsedSeconds;
-    const auto& trailEmitters = race.wheelTrailEffect.particleEmitters;
-    const float trailLife =
-        trailEmitters.empty()
-            ? 10.0F
-            : std::max({trailEmitters.front().lifeMinimum,
-                        trailEmitters.front().lifeMaximum, 0.1F});
-    const float trailSpacing =
-        trailEmitters.empty()
-            ? 1.0F
-            : std::max(
-                  (trailEmitters.front().startTimeMinimum +
-                   trailEmitters.front().startTimeMaximum) *
-                      0.5F,
-                  0.05F);
-    const std::size_t maximumTrailPoints =
-        trailEmitters.empty() ||
-                trailEmitters.front().maximumParticles == 0U
-            ? 100U
-            : trailEmitters.front().maximumParticles;
-    std::vector<std::uint64_t> liveTrailIds;
-    for (const auto& effect : effects)
-    {
-        if (effect.kind !=
-                r3d::game::originalrace::RaceEventKind::WheelSlipEffect ||
-            effect.runtimeId == 0U || effect.sourceDefinition == nullptr ||
-            recordName(effect.sourceDefinition->record) != "trail")
-        {
-            continue;
-        }
-        liveTrailIds.push_back(effect.runtimeId);
-        auto& history = wheelTrailRuntimes_[effect.runtimeId];
-        while (!history.sampleTimes.empty() &&
-               elapsedSeconds - history.sampleTimes.front() > trailLife)
-        {
-            history.sampleTimes.erase(history.sampleTimes.begin());
-            history.points.erase(history.points.begin());
-        }
-        // emissionEndSeconds is set by FreeEffect(true). A fading source
-        // effect keeps its existing trail but cannot append new positions.
-        if (effect.emissionEndSeconds >= 0.0F ||
-            effect.effectOwner == nullptr)
-            continue;
-        const auto sourcePosition = effect.effectOwner->GetWorldPos();
-        const r3d::physics::Vec3 position{
-            sourcePosition[0U], sourcePosition[1U], sourcePosition[2U]};
-        bool addPoint = history.points.empty();
-        if (!history.points.empty())
-        {
-            const auto& previous = history.points.back();
-            const float dx = position.x - previous.x;
-            const float dy = position.y - previous.y;
-            const float dz = position.z - previous.z;
-            const float distanceSquared = dx * dx + dy * dy + dz * dz;
-            addPoint = distanceSquared >= trailSpacing * trailSpacing;
-            if (distanceSquared > 100.0F)
-            {
-                // A teleport starts a new source generation visually; it
-                // must never stretch one strip across half the map.
-                history.points.clear();
-                history.sampleTimes.clear();
-                addPoint = true;
-            }
-        }
-        if (addPoint)
-        {
-            history.points.push_back(position);
-            history.sampleTimes.push_back(elapsedSeconds);
-        }
-        while (history.points.size() > maximumTrailPoints)
-        {
-            history.points.erase(history.points.begin());
-            history.sampleTimes.erase(history.sampleTimes.begin());
-        }
-    }
-    std::erase_if(
-        wheelTrailRuntimes_,
-        [&](const auto& item) {
-            return std::find(
-                       liveTrailIds.begin(), liveTrailIds.end(),
-                       item.first) == liveTrailIds.end();
-        });
     wheelTrailBatchPoints_.clear();
     for (const auto& effect : effects)
     {
-        if (effect.kind !=
-                r3d::game::originalrace::RaceEventKind::WheelSlipEffect ||
-            effect.sourceDefinition == nullptr ||
-            recordName(effect.sourceDefinition->record) != "trail")
+        if (!effect.trailEmitter)
             continue;
-        const auto history = wheelTrailRuntimes_.find(effect.runtimeId);
-        if (history == wheelTrailRuntimes_.end() ||
-            history->second.points.empty())
+        const auto& groups = effect.trailEmitter->GetGroups();
+        if (groups.empty())
             continue;
-        const auto& points = history->second.points;
-        const auto& times = history->second.sampleTimes;
-        for (std::size_t sample = 0U; sample < points.size(); ++sample)
+        for (std::size_t group = 0U; group < groups.size(); ++group)
         {
             wheelTrailBatchPoints_.push_back(
-                {points[sample], std::clamp(
-                    (elapsedSeconds - times[sample]) / trailLife,
-                    0.0F, 1.0F), sample == 0U});
+                {groups[group].position, groups[group].GetFrame(), group == 0U});
         }
-        // FxTrailManager always appends its system position, including
-        // when FxSystemWaitingEnd has stopped further particle emission.
-        const auto sourcePosition = effect.effectOwner != nullptr
-            ? effect.effectOwner->GetWorldPos()
-            : std::array<float, 3U>{points.back().x, points.back().y,
-                                   points.back().z};
         wheelTrailBatchPoints_.push_back(
-            {{sourcePosition[0U], sourcePosition[1U], sourcePosition[2U]},
-             wheelTrailBatchPoints_.back().frame, false});
+            {effect.trailEmitter->GetWorldPos(), groups.back().GetFrame(), false});
     }
 
     // CameraManager only pulls gpCullOpacity actors for the isometric

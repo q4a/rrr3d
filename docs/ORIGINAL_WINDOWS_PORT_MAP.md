@@ -1932,3 +1932,15 @@ behaviors выполняются до обновления визуальног�
 материалы получают один Metal draw с индексными разрывами между MapObj.
 Следующий B8dz — точный `FxEmitter::OnProgress(sotDist)` и
 `QueryCreateParticles(mnaWaitingFree)` вместо distance-history approximation.
+
+Результат B8dz: shipped wheel trail использует перенесённый
+`FxEmitter::OnProgress(sotDist)` вместе с `QueryCreateGroup/Particles`.
+Каждый effect владеет настоящими source groups с position/life/particle time;
+пропущенные интервалы создаются пачкой до исходного 20-interval limit,
+capacity 100 ждёт освобождения, а не удаляет старые группы.
+
+`FxSystemWaitingEnd` читает реальное число частиц; удаление MapObj проверено
+в headless race. Metal только читает группы и строит batch. Из renderer
+удалены все wheel history timers/eviction/reset heuristics. Следующая
+particle-граница — stateful FxFlowEmitter для smoke и движущихся effect
+records, которые пока используют reconstruction по age/source velocity.
