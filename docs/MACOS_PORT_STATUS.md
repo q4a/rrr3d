@@ -2903,3 +2903,17 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
 - Fake backend проверяет gain/pitch/category и cursor 33→77→0 без double-stop.
 - Последний direct `audio.play` удалён из active game host: все создаваемые
   race EffectSound разделены на Shot/Life/PairContact owners.
+
+### Source PxWheelSlipEffect MapObj follow-up
+
+- Полная Jolt contact point передаётся в source `CarWheel`, а type-9 behavior
+  создаёт и двигает глобальный `ctEffects` MapObj в `contactPoint + _pos`.
+- `FreeEffect(true)` очищает distinguished owner, но сохраняет effect ID до
+  окончания `FxSystemWaitingEnd`, как Windows `_effObjList`.
+- Trail history принадлежит конкретному runtime effect ID: новая пробуксовка
+  не соединяется с ещё fading следом того же колеса и не наследует его age.
+- Alpha каждого участка вычисляется по его particle-group age, как
+  `FxTrailManager::DrawPath`. Один Metal batch сохраняет разные alpha и
+  разрывы между source MapObj без роста submit count.
+- `CarWheel::OnProgress` снова выполняет behaviors до накопления axle spin;
+  backend-границы остаются Jolt contact / bgfx particles / SDL Source3d.

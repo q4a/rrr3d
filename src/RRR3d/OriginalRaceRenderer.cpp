@@ -2715,9 +2715,6 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
     vehicleShieldEffects_.clear();
     vehicleShieldScales_.clear();
     vehicleDeathEffects_.clear();
-    wheelSmokeStartTimes_.clear();
-    wheelSmokeEndTimes_.clear();
-    wheelSmokePositions_.clear();
     bonuses_.clear();
     bonusDeathEffects_.clear();
     weapons_.clear();
@@ -2740,9 +2737,8 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
     grassTexture_ = {};
     effectMesh_ = {};
     grassMesh_ = {};
-    wheelTrailPaths_.clear();
-    wheelTrailTimes_.clear();
-    wheelTrailResetCounts_.clear();
+    wheelTrailRuntimes_.clear();
+    wheelTrailBatchPoints_.clear();
     trackCullOpacityTimes_.clear();
     decorationCullOpacityTimes_.clear();
     wheelTrailUpdateSeconds_ = -1.0F;
@@ -3435,7 +3431,7 @@ void OriginalRaceRenderer::draw(
             const r3d::game::originalrace::ObjectDefinition& definition,
             const r3d::physics::Transform& parent, float age,
             const r3d::physics::Vec3& sourceVelocity,
-            const std::vector<r3d::physics::Vec3>*
+            const std::vector<TrailSample>*
                 trailOverride,
             float opacity, bool forceNoDepth,
             float emissionEndSeconds) {
@@ -3492,6 +3488,52 @@ void OriginalRaceRenderer::draw(
                 const auto& parent = instance.parent;
                 const float age = instance.age;
                 const auto& sourceVelocity = instance.velocity;
+                if (trailOverride != nullptr &&
+                    emitter.renderMode ==
+                        r3d::game::originalrace::ParticleRenderMode::Trail)
+                {
+                    // The stateful sotDist history already contains each
+                    // source group's birth time and terminal system point.
+                    // Evaluating a time schedule from one MapObj's age here
+                    // would give the entire batch that object's fade colour.
+                    const auto& sourceMaterial = materials.front().get();
+                    MaterialState material;
+                    material.alphaReference = sourceMaterial.alphaReference;
+                    material.emissive = sourceMaterial.emissive;
+                    material.specular = sourceMaterial.specular;
+                    material.shininess = sourceMaterial.shininess;
+                    material.ignoreFog = sourceMaterial.ignoreFog;
+                    material.receivesShadow = false;
+                    material.textureTransform =
+                        materialTextureTransform(sourceMaterial, 0.0F);
+                    auto trailPipeline = pipeline;
+                    trailPipeline.writeDepth = false;
+                    trailPipeline.faceCulling =
+                        PipelineState::FaceCulling::None;
+                    trailPipeline.blendMode =
+                        PipelineState::BlendMode::Alpha;
+                    std::vector<StaticMeshVertex> vertices;
+                    std::vector<std::uint32_t> indices;
+                    buildTrailGeometry(
+                        *trailOverride, emitter.trailWidth,
+                        emitter.trailFixedUp, emitter.trailFixedUpEnabled,
+                        cameraPosition_,
+                        [&](float frame) {
+                            auto color = materialColor(sourceMaterial, frame);
+                            color[3U] *= opacity;
+                            return color;
+                        }, vertices, indices);
+                    if (!indices.empty())
+                    {
+                        Transform world;
+                        world.matrix = identityMatrix();
+                        device.drawTransient(
+                            vertices.data(), vertices.size(), indices.data(),
+                            indices.size(), shader, textures.front(), world,
+                            trailPipeline, material);
+                    }
+                    continue;
+                }
                 struct ScheduledGroup
                 {
                     std::uint32_t index = 0;
@@ -4083,38 +4125,7 @@ void OriginalRaceRenderer::draw(
                             particlePipeline, {}, material);
                     }
                 }
-                if (trailConfigured && trailOverride != nullptr &&
-                    emitter.renderMode ==
-                        r3d::game::originalrace::
-                            ParticleRenderMode::Trail)
-                {
-                    trailPoints.clear();
-                    trailStyles.clear();
-                    for (const auto& point : *trailOverride)
-                    {
-                        if (trailPoints.empty())
-                        {
-                            trailPoints.push_back(point);
-                            continue;
-                        }
-                        const auto& previous = trailPoints.back();
-                        const float dx = point.x - previous.x;
-                        const float dy = point.y - previous.y;
-                        const float dz = point.z - previous.z;
-                        if (dx * dx + dy * dy + dz * dz > 0.0001F)
-                            trailPoints.push_back(point);
-                    }
-                    if (trailPoints.empty() ||
-                        std::abs(trailPoints.back().x -
-                                 emitterWorld.position.x) +
-                                std::abs(trailPoints.back().y -
-                                         emitterWorld.position.y) +
-                                std::abs(trailPoints.back().z -
-                                         emitterWorld.position.z) >
-                            0.0001F)
-                        trailPoints.push_back(emitterWorld.position);
-                }
-                else if (trailConfigured && !trailPoints.empty())
+                if (trailConfigured && !trailPoints.empty())
                 {
                     // FxTrailManager appends the current system position to
                     // the particles ordered from oldest to newest.
@@ -4258,7 +4269,7 @@ void OriginalRaceRenderer::draw(
         r3d::physics::Transform parent;
         float age = 0.0F;
         r3d::physics::Vec3 sourceVelocity;
-        const std::vector<r3d::physics::Vec3>* trailOverride =
+        const std::vector<TrailSample>* trailOverride =
             nullptr;
         float opacity = 1.0F;
         float emissionEndSeconds =
@@ -4287,7 +4298,7 @@ void OriginalRaceRenderer::draw(
             const r3d::game::originalrace::ObjectDefinition& definition,
             const r3d::physics::Transform& parent, float age,
             const r3d::physics::Vec3& sourceVelocity,
-            const std::vector<r3d::physics::Vec3>*
+            const std::vector<TrailSample>*
                 trailOverride = nullptr,
             float opacity = 1.0F,
             float emissionEndSeconds =
@@ -4699,117 +4710,6 @@ void OriginalRaceRenderer::draw(
                     r3d::game::originalrace::LightingMode::Standard,
                     DrawLayer::All,
                     &definition.wheelVisuals[wheelIndex]);
-            // CarWheel::OnProgress and PxWheelSlipEffect use the PhysX
-            // contact point and per-wheel slip, not an aggregate vehicle
-            // contact/speed approximation.  The old approximation emitted
-            // four permanent strips for every moving car, compounding the
-            // visual clutter around player and AI wheels.
-            const auto* contact =
-                wheelIndex < state.wheelContacts.size()
-                    ? &state.wheelContacts[wheelIndex]
-                    : nullptr;
-            const auto* sourceWheel =
-                racer < racerRuntime.size()
-                    ? racerRuntime[racer].gameCar.GetWheel(wheelIndex)
-                    : nullptr;
-            const bool wheelEffectEnabled =
-                sourceWheel != nullptr && sourceWheel->HasSlipEffect();
-            const auto& slipResults =
-                racer < racerRuntime.size()
-                    ? racerRuntime[racer].gameCar
-                          .GetWheelSlipResults(wheelIndex)
-                    : std::vector<r3d::game::originalrace::source::
-                                      WheelSlipProgress>{};
-            const auto findSlip = [&](const r3d::game::originalrace::
-                                           ObjectDefinition& target)
-                -> const r3d::game::originalrace::source::
-                    WheelSlipProgress* {
-                const auto found = std::find_if(
-                    slipResults.begin(), slipResults.end(),
-                    [&](const auto& result) {
-                        return result.definition != nullptr &&
-                               result.definition->record == target.record;
-                    });
-                return found != slipResults.end() ? &*found : nullptr;
-            };
-            const auto* trailSlip = findSlip(race.wheelTrailEffect);
-            const auto* smokeSlip = findSlip(race.wheelSmokeEffect);
-            const bool trailSlipping =
-                wheelEffectEnabled && contact != nullptr &&
-                trailSlip != nullptr && trailSlip->active;
-            const auto* trailPath =
-                racer < wheelTrailPaths_.size() &&
-                        wheelIndex < wheelTrailPaths_[racer].size()
-                    ? &wheelTrailPaths_[racer][wheelIndex]
-                    : nullptr;
-            if (trailSlipping ||
-                (trailPath != nullptr && !trailPath->empty()))
-            {
-                auto trailParent = wheel;
-                trailParent.rotation = state.body.rotation;
-                if (trailSlipping)
-                {
-                    trailParent.position = contact->position;
-                    trailParent.position.x += trailSlip->position[0U];
-                    trailParent.position.y += trailSlip->position[1U];
-                    trailParent.position.z += trailSlip->position[2U];
-                }
-                else
-                {
-                    // FxSystemWaitingEnd keeps the existing particles alive
-                    // after slip stops; anchor it at the final sample so a
-                    // new strip is not stretched to the moving wheel.
-                    trailParent.position = trailPath->back();
-                }
-                drawDefinition(
-                    wheelTrailEffect_,
-                    trailSlip != nullptr &&
-                            trailSlip->definition != nullptr
-                        ? *trailSlip->definition
-                        : race.wheelTrailEffect,
-                    trailParent, elapsedSeconds,
-                    state.linearVelocity,
-                    trailPath);
-            }
-            if (wheelEffectEnabled &&
-                racer < wheelSmokeStartTimes_.size() &&
-                wheelIndex < wheelSmokeStartTimes_[racer].size())
-            {
-                const float smokeStart =
-                    wheelSmokeStartTimes_[racer][wheelIndex];
-                const float smokeEnd =
-                    wheelSmokeEndTimes_[racer][wheelIndex];
-                if (smokeStart >= 0.0F)
-                {
-                    auto smokeParent = wheel;
-                    smokeParent.rotation = state.body.rotation;
-                    const bool hasStoredSmokePosition =
-                        racer < wheelSmokePositions_.size() &&
-                        wheelIndex <
-                            wheelSmokePositions_[racer].size();
-                    if (hasStoredSmokePosition)
-                    {
-                        smokeParent.position =
-                            wheelSmokePositions_[racer][wheelIndex];
-                    }
-                    else if (trailPath != nullptr &&
-                             !trailPath->empty())
-                    {
-                        smokeParent.position = trailPath->back();
-                    }
-                    drawDefinition(
-                        wheelSmokeEffect_,
-                        smokeSlip != nullptr &&
-                                smokeSlip->definition != nullptr
-                            ? *smokeSlip->definition
-                            : race.wheelSmokeEffect,
-                        smokeParent, elapsedSeconds - smokeStart,
-                        state.linearVelocity, nullptr, 1.0F,
-                        smokeEnd >= 0.0F
-                            ? smokeEnd
-                            : std::numeric_limits<float>::infinity());
-                }
-            }
         }
     }
 
@@ -4992,12 +4892,42 @@ void OriginalRaceRenderer::draw(
             mine.sourceObject->GetTimeLife(), mine.velocity);
     }
 
+    bool wheelTrailBatchDrawn = false;
     for (const auto& effect : effects)
     {
         const float effectEmissionEnd =
             effect.emissionEndSeconds >= 0.0F
                 ? effect.emissionEndSeconds
                 : std::numeric_limits<float>::infinity();
+        if (effect.kind ==
+            r3d::game::originalrace::RaceEventKind::WheelSlipEffect)
+        {
+            if (effect.sourceDefinition == nullptr ||
+                effect.effectOwner == nullptr)
+                continue;
+            const auto sourcePosition =
+                effect.effectOwner->GetWorldPos();
+            r3d::physics::Transform parent;
+            parent.position = {
+                sourcePosition[0U], sourcePosition[1U],
+                sourcePosition[2U]};
+            const bool trail =
+                recordName(effect.sourceDefinition->record) == "trail";
+            if (trail)
+            {
+                if (wheelTrailBatchDrawn ||
+                    wheelTrailBatchPoints_.empty())
+                    continue;
+                wheelTrailBatchDrawn = true;
+            }
+            drawDefinition(
+                trail ? wheelTrailEffect_ : wheelSmokeEffect_,
+                *effect.sourceDefinition, parent,
+                effect.ageSeconds, effect.sourceVelocity,
+                trail ? &wheelTrailBatchPoints_ : nullptr,
+                1.0F, effectEmissionEnd);
+            continue;
+        }
         if (effect.kind ==
             r3d::game::originalrace::RaceEventKind::ContactImpact)
         {
@@ -5585,32 +5515,15 @@ void OriginalRaceRenderer::renderFrame(
     if (wheelTrailUpdateSeconds_ < 0.0F ||
         elapsedSeconds < wheelTrailUpdateSeconds_)
     {
-        wheelTrailPaths_.clear();
-        wheelTrailTimes_.clear();
-        wheelTrailResetCounts_.clear();
-        wheelSmokeStartTimes_.clear();
-        wheelSmokeEndTimes_.clear();
-        wheelSmokePositions_.clear();
+        wheelTrailRuntimes_.clear();
     }
     wheelTrailUpdateSeconds_ = elapsedSeconds;
-    wheelTrailPaths_.resize(vehicles.size());
-    wheelTrailTimes_.resize(vehicles.size());
-    wheelTrailResetCounts_.resize(vehicles.size());
-    wheelSmokeStartTimes_.resize(vehicles.size());
-    wheelSmokeEndTimes_.resize(vehicles.size());
-    wheelSmokePositions_.resize(vehicles.size());
     const auto& trailEmitters = race.wheelTrailEffect.particleEmitters;
     const float trailLife =
         trailEmitters.empty()
             ? 10.0F
             : std::max({trailEmitters.front().lifeMinimum,
                         trailEmitters.front().lifeMaximum, 0.1F});
-    const auto& smokeEmitters = race.wheelSmokeEffect.particleEmitters;
-    const float smokeLife =
-        smokeEmitters.empty()
-            ? 0.6F
-            : std::max({smokeEmitters.front().lifeMinimum,
-                        smokeEmitters.front().lifeMaximum, 0.1F});
     const float trailSpacing =
         trailEmitters.empty()
             ? 1.0F
@@ -5624,131 +5537,98 @@ void OriginalRaceRenderer::renderFrame(
                 trailEmitters.front().maximumParticles == 0U
             ? 100U
             : trailEmitters.front().maximumParticles;
-    const std::size_t trailRacerCount =
-        std::min(vehicles.size(), race.racers.size());
-    for (std::size_t racer = 0; racer < trailRacerCount; ++racer)
+    std::vector<std::uint64_t> liveTrailIds;
+    for (const auto& effect : effects)
     {
-        const auto vehicleIndex = race.racers[racer].vehicle;
-        if (vehicleIndex >= race.vehicles.size())
+        if (effect.kind !=
+                r3d::game::originalrace::RaceEventKind::WheelSlipEffect ||
+            effect.runtimeId == 0U || effect.sourceDefinition == nullptr ||
+            recordName(effect.sourceDefinition->record) != "trail")
+        {
             continue;
-        const auto& definition =
-            activeVehicleDefinition(race, racerRuntime, racer);
-        const auto& state = vehicles[racer];
-        const auto wheelCount = std::min(
-            {state.wheels.size(), state.wheelContacts.size(),
-             definition.wheelVisualOffsets.size()});
-        auto& paths = wheelTrailPaths_[racer];
-        auto& times = wheelTrailTimes_[racer];
-        auto& smokeStarts = wheelSmokeStartTimes_[racer];
-        auto& smokeEnds = wheelSmokeEndTimes_[racer];
-        auto& smokePositions = wheelSmokePositions_[racer];
-        if (wheelTrailResetCounts_[racer] != state.resetCount)
-        {
-            paths.clear();
-            times.clear();
-            smokeStarts.clear();
-            smokeEnds.clear();
-            smokePositions.clear();
-            wheelTrailResetCounts_[racer] = state.resetCount;
         }
-        paths.resize(wheelCount);
-        times.resize(wheelCount);
-        smokeStarts.resize(wheelCount, -1.0F);
-        smokeEnds.resize(wheelCount, -1.0F);
-        smokePositions.resize(wheelCount);
-        for (std::size_t wheel = 0; wheel < wheelCount; ++wheel)
+        liveTrailIds.push_back(effect.runtimeId);
+        auto& history = wheelTrailRuntimes_[effect.runtimeId];
+        while (!history.sampleTimes.empty() &&
+               elapsedSeconds - history.sampleTimes.front() > trailLife)
         {
-            const auto& contact = state.wheelContacts[wheel];
-            auto position = contact.position;
-            const auto& slipResults =
-                racer < racerRuntime.size()
-                    ? racerRuntime[racer].gameCar
-                          .GetWheelSlipResults(wheel)
-                    : std::vector<r3d::game::originalrace::source::
-                                      WheelSlipProgress>{};
-            const auto findSlip = [&](const r3d::game::originalrace::
-                                           ObjectDefinition& target)
-                -> const r3d::game::originalrace::source::
-                    WheelSlipProgress* {
-                const auto found = std::find_if(
-                    slipResults.begin(), slipResults.end(),
-                    [&](const auto& result) {
-                        return result.definition != nullptr &&
-                               result.definition->record == target.record;
-                    });
-                return found != slipResults.end() ? &*found : nullptr;
-            };
-            const auto* trailSlip = findSlip(race.wheelTrailEffect);
-            const auto* smokeSlip = findSlip(race.wheelSmokeEffect);
-            const bool trailSlipping =
-                trailSlip != nullptr && trailSlip->active;
-            const bool smokeSlipping =
-                smokeSlip != nullptr && smokeSlip->active;
-            if (trailSlip != nullptr)
+            history.sampleTimes.erase(history.sampleTimes.begin());
+            history.points.erase(history.points.begin());
+        }
+        // emissionEndSeconds is set by FreeEffect(true). A fading source
+        // effect keeps its existing trail but cannot append new positions.
+        if (effect.emissionEndSeconds >= 0.0F ||
+            effect.effectOwner == nullptr)
+            continue;
+        const auto sourcePosition = effect.effectOwner->GetWorldPos();
+        const r3d::physics::Vec3 position{
+            sourcePosition[0U], sourcePosition[1U], sourcePosition[2U]};
+        bool addPoint = history.points.empty();
+        if (!history.points.empty())
+        {
+            const auto& previous = history.points.back();
+            const float dx = position.x - previous.x;
+            const float dy = position.y - previous.y;
+            const float dz = position.z - previous.z;
+            const float distanceSquared = dx * dx + dy * dy + dz * dz;
+            addPoint = distanceSquared >= trailSpacing * trailSpacing;
+            if (distanceSquared > 100.0F)
             {
-                position.x += trailSlip->position[0U];
-                position.y += trailSlip->position[1U];
-                position.z += trailSlip->position[2U];
-            }
-            auto& path = paths[wheel];
-            auto& sampleTimes = times[wheel];
-            while (!sampleTimes.empty() &&
-                   elapsedSeconds - sampleTimes.front() > trailLife)
-            {
-                sampleTimes.erase(sampleTimes.begin());
-                path.erase(path.begin());
-            }
-            if (smokeSlipping)
-            {
-                smokePositions[wheel] = contact.position;
-                smokePositions[wheel].x += smokeSlip->position[0U];
-                smokePositions[wheel].y += smokeSlip->position[1U];
-                smokePositions[wheel].z += smokeSlip->position[2U];
-                if (smokeStarts[wheel] < 0.0F)
-                    smokeStarts[wheel] = elapsedSeconds;
-                smokeEnds[wheel] = -1.0F;
-            }
-            else if (smokeStarts[wheel] >= 0.0F)
-            {
-                if (smokeEnds[wheel] < 0.0F)
-                    smokeEnds[wheel] =
-                        elapsedSeconds - smokeStarts[wheel];
-                if (elapsedSeconds - smokeStarts[wheel] >
-                    smokeEnds[wheel] + smokeLife)
-                {
-                    smokeStarts[wheel] = -1.0F;
-                    smokeEnds[wheel] = -1.0F;
-                }
-            }
-            if (!trailSlipping)
-                continue;
-            bool addPoint = path.empty();
-            if (!path.empty())
-            {
-                const float dx = position.x - path.back().x;
-                const float dy = position.y - path.back().y;
-                const float dz = position.z - path.back().z;
-                addPoint =
-                    dx * dx + dy * dy + dz * dz >=
-                    trailSpacing * trailSpacing;
-                if (dx * dx + dy * dy + dz * dz > 100.0F)
-                {
-                    path.clear();
-                    sampleTimes.clear();
-                    addPoint = true;
-                }
-            }
-            if (addPoint)
-            {
-                path.push_back(position);
-                sampleTimes.push_back(elapsedSeconds);
-            }
-            while (path.size() > maximumTrailPoints)
-            {
-                path.erase(path.begin());
-                sampleTimes.erase(sampleTimes.begin());
+                // A teleport starts a new source generation visually; it
+                // must never stretch one strip across half the map.
+                history.points.clear();
+                history.sampleTimes.clear();
+                addPoint = true;
             }
         }
+        if (addPoint)
+        {
+            history.points.push_back(position);
+            history.sampleTimes.push_back(elapsedSeconds);
+        }
+        while (history.points.size() > maximumTrailPoints)
+        {
+            history.points.erase(history.points.begin());
+            history.sampleTimes.erase(history.sampleTimes.begin());
+        }
+    }
+    std::erase_if(
+        wheelTrailRuntimes_,
+        [&](const auto& item) {
+            return std::find(
+                       liveTrailIds.begin(), liveTrailIds.end(),
+                       item.first) == liveTrailIds.end();
+        });
+    wheelTrailBatchPoints_.clear();
+    for (const auto& effect : effects)
+    {
+        if (effect.kind !=
+                r3d::game::originalrace::RaceEventKind::WheelSlipEffect ||
+            effect.sourceDefinition == nullptr ||
+            recordName(effect.sourceDefinition->record) != "trail")
+            continue;
+        const auto history = wheelTrailRuntimes_.find(effect.runtimeId);
+        if (history == wheelTrailRuntimes_.end() ||
+            history->second.points.empty())
+            continue;
+        const auto& points = history->second.points;
+        const auto& times = history->second.sampleTimes;
+        for (std::size_t sample = 0U; sample < points.size(); ++sample)
+        {
+            wheelTrailBatchPoints_.push_back(
+                {points[sample], std::clamp(
+                    (elapsedSeconds - times[sample]) / trailLife,
+                    0.0F, 1.0F), sample == 0U});
+        }
+        // FxTrailManager always appends its system position, including
+        // when FxSystemWaitingEnd has stopped further particle emission.
+        const auto sourcePosition = effect.effectOwner != nullptr
+            ? effect.effectOwner->GetWorldPos()
+            : std::array<float, 3U>{points.back().x, points.back().y,
+                                   points.back().z};
+        wheelTrailBatchPoints_.push_back(
+            {{sourcePosition[0U], sourcePosition[1U], sourcePosition[2U]},
+             wheelTrailBatchPoints_.back().frame, false});
     }
 
     // CameraManager only pulls gpCullOpacity actors for the isometric

@@ -53,6 +53,9 @@ struct StaticMeshVertex
     float bitangentX = 0.0F;
     float bitangentY = 0.0F;
     float bitangentZ = 0.0F;
+    // Transient FxTrail groups carry their individual lifetime colour.
+    // Original mesh payloads keep the neutral multiplier by default.
+    std::uint32_t color = 0xffffffffU;
 };
 
 enum class VertexLayout

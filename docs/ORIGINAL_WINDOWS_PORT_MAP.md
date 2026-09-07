@@ -1913,3 +1913,22 @@ source fixed step. `CarWheel` хранит последние две локал�
 4. обновить строку таблицы и статус блока;
 5. пройти arm64 build, offline CTest, network CTest, physics smoke и Metal
    race-render smoke, если block касается активной гонки.
+
+Результат B8dy: закрыта renderer-only граница wheel slip effects.
+`PxWheelSlipEffect` снова создаёт самостоятельный глобальный source MapObj в
+точной contact point, сохраняет distinguished `_makeEffect`/effect-list
+семантику и переводит actor в `FxSystemWaitingEnd` через `FreeEffect(true)`.
+Jolt сообщает `NxWheelContactData`-эквивалент, но больше не является неявным
+владельцем позиции/срока жизни эффекта.
+
+bgfx хранит только необходимую backend history `FxTrailManager`, причём по
+runtime identity конкретного MapObj, а не по паре racer/wheel. Поэтому старая
+fading генерация и новый effect одного колеса не соединяются и не сбрасывают
+срок жизни друг друга. Порядок wheel progress также совпадает с Windows:
+behaviors выполняются до обновления визуального axle angle.
+
+`FxTrailManager::DrawPath` group alpha теперь передаётся цветом вершин,
+сохраняя отдельный возраст каждого участка. Все одинаковые wheel-trail
+материалы получают один Metal draw с индексными разрывами между MapObj.
+Следующий B8dz — точный `FxEmitter::OnProgress(sotDist)` и
+`QueryCreateParticles(mnaWaitingFree)` вместо distance-history approximation.

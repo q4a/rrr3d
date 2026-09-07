@@ -1854,11 +1854,15 @@ bool EventEffect::MakeEffect() noexcept
     return true;
 }
 
-bool EventEffect::FreeEffect() noexcept
+bool EventEffect::FreeEffect(bool death) noexcept
 {
     if (effectState_->makeEffectId == invalidEffect)
         return false;
-    return OnDestroyEffect(effectState_->makeEffectId);
+    const EffectId effect = effectState_->makeEffectId;
+    effectState_->makeEffectId = invalidEffect;
+    if (death)
+        return true;
+    return OnDestroyEffect(effect);
 }
 
 bool EventEffect::OnDestroyEffect() noexcept

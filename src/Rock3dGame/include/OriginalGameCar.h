@@ -19,6 +19,7 @@ namespace r3d::game::originalrace::source
 class SoundMotor;
 class CarWheel;
 class CarAnimationChild;
+class EventEffect;
 
 struct SoundMotorMix
 {
@@ -37,9 +38,14 @@ struct WheelSlipProgress
     bool freeEffect = false;
     bool playSound = false;
     bool stopSound = false;
+    EventEffect* owner = nullptr;
+    std::uint64_t effectId = 0U;
     const ObjectDefinition* definition = nullptr;
     const std::string* soundPath = nullptr;
     std::array<float, 3U> position{};
+    // PxWheelSlipEffect creates a non-child world actor at
+    // contactPoint + its serialized local position.
+    std::array<float, 3U> worldPosition{};
     std::array<float, 3U> impulse{};
     bool ignoreRotation = false;
 };
@@ -358,7 +364,8 @@ public:
         std::size_t wheel, bool hasContact,
         float longitudinalSlip, float lateralSlip,
         float normalReaction = 0.0F,
-        float normalImpulse = 0.0F) noexcept;
+        float normalImpulse = 0.0F,
+        std::array<float, 3U> contactPosition = {}) noexcept;
     void UpdateContactState(bool bodyContact) noexcept;
     bool IsAnyWheelContact() const noexcept;
     bool IsWheelsContact() const noexcept;
@@ -513,6 +520,7 @@ public:
         bool ignoreRotation = false) noexcept;
     ProgressResult OnProgress(
         bool hasContact, float longitudinalSlip, float lateralSlip,
+        std::array<float, 3U> contactPosition = {},
         bool hasSound = true) noexcept;
     static float SourceSlip(
         bool hasContact, float longitudinalSlip,
@@ -588,7 +596,8 @@ public:
     bool IsSteering() const noexcept;
     void SetContact(bool hasContact, float longitudinalSlip,
                     float lateralSlip, float normalReaction,
-                    float normalImpulse) noexcept;
+                    float normalImpulse,
+                    std::array<float, 3U> contactPosition = {}) noexcept;
     bool HasContact() const noexcept;
     float GetNormalReaction() const noexcept;
     float GetNormalImpulse() const noexcept;
@@ -617,6 +626,7 @@ private:
     // impulse distinct at the source-object boundary.
     float normalReaction_ = 0.0F;
     float normalImpulse_ = 0.0F;
+    std::array<float, 3U> contactPosition_{};
     bool hasContact_ = false;
     bool slipEffectEnabled_ = false;
     bool slipSoundEnabled_ = false;

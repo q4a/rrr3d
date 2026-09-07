@@ -1199,14 +1199,15 @@ void GameCar::ReleaseWheels() noexcept
 bool GameCar::SetWheelContact(
     std::size_t wheel, bool hasContact,
     float longitudinalSlip, float lateralSlip,
-    float normalReaction, float normalImpulse) noexcept
+    float normalReaction, float normalImpulse,
+    std::array<float, 3U> contactPosition) noexcept
 {
     auto* target = GetWheel(wheel);
     if (target == nullptr)
         return false;
     target->SetContact(
         hasContact, longitudinalSlip, lateralSlip,
-        normalReaction, normalImpulse);
+        normalReaction, normalImpulse, contactPosition);
     return true;
 }
 
@@ -1635,7 +1636,7 @@ void PxWheelSlipEffect::OnProgress(float deltaTime) noexcept
         return;
     wheel_->slipResults_[effect_] = OnProgress(
         wheel_->hasContact_, wheel_->longitudinalSlip_,
-        wheel_->lateralSlip_);
+        wheel_->lateralSlip_, wheel_->contactPosition_);
 }
 
 void PxWheelSlipEffect::Reset() noexcept
@@ -1670,12 +1671,18 @@ float PxWheelSlipEffect::SourceSlip(
 
 PxWheelSlipEffect::ProgressResult PxWheelSlipEffect::OnProgress(
     bool hasContact, float longitudinalSlip, float lateralSlip,
+    std::array<float, 3U> contactPosition,
     bool hasSound) noexcept
 {
     ProgressResult result;
+    result.owner = this;
     const auto* definition = EventEffect::GetEffectDefinition();
     result.definition = definition;
     result.position = EventEffect::GetPosition();
+    result.worldPosition = {
+        contactPosition[0U] + result.position[0U],
+        contactPosition[1U] + result.position[1U],
+        contactPosition[2U] + result.position[2U]};
     result.impulse = EventEffect::GetImpulse();
     result.ignoreRotation = EventEffect::GetIgnoreRotation();
     if (hasSound && !EventEffect::GetSoundPaths().empty())
@@ -1687,11 +1694,13 @@ PxWheelSlipEffect::ProgressResult PxWheelSlipEffect::OnProgress(
     if (result.active)
     {
         result.makeEffect = EventEffect::MakeEffect();
+        result.effectId = EventEffect::GetMakeEffectId();
         result.playSound = result.soundPath != nullptr;
     }
     else
     {
-        result.freeEffect = EventEffect::FreeEffect();
+        result.effectId = EventEffect::GetMakeEffectId();
+        result.freeEffect = EventEffect::FreeEffect(true);
         // PxWheelSlipEffect calls Source3d::Stop even when no visual actor
         // was active, provided this behavior owns a sound.
         result.stopSound = result.soundPath != nullptr;
@@ -1749,6 +1758,7 @@ CarWheel& CarWheel::operator=(const CarWheel& other) noexcept
     lateralSlip_ = other.lateralSlip_;
     normalReaction_ = other.normalReaction_;
     normalImpulse_ = other.normalImpulse_;
+    contactPosition_ = other.contactPosition_;
     hasContact_ = other.hasContact_;
     slipEffectEnabled_ = other.slipEffectEnabled_;
     slipSoundEnabled_ = other.slipSoundEnabled_;
@@ -1780,6 +1790,8 @@ CarWheel& CarWheel::operator=(const CarWheel& other) noexcept
             slipResults_[effect].soundPath =
                 &behavior.GetSoundPaths().front();
         }
+        if (effect < slipResults_.size())
+            slipResults_[effect].owner = &behavior;
     }
     return *this;
 }
@@ -1807,6 +1819,7 @@ void CarWheel::Configure(bool slipEffect, bool slipSound)
     lateralSlip_ = 0.0F;
     normalReaction_ = 0.0F;
     normalImpulse_ = 0.0F;
+    contactPosition_ = {};
     slipEffectEnabled_ = slipEffect;
     slipSoundEnabled_ = slipEffect && slipSound;
     pxSyncPose_ = {};
@@ -2075,13 +2088,17 @@ bool CarWheel::IsSteering() const noexcept
 void CarWheel::SetContact(
     bool hasContact, float longitudinalSlip,
     float lateralSlip, float normalReaction,
-    float normalImpulse) noexcept
+    float normalImpulse,
+    std::array<float, 3U> contactPosition) noexcept
 {
     hasContact_ = hasContact;
     longitudinalSlip_ = longitudinalSlip;
     lateralSlip_ = lateralSlip;
     normalReaction_ = hasContact ? normalReaction : 0.0F;
     normalImpulse_ = hasContact ? normalImpulse : 0.0F;
+    contactPosition_ = hasContact
+        ? contactPosition
+        : std::array<float, 3U>{};
 }
 
 bool CarWheel::HasContact() const noexcept
@@ -2105,8 +2122,9 @@ GameObject::ProgressResult CarWheel::OnProgress(
     std::fill(
         slipResults_.begin(), slipResults_.end(),
         WheelSlipProgress{});
+    auto result = GameObject::OnProgress(deltaTime);
     summAngle_ += axleSpeed_ * std::max(deltaTime, 0.0F);
-    return GameObject::OnProgress(deltaTime);
+    return result;
 }
 
 const WheelSlipProgress& CarWheel::GetSlipResult() const noexcept

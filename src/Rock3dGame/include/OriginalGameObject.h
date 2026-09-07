@@ -734,7 +734,10 @@ public:
     void ConfigureSounds(std::vector<std::string> soundPaths);
     void Reset() noexcept;
     bool MakeEffect() noexcept;
-    bool FreeEffect() noexcept;
+    // FreeEffect(true) clears the distinguished _makeEffect pointer but
+    // keeps the spawned actor in _effObjList until its GameObject finishes
+    // the source Death/FxSystemWaitingEnd lifecycle.
+    bool FreeEffect(bool death = false) noexcept;
     bool OnDestroyEffect() noexcept;
     bool OnDestroyEffect(EffectId effect) noexcept;
     bool IsEffectMaked() const noexcept;

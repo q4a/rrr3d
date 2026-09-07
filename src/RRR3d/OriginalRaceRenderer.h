@@ -7,6 +7,7 @@
 #include "OriginalRaceSession.h"
 #include "OriginalResourceManager.h"
 #include "OriginalTraceGfx.h"
+#include "OriginalTrailGeometry.h"
 #include "physics/OriginalVehiclePhysics.h"
 #include "renderer/Renderer.h"
 #include "resource/R3DMeshAsset.h"
@@ -15,6 +16,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace rrr3d::race
@@ -261,14 +263,17 @@ private:
     r3d::physics::Vec3 cameraViewDirection_{1.0F, 0.0F, 0.0F};
     r3d::physics::Quat cameraRotation_;
     RaceCameraStyle cameraStyle_ = RaceCameraStyle::Isometric;
-    std::vector<std::vector<std::vector<r3d::physics::Vec3>>>
-        wheelTrailPaths_;
-    std::vector<std::vector<std::vector<float>>> wheelTrailTimes_;
-    std::vector<std::uint32_t> wheelTrailResetCounts_;
-    std::vector<std::vector<float>> wheelSmokeStartTimes_;
-    std::vector<std::vector<float>> wheelSmokeEndTimes_;
-    std::vector<std::vector<r3d::physics::Vec3>>
-        wheelSmokePositions_;
+    struct WheelTrailRuntime
+    {
+        std::vector<r3d::physics::Vec3> points;
+        std::vector<float> sampleTimes;
+    };
+    // One FxTrailManager history per concrete PxWheelSlipEffect MapObj.
+    // Fading and newly-created generations can coexist for the same wheel.
+    std::unordered_map<std::uint64_t, WheelTrailRuntime>
+        wheelTrailRuntimes_;
+    // Each source group retains its own material age in the Metal batch.
+    std::vector<TrailSample> wheelTrailBatchPoints_;
     // ActorManager::RayUser fade timers for original gpCullOpacity actors.
     std::vector<float> trackCullOpacityTimes_;
     std::vector<float> decorationCullOpacityTimes_;

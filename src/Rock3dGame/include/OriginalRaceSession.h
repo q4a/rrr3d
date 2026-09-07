@@ -47,6 +47,7 @@ enum class RaceEventKind
     HumanShot,
     EffectSound,
     ContactImpact,
+    WheelSlipEffect,
     WeaponShotEffect,
     Damage,
     MapObjectDamage,
@@ -313,6 +314,8 @@ struct RaceEffect
     }
     std::size_t racer = RacerRuntime::invalidWeapon;
     std::size_t vehicleEffect = RacerRuntime::invalidWeapon;
+    std::size_t wheel = RacerRuntime::invalidWeapon;
+    std::size_t wheelEffect = RacerRuntime::invalidWeapon;
     Transform transform;
     // DeathEffect::targetChild stores the effect in the contacted car's
     // include list.  transform is target-local while this index is valid.
@@ -740,6 +743,8 @@ private:
         float seconds,
         const std::vector<r3d::physics::VehicleState>& vehicles);
     void synchronizeRacerGameCars(
+        const std::vector<r3d::physics::VehicleState>& vehicles);
+    void synchronizeWheelSlipEffects(
         const std::vector<r3d::physics::VehicleState>& vehicles);
     void ingestPairContacts(
         const std::vector<r3d::physics::VehicleState>& vehicles);

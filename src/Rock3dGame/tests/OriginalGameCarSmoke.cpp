@@ -542,7 +542,9 @@ int main()
     exactSlipCar.BindWheels(
         exactDefinitions, {true}, &trailDefinition.visual,
         &smokeDefinition.visual);
-    exactSlipCar.SetWheelContact(0U, true, 1.0F, 1.0F);
+    exactSlipCar.SetWheelContact(
+        0U, true, 1.0F, 1.0F, 0.0F, 0.0F,
+        {10.0F, 20.0F, 30.0F});
     const auto exactProgress = exactSlipCar.OnProgress(1.0F / 60.0F);
     const auto& exactResults = exactSlipCar.GetWheelSlipResults(0U);
     if (exactProgress.wheelBehaviorsProgressed != 2U ||
@@ -557,16 +559,26 @@ int main()
         exactResults[0U].soundPath == nullptr ||
         exactResults[1U].soundPath != nullptr ||
         exactResults[0U].position[2U] != 0.01F ||
+        exactResults[0U].worldPosition !=
+            std::array<float, 3U>{10.0F, 20.0F, 30.01F} ||
+        exactResults[0U].owner == nullptr ||
+        exactResults[0U].effectId ==
+            source::EventEffect::invalidEffect ||
         !exactResults[0U].makeEffect ||
         !exactResults[1U].makeEffect)
         return 81;
+    const auto trailEffectId = exactResults[0U].effectId;
     exactSlipCar.SetWheelContact(0U, false, 0.0F, 0.0F);
     exactSlipCar.OnProgress(1.0F / 60.0F);
     const auto& exactReleased = exactSlipCar.GetWheelSlipResults(0U);
     if (!exactReleased[0U].freeEffect ||
         !exactReleased[1U].freeEffect ||
         !exactReleased[0U].stopSound ||
-        exactReleased[1U].stopSound)
+        exactReleased[1U].stopSound ||
+        exactReleased[0U].owner == nullptr ||
+        exactReleased[0U].owner->IsEffectMaked() ||
+        exactReleased[0U].effectId != trailEffectId ||
+        !exactReleased[0U].owner->ObserveEffect(trailEffectId).HasEffect())
         return 82;
     source::GameCar copiedWheelCar = car;
     const auto copiedSlip = copiedWheelCar.GetWheelSlipResult(0U);
@@ -765,20 +777,20 @@ int main()
     r3d::game::originalrace::ObjectDefinition standaloneSlip;
     slip.Configure(
         &standaloneSlip, {"Sounds/SkidAsphalt.ogg"});
-    const auto quiet = slip.OnProgress(true, 0.4F, 0.7F, true);
+    const auto quiet = slip.OnProgress(true, 0.4F, 0.7F, {}, true);
     if (quiet.active || quiet.makeEffect || !quiet.stopSound)
         return 11;
-    const auto skidding = slip.OnProgress(true, -0.65F, 0.9F, true);
+    const auto skidding = slip.OnProgress(true, -0.65F, 0.9F, {}, true);
     if (!skidding.active || !skidding.makeEffect ||
         !skidding.playSound || skidding.freeEffect ||
         std::abs(skidding.slip - 0.45F) > 0.0001F ||
         skidding.volume != 1.0F || !slip.IsEffectMaked())
         return 12;
-    const auto continued = slip.OnProgress(true, 0.5F, 0.7F, true);
+    const auto continued = slip.OnProgress(true, 0.5F, 0.7F, {}, true);
     if (!continued.active || continued.makeEffect ||
         std::abs(continued.volume - 0.4F) > 0.0001F)
         return 13;
-    const auto released = slip.OnProgress(false, 5.0F, 5.0F, true);
+    const auto released = slip.OnProgress(false, 5.0F, 5.0F, {}, true);
     if (released.active || !released.freeEffect ||
         !released.stopSound || slip.IsEffectMaked())
         return 14;

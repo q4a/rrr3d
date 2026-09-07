@@ -355,16 +355,7 @@
       "name": "macos-arm64-m10",
       "configurePreset": "macos-arm64-m10",
       "targets": [
-        "XPlatform",
-        "LexStd",
-        "MathLib",
-        "Rock3dEngine",
-        "Rock3dGame",
-        "rrr3d_net_loopback_smoke",
-        "rrr3d_original_network_session_smoke",
-        "rrr3d_original_network_models_smoke",
-        "RRR3d",
-        "RRR3dBundle"
+        "all"
       ]
     },
     {

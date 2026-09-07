@@ -5270,7 +5270,8 @@ void OriginalRaceSession::destroyRacer(
                 const bool remove = effect.racer == racer &&
                     (effect.kind == RaceEventKind::VehicleLowLife ||
                      effect.kind == RaceEventKind::VehicleEnergyDamage ||
-                     effect.kind == RaceEventKind::VehicleSlowEffect);
+                     effect.kind == RaceEventKind::VehicleSlowEffect ||
+                     effect.kind == RaceEventKind::WheelSlipEffect);
                 if (remove)
                     notifyEffectDestroyed(effect);
                 return remove;
@@ -5349,7 +5350,9 @@ void OriginalRaceSession::synchronizeRacerGameCars(
             runtime.gameCar.SetWheelContact(
                 wheel, contact.hasContact,
                 contact.longitudinalSlip, contact.lateralSlip,
-                contact.normalReaction, contact.normalImpulse);
+                contact.normalReaction, contact.normalImpulse,
+                {contact.position.x, contact.position.y,
+                 contact.position.z});
         }
         runtime.gameCar.UpdateContactState(
             !vehicle.bodyContacts.empty());
@@ -5363,6 +5366,109 @@ void OriginalRaceSession::synchronizeRacerGameCars(
                 wheel < vehicle.wheelAngularSpeeds.size()
                     ? vehicle.wheelAngularSpeeds[wheel]
                     : 0.0F);
+        }
+    }
+}
+
+void OriginalRaceSession::synchronizeWheelSlipEffects(
+    const std::vector<r3d::physics::VehicleState>& vehicles)
+{
+    for (std::size_t racer = 0U;
+         racer < racers_.size() && racer < vehicles.size(); ++racer)
+    {
+        auto& car = racers_[racer].gameCar;
+        const auto wheelCount = std::min(
+            car.GetWheelCount(), vehicles[racer].wheelContacts.size());
+        for (std::size_t wheel = 0U; wheel < wheelCount; ++wheel)
+        {
+            const auto& results = car.GetWheelSlipResults(wheel);
+            for (std::size_t behavior = 0U;
+                 behavior < results.size(); ++behavior)
+            {
+                const auto& result = results[behavior];
+                auto live = std::find_if(
+                    effects_.begin(), effects_.end(),
+                    [&](const RaceEffect& effect) {
+                        return effect.kind ==
+                                   RaceEventKind::WheelSlipEffect &&
+                               effect.racer == racer &&
+                               effect.wheel == wheel &&
+                               effect.wheelEffect == behavior &&
+                               (result.effectId ==
+                                    source::EventEffect::invalidEffect ||
+                                effect.sourceEvent.GetEffectId() ==
+                                    result.effectId);
+                    });
+                if (result.active)
+                {
+                    if (result.makeEffect &&
+                        result.definition != nullptr &&
+                        result.owner != nullptr &&
+                        result.effectId !=
+                            source::EventEffect::invalidEffect)
+                    {
+                        RaceEffect effect;
+                        effect.kind = RaceEventKind::WheelSlipEffect;
+                        effect.racer = racer;
+                        effect.wheel = wheel;
+                        effect.wheelEffect = behavior;
+                        effect.sourceDefinition = result.definition;
+                        effect.sourceEvent = result.owner->ObserveEffect(
+                            result.effectId);
+                        effect.origin = {
+                            result.worldPosition[0U],
+                            result.worldPosition[1U],
+                            result.worldPosition[2U]};
+                        effect.transform.position = effect.origin;
+                        effect.sourceVelocity =
+                            vehicles[racer].linearVelocity;
+                        effect.totalSeconds = -1.0F;
+                        effect.seconds = -1.0F;
+                        effect.emissionEndSeconds = -1.0F;
+                        const bool waitsForParticles = std::any_of(
+                            result.definition->particleEmitters.begin(),
+                            result.definition->particleEmitters.end(),
+                            [](const ParticleEmitterDefinition& emitter) {
+                                return emitter.waitForParticleEnd;
+                            });
+                        effect.waitForParticleEnd = waitsForParticles;
+                        configureSourceEffectOwner(
+                            effect, waitsForParticles, -1.0F);
+                        effects_.push_back(std::move(effect));
+                        live = std::prev(effects_.end());
+                    }
+                    if (live == effects_.end())
+                        continue;
+                    live->origin = {
+                        result.worldPosition[0U],
+                        result.worldPosition[1U],
+                        result.worldPosition[2U]};
+                    live->transform.position = live->origin;
+                    live->sourceVelocity =
+                        vehicles[racer].linearVelocity;
+                    if (live->effectOwner != nullptr)
+                    {
+                        live->effectOwner->SetWorldPos(
+                            {live->origin.x, live->origin.y,
+                             live->origin.z});
+                    }
+                    continue;
+                }
+                if (!result.freeEffect || live == effects_.end() ||
+                    live->effectOwner == nullptr)
+                {
+                    continue;
+                }
+                const auto timing = sourceEffectTiming(
+                    *live->sourceDefinition, 0.6F);
+                live->seconds = std::max(timing.visibleSeconds, 0.001F);
+                live->totalSeconds =
+                    live->ageSeconds + live->seconds;
+                live->emissionEndSeconds = live->ageSeconds;
+                if (live->waitingEnd != nullptr)
+                    live->waitingEnd->SetLiveParticleCount(1U);
+                live->effectOwner->Death();
+            }
         }
     }
 }
@@ -9546,6 +9652,12 @@ void OriginalRaceSession::update(
             seconds, vehicles, vehicleInputs_, nullptr, false);
 
     updateGameplay(seconds, vehicles, sourceHumanControl);
+    // Player::OnProgress advances GameCar and then its CarWheel children
+    // after the global Effects list. Materialize/move/release the non-child
+    // PxWheelSlipEffect actors at that exact boundary: a new actor first
+    // progresses in the following Logic pass, while FreeEffect(true) enters
+    // the source particle-fade lifetime instead of disappearing immediately.
+    synchronizeWheelSlipEffects(vehicles);
     // Player/Weapon callbacks run after this frame's Logic pass and may
     // create EventEffect objects immediately. Insert those new objects into
     // their exact source Map/include owner now; their first OnProgress still
@@ -9760,6 +9872,96 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             vehicles[index].wheelContacts.resize(4U);
             for (auto& contact : vehicles[index].wheelContacts)
                 contact.hasContact = true;
+        }
+        {
+            Race slipRace = race;
+            slipRace.racers.resize(1U);
+            OriginalRaceSession slipSession(slipRace);
+            auto slipVehicles = vehicles;
+            slipVehicles.resize(1U);
+            for (auto& contact : slipVehicles.front().wheelContacts)
+            {
+                contact.longitudinalSlip = 0.0F;
+                contact.lateralSlip = 0.0F;
+            }
+            auto& contact = slipVehicles.front().wheelContacts.front();
+            for (int frame = 0; frame < 250; ++frame)
+            {
+                slipSession.update(
+                    1.0F / 60.0F, slipVehicles, RaceControl{});
+            }
+            contact.position = {31.0F, 47.0F, 2.0F};
+            contact.longitudinalSlip = 1.0F;
+            contact.lateralSlip = 1.0F;
+            slipSession.update(
+                1.0F / 60.0F, slipVehicles, RaceControl{});
+            const auto trail = std::find_if(
+                slipSession.effects().begin(),
+                slipSession.effects().end(),
+                [&](const RaceEffect& effect) {
+                    return effect.kind ==
+                               RaceEventKind::WheelSlipEffect &&
+                           effect.racer == 0U && effect.wheel == 0U &&
+                           effect.sourceDefinition != nullptr &&
+                           effect.sourceDefinition->record ==
+                               slipRace.wheelTrailEffect.record;
+                });
+            if (trail == slipSession.effects().end() ||
+                !trail->sourceEvent.HasEffect() ||
+                trail->sourceMapObject == nullptr ||
+                trail->sourceMapObjectId == 0U ||
+                trail->effectOwner !=
+                    &trail->sourceMapObject->GetGameObj() ||
+                !slipSession.effectWorldPosition(trail->runtimeId) ||
+                length3(subtract(
+                    *slipSession.effectWorldPosition(trail->runtimeId),
+                    {31.0F, 47.0F, 2.01F})) > 0.001F)
+            {
+                throw std::runtime_error(
+                    "source PxWheelSlipEffect global MapObj/contact pose "
+                    "was not materialized");
+            }
+            contact.longitudinalSlip = 0.0F;
+            contact.lateralSlip = 0.0F;
+            slipSession.update(
+                1.0F / 60.0F, slipVehicles, RaceControl{});
+            const auto fadingTrail = std::find_if(
+                slipSession.effects().begin(),
+                slipSession.effects().end(),
+                [](const RaceEffect& effect) {
+                    return effect.kind ==
+                               RaceEventKind::WheelSlipEffect &&
+                           effect.racer == 0U && effect.wheel == 0U &&
+                           effect.sourceDefinition != nullptr &&
+                           recordName(effect.sourceDefinition->record) ==
+                               "trail";
+                });
+            if (fadingTrail == slipSession.effects().end() ||
+                !fadingTrail->sourceEvent.HasEffect() ||
+                fadingTrail->sourceEvent.IsEffectMaked() ||
+                fadingTrail->emissionEndSeconds < 0.0F ||
+                fadingTrail->waitingEnd == nullptr ||
+                !fadingTrail->waitingEnd->IsFading())
+            {
+                throw std::runtime_error(
+                    "source PxWheelSlipEffect FreeEffect(true)/particle "
+                    "fade lifecycle was not preserved: present=" +
+                    std::to_string(
+                        fadingTrail != slipSession.effects().end()) +
+                    (fadingTrail == slipSession.effects().end()
+                         ? std::string{}
+                         : ", effect=" + std::to_string(
+                               fadingTrail->sourceEvent.HasEffect()) +
+                               ", made=" + std::to_string(
+                               fadingTrail->sourceEvent.IsEffectMaked()) +
+                               ", emission=" + std::to_string(
+                               fadingTrail->emissionEndSeconds) +
+                               ", waiting=" + std::to_string(
+                               fadingTrail->waitingEnd != nullptr) +
+                               ", fading=" + std::to_string(
+                               fadingTrail->waitingEnd != nullptr &&
+                               fadingTrail->waitingEnd->IsFading())));
+            }
         }
         {
             // GameObject::OnPxSync publishes the graph actor pose before

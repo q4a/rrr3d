@@ -3289,3 +3289,44 @@ release.
 строится исходным кодом из steer и накопленного axle spin; ориентация Jolt
 wheel shape не становится игровой моделью. Regression публикует три physics
 step до одного кадра и требует позицию/rotation между последними двумя.
+
+### B8dy — PxWheelSlipEffect снова владеет world MapObj — выполнено
+
+Прямая сверка `eff9338:GameBase.cpp::PxWheelSlipEffect::OnProgress` и
+`GameCar.cpp::CarWheel::OnProgress` выявила оставшуюся renderer-заглушку.
+Windows после progress базового `EventEffect` создаёт `EffectDesc` с
+`child=false` в точке `NxWheelContactData::contactPoint + GetPos()`, двигает
+тот же глобальный `MapObj` при продолжающемся скольжении и завершает его через
+`FreeEffect(true)`. Порт вместо этого держал общие массивы trail/smoke на
+индексе racer/wheel, поэтому две последовательные генерации могли соединиться
+полосой, а source Map/effect identity вообще отсутствовала.
+
+`WheelContactState::position` теперь проходит до concrete `CarWheel`.
+`PxWheelSlipEffect` возвращает точный world position, owner и effect ID;
+session создаёт глобальный `ctEffects` MapObj, перемещает его и сохраняет ID
+после очистки `_makeEffect` до фактической смерти particle actor. Каждый
+`RaceEffect` получает собственную историю `FxTrailManager`, поэтому fading
+след и новое скольжение одного колеса сосуществуют без соединения и общего
+таймера. Одновременно восстановлен порядок `CarWheel::OnProgress`: сначала
+base behaviors, затем накопление axle angle. Jolt остаётся поставщиком
+контакта, bgfx — исполнителем particle/trail draw, source Map/EventEffect —
+владельцем объекта и lifetime.
+
+Повторная сверка `FxTrailManager::DrawPath` и
+`ResourceManager::LoadEffect` выявила ещё один visual defect: каждый segment
+должен получать alpha `1 - groupAge / groupLife`. Общий material frame на
+весь path терял плавное затухание. Теперь segment age передаётся в vertex
+color, а geometry всех source generations собирается в один Metal draw.
+Границы разных MapObj не соединяются индексами; совпадающие вершины соседних
+групп дублируются, сохраняя исходный постоянный цвет каждой группы.
+Regression проверяет независимые alpha, source turn direction, UV restart,
+разрывы и отсутствие NaN у неподвижного emitter. Семплирование `sotDist` и
+полное `mnaWaitingFree` поведение вынесены в следующий блок B8dz.
+
+Проверено 2026-09-07: полная arm64 Debug сборка, подпись, resource audit,
+physics smoke и 33/33 заново собранных CTest. Заезд 1800 кадров: max speed
+39.1393, четыре wheel contacts, все пять AI двигаются, max transient draws
+снизился со 187 в промежуточной реализации до 1. Это измерение draw count,
+не измерение пользовательского FPS. Исправлен и build preset M10: он теперь
+собирает `all`, поскольку прежний список целей оставлял старые CTest binaries
+и не собирал добавленные тесты.

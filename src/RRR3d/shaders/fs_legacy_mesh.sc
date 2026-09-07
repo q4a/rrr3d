@@ -1,4 +1,4 @@
-$input v_normal, v_texcoord0, v_worldPosition, v_reflectionPosition, v_shadowPosition, v_linearDepth, v_tangent, v_bitangent, v_shadowPositionFar
+$input v_normal, v_texcoord0, v_worldPosition, v_reflectionPosition, v_shadowPosition, v_linearDepth, v_tangent, v_bitangent, v_shadowPositionFar, v_color0
 
 #include "bgfx_shader.sh"
 
@@ -94,8 +94,8 @@ void main()
         mappedColor = mix(mappedColor, reflected.rgb, reflection);
     }
     vec4 albedo = vec4(
-        mappedColor * u_materialColor.rgb,
-        textureColor.a * u_materialColor.a);
+        mappedColor * u_materialColor.rgb * v_color0.rgb,
+        textureColor.a * u_materialColor.a * v_color0.a);
     if (u_materialParams.x > 0.0 &&
         albedo.a <= u_materialParams.x)
         discard;

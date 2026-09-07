@@ -7062,3 +7062,31 @@ fixed step. Рендерная world pose получается только по
 и преобразования интерполированным graph body. Трёхшаговый regression
 подтверждает, что slow-frame alpha смешивает только предпоследнее и последнее
 положения и вращения колеса, а reset очищает историю.
+
+### P2.330 — восстановлен глобальный Map lifecycle PxWheelSlipEffect — выполнено
+
+В `eff9338` type-9 behavior не является флагом рендера. Его
+`OnProgress` читает точный `NxWheelContactData`, создаёт non-child effect в
+глобальном `Map`, каждый tick ставит его в `contactPoint + _pos`, а при
+исчезновении slip вызывает `FreeEffect(true)`. Последний вызов сразу очищает
+`_makeEffect`, но оставляет объект в `_effObjList`, пока
+`FxSystemWaitingEnd` не закончит частицы и listener не вызовет
+`OnDestroyEffect`.
+
+Portable `EventEffect::FreeEffect(bool)` теперь различает немедленное
+удаление и source Death/fade. Полная contact position передаётся из Jolt в
+`CarWheel`; session материализует exact global effect record и хранит слабую
+identity до реального удаления MapObj. Renderer больше не объединяет все
+эпизоды одного колеса в один path: история индексируется стабильным runtime
+ID конкретного effect actor, а teleport начинает новый strip. Regression
+проверяет world position с исходным +0.01 Z, global Map ID, очистку
+`_makeEffect` при сохранённом `_effObjList` и активный particle fade.
+
+`FxTrailManager::DrawPath` также требует собственного normalized group age
+для каждого segment. В Metal добавлен нейтральный по умолчанию vertex color:
+в wheel batch он несёт точный material fade каждой группы. Поэтому число
+draw submissions не зависит от числа одновременно затухающих MapObj, а
+старые и новые следы сохраняют разную прозрачность. Index buffer содержит
+разрывы между исходными генерациями. `sotDist`/capacity history пока остаётся
+отдельной backend-границей для следующего B8dz, а не объявлена полностью
+эквивалентной FxEmitter.
