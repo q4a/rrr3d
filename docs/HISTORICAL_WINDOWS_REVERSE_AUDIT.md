@@ -7136,3 +7136,14 @@ range. Отсутствие этого этапа оставляло часть 
 общее для start grid и AI; позиция и heading берутся от исходной точки 10.
 Недолёт AI на трамплинах дальше по этой карте не объявляется исправленным.
 Полный протокол: [отчёт](CAMERA_SPAWN_REGRESSION_2026-09-07.md).
+
+### P2.334 — MusicCat ownership, AVI timing и GUI layout — выполнено
+
+Общий музыкальный Source исходника сохранён. Ошибка находилась в лишнем
+вызове StopGameMusic из портового reload, а не в необходимости разделить
+музыку на одновременно играющие каналы. GUI audit обнаружил пропущенный
+`Grid::Reposition` half-cell offset, `waLeft` у StepperBox, подмену
+Menu::CreateMenuButton2 круглой кнопкой вкладки, потерю шрифтов Small/Item
+и DT_LEFT многострочных подписей. Finish больше не получает MainMenu2 фон.
+Mac media boundary теперь пересобирает корректные PTS в кэше, сохраняя все
+исходные кадры. См. [отчёт](MENU_MUSIC_VIDEO_REGRESSION_2026-09-07.md).

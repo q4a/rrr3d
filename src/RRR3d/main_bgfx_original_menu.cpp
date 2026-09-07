@@ -115,8 +115,9 @@ struct OriginalDisplayMode
 constexpr int originalOptionsArrowDirection(
     float pointerX, float centerX, float halfWidth) noexcept
 {
-    const float left = centerX + 140.0F;
-    const float right = centerX + 380.0F;
+    // StepperBox is waLeft: its position is the left arrow, not its centre.
+    const float left = centerX + 260.0F;
+    const float right = centerX + 500.0F;
     if (pointerX >= left - halfWidth &&
         pointerX <= left + halfWidth)
         return -1;
@@ -126,9 +127,9 @@ constexpr int originalOptionsArrowDirection(
     return 0;
 }
 
-static_assert(originalOptionsArrowDirection(1100.0F, 960.0F, 20.0F) ==
+static_assert(originalOptionsArrowDirection(1220.0F, 960.0F, 20.0F) ==
               -1);
-static_assert(originalOptionsArrowDirection(1340.0F, 960.0F, 20.0F) ==
+static_assert(originalOptionsArrowDirection(1460.0F, 960.0F, 20.0F) ==
               1);
 
 std::pair<std::uint32_t, std::uint32_t> displayModePixelSize(
@@ -448,6 +449,8 @@ struct Options
     bool raceRenderSmokeTest = false;
     bool finishMenuSmokeTest = false;
     bool gamersFrameSmokeTest = false;
+    bool singleRaceSmokeTest = false;
+    std::string menuLayoutSmoke;
     bool startOptionsSmokeTest = false;
     std::uint32_t trackIndex = 0;
     bool trackSelected = false;
@@ -775,6 +778,22 @@ std::optional<Options> parseOptions(int argc, char** argv)
                 options.smokeFrames = 120;
             continue;
         }
+        if (argument == "--single-race-smoke-test")
+        {
+            options.singleRaceSmokeTest = true;
+            if (options.smokeFrames == 0)
+                options.smokeFrames = 300;
+            continue;
+        }
+        if (argument.substr(0, 14U) == "--menu-layout=")
+        {
+            options.menuLayoutSmoke = argument.substr(14U);
+            if (options.menuLayoutSmoke != "options" && options.menuLayoutSmoke != "garage")
+                return std::nullopt;
+            if (options.smokeFrames == 0U)
+                options.smokeFrames = 600U;
+            continue;
+        }
         if (argument == "--start-options-smoke-test")
         {
             options.startOptionsSmokeTest = true;
@@ -1080,16 +1099,18 @@ Texture createImageTextureWithAlpha(
 }
 
 rrr3d::macos::TextBitmap rasterizeSourceText(rrr3d::race::OriginalResourceManager &resources, std::string_view text,
-                                             float pointSize, bool bold, menu::Rgba8 color)
+                                             float pointSize, bool bold, menu::Rgba8 color,
+                                             rrr3d::macos::TextAlignment alignment = rrr3d::macos::TextAlignment::Center)
 {
     const auto font = resources.ResolveTextFont(pointSize, bold);
-    return rrr3d::macos::rasterizeText(text, font.faceName, static_cast<float>(font.height), font.bold(), color);
+    return rrr3d::macos::rasterizeText(text, font.faceName, static_cast<float>(font.height), font.bold(), color, alignment);
 }
 
 TextVisual createText(GraphicsDevice &device, rrr3d::race::OriginalResourceManager &resources, std::string_view text,
-                      float pointSize, bool bold, menu::Rgba8 color, std::string &resolvedFont)
+                      float pointSize, bool bold, menu::Rgba8 color, std::string &resolvedFont,
+                      rrr3d::macos::TextAlignment alignment = rrr3d::macos::TextAlignment::Center)
 {
-    auto bitmap = rasterizeSourceText(resources, text, pointSize, bold, color);
+    auto bitmap = rasterizeSourceText(resources, text, pointSize, bold, color, alignment);
     if (resolvedFont.empty())
         resolvedFont = bitmap.resolvedFontName;
     const Texture texture = device.createTextureRgba8(
@@ -1301,6 +1322,8 @@ int main(int argc, char** argv)
                      "[--physics-smoke-test] [--race-render-smoke-test] "
                      "[--finish-menu-smoke-test] "
                      "[--gamers-frame-smoke-test] "
+                     "[--single-race-smoke-test] "
+                     "[--menu-layout=options|garage] "
                      "[--start-options-smoke-test]"
 #endif
                      " [--smoke-size=WIDTHxHEIGHT] [--smoke-fullscreen]"
@@ -2718,7 +2741,8 @@ int main(int argc, char** argv)
     };
     auto createStyledPage =
         [&](std::vector<std::string> pageLabels, float pointSize,
-            menu::Rgba8 normalColor, menu::Rgba8 selectedColor) {
+            menu::Rgba8 normalColor, menu::Rgba8 selectedColor,
+            rrr3d::macos::TextAlignment alignment = rrr3d::macos::TextAlignment::Center) {
             MenuPageVisual page;
             page.labels = std::move(pageLabels);
             page.enabled.assign(page.labels.size(), true);
@@ -2726,17 +2750,17 @@ int main(int argc, char** argv)
             {
                 page.normal.push_back(createText(
                     *device, originalResourceManager, item,
-                    pointSize, false, normalColor, resolvedFont));
+                    pointSize, false, normalColor, resolvedFont, alignment));
                 page.selected.push_back(createText(
                     *device, originalResourceManager, item,
-                    pointSize, false, selectedColor, resolvedFont));
+                    pointSize, false, selectedColor, resolvedFont, alignment));
                 auto disabledColor = normalColor;
                 disabledColor.alpha =
                     static_cast<std::uint8_t>(
                         disabledColor.alpha / 4U);
                 page.disabled.push_back(createText(
                     *device, originalResourceManager, item,
-                    pointSize, false, disabledColor, resolvedFont));
+                    pointSize, false, disabledColor, resolvedFont, alignment));
             }
             return page;
         };
@@ -2945,6 +2969,13 @@ int main(int argc, char** argv)
             replaceFirst("%d", std::to_string(secondValue));
             return pattern;
         };
+    auto originalCurrency = [](std::uint32_t value) {
+        std::string result = std::to_string(value);
+        for (std::ptrdiff_t index = static_cast<std::ptrdiff_t>(result.size()) - 3;
+             index > 0; index -= 3)
+            result.insert(static_cast<std::size_t>(index), ",");
+        return result;
+    };
     auto raceMainInfoLabels = [&]() {
         const auto trackIndex = std::min(
             selectedTrack, originalRace->trackCatalog.size() - 1U);
@@ -2989,7 +3020,20 @@ int main(int argc, char** argv)
                 profileState.player.points);
         return std::vector<std::string>{
             passInfo, tournamentInfo,
-            "$" + std::to_string(profileState.player.money)};
+            originalCurrency(profileState.player.money)};
+    };
+    auto createRaceMainInfoPage = [&]() {
+        const auto labels = raceMainInfoLabels();
+        auto page = createStyledPage({labels[0], labels[1]}, 24.0F,
+            raceInfoColor, menu::selectedTextColor, rrr3d::macos::TextAlignment::Left);
+        const auto money = createStyledPage({labels[2]}, 32.0F,
+            menu::Rgba8{255, 255, 255, 255}, menu::selectedTextColor);
+        page.labels.push_back(money.labels.front());
+        page.enabled.push_back(true);
+        page.normal.push_back(money.normal.front());
+        page.selected.push_back(money.selected.front());
+        page.disabled.push_back(money.disabled.front());
+        return page;
     };
     auto raceMainStatsLabels = [&]() {
         const auto* car = originalGarage->findCar(
@@ -3076,13 +3120,11 @@ int main(int argc, char** argv)
             labels(
                 {"svPlayer", "svPassing", "svTournament",
                  "svWeapons", "svBossName"}),
-            menu::smallFontHeight, raceTextColor,
+            24.0F, raceTextColor,
             menu::selectedTextColor);
-        raceMainInfoPage = createStyledPage(
-            raceMainInfoLabels(), menu::smallFontHeight,
-            raceInfoColor, menu::selectedTextColor);
+        raceMainInfoPage = createRaceMainInfoPage();
         raceMainStatsPage = createStyledPage(
-            raceMainStatsLabels(), menu::smallFontHeight,
+            raceMainStatsLabels(), 24.0F,
             raceTextColor, menu::selectedTextColor);
         garagePage = createPage(
             {localized("svGarage"), localized("svMoney"), "-",
@@ -3154,8 +3196,8 @@ int main(int argc, char** argv)
             menu::headerFontHeight, optionsTextColor,
             optionsStateSelectedColor);
         optionsActionPage = createStyledPage(
-            labels({"svBack", "svApply"}), menu::headerFontHeight,
-            optionsTextColor, menu::selectedTextColor);
+            labels({"svBack", "svApply"}), 32.0F,
+            optionsTextColor, optionsStateSelectedColor);
         startOptionsLabelPage = createStyledPage(labels({"svCamera", "svResolution", "svLanguage", "svCommentator"}),
                                                  24.0F, optionsTextColor, menu::selectedTextColor);
         startOptionsValuePage =
@@ -5146,11 +5188,9 @@ int main(int argc, char** argv)
     };
 #ifdef RRR3D_PHYSICS
     auto refreshRaceMainPages = [&]() {
-        auto infoReplacement = createStyledPage(
-            raceMainInfoLabels(), menu::smallFontHeight,
-            raceInfoColor, menu::selectedTextColor);
+        auto infoReplacement = createRaceMainInfoPage();
         auto statsReplacement = createStyledPage(
-            raceMainStatsLabels(), menu::smallFontHeight,
+            raceMainStatsLabels(), 24.0F,
             raceTextColor, menu::selectedTextColor);
         destroyPage(raceMainInfoPage);
         destroyPage(raceMainStatsPage);
@@ -5426,8 +5466,10 @@ int main(int argc, char** argv)
     bool videoCompletionObserved = !options->videoSmokeTest;
     bool videoTournamentStartObserved = !options->videoSmokeTest;
     bool videoSmokeSeeked = false;
+    bool videoContinuousPlaybackObserved = false;
+    std::uint64_t videoFirstPlayingTicks = 0U;
     const std::uint64_t videoSmokeDeadline =
-        options->videoSmokeTest ? SDL_GetTicks() + 15000U : 0U;
+        options->videoSmokeTest ? SDL_GetTicks() + 30000U : 0U;
     auto completeOriginalMovie = [&]() {
         if (!originalMovieActive)
             return;
@@ -6305,7 +6347,13 @@ int main(int argc, char** argv)
         try
         {
 #ifdef RRR3D_AUDIO
-            stopRaceAudio();
+            // Loading a planet/profile is not GameMode::ExitRace. The
+            // Windows MusicCats share one source; stopping the inactive game
+            // catalog here also stopped the still-playing menu catalog.
+            if (inRace)
+                stopRaceAudio();
+            else
+                stopAllRaceLoops();
 #endif
             raceHud.shutdown(*device);
             raceRenderer.shutdown(*device);
@@ -7193,16 +7241,6 @@ int main(int argc, char** argv)
             menuSelection =
                 std::min(menuSelection, page.labels.size() - 1U);
         };
-    auto originalCurrency = [](std::uint32_t value) {
-        std::string result = std::to_string(value);
-        for (std::ptrdiff_t index =
-                 static_cast<std::ptrdiff_t>(result.size()) - 3;
-             index > 0; index -= 3)
-        {
-            result.insert(static_cast<std::size_t>(index), ",");
-        }
-        return result;
-    };
     auto hideWorkshopWeaponDialog = [&]() {
         sourceDialogs.HideWeapon();
     };
@@ -10148,6 +10186,10 @@ int main(int argc, char** argv)
         championshipMode = false;
         showOriginalGamers();
     }
+    if (options->menuLayoutSmoke == "options")
+        beginOriginalOptions();
+    else if (options->menuLayoutSmoke == "garage")
+        showOriginalRaceMenu();
 #endif
     if (options->finalMenuSmokeTest)
         showOriginalFinalMenu();
@@ -10260,8 +10302,61 @@ int main(int argc, char** argv)
     std::uint8_t integratedAudioMenuEventStep = 0U;
     std::uint32_t integratedAudioMenuEventNextFrame = 0U;
 #endif
+#if defined(RRR3D_PHYSICS) && defined(RRR3D_AUDIO)
+    std::uint32_t singleRaceReloadFrame = 0U;
+    std::optional<std::size_t> singleRaceMenuTrack;
+    std::uint64_t singleRaceMenuPosition = 0U;
+    bool singleRaceSmokeReady = false;
+    const auto singleRaceSmokeDeadline = SDL_GetTicks() + 15000U;
+#endif
     while (running)
     {
+#if defined(RRR3D_PHYSICS) && defined(RRR3D_AUDIO)
+        // Exercise the same NewProfile/reload boundary as Single Race only
+        // after menu decoding has finished; otherwise a silent source would
+        // conceal the shared-MusicCat regression.
+        if (options->singleRaceSmokeTest && !sourceStartupActive &&
+            singleRaceReloadFrame == 0U && music.currentVoiceActive())
+        {
+            singleRaceMenuTrack = music.currentTrack();
+            singleRaceMenuPosition = music.currentPositionFrames();
+            championshipMode = false;
+            championshipPlayerBeforeSkirmish = profileState.player;
+            profileState.player = r3d::game::originalrace::makeOriginalSkirmishProfile(
+                profileState, "gdNormal");
+            selectedTrack = 0U;
+            if (!reloadCurrentRace())
+                runtimeSmokeFailed = true;
+            showOriginalGamers();
+            singleRaceReloadFrame = std::max(renderedFrames, 1U);
+        }
+        if (options->singleRaceSmokeTest)
+        {
+            singleRaceSmokeReady = SDL_GetTicks() >= singleRaceSmokeDeadline ||
+                (singleRaceReloadFrame != 0U &&
+                 music.currentPositionFrames() > singleRaceMenuPosition + 4800U);
+            // A fast small-window renderer can exhaust 300 frames before
+            // asynchronous Ogg decoding has even started. Keep rendering,
+            // but do not call that a completed continuity verification.
+            if (!singleRaceSmokeReady)
+                SDL_Delay(1U);
+        }
+        if (options->singleRaceSmokeTest && singleRaceSmokeReady &&
+            renderedFrames + 1U >= options->smokeFrames)
+        {
+            const bool preserved = singleRaceReloadFrame != 0U &&
+                menuStack.back() == MenuScreen::Gamers &&
+                music.currentVoiceActive() && !music.paused() &&
+                music.currentTrack() == singleRaceMenuTrack &&
+                music.currentPositionFrames() > singleRaceMenuPosition + 4800U &&
+                !gameMusic.currentVoiceActive();
+            std::cout << "Single Race music continuity: " << preserved
+                      << " (reload-frame=" << singleRaceReloadFrame
+                      << ", menu-voice=" << music.currentVoiceActive()
+                      << ", position=" << music.currentPositionFrames() << ")\n";
+            runtimeSmokeFailed = runtimeSmokeFailed || !preserved;
+        }
+#endif
 #ifdef RRR3D_NETWORK
         if (networkSession.initialized())
         {
@@ -12506,14 +12601,14 @@ int main(int argc, char** argv)
                         }
                     }
                     const float actionY = centerY + 240.0F;
-                    if (std::abs(virtualY - actionY) <= 50.0F)
+                    if (std::abs(virtualY - actionY) <=
+                        static_cast<float>(startOptionsButtonImage.height) * 0.5F)
                     {
-                        if (virtualX >= centerX - 80.0F &&
-                            virtualX <= centerX + 280.0F)
+                        const float halfWidth =
+                            static_cast<float>(startOptionsButtonImage.width) * 0.5F;
+                        if (std::abs(virtualX - (centerX - 30.0F)) <= halfWidth)
                             hoveredOption = rowCount;
-                        else if (
-                            virtualX >= centerX + 280.0F &&
-                            virtualX <= centerX + 650.0F)
+                        else if (std::abs(virtualX - (centerX + 330.0F)) <= halfWidth)
                             hoveredOption = rowCount + 1U;
                     }
                     if (event.type ==
@@ -14633,7 +14728,19 @@ int main(int argc, char** argv)
                 videoFrameObserved || videoPlayer.readyForDisplay();
             videoAudioObserved =
                 videoAudioObserved || videoPlayer.hasAudioTrack();
+            if (options->videoSmokeTest && videoFrameObserved)
+            {
+                if (videoFirstPlayingTicks == 0U)
+                    videoFirstPlayingTicks = SDL_GetTicks();
+                const double position = videoPlayer.positionSeconds();
+                const double wallSeconds =
+                    static_cast<double>(SDL_GetTicks() - videoFirstPlayingTicks) / 1000.0;
+                videoContinuousPlaybackObserved = videoContinuousPlaybackObserved ||
+                    (position >= 6.0 && wallSeconds >= 5.0 &&
+                     std::abs(position - wallSeconds) < 0.75);
+            }
             if (options->videoSmokeTest && videoFrameObserved &&
+                videoContinuousPlaybackObserved &&
                 !videoSmokeSeeked)
             {
                 const double duration =
@@ -14661,10 +14768,18 @@ int main(int argc, char** argv)
                      SDL_GetTicks() >= videoSmokeDeadline)
             {
                 std::cerr
-                    << "Source movie smoke timed out after 15 seconds\n";
+                    << "Source movie smoke timed out after 30 seconds\n";
                 runtimeSmokeFailed = true;
                 finishOriginalMovie();
             }
+        }
+        if (sourceMovieState.IsVideoMode())
+        {
+            // Windows returns from World::OnProgress in video mode. Do not
+            // execute race/menu/audio-update work before yielding to Cocoa.
+            videoPlayer.waitForNextUpdate();
+            previousFrameTicks = SDL_GetTicksNS();
+            continue;
         }
 #endif
 
@@ -16548,7 +16663,7 @@ int main(int argc, char** argv)
         if (options->finishMenuSmokeTest &&
             sourceFinishFrame.shown() &&
             finishLastEventObserved &&
-            renderedFrames >= 240U)
+            renderedFrames >= std::max(240U, options->smokeFrames * 4U / 5U))
         {
             closeFinishMenu();
         }
@@ -16843,17 +16958,6 @@ int main(int argc, char** argv)
             ++renderedFrames;
             continue;
         }
-
-#ifdef RRR3D_VIDEO
-        if (sourceMovieState.IsVideoMode())
-        {
-            // GameMode::OnProgress switched the Windows renderer to a
-            // dedicated video mode.  Continuing to submit the complete
-            // bgfx/Metal frame below contends with hardware movie decode.
-            SDL_Delay(4U);
-            continue;
-        }
-#endif
 
 #ifdef RRR3D_PHYSICS
         worldEventPump.FrameStep(
@@ -17417,10 +17521,15 @@ int main(int argc, char** argv)
         else
 #endif
         {
+            const bool blackMenuBackground = drawingOriginalFinal
+#ifdef RRR3D_PHYSICS
+                || drawingOriginalFinish
+#endif
+                ;
             device->beginFrame(
-                camera, drawingOriginalFinal ? 0x000000ffU
+                camera, blackMenuBackground ? 0x000000ffU
                                              : 0x040818ffU);
-            if (!drawingOriginalFinal)
+            if (!blackMenuBackground)
             {
                 drawQuad(
                     *device, quad, shader, background,
@@ -17921,11 +18030,8 @@ int main(int argc, char** argv)
                         controls ? controlsRowImage.height
                                  : optionsRowImage.height),
                     optionsCenterX - 235.0F +
-                        (controls
-                             ? 0.0F
-                             : static_cast<float>(
-                                   optionsRowImage.width) *
-                                   0.5F),
+                        static_cast<float>(controls ? controlsRowImage.width
+                                                    : optionsRowImage.width) * 0.5F,
                     rowY, 45.0F,
                     transparent);
                 const auto& name =
@@ -17934,8 +18040,7 @@ int main(int argc, char** argv)
                                   : names->normal[index];
                 drawTextAt(
                     name,
-                    controls ? optionsCenterX - 374.0F
-                             : optionsCenterX - 200.0F,
+                    optionsCenterX - 200.0F,
                     rowY, controls ? 300.0F : 420.0F);
 
                 if (controls)
@@ -17999,7 +18104,7 @@ int main(int argc, char** argv)
                             [index - 2U];
                     const float normalized =
                         std::clamp(volume * 0.5F, 0.0F, 1.0F);
-                    const float barX = optionsCenterX + 260.0F;
+                    const float barX = optionsCenterX + 380.0F;
                     const float barWidth =
                         static_cast<float>(
                             optionsBarBackgroundImage.width);
@@ -18032,7 +18137,7 @@ int main(int argc, char** argv)
                     drawQuad(
                         *device, quad, shader, value.texture,
                         value.width, value.height,
-                        optionsCenterX + 260.0F, rowY, 12.0F,
+                        optionsCenterX + 380.0F, rowY, 12.0F,
                         transparent);
                 }
                 if (rowEnabled)
@@ -18050,7 +18155,7 @@ int main(int argc, char** argv)
                             selectedRow
                                 ? optionsArrowSelectedImage.height
                                 : optionsArrowImage.height),
-                        optionsCenterX + 140.0F, rowY, 20.0F,
+                        optionsCenterX + 260.0F, rowY, 20.0F,
                         transparent);
                     drawQuadRotated(
                         *device, quad, shader, arrow,
@@ -18062,30 +18167,32 @@ int main(int argc, char** argv)
                             selectedRow
                                 ? optionsArrowSelectedImage.height
                                 : optionsArrowImage.height),
-                        optionsCenterX + 380.0F, rowY, 20.0F,
+                        optionsCenterX + 500.0F, rowY, 20.0F,
                         bx::kPi, transparent);
                 }
             }
 
-            if (firstVisible > 0U)
+            if (optionsTab == r3d::game::originaloptions::Tab::Game ||
+                optionsTab == r3d::game::originaloptions::Tab::Controls)
             {
                 drawQuadRotated(
-                    *device, quad, shader, optionsArrowSelected,
+                    *device, quad, shader, garageArrow,
                     30.0F, 30.0F, optionsCenterX + 150.0F,
                     optionsCenterY -
                         (menuStack.back() ==
                                  MenuScreen::ControlsOptions
                              ? 150.0F
                              : 200.0F),
-                    20.0F, bx::kPiHalf, transparent);
+                    20.0F, -bx::kPiHalf, transparent);
             }
-            if (firstVisible + visibleRows < rowCount)
+            if (optionsTab == r3d::game::originaloptions::Tab::Game ||
+                optionsTab == r3d::game::originaloptions::Tab::Controls)
             {
                 drawQuadRotated(
-                    *device, quad, shader, optionsArrowSelected,
+                    *device, quad, shader, garageArrow,
                     30.0F, 30.0F, optionsCenterX + 150.0F,
                     optionsCenterY + 195.0F, 20.0F,
-                    -bx::kPiHalf, transparent);
+                    bx::kPiHalf, transparent);
             }
 
             for (std::size_t action = 0U; action < 2U; ++action)
@@ -18099,22 +18206,10 @@ int main(int argc, char** argv)
                 const float buttonY = optionsCenterY + 240.0F;
                 drawQuad(
                     *device, quad, shader,
-                    selectedAction ? optionsButtonSelected
-                                   : optionsButton,
-                    static_cast<float>(
-                        selectedAction
-                            ? optionsButtonSelectedImage.width
-                            : optionsButtonImage.width),
-                    static_cast<float>(
-                        selectedAction
-                            ? optionsButtonSelectedImage.height
-                            : optionsButtonImage.height),
-                    buttonX +
-                        static_cast<float>(
-                            selectedAction
-                                ? optionsButtonSelectedImage.width
-                                : optionsButtonImage.width) *
-                            0.5F,
+                    startOptionsButton,
+                    static_cast<float>(startOptionsButtonImage.width),
+                    static_cast<float>(startOptionsButtonImage.height),
+                    buttonX,
                     buttonY, 40.0F, transparent);
                 const auto& actionText =
                     selectedAction
@@ -18123,8 +18218,7 @@ int main(int argc, char** argv)
                 drawQuad(
                     *device, quad, shader, actionText.texture,
                     actionText.width, actionText.height,
-                    buttonX + 62.0F +
-                        actionText.width * 0.5F,
+                    buttonX,
                     buttonY, 15.0F, transparent);
             }
         }
@@ -20631,6 +20725,9 @@ int main(int argc, char** argv)
         ++renderedFrames;
         if (options->smokeFrames != 0 &&
             renderedFrames >= options->smokeFrames
+#if defined(RRR3D_PHYSICS) && defined(RRR3D_AUDIO)
+            && (!options->singleRaceSmokeTest || singleRaceSmokeReady)
+#endif
             && (!options->finalMenuSmokeTest ||
                 finalAutoCloseObserved)
 #ifdef RRR3D_AUDIO
@@ -20649,6 +20746,7 @@ int main(int argc, char** argv)
                 if (!videoFrameObserved || !videoAudioObserved ||
                     !videoCompletionObserved ||
                     !videoTournamentStartObserved ||
+                    !videoContinuousPlaybackObserved ||
                     !videoSmokeSeeked)
                 {
                     std::cerr
@@ -20659,6 +20757,7 @@ int main(int argc, char** argv)
                         << videoCompletionObserved
                         << ", tournament-start="
                         << videoTournamentStartObserved
+                        << ", continuous=" << videoContinuousPlaybackObserved
                         << ", seek=" << videoSmokeSeeked << '\n';
                     runtimeSmokeFailed = true;
                 }
@@ -20669,7 +20768,7 @@ int main(int argc, char** argv)
                         << renderedFrames
                         << " frames: original H.264/AAC movie, "
                            "AVFoundation audio/video playback, display, "
-                           "seek, cVideoStopped and tournament callback "
+                           "six-second continuous playback, seek, cVideoStopped and tournament callback "
                            "verified\n";
                 }
             }

@@ -16,6 +16,7 @@ struct MacVideoPlayer::Impl
     __weak NSWindow* window = nil;
     __strong AVPlayer* player = nil;
     __strong AVPlayerLayer* layer = nil;
+    __strong NSView* hostView = nil;
     __strong id completionObserver = nil;
     std::atomic_bool completed{false};
     bool active = false;
@@ -63,13 +64,15 @@ bool MacVideoPlayer::play(const std::filesystem::path& path, float volume,
     impl_->layer.backgroundColor = NSColor.blackColor.CGColor;
 
     NSView* contentView = impl_->window.contentView;
-    contentView.wantsLayer = YES;
+    // Do not attach AVPlayerLayer to SDL's Metal view/layer tree. A separate
+    // topmost Cocoa view owns movie composition and its drawable lifetime.
+    impl_->hostView = [[NSView alloc] initWithFrame:contentView.bounds];
+    impl_->hostView.wantsLayer = YES;
+    impl_->hostView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
     [CATransaction begin];
     [CATransaction setDisableActions:YES];
-    impl_->layer.frame = contentView.bounds;
-    impl_->layer.autoresizingMask =
-        kCALayerWidthSizable | kCALayerHeightSizable;
-    [contentView.layer addSublayer:impl_->layer];
+    impl_->hostView.layer = impl_->layer;
+    [contentView addSubview:impl_->hostView positioned:NSWindowAbove relativeTo:nil];
     [CATransaction commit];
 
     impl_->completed.store(false);
@@ -101,6 +104,8 @@ void MacVideoPlayer::stop()
     }
     if (impl_->layer != nil)
         [impl_->layer removeFromSuperlayer];
+    [impl_->hostView removeFromSuperview];
+    impl_->hostView = nil;
     impl_->layer = nil;
     impl_->player = nil;
     impl_->completed.store(false);
@@ -113,7 +118,7 @@ void MacVideoPlayer::resize()
     {
         [CATransaction begin];
         [CATransaction setDisableActions:YES];
-        impl_->layer.frame = impl_->window.contentView.bounds;
+        impl_->hostView.frame = impl_->window.contentView.bounds;
         [CATransaction commit];
     }
 }
@@ -145,6 +150,26 @@ PlaybackState MacVideoPlayer::update(std::string& error) const
         return PlaybackState::Failed;
     }
     return PlaybackState::Playing;
+}
+
+void MacVideoPlayer::waitForNextUpdate()
+{
+    @autoreleasepool
+    {
+        [CATransaction flush];
+        // SDL's nonblocking event poll is not an AppKit application run loop.
+        // Let timed media/main-queue callbacks run instead of sleeping the
+        // main thread, and return promptly for keyboard/mouse skip events.
+        CFRunLoopRunInMode(kCFRunLoopDefaultMode, 1.0 / 120.0, true);
+    }
+}
+
+double MacVideoPlayer::positionSeconds() const
+{
+    if (impl_->player == nil)
+        return 0.0;
+    const double value = CMTimeGetSeconds(impl_->player.currentTime);
+    return std::isfinite(value) ? value : 0.0;
 }
 
 bool MacVideoPlayer::readyForDisplay() const

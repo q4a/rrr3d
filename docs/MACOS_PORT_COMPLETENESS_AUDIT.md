@@ -3395,3 +3395,15 @@ velocity для камеры, кузова и HUD. Стартовый Trace ст
 World2/map16 остаются повторные недолёты через source gap между трамплинами.
 Причина пока не установлена; поведение не замаскировано сменой гравитации,
 маршрута или невидимым мостом. См. [полный отчёт](CAMERA_SPAWN_REGRESSION_2026-09-07.md).
+
+### B8ec — Single Race music, movie timestamps и Windows GUI layout — выполнено
+
+Подтверждены регрессии общего MusicCat Source при menu reload, неверных
+PTS AVI/remux, cell-height/em-height, многострочного выравнивания,
+полуячейки Options Grid, left-aligned StepperBox, ресурсов Back/Accept и
+титульного фона под Finish. Исправления сверены с `eff9338:prog` и
+Windows-скриншотами пользователя. 34 CTest и покадровая проверка всех
+14 роликов; отдельные runtime проверки описаны в
+[отчёте](MENU_MUSIC_VIDEO_REGRESSION_2026-09-07.md).
+Попиксельный паритет CoreText/D3DX и отсутствие пропусков дисплея под любой
+нагрузкой не объявляются. Предыдущий открытый вопрос AI-трамплинов остаётся.

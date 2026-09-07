@@ -92,7 +92,7 @@ int main()
     options.ensureVisible(Tab::Game, 11U);
     if (options.scroll(Tab::Game) != 5U ||
         options.visibleEnd(Tab::Game) != 12U ||
-        !close(options.firstRowY(Tab::Game, 1080.0F), 362.0F) ||
+        !close(options.firstRowY(Tab::Game, 1080.0F), 387.0F) ||
         !close(options.upArrowY(Tab::Game, 1080.0F), 340.0F) ||
         !close(options.downArrowY(1080.0F), 735.0F))
         return fail("GameFrame grid scrolling/layout differs");

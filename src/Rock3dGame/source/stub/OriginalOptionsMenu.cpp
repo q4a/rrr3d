@@ -460,9 +460,12 @@ float OptionsMenuState::stateButtonY(float viewportHeight,
 
 float OptionsMenuState::firstRowY(Tab tab, float viewportHeight) const noexcept
 {
+    // GUI::Grid::Reposition adds cellSize/2 for waLeftTop grids. Both
+    // GameFrame (50px cells) and ControlsFrame (43+7px cells) use it;
+    // MediaFrame/NetworkTab position their labels directly instead.
     return viewportHeight * 0.5F -
-           (tab == Tab::Controls ? 130.0F
-                                 : tab == Tab::Game ? 178.0F : 174.0F);
+           (tab == Tab::Controls ? 105.0F
+                                 : tab == Tab::Game ? 153.0F : 174.0F);
 }
 
 float OptionsMenuState::rowY(Tab tab, float viewportHeight,

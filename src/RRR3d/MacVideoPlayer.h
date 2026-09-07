@@ -29,6 +29,10 @@ public:
     void stop();
     void resize();
     void seek(double seconds);
+    // Service AVFoundation/CoreAnimation on the Cocoa main run loop while
+    // the game's simulation and Metal submissions are suspended.
+    void waitForNextUpdate();
+    double positionSeconds() const;
     PlaybackState update(std::string& error) const;
     bool readyForDisplay() const;
     bool hasAudioTrack() const;

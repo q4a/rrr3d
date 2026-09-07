@@ -91,8 +91,19 @@ Terminal working directory.
 
 The original 14 AVI resources contain H.264 video and MP3 audio, but
 AVFoundation does not accept their AVI container. During the build, FFmpeg
-remuxes them with `-c copy` into `video-cache/*.mp4`; neither stream is
-re-encoded. FFmpeg is a build-time tool only and is not a runtime dependency.
+decodes the original presentation order and produces H.264 (CRF 18)/AAC
+`video-cache/*.mp4`. AVI does not carry the H.264 B-frame presentation
+timestamps reliably enough for a `-c:v copy` remux: generated timestamps had
+assigned presentation times in decode order. The cache now uses the source
+frame rate and a microsecond filter timebase (`settb=AVTB`) before rebuilding
+PTS; the timebase avoids rounding away fractional 29.97-fps frame intervals.
+The original AVI assets remain unchanged. FFmpeg is a build-time tool only,
+not a runtime dependency. Verify every cached frame with:
+
+```bash
+python3 tools/verify_movie_timing.py resources/game-data/Data/Video \
+  build/macos-arm64-m10/Debug/RRR3d.app/Contents/Resources/video-cache
+```
 
 ## Running
 

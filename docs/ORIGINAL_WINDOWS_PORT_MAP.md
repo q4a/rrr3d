@@ -1956,3 +1956,11 @@ Headless session, copy и normal-mode regressions проверяют разде�
 и стартовую сетку; World2/map16 стартует от point 10, а не path-head 11.
 Сводка проверок и открытый вопрос прохождения AI разрыва с трамплинами:
 [CAMERA_SPAWN_REGRESSION_2026-09-07.md](CAMERA_SPAWN_REGRESSION_2026-09-07.md).
+
+Результат B8ec: устранён лишний `ExitRace`/общий `StopMusic` при подготовке
+Single Race. Восстановлены клеточные метрики D3DX-шрифтов, выравнивание
+RaceMainFrame и `waLeft`/полуячейка Grid в OptionsMenu; FinishMenu рисуется
+на чёрном фоне. AVI→AVFoundation-кэш пересобирается с корректными B-frame
+PTS, Cocoa обслуживается без игровой нагрузки во время роликов.
+Подробности и границы проверки:
+[MENU_MUSIC_VIDEO_REGRESSION_2026-09-07.md](MENU_MUSIC_VIDEO_REGRESSION_2026-09-07.md).

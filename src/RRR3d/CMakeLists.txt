@@ -557,14 +557,16 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
                         "${_rrr3d_video_cache_dir}"
                     COMMAND "${RRR3D_FFMPEG_EXECUTABLE}"
                         -nostdin -hide_banner -loglevel error -y
-                        -fflags +genpts
                         -i "${_rrr3d_video_source}"
                         -map 0:v:0 -map 0:a:0
-                        -c:v copy -c:a aac -b:a 192k
-                        -avoid_negative_ts make_zero
+                        -vf "settb=AVTB,setpts=N/FRAME_RATE/TB"
+                        -af "asetpts=PTS-STARTPTS"
+                        -c:v libx264 -preset fast -crf 18 -threads 2
+                        -pix_fmt yuv420p -fps_mode passthrough
+                        -c:a aac -b:a 192k
                         -movflags +faststart
                         "${_rrr3d_video_cache}"
-                    DEPENDS "${_rrr3d_video_source}"
+                    DEPENDS "${_rrr3d_video_source}" "${CMAKE_CURRENT_LIST_FILE}"
                     COMMENT
                         "Preparing original ${_rrr3d_video_stem}.avi H.264/AAC movie for AVFoundation"
                     VERBATIM)
@@ -666,6 +668,14 @@ endif()
 rrr3d_set_common_target_options(${PROJECT_NAME})
 
 if(NOT WIN32 AND RRR3D_BUILD_ORIGINAL_MENU)
+    add_executable(rrr3d_core_text_rasterizer_smoke
+        CoreTextRasterizerSmoke.cpp CoreTextRasterizer.cpp)
+    target_link_libraries(rrr3d_core_text_rasterizer_smoke PRIVATE Rock3dGame
+        ${RRR3D_CORETEXT_FRAMEWORK} ${RRR3D_COREGRAPHICS_FRAMEWORK})
+    rrr3d_set_common_target_options(rrr3d_core_text_rasterizer_smoke)
+    add_test(NAME rrr3d_core_text_rasterizer_smoke
+        COMMAND rrr3d_core_text_rasterizer_smoke)
+
     add_executable(rrr3d_original_trail_geometry_smoke
         OriginalTrailGeometrySmoke.cpp)
     target_link_libraries(rrr3d_original_trail_geometry_smoke PRIVATE

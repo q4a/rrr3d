@@ -143,7 +143,8 @@ int preferredGamePrimaryLanguageId()
 TextBitmap rasterizeText(std::string_view utf8,
                          std::string_view requestedFont,
                          float pointSize, bool bold,
-                         r3d::game::mainmenu2::Rgba8 color)
+                         r3d::game::mainmenu2::Rgba8 color,
+                         TextAlignment alignment)
 {
     if (utf8.empty() || requestedFont.empty() || pointSize <= 0.0F)
         throw std::runtime_error("Invalid CoreText rasterization request");
@@ -158,6 +159,14 @@ TextBitmap rasterizeText(std::string_view utf8,
         CTFontCreateWithName(requestedName.get(), pointSize, nullptr));
     if (font.get() == nullptr)
         throw std::runtime_error("Unable to create CoreText font");
+
+    // TextFont::DoInit passes a positive D3DXCreateFont height: the Windows
+    // character CELL (ascent + descent), not the em/point size CoreText uses.
+    // Passing it directly enlarged every label and its multiline spacing.
+    const CGFloat cellHeight = CTFontGetAscent(font.get()) + CTFontGetDescent(font.get());
+    if (cellHeight > 0.0)
+        font = ScopedFont(CTFontCreateCopyWithAttributes(
+            font.get(), pointSize * pointSize / cellHeight, nullptr, nullptr));
 
     const CGFloat components[] = {
         color.red / 255.0, color.green / 255.0, color.blue / 255.0,
@@ -204,11 +213,8 @@ TextBitmap rasterizeText(std::string_view utf8,
             break;
         lineStart = lineEnd + 1U;
     }
-    const CGFloat ascent = CTFontGetAscent(font.get());
     const CGFloat descent = CTFontGetDescent(font.get());
-    const CGFloat leading = CTFontGetLeading(font.get());
-    const CGFloat lineHeight =
-        std::max(ascent + descent + leading, 1.0);
+    const CGFloat lineHeight = pointSize;
     const std::size_t width = static_cast<std::size_t>(
         std::ceil(std::max(typographicWidth, 1.0))) + 4U;
     const std::size_t height = static_cast<std::size_t>(
@@ -234,8 +240,10 @@ TextBitmap rasterizeText(std::string_view utf8,
     CGContextSetShouldSmoothFonts(context.get(), true);
     for (std::size_t index = 0U; index < lines.size(); ++index)
     {
+        const CGFloat alignFactor = alignment == TextAlignment::Left ? 0.0
+            : alignment == TextAlignment::Right ? 1.0 : 0.5;
         const CGFloat x =
-            2.0 + (typographicWidth - lines[index].width) * 0.5;
+            2.0 + (typographicWidth - lines[index].width) * alignFactor;
         const CGFloat y =
             2.0 + descent +
             lineHeight * static_cast<CGFloat>(lines.size() - index - 1U);
