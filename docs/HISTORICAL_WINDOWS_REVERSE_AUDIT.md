@@ -7147,3 +7147,18 @@ Menu::CreateMenuButton2 круглой кнопкой вкладки, потер
 и DT_LEFT многострочных подписей. Finish больше не получает MainMenu2 фон.
 Mac media boundary теперь пересобирает корректные PTS в кэше, сохраняя все
 исходные кадры. См. [отчёт](MENU_MUSIC_VIDEO_REGRESSION_2026-09-07.md).
+
+### P2.335 — Options hover/font refresh и ResetCar collision mask — исправлено в коде
+
+Выбор текстуры 97×97 больше не сдвигает центр исходной кнопки 52×53;
+перенесены независимые OnMouseEnter/Leave состояния вкладок. Обновление
+Settings/StartOptions сохраняет Small=24. Для Retina введён явный единый
+GUI canvas и растеризация текста с плотностью 2. 3D остаётся нативным.
+ResetCar больше не включает cdgShotTransparency, в отличие от обычных
+projectile rays. В CheatUpdate восстановлена внешняя ветка ahead/behind,
+чтобы Faster-only не ускорял лидера. Тесты покрывают обе границы.
+
+Аудит World5: все 96 машин на 16 стартовых площадках имеют контакт с дорогой.
+Недолёт AI на трамплинах map16 не устранён и не скрыт общим render smoke.
+Финальная визуальная проверка требует разблокированного Mac.
+См. [отчёт](RETINA_OPTIONS_JUNGLE_REGRESSION_2026-09-07.md).

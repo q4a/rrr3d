@@ -940,6 +940,13 @@ int main()
         !tracedPlayer.car.cheatSlower)
         return 29;
 
+    const auto aheadWithoutSlowdown = tracedPlayer.CheatUpdate(
+        source::Player::cheatEnableFaster, 2U, 1U, cheatPlayers);
+    if (aheadWithoutSlowdown.faster || aheadWithoutSlowdown.slower ||
+        tracedPlayer.car.cheatFaster || tracedPlayer.car.cheatSlower ||
+        aheadWithoutSlowdown.torqueScale != 1.0F)
+        return 29;
+
     cheatPlayers[0].lap = tracedPlayer.car.GetLap() + 0.05F;
     cheatPlayers[1].lap = tracedPlayer.car.GetLap() + 0.49F;
     const auto computersExcluded = tracedPlayer.CheatUpdate(

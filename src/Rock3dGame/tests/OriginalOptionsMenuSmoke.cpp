@@ -45,6 +45,14 @@ int main()
 
     OptionsMenuState options(catalog());
     options.begin(config, difficulty);
+    options.setHoveredState(1U);
+    if (!options.stateHighlighted(0U) || !options.stateHighlighted(1U) ||
+        options.stateHighlighted(2U) || options.tab() != Tab::Game ||
+        !close(options.stateButtonCenterX(1920, 52), 428))
+        return fail("active and hovered tabs must glow at the normal button center");
+    options.setHoveredState(std::nullopt);
+    if (!options.stateHighlighted(0U) || options.stateHighlighted(1U))
+        return fail("mouse leave must restore only the active tab glow");
     if (!options.adjust(MenuScreen::GameOptions, 1U, 1) ||
         !close(options.draft().cameraDistance, 1.0F) ||
         !options.adjust(MenuScreen::GameOptions, 1U, -1) ||

@@ -13,6 +13,11 @@ int main()
         for (const float height : {18.0F, 24.0F, 32.0F, 44.0F})
         {
             const auto single = rasterizeText("Money", "Verdana", height, false, white);
+            const auto retina = rasterizeText("Money", "Verdana", height, false, white,
+                                              TextAlignment::Center, 2.0F);
+            if (retina.width != single.width * 2 || retina.height != single.height * 2 ||
+                retina.resolvedFontName != "Verdana")
+                throw std::runtime_error("Retina raster density changed source metrics/font");
             const auto lines = rasterizeText("Money\nPoints", "Verdana", height, false, white);
             if (single.height != height + 4 || lines.height != 2 * height + 4)
                 throw std::runtime_error("D3DX positive cell height/line spacing differs");

@@ -1,6 +1,7 @@
 #include "OriginalView.h"
 
 #include <cmath>
+#include <algorithm>
 
 namespace r3d::game::originalview
 {
@@ -13,6 +14,13 @@ Point subtract(Point left, Point right) noexcept
 }
 
 } // namespace
+
+Size MenuViewport(Size drawable) noexcept
+{
+    const float scale = std::max(1.0F, std::min(
+        drawable.width / 1920.0F, drawable.height / 1080.0F));
+    return {drawable.width / scale, drawable.height / scale};
+}
 
 void ViewState::Reset(Size windowSize, Size viewportSize) noexcept
 {

@@ -19,6 +19,7 @@ void OptionsMenuState::begin(const originalrace::UserConfig& config,
     draft_ = config;
     difficulty_ = std::move(difficulty);
     tab_ = Tab::Game;
+    hoveredState_.reset();
     scroll_.fill(0U);
     controlsUseGamepad_ = false;
 }
@@ -26,6 +27,7 @@ void OptionsMenuState::begin(const originalrace::UserConfig& config,
 void OptionsMenuState::cancel(const originalrace::UserConfig& config,
                               std::string difficulty)
 {
+    hoveredState_.reset();
     draft_ = config;
     difficulty_ = std::move(difficulty);
     scroll_.fill(0U);
@@ -76,6 +78,29 @@ void OptionsMenuState::setTab(Tab tab) noexcept
     tab_ = tab;
     if (tab_ == Tab::Game || tab_ == Tab::Controls)
         tabScroll(tab_) = 0U;
+}
+
+void OptionsMenuState::setHoveredState(std::optional<std::size_t> state) noexcept
+{
+    hoveredState_ = state && *state < 4U ? state : std::nullopt;
+}
+
+bool OptionsMenuState::stateHovered(std::size_t state) const noexcept
+{
+    return hoveredState_ == state;
+}
+
+bool OptionsMenuState::stateHighlighted(std::size_t state) const noexcept
+{
+    // OptionsMenu::OnMouseEnter/Leave preserves the active tab while another
+    // tab's button or its label dummy is hovered.
+    return state == static_cast<std::size_t>(tab_) || stateHovered(state);
+}
+
+float OptionsMenuState::stateButtonCenterX(float viewportWidth, float normalWidth) noexcept
+{
+    // waLeft applies to the normal widget size, not the larger glow texture.
+    return viewportWidth * 0.5F - 558.0F + normalWidth * 0.5F;
 }
 
 bool OptionsMenuState::owns(originalmenu::MenuScreen screen) noexcept

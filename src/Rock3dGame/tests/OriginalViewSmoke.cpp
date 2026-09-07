@@ -32,6 +32,23 @@ int fail(const std::string& message)
 
 int main()
 {
+    for (const auto drawable : {Size{1280, 800}, Size{1920, 1080},
+                                Size{3456, 2234}, Size{3840, 2160}})
+    {
+        const auto canvas = r3d::game::originalview::MenuViewport(drawable);
+        const float scale = drawable.width / canvas.width;
+        if (!close(scale, drawable.height / canvas.height) ||
+            (drawable.width >= 1920 && !close(canvas.width, 1920)))
+            return fail("Retina menu scale is not uniform/Full HD based");
+        ViewState pointer;
+        pointer.Reset({drawable.width / 2, drawable.height / 2}, canvas);
+        const Point button{canvas.width / 2 - 532, canvas.height / 2 - 125};
+        const auto mapped = pointer.ScreenToView({button.x * scale / 2,
+                                                  button.y * scale / 2});
+        if (std::abs(mapped.x - button.x) > 0.51F ||
+            std::abs(mapped.y - button.y) > 0.51F)
+            return fail("Retina pointer does not hit the rendered tab");
+    }
     ViewState view;
     if (view.IsValid() || !close(view.ScreenToView({10.0F, 20.0F}), {}))
         return fail("invalid dimensions are not guarded");

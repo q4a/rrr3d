@@ -14,6 +14,7 @@
 #ifdef RRR3D_PHYSICS
 #include "OriginalEnvironment.h"
 #include "OriginalGameDebug.h"
+#include "OriginalJungleAudit.h"
 #include "OriginalGameMode.h"
 #include "OriginalGarage.h"
 #include "OriginalProfile.h"
@@ -444,6 +445,7 @@ struct Options
 #endif
 #ifdef RRR3D_PHYSICS
     bool physicsSmokeTest = false;
+    bool jungleStartAudit = false;
     bool gameDebug = false;
     bool legacyWindowsDebug = false;
     bool raceRenderSmokeTest = false;
@@ -755,6 +757,11 @@ std::optional<Options> parseOptions(int argc, char** argv)
         if (argument == "--physics-smoke-test")
         {
             options.physicsSmokeTest = true;
+            continue;
+        }
+        if (argument == "--jungle-start-audit")
+        {
+            options.jungleStartAudit = true;
             continue;
         }
         if (argument == "--race-render-smoke-test")
@@ -1110,13 +1117,17 @@ TextVisual createText(GraphicsDevice &device, rrr3d::race::OriginalResourceManag
                       float pointSize, bool bold, menu::Rgba8 color, std::string &resolvedFont,
                       rrr3d::macos::TextAlignment alignment = rrr3d::macos::TextAlignment::Center)
 {
-    auto bitmap = rasterizeSourceText(resources, text, pointSize, bold, color, alignment);
+    // Keep cached source-sized labels sharp across Full HD/Retina changes.
+    constexpr float textDensity = 2.0F;
+    const auto font = resources.ResolveTextFont(pointSize, bold);
+    auto bitmap = rrr3d::macos::rasterizeText(text, font.faceName,
+        static_cast<float>(font.height), font.bold(), color, alignment, textDensity);
     if (resolvedFont.empty())
         resolvedFont = bitmap.resolvedFontName;
     const Texture texture = device.createTextureRgba8(
         bitmap.width, bitmap.height, bitmap.rgba.data(), bitmap.rgba.size());
-    return {texture, static_cast<float>(bitmap.width),
-            static_cast<float>(bitmap.height)};
+    return {texture, static_cast<float>(bitmap.width) / textDensity,
+            static_cast<float>(bitmap.height) / textDensity};
 }
 
 #ifdef RRR3D_PHYSICS
@@ -1319,7 +1330,7 @@ int main(int argc, char** argv)
                      " [--game-debug] [--legacy-windows-debug] "
                      "[--track=0..89] [--car=garage-record] "
                      "[--weather=fair|night|cloudy|rainy|sahara|hell|snow] "
-                     "[--physics-smoke-test] [--race-render-smoke-test] "
+                     "[--physics-smoke-test] [--jungle-start-audit] [--race-render-smoke-test] "
                      "[--finish-menu-smoke-test] "
                      "[--gamers-frame-smoke-test] "
                      "[--single-race-smoke-test] "
@@ -1369,7 +1380,7 @@ int main(int argc, char** argv)
     const bool sourceNormalInteractiveLaunch =
         options->smokeFrames == 0U &&
         !options->verifyResources &&
-        !options->physicsSmokeTest;
+        !options->physicsSmokeTest && !options->jungleStartAudit;
     const auto runtimeProfileDirectory =
         sourceNormalInteractiveLaunch
             ? rrr3d::platform::save_directory()
@@ -1775,6 +1786,8 @@ int main(int argc, char** argv)
     }
 
 #ifdef RRR3D_PHYSICS
+    if (options->jungleStartAudit)
+        return rrr3d::diagnostics::auditJungleStarts(*resources) ? EXIT_SUCCESS : EXIT_FAILURE;
     if (options->physicsSmokeTest)
     {
         std::string physicsError;
@@ -1982,12 +1995,12 @@ int main(int argc, char** argv)
         SDL_Quit();
         return EXIT_FAILURE;
     }
-    // D3D9's GUI viewport was expressed in backbuffer pixels. SDL mouse
-    // coordinates remain logical points on Retina, but the Metal drawable
-    // and the original GUI assets use pixels; pointer conversion below
-    // deliberately maps between those two coordinate spaces.
-    menu::virtualWidth = static_cast<float>(pixelWidth);
-    menu::virtualHeight = static_cast<float>(pixelHeight);
+    // Preserve the Windows Full HD widget footprint on Retina, with one
+    // canvas for drawing/input. The 3D framebuffer retains native pixels.
+    const auto menuViewport = originalview::MenuViewport(
+        {static_cast<float>(pixelWidth), static_cast<float>(pixelHeight)});
+    menu::virtualWidth = menuViewport.width;
+    menu::virtualHeight = menuViewport.height;
     int logicalWindowWidth = 0;
     int logicalWindowHeight = 0;
     SDL_GetWindowSize(window, &logicalWindowWidth, &logicalWindowHeight);
@@ -1995,7 +2008,7 @@ int main(int argc, char** argv)
     sourceView.Reset(
         {static_cast<float>(logicalWindowWidth),
          static_cast<float>(logicalWindowHeight)},
-        {static_cast<float>(pixelWidth), static_cast<float>(pixelHeight)});
+        menuViewport);
     std::cout << "GUI viewport: " << logicalWindowWidth << 'x'
               << logicalWindowHeight << " points, " << pixelWidth << 'x'
               << pixelHeight << " drawable pixels\n";
@@ -7234,7 +7247,7 @@ int main(int argc, char** argv)
         [&](MenuPageVisual& page,
             std::vector<std::string> pageLabels) {
             auto replacement = createStyledPage(
-                std::move(pageLabels), menu::smallFontHeight,
+                std::move(pageLabels), 24.0F,
                 optionsTextColor, menu::selectedTextColor);
             destroyPage(page);
             page = std::move(replacement);
@@ -9248,8 +9261,8 @@ int main(int argc, char** argv)
         sourceView.Reset(
             {static_cast<float>(logicalWindowWidth),
              static_cast<float>(logicalWindowHeight)},
-            {static_cast<float>(pendingPixelWidth),
-             static_cast<float>(pendingPixelHeight)});
+            originalview::MenuViewport({static_cast<float>(pendingPixelWidth),
+                                       static_cast<float>(pendingPixelHeight)}));
         if (pendingPixelWidth == pixelWidth &&
             pendingPixelHeight == pixelHeight)
         {
@@ -9257,11 +9270,13 @@ int main(int argc, char** argv)
         }
         pixelWidth = pendingPixelWidth;
         pixelHeight = pendingPixelHeight;
-        menu::virtualWidth = static_cast<float>(pixelWidth);
-        menu::virtualHeight = static_cast<float>(pixelHeight);
+        const auto canvas = originalview::MenuViewport(
+            {static_cast<float>(pixelWidth), static_cast<float>(pixelHeight)});
+        menu::virtualWidth = canvas.width;
+        menu::virtualHeight = canvas.height;
         device->resize(static_cast<std::uint32_t>(pixelWidth),
                        static_cast<std::uint32_t>(pixelHeight));
-        // The original GUI projection follows the active D3D backbuffer.
+        // All GUI projection and input use the same Retina-scaled canvas.
         // Rebuild it together with bgfx so resolution/fullscreen changes do
         // not keep hit testing and rendering in different coordinate spaces.
         camera = makeCamera(*device);
@@ -9474,7 +9489,7 @@ int main(int argc, char** argv)
     };
     auto refreshStartOptionsValues = [&]() {
         auto replacement = createStyledPage(
-            startOptionsValues(), menu::smallFontHeight,
+            startOptionsValues(), 24.0F,
             optionsTextColor, menu::selectedTextColor);
         destroyPage(startOptionsValuePage);
         startOptionsValuePage = std::move(replacement);
@@ -11082,8 +11097,8 @@ int main(int argc, char** argv)
                 sourceView.Reset(
                     {static_cast<float>(logicalWindowWidth),
                      static_cast<float>(logicalWindowHeight)},
-                    {static_cast<float>(pendingPixelWidth),
-                     static_cast<float>(pendingPixelHeight)});
+                    originalview::MenuViewport({static_cast<float>(pendingPixelWidth),
+                                               static_cast<float>(pendingPixelHeight)}));
                 const SDL_Keymod modifiers = SDL_GetModState();
                 const bool shift = (modifiers & SDL_KMOD_SHIFT) != 0;
                 const bool control = (modifiers & SDL_KMOD_CTRL) != 0;
@@ -12552,9 +12567,12 @@ int main(int argc, char** argv)
                         const float stateY =
                             sourceOptionsMenu.stateButtonY(
                                 menu::virtualHeight, state);
-                        if (virtualX >= centerX - 600.0F &&
-                            virtualX <= centerX - 250.0F &&
-                            std::abs(virtualY - stateY) <= 45.0F)
+                        if (virtualX >= centerX - 558.0F &&
+                            virtualX <= centerX - 558.0F +
+                                optionsButtonImage.width + 10.0F +
+                                optionsStatePage.normal[state].width &&
+                            std::abs(virtualY - stateY) <=
+                                optionsButtonImage.height * 0.5F)
                         {
                             hoveredState = state;
                             break;
@@ -12671,6 +12689,7 @@ int main(int argc, char** argv)
                         }
                     }
                 }
+                sourceOptionsMenu.setHoveredState(hoveredState);
                 if (hoveredOption)
                 {
                     menuSelection = *hoveredOption;
@@ -14695,8 +14714,8 @@ int main(int argc, char** argv)
                 sourceView.Reset(
                     {static_cast<float>(logicalWindowWidth),
                      static_cast<float>(logicalWindowHeight)},
-                    {static_cast<float>(pendingPixelWidth),
-                     static_cast<float>(pendingPixelHeight)});
+                    originalview::MenuViewport({static_cast<float>(pendingPixelWidth),
+                                               static_cast<float>(pendingPixelHeight)}));
             }
             else if (event.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED ||
                      event.type == SDL_EVENT_WINDOW_METAL_VIEW_RESIZED)
@@ -14704,6 +14723,13 @@ int main(int argc, char** argv)
                 requestDrawableResize(
                     event.window.data1, event.window.data2);
             }
+#ifdef RRR3D_PHYSICS
+            else if (event.type == SDL_EVENT_WINDOW_MOUSE_LEAVE ||
+                     event.type == SDL_EVENT_WINDOW_FOCUS_LOST)
+            {
+                sourceOptionsMenu.setHoveredState(std::nullopt);
+            }
+#endif
         }
 
 #ifdef RRR3D_VIDEO
@@ -16340,7 +16366,7 @@ int main(int argc, char** argv)
                     }
                 }
                 raceSession.lateProgress(frameSeconds, raceVehicles);
-                if (options->aiTelemetrySmoke && renderedFrames % 600U == 0U)
+                if (options->aiTelemetrySmoke && renderedFrames % 120U == 0U)
                 {
                     for (std::size_t index = 0U;
                          index < raceVehicles.size() &&
@@ -16356,6 +16382,9 @@ int main(int argc, char** argv)
                                   << state.body.position.y << ','
                                   << state.body.position.z << " speed="
                                   << state.speed << " lap=" << car.GetLap()
+                                  << " wheels=" << state.contactCount
+                                  << " resets=" << state.resetCount
+                                  << " destroyed=" << raceSession.racers()[index].IsDestroyed()
                                   << " live="
                                   << (live ? static_cast<int>(live->GetPoint()->GetId()) : -1)
                                   << " last="
@@ -17540,7 +17569,8 @@ int main(int argc, char** argv)
                     *device, quad, shader, topPanel,
                     static_cast<float>(model->topPanelImage.width),
                     static_cast<float>(model->topPanelImage.height),
-                    menu::virtualWidth * 0.5F, 200.0F, 70.0F,
+                    menu::virtualWidth * 0.5F,
+                    (menu::virtualHeight * 0.5F - 150.0F) * 0.5F, 70.0F,
                     transparent);
             }
         }
@@ -17915,13 +17945,14 @@ int main(int argc, char** argv)
             for (std::size_t index = 0;
                  index < optionsStatePage.labels.size(); ++index)
             {
-                const bool selectedState = index == state;
+                const bool activeState = index == state;
+                const bool selectedState = sourceOptionsMenu.stateHighlighted(index);
                 const float buttonX = optionsCenterX - 558.0F;
                 const float buttonY =
                     sourceOptionsMenu.stateButtonY(
                         menu::virtualHeight, index);
                 const auto& stateText =
-                    selectedState
+                    activeState && !sourceOptionsMenu.stateHovered(index)
                         ? optionsStatePage.selected[index]
                         : optionsStatePage.normal[index];
                 drawQuad(
@@ -17936,12 +17967,8 @@ int main(int argc, char** argv)
                         selectedState
                             ? optionsButtonSelectedImage.height
                             : optionsButtonImage.height),
-                    buttonX +
-                        static_cast<float>(
-                            selectedState
-                                ? optionsButtonSelectedImage.width
-                                : optionsButtonImage.width) *
-                            0.5F,
+                    sourceOptionsMenu.stateButtonCenterX(menu::virtualWidth,
+                        static_cast<float>(optionsButtonImage.width)),
                     buttonY, 45.0F, transparent);
                 drawQuad(
                     *device, quad, shader, stateText.texture,

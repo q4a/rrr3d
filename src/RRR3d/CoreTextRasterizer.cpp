@@ -144,9 +144,10 @@ TextBitmap rasterizeText(std::string_view utf8,
                          std::string_view requestedFont,
                          float pointSize, bool bold,
                          r3d::game::mainmenu2::Rgba8 color,
-                         TextAlignment alignment)
+                         TextAlignment alignment, float pixelScale)
 {
-    if (utf8.empty() || requestedFont.empty() || pointSize <= 0.0F)
+    if (utf8.empty() || requestedFont.empty() || pointSize <= 0.0F ||
+        !std::isfinite(pixelScale) || pixelScale <= 0.0F)
         throw std::runtime_error("Invalid CoreText rasterization request");
 
     const std::string fontName =
@@ -215,10 +216,10 @@ TextBitmap rasterizeText(std::string_view utf8,
     }
     const CGFloat descent = CTFontGetDescent(font.get());
     const CGFloat lineHeight = pointSize;
-    const std::size_t width = static_cast<std::size_t>(
-        std::ceil(std::max(typographicWidth, 1.0))) + 4U;
-    const std::size_t height = static_cast<std::size_t>(
-        std::ceil(lineHeight * static_cast<CGFloat>(lines.size()))) + 4U;
+    const std::size_t width = static_cast<std::size_t>(std::ceil(
+        (std::ceil(std::max(typographicWidth, 1.0)) + 4.0) * pixelScale));
+    const std::size_t height = static_cast<std::size_t>(std::ceil(
+        (std::ceil(lineHeight * static_cast<CGFloat>(lines.size())) + 4.0) * pixelScale));
     if (width > UINT16_MAX || height > UINT16_MAX ||
         width > std::numeric_limits<std::size_t>::max() / height / 4U)
         throw std::runtime_error("Rasterized menu text is too large");
@@ -236,6 +237,7 @@ TextBitmap rasterizeText(std::string_view utf8,
     if (context.get() == nullptr)
         throw std::runtime_error("Unable to create CoreText bitmap context");
     CGContextSetTextMatrix(context.get(), CGAffineTransformIdentity);
+    CGContextScaleCTM(context.get(), pixelScale, pixelScale);
     CGContextSetShouldAntialias(context.get(), true);
     CGContextSetShouldSmoothFonts(context.get(), true);
     for (std::size_t index = 0U; index < lines.size(); ++index)

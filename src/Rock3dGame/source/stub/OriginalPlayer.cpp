@@ -1774,9 +1774,12 @@ Player::CheatResult Player::CheatUpdate(
             (humanEasingMaximumDistance[difficulty] -
              humanEasingMinimumDistance[difficulty]),
         0.0F, 1.0F);
-    if (ownLap > opponent->lap &&
-        (cheatMask & cheatEnableSlower) != 0U)
+    if (ownLap > opponent->lap)
     {
+        // Windows keeps the ahead/behind branch outside the feature mask:
+        // disabling slowdown must not grant catch-up torque to the leader.
+        if ((cheatMask & cheatEnableSlower) == 0U)
+            return result;
         result.speedLimit =
             humanEasingMinimumSpeed[difficulty] +
             (humanEasingMaximumSpeed[difficulty] -

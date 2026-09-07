@@ -418,6 +418,10 @@ struct WorldRayCastQuery
     // Player::ResetCar additionally includes cdgPlaneDeath. Ordinary
     // projectile queries deliberately exclude it.
     bool includeDeathPlane = false;
+    // Player::ResetCar excludes cdgShotTransparency (track borders), while
+    // general projectile rays still see it. Do not reduce this to planeOnly:
+    // the reset search must also reject another car/default-group object.
+    bool includeTrackBorders = true;
 };
 
 struct WorldRayCastHit

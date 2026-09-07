@@ -456,6 +456,8 @@ elseif(RRR3D_BUILD_PORTABLE_MENU OR RRR3D_BUILD_ORIGINAL_MENU OR
             target_sources(${PROJECT_NAME} PRIVATE
                 OriginalGameDebug.cpp
                 OriginalGameDebug.h
+                OriginalJungleAudit.cpp
+                OriginalJungleAudit.h
                 OriginalRaceHud.cpp
                 OriginalRaceHud.h
                 OriginalRaceRenderer.cpp

@@ -24,7 +24,8 @@ TextBitmap rasterizeText(std::string_view utf8,
                          std::string_view requestedFont,
                          float pointSize, bool bold,
                          r3d::game::mainmenu2::Rgba8 color,
-                         TextAlignment alignment = TextAlignment::Center);
+                         TextAlignment alignment = TextAlignment::Center,
+                         float pixelScale = 1.0F);
 
 // Portable GetUserDefaultUILanguage/PRIMARYLANGID boundary used by the
 // source GameMode::AutodetectLanguage policy.

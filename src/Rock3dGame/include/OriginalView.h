@@ -15,6 +15,12 @@ struct Size
     float height = 0.0F;
 };
 
+// macOS presentation policy: preserve the Windows Full HD widget footprint
+// on higher-density drawables, without changing the 3D render resolution.
+// Below Full HD keep the original fixed-pixel layout. Uniform scaling also
+// keeps circles round on a 16:10 MacBook panel.
+Size MenuViewport(Size drawable) noexcept;
+
 enum class MouseKey
 {
     Left,
@@ -45,8 +51,8 @@ struct MouseMove
 };
 
 // Backend-neutral owner of the coordinate and pointer-state policy from
-// game/View.cpp. The SDL adapter supplies logical client and drawable sizes;
-// consumers always operate in the source D3D backbuffer coordinate space.
+// game/View.cpp. The SDL adapter supplies logical client and GUI canvas sizes;
+// MenuViewport adapts Retina drawables while preserving source coordinates.
 class ViewState
 {
 public:

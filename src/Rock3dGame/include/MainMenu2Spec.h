@@ -59,10 +59,8 @@ constexpr const char* commandName(Command command) noexcept
     return "Unknown";
 }
 
-// The Windows GUI manager projects directly into the active backbuffer
-// resolution. Keep these values in drawable pixels: the shipped GUI images
-// and fixed-pixel metrics otherwise become twice as large and blurry in a
-// Retina window whose SDL logical size is half its Metal drawable size.
+// Source widget coordinates, uniformly scaled by originalview::MenuViewport
+// above Full HD. They are not SDL window points or raw Retina pixels.
 inline float virtualWidth = 1920.0F;
 inline float virtualHeight = 1100.0F;
 inline constexpr float itemCenterOffsetX = 5.0F;

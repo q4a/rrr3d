@@ -1968,6 +1968,9 @@ public:
                 else if (kind == surfaceBodyKind)
                 {
                     surface = collisionSurface(userData);
+                    if (surface == CollisionSurface::TrackBorder &&
+                        !query.includeTrackBorders)
+                        return;
                     if (surface == CollisionSurface::DeathPlane &&
                         !query.includeDeathPlane)
                         return;
@@ -4698,6 +4701,18 @@ bool runOriginalVehiclePhysicsSmokeTest(const WorldDescription& description,
         createOriginalVehicleWorld(contactDescription, error);
     if (!contactWorld)
         return false;
+    WorldRayCastQuery borderQuery;
+    borderQuery.origin = {3.0F, 5.0F, 2.0F};
+    borderQuery.direction = {1.0F, 0.0F, 0.0F};
+    borderQuery.maximumDistance = 10.0F;
+    const auto borderHit = contactWorld->raycast(borderQuery);
+    borderQuery.includeTrackBorders = false;
+    if (!borderHit.hit || borderHit.surface != CollisionSurface::TrackBorder ||
+        contactWorld->raycast(borderQuery).hit)
+    {
+        error = "Player::ResetCar ray mask must exclude track borders without changing projectile rays";
+        return false;
+    }
     if (contactWorld->decorationCount() != 2U ||
         !contactWorld->decoration(0U).active ||
         !contactWorld->decoration(1U).active)

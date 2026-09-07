@@ -1964,3 +1964,11 @@ RaceMainFrame и `waLeft`/полуячейка Grid в OptionsMenu; FinishMenu �
 PTS, Cocoa обслуживается без игровой нагрузки во время роликов.
 Подробности и границы проверки:
 [MENU_MUSIC_VIDEO_REGRESSION_2026-09-07.md](MENU_MUSIC_VIDEO_REGRESSION_2026-09-07.md).
+
+Результат B8ed: исправлены Retina canvas/font density, повторная подмена
+Small=24 на VerySmall=18 при обновлении настроек и центр/hover вкладок
+OptionsMenu. ResetCar получил исходную маску без TrackBorder; восстановлена
+ветка ahead/behind в Player::CheatUpdate. Аудит 16 карт World5 проверил 96
+стартовых машин. Повторный недолёт AI на map16 остаётся открытым, финальная
+визуальная сверка заблокирована блокировкой Mac. Подробности:
+[RETINA_OPTIONS_JUNGLE_REGRESSION_2026-09-07.md](RETINA_OPTIONS_JUNGLE_REGRESSION_2026-09-07.md).

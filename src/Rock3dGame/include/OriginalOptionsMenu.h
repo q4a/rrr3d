@@ -6,6 +6,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -62,6 +63,10 @@ public:
 
     Tab tab() const noexcept;
     void setTab(Tab tab) noexcept;
+    void setHoveredState(std::optional<std::size_t> state) noexcept;
+    bool stateHovered(std::size_t state) const noexcept;
+    bool stateHighlighted(std::size_t state) const noexcept;
+    static float stateButtonCenterX(float viewportWidth, float normalWidth) noexcept;
     static bool owns(originalmenu::MenuScreen screen) noexcept;
     static Tab tabForScreen(originalmenu::MenuScreen screen) noexcept;
     static originalmenu::MenuScreen screenForTab(Tab tab) noexcept;
@@ -104,6 +109,7 @@ private:
     originalrace::UserConfig draft_{};
     std::string difficulty_ = "gdNormal";
     Tab tab_ = Tab::Game;
+    std::optional<std::size_t> hoveredState_;
     std::array<std::size_t, 4> scroll_{};
     bool controlsUseGamepad_ = false;
 };

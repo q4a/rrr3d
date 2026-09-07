@@ -996,6 +996,10 @@ ResetRayHit raycastResetWorld(
             continue;
         }
         const auto& mesh = race.collisionMeshes[meshIndex];
+        // Player.cpp: cdgTrackPlane | cdgPlaneDeath | cdgDefault, not
+        // cdgShotTransparency. Match the native reset ray mask.
+        if (mesh.surface == r3d::physics::CollisionSurface::TrackBorder)
+            continue;
         for (std::size_t index = 0;
              index + 2U < mesh.indices.size(); index += 3U)
         {
@@ -3695,6 +3699,7 @@ source::ResetCarRayKind OriginalRaceSession::queryResetWorld(
     // death-plane broad-phase extent and every serialized map coordinate.
     query.maximumDistance = 1000000.0F;
     query.includeDeathPlane = true;
+    query.includeTrackBorders = false;
     const auto hit = worldRaycast_(query);
     if (!hit.hit)
         return source::ResetCarRayKind::None;
@@ -17162,6 +17167,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     backendResetMaskValid =
                         backendResetMaskValid &&
                         query.includeDeathPlane &&
+                        !query.includeTrackBorders &&
                         !query.trackPlaneOnly &&
                         query.direction.z < -0.999F;
                     r3d::physics::WorldRayCastHit hit;
