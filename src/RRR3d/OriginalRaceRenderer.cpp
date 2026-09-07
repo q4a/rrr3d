@@ -211,7 +211,7 @@ Camera shadowCamera(const GraphicsDevice& device,
                     const Camera& sceneCamera,
                     const r3d::physics::Vec3& sun,
                     float sliceNear, float sliceFar,
-                    float cameraFar) noexcept
+                    float cameraNear, float cameraFar) noexcept
 {
     const auto sceneViewProjection = viewProjection(sceneCamera);
     std::array<float, 16> inverseViewProjection{};
@@ -235,11 +235,11 @@ Camera shadowCamera(const GraphicsDevice& device,
     };
     const float nearDepth =
         device.usesHomogeneousDepth() ? -1.0F : 0.0F;
-    const float denominator = std::max(cameraFar - 1.0F, 0.001F);
+    const float denominator = std::max(cameraFar - cameraNear, 0.001F);
     const float nearFrame =
-        std::clamp((sliceNear - 1.0F) / denominator, 0.0F, 1.0F);
+        std::clamp((sliceNear - cameraNear) / denominator, 0.0F, 1.0F);
     const float farFrame =
-        std::clamp((sliceFar - 1.0F) / denominator, 0.0F, 1.0F);
+        std::clamp((sliceFar - cameraNear) / denominator, 0.0F, 1.0F);
     std::array<r3d::physics::Vec3, 8> corners{};
     std::size_t corner = 0U;
     for (const float y : {-1.0F, 1.0F})
@@ -335,13 +335,12 @@ Camera shadowCamera(const GraphicsDevice& device,
     return camera;
 }
 
-float sourceShadowSplit(bool orthographic) noexcept
+float sourceShadowSplit(
+    bool orthographic, float nearDistance, float farDistance) noexcept
 {
     // ShadowMapRender::BuildViewProj uses the standard logarithmic/uniform
     // blend with lambda 0.1 for the isometric camera and 0.7 for the
     // perspective camera. CameraManager limits shadow depth to 55/60 m.
-    constexpr float nearDistance = 1.0F;
-    const float farDistance = orthographic ? 55.0F : 60.0F;
     const float lambda = orthographic ? 0.1F : 0.7F;
     const float logarithmic =
         nearDistance * std::sqrt(farDistance / nearDistance);
@@ -2550,6 +2549,21 @@ bool OriginalRaceRenderer::initialize(
                 grassFieldOffsets_ = std::move(grass.fieldOffsets);
             }
         }
+        // Source AdjustViewOrtho includes both the actor octree and ground.
+        if (race.environment.surface !=
+            r3d::game::originalrace::EnvironmentSurface::None)
+        {
+            include(sceneBounds, r3d::physics::Vec3{
+                environmentSurfaceCenter_.x - environmentSurfaceSize_.x * 0.5F,
+                environmentSurfaceCenter_.y - environmentSurfaceSize_.y * 0.5F,
+                environmentSurfaceCenter_.z});
+            include(sceneBounds, r3d::physics::Vec3{
+                environmentSurfaceCenter_.x + environmentSurfaceSize_.x * 0.5F,
+                environmentSurfaceCenter_.y + environmentSurfaceSize_.y * 0.5F,
+                environmentSurfaceCenter_.z});
+        }
+        sceneWorldMinimum_ = sceneBounds.minimum;
+        sceneWorldMaximum_ = sceneBounds.maximum;
         auto loadEffectTexture = [&](std::string_view path) {
             return resources.GetTexture(path).texture;
         };
@@ -2743,8 +2757,12 @@ void OriginalRaceRenderer::shutdown(GraphicsDevice& device) noexcept
     environmentSurfaceCenter_ = {};
     environmentSurfaceSize_ = {};
     sceneWorldCenter_ = {};
+    sceneWorldMinimum_ = {};
+    sceneWorldMaximum_ = {};
     grassFieldOffsets_.clear();
     activeCameraFarDistance_ = 120.0F;
+    activeCameraNearDistance_ = 1.0F;
+    cameraDepthOffset_ = 0.0F;
     perspectiveFarDistance_ = 120.0F;
     activeEnvironmentQuality_ = 2U;
     activeLightQuality_ = 2U;
@@ -2782,15 +2800,23 @@ Camera OriginalRaceRenderer::makeCamera(
     target.rotation = vehicle.body.rotation;
     target.linearVelocity = vehicle.linearVelocity;
     target.drivenWheelSpeed = sourceFreeWheelSpeed;
-    const auto frame = sourceCamera_.OnFrame(
+    const auto controlFrame = sourceCamera_.OnFrame(
         target, style, sourceAspect, cameraDistance,
         perspectiveFarDistance_, seconds);
+    const auto frame =
+        r3d::game::originalrace::source::CameraManager::AdjustViewOrtho(
+            controlFrame, sourceAspect, sceneWorldMinimum_, sceneWorldMaximum_);
 
     cameraPosition_ = frame.position;
     cameraViewDirection_ = frame.direction;
     cameraRotation_ = frame.rotation;
     cameraStyle_ = style;
     activeCameraFarDistance_ = frame.farDistance;
+    activeCameraNearDistance_ = frame.nearDistance;
+    cameraDepthOffset_ =
+        (controlFrame.position.x - frame.position.x) * frame.direction.x +
+        (controlFrame.position.y - frame.position.y) * frame.direction.y +
+        (controlFrame.position.z - frame.position.z) * frame.direction.z;
     pointSpriteScale_ = frame.pointSpriteScale;
 
     const bx::Vec3 eye{
@@ -2862,6 +2888,8 @@ Camera OriginalRaceRenderer::makePresentationCamera(
     cameraViewDirection_ = direction;
     cameraStyle_ = RaceCameraStyle::ThirdPerson;
     activeCameraFarDistance_ = std::max(source.farDistance, 1.0F);
+    activeCameraNearDistance_ = source.nearDistance;
+    cameraDepthOffset_ = 0.0F;
     sourceCamera_.Reset();
     return camera;
 }
@@ -5589,8 +5617,7 @@ void OriginalRaceRenderer::renderFrame(
     }
     // ActorManager::PullInRayTargetGroup projects the target onto the near
     // plane and casts only from that point to the player.  Use the actual
-    // one-metre orthographic near plane instead of extending the segment
-    // behind the camera to the far distance.
+    // adjusted render near plane, as Windows does after AdjustViewOrtho.
     const r3d::physics::Vec3 cameraToTarget{
         rayTarget.x - cameraPosition_.x,
         rayTarget.y - cameraPosition_.y,
@@ -5599,7 +5626,8 @@ void OriginalRaceRenderer::renderFrame(
         cameraToTarget.x * cameraViewDirection_.x +
         cameraToTarget.y * cameraViewDirection_.y +
         cameraToTarget.z * cameraViewDirection_.z;
-    const float targetToNear = std::max(targetDepth - 1.0F, 0.0F);
+    const float targetToNear = std::max(
+        targetDepth - activeCameraNearDistance_, 0.0F);
     const r3d::physics::Vec3 rayStart{
         rayTarget.x - cameraViewDirection_.x * targetToNear,
         rayTarget.y - cameraViewDirection_.y * targetToNear,
@@ -5709,9 +5737,14 @@ void OriginalRaceRenderer::renderFrame(
         sun.x * sun.x + sun.y * sun.y + sun.z * sun.z);
     if (sunLength < 0.001F)
         sun = {45.0F, 30.0F, 60.0F};
-    const float shadowFarDistance = isometricCamera ? 55.0F : 60.0F;
+    // GraphManager::RenderShadow extends _shadowMaxFar by the render-only
+    // ortho eye offset; otherwise the car falls beyond both shadow slices.
+    const float shadowFarDistance = std::min(
+        isometricCamera ? 55.0F + cameraDepthOffset_ : 60.0F,
+        activeCameraFarDistance_);
     const float shadowSplitDistance =
-        sourceShadowSplit(isometricCamera);
+        sourceShadowSplit(
+            isometricCamera, activeCameraNearDistance_, shadowFarDistance);
     const float cameraFarDistance = activeCameraFarDistance_;
     Camera lightCamera;
     Camera lightCameraFar;
@@ -5719,11 +5752,11 @@ void OriginalRaceRenderer::renderFrame(
     if (directionalShadowsEnabled)
     {
         lightCamera = shadowCamera(
-            device, camera, sun, 1.0F, shadowSplitDistance,
-            cameraFarDistance);
+            device, camera, sun, activeCameraNearDistance_, shadowSplitDistance,
+            activeCameraNearDistance_, cameraFarDistance);
         lightCameraFar = shadowCamera(
             device, camera, sun, shadowSplitDistance,
-            shadowFarDistance, cameraFarDistance);
+            shadowFarDistance, activeCameraNearDistance_, cameraFarDistance);
         lightCameraThird = lightCameraFar;
     }
     else if (spotShadowsEnabled)

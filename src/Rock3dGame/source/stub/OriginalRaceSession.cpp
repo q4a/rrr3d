@@ -2977,6 +2977,13 @@ physics::VehicleState OriginalRaceSession::racerFrameState(
         deltaTime, physicsAlpha);
 
     physics::VehicleState state = physicsState;
+    const auto& frameSync = racers_[racer].gameCar.GetFrameSync();
+    if (frameSync.HasPhysicsState())
+    {
+        const auto& renderVelocity = frameSync.GetRenderVelocity();
+        state.linearVelocity = {
+            renderVelocity.x, renderVelocity.y, renderVelocity.z};
+    }
     state.body.position = {
         graph.body.position.x,
         graph.body.position.y,
@@ -3703,38 +3710,7 @@ source::ResetCarRayKind OriginalRaceSession::queryResetWorld(
 
 void OriginalRaceSession::buildSourceTrace()
 {
-    auto& sourceTrace = map_.GetTrace();
-    sourceTrace.Clear();
-    for (const auto& pointData : race_.tracePoints)
-    {
-        auto* point = sourceTrace.AddPoint(pointData.id);
-        point->SetPos(pointData.position);
-        point->SetSize(pointData.width);
-    }
-    const auto appendPath = [&](const std::vector<std::uint32_t>& nodes) {
-        if (nodes.size() < 2U)
-            return;
-        auto* path = sourceTrace.AddPath();
-        for (const auto id : nodes)
-        {
-            auto* point = sourceTrace.FindPoint(id);
-            if (point == nullptr)
-                throw std::runtime_error(
-                    "Original race trace path is unresolved");
-            path->Add(point);
-        }
-    };
-    if (!race_.tracePaths.empty())
-    {
-        for (const auto& path : race_.tracePaths)
-            appendPath(path);
-    }
-    else
-    {
-        appendPath(race_.tracePath);
-    }
-    if (sourceTrace.GetPathCount() == 0U)
-        throw std::runtime_error("Original race trace has no paths");
+    buildOriginalTrace(race_, map_.GetTrace());
 }
 
 float OriginalRaceSession::lapPosition(
@@ -10062,6 +10038,7 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
             // renderer copy.
             OriginalRaceSession poseSession(race);
             auto poseVehicle = vehicles.front();
+            poseVehicle.linearVelocity = {};
             poseVehicle.body.position = {123.0F, 456.0F, 7.0F};
             const auto wheelCount = poseSession.racers()
                                         .front()
@@ -10100,6 +10077,20 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     "source GameCar/CarWheel graph pose was not published "
                     "for exact Source3d owners");
             }
+            // CameraManager consumes the same interpolated velocity as its
+            // graph target, including frames between two physics steps.
+            poseVehicle.body.position.x += 2.0F;
+            poseVehicle.linearVelocity = {10.0F, 4.0F, 0.0F};
+            for (auto& wheel : poseVehicle.wheels)
+                wheel.position.x += 2.0F;
+            poseSession.synchronizeRacerPhysicsState(0U, poseVehicle);
+            const auto quarterFrame = poseSession.racerFrameState(
+                0U, poseVehicle, 1.0F / 120.0F, 0.25F);
+            if (std::abs(quarterFrame.body.position.x - 123.5F) > 0.001F ||
+                std::abs(quarterFrame.linearVelocity.x - 2.5F) > 0.001F ||
+                std::abs(quarterFrame.linearVelocity.y - 1.0F) > 0.001F)
+                throw std::runtime_error(
+                    "camera target position and velocity use different physics times");
         }
         const auto droidDefinition = std::find_if(
             race.weapons.begin(), race.weapons.end(),

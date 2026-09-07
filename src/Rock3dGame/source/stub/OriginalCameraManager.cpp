@@ -1,7 +1,9 @@
 #include "OriginalCameraManager.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <limits>
 
 namespace r3d::game::originalrace::source
 {
@@ -640,6 +642,129 @@ CameraFrame CameraManager::progressFly(float deltaTime) noexcept
     return lastFrame_;
 }
 
+CameraFrame CameraManager::AdjustViewOrtho(
+    const CameraFrame& frame, float aspect,
+    Vec3 worldMinimum, Vec3 worldMaximum) noexcept
+{
+    if (frame.projection != CameraProjection::Orthographic ||
+        frame.orthographicWidth <= 0.0F || aspect <= 0.0F ||
+        worldMinimum.x > worldMaximum.x ||
+        worldMinimum.y > worldMaximum.y ||
+        worldMinimum.z > worldMaximum.z)
+        return frame;
+
+    const auto direction = normalized(frame.direction);
+    const auto right = normalized(cross(direction, frame.up));
+    const auto up = normalized(cross(right, direction));
+    const float halfWidth = frame.orthographicWidth * 0.5F;
+    const float halfHeight = halfWidth / aspect;
+    const auto relative = [&](Vec3 p) {
+        return Vec3{p.x - frame.position.x, p.y - frame.position.y,
+                    p.z - frame.position.z};
+    };
+    float minZ = std::numeric_limits<float>::max();
+    float maxZ = std::numeric_limits<float>::lowest();
+    bool found = false;
+    const auto include = [&](Vec3 p) {
+        const auto v = relative(p);
+        if (std::abs(dot(v, right)) <= halfWidth + 0.001F &&
+            std::abs(dot(v, up)) <= halfHeight + 0.001F)
+        {
+            const float z = dot(v, direction);
+            minZ = std::min(minZ, z);
+            maxZ = std::max(maxZ, z);
+            found = true;
+        }
+    };
+    std::array<Vec3, 8U> corners;
+    for (unsigned i = 0U; i < corners.size(); ++i)
+    {
+        corners[i] = {i & 1U ? worldMaximum.x : worldMinimum.x,
+                      i & 2U ? worldMaximum.y : worldMinimum.y,
+                      i & 4U ? worldMaximum.z : worldMinimum.z};
+        include(corners[i]);
+    }
+    // CameraCI::ComputeZBounds: AABB corners, AABB edges crossing the four
+    // lateral frustum planes, and the four infinite corner lines through
+    // the AABB. Do not clip those lines at the *old* near/far planes.
+    for (unsigned i = 0U; i < corners.size(); ++i)
+    {
+        for (unsigned bit : {1U, 2U, 4U})
+        {
+            if (i & bit)
+                continue;
+            const auto a = corners[i];
+            const auto b = corners[i | bit];
+            for (unsigned axis = 0U; axis < 2U; ++axis)
+            {
+                const auto normal = axis == 0U ? right : up;
+                const float half = axis == 0U ? halfWidth : halfHeight;
+                const float start = dot(relative(a), normal);
+                const float end = dot(relative(b), normal);
+                if (std::abs(end - start) <= 0.000001F)
+                    continue;
+                for (float sign : {-1.0F, 1.0F})
+                {
+                    const float t = (sign * half - start) / (end - start);
+                    if (t >= 0.0F && t <= 1.0F)
+                        include({a.x + (b.x - a.x) * t,
+                                 a.y + (b.y - a.y) * t,
+                                 a.z + (b.z - a.z) * t});
+                }
+            }
+        }
+    }
+    for (float x : {-halfWidth, halfWidth})
+        for (float y : {-halfHeight, halfHeight})
+        {
+            const Vec3 origin{
+                frame.position.x + right.x * x + up.x * y,
+                frame.position.y + right.y * x + up.y * y,
+                frame.position.z + right.z * x + up.z * y};
+            const std::array origins{origin.x, origin.y, origin.z};
+            const std::array directions{direction.x, direction.y, direction.z};
+            const std::array minimum{worldMinimum.x, worldMinimum.y, worldMinimum.z};
+            const std::array maximum{worldMaximum.x, worldMaximum.y, worldMaximum.z};
+            float near = std::numeric_limits<float>::lowest();
+            float far = std::numeric_limits<float>::max();
+            bool intersects = true;
+            for (unsigned axis = 0U; axis < 3U; ++axis)
+            {
+                if (std::abs(directions[axis]) <= 0.000001F)
+                {
+                    if (origins[axis] < minimum[axis] ||
+                        origins[axis] > maximum[axis])
+                        intersects = false;
+                    continue;
+                }
+                float a = (minimum[axis] - origins[axis]) / directions[axis];
+                float b = (maximum[axis] - origins[axis]) / directions[axis];
+                if (a > b)
+                    std::swap(a, b);
+                near = std::max(near, a);
+                far = std::min(far, b);
+            }
+            if (intersects && near <= far)
+            {
+                minZ = std::min(minZ, near);
+                maxZ = std::max(maxZ, far);
+                found = true;
+            }
+        }
+    if (!found)
+        return frame;
+    // eff9338 GraphManager.cpp:1996-2005. Moving only along the view
+    // direction leaves orthographic XY and apparent object sizes unchanged.
+    const float offset = std::min(minZ - frame.nearDistance, 0.0F);
+    auto adjusted = frame;
+    adjusted.position = {frame.position.x + direction.x * offset,
+                         frame.position.y + direction.y * offset,
+                         frame.position.z + direction.z * offset};
+    adjusted.nearDistance = minZ - offset;
+    adjusted.farDistance = std::max(maxZ, frame.farDistance) - offset;
+    return adjusted;
+}
+
 Vec3 CameraManager::ScreenToWorld(
     const CameraFrame& frame, float viewportWidth,
     float viewportHeight, CameraScreenPoint point, float z) noexcept
@@ -653,7 +778,8 @@ Vec3 CameraManager::ScreenToWorld(
     const auto direction = normalized(frame.direction);
     const auto right = normalized(rotate(
         frame.rotation, {0.0F, 1.0F, 0.0F}));
-    const auto up = normalized(frame.up);
+    const auto up = normalized(cross(
+        normalized(cross(direction, frame.up)), direction));
     const float depth = frame.nearDistance +
                         (frame.farDistance - frame.nearDistance) * z;
     float halfWidth = frame.orthographicWidth * 0.5F;
@@ -683,7 +809,8 @@ CameraScreenPoint CameraManager::WorldToScreen(
     const auto direction = normalized(frame.direction);
     const auto right = normalized(rotate(
         frame.rotation, {0.0F, 1.0F, 0.0F}));
-    const auto up = normalized(frame.up);
+    const auto up = normalized(cross(
+        normalized(cross(direction, frame.up)), direction));
     const Vec3 relative{point.x - frame.position.x,
                         point.y - frame.position.y,
                         point.z - frame.position.z};

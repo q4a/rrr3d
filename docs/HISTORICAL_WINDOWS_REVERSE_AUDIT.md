@@ -4436,9 +4436,10 @@ race smoke.
 
 Аудит B8d сначала исключил ложные пробелы. `Proj::EnableFilter/DisableFilter`
 уже имеют Jolt-эквивалент: луч Laser/FrostRay исключает машину-владельца,
-не меняя фильтр остальных тел. `Race::ResetCarPos` также перенесён буквально:
-четыре машины в ряду, интервал 7, visual-AABB width, `Vec2NormCW`, высота +2
-и обнуление всего физического состояния через `resetVehicle`.
+не меняя фильтр остальных тел. Для `Race::ResetCarPos` на этом этапе были
+сверены четыре машины в ряду, интервал 7, `Vec2NormCW`, высота +2 и обнуление
+физического состояния. Прежнее утверждение о буквальном переносе было
+слишком сильным: P2.333 позднее обнаружил неверный выбор стартовой точки.
 
 Реальный разрыв найден в `CameraManager`. Активные Garage/Angar
 `csAutoObserver` формулы находились локальной state machine в SDL entry point,
@@ -7121,3 +7122,17 @@ Headless regression проверяет, что неподвижный slip не 
 от CMake Debug/Release. Regression проверяет отсутствие Make/Play/Stop и
 MapObj только в explicit compatibility mode, сохранность behaviors и
 вращения, а также обычное скольжение в normal mode.
+
+### P2.333 — ortho depth, graph camera target и первая точка Trace — выполнено
+
+Восстановлен `GraphManager::AdjustViewOrtho` и связанное расширение shadow
+range. Отсутствие этого этапа оставляло часть видимой дороги за near plane.
+Камера читает graph position/rotation и интерполированную velocity,
+как `CameraManager::Control::OnInputFrame` в Windows.
+
+Повторная проверка `Race::ResetCarPos` опровергла прежнюю формулировку P2.189:
+первый сериализованный WayPoint не обязательно является первым узлом path0.
+В World2/map16 это точки 10 и 11 соответственно. Построение source Trace
+общее для start grid и AI; позиция и heading берутся от исходной точки 10.
+Недолёт AI на трамплинах дальше по этой карте не объявляется исправленным.
+Полный протокол: [отчёт](CAMERA_SPAWN_REGRESSION_2026-09-07.md).

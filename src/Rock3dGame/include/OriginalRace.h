@@ -21,6 +21,7 @@ namespace r3d::game::originalrace
 
 struct PlayerProfile;
 struct ProfileState;
+namespace source { class Trace; }
 
 using Vec3 = r3d::physics::Vec3;
 using Quat = r3d::physics::Quat;
@@ -998,6 +999,7 @@ void applyOriginalSkirmishComputerConfig(
     Race& race, const OriginalGarageCatalog& garage,
     std::uint32_t upgradeMaxLevel, std::uint32_t weaponMaxLevel,
     std::string_view difficulty);
+void buildOriginalTrace(const Race& race, source::Trace& trace);
 r3d::physics::WorldDescription makePhysicsDescription(
     const Race& race, const resource::ResourceFileSystem& resources);
 std::vector<DecorationDebrisDefinition> makeDecorationDestruction(

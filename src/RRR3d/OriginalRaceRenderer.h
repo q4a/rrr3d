@@ -250,6 +250,8 @@ private:
     r3d::physics::Vec3 environmentSurfaceCenter_;
     r3d::physics::Vec3 environmentSurfaceSize_;
     r3d::physics::Vec3 sceneWorldCenter_;
+    r3d::physics::Vec3 sceneWorldMinimum_;
+    r3d::physics::Vec3 sceneWorldMaximum_;
     std::vector<r3d::physics::Vec3> grassFieldOffsets_;
     r3d::game::originalrace::source::CameraManager sourceCamera_;
     r3d::game::originalrace::source::Environment
@@ -270,6 +272,8 @@ private:
     float previousRenderSeconds_ = 0.0F;
     float perspectiveFarDistance_ = 120.0F;
     float activeCameraFarDistance_ = 120.0F;
+    float activeCameraNearDistance_ = 1.0F;
+    float cameraDepthOffset_ = 0.0F;
     std::uint32_t activeEnvironmentQuality_ = 2U;
     std::uint32_t activeLightQuality_ = 2U;
     // FxPointSpritesManager multiplies the particle scale length by 0.75

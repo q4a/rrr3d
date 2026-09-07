@@ -133,6 +133,14 @@ public:
     void StopFly() noexcept;
     bool InFly() const noexcept;
 
+    // GraphManager::AdjustViewOrtho operates on a render-only CameraCI copy.
+    // Keep the control camera unchanged while including geometry behind its
+    // original near plane (the shallow isometric view needs this).
+    static CameraFrame AdjustViewOrtho(
+        const CameraFrame& frame, float aspect,
+        r3d::physics::Vec3 worldMinimum,
+        r3d::physics::Vec3 worldMaximum) noexcept;
+
     static r3d::physics::Vec3 ScreenToWorld(
         const CameraFrame& frame, float viewportWidth,
         float viewportHeight, CameraScreenPoint point, float z) noexcept;

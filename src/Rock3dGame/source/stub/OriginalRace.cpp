@@ -6,6 +6,7 @@
 #include "OriginalResourceCatalog.h"
 #include "OriginalSlot.h"
 #include "OriginalTournament.h"
+#include "OriginalTrace.h"
 #include "OriginalWeapon.h"
 #include "resource/R3DMeshAsset.h"
 #include "resource/ResourceFileSystem.h"
@@ -5393,6 +5394,41 @@ std::vector<DecorationDebrisDefinition> makeDecorationDestruction(
     return result;
 }
 
+void buildOriginalTrace(const Race& race, source::Trace& sourceTrace)
+{
+    sourceTrace.Clear();
+    for (const auto& pointData : race.tracePoints)
+    {
+        auto* point = sourceTrace.AddPoint(pointData.id);
+        point->SetPos(pointData.position);
+        point->SetSize(pointData.width);
+    }
+    const auto appendPath = [&](const std::vector<std::uint32_t>& nodes) {
+        if (nodes.size() < 2U)
+            return;
+        auto* path = sourceTrace.AddPath();
+        for (const auto id : nodes)
+        {
+            auto* point = sourceTrace.FindPoint(id);
+            if (point == nullptr)
+                throw std::runtime_error(
+                    "Original race trace path is unresolved");
+            path->Add(point);
+        }
+    };
+    if (!race.tracePaths.empty())
+    {
+        for (const auto& path : race.tracePaths)
+            appendPath(path);
+    }
+    else
+    {
+        appendPath(race.tracePath);
+    }
+    if (sourceTrace.GetPathCount() == 0U)
+        throw std::runtime_error("Original race trace has no paths");
+}
+
 r3d::physics::WorldDescription makePhysicsDescription(
     const Race& race, const resource::ResourceFileSystem& resources)
 {
@@ -5505,12 +5541,22 @@ r3d::physics::WorldDescription makePhysicsDescription(
                                           ": unresolved trace point");
         return *found;
     };
-    const auto& first = findPoint(race.tracePath[0]);
-    const auto& next = findPoint(race.tracePath[1]);
+    // Race::ResetCarPos uses Trace::GetPoints().front(), not the first
+    // path's head. World2/map16 starts at point 10 inside path0 (head 11).
+    // Use the same linked nodes as RockCar/AICar, including terminal nodes'
+    // GetPrevDir fallback, so spawn heading cannot diverge from the AI path.
+    source::Trace startTrace;
+    buildOriginalTrace(race, startTrace);
+    const auto& first = findPoint(race.tracePoints.front().id);
+    const auto* startPoint = startTrace.GetPoints().front().get();
     result.startPosition = first.position;
     result.startPosition.z += 2.0F; // Race::ResetCarPos legacy contract.
-    result.startDirection = {next.position.x - first.position.x,
-                             next.position.y - first.position.y, 0.0F};
+    result.startDirection = {1.0F, 0.0F, 0.0F};
+    if (!startPoint->GetNodes().empty())
+    {
+        const auto direction = startPoint->GetNodes().front()->GetTile().GetDir();
+        result.startDirection = {direction.x, direction.y, 0.0F};
+    }
     const float length = std::sqrt(
         result.startDirection.x * result.startDirection.x +
         result.startDirection.y * result.startDirection.y);
@@ -5942,6 +5988,36 @@ bool runOriginalRaceResourceSmokeTest(
             return false;
         }
         const auto physics = makePhysicsDescription(race, resources);
+        {
+            auto startRace = race;
+            startRace.levelPath = "Data/Map/World2/map16.r3dMap";
+            auto database = parseXml(resources, "db.xml");
+            loadMap(resources, database.RootElement(), startRace);
+            const auto startPhysics = makePhysicsDescription(startRace, resources);
+            source::Trace trace;
+            buildOriginalTrace(startRace, trace);
+            const auto* first = trace.GetPoints().front().get();
+            const auto direction = first->GetNodes().front()->GetTile().GetDir();
+            if (first->GetId() != 10U || startRace.tracePath.front() != 11U ||
+                std::abs(startPhysics.startPosition.x - first->GetPos().x) > 0.001F ||
+                std::abs(startPhysics.startPosition.y - first->GetPos().y) > 0.001F ||
+                std::abs(startPhysics.startPosition.z - first->GetPos().z - 2.0F) > 0.001F ||
+                std::abs(startPhysics.startDirection.x - direction.x) > 0.001F ||
+                std::abs(startPhysics.startDirection.y - direction.y) > 0.001F)
+                throw resource::ResourceError(
+                    "World2/map16 source point-10 start grid regression");
+            for (const auto& spawn : startPhysics.spawns)
+            {
+                const float dx = spawn.position.x - first->GetPos().x;
+                const float dy = spawn.position.y - first->GetPos().y;
+                if (std::sqrt(dx * dx + dy * dy) >
+                        first->GetSize() + 7.0F ||
+                    std::abs(spawn.direction.x - direction.x) > 0.001F ||
+                    std::abs(spawn.direction.y - direction.y) > 0.001F)
+                    throw resource::ResourceError(
+                        "AI spawn position/direction detached from source start");
+            }
+        }
         if (physics.spawns.size() >= 2U)
         {
             const float firstToSecondX =

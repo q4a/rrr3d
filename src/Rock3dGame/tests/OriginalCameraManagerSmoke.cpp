@@ -72,6 +72,57 @@ int main()
             20.0F))
         return 2;
 
+    // The control camera is intentionally only 20 m behind the car.
+    // GraphManager moves a render-only copy backwards to include the whole
+    // shallow orthographic view. Resolution changes must preserve framing.
+    for (const auto size : {
+             source::CameraScreenPoint{1920.0F, 1080.0F},
+             source::CameraScreenPoint{3456.0F, 2234.0F}})
+    {
+        const auto adjusted = source::CameraManager::AdjustViewOrtho(
+            isometric, size.x / size.y,
+            {-300.0F, -300.0F, -2.0F}, {300.0F, 300.0F, 60.0F});
+        if (distance(adjusted.position, isometric.position) < 20.0F ||
+            !near(adjusted.nearDistance, 1.0F, 0.01F) ||
+            adjusted.farDistance <= isometric.farDistance)
+            return 40;
+        const auto originalPixel = source::CameraManager::WorldToScreen(
+            isometric, size.x, size.y, target.position);
+        const auto adjustedPixel = source::CameraManager::WorldToScreen(
+            adjusted, size.x, size.y, target.position);
+        // WorldToScreen must use the actual orthonormal camera up, not
+        // world Z: otherwise moving the eye along its direction changes Y.
+        if (!near(originalPixel.x, adjustedPixel.x, 0.02F) ||
+            !near(originalPixel.y, adjustedPixel.y, 0.02F))
+            return 41;
+        // Road samples across the full viewport must survive the new depth
+        // range. Previously the foreground lay behind the one-metre near
+        // plane even though it projected inside the screen rectangle.
+        for (float x : {0.0F, size.x * 0.5F, size.x})
+            for (float y : {0.0F, size.y * 0.5F, size.y})
+            {
+                const auto ray = source::CameraManager::ScreenToRay(
+                    adjusted, size.x, size.y, {x, y});
+                const float t = -ray.origin.z / ray.direction.z;
+                const r3d::physics::Vec3 road{
+                    ray.origin.x + ray.direction.x * t,
+                    ray.origin.y + ray.direction.y * t, 0.0F};
+                const float depth =
+                    (road.x - adjusted.position.x) * adjusted.direction.x +
+                    (road.y - adjusted.position.y) * adjusted.direction.y +
+                    (road.z - adjusted.position.z) * adjusted.direction.z;
+                if (depth < adjusted.nearDistance - 0.01F ||
+                    depth > adjusted.farDistance + 0.01F)
+                    return 43;
+            }
+    }
+    const auto unchangedPerspective = source::CameraManager::AdjustViewOrtho(
+        thirdPerson, 16.0F / 9.0F, {-300.0F, -300.0F, -2.0F},
+        {300.0F, 300.0F, 60.0F});
+    if (distance(unchangedPerspective.position, thirdPerson.position) > 0.001F ||
+        unchangedPerspective.nearDistance != thirdPerson.nearDistance)
+        return 42;
+
     const auto beforeTeleport = isometric.position;
     target.position.x += 100.0F;
     const auto teleported = camera.OnFrame(

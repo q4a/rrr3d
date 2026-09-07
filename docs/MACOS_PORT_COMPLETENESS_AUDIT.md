@@ -3380,3 +3380,18 @@ headless debug session при высоком slip: нет ни WheelSlipEffect M
 камер. Счётчик всех transient meshes больше не подписан как FxTrail:
 он включает также AI trace/debug geometry, поэтому его ненулевое значение
 в legacy mode не означает наличие отключённых следов.
+
+### B8eb — ortho view, graph camera target и start-point parity — выполнено
+
+По `eff9338` перенесены `GraphManager::AdjustViewOrtho`,
+`CameraCI::ComputeZBounds` и связанный `RenderShadow` camera offset.
+Исправлен target CameraManager: одинаковые graph pose и physics-alpha
+velocity для камеры, кузова и HUD. Стартовый Trace строится общим кодом
+с AI и использует первый сериализованный point, а не голову path0.
+Реальная регрессия World2/map16 (10 против 11) закреплена тестом ресурсов.
+
+Сборка/подпись, 33/33 CTest, physics smoke, Full HD/нативные Metal-заезды и
+визуальная проверка дороги выполнены. Это не закрывает весь AI: на
+World2/map16 остаются повторные недолёты через source gap между трамплинами.
+Причина пока не установлена; поведение не замаскировано сменой гравитации,
+маршрута или невидимым мостом. См. [полный отчёт](CAMERA_SPAWN_REGRESSION_2026-09-07.md).

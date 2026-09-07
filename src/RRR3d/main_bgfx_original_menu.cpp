@@ -424,6 +424,11 @@ bool applyOriginalWindowMode(
 struct Options
 {
     std::uint32_t smokeFrames = 0;
+    std::uint32_t smokeWidth = 0;
+    std::uint32_t smokeHeight = 0;
+    bool smokeFullscreen = false;
+    bool variableFrameSmoke = false;
+    bool aiTelemetrySmoke = false;
     std::filesystem::path dataDirectory;
     std::string language;
     bool languageSelected = false;
@@ -627,6 +632,41 @@ std::optional<Options> parseOptions(int argc, char** argv)
     for (int index = 1; index < argc; ++index)
     {
         const std::string_view argument(argv[index]);
+        constexpr std::string_view smokeSizePrefix = "--smoke-size=";
+        if (argument.starts_with(smokeSizePrefix))
+        {
+            const auto size = argument.substr(smokeSizePrefix.size());
+            const auto separator = size.find('x');
+            if (separator == std::string_view::npos)
+                return std::nullopt;
+            const auto width = std::from_chars(
+                size.data(), size.data() + separator, options.smokeWidth);
+            const auto height = std::from_chars(
+                size.data() + separator + 1U, size.data() + size.size(),
+                options.smokeHeight);
+            if (width.ec != std::errc{} || height.ec != std::errc{} ||
+                width.ptr != size.data() + separator ||
+                height.ptr != size.data() + size.size() ||
+                options.smokeWidth < 320U || options.smokeHeight < 200U ||
+                options.smokeWidth > 8192U || options.smokeHeight > 8192U)
+                return std::nullopt;
+            continue;
+        }
+        if (argument == "--smoke-fullscreen")
+        {
+            options.smokeFullscreen = true;
+            continue;
+        }
+        if (argument == "--smoke-variable-frames")
+        {
+            options.variableFrameSmoke = true;
+            continue;
+        }
+        if (argument == "--smoke-ai-telemetry")
+        {
+            options.aiTelemetrySmoke = true;
+            continue;
+        }
         if (argument == "--verify-resources")
         {
             options.verifyResources = true;
@@ -791,6 +831,10 @@ std::optional<Options> parseOptions(int argc, char** argv)
         }
         return std::nullopt;
     }
+    if ((options.smokeWidth != 0U || options.smokeFullscreen ||
+         options.variableFrameSmoke || options.aiTelemetrySmoke) &&
+        options.smokeFrames == 0U)
+        return std::nullopt;
     return options;
 }
 
@@ -1259,6 +1303,9 @@ int main(int argc, char** argv)
                      "[--gamers-frame-smoke-test] "
                      "[--start-options-smoke-test]"
 #endif
+                     " [--smoke-size=WIDTHxHEIGHT] [--smoke-fullscreen]"
+                     " [--smoke-variable-frames]"
+                     " [--smoke-ai-telemetry]"
                      "\n";
         return EXIT_FAILURE;
     }
@@ -1843,13 +1890,16 @@ int main(int argc, char** argv)
     const auto sourceDisplayModes = originalDisplayModesForWindow(window);
 #ifdef RRR3D_PHYSICS
     const std::uint32_t startupWidth =
-        profileState.config.resolutionWidth;
+        options->smokeWidth != 0U ? options->smokeWidth
+                                 : profileState.config.resolutionWidth;
     const std::uint32_t startupHeight =
-        profileState.config.resolutionHeight;
-    // Regression fixtures must not seize the user's desktop. An ordinary
-    // launch applies the persisted source View::Desc before the first frame.
+        options->smokeHeight != 0U ? options->smokeHeight
+                                  : profileState.config.resolutionHeight;
+    // Fixtures stay windowed unless fullscreen is explicitly requested.
+    // An ordinary launch applies the persisted source View::Desc.
     const bool startupFullscreen =
-        profileState.config.fullScreen && options->smokeFrames == 0U;
+        options->smokeFullscreen ||
+        (profileState.config.fullScreen && options->smokeFrames == 0U);
 #else
     const std::uint32_t startupWidth = initialWidth;
     const std::uint32_t startupHeight = initialHeight;
@@ -10914,6 +10964,16 @@ int main(int argc, char** argv)
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {
+#ifdef RRR3D_PHYSICS
+            // This fixture drives a deterministic keyboard/menu sequence.
+            // Native pointer motion (including fullscreen repositioning)
+            // must not hover-select another button between its key presses.
+            // Fixture pointer events have windowID == 0 and remain active.
+            if (options->raceRenderSmokeTest &&
+                event.type == SDL_EVENT_MOUSE_MOTION &&
+                event.motion.windowID != 0U)
+                continue;
+#endif
             if (event.type == SDL_EVENT_MOUSE_MOTION ||
                 event.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
                 event.type == SDL_EVENT_MOUSE_BUTTON_UP)
@@ -14642,7 +14702,14 @@ int main(int argc, char** argv)
 #ifdef RRR3D_PHYSICS
         else if (options->raceRenderSmokeTest ||
             options->finishMenuSmokeTest)
-            frameSeconds = 1.0F / 60.0F;
+        {
+            constexpr std::array variableSteps{
+                1.0F / 120.0F, 1.0F / 120.0F,
+                1.0F / 30.0F, 1.0F / 60.0F};
+            frameSeconds = options->variableFrameSmoke
+                ? variableSteps[renderedFrames % variableSteps.size()]
+                : 1.0F / 60.0F;
+        }
 #endif
 #ifdef RRR3D_AUDIO
         else if (options->audioSmokeTest)
@@ -16158,6 +16225,29 @@ int main(int argc, char** argv)
                     }
                 }
                 raceSession.lateProgress(frameSeconds, raceVehicles);
+                if (options->aiTelemetrySmoke && renderedFrames % 600U == 0U)
+                {
+                    for (std::size_t index = 0U;
+                         index < raceVehicles.size() &&
+                         index < raceSession.racers().size(); ++index)
+                    {
+                        const auto& state = raceVehicles[index];
+                        const auto& car = raceSession.racers()[index].car;
+                        const auto* live = car.GetLiveTile();
+                        const auto* last = car.GetLastNode();
+                        std::cout << "Race trajectory frame=" << renderedFrames
+                                  << " racer=" << index << " pos="
+                                  << state.body.position.x << ','
+                                  << state.body.position.y << ','
+                                  << state.body.position.z << " speed="
+                                  << state.speed << " lap=" << car.GetLap()
+                                  << " live="
+                                  << (live ? static_cast<int>(live->GetPoint()->GetId()) : -1)
+                                  << " last="
+                                  << (last ? static_cast<int>(last->GetPoint()->GetId()) : -1)
+                                  << std::endl;
+                    }
+                }
 #ifdef RRR3D_NETWORK
                 if (networkMatchStarted &&
                     !publishLocalNetworkPlayer())
@@ -16921,7 +17011,9 @@ int main(int argc, char** argv)
                 raceSession.racers()[humanRacer]
                     .gameCar.GetDrivenWheelSpeed();
             const auto raceCamera = raceRenderer.makeCamera(
-                *device, physicsWorld->vehicle(humanRacer),
+                // Windows follows grActor/GetPxVelocityLerp, not the latest
+                // fixed-step PhysX pose. Camera, car and HUD need one time.
+                *device, raceRenderVehicles[humanRacer],
                 sourceFreeWheelSpeed,
                 static_cast<std::uint32_t>(pixelWidth),
                 static_cast<std::uint32_t>(pixelHeight),
@@ -21327,6 +21419,13 @@ int main(int argc, char** argv)
         }
     }
 
+    if (options->smokeFrames != 0U && renderedFrames < options->smokeFrames)
+    {
+        std::cerr << "Smoke test exited before verification: "
+                  << renderedFrames << '/' << options->smokeFrames
+                  << " frames\n";
+        runtimeSmokeFailed = true;
+    }
 #ifdef RRR3D_PHYSICS
     // MainMenu2 Exit -> Menu::Terminate -> GameMode::Terminate persists only
     // user.xml.  Race/profile/achievement writes occur at their explicit

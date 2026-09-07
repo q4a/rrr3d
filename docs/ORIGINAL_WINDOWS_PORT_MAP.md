@@ -47,7 +47,7 @@ Reference: `eff933868c1fbdfd266738a403fac80084f2b51e:prog`
 | `AICar` | `source::AICar::{PathState,AttackState,ControlState,ProgressResult}` | Source owner, active frame | Jolt/weapon snapshot и исполнение готовых move/shot команд остаются backend adapter |
 | `AIPlayer` | `source::AIPlayer`, `source::AISystem` | Source owner, active frame | Сетевой authority filter и AIDebug Metal/text submission остаются host boundary |
 | `AchievmentModel` | `source::AchievmentModel` | Source owner, active condition/reward path | XML чтение/запись остаётся profile adapter; source owner владеет всеми 9 conditions, reward states, покупкой и garage/gamer gates |
-| `CameraManager` | `source::{CameraManager,AutoObserver}` | Source owner, active race/presentation path | FlyTo, AutoObserver и screen/ray policy source-owned; bgfx строит только matrices, SDL переводит pointer events |
+| `CameraManager` | `source::{CameraManager,AutoObserver}` | Source owner, active race/presentation path | FlyTo, AutoObserver, screen/ray и render-only AdjustViewOrtho source-owned; target использует graph pose/velocity; bgfx строит matrices, SDL переводит pointer events |
 | `ControlManager` | `originalcontrol::ControlManager` + `SdlInputManager` | Source owner, active input path | Mouse screen/ray messages и menu/widget listeners остаются в блоках View/Menu |
 | `DataBase` | `source::DataBase` + `OriginalRace` reader | Source owner, active record path | Полный graph/material/physics catalog остаётся разделённым по разрешённым bgfx/Jolt adapters |
 | `DialogMenu2` | `originalmenu::DialogSystem` + GPU text caches | Source owner, active dialogs | Остался уже перенесённый отдельно UserChat и backend draw submission |
@@ -1949,3 +1949,10 @@ B8ea follow-up: утерянный при owner migration Windows `#if !_DEBUG`
 восстановлен внутри source PxWheelSlipEffect. Он запрещает slip visual/audio
 только в `--legacy-windows-debug`, сохраняя base progress и wheel motion.
 Headless session, copy и normal-mode regressions проверяют разделение.
+
+Результат B8eb: перенесён пропущенный `GraphManager::AdjustViewOrtho` вместе
+с depth bounds и поправкой shadow range. Camera target больше не читает
+сырой Jolt pose вместо source graph. Общий построитель Trace объединяет AI
+и стартовую сетку; World2/map16 стартует от point 10, а не path-head 11.
+Сводка проверок и открытый вопрос прохождения AI разрыва с трамплинами:
+[CAMERA_SPAWN_REGRESSION_2026-09-07.md](CAMERA_SPAWN_REGRESSION_2026-09-07.md).
