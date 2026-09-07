@@ -1634,6 +1634,11 @@ void PxWheelSlipEffect::OnProgress(float deltaTime) noexcept
     EventEffect::OnProgress(deltaTime);
     if (wheel_ == nullptr || effect_ >= wheel_->slipResults_.size())
         return;
+    // eff9338 GameBase.cpp keeps base EventEffect progress in both builds,
+    // but gates the entire slip visual/sound branch with #if !_DEBUG.
+    // Only the explicit comparison mode mirrors that compile-time guard.
+    if (wheel_->legacyWindowsDebug_)
+        return;
     wheel_->slipResults_[effect_] = OnProgress(
         wheel_->hasContact_, wheel_->longitudinalSlip_,
         wheel_->lateralSlip_, wheel_->contactPosition_);
@@ -1760,6 +1765,7 @@ CarWheel& CarWheel::operator=(const CarWheel& other) noexcept
     normalImpulse_ = other.normalImpulse_;
     contactPosition_ = other.contactPosition_;
     hasContact_ = other.hasContact_;
+    legacyWindowsDebug_ = other.legacyWindowsDebug_;
     slipEffectEnabled_ = other.slipEffectEnabled_;
     slipSoundEnabled_ = other.slipSoundEnabled_;
     pxFrameSync_ = other.pxFrameSync_;
@@ -2114,6 +2120,11 @@ float CarWheel::GetNormalReaction() const noexcept
 float CarWheel::GetNormalImpulse() const noexcept
 {
     return normalImpulse_;
+}
+
+void CarWheel::SetLegacyWindowsDebug(bool value) noexcept
+{
+    legacyWindowsDebug_ = value;
 }
 
 GameObject::ProgressResult CarWheel::OnProgress(

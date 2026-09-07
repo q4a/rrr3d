@@ -3360,3 +3360,23 @@ Renderer больше не хранит particle history и не создаёт 
 Проверено 2026-09-07: полная arm64 Debug сборка/подпись, 33/33 CTest,
 physics smoke и 1800-frame Metal/Jolt заезд прошли. Max transient draws
 остаётся 1; speed 39.1393, четыре wheel contacts и пять активных AI сохранены.
+
+### B8ea — восстановлена source debug-ветка PxWheelSlipEffect — выполнено
+
+После миграции wheel effects к глобальным MapObj был потерян guard, ранее
+находившийся в renderer path. В `eff9338:GameBase.cpp` type-9 сначала вызывает
+базовый EventEffect progress, а все contact/slip/Make/Free/Play/Stop выполняет
+только под `#if !_DEBUG`. Session теперь передаёт compatibility mode
+конкретным CarWheel, и сам behavior воспроизводит эту границу. Serialized
+owners, listeners и вращение колёс сохраняются; обычный Debug build и
+`--game-debug` продолжают release gameplay.
+
+Добавлены проверки скопированного CarWheel, normal-mode Make/Play и реального
+headless debug session при высоком slip: нет ни WheelSlipEffect MapObj,
+ни sound requests, но axle motion и source behavior остаются активны.
+
+Проверено 2026-09-07: arm64 build/signature, 33/33 CTest, physics smoke и
+оба Metal-заезда по 360 кадров прошли. В debug-заезде проверены все пять
+камер. Счётчик всех transient meshes больше не подписан как FxTrail:
+он включает также AI trace/debug geometry, поэтому его ненулевое значение
+в legacy mode не означает наличие отключённых следов.

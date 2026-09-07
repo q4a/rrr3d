@@ -601,6 +601,7 @@ public:
     bool HasContact() const noexcept;
     float GetNormalReaction() const noexcept;
     float GetNormalImpulse() const noexcept;
+    void SetLegacyWindowsDebug(bool value) noexcept;
     GameObject::ProgressResult OnProgress(float deltaTime) noexcept;
     const WheelSlipProgress& GetSlipResult() const noexcept;
     const std::vector<WheelSlipProgress>& GetSlipResults() const noexcept;
@@ -628,6 +629,7 @@ private:
     float normalImpulse_ = 0.0F;
     std::array<float, 3U> contactPosition_{};
     bool hasContact_ = false;
+    bool legacyWindowsDebug_ = false;
     bool slipEffectEnabled_ = false;
     bool slipSoundEnabled_ = false;
     GameObjectFrameSync pxFrameSync_;

@@ -1944,3 +1944,8 @@ capacity 100 ждёт освобождения, а не удаляет стар�
 удалены все wheel history timers/eviction/reset heuristics. Следующая
 particle-граница — stateful FxFlowEmitter для smoke и движущихся effect
 records, которые пока используют reconstruction по age/source velocity.
+
+B8ea follow-up: утерянный при owner migration Windows `#if !_DEBUG`
+восстановлен внутри source PxWheelSlipEffect. Он запрещает slip visual/audio
+только в `--legacy-windows-debug`, сохраняя base progress и wheel motion.
+Headless session, copy и normal-mode regressions проверяют разделение.

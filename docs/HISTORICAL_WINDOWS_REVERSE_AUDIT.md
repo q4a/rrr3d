@@ -7110,3 +7110,14 @@ MapObj на исходном порядке Logic → graph progress → сле�
 Headless regression проверяет, что неподвижный slip не обновляет возраст
 частицы, новый skid получает иной actor, а оба удаляются после исчерпания
 своих groups. Произвольные FxFlowEmitter records требуют отдельного переноса.
+
+### P2.332 — source PxWheelSlipEffect debug guard после owner migration — выполнено
+
+Восстановлена утерянная при переносе с renderer proxy к source behavior
+ветка `#if !_DEBUG` из `eff9338:GameBase.cpp:808`. Она теперь находится
+в `PxWheelSlipEffect::OnProgress` после базового EventEffect progress.
+Флаг принадлежит CarWheel и приходит из OriginalRaceSession, поэтому
+воссозданные машины тоже получают верный режим. Нормальный запуск не зависит
+от CMake Debug/Release. Regression проверяет отсутствие Make/Play/Stop и
+MapObj только в explicit compatibility mode, сохранность behaviors и
+вращения, а также обычное скольжение в normal mode.

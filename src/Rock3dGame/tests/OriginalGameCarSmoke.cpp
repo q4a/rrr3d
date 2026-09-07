@@ -795,6 +795,36 @@ int main()
         !released.stopSound || slip.IsEffectMaked())
         return 14;
 
+    source::CarWheel debugWheel(
+        {trailDefinition, smokeDefinition}, true,
+        &trailDefinition.visual, &smokeDefinition.visual);
+    debugWheel.SetLegacyWindowsDebug(true);
+    debugWheel.SetContact(true, 1.0F, 1.0F, 1.0F, 1.0F);
+    debugWheel.SetAxleSpeed(10.0F);
+    debugWheel.OnProgress(0.5F);
+    source::CarWheel copiedDebugWheel = debugWheel;
+    copiedDebugWheel.OnProgress(0.5F);
+    for (const auto* wheel : {&debugWheel, &copiedDebugWheel})
+    {
+        if (!wheel->HasSlipEffect() || !wheel->HasSlipSound() ||
+            wheel->GetSlipEffectCount() != 2U ||
+            wheel->GetSummAngle() < 5.0F)
+            return 100;
+        for (const auto& result : wheel->GetSlipResults())
+            if (result.active || result.makeEffect || result.freeEffect ||
+                result.playSound || result.stopSound)
+                return 101;
+    }
+    source::CarWheel normalWheel(
+        {trailDefinition, smokeDefinition}, true,
+        &trailDefinition.visual, &smokeDefinition.visual);
+    normalWheel.SetContact(true, 1.0F, 1.0F, 1.0F, 1.0F);
+    normalWheel.OnProgress(0.5F);
+    if (!normalWheel.GetSlipResult().active ||
+        !normalWheel.GetSlipResult().makeEffect ||
+        !normalWheel.GetSlipResult().playSound)
+        return 102;
+
     source::GusenizaAnim tracks;
     if (tracks.GetTextureOffset() != 1.0F ||
         std::abs(tracks.OnProgress(0.5F, 5.0F) - 0.5F) >

@@ -2928,3 +2928,6 @@ source RPC/UI branches и ручной двухмашинный LAN acceptance. 
   Renderer читает готовые группы; пауза и lifetime работают без Metal.
 - `FxSystemWaitingEnd` получает реальное число частиц, поэтому прекращение
   скольжения не продлевает старые следы искусственно ещё на 10 секунд.
+- В source `PxWheelSlipEffect` восстановлен `#if !_DEBUG` guard, ранее
+  потерянный при owner migration: explicit legacy mode отключает skid
+  visual/audio, но сохраняет behaviors и вращение; normal mode не изменён.

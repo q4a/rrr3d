@@ -5362,6 +5362,7 @@ void OriginalRaceSession::synchronizeRacerGameCars(
             auto* sourceWheel = runtime.gameCar.GetWheel(wheel);
             if (sourceWheel == nullptr)
                 continue;
+            sourceWheel->SetLegacyWindowsDebug(legacyWindowsDebug_);
             sourceWheel->SetAxleSpeed(
                 wheel < vehicle.wheelAngularSpeeds.size()
                     ? vehicle.wheelAngularSpeeds[wheel]
@@ -10027,6 +10028,31 @@ bool runOriginalRaceSessionSmokeTest(const Race& race, std::string& error)
                     }))
                 throw std::runtime_error(
                     "source trail MapObj outlived its last particle without a renderer");
+
+            // The serialized type-9 owners and wheel animation remain live
+            // in Windows _DEBUG; only their slip visual/audio work is gated.
+            OriginalRaceSession debugSlipSession(slipRace, true);
+            contact.longitudinalSlip = 1.0F;
+            contact.lateralSlip = 1.0F;
+            slipVehicles.front().wheelAngularSpeeds.assign(4U, 10.0F);
+            for (int frame = 0; frame < 30; ++frame)
+                debugSlipSession.update(
+                    1.0F / 60.0F, slipVehicles, RaceControl{});
+            const auto* debugWheel =
+                debugSlipSession.racers().front().gameCar.GetWheel(0U);
+            if (debugWheel == nullptr || !debugWheel->HasSlipEffect() ||
+                debugWheel->GetSummAngle() <= 0.0F ||
+                std::any_of(debugWheel->GetSlipResults().begin(),
+                    debugWheel->GetSlipResults().end(), [](const auto& result) {
+                        return result.active || result.makeEffect ||
+                               result.playSound || result.stopSound;
+                    }) ||
+                std::any_of(debugSlipSession.effects().begin(),
+                    debugSlipSession.effects().end(), [](const RaceEffect& effect) {
+                        return effect.kind == RaceEventKind::WheelSlipEffect;
+                    }))
+                throw std::runtime_error(
+                    "legacy Windows _DEBUG wheel slip guard was lost");
         }
         {
             // GameObject::OnPxSync publishes the graph actor pose before

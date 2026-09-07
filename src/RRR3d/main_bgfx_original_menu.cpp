@@ -20962,6 +20962,7 @@ int main(int argc, char** argv)
                 // this short run without inventing a skid solely for test
                 // coverage.
                 const bool expectsWheelSlipTrail =
+                    !options->legacyWindowsDebug &&
                     originalRace->levelPath ==
                     "Data/Map/World1/map1.r3dMap";
                 const bool expectsHeadlights =
@@ -21228,7 +21229,7 @@ int main(int argc, char** argv)
                         << maximumEnvironmentMappedDraws
                         << ", normal map "
                         << maximumNormalMappedDraws
-                        << ", FxTrail "
+                        << ", transient draws (trails/debug geometry) "
                         << maximumTransientDraws << "; "
                         << raceVehicles.size()
                         << " cars, both original camera modes and "

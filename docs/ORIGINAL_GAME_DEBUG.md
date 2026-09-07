@@ -77,6 +77,12 @@ Windows sources:
   tire skid smoke/trails/sound and the global contact spark/sound are absent
   in this comparison mode; ordinary gameplay is unchanged.
 
+The type-9 `PxWheelSlipEffect` guard is applied inside the source behavior,
+not by removing serialized wheel owners or muting a renderer proxy. Its base
+`EventEffect` progress and axle animation still run, matching `eff9338`.
+This gate was restored after the global MapObj wheel-slip migration on
+2026-09-07; headless session and copy/normal-mode regressions cover it.
+
 The earlier description of a “debug roster” was imprecise. `_DEBUG` does not
 increase `numAI`: the apparent extra `AIPlayer` owns the already existing
 human `Player` and is used only by `AIDebug`.
