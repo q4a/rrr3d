@@ -31,8 +31,8 @@ elseif (LINUX)
         set(DXVK_EXTRA_PARAM "-Denable_d3d8=false")
     endif()
     include(ExternalProject)
-    set(DXVK_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/build/dxvk-src-${DXVK_TYPE}")
-    set(DXVK_BINARY_DIR "${CMAKE_CURRENT_SOURCE_DIR}/build/dxvk-bin-${DXVK_TYPE}")
+    set(DXVK_SOURCE_DIR "${CMAKE_SOURCE_DIR}/build/dxvk-src-${DXVK_TYPE}")
+    set(DXVK_BINARY_DIR "${CMAKE_SOURCE_DIR}/build/dxvk-bin-${DXVK_TYPE}")
     message(STATUS "DXVK_SOURCE_DIR=${DXVK_SOURCE_DIR}")
     message(STATUS "DXVK_BINARY_DIR=${DXVK_BINARY_DIR}")
     set(DIRECTX_INCLUDE_DIRS
@@ -54,6 +54,42 @@ elseif (LINUX)
         BUILD_COMMAND     ninja
         INSTALL_COMMAND   ""
         BUILD_BYPRODUCTS  ${DIRECTX_LIBS}
+    )
+
+    include(ProcessorCount)
+    ProcessorCount(N)
+    message("ProcessorCount = ${N}")
+    set(VKD3D_CONFIG "./configure")
+    list(APPEND VKD3D_CONFIG "--disable-demos")
+    list(APPEND VKD3D_CONFIG "--disable-tests")
+    list(APPEND VKD3D_CONFIG "--disable-doxygen-doc")
+    list(APPEND VKD3D_CONFIG "--without-ncurses")
+    list(APPEND VKD3D_CONFIG "CXX=g++")
+    list(APPEND VKD3D_CONFIG  "CC=gcc")
+    if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+        list(APPEND VKD3D_CONFIG "CPPFLAGS=-fno-lto -O0")
+        list(APPEND VKD3D_CONFIG   "CFLAGS=-fno-lto -O0")
+        set(VKD3D_SOURCE_DIR "${CMAKE_SOURCE_DIR}/build/vkd3d-debug")
+    else()
+        list(APPEND VKD3D_CONFIG "CPPFLAGS=-fno-lto -O3 -DNDEBUG -DVKD3D_NO_TRACE_MESSAGES")
+        list(APPEND VKD3D_CONFIG   "CFLAGS=-fno-lto -O3 -DNDEBUG -DVKD3D_NO_TRACE_MESSAGES")
+        set(VKD3D_SOURCE_DIR "${CMAKE_SOURCE_DIR}/build/vkd3d-release")
+    endif()
+    set(VKD3D_INCLUDE_DIRS "${VKD3D_SOURCE_DIR}/include")
+    set(VKD3D_LIBS "${VKD3D_SOURCE_DIR}/.libs/libvkd3d-shader.a")
+    ExternalProject_Add(vkd3d
+        GIT_REPOSITORY    https://gitlab.winehq.org/wine/vkd3d.git
+        GIT_TAG           vkd3d-2.1
+        GIT_SHALLOW       ON
+        BUILD_ALWAYS      OFF
+        SOURCE_DIR        ${VKD3D_SOURCE_DIR}
+        BUILD_IN_SOURCE   ON
+        CONFIGURE_HANDLED_BY_BUILD ON
+        # result comman will be: ./configure "CPPFLAGS=-O3 -DNDEBUG -DVKD3D_NO_TRACE_MESSAGES" "CFLAGS=-O3 -DNDEBUG -DVKD3D_NO_TRACE_MESSAGES"
+        CONFIGURE_COMMAND ./autogen.sh && ${CMAKE_COMMAND} -E env ${VKD3D_CONFIG}
+        BUILD_COMMAND     make -j${N}
+        BUILD_BYPRODUCTS  ${VKD3D_LIBS}
+        INSTALL_COMMAND   ""
     )
 endif()
 
